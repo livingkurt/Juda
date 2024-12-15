@@ -1,4 +1,4 @@
-# Personal Assistant App
+# Juda App
 
 A cross-platform personal assistant application that combines task management features of Apple Reminders and Airtable functionality.
 
