@@ -8,6 +8,15 @@ class ApiService {
     return localStorage.getItem("token");
   }
 
+  // Helper method to set auth token
+  setAuthToken(token) {
+    if (token) {
+      localStorage.setItem("token", token);
+    } else {
+      localStorage.removeItem("token");
+    }
+  }
+
   // Helper method to handle API requests
   async request(endpoint, options = {}) {
     const headers = {
@@ -29,6 +38,10 @@ class ApiService {
       const data = await response.json();
 
       if (!response.ok) {
+        // If token is invalid, clear it
+        if (response.status === 401) {
+          this.setAuthToken(null);
+        }
         throw new Error(data.message || "Something went wrong");
       }
 
@@ -45,8 +58,9 @@ class ApiService {
       method: "POST",
       body: JSON.stringify(credentials),
     });
-    if (data.data.token) {
-      localStorage.setItem("token", data.data.token);
+
+    if (data.data?.token) {
+      this.setAuthToken(data.data.token);
     }
     return data;
   }
@@ -56,14 +70,15 @@ class ApiService {
       method: "POST",
       body: JSON.stringify(userData),
     });
-    if (data.data.token) {
-      localStorage.setItem("token", data.data.token);
+
+    if (data.data?.token) {
+      this.setAuthToken(data.data.token);
     }
     return data;
   }
 
   async logout() {
-    localStorage.removeItem("token");
+    this.setAuthToken(null);
     return this.request("/auth/logout", {
       method: "POST",
     });
