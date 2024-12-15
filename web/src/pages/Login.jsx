@@ -13,6 +13,7 @@ import {
 import { styled } from "@mui/material/styles";
 import { setUser, setError, setLoading } from "../store/authSlice";
 import { setSnackbar } from "../store/uiSlice";
+import apiService from "../services/api";
 
 const LoginCard = styled(Card)(({ theme }) => ({
   maxWidth: 400,
@@ -34,6 +35,8 @@ function Login() {
     password: "",
   });
 
+  const [formErrors, setFormErrors] = useState({});
+
   const handleChange = e => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -46,33 +49,27 @@ function Login() {
     e.preventDefault();
     try {
       dispatch(setLoading(true));
+      dispatch(setError(null));
 
-      // TODO: Replace with actual API call
-      const response = await fetch("http://localhost:3000/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+      const response = await apiService.login(formData);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
-      }
-
-      dispatch(setUser(data.data.user));
+      dispatch(setUser(response.data.user));
       dispatch(
         setSnackbar({
           open: true,
-          message: "Successfully logged in",
+          message: "Welcome back!",
           severity: "success",
         })
       );
 
       navigate("/");
     } catch (error) {
+      const errorMessage =
+        error.message === "Invalid email or password"
+          ? { password: error.message }
+          : { submit: error.message };
+
+      setFormErrors(errorMessage);
       dispatch(setError(error.message));
       dispatch(
         setSnackbar({
@@ -81,6 +78,8 @@ function Login() {
           severity: "error",
         })
       );
+    } finally {
+      dispatch(setLoading(false));
     }
   };
 
@@ -125,7 +124,8 @@ function Login() {
               fullWidth
               required
               autoComplete="email"
-              error={!!error}
+              error={!!formErrors.email}
+              helperText={formErrors.email}
             />
             <FormField
               label="Password"
@@ -136,8 +136,8 @@ function Login() {
               fullWidth
               required
               autoComplete="current-password"
-              error={!!error}
-              helperText={error}
+              error={!!formErrors.password}
+              helperText={formErrors.password}
             />
             <Button
               type="submit"

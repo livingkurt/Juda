@@ -13,6 +13,7 @@ import {
 import { styled } from "@mui/material/styles";
 import { setUser, setError, setLoading } from "../store/authSlice";
 import { setSnackbar } from "../store/uiSlice";
+import apiService from "../services/api";
 
 const RegisterCard = styled(Card)(({ theme }) => ({
   maxWidth: 400,
@@ -78,37 +79,35 @@ function Register() {
 
     try {
       dispatch(setLoading(true));
+      dispatch(setError(null)); // Clear any previous errors
 
-      // TODO: Replace with actual API call
-      const response = await fetch("http://localhost:3000/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
+      const userData = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      };
 
-      const data = await response.json();
+      const response = await apiService.register(userData);
 
-      if (!response.ok) {
-        throw new Error(data.message || "Registration failed");
-      }
-
-      dispatch(setUser(data.data.user));
+      dispatch(setUser(response.data.user));
       dispatch(
         setSnackbar({
           open: true,
-          message: "Successfully registered",
+          message: "Successfully registered! Welcome to Juda.",
           severity: "success",
         })
       );
 
       navigate("/");
     } catch (error) {
+      const errorMessage =
+        error.message ===
+        "Email is already registered. Please try logging in instead."
+          ? { email: error.message }
+          : { submit: error.message };
+
+      setFormErrors(errorMessage);
       dispatch(setError(error.message));
       dispatch(
         setSnackbar({
@@ -117,6 +116,8 @@ function Register() {
           severity: "error",
         })
       );
+    } finally {
+      dispatch(setLoading(false));
     }
   };
 

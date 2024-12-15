@@ -1,6 +1,6 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const { User } = require("../models");
 
 /**
  * Register a new user
@@ -10,11 +10,11 @@ const register = async (req, res) => {
     const { email, name, password, timezone, wake_time } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
-        status: 'error',
-        message: 'Email already registered'
+        status: "error",
+        message: "Email is already registered. Please try logging in instead.",
       });
     }
 
@@ -27,32 +27,40 @@ const register = async (req, res) => {
       email,
       name,
       password: hashedPassword,
-      timezone: timezone || 'UTC',
-      wake_time
+      timezone: timezone || "UTC",
+      wake_time: wake_time || "08:00",
     });
 
     // Generate JWT token
-    const token = jwt.sign(
-      { id: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || "24h",
+    });
 
     // Remove password from response
-    const { password: _, ...userWithoutPassword } = user.toJSON();
+    const userResponse = user.toObject();
+    delete userResponse.password;
 
     res.status(201).json({
-      status: 'success',
+      status: "success",
       data: {
-        user: userWithoutPassword,
-        token
-      }
+        user: userResponse,
+        token,
+      },
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error("Registration error:", error);
+
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({
+        status: "error",
+        message: "Email is already registered. Please try logging in instead.",
+      });
+    }
+
     res.status(500).json({
-      status: 'error',
-      message: 'Error registering user'
+      status: "error",
+      message: "Error registering user. Please try again.",
     });
   }
 };
@@ -65,11 +73,11 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     // Find user
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({
-        status: 'error',
-        message: 'Invalid credentials'
+        status: "error",
+        message: "Invalid email or password",
       });
     }
 
@@ -77,33 +85,32 @@ const login = async (req, res) => {
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({
-        status: 'error',
-        message: 'Invalid credentials'
+        status: "error",
+        message: "Invalid email or password",
       });
     }
 
     // Generate JWT token
-    const token = jwt.sign(
-      { id: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || "24h",
+    });
 
     // Remove password from response
-    const { password: _, ...userWithoutPassword } = user.toJSON();
+    const userResponse = user.toObject();
+    delete userResponse.password;
 
     res.json({
-      status: 'success',
+      status: "success",
       data: {
-        user: userWithoutPassword,
-        token
-      }
+        user: userResponse,
+        token,
+      },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Error logging in'
+      status: "error",
+      message: "Error logging in. Please try again.",
     });
   }
 };
@@ -116,14 +123,14 @@ const logout = async (req, res) => {
     // In a stateless JWT setup, we don't need to do anything server-side
     // The client should remove the token
     res.json({
-      status: 'success',
-      message: 'Logged out successfully'
+      status: "success",
+      message: "Logged out successfully",
     });
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error("Logout error:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Error logging out'
+      status: "error",
+      message: "Error logging out",
     });
   }
 };
@@ -133,20 +140,25 @@ const logout = async (req, res) => {
  */
 const getCurrentUser = async (req, res) => {
   try {
-    // User is already attached to req by auth middleware
-    const { password: _, ...userWithoutPassword } = req.user.toJSON();
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "User not found",
+      });
+    }
 
     res.json({
-      status: 'success',
+      status: "success",
       data: {
-        user: userWithoutPassword
-      }
+        user,
+      },
     });
   } catch (error) {
-    console.error('Get current user error:', error);
+    console.error("Get current user error:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Error getting current user'
+      status: "error",
+      message: "Error getting current user",
     });
   }
 };
@@ -155,5 +167,5 @@ module.exports = {
   register,
   login,
   logout,
-  getCurrentUser
+  getCurrentUser,
 };
