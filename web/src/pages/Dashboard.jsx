@@ -13,6 +13,7 @@ import {
 import { Add as AddIcon } from "@mui/icons-material";
 import { setDialog } from "../store/uiSlice";
 import { setReminders, setLoading, setError } from "../store/reminderSlice";
+import apiService from "../services/api";
 
 function Dashboard() {
   const dispatch = useDispatch();
@@ -26,19 +27,8 @@ function Dashboard() {
   const loadReminders = async () => {
     try {
       dispatch(setLoading(true));
-      const response = await fetch("http://localhost:3000/api/reminders", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to load reminders");
-      }
-
-      dispatch(setReminders(data.data.reminders));
+      const response = await apiService.getReminders();
+      dispatch(setReminders(response.data.reminders));
     } catch (error) {
       dispatch(setError(error.message));
     }
