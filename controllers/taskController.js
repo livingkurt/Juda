@@ -2,6 +2,7 @@ import pool from "../config/database.js";
 
 export const getTasks = async (req, res) => {
   try {
+    console.log("getTasks called with userId:", req.params.userId);
     const { userId } = req.params;
     const result = await pool.query(
       "SELECT * FROM tasks WHERE user_id = $1 AND is_active = true ORDER BY created_at DESC",
@@ -9,12 +10,15 @@ export const getTasks = async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
+    console.error("getTasks error:", error);
     res.status(500).json({ error: error.message });
   }
 };
 
 export const createTask = async (req, res) => {
   try {
+    console.log("createTask called with userId:", req.params.userId);
+    console.log("createTask body:", req.body);
     const { userId } = req.params;
     const { title, description, reminder_time } = req.body;
 
@@ -24,12 +28,14 @@ export const createTask = async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    console.error("createTask error:", error);
     res.status(500).json({ error: error.message });
   }
 };
 
 export const completeTask = async (req, res) => {
   try {
+    console.log("completeTask called with taskId:", req.params.taskId);
     const { taskId } = req.params;
     const { status, notes } = req.body;
 
@@ -39,6 +45,7 @@ export const completeTask = async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    console.error("completeTask error:", error);
     res.status(500).json({ error: error.message });
   }
 };
