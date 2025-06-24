@@ -11,6 +11,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { taskAPI } from "../services/api";
+import NotificationSetup from "./NotificationSetup";
 
 const TasksView = () => {
   const [tasks, setTasks] = useState([]);
@@ -70,6 +71,8 @@ const TasksView = () => {
       >
         Tasks
       </Typography>
+
+      <NotificationSetup />
 
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box component="form" onSubmit={handleCreateTask}>
