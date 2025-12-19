@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // We'll add PWA configuration later
+  reactStrictMode: true,
 };
 
-export default nextConfig;
+module.exports = nextConfig;
