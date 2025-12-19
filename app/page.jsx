@@ -118,21 +118,22 @@ export default function DailyTasksApp() {
   }, [todaysTasks, sections]);
 
   // Tasks that should appear in backlog:
-  // 1. Tasks without a time set
-  // 2. Tasks that don't match today's recurrence pattern
+  // 1. Tasks that don't match today's date (based on recurrence/startDate)
+  // 2. Tasks without recurrence and without time
   // 3. Not completed
   const backlogTasks = useMemo(() => {
     return tasks.filter(task => {
       // Skip completed tasks
       if (task.completed) return false;
 
-      // Include tasks without time
-      if (!task.time) return true;
+      // If task matches today's date (has recurrence/startDate that matches), exclude from backlog
+      if (shouldShowOnDate(task, today)) return false;
+
+      // Include tasks without recurrence and without time
+      if (!task.recurrence && !task.time) return true;
 
       // Include tasks that don't match today's recurrence
-      if (!shouldShowOnDate(task, today)) return true;
-
-      return false;
+      return true;
     });
   }, [tasks, today]);
 
@@ -246,12 +247,23 @@ export default function DailyTasksApp() {
         if (destDroppableId === "backlog") {
           // Reordering within backlog - not applicable for tasks
           return;
-        } else if (destDroppableId.startsWith("calendar-")) {
-          // Dropped on calendar - set date/time based on position
+        } else if (
+          destDroppableId.startsWith("calendar-") &&
+          !destDroppableId.includes("untimed")
+        ) {
+          // Dropped on calendar (timed area) - set date/time based on position
           const dropParts = destDroppableId.split(":");
           const calendarType = dropParts[0].split("-")[1];
           const dropDateStr = dropParts[1];
-          const dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
+          let dropDate;
+          try {
+            dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
+            if (isNaN(dropDate.getTime())) {
+              dropDate = selectedDate;
+            }
+          } catch (e) {
+            dropDate = selectedDate;
+          }
           // Use stored drop time from ref, default to 9 AM
           const dropTime = dropTimeRef.current || "09:00";
           dropTimeRef.current = null; // Reset
@@ -260,11 +272,11 @@ export default function DailyTasksApp() {
           const taskToUpdate = tasks.find(t => t.id === taskId);
           if (!taskToUpdate) return;
 
-          // Set recurrence to daily starting from drop date so it shows up
+          // Set as one-time task (no recurrence) with the specific date/time
           await updateTask(taskId, {
             time: dropTime,
             recurrence: {
-              type: "daily",
+              type: "none",
               startDate: dropDate.toISOString(),
             },
             sectionId: taskToUpdate.sectionId, // Keep the section
@@ -331,7 +343,7 @@ export default function DailyTasksApp() {
           }
         }
       }
-      // Handle drag from calendar
+      // Handle drag from calendar (including untimed tasks area)
       else if (sourceDroppableId.startsWith("calendar-")) {
         if (destDroppableId === "backlog") {
           // Dropped on backlog - remove date/time
@@ -339,20 +351,77 @@ export default function DailyTasksApp() {
             time: null,
             recurrence: null,
           });
-        } else if (destDroppableId.startsWith("calendar-")) {
-          // Moving within calendar - update time/date
+        } else if (
+          destDroppableId.startsWith("calendar-") &&
+          !destDroppableId.includes("untimed")
+        ) {
+          // Moving to timed calendar area - update time/date
           const dropParts = destDroppableId.split(":");
-          const calendarType = dropParts[0].split("-")[1];
+          const calendarType = dropParts[0].split("-")[1]; // "day" or "week"
           const dropDateStr = dropParts[1];
-          const dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
+          let dropDate;
+          try {
+            dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
+            if (isNaN(dropDate.getTime())) {
+              dropDate = selectedDate;
+            }
+          } catch (e) {
+            dropDate = selectedDate;
+          }
           // Use stored drop time from ref, default to 9 AM
           const dropTime = dropTimeRef.current || "09:00";
           dropTimeRef.current = null; // Reset
 
+          // Find the task to get its current recurrence
+          const taskToUpdate = tasks.find(t => t.id === taskId);
+          if (!taskToUpdate) return;
+
+          // Preserve recurrence type if it exists, otherwise set as one-time
+          const currentRecurrence = taskToUpdate.recurrence;
+          let recurrence;
+          if (currentRecurrence && currentRecurrence.type !== "none") {
+            // Keep existing recurrence pattern, just update startDate
+            recurrence = {
+              ...currentRecurrence,
+              startDate: dropDate.toISOString(),
+            };
+          } else {
+            // Set as one-time task
+            recurrence = {
+              type: "none",
+              startDate: dropDate.toISOString(),
+            };
+          }
+
           await updateTask(taskId, {
             time: dropTime,
-            recurrence: {
-              type: "daily",
+            recurrence,
+          });
+        } else if (destDroppableId.includes("untimed")) {
+          // Moving from timed to untimed area - remove time but keep date
+          const dropParts = destDroppableId.split(":");
+          // Handle both "calendar-day-untimed:" and "calendar-week-untimed:" formats
+          const dropDateStr =
+            dropParts.length > 1 ? dropParts[dropParts.length - 1] : null;
+          let dropDate;
+          try {
+            dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
+            if (isNaN(dropDate.getTime())) {
+              dropDate = selectedDate;
+            }
+          } catch (e) {
+            dropDate = selectedDate;
+          }
+
+          const taskToUpdate = tasks.find(t => t.id === taskId);
+          if (!taskToUpdate) return;
+
+          // Keep recurrence but remove time
+          const currentRecurrence = taskToUpdate.recurrence;
+          await updateTask(taskId, {
+            time: null,
+            recurrence: currentRecurrence || {
+              type: "none",
               startDate: dropDate.toISOString(),
             },
           });
