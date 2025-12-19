@@ -2,12 +2,14 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Box, Text, Flex, useColorModeValue } from "@chakra-ui/react";
+import { Droppable, Draggable } from "@hello-pangea/dnd";
 import {
   formatTime,
   timeToMinutes,
   minutesToTime,
   snapToIncrement,
   shouldShowOnDate,
+  calculateTaskPositions,
 } from "@/lib/utils";
 
 export const CalendarDayView = ({
@@ -110,14 +112,13 @@ export const CalendarDayView = ({
 
   const handleEnd = useCallback(() => {
     if (!dragState.taskId) return;
-    if (dragState.hasMoved) {
-      if (dragState.type === "move")
-        onTaskTimeChange(
-          dragState.taskId,
-          minutesToTime(dragState.currentMinutes)
-        );
-      else onTaskDurationChange(dragState.taskId, dragState.currentDuration);
-    }
+    const wasDragging = dragState.hasMoved;
+    const taskId = dragState.taskId;
+    const taskType = dragState.type;
+    const currentMinutes = dragState.currentMinutes;
+    const currentDuration = dragState.currentDuration;
+
+    // Reset drag state first
     setDragState({
       taskId: null,
       type: null,
@@ -128,7 +129,28 @@ export const CalendarDayView = ({
       currentDuration: 0,
       hasMoved: false,
     });
-  }, [dragState, onTaskTimeChange, onTaskDurationChange]);
+
+    if (wasDragging) {
+      // Handle drag completion
+      if (taskType === "move")
+        onTaskTimeChange(taskId, minutesToTime(currentMinutes));
+      else onTaskDurationChange(taskId, currentDuration);
+    } else {
+      // If no drag happened, open modal after a short delay
+      setTimeout(() => {
+        const task = dayTasks.find(t => t.id === taskId);
+        if (task) {
+          onTaskClick(task);
+        }
+      }, 150);
+    }
+  }, [
+    dragState,
+    onTaskTimeChange,
+    onTaskDurationChange,
+    dayTasks,
+    onTaskClick,
+  ]);
 
   useEffect(() => {
     if (!dragState.taskId) return;
@@ -205,69 +227,139 @@ export const CalendarDayView = ({
             <Box flex={1} borderLeftWidth="1px" borderColor={borderColor} />
           </Box>
         ))}
-        <Box position="absolute" left={16} right={2}>
-          {dayTasks.map(task => (
+        <Droppable
+          droppableId={`calendar-day:${date.toISOString()}`}
+          type="TASK"
+          isDropDisabled={false}
+        >
+          {(provided, snapshot) => (
             <Box
-              key={task.id}
+              ref={provided.innerRef}
+              {...provided.droppableProps}
               position="absolute"
-              left={1}
-              right={1}
+              left={16}
+              right={2}
+              top={0}
+              bottom={0}
+              bg={
+                snapshot.isDraggingOver
+                  ? useColorModeValue("blue.50", "blue.900")
+                  : "transparent"
+              }
               borderRadius="md"
-              color="white"
-              fontSize="sm"
-              overflow="hidden"
-              cursor="pointer"
-              _hover={{ shadow: "lg" }}
-              style={getTaskStyle(task)}
-              onClick={e => {
-                e.stopPropagation();
-                if (!dragState.hasMoved) onTaskClick(task);
+              transition="background-color 0.2s"
+              onMouseMove={e => {
+                // Calculate time based on mouse position for external drags
+                if (snapshot.isDraggingOver && provided.droppableProps) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const y = e.clientY - rect.top;
+                  const minutes = Math.max(
+                    0,
+                    Math.min(24 * 60 - 1, Math.floor((y / HOUR_HEIGHT) * 60))
+                  );
+                  const snappedMinutes = snapToIncrement(minutes, 15);
+                  // Store in data attribute for use in handleDragEnd
+                  e.currentTarget.setAttribute(
+                    "data-drop-time",
+                    minutesToTime(snappedMinutes)
+                  );
+                }
               }}
-              boxShadow={
-                dragState.taskId === task.id && dragState.hasMoved
-                  ? "xl"
-                  : "none"
-              }
-              zIndex={
-                dragState.taskId === task.id && dragState.hasMoved ? 50 : "auto"
-              }
             >
-              <Box
-                position="absolute"
-                inset={0}
-                px={2}
-                py={1}
-                cursor="grab"
-                onMouseDown={e => handleMouseDown(e, task, "move")}
-              >
-                <Text fontWeight="medium" isTruncated>
-                  {task.title}
-                </Text>
-                {(task.duration || 30) >= 45 && (
-                  <Text fontSize="xs" opacity={0.8}>
-                    {formatTime(task.time)}
-                  </Text>
-                )}
-              </Box>
-              <Box
-                position="absolute"
-                bottom={0}
-                left={0}
-                right={0}
-                h={3}
-                cursor="ns-resize"
-                _hover={{ bg: "blackAlpha.100" }}
-                display="flex"
-                align="center"
-                justify="center"
-                onMouseDown={e => handleMouseDown(e, task, "resize")}
-                onClick={e => e.stopPropagation()}
-              >
-                <Box w={8} h={1} borderRadius="full" bg="whiteAlpha.500" />
-              </Box>
+              {calculateTaskPositions(dayTasks, HOUR_HEIGHT).map(
+                (task, index) => (
+                  <Draggable key={task.id} draggableId={task.id} index={index}>
+                    {(provided, snapshot) => (
+                      <Box
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        position="absolute"
+                        left={task.left}
+                        width={task.width}
+                        ml={1}
+                        mr={1}
+                        borderRadius="md"
+                        color="white"
+                        fontSize="sm"
+                        overflow="hidden"
+                        cursor="grab"
+                        _hover={{ shadow: "lg" }}
+                        style={{
+                          ...getTaskStyle(task),
+                          ...provided.draggableProps.style,
+                        }}
+                        onClick={e => {
+                          e.stopPropagation();
+                          // Only open modal if this task was clicked (not dragged)
+                          // The handleEnd callback will handle opening the modal for non-dragged clicks
+                        }}
+                        boxShadow={
+                          snapshot.isDragging ||
+                          (dragState.taskId === task.id && dragState.hasMoved)
+                            ? "xl"
+                            : "none"
+                        }
+                        zIndex={
+                          snapshot.isDragging ||
+                          (dragState.taskId === task.id && dragState.hasMoved)
+                            ? 50
+                            : "auto"
+                        }
+                        opacity={snapshot.isDragging ? 0.8 : 1}
+                      >
+                        <Box
+                          position="absolute"
+                          inset={0}
+                          px={2}
+                          py={1}
+                          cursor="grab"
+                          {...provided.dragHandleProps}
+                          onMouseDown={e => {
+                            // Only handle mouse down for internal calendar drags
+                            // The dragHandleProps will handle @hello-pangea/dnd drags
+                            // Only use internal drag for time/duration adjustments
+                            e.stopPropagation();
+                          }}
+                        >
+                          <Text fontWeight="medium" isTruncated>
+                            {task.title}
+                          </Text>
+                          {(task.duration || 30) >= 45 && (
+                            <Text fontSize="xs" opacity={0.8}>
+                              {formatTime(task.time)}
+                            </Text>
+                          )}
+                        </Box>
+                        <Box
+                          position="absolute"
+                          bottom={0}
+                          left={0}
+                          right={0}
+                          h={3}
+                          cursor="ns-resize"
+                          _hover={{ bg: "blackAlpha.100" }}
+                          display="flex"
+                          align="center"
+                          justify="center"
+                          onMouseDown={e => handleMouseDown(e, task, "resize")}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <Box
+                            w={8}
+                            h={1}
+                            borderRadius="full"
+                            bg="whiteAlpha.500"
+                          />
+                        </Box>
+                      </Box>
+                    )}
+                  </Draggable>
+                )
+              )}
+              {provided.placeholder}
             </Box>
-          ))}
-        </Box>
+          )}
+        </Droppable>
       </Box>
     </Flex>
   );
