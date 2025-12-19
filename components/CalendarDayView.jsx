@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Box, Text, Flex, useColorModeValue } from "@chakra-ui/react";
+import { Box, Text, Flex, VStack, useColorModeValue } from "@chakra-ui/react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import {
   formatTime,
@@ -25,6 +25,7 @@ export const CalendarDayView = ({
   const borderColor = useColorModeValue("gray.200", "gray.700");
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const dayTasks = tasks.filter(t => t.time && shouldShowOnDate(t, date));
+  const untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, date));
   const containerRef = useRef(null);
   const HOUR_HEIGHT = 64;
   const DRAG_THRESHOLD = 5;
@@ -188,6 +189,73 @@ export const CalendarDayView = ({
           {date.toLocaleDateString("en-US", { weekday: "long", month: "long" })}
         </Text>
       </Box>
+      {/* Untimed tasks at the top */}
+      {untimedTasks.length > 0 && (
+        <Droppable
+          droppableId={`calendar-day-untimed:${date.toISOString()}`}
+          type="TASK"
+        >
+          {(provided, snapshot) => (
+            <Box
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              px={4}
+              py={2}
+              borderBottomWidth="1px"
+              borderColor={borderColor}
+              bg={
+                snapshot.isDraggingOver
+                  ? useColorModeValue("blue.50", "blue.900")
+                  : bgColor
+              }
+            >
+              <VStack align="stretch" spacing={2}>
+                {untimedTasks.map((task, index) => (
+                  <Draggable key={task.id} draggableId={task.id} index={index}>
+                    {(provided, snapshot) => (
+                      <Box
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        p={2}
+                        borderRadius="md"
+                        bg={
+                          snapshot.isDragging
+                            ? useColorModeValue("blue.100", "blue.800")
+                            : task.color || "#3b82f6"
+                        }
+                        color="white"
+                        cursor="grab"
+                        boxShadow={snapshot.isDragging ? "lg" : "sm"}
+                        onClick={e => {
+                          e.stopPropagation();
+                          onTaskClick(task);
+                        }}
+                        onMouseDown={e => {
+                          // Only start drag if clicking on the box itself, not if it's from another drag
+                          if (!provided.dragHandleProps.onMouseDown) {
+                            e.stopPropagation();
+                          }
+                        }}
+                      >
+                        <Box
+                          {...provided.dragHandleProps}
+                          cursor="grab"
+                          _active={{ cursor: "grabbing" }}
+                        >
+                          <Text fontSize="sm" fontWeight="medium">
+                            {task.title}
+                          </Text>
+                        </Box>
+                      </Box>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </VStack>
+            </Box>
+          )}
+        </Droppable>
+      )}
       <Box
         ref={containerRef}
         flex={1}

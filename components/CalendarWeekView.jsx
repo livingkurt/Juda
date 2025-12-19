@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Box, Text, Flex, useColorModeValue } from "@chakra-ui/react";
+import { Box, Text, Flex, VStack, useColorModeValue } from "@chakra-ui/react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { DragDropContext } from "@hello-pangea/dnd";
 import {
@@ -210,48 +210,131 @@ export const CalendarWeekView = ({
         zIndex={10}
       >
         <Box w={12} flexShrink={0} />
-        {weekDays.map((day, i) => (
-          <Box
-            key={i}
-            flex={1}
-            textAlign="center"
-            py={2}
-            borderLeftWidth="1px"
-            borderColor={borderColor}
-            cursor="pointer"
-            _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
-            onClick={() => onDayClick(day)}
-          >
-            <Text
-              fontSize="xs"
-              color={useColorModeValue("gray.500", "gray.400")}
-            >
-              {DAYS_OF_WEEK[i].short}
-            </Text>
+        {weekDays.map((day, i) => {
+          const untimedTasksForDay = tasks.filter(
+            t => !t.time && shouldShowOnDate(t, day)
+          );
+          return (
             <Box
-              as="span"
-              fontSize="lg"
-              fontWeight="semibold"
-              display="inline-block"
-              bg={
-                day.toDateString() === today.toDateString()
-                  ? "blue.500"
-                  : "transparent"
-              }
-              color={
-                day.toDateString() === today.toDateString()
-                  ? "white"
-                  : "inherit"
-              }
-              borderRadius="full"
-              w={8}
-              h={8}
-              lineHeight="32px"
+              key={i}
+              flex={1}
+              borderLeftWidth="1px"
+              borderColor={borderColor}
             >
-              {day.getDate()}
+              <Box
+                textAlign="center"
+                py={2}
+                cursor="pointer"
+                _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
+                onClick={() => onDayClick(day)}
+              >
+                <Text
+                  fontSize="xs"
+                  color={useColorModeValue("gray.500", "gray.400")}
+                >
+                  {DAYS_OF_WEEK[i].short}
+                </Text>
+                <Box
+                  as="span"
+                  fontSize="lg"
+                  fontWeight="semibold"
+                  display="inline-block"
+                  bg={
+                    day.toDateString() === today.toDateString()
+                      ? "blue.500"
+                      : "transparent"
+                  }
+                  color={
+                    day.toDateString() === today.toDateString()
+                      ? "white"
+                      : "inherit"
+                  }
+                  borderRadius="full"
+                  w={8}
+                  h={8}
+                  lineHeight="32px"
+                >
+                  {day.getDate()}
+                </Box>
+              </Box>
+              {/* Untimed tasks at the top of each day */}
+              {untimedTasksForDay.length > 0 && (
+                <Droppable
+                  droppableId={`calendar-week-untimed:${day.toISOString()}`}
+                  type="TASK"
+                >
+                  {(provided, snapshot) => (
+                    <Box
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      px={1}
+                      py={1}
+                      borderTopWidth="1px"
+                      borderColor={borderColor}
+                      bg={
+                        snapshot.isDraggingOver
+                          ? useColorModeValue("blue.50", "blue.900")
+                          : "transparent"
+                      }
+                    >
+                      <VStack align="stretch" spacing={1}>
+                        {untimedTasksForDay.map((task, taskIdx) => (
+                          <Draggable
+                            key={task.id}
+                            draggableId={task.id}
+                            index={taskIdx}
+                          >
+                            {(provided, snapshot) => (
+                              <Box
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                p={1}
+                                borderRadius="sm"
+                                bg={
+                                  snapshot.isDragging
+                                    ? useColorModeValue("blue.100", "blue.800")
+                                    : task.color || "#3b82f6"
+                                }
+                                color="white"
+                                cursor="grab"
+                                boxShadow={snapshot.isDragging ? "lg" : "sm"}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  onTaskClick(task);
+                                }}
+                                onMouseDown={e => {
+                                  // Only start drag if clicking on the box itself, not if it's from another drag
+                                  if (!provided.dragHandleProps.onMouseDown) {
+                                    e.stopPropagation();
+                                  }
+                                }}
+                              >
+                                <Box
+                                  {...provided.dragHandleProps}
+                                  cursor="grab"
+                                  _active={{ cursor: "grabbing" }}
+                                >
+                                  <Text
+                                    fontSize="2xs"
+                                    fontWeight="medium"
+                                    noOfLines={2}
+                                  >
+                                    {task.title}
+                                  </Text>
+                                </Box>
+                              </Box>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </VStack>
+                    </Box>
+                  )}
+                </Droppable>
+              )}
             </Box>
-          </Box>
-        ))}
+          );
+        })}
       </Flex>
       <Box ref={containerRef} flex={1} overflowY="auto">
         <Box position="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
