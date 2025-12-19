@@ -78,6 +78,7 @@ export default function DailyTasksApp() {
   const [editingSection, setEditingSection] = useState(null);
   const [defaultSectionId, setDefaultSectionId] = useState(null);
   const [defaultTime, setDefaultTime] = useState(null);
+  const [defaultDate, setDefaultDate] = useState(null);
   const dropTimeRef = useRef(null);
 
   const {
@@ -190,6 +191,14 @@ export default function DailyTasksApp() {
     openTaskDialog();
   };
 
+  const handleAddTaskToBacklog = () => {
+    setDefaultSectionId(sections[0]?.id);
+    setDefaultTime(null);
+    setDefaultDate(null);
+    setEditingTask(null);
+    openTaskDialog();
+  };
+
   const handleCreateTaskFromCalendar = (time, day) => {
     setDefaultTime(time);
     setDefaultSectionId(sections[0]?.id);
@@ -251,17 +260,24 @@ export default function DailyTasksApp() {
           const taskToUpdate = tasks.find(t => t.id === taskId);
           if (!taskToUpdate) return;
 
+          // Set recurrence to daily starting from drop date so it shows up
           await updateTask(taskId, {
             time: dropTime,
-            recurrence: null, // Clear recurrence when scheduling
+            recurrence: {
+              type: "daily",
+              startDate: dropDate.toISOString(),
+            },
             sectionId: taskToUpdate.sectionId, // Keep the section
           });
         } else {
-          // Dropped on today view section - set date to today, no time
+          // Dropped on today view section - set date to today, no time, daily recurrence
           await updateTask(taskId, {
             sectionId: destDroppableId,
             time: null,
-            recurrence: null,
+            recurrence: {
+              type: "daily",
+              startDate: today.toISOString(),
+            },
             order: destination.index,
           });
         }
@@ -281,14 +297,18 @@ export default function DailyTasksApp() {
           // Dropped on calendar - set date/time based on position
           const dropParts = destDroppableId.split(":");
           const calendarType = dropParts[0].split("-")[1];
-          const dropDate = dropParts[1] ? new Date(dropParts[1]) : selectedDate;
+          const dropDateStr = dropParts[1];
+          const dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
           // Use stored drop time from ref, default to 9 AM
           const dropTime = dropTimeRef.current || "09:00";
           dropTimeRef.current = null; // Reset
 
           await updateTask(taskId, {
             time: dropTime,
-            recurrence: null,
+            recurrence: {
+              type: "daily",
+              startDate: dropDate.toISOString(),
+            },
           });
         } else {
           // Moving within or between sections
@@ -323,21 +343,28 @@ export default function DailyTasksApp() {
           // Moving within calendar - update time/date
           const dropParts = destDroppableId.split(":");
           const calendarType = dropParts[0].split("-")[1];
-          const dropDate = dropParts[1] ? new Date(dropParts[1]) : selectedDate;
+          const dropDateStr = dropParts[1];
+          const dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
           // Use stored drop time from ref, default to 9 AM
           const dropTime = dropTimeRef.current || "09:00";
           dropTimeRef.current = null; // Reset
 
           await updateTask(taskId, {
             time: dropTime,
-            recurrence: null,
+            recurrence: {
+              type: "daily",
+              startDate: dropDate.toISOString(),
+            },
           });
         } else {
-          // Dropped on today view section - set date to today, no time
+          // Dropped on today view section - set date to today, no time, daily recurrence
           await updateTask(taskId, {
             sectionId: destDroppableId,
             time: null,
-            recurrence: null,
+            recurrence: {
+              type: "daily",
+              startDate: today.toISOString(),
+            },
             order: destination.index,
           });
         }
@@ -619,6 +646,7 @@ export default function DailyTasksApp() {
                 onDeleteTask={handleDeleteTask}
                 onEditTask={handleEditTask}
                 onAdd={createBacklogItem}
+                onAddTask={handleAddTaskToBacklog}
               />
             )}
           </Box>
@@ -748,12 +776,14 @@ export default function DailyTasksApp() {
           setEditingTask(null);
           setDefaultSectionId(null);
           setDefaultTime(null);
+          setDefaultDate(null);
         }}
         task={editingTask}
         sections={sections}
         onSave={handleSaveTask}
         defaultSectionId={defaultSectionId}
         defaultTime={defaultTime}
+        defaultDate={defaultDate}
       />
       <SectionDialog
         isOpen={sectionDialogOpen}

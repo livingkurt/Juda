@@ -30,6 +30,7 @@ export const BacklogDrawer = ({
   onDeleteTask,
   onEditTask,
   onAdd,
+  onAddTask,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -52,13 +53,23 @@ export const BacklogDrawer = ({
       >
         <Flex align="center" justify="space-between" mb={2}>
           <Heading size="md">Backlog</Heading>
-          <IconButton
-            icon={<X size={18} />}
-            onClick={onClose}
-            size="sm"
-            variant="ghost"
-            aria-label="Close backlog"
-          />
+          <HStack spacing={2}>
+            <IconButton
+              icon={<Plus size={18} />}
+              onClick={onAddTask}
+              size="sm"
+              variant="ghost"
+              colorScheme="blue"
+              aria-label="Add task to backlog"
+            />
+            <IconButton
+              icon={<X size={18} />}
+              onClick={onClose}
+              size="sm"
+              variant="ghost"
+              aria-label="Close backlog"
+            />
+          </HStack>
         </Flex>
         <Badge colorScheme="blue">
           {backlogTasks.length} task{backlogTasks.length !== 1 ? "s" : ""}

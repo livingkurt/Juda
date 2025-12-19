@@ -33,6 +33,7 @@ export const TaskDialog = ({
   onSave,
   defaultSectionId,
   defaultTime,
+  defaultDate,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const [title, setTitle] = useState("");
@@ -40,7 +41,7 @@ export const TaskDialog = ({
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
   const [duration, setDuration] = useState(30);
-  const [recurrenceType, setRecurrenceType] = useState("daily");
+  const [recurrenceType, setRecurrenceType] = useState("none");
   const [selectedDays, setSelectedDays] = useState([]);
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtask, setNewSubtask] = useState("");
@@ -62,15 +63,15 @@ export const TaskDialog = ({
       setTitle(task.title || "");
       setSectionId(task.sectionId || sections[0]?.id || "");
       setTime(task.time || "");
-      // Extract date from recurrence or use today's date
+      // Extract date from recurrence or use empty string
       if (task.recurrence?.startDate) {
         const taskDate = new Date(task.recurrence.startDate);
         setDate(taskDate.toISOString().split("T")[0]);
       } else {
-        setDate(new Date().toISOString().split("T")[0]);
+        setDate(""); // Don't set default date for existing tasks
       }
       setDuration(task.duration || 30);
-      setRecurrenceType(task.recurrence?.type || "daily");
+      setRecurrenceType(task.recurrence?.type || "none");
       setSelectedDays(task.recurrence?.days || []);
       setSubtasks(task.subtasks || []);
       setColor(task.color || "#3b82f6");
@@ -78,21 +79,38 @@ export const TaskDialog = ({
       setTitle("");
       setSectionId(defaultSectionId || sections[0]?.id || "");
       setTime(defaultTime || "");
-      setDate(new Date().toISOString().split("T")[0]);
+      setDate(
+        defaultDate ||
+          (defaultTime ? new Date().toISOString().split("T")[0] : "")
+      );
       setDuration(30);
-      setRecurrenceType("daily");
+      setRecurrenceType("none");
       setSelectedDays([]);
       setSubtasks([]);
       setColor("#3b82f6");
     }
-  }, [task, isOpen, sections, defaultSectionId, defaultTime]);
+  }, [task, isOpen, sections, defaultSectionId, defaultTime, defaultDate]);
 
   const handleSave = () => {
-    const recurrence = {
-      type: recurrenceType,
-      ...(recurrenceType === "weekly" && { days: selectedDays }),
-      ...(date && { startDate: new Date(date).toISOString() }),
-    };
+    // For one-time tasks (recurrenceType === "none"), store date in a special structure
+    // For recurring tasks, use normal recurrence structure
+    let recurrence = null;
+    if (recurrenceType === "none") {
+      // One-time task: store date if provided, but no recurrence pattern
+      if (date) {
+        recurrence = {
+          type: "none",
+          startDate: new Date(date).toISOString(),
+        };
+      }
+    } else {
+      // Recurring task: store recurrence pattern
+      recurrence = {
+        type: recurrenceType,
+        ...(recurrenceType === "weekly" && { days: selectedDays }),
+        ...(date && { startDate: new Date(date).toISOString() }),
+      };
+    }
     onSave({
       id: task?.id,
       title,
@@ -160,6 +178,7 @@ export const TaskDialog = ({
                   type="date"
                   value={date}
                   onChange={e => setDate(e.target.value)}
+                  placeholder="Optional"
                 />
               </Box>
               <Box>
@@ -168,6 +187,7 @@ export const TaskDialog = ({
                   type="time"
                   value={time}
                   onChange={e => setTime(e.target.value)}
+                  placeholder="Optional"
                 />
               </Box>
             </SimpleGrid>
@@ -190,6 +210,7 @@ export const TaskDialog = ({
                 value={recurrenceType}
                 onChange={e => setRecurrenceType(e.target.value)}
               >
+                <option value="none">None (One-time task)</option>
                 <option value="daily">Every day</option>
                 <option value="weekly">Specific days</option>
               </Select>
