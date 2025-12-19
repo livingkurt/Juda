@@ -4,9 +4,6 @@ import { useState, useMemo } from "react";
 import {
   Box,
   Button,
-  Tabs,
-  TabList,
-  Tab,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -27,6 +24,7 @@ import {
   Heading,
   Badge,
   FormLabel,
+  Collapse,
 } from "@chakra-ui/react";
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 import {
@@ -36,7 +34,7 @@ import {
   Settings,
   Calendar,
   LayoutDashboard,
-  PanelLeftOpen,
+  List,
   Sun,
   Sunset,
   Moon,
@@ -72,7 +70,8 @@ export default function DailyTasksApp() {
   const { backlog, createBacklogItem, updateBacklogItem, deleteBacklogItem } =
     useBacklog();
 
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [showDashboard, setShowDashboard] = useState(true);
+  const [showCalendar, setShowCalendar] = useState(true);
   const [calendarView, setCalendarView] = useState("week");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [editingTask, setEditingTask] = useState(null);
@@ -90,11 +89,7 @@ export default function DailyTasksApp() {
     onOpen: openSectionDialog,
     onClose: closeSectionDialog,
   } = useDisclosure();
-  const {
-    isOpen: backlogOpen,
-    onOpen: openBacklog,
-    onClose: closeBacklog,
-  } = useDisclosure();
+  const [backlogOpen, setBacklogOpen] = useState(false);
   const {
     isOpen: settingsOpen,
     onOpen: openSettings,
@@ -232,26 +227,118 @@ export default function DailyTasksApp() {
       newSections.splice(destination.index, 0, reorderedSection);
       await reorderSections(newSections);
     } else if (type === "TASK") {
-      const sourceSectionId = source.droppableId;
-      const destSectionId = destination.droppableId;
+      const sourceDroppableId = source.droppableId;
+      const destDroppableId = destination.droppableId;
       const taskId = draggableId;
 
-      if (sourceSectionId === destSectionId) {
-        const sectionTasks = [...(tasksBySection[sourceSectionId] || [])];
-        const [reorderedTask] = sectionTasks.splice(source.index, 1);
-        sectionTasks.splice(destination.index, 0, reorderedTask);
+      // Handle drag from backlog
+      if (sourceDroppableId === "backlog") {
+        if (destDroppableId === "backlog") {
+          // Reordering within backlog - not applicable for tasks
+          return;
+        } else if (destDroppableId.startsWith("calendar-")) {
+          // Dropped on calendar - set date/time based on position
+          const dropParts = destDroppableId.split(":");
+          const calendarType = dropParts[0].split("-")[1];
+          const dropDate = dropParts[1] ? new Date(dropParts[1]) : selectedDate;
+          // Try to get time from drop position (stored in data attribute), default to 9 AM
+          let dropTime = "09:00";
+          try {
+            const dropElement = document.querySelector(
+              `[data-rbd-droppable-id="${destDroppableId}"]`
+            );
+            if (dropElement && dropElement.getAttribute("data-drop-time")) {
+              dropTime = dropElement.getAttribute("data-drop-time");
+            }
+          } catch (e) {
+            // Fallback to default
+          }
 
-        const updatePromises = sectionTasks.map((t, index) =>
-          updateTask(t.id, { order: index })
-        );
-        await Promise.all(updatePromises);
-      } else {
-        await reorderTask(
-          taskId,
-          sourceSectionId,
-          destSectionId,
-          destination.index
-        );
+          await updateTask(taskId, {
+            time: dropTime,
+            recurrence: null, // Clear recurrence when scheduling
+          });
+        } else {
+          // Dropped on today view section - set date to today, no time
+          await updateTask(taskId, {
+            sectionId: destDroppableId,
+            time: null,
+            recurrence: null,
+            order: destination.index,
+          });
+        }
+      }
+      // Handle drag from today view sections
+      else if (
+        sourceDroppableId !== "backlog" &&
+        !sourceDroppableId.startsWith("calendar-")
+      ) {
+        if (destDroppableId === "backlog") {
+          // Dropped on backlog - remove date/time
+          await updateTask(taskId, {
+            time: null,
+            recurrence: null,
+          });
+        } else if (destDroppableId.startsWith("calendar-")) {
+          // Dropped on calendar - set date/time based on position
+          const dropParts = destDroppableId.split(":");
+          const calendarType = dropParts[0].split("-")[1];
+          const dropDate = dropParts[1] ? new Date(dropParts[1]) : selectedDate;
+          const dropTime = dropParts[2] || "09:00"; // Default to 9 AM if no time specified
+
+          await updateTask(taskId, {
+            time: dropTime,
+            recurrence: null,
+          });
+        } else {
+          // Moving within or between sections
+          if (sourceDroppableId === destDroppableId) {
+            const sectionTasks = [...(tasksBySection[sourceDroppableId] || [])];
+            const [reorderedTask] = sectionTasks.splice(source.index, 1);
+            sectionTasks.splice(destination.index, 0, reorderedTask);
+
+            const updatePromises = sectionTasks.map((t, index) =>
+              updateTask(t.id, { order: index })
+            );
+            await Promise.all(updatePromises);
+          } else {
+            await reorderTask(
+              taskId,
+              sourceDroppableId,
+              destDroppableId,
+              destination.index
+            );
+          }
+        }
+      }
+      // Handle drag from calendar
+      else if (sourceDroppableId.startsWith("calendar-")) {
+        if (destDroppableId === "backlog") {
+          // Dropped on backlog - remove date/time
+          await updateTask(taskId, {
+            time: null,
+            recurrence: null,
+          });
+        } else if (destDroppableId.startsWith("calendar-")) {
+          // Moving within calendar - update time/date
+          const dropParts = destDroppableId.split(":");
+          const calendarType = dropParts[0].split("-")[1];
+          const dropDate = dropParts[1] ? new Date(dropParts[1]) : selectedDate;
+          const dropTime = dropParts[2] || "09:00"; // Default to 9 AM if no time specified
+
+          await updateTask(taskId, {
+            time: dropTime,
+            recurrence: null,
+          });
+        } else {
+          // Dropped on today view section - set date to today, no time
+          await updateTask(taskId, {
+            sectionId: destDroppableId,
+            time: null,
+            recurrence: null,
+            order: destination.index,
+          });
+        }
       }
     }
   };
@@ -336,37 +423,9 @@ export default function DailyTasksApp() {
         borderColor={borderColor}
         flexShrink={0}
       >
-        <Box maxW="6xl" mx="auto" px={4} py={4}>
+        <Box w="full" px={4} py={4}>
           <Flex align="center" justify="space-between">
             <Flex align="center" gap={3}>
-              <Box position="relative">
-                <IconButton
-                  icon={<PanelLeftOpen size={20} />}
-                  onClick={openBacklog}
-                  variant="ghost"
-                  aria-label="Open backlog"
-                />
-                {(backlog.filter(b => !b.completed).length > 0 ||
-                  backlogTasks.length > 0) && (
-                  <Badge
-                    position="absolute"
-                    top="-1"
-                    right="-1"
-                    bg="red.500"
-                    color="white"
-                    fontSize="xs"
-                    borderRadius="full"
-                    w={5}
-                    h={5}
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                  >
-                    {backlog.filter(b => !b.completed).length +
-                      backlogTasks.length}
-                  </Badge>
-                )}
-              </Box>
               <GreetingIcon color="orange.500" size={28} />
               <Box>
                 <Heading as="h1" size="lg" fontWeight="semibold">
@@ -409,214 +468,271 @@ export default function DailyTasksApp() {
               aria-label="Settings"
             />
           </Flex>
-          {activeTab === "dashboard" && (
-            <Box mt={4}>
-              <Flex
-                justify="space-between"
-                fontSize="sm"
-                color={mutedText}
-                mb={1}
-              >
-                <Text>Today's Progress</Text>
-                <Text>
-                  {completedTasks}/{totalTasks} ({progressPercent}%)
-                </Text>
-              </Flex>
-              <Box
-                h={2}
-                bg={useColorModeValue("gray.200", "gray.700")}
-                borderRadius="full"
-                overflow="hidden"
-              >
-                <Box
-                  h="full"
-                  bgGradient="linear(to-r, blue.500, green.500)"
-                  transition="all"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </Box>
-            </Box>
-          )}
-        </Box>
-        <Box maxW="6xl" mx="auto" px={4}>
-          <Flex align="center" justify="space-between" flexWrap="wrap" gap={2}>
-            <Tabs
-              index={activeTab === "dashboard" ? 0 : 1}
-              onChange={index =>
-                setActiveTab(index === 0 ? "dashboard" : "calendar")
-              }
-            >
-              <TabList bg={useColorModeValue("gray.100", "gray.700")}>
-                <Tab>
-                  <LayoutDashboard size={16} style={{ marginRight: "8px" }} />
-                  Today
-                </Tab>
-                <Tab>
-                  <Calendar size={16} style={{ marginRight: "8px" }} />
-                  Calendar
-                </Tab>
-              </TabList>
-            </Tabs>
-            {activeTab === "calendar" && (
-              <Flex align="center" gap={2} pb={2}>
+          <Box mt={4}>
+            <Flex align="center" justify="space-between" mb={3}>
+              <HStack spacing={2}>
+                <Box position="relative">
+                  <Button
+                    size="sm"
+                    variant={backlogOpen ? "solid" : "outline"}
+                    colorScheme={backlogOpen ? "blue" : "gray"}
+                    onClick={() => setBacklogOpen(!backlogOpen)}
+                    leftIcon={<List size={16} />}
+                  >
+                    Backlog
+                  </Button>
+                  {(backlog.filter(b => !b.completed).length > 0 ||
+                    backlogTasks.length > 0) && (
+                    <Badge
+                      position="absolute"
+                      top="-1"
+                      right="-1"
+                      bg="red.500"
+                      color="white"
+                      fontSize="xs"
+                      borderRadius="full"
+                      w={5}
+                      h={5}
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                    >
+                      {backlog.filter(b => !b.completed).length +
+                        backlogTasks.length}
+                    </Badge>
+                  )}
+                </Box>
                 <Button
-                  variant="outline"
                   size="sm"
-                  onClick={() => setSelectedDate(new Date())}
+                  variant={showDashboard ? "solid" : "outline"}
+                  colorScheme={showDashboard ? "blue" : "gray"}
+                  onClick={() => setShowDashboard(!showDashboard)}
+                  leftIcon={<LayoutDashboard size={16} />}
                 >
                   Today
                 </Button>
-                <IconButton
-                  icon={<ChevronLeft size={18} />}
-                  onClick={() => navigateCalendar(-1)}
-                  variant="ghost"
-                  aria-label="Previous"
-                />
-                <IconButton
-                  icon={<ChevronRight size={18} />}
-                  onClick={() => navigateCalendar(1)}
-                  variant="ghost"
-                  aria-label="Next"
-                />
-                <Text fontSize="sm" fontWeight="medium" minW="120px">
-                  {getCalendarTitle()}
-                </Text>
-                <Select
-                  value={calendarView}
-                  onChange={e => setCalendarView(e.target.value)}
-                  w={24}
+                <Button
+                  size="sm"
+                  variant={showCalendar ? "solid" : "outline"}
+                  colorScheme={showCalendar ? "blue" : "gray"}
+                  onClick={() => setShowCalendar(!showCalendar)}
+                  leftIcon={<Calendar size={16} />}
                 >
-                  <option value="day">Day</option>
-                  <option value="week">Week</option>
-                  <option value="month">Month</option>
-                </Select>
-              </Flex>
+                  Calendar
+                </Button>
+              </HStack>
+              {showCalendar && (
+                <Flex align="center" gap={2}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedDate(new Date())}
+                  >
+                    Today
+                  </Button>
+                  <IconButton
+                    icon={<ChevronLeft size={18} />}
+                    onClick={() => navigateCalendar(-1)}
+                    variant="ghost"
+                    aria-label="Previous"
+                  />
+                  <IconButton
+                    icon={<ChevronRight size={18} />}
+                    onClick={() => navigateCalendar(1)}
+                    variant="ghost"
+                    aria-label="Next"
+                  />
+                  <Text fontSize="sm" fontWeight="medium" minW="120px">
+                    {getCalendarTitle()}
+                  </Text>
+                  <Select
+                    value={calendarView}
+                    onChange={e => setCalendarView(e.target.value)}
+                    w={24}
+                  >
+                    <option value="day">Day</option>
+                    <option value="week">Week</option>
+                    <option value="month">Month</option>
+                  </Select>
+                </Flex>
+              )}
+            </Flex>
+            {showDashboard && (
+              <Box>
+                <Flex
+                  justify="space-between"
+                  fontSize="sm"
+                  color={mutedText}
+                  mb={1}
+                >
+                  <Text>Today's Progress</Text>
+                  <Text>
+                    {completedTasks}/{totalTasks} ({progressPercent}%)
+                  </Text>
+                </Flex>
+                <Box
+                  h={2}
+                  bg={useColorModeValue("gray.200", "gray.700")}
+                  borderRadius="full"
+                  overflow="hidden"
+                >
+                  <Box
+                    h="full"
+                    bgGradient="linear(to-r, blue.500, green.500)"
+                    transition="all"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </Box>
+              </Box>
             )}
-          </Flex>
+          </Box>
         </Box>
       </Box>
 
-      <Box as="main" flex={1} overflow="hidden">
-        {activeTab === "dashboard" && (
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <Box h="full" overflowY="auto">
-              <Box maxW="3xl" mx="auto" px={4} py={6}>
-                <Droppable
-                  droppableId="sections"
-                  type="SECTION"
-                  direction="vertical"
-                >
-                  {(provided, snapshot) => (
-                    <Box
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      bg={
-                        snapshot.isDraggingOver
-                          ? useColorModeValue("gray.50", "gray.800")
-                          : "transparent"
-                      }
-                      borderRadius="md"
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Box as="main" flex={1} overflow="hidden" display="flex">
+          {/* Backlog Sidebar */}
+          <Box
+            w={backlogOpen ? "320px" : "0"}
+            transition="width 0.3s"
+            overflow="hidden"
+            borderRightWidth={backlogOpen ? "1px" : "0"}
+            borderColor={borderColor}
+            bg={bgColor}
+            flexShrink={0}
+          >
+            {backlogOpen && (
+              <BacklogDrawer
+                isOpen={true}
+                onClose={() => setBacklogOpen(false)}
+                backlog={backlog}
+                backlogTasks={backlogTasks}
+                sections={sections}
+                onToggleBacklog={async id => {
+                  const item = backlog.find(b => b.id === id);
+                  if (item) await updateBacklogItem(id, !item.completed);
+                }}
+                onToggleTask={handleToggleTask}
+                onDeleteBacklog={deleteBacklogItem}
+                onDeleteTask={handleDeleteTask}
+                onEditTask={handleEditTask}
+                onAdd={createBacklogItem}
+              />
+            )}
+          </Box>
+
+          {/* Main Content */}
+          <Box flex={1} overflow="hidden" display="flex" flexDirection="column">
+            <Box flex={1} overflowY="auto">
+              <Box w="full" px={4} py={6} display="flex" gap={6} h="full">
+                {/* Dashboard View */}
+                {showDashboard && (
+                  <Box flex={1} minW={0} overflowY="auto">
+                    <Droppable
+                      droppableId="sections"
+                      type="SECTION"
+                      direction="vertical"
                     >
-                      {sortedSections.map((section, index) => (
-                        <Section
-                          key={section.id}
-                          section={section}
-                          index={index}
-                          tasks={tasksBySection[section.id] || []}
-                          onToggleTask={handleToggleTask}
-                          onToggleSubtask={handleToggleSubtask}
-                          onToggleExpand={handleToggleExpand}
-                          onEditTask={handleEditTask}
-                          onDeleteTask={handleDeleteTask}
-                          onAddTask={handleAddTask}
-                          onEditSection={handleEditSection}
-                          onDeleteSection={handleDeleteSection}
-                        />
-                      ))}
-                      {provided.placeholder}
-                      <Button
-                        variant="outline"
-                        onClick={handleAddSection}
-                        w="full"
-                        py={6}
-                        borderStyle="dashed"
-                        mt={4}
-                      >
-                        <Plus size={20} style={{ marginRight: "8px" }} />
-                        Add Section
-                      </Button>
-                    </Box>
-                  )}
-                </Droppable>
+                      {(provided, snapshot) => (
+                        <Box
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          bg={
+                            snapshot.isDraggingOver
+                              ? useColorModeValue("gray.50", "gray.800")
+                              : "transparent"
+                          }
+                          borderRadius="md"
+                        >
+                          {sortedSections.map((section, index) => (
+                            <Section
+                              key={section.id}
+                              section={section}
+                              index={index}
+                              tasks={tasksBySection[section.id] || []}
+                              onToggleTask={handleToggleTask}
+                              onToggleSubtask={handleToggleSubtask}
+                              onToggleExpand={handleToggleExpand}
+                              onEditTask={handleEditTask}
+                              onDeleteTask={handleDeleteTask}
+                              onAddTask={handleAddTask}
+                              onEditSection={handleEditSection}
+                              onDeleteSection={handleDeleteSection}
+                            />
+                          ))}
+                          {provided.placeholder}
+                          <Button
+                            variant="outline"
+                            onClick={handleAddSection}
+                            w="full"
+                            py={6}
+                            borderStyle="dashed"
+                            mt={4}
+                          >
+                            <Plus size={20} style={{ marginRight: "8px" }} />
+                            Add Section
+                          </Button>
+                        </Box>
+                      )}
+                    </Droppable>
+                  </Box>
+                )}
+
+                {/* Calendar View */}
+                {showCalendar && (
+                  <Box flex={1} minW={0} display="flex" flexDirection="column">
+                    <Card
+                      flex={1}
+                      overflow="hidden"
+                      bg={bgColor}
+                      borderColor={borderColor}
+                      minH="600px"
+                    >
+                      <CardBody p={0} h="full">
+                        {calendarView === "day" && (
+                          <CalendarDayView
+                            date={selectedDate}
+                            tasks={tasks}
+                            onTaskClick={handleEditTask}
+                            onTaskTimeChange={handleTaskTimeChange}
+                            onTaskDurationChange={handleTaskDurationChange}
+                            onCreateTask={handleCreateTaskFromCalendar}
+                          />
+                        )}
+                        {calendarView === "week" && (
+                          <CalendarWeekView
+                            date={selectedDate}
+                            tasks={tasks}
+                            onTaskClick={handleEditTask}
+                            onDayClick={d => {
+                              setSelectedDate(d);
+                              setCalendarView("day");
+                            }}
+                            onTaskTimeChange={handleTaskTimeChange}
+                            onTaskDurationChange={handleTaskDurationChange}
+                            onCreateTask={handleCreateTaskFromCalendar}
+                          />
+                        )}
+                        {calendarView === "month" && (
+                          <CalendarMonthView
+                            date={selectedDate}
+                            tasks={tasks}
+                            onDayClick={d => {
+                              setSelectedDate(d);
+                              setCalendarView("day");
+                            }}
+                          />
+                        )}
+                      </CardBody>
+                    </Card>
+                  </Box>
+                )}
               </Box>
             </Box>
-          </DragDropContext>
-        )}
-        {activeTab === "calendar" && (
-          <Box h="full" maxW="6xl" mx="auto" px={4} py={4}>
-            <Card
-              h="full"
-              overflow="hidden"
-              bg={bgColor}
-              borderColor={borderColor}
-            >
-              <CardBody p={0} h="full">
-                {calendarView === "day" && (
-                  <CalendarDayView
-                    date={selectedDate}
-                    tasks={tasks}
-                    onTaskClick={handleEditTask}
-                    onTaskTimeChange={handleTaskTimeChange}
-                    onTaskDurationChange={handleTaskDurationChange}
-                    onCreateTask={handleCreateTaskFromCalendar}
-                  />
-                )}
-                {calendarView === "week" && (
-                  <CalendarWeekView
-                    date={selectedDate}
-                    tasks={tasks}
-                    onTaskClick={handleEditTask}
-                    onDayClick={d => {
-                      setSelectedDate(d);
-                      setCalendarView("day");
-                    }}
-                    onTaskTimeChange={handleTaskTimeChange}
-                    onTaskDurationChange={handleTaskDurationChange}
-                    onCreateTask={handleCreateTaskFromCalendar}
-                  />
-                )}
-                {calendarView === "month" && (
-                  <CalendarMonthView
-                    date={selectedDate}
-                    tasks={tasks}
-                    onDayClick={d => {
-                      setSelectedDate(d);
-                      setCalendarView("day");
-                    }}
-                  />
-                )}
-              </CardBody>
-            </Card>
           </Box>
-        )}
-      </Box>
+        </Box>
+      </DragDropContext>
 
-      <BacklogDrawer
-        isOpen={backlogOpen}
-        onClose={closeBacklog}
-        backlog={backlog}
-        backlogTasks={backlogTasks}
-        sections={sections}
-        onToggleBacklog={async id => {
-          const item = backlog.find(b => b.id === id);
-          if (item) await updateBacklogItem(id, !item.completed);
-        }}
-        onToggleTask={handleToggleTask}
-        onDeleteBacklog={deleteBacklogItem}
-        onDeleteTask={handleDeleteTask}
-        onEditTask={handleEditTask}
-        onAdd={createBacklogItem}
-      />
       <TaskDialog
         isOpen={taskDialogOpen}
         onClose={() => {

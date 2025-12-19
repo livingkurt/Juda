@@ -38,6 +38,7 @@ export const TaskDialog = ({
   const [title, setTitle] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [time, setTime] = useState("");
+  const [date, setDate] = useState("");
   const [duration, setDuration] = useState(30);
   const [recurrenceType, setRecurrenceType] = useState("daily");
   const [selectedDays, setSelectedDays] = useState([]);
@@ -61,6 +62,13 @@ export const TaskDialog = ({
       setTitle(task.title || "");
       setSectionId(task.sectionId || sections[0]?.id || "");
       setTime(task.time || "");
+      // Extract date from recurrence or use today's date
+      if (task.recurrence?.startDate) {
+        const taskDate = new Date(task.recurrence.startDate);
+        setDate(taskDate.toISOString().split("T")[0]);
+      } else {
+        setDate(new Date().toISOString().split("T")[0]);
+      }
       setDuration(task.duration || 30);
       setRecurrenceType(task.recurrence?.type || "daily");
       setSelectedDays(task.recurrence?.days || []);
@@ -70,6 +78,7 @@ export const TaskDialog = ({
       setTitle("");
       setSectionId(defaultSectionId || sections[0]?.id || "");
       setTime(defaultTime || "");
+      setDate(new Date().toISOString().split("T")[0]);
       setDuration(30);
       setRecurrenceType("daily");
       setSelectedDays([]);
@@ -82,6 +91,7 @@ export const TaskDialog = ({
     const recurrence = {
       type: recurrenceType,
       ...(recurrenceType === "weekly" && { days: selectedDays }),
+      ...(date && { startDate: new Date(date).toISOString() }),
     };
     onSave({
       id: task?.id,
@@ -145,6 +155,14 @@ export const TaskDialog = ({
             </Box>
             <SimpleGrid columns={2} spacing={4} w="full">
               <Box>
+                <FormLabel>Date</FormLabel>
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                />
+              </Box>
+              <Box>
                 <FormLabel>Time</FormLabel>
                 <Input
                   type="time"
@@ -152,20 +170,20 @@ export const TaskDialog = ({
                   onChange={e => setTime(e.target.value)}
                 />
               </Box>
-              <Box>
-                <FormLabel>Duration</FormLabel>
-                <Select
-                  value={duration.toString()}
-                  onChange={e => setDuration(parseInt(e.target.value))}
-                >
-                  {DURATION_OPTIONS.map(d => (
-                    <option key={d.value} value={d.value.toString()}>
-                      {d.label}
-                    </option>
-                  ))}
-                </Select>
-              </Box>
             </SimpleGrid>
+            <Box w="full">
+              <FormLabel>Duration</FormLabel>
+              <Select
+                value={duration.toString()}
+                onChange={e => setDuration(parseInt(e.target.value))}
+              >
+                {DURATION_OPTIONS.map(d => (
+                  <option key={d.value} value={d.value.toString()}>
+                    {d.label}
+                  </option>
+                ))}
+              </Select>
+            </Box>
             <Box w="full">
               <FormLabel>Recurrence</FormLabel>
               <Select
