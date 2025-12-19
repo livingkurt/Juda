@@ -120,6 +120,25 @@ export default function DailyTasksApp() {
     return grouped;
   }, [todaysTasks, sections]);
 
+  // Tasks that should appear in backlog:
+  // 1. Tasks without a time set
+  // 2. Tasks that don't match today's recurrence pattern
+  // 3. Not completed
+  const backlogTasks = useMemo(() => {
+    return tasks.filter(task => {
+      // Skip completed tasks
+      if (task.completed) return false;
+
+      // Include tasks without time
+      if (!task.time) return true;
+
+      // Include tasks that don't match today's recurrence
+      if (!shouldShowOnDate(task, today)) return true;
+
+      return false;
+    });
+  }, [tasks, today]);
+
   const totalTasks = todaysTasks.length;
   const completedTasks = todaysTasks.filter(
     t =>
@@ -327,7 +346,8 @@ export default function DailyTasksApp() {
                   variant="ghost"
                   aria-label="Open backlog"
                 />
-                {backlog.filter(b => !b.completed).length > 0 && (
+                {(backlog.filter(b => !b.completed).length > 0 ||
+                  backlogTasks.length > 0) && (
                   <Badge
                     position="absolute"
                     top="-1"
@@ -342,7 +362,8 @@ export default function DailyTasksApp() {
                     alignItems="center"
                     justifyContent="center"
                   >
-                    {backlog.filter(b => !b.completed).length}
+                    {backlog.filter(b => !b.completed).length +
+                      backlogTasks.length}
                   </Badge>
                 )}
               </Box>
@@ -584,11 +605,16 @@ export default function DailyTasksApp() {
         isOpen={backlogOpen}
         onClose={closeBacklog}
         backlog={backlog}
-        onToggle={async id => {
+        backlogTasks={backlogTasks}
+        sections={sections}
+        onToggleBacklog={async id => {
           const item = backlog.find(b => b.id === id);
           if (item) await updateBacklogItem(id, !item.completed);
         }}
-        onDelete={deleteBacklogItem}
+        onToggleTask={handleToggleTask}
+        onDeleteBacklog={deleteBacklogItem}
+        onDeleteTask={handleDeleteTask}
+        onEditTask={handleEditTask}
         onAdd={createBacklogItem}
       />
       <TaskDialog

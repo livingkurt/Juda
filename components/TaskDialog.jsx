@@ -18,6 +18,7 @@ import {
   HStack,
   SimpleGrid,
   Text,
+  Flex,
   IconButton,
   useColorModeValue,
 } from "@chakra-ui/react";
