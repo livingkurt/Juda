@@ -105,6 +105,7 @@ export const BacklogDrawer = ({
                             <Flex
                               ref={provided.innerRef}
                               {...provided.draggableProps}
+                              {...provided.dragHandleProps}
                               align="center"
                               gap={2}
                               p={3}
@@ -119,8 +120,9 @@ export const BacklogDrawer = ({
                                   : "transparent"
                               }
                               boxShadow={snapshot.isDragging ? "lg" : "none"}
+                              style={provided.draggableProps.style}
                             >
-                              <Box {...provided.dragHandleProps} cursor="grab">
+                              <Box flexShrink={0}>
                                 <GripVertical
                                   size={16}
                                   color={useColorModeValue(
@@ -133,7 +135,12 @@ export const BacklogDrawer = ({
                                 isChecked={task.completed}
                                 size="lg"
                                 onChange={() => onToggleTask(task.id)}
-                                onClick={e => e.stopPropagation()}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                }}
+                                onMouseDown={e => e.stopPropagation()}
+                                flexShrink={0}
                               />
                               <Box flex={1} minW={0}>
                                 <Text
