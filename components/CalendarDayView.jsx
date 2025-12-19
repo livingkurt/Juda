@@ -19,6 +19,7 @@ export const CalendarDayView = ({
   onTaskTimeChange,
   onTaskDurationChange,
   onCreateTask,
+  onDropTimeChange,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
@@ -250,7 +251,7 @@ export const CalendarDayView = ({
               transition="background-color 0.2s"
               onMouseMove={e => {
                 // Calculate time based on mouse position for external drags
-                if (snapshot.isDraggingOver && provided.droppableProps) {
+                if (snapshot.isDraggingOver) {
                   const rect = e.currentTarget.getBoundingClientRect();
                   const y = e.clientY - rect.top;
                   const minutes = Math.max(
@@ -258,11 +259,11 @@ export const CalendarDayView = ({
                     Math.min(24 * 60 - 1, Math.floor((y / HOUR_HEIGHT) * 60))
                   );
                   const snappedMinutes = snapToIncrement(minutes, 15);
-                  // Store in data attribute for use in handleDragEnd
-                  e.currentTarget.setAttribute(
-                    "data-drop-time",
-                    minutesToTime(snappedMinutes)
-                  );
+                  const calculatedTime = minutesToTime(snappedMinutes);
+                  // Store time via callback
+                  if (onDropTimeChange) {
+                    onDropTimeChange(calculatedTime);
+                  }
                 }
               }}
             >

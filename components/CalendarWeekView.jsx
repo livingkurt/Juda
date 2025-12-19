@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Box, Text, Flex, useColorModeValue } from "@chakra-ui/react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
+import { DragDropContext } from "@hello-pangea/dnd";
 import {
   timeToMinutes,
   minutesToTime,
@@ -20,6 +21,7 @@ export const CalendarWeekView = ({
   onTaskTimeChange,
   onTaskDurationChange,
   onCreateTask,
+  onDropTimeChange,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -300,10 +302,13 @@ export const CalendarWeekView = ({
                     borderColor={borderColor}
                     position="relative"
                     onClick={e => {
-                      // Only handle click if not dragging
-                      if (!snapshot.isDraggingOver) {
-                        handleColumnClick(e, day);
+                      // Prevent click when dragging to avoid view change
+                      if (snapshot.isDraggingOver) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
                       }
+                      handleColumnClick(e, day);
                     }}
                     bg={
                       snapshot.isDraggingOver
@@ -324,11 +329,11 @@ export const CalendarWeekView = ({
                           )
                         );
                         const snappedMinutes = snapToIncrement(minutes, 15);
-                        // Store in data attribute for use in handleDragEnd
-                        e.currentTarget.setAttribute(
-                          "data-drop-time",
-                          minutesToTime(snappedMinutes)
-                        );
+                        const calculatedTime = minutesToTime(snappedMinutes);
+                        // Store time via callback
+                        if (onDropTimeChange) {
+                          onDropTimeChange(calculatedTime);
+                        }
                       }
                     }}
                   >

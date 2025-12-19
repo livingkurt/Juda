@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   Box,
   Button,
@@ -78,6 +78,7 @@ export default function DailyTasksApp() {
   const [editingSection, setEditingSection] = useState(null);
   const [defaultSectionId, setDefaultSectionId] = useState(null);
   const [defaultTime, setDefaultTime] = useState(null);
+  const dropTimeRef = useRef(null);
 
   const {
     isOpen: taskDialogOpen,
@@ -240,23 +241,20 @@ export default function DailyTasksApp() {
           // Dropped on calendar - set date/time based on position
           const dropParts = destDroppableId.split(":");
           const calendarType = dropParts[0].split("-")[1];
-          const dropDate = dropParts[1] ? new Date(dropParts[1]) : selectedDate;
-          // Try to get time from drop position (stored in data attribute), default to 9 AM
-          let dropTime = "09:00";
-          try {
-            const dropElement = document.querySelector(
-              `[data-rbd-droppable-id="${destDroppableId}"]`
-            );
-            if (dropElement && dropElement.getAttribute("data-drop-time")) {
-              dropTime = dropElement.getAttribute("data-drop-time");
-            }
-          } catch (e) {
-            // Fallback to default
-          }
+          const dropDateStr = dropParts[1];
+          const dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
+          // Use stored drop time from ref, default to 9 AM
+          const dropTime = dropTimeRef.current || "09:00";
+          dropTimeRef.current = null; // Reset
+
+          // Find the task to update
+          const taskToUpdate = tasks.find(t => t.id === taskId);
+          if (!taskToUpdate) return;
 
           await updateTask(taskId, {
             time: dropTime,
             recurrence: null, // Clear recurrence when scheduling
+            sectionId: taskToUpdate.sectionId, // Keep the section
           });
         } else {
           // Dropped on today view section - set date to today, no time
@@ -284,7 +282,9 @@ export default function DailyTasksApp() {
           const dropParts = destDroppableId.split(":");
           const calendarType = dropParts[0].split("-")[1];
           const dropDate = dropParts[1] ? new Date(dropParts[1]) : selectedDate;
-          const dropTime = dropParts[2] || "09:00"; // Default to 9 AM if no time specified
+          // Use stored drop time from ref, default to 9 AM
+          const dropTime = dropTimeRef.current || "09:00";
+          dropTimeRef.current = null; // Reset
 
           await updateTask(taskId, {
             time: dropTime,
@@ -324,7 +324,9 @@ export default function DailyTasksApp() {
           const dropParts = destDroppableId.split(":");
           const calendarType = dropParts[0].split("-")[1];
           const dropDate = dropParts[1] ? new Date(dropParts[1]) : selectedDate;
-          const dropTime = dropParts[2] || "09:00"; // Default to 9 AM if no time specified
+          // Use stored drop time from ref, default to 9 AM
+          const dropTime = dropTimeRef.current || "09:00";
+          dropTimeRef.current = null; // Reset
 
           await updateTask(taskId, {
             time: dropTime,
@@ -697,6 +699,9 @@ export default function DailyTasksApp() {
                             onTaskTimeChange={handleTaskTimeChange}
                             onTaskDurationChange={handleTaskDurationChange}
                             onCreateTask={handleCreateTaskFromCalendar}
+                            onDropTimeChange={time => {
+                              dropTimeRef.current = time;
+                            }}
                           />
                         )}
                         {calendarView === "week" && (
@@ -711,6 +716,9 @@ export default function DailyTasksApp() {
                             onTaskTimeChange={handleTaskTimeChange}
                             onTaskDurationChange={handleTaskDurationChange}
                             onCreateTask={handleCreateTaskFromCalendar}
+                            onDropTimeChange={time => {
+                              dropTimeRef.current = time;
+                            }}
                           />
                         )}
                         {calendarView === "month" && (
