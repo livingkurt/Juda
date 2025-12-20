@@ -1,36 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Box,
-  Input,
-  VStack,
-  HStack,
-  Flex,
-  Text,
-  IconButton,
-  Divider,
-  Badge,
-  useColorModeValue,
-  Heading,
-} from "@chakra-ui/react";
+import { Box, VStack, HStack, Flex, Text, IconButton, Badge, useColorModeValue, Heading } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus, X } from "lucide-react";
-import { SortableBacklogItem } from "./SortableBacklogItem";
 import { SortableBacklogTask } from "./SortableBacklogTask";
 
 export const BacklogDrawer = ({
   onClose,
-  backlog,
   backlogTasks,
   sections,
-  onToggleBacklog,
-  onToggleTask,
-  onDeleteBacklog,
-  onDeleteTask,
   onEditTask,
-  onAdd,
+  onDeleteTask,
   onAddTask,
   createDraggableId,
 }) => {
@@ -38,11 +19,8 @@ export const BacklogDrawer = ({
   const borderColor = useColorModeValue("gray.200", "gray.600");
   const textColor = useColorModeValue("gray.900", "gray.100");
   const mutedText = useColorModeValue("gray.500", "gray.400");
-  const hoverBg = useColorModeValue("gray.50", "gray.700");
   const dropHighlight = useColorModeValue("blue.50", "blue.900");
   const gripColor = useColorModeValue("gray.400", "gray.500");
-
-  const [newItem, setNewItem] = useState("");
 
   const getSectionName = sectionId => {
     return sections.find(s => s.id === sectionId)?.name || "Unknown";
@@ -99,94 +77,34 @@ export const BacklogDrawer = ({
       >
         <VStack align="stretch" spacing={3}>
           {/* Unscheduled Tasks */}
-          {tasksWithIds.length > 0 && (
-            <>
-              <Box>
-                <Text fontSize="xs" fontWeight="semibold" color={mutedText} mb={2} textTransform="uppercase">
-                  Unscheduled Tasks
-                </Text>
-                <SortableContext items={tasksWithIds.map(t => t.draggableId)} strategy={verticalListSortingStrategy}>
-                  <VStack align="stretch" spacing={3}>
-                    {tasksWithIds.map(task => (
-                      <SortableBacklogTask
-                        key={task.id}
-                        task={task}
-                        onToggleTask={onToggleTask}
-                        onEditTask={onEditTask}
-                        onDeleteTask={onDeleteTask}
-                        getSectionName={getSectionName}
-                        textColor={textColor}
-                        mutedText={mutedText}
-                        hoverBg={hoverBg}
-                        gripColor={gripColor}
-                      />
-                    ))}
-                  </VStack>
-                </SortableContext>
-              </Box>
-              {backlog.length > 0 && <Divider />}
-            </>
-          )}
-
-          {/* Manual backlog items (quick notes) */}
-          {backlog.length > 0 && (
+          {tasksWithIds.length > 0 ? (
             <Box>
               <Text fontSize="xs" fontWeight="semibold" color={mutedText} mb={2} textTransform="uppercase">
-                Quick Notes
+                Unscheduled Tasks
               </Text>
-              <SortableContext
-                items={backlog.map(item => `backlog-item-${item.id}`)}
-                strategy={verticalListSortingStrategy}
-              >
+              <SortableContext items={tasksWithIds.map(t => t.draggableId)} strategy={verticalListSortingStrategy}>
                 <VStack align="stretch" spacing={3}>
-                  {backlog.map(item => (
-                    <SortableBacklogItem
-                      key={item.id}
-                      item={item}
-                      onDeleteBacklog={onDeleteBacklog}
-                      onToggleBacklog={onToggleBacklog}
+                  {tasksWithIds.map(task => (
+                    <SortableBacklogTask
+                      key={task.id}
+                      task={task}
+                      onEditTask={onEditTask}
+                      onDeleteTask={onDeleteTask}
+                      getSectionName={getSectionName}
+                      textColor={textColor}
+                      mutedText={mutedText}
+                      gripColor={gripColor}
                     />
                   ))}
                 </VStack>
               </SortableContext>
             </Box>
-          )}
-
-          {/* Empty state */}
-          {tasksWithIds.length === 0 && backlog.length === 0 && (
+          ) : (
             <Text fontSize="sm" color={mutedText} textAlign="center" py={8}>
               {isOver ? "Drop here to add to backlog" : "No items in backlog"}
             </Text>
           )}
         </VStack>
-      </Box>
-
-      {/* Quick add input */}
-      <Box p={4} borderTopWidth="1px" borderColor={borderColor} flexShrink={0}>
-        <HStack spacing={2}>
-          <Input
-            value={newItem}
-            onChange={e => setNewItem(e.target.value)}
-            placeholder="Add quick note..."
-            onKeyDown={e => {
-              if (e.key === "Enter" && newItem.trim()) {
-                onAdd(newItem.trim());
-                setNewItem("");
-              }
-            }}
-          />
-          <IconButton
-            icon={<Plus size={16} />}
-            onClick={() => {
-              if (newItem.trim()) {
-                onAdd(newItem.trim());
-                setNewItem("");
-              }
-            }}
-            variant="outline"
-            aria-label="Add to backlog"
-          />
-        </HStack>
       </Box>
     </Box>
   );

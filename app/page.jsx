@@ -46,7 +46,6 @@ import { SectionDialog } from "@/components/SectionDialog";
 import { BacklogDrawer } from "@/components/BacklogDrawer";
 import { useTasks } from "@/hooks/useTasks";
 import { useSections } from "@/hooks/useSections";
-import { useBacklog } from "@/hooks/useBacklog";
 import { useCompletions } from "@/hooks/useCompletions";
 import { shouldShowOnDate, getGreeting, hasFutureDateTime, minutesToTime, snapToIncrement } from "@/lib/utils";
 import { parseDroppableId, createDroppableId, createDraggableId, extractTaskId } from "@/lib/dragHelpers";
@@ -73,7 +72,6 @@ export default function DailyTasksApp() {
 
   const { tasks, createTask, updateTask, deleteTask, reorderTask } = useTasks();
   const { sections, createSection, updateSection, deleteSection, reorderSections } = useSections();
-  const { backlog, createBacklogItem, updateBacklogItem, deleteBacklogItem, reorderBacklog } = useBacklog();
   const { createCompletion, deleteCompletion, isCompletedOnDate, fetchCompletions } = useCompletions();
 
   // Initialize state with default values (same on server and client)
@@ -310,23 +308,6 @@ export default function DailyTasksApp() {
       const [reorderedSection] = newSections.splice(source.index, 1);
       newSections.splice(destination.index, 0, reorderedSection);
       await reorderSections(newSections);
-      return;
-    }
-
-    // Handle backlog item reordering (quick notes)
-    if (type === "BACKLOG_ITEM") {
-      // Only allow reordering within the backlog-items container
-      if (source.droppableId === "backlog-items" && destination.droppableId === "backlog-items") {
-        // Skip if dropped in same position
-        if (source.index === destination.index) {
-          return;
-        }
-
-        const sortedBacklog = [...backlog].sort((a, b) => a.order - b.order);
-        const [reorderedItem] = sortedBacklog.splice(source.index, 1);
-        sortedBacklog.splice(destination.index, 0, reorderedItem);
-        await reorderBacklog(sortedBacklog);
-      }
       return;
     }
 
@@ -644,9 +625,6 @@ export default function DailyTasksApp() {
       // Dropping on a task in a section - extract section from task's draggableId
       const match = over.id.match(/-today-section-([^-]+)/);
       if (match) destContainerId = `today-section|${match[1]}`;
-    } else if (over.id.startsWith("backlog-item-")) {
-      // Dropping on a backlog item - use backlog-items container
-      destContainerId = "backlog-items";
     } else if (over.id.startsWith("task-") && over.id.includes("-backlog")) {
       // Dropping on a task in backlog - use backlog container
       destContainerId = "backlog";
@@ -670,8 +648,6 @@ export default function DailyTasksApp() {
     let type = active.data.current?.type || "TASK";
     if (draggableId.startsWith("section-")) {
       type = "SECTION";
-    } else if (draggableId.startsWith("backlog-item-")) {
-      type = "BACKLOG_ITEM";
     }
 
     // Handle reordering within the same container using arrayMove
@@ -689,14 +665,6 @@ export default function DailyTasksApp() {
         const sortedSections = [...sections].sort((a, b) => a.order - b.order);
         const reordered = arrayMove(sortedSections, oldIndex, newIndex);
         await reorderSections(reordered);
-        return;
-      }
-
-      // Handle backlog item reordering
-      if (type === "BACKLOG_ITEM" && sourceContainerId === "backlog-items") {
-        const sortedBacklog = [...backlog].sort((a, b) => a.order - b.order);
-        const reordered = arrayMove(sortedBacklog, oldIndex, newIndex);
-        await reorderBacklog(reordered);
         return;
       }
 
@@ -799,7 +767,7 @@ export default function DailyTasksApp() {
                     >
                       Backlog
                     </Button>
-                    {(backlog.filter(b => !b.completed).length > 0 || backlogTasks.length > 0) && (
+                    {backlogTasks.length > 0 && (
                       <Badge
                         position="absolute"
                         top="-1"
@@ -814,7 +782,7 @@ export default function DailyTasksApp() {
                         alignItems="center"
                         justifyContent="center"
                       >
-                        {backlog.filter(b => !b.completed).length + backlogTasks.length}
+                        {backlogTasks.length}
                       </Badge>
                     )}
                   </Box>
@@ -923,18 +891,10 @@ export default function DailyTasksApp() {
               {backlogOpen && (
                 <BacklogDrawer
                   onClose={() => setBacklogOpen(false)}
-                  backlog={backlog}
                   backlogTasks={backlogTasks}
                   sections={sections}
-                  onToggleBacklog={async id => {
-                    const item = backlog.find(b => b.id === id);
-                    if (item) await updateBacklogItem(id, !item.completed);
-                  }}
-                  onToggleTask={handleToggleTask}
-                  onDeleteBacklog={deleteBacklogItem}
                   onDeleteTask={handleDeleteTask}
                   onEditTask={handleEditTask}
-                  onAdd={createBacklogItem}
                   onAddTask={handleAddTaskToBacklog}
                   createDraggableId={createDraggableId}
                 />
@@ -1067,21 +1027,6 @@ export default function DailyTasksApp() {
             >
               <Text fontSize="sm" fontWeight="semibold" color={dragOverlayText}>
                 {sections.find(s => `section-${s.id}` === activeId)?.name || "Section"}
-              </Text>
-            </Box>
-          ) : activeId?.startsWith("backlog-item-") ? (
-            <Box
-              px={4}
-              py={2}
-              borderRadius="lg"
-              bg={dragOverlayBg}
-              borderWidth="2px"
-              borderColor={dragOverlayBorder}
-              boxShadow="0 10px 25px -5px rgba(59, 130, 246, 0.4)"
-              opacity={0.9}
-            >
-              <Text fontSize="sm" fontWeight="semibold" color={dragOverlayText}>
-                {backlog.find(b => `backlog-item-${b.id}` === activeId)?.title || "Backlog Item"}
               </Text>
             </Box>
           ) : null}

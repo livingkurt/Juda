@@ -35,15 +35,6 @@ model Task {
   completions TaskCompletion[]
 }
 
-model BacklogItem {
-  id        String   @id @default(cuid())
-  title     String
-  completed Boolean  @default(false)
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 model TaskCompletion {
   id        String   @id @default(cuid())
   taskId    String

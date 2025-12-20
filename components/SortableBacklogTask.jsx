@@ -1,19 +1,17 @@
 "use client";
 
-import { Box, Flex, Text, Checkbox, IconButton, HStack, Badge } from "@chakra-ui/react";
+import { Box, Flex, Text, IconButton, HStack, Badge } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { Edit2, Trash2, GripVertical, AlertCircle } from "lucide-react";
 import { isOverdue } from "@/lib/utils";
 
 export const SortableBacklogTask = ({
   task,
-  onToggleTask,
   onEditTask,
   onDeleteTask,
   getSectionName,
   textColor,
   mutedText,
-  hoverBg,
   gripColor,
 }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({
@@ -37,7 +35,6 @@ export const SortableBacklogTask = ({
       gap={2}
       p={3}
       borderRadius="md"
-      _hover={{ bg: hoverBg }}
       borderLeftWidth="3px"
       borderLeftColor={task.color || "#3b82f6"}
       bg="transparent"
@@ -45,23 +42,9 @@ export const SortableBacklogTask = ({
       <Box flexShrink={0} {...attributes} {...listeners}>
         <GripVertical size={16} style={{ color: gripColor, cursor: "grab" }} />
       </Box>
-      <Checkbox
-        isChecked={task.completed}
-        size="lg"
-        onChange={() => onToggleTask(task.id)}
-        onClick={e => e.stopPropagation()}
-        onMouseDown={e => e.stopPropagation()}
-        flexShrink={0}
-      />
       <Box flex={1} minW={0}>
         <HStack spacing={2} align="center">
-          <Text
-            fontSize="sm"
-            fontWeight="medium"
-            textDecoration={task.completed ? "line-through" : "none"}
-            opacity={task.completed ? 0.5 : 1}
-            color={textColor}
-          >
+          <Text fontSize="sm" fontWeight="medium" color={textColor}>
             {task.title}
           </Text>
           {isOverdue(task) && (
