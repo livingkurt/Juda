@@ -63,12 +63,11 @@ export const TaskDialog = ({
       setTitle(task.title || "");
       setSectionId(task.sectionId || sections[0]?.id || "");
       setTime(task.time || "");
-      // Extract date from recurrence or use empty string
       if (task.recurrence?.startDate) {
         const taskDate = new Date(task.recurrence.startDate);
         setDate(taskDate.toISOString().split("T")[0]);
       } else {
-        setDate(""); // Don't set default date for existing tasks
+        setDate("");
       }
       setDuration(task.duration || 30);
       setRecurrenceType(task.recurrence?.type || "none");
@@ -92,11 +91,8 @@ export const TaskDialog = ({
   }, [task, isOpen, sections, defaultSectionId, defaultTime, defaultDate]);
 
   const handleSave = () => {
-    // For one-time tasks (recurrenceType === "none"), store date in a special structure
-    // For recurring tasks, use normal recurrence structure
     let recurrence = null;
     if (recurrenceType === "none") {
-      // One-time task: store date if provided, but no recurrence pattern
       if (date) {
         recurrence = {
           type: "none",
@@ -104,7 +100,6 @@ export const TaskDialog = ({
         };
       }
     } else {
-      // Recurring task: store recurrence pattern
       recurrence = {
         type: recurrenceType,
         ...(recurrenceType === "weekly" && { days: selectedDays }),

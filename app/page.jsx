@@ -24,9 +24,8 @@ import {
   Heading,
   Badge,
   FormLabel,
-  Collapse,
 } from "@chakra-ui/react";
-import { DragDropContext, Droppable } from "@hello-pangea/dnd";
+import { DragDropContext } from "@hello-pangea/dnd";
 import {
   ChevronLeft,
   ChevronRight,
@@ -50,6 +49,48 @@ import { shouldShowOnDate, getGreeting } from "@/lib/utils";
 import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
+
+// Helper to parse droppable IDs consistently
+const parseDroppableId = (droppableId) => {
+  if (droppableId === "backlog") {
+    return { type: "backlog" };
+  }
+  
+  // Calendar droppables use format: "calendar-{view}-{subtype}|{date}"
+  // Using pipe instead of colon to avoid conflicts with ISO dates
+  if (droppableId.startsWith("calendar-")) {
+    const [prefix, dateStr] = droppableId.split("|");
+    const parts = prefix.split("-");
+    const view = parts[1]; // "day" or "week"
+    const isUntimed = parts[2] === "untimed";
+    
+    return {
+      type: "calendar",
+      view,
+      isUntimed,
+      date: dateStr ? new Date(dateStr) : null,
+    };
+  }
+  
+  // Today view sections use format: "today-section|{sectionId}"
+  if (droppableId.startsWith("today-section|")) {
+    const sectionId = droppableId.split("|")[1];
+    return { type: "today-section", sectionId };
+  }
+  
+  // Legacy: assume it's a section ID for backwards compatibility
+  return { type: "today-section", sectionId: droppableId };
+};
+
+// Helper to create droppable IDs
+export const createDroppableId = {
+  backlog: () => "backlog",
+  todaySection: (sectionId) => `today-section|${sectionId}`,
+  calendarDay: (date) => `calendar-day|${date.toISOString()}`,
+  calendarDayUntimed: (date) => `calendar-day-untimed|${date.toISOString()}`,
+  calendarWeek: (date) => `calendar-week|${date.toISOString()}`,
+  calendarWeekUntimed: (date) => `calendar-week-untimed|${date.toISOString()}`,
+};
 
 export default function DailyTasksApp() {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -79,8 +120,10 @@ export default function DailyTasksApp() {
   const [defaultSectionId, setDefaultSectionId] = useState(null);
   const [defaultTime, setDefaultTime] = useState(null);
   const [defaultDate, setDefaultDate] = useState(null);
-  const dropTimeRef = useRef(null);
   const [hoveredDroppable, setHoveredDroppable] = useState(null);
+  
+  // Store drop time calculated from mouse position during drag
+  const dropTimeRef = useRef(null);
 
   const {
     isOpen: taskDialogOpen,
@@ -100,14 +143,19 @@ export default function DailyTasksApp() {
   } = useDisclosure();
 
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
   const greeting = getGreeting();
   const GreetingIcon =
     greeting.icon === "Sun" ? Sun : greeting.icon === "Sunset" ? Sunset : Moon;
 
+  // Tasks that should show in today's dashboard
   const todaysTasks = useMemo(
     () => tasks.filter(task => shouldShowOnDate(task, today)),
-    [tasks]
+    [tasks, today]
   );
+  
+  // Group today's tasks by section
   const tasksBySection = useMemo(() => {
     const grouped = {};
     sections.forEach(s => {
@@ -118,26 +166,16 @@ export default function DailyTasksApp() {
     return grouped;
   }, [todaysTasks, sections]);
 
-  // Tasks that should appear in backlog:
-  // 1. Tasks that don't match today's date (based on recurrence/startDate)
-  // 2. Tasks without recurrence and without time
-  // 3. Not completed
+  // Tasks for backlog: no recurrence AND no time, or recurrence doesn't match today
   const backlogTasks = useMemo(() => {
     return tasks.filter(task => {
-      // Skip completed tasks
       if (task.completed) return false;
-
-      // If task matches today's date (has recurrence/startDate that matches), exclude from backlog
       if (shouldShowOnDate(task, today)) return false;
-
-      // Include tasks without recurrence and without time
-      if (!task.recurrence && !task.time) return true;
-
-      // Include tasks that don't match today's recurrence
       return true;
     });
   }, [tasks, today]);
 
+  // Progress calculation
   const totalTasks = todaysTasks.length;
   const completedTasks = todaysTasks.filter(
     t =>
@@ -149,6 +187,7 @@ export default function DailyTasksApp() {
   const progressPercent =
     totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
+  // Task handlers
   const handleToggleTask = async taskId => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
@@ -203,6 +242,7 @@ export default function DailyTasksApp() {
 
   const handleCreateTaskFromCalendar = (time, day) => {
     setDefaultTime(time);
+    setDefaultDate(day ? day.toISOString().split("T")[0] : null);
     setDefaultSectionId(sections[0]?.id);
     setEditingTask(null);
     openTaskDialog();
@@ -226,317 +266,131 @@ export default function DailyTasksApp() {
     await updateTask(taskId, { duration: newDuration });
   };
 
+  // Main drag end handler
   const handleDragEnd = async result => {
     const { destination, source, draggableId, type } = result;
+    
+    // Clear hovered state
+    setHoveredDroppable(null);
 
-    if (!destination) return;
+    if (!destination) {
+      dropTimeRef.current = null;
+      return;
+    }
 
+    // Handle section reordering
     if (type === "SECTION") {
-      const newSections = Array.from(sections).sort(
-        (a, b) => a.order - b.order
-      );
+      const newSections = Array.from(sections).sort((a, b) => a.order - b.order);
       const [reorderedSection] = newSections.splice(source.index, 1);
       newSections.splice(destination.index, 0, reorderedSection);
       await reorderSections(newSections);
-    } else if (type === "TASK") {
-      const sourceDroppableId = source.droppableId;
-      const destDroppableId = destination.droppableId;
+      return;
+    }
+
+    // Handle task dragging
+    if (type === "TASK") {
       const taskId = draggableId;
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) {
+        dropTimeRef.current = null;
+        return;
+      }
 
-      // Handle drag from backlog
-      if (sourceDroppableId === "backlog") {
-        if (destDroppableId === "backlog") {
-          // Reordering within backlog - not applicable for tasks
-          return;
-        } else if (
-          destDroppableId.startsWith("calendar-") &&
-          !destDroppableId.includes("untimed")
-        ) {
-          // Dropped on calendar (timed area) - set date/time based on position
-          const dropParts = destDroppableId.split(":");
-          // dropParts[0] = "calendar-day" or "calendar-week"
-          // Join everything after the first colon (date string may contain colons from ISO format)
-          const dropDateStr = dropParts.slice(1).join(":");
-          let dropDate;
-          try {
-            if (dropDateStr) {
-              dropDate = new Date(dropDateStr);
-              // Validate the date
-              if (isNaN(dropDate.getTime())) {
-                console.error("Invalid date string:", dropDateStr);
-                dropDate = selectedDate;
-              }
-            } else {
-              // Fallback to selectedDate if no date in droppable ID
-              dropDate = selectedDate;
-            }
-          } catch (e) {
-            console.error("Error parsing date:", e);
-            dropDate = selectedDate;
-          }
-          // Use stored drop time from ref, default to 9 AM
-          const dropTime = dropTimeRef.current || "09:00";
-          dropTimeRef.current = null; // Reset
+      const sourceParsed = parseDroppableId(source.droppableId);
+      const destParsed = parseDroppableId(destination.droppableId);
+      
+      // Get the calculated drop time (if dropping on timed calendar area)
+      const calculatedTime = dropTimeRef.current || "09:00";
+      dropTimeRef.current = null;
 
-          // Find the task to update
-          const taskToUpdate = tasks.find(t => t.id === taskId);
-          if (!taskToUpdate) return;
+      console.log("Drag:", {
+        from: sourceParsed,
+        to: destParsed,
+        task: task.title,
+        calculatedTime,
+      });
 
-          // Optimistically update immediately
-          const optimisticUpdate = {
-            time: dropTime,
-            recurrence: {
-              type: "none",
-              startDate: dropDate.toISOString(),
-            },
-          };
+      // Determine what updates to make based on source and destination
+      let updates = {};
 
-          // Set as one-time task (no recurrence) with the specific date/time
-          await updateTask(
-            taskId,
-            {
-              time: dropTime,
-              recurrence: {
+      // DESTINATION: Backlog - clear date and time
+      if (destParsed.type === "backlog") {
+        updates = {
+          time: null,
+          recurrence: null,
+        };
+      }
+      // DESTINATION: Today section - set date to today, clear time
+      else if (destParsed.type === "today-section") {
+        updates = {
+          sectionId: destParsed.sectionId,
+          time: null,
+          recurrence: {
+            type: "none",
+            startDate: today.toISOString(),
+          },
+          order: destination.index,
+        };
+      }
+      // DESTINATION: Calendar (timed area) - set date and time
+      else if (destParsed.type === "calendar" && !destParsed.isUntimed) {
+        const dropDate = destParsed.date || selectedDate;
+        updates = {
+          time: calculatedTime,
+          recurrence: {
+            type: "none",
+            startDate: dropDate.toISOString(),
+          },
+        };
+      }
+      // DESTINATION: Calendar (untimed area) - set date, clear time
+      else if (destParsed.type === "calendar" && destParsed.isUntimed) {
+        const dropDate = destParsed.date || selectedDate;
+        updates = {
+          time: null,
+          recurrence: task.recurrence?.type && task.recurrence.type !== "none"
+            ? task.recurrence // Keep recurring pattern
+            : {
                 type: "none",
                 startDate: dropDate.toISOString(),
               },
-              sectionId: taskToUpdate.sectionId, // Keep the section
-            },
-            optimisticUpdate
-          );
-        } else {
-          // Dropped on today view section - set date to today, no time, preserve recurrence
-          const taskToUpdateToday = tasks.find(t => t.id === taskId);
-          if (!taskToUpdateToday) return;
-
-          // Keep existing recurrence or set as one-time with today's date
-          const currentRecurrence = taskToUpdateToday.recurrence;
-          let recurrence = currentRecurrence;
-          if (!recurrence) {
-            // If no recurrence, set as one-time task for today
-            recurrence = {
-              type: "none",
-              startDate: today.toISOString(),
-            };
-          } else if (recurrence.type === "none" && recurrence.startDate) {
-            // Update startDate to today if it's already a one-time task
-            recurrence = {
-              ...recurrence,
-              startDate: today.toISOString(),
-            };
-          }
-          // For recurring tasks, we keep the recurrence as-is (it will show up based on recurrence pattern)
-
-          await updateTask(taskId, {
-            sectionId: destDroppableId,
-            time: null,
-            recurrence,
-            order: destination.index,
-          });
-        }
+        };
       }
-      // Handle drag from today view sections
-      else if (
-        sourceDroppableId !== "backlog" &&
-        !sourceDroppableId.startsWith("calendar-")
+
+      // Apply updates
+      if (Object.keys(updates).length > 0) {
+        await updateTask(taskId, updates);
+      }
+
+      // Handle reordering within same container
+      if (
+        source.droppableId === destination.droppableId &&
+        sourceParsed.type === "today-section"
       ) {
-        if (destDroppableId === "backlog") {
-          // Dropped on backlog - remove date/time
-          const optimisticUpdate = { time: null, recurrence: null };
-          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
-        } else if (destDroppableId.startsWith("calendar-")) {
-          // Dropped on calendar - set date/time based on position
-          const dropParts = destDroppableId.split(":");
-          const calendarType = dropParts[0].split("-")[1];
-          const dropDateStr = dropParts.slice(1).join(":");
-          let dropDate;
-          try {
-            dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
-            if (isNaN(dropDate.getTime())) dropDate = selectedDate;
-          } catch (e) {
-            dropDate = selectedDate;
+        // Reorder within section
+        const sectionTasks = [...(tasksBySection[sourceParsed.sectionId] || [])];
+        const [movedTask] = sectionTasks.splice(source.index, 1);
+        sectionTasks.splice(destination.index, 0, movedTask);
+        
+        // Update order for all tasks in section
+        for (let i = 0; i < sectionTasks.length; i++) {
+          if (sectionTasks[i].order !== i) {
+            await updateTask(sectionTasks[i].id, { order: i });
           }
-          // Use stored drop time from ref, default to 9 AM
-          const dropTime = dropTimeRef.current || "09:00";
-          dropTimeRef.current = null; // Reset
-
-          const optimisticUpdate = {
-            time: dropTime,
-            recurrence: {
-              type: "daily",
-              startDate: dropDate.toISOString(),
-            },
-          };
-          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
-        } else {
-          // Moving within or between sections
-          if (sourceDroppableId === destDroppableId) {
-            const sectionTasks = [...(tasksBySection[sourceDroppableId] || [])];
-            const [reorderedTask] = sectionTasks.splice(source.index, 1);
-            sectionTasks.splice(destination.index, 0, reorderedTask);
-
-            // Batch optimistic updates first
-            const previousTasks = [...tasks];
-            setTasks(prev =>
-              prev.map(t => {
-                const newIndex = sectionTasks.findIndex(st => st.id === t.id);
-                return newIndex !== -1 && t.sectionId === sourceDroppableId
-                  ? { ...t, order: newIndex }
-                  : t;
-              })
-            );
-
-            // Then make API calls
-            try {
-              const updatePromises = sectionTasks.map((t, index) =>
-                updateTask(t.id, { order: index }, null)
-              );
-              await Promise.all(updatePromises);
-            } catch (err) {
-              // Rollback on error
-              setTasks(previousTasks);
-              throw err;
-            }
-          } else {
-            const taskToMove = tasks.find(t => t.id === taskId);
-            if (taskToMove) {
-              const optimisticUpdate = {
-                sectionId: destDroppableId,
-                order: destination.index,
-              };
-              await reorderTask(
-                taskId,
-                sourceDroppableId,
-                destDroppableId,
-                destination.index,
-                optimisticUpdate
-              );
-            }
-          }
-        }
-      }
-      // Handle drag from calendar (including untimed tasks area)
-      else if (sourceDroppableId.startsWith("calendar-")) {
-        if (destDroppableId === "backlog") {
-          // Dropped on backlog - remove date/time
-          const optimisticUpdate = { time: null, recurrence: null };
-          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
-        } else if (
-          destDroppableId.startsWith("calendar-") &&
-          !destDroppableId.includes("untimed")
-        ) {
-          // Moving to timed calendar area - update time/date
-          const dropParts = destDroppableId.split(":");
-          const calendarType = dropParts[0].split("-")[1]; // "day" or "week"
-          // Join everything after the first colon (date string may contain colons from ISO format)
-          const dropDateStr = dropParts.slice(1).join(":");
-          let dropDate;
-          try {
-            if (dropDateStr) {
-              dropDate = new Date(dropDateStr);
-              // Validate the date
-              if (isNaN(dropDate.getTime())) {
-                console.error("Invalid date string:", dropDateStr);
-                dropDate = selectedDate;
-              }
-            } else {
-              // Fallback to selectedDate if no date in droppable ID
-              dropDate = selectedDate;
-            }
-          } catch (e) {
-            console.error("Error parsing date:", e);
-            dropDate = selectedDate;
-          }
-          // Use stored drop time from ref, default to 9 AM
-          const dropTime = dropTimeRef.current || "09:00";
-          dropTimeRef.current = null; // Reset
-
-          // Find the task to update
-          const taskToUpdate = tasks.find(t => t.id === taskId);
-          if (!taskToUpdate) return;
-
-          // When moving calendar items to a different date, always set as one-time task
-          // This ensures the task appears only on the date it's dropped on
-          const optimisticUpdate = {
-            time: dropTime,
-            recurrence: {
-              type: "none",
-              startDate: dropDate.toISOString(),
-            },
-          };
-          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
-        } else if (destDroppableId.includes("untimed")) {
-          // Moving from timed to untimed area - remove time but keep date
-          const dropParts = destDroppableId.split(":");
-          // Handle both "calendar-day-untimed:" and "calendar-week-untimed:" formats
-          // Join everything after the first colon (date string may contain colons from ISO format)
-          const dropDateStr = dropParts.slice(1).join(":");
-          let dropDate;
-          try {
-            if (dropDateStr) {
-              dropDate = new Date(dropDateStr);
-              // Validate the date
-              if (isNaN(dropDate.getTime())) {
-                console.error("Invalid date string:", dropDateStr);
-                dropDate = selectedDate;
-              }
-            } else {
-              // Fallback to selectedDate if no date in droppable ID
-              dropDate = selectedDate;
-            }
-          } catch (e) {
-            console.error("Error parsing date:", e);
-            dropDate = selectedDate;
-          }
-
-          const taskToUpdate = tasks.find(t => t.id === taskId);
-          if (!taskToUpdate) return;
-
-          // Keep recurrence but remove time
-          const currentRecurrence = taskToUpdate.recurrence;
-          const optimisticUpdate = {
-            time: null,
-            recurrence: currentRecurrence || {
-              type: "none",
-              startDate: dropDate.toISOString(),
-            },
-          };
-          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
-        } else {
-          // Dropped on today view section - set date to today, no time, preserve recurrence
-          const taskToUpdateToday = tasks.find(t => t.id === taskId);
-          if (!taskToUpdateToday) return;
-
-          // Keep existing recurrence or set as one-time with today's date
-          const currentRecurrence = taskToUpdateToday.recurrence;
-          let recurrence = currentRecurrence;
-          if (!recurrence) {
-            // If no recurrence, set as one-time task for today
-            recurrence = {
-              type: "none",
-              startDate: today.toISOString(),
-            };
-          } else if (recurrence.type === "none" && recurrence.startDate) {
-            // Update startDate to today if it's already a one-time task
-            recurrence = {
-              ...recurrence,
-              startDate: today.toISOString(),
-            };
-          }
-          // For recurring tasks, we keep the recurrence as-is (it will show up based on recurrence pattern)
-
-          const optimisticUpdate = {
-            sectionId: destDroppableId,
-            time: null,
-            recurrence,
-            order: destination.index,
-          };
-          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
         }
       }
     }
   };
 
+  const handleDragUpdate = update => {
+    if (update.destination) {
+      setHoveredDroppable(update.destination.droppableId);
+    } else {
+      setHoveredDroppable(null);
+    }
+  };
+
+  // Section handlers
   const handleEditSection = section => {
     setEditingSection(section);
     openSectionDialog();
@@ -565,6 +419,7 @@ export default function DailyTasksApp() {
     await deleteSection(sectionId);
   };
 
+  // Calendar navigation
   const navigateCalendar = dir => {
     const d = new Date(selectedDate);
     if (calendarView === "day") d.setDate(d.getDate() + dir);
@@ -610,6 +465,7 @@ export default function DailyTasksApp() {
       bg={bgColor}
       color={textColor}
     >
+      {/* Header */}
       <Box
         as="header"
         bg={headerBg}
@@ -626,7 +482,7 @@ export default function DailyTasksApp() {
                   {greeting.text}
                 </Heading>
                 <Text fontSize="sm" color={mutedText}>
-                  {today.toLocaleDateString("en-US", {
+                  {new Date().toLocaleDateString("en-US", {
                     weekday: "long",
                     month: "long",
                     day: "numeric",
@@ -662,6 +518,8 @@ export default function DailyTasksApp() {
               aria-label="Settings"
             />
           </Flex>
+          
+          {/* View toggles and calendar nav */}
           <Box mt={4}>
             <Flex align="center" justify="space-between" mb={3}>
               <HStack spacing={2}>
@@ -751,6 +609,8 @@ export default function DailyTasksApp() {
                 </Flex>
               )}
             </Flex>
+            
+            {/* Progress bar */}
             {showDashboard && (
               <Box>
                 <Flex
@@ -783,16 +643,10 @@ export default function DailyTasksApp() {
         </Box>
       </Box>
 
+      {/* Main content with DragDropContext */}
       <DragDropContext
         onDragEnd={handleDragEnd}
-        onDragUpdate={update => {
-          // Track which droppable is being hovered over
-          if (update.destination) {
-            setHoveredDroppable(update.destination.droppableId);
-          } else {
-            setHoveredDroppable(null);
-          }
-        }}
+        onDragUpdate={handleDragUpdate}
       >
         <Box as="main" flex={1} overflow="hidden" display="flex">
           {/* Backlog Sidebar */}
@@ -826,61 +680,28 @@ export default function DailyTasksApp() {
             )}
           </Box>
 
-          {/* Main Content */}
+          {/* Main Content Area */}
           <Box flex={1} overflow="hidden" display="flex" flexDirection="column">
             <Box flex={1} overflowY="auto">
               <Box w="full" px={4} py={6} display="flex" gap={6} h="full">
                 {/* Dashboard View */}
                 {showDashboard && (
                   <Box flex={1} minW={0} overflowY="auto">
-                    <Droppable
-                      droppableId="sections"
-                      type="SECTION"
-                      direction="vertical"
-                    >
-                      {(provided, snapshot) => (
-                        <Box
-                          ref={provided.innerRef}
-                          {...provided.droppableProps}
-                          bg={
-                            snapshot.isDraggingOver
-                              ? useColorModeValue("gray.50", "gray.800")
-                              : "transparent"
-                          }
-                          borderRadius="md"
-                        >
-                          {sortedSections.map((section, index) => (
-                            <Section
-                              key={section.id}
-                              section={section}
-                              index={index}
-                              tasks={tasksBySection[section.id] || []}
-                              onToggleTask={handleToggleTask}
-                              onToggleSubtask={handleToggleSubtask}
-                              onToggleExpand={handleToggleExpand}
-                              onEditTask={handleEditTask}
-                              onDeleteTask={handleDeleteTask}
-                              onAddTask={handleAddTask}
-                              onEditSection={handleEditSection}
-                              onDeleteSection={handleDeleteSection}
-                              hoveredDroppable={hoveredDroppable}
-                            />
-                          ))}
-                          {provided.placeholder}
-                          <Button
-                            variant="outline"
-                            onClick={handleAddSection}
-                            w="full"
-                            py={6}
-                            borderStyle="dashed"
-                            mt={4}
-                          >
-                            <Plus size={20} style={{ marginRight: "8px" }} />
-                            Add Section
-                          </Button>
-                        </Box>
-                      )}
-                    </Droppable>
+                    <Section
+                      sections={sortedSections}
+                      tasksBySection={tasksBySection}
+                      onToggleTask={handleToggleTask}
+                      onToggleSubtask={handleToggleSubtask}
+                      onToggleExpand={handleToggleExpand}
+                      onEditTask={handleEditTask}
+                      onDeleteTask={handleDeleteTask}
+                      onAddTask={handleAddTask}
+                      onEditSection={handleEditSection}
+                      onDeleteSection={handleDeleteSection}
+                      onAddSection={handleAddSection}
+                      hoveredDroppable={hoveredDroppable}
+                      createDroppableId={createDroppableId}
+                    />
                   </Box>
                 )}
 
@@ -906,6 +727,7 @@ export default function DailyTasksApp() {
                             onDropTimeChange={time => {
                               dropTimeRef.current = time;
                             }}
+                            createDroppableId={createDroppableId}
                           />
                         )}
                         {calendarView === "week" && (
@@ -923,6 +745,7 @@ export default function DailyTasksApp() {
                             onDropTimeChange={time => {
                               dropTimeRef.current = time;
                             }}
+                            createDroppableId={createDroppableId}
                           />
                         )}
                         {calendarView === "month" && (
@@ -945,6 +768,7 @@ export default function DailyTasksApp() {
         </Box>
       </DragDropContext>
 
+      {/* Dialogs */}
       <TaskDialog
         isOpen={taskDialogOpen}
         onClose={() => {

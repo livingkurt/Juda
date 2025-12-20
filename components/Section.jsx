@@ -14,6 +14,7 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  Button,
   useColorModeValue,
 } from "@chakra-ui/react";
 import { Draggable, Droppable } from "@hello-pangea/dnd";
@@ -21,7 +22,8 @@ import { Plus, MoreVertical, GripVertical, Sun } from "lucide-react";
 import { TaskItem } from "./TaskItem";
 import { SECTION_ICONS } from "@/lib/constants";
 
-export const Section = ({
+// Single section card component
+const SectionCard = ({
   section,
   index: sectionIndex,
   tasks,
@@ -34,11 +36,13 @@ export const Section = ({
   onEditSection,
   onDeleteSection,
   hoveredDroppable,
+  droppableId,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
   const textColor = useColorModeValue("gray.900", "gray.100");
   const mutedText = useColorModeValue("gray.500", "gray.400");
+  const dropHighlight = useColorModeValue("blue.50", "blue.900");
 
   const IconComponent =
     SECTION_ICONS.find(i => i.value === section.icon)?.Icon || Sun;
@@ -50,6 +54,8 @@ export const Section = ({
         t.subtasks.every(st => st.completed))
   ).length;
 
+  const isDropTarget = hoveredDroppable === droppableId;
+
   return (
     <Draggable draggableId={`section-${section.id}`} index={sectionIndex}>
       {(provided, snapshot) => (
@@ -58,8 +64,10 @@ export const Section = ({
           {...provided.draggableProps}
           mb={4}
           bg={bgColor}
-          borderColor={borderColor}
+          borderColor={isDropTarget ? "blue.400" : borderColor}
+          borderWidth={isDropTarget ? "2px" : "1px"}
           opacity={snapshot.isDragging ? 0.5 : 1}
+          transition="border-color 0.2s, border-width 0.2s"
         >
           <CardHeader pb={2}>
             <Flex align="center" justify="space-between">
@@ -112,18 +120,15 @@ export const Section = ({
             </Flex>
           </CardHeader>
           <CardBody>
-            <Droppable droppableId={section.id} type="TASK">
+            <Droppable droppableId={droppableId} type="TASK">
               {(provided, snapshot) => (
                 <Box
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  bg={
-                    snapshot.isDraggingOver
-                      ? useColorModeValue("gray.50", "gray.700")
-                      : "transparent"
-                  }
+                  bg={snapshot.isDraggingOver ? dropHighlight : "transparent"}
                   borderRadius="md"
                   minH="50px"
+                  transition="background-color 0.2s"
                 >
                   {tasks.length === 0 ? (
                     <Text
@@ -132,7 +137,7 @@ export const Section = ({
                       py={4}
                       color={mutedText}
                     >
-                      No tasks
+                      {snapshot.isDraggingOver ? "Drop here" : "No tasks"}
                     </Text>
                   ) : (
                     tasks.map((task, index) => (
@@ -157,5 +162,68 @@ export const Section = ({
         </Card>
       )}
     </Draggable>
+  );
+};
+
+// Main Section component that renders all sections
+export const Section = ({
+  sections,
+  tasksBySection,
+  onToggleTask,
+  onToggleSubtask,
+  onToggleExpand,
+  onEditTask,
+  onDeleteTask,
+  onAddTask,
+  onEditSection,
+  onDeleteSection,
+  onAddSection,
+  hoveredDroppable,
+  createDroppableId,
+}) => {
+  const dropHighlight = useColorModeValue("gray.50", "gray.800");
+
+  return (
+    <Droppable droppableId="sections" type="SECTION" direction="vertical">
+      {(provided, snapshot) => (
+        <Box
+          ref={provided.innerRef}
+          {...provided.droppableProps}
+          bg={snapshot.isDraggingOver ? dropHighlight : "transparent"}
+          borderRadius="md"
+        >
+          {sections.map((section, index) => (
+            <SectionCard
+              key={section.id}
+              section={section}
+              index={index}
+              tasks={tasksBySection[section.id] || []}
+              onToggleTask={onToggleTask}
+              onToggleSubtask={onToggleSubtask}
+              onToggleExpand={onToggleExpand}
+              onEditTask={onEditTask}
+              onDeleteTask={onDeleteTask}
+              onAddTask={onAddTask}
+              onEditSection={onEditSection}
+              onDeleteSection={onDeleteSection}
+              hoveredDroppable={hoveredDroppable}
+              droppableId={createDroppableId.todaySection(section.id)}
+            />
+          ))}
+          {provided.placeholder}
+          <Button
+            variant="outline"
+            onClick={onAddSection}
+            w="full"
+            py={6}
+            borderStyle="dashed"
+            mt={4}
+          >
+            <Plus size={20} style={{ marginRight: "8px" }} />
+            Add Section
+          </Button>
+        </Box>
+      )}
+    </Droppable>
   );
 };

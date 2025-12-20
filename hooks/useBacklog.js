@@ -43,6 +43,13 @@ export const useBacklog = () => {
   };
 
   const updateBacklogItem = async (id, completed) => {
+    const previousBacklog = [...backlog];
+    
+    // Optimistic update
+    setBacklog(prev =>
+      prev.map(item => (item.id === id ? { ...item, completed } : item))
+    );
+    
     try {
       const response = await fetch("/api/backlog", {
         method: "PUT",
@@ -56,19 +63,25 @@ export const useBacklog = () => {
       );
       return updatedItem;
     } catch (err) {
+      setBacklog(previousBacklog);
       setError(err.message);
       throw err;
     }
   };
 
   const deleteBacklogItem = async id => {
+    const previousBacklog = [...backlog];
+    
+    // Optimistic delete
+    setBacklog(prev => prev.filter(item => item.id !== id));
+    
     try {
       const response = await fetch(`/api/backlog?id=${id}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete backlog item");
-      setBacklog(prev => prev.filter(item => item.id !== id));
     } catch (err) {
+      setBacklog(previousBacklog);
       setError(err.message);
       throw err;
     }

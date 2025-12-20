@@ -23,6 +23,7 @@ export const CalendarMonthView = ({ date, tasks, onDayClick }) => {
   const lastDay = new Date(year, month + 1, 0);
   const startDate = new Date(firstDay);
   startDate.setDate(startDate.getDate() - firstDay.getDay());
+  
   const weeks = [];
   const current = new Date(startDate);
   while (current <= lastDay || weeks.length < 6) {
@@ -34,7 +35,9 @@ export const CalendarMonthView = ({ date, tasks, onDayClick }) => {
     weeks.push(week);
     if (weeks.length >= 6) break;
   }
+  
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   return (
     <Flex direction="column" h="full">

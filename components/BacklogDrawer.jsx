@@ -37,6 +37,10 @@ export const BacklogDrawer = ({
   const textColor = useColorModeValue("gray.900", "gray.100");
   const mutedText = useColorModeValue("gray.500", "gray.400");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
+  const dropHighlight = useColorModeValue("blue.50", "blue.900");
+  const dragBg = useColorModeValue("blue.100", "blue.800");
+  const gripColor = useColorModeValue("gray.400", "gray.500");
+  
   const [newItem, setNewItem] = useState("");
 
   const getSectionName = sectionId => {
@@ -45,6 +49,7 @@ export const BacklogDrawer = ({
 
   return (
     <Box h="100vh" display="flex" flexDirection="column" bg={bgColor}>
+      {/* Header */}
       <Box
         p={4}
         borderBottomWidth="1px"
@@ -75,6 +80,8 @@ export const BacklogDrawer = ({
           {backlogTasks.length} task{backlogTasks.length !== 1 ? "s" : ""}
         </Badge>
       </Box>
+
+      {/* Droppable area for tasks */}
       <Droppable droppableId="backlog" type="TASK">
         {(provided, snapshot) => (
           <Box
@@ -83,16 +90,12 @@ export const BacklogDrawer = ({
             flex={1}
             overflowY="auto"
             p={4}
-            bg={
-              snapshot.isDraggingOver
-                ? useColorModeValue("blue.50", "blue.900")
-                : "transparent"
-            }
+            bg={snapshot.isDraggingOver ? dropHighlight : "transparent"}
             borderRadius="md"
             transition="background-color 0.2s"
           >
             <VStack align="stretch" spacing={3}>
-              {/* Tasks that should be in backlog */}
+              {/* Unscheduled Tasks */}
               {backlogTasks.length > 0 && (
                 <>
                   <Box>
@@ -125,31 +128,18 @@ export const BacklogDrawer = ({
                               cursor="grab"
                               borderLeftWidth="3px"
                               borderLeftColor={task.color || "#3b82f6"}
-                              bg={
-                                snapshot.isDragging
-                                  ? useColorModeValue("blue.100", "blue.800")
-                                  : "transparent"
-                              }
+                              bg={snapshot.isDragging ? dragBg : "transparent"}
                               boxShadow={snapshot.isDragging ? "lg" : "none"}
                               style={provided.draggableProps.style}
                             >
                               <Box flexShrink={0}>
-                                <GripVertical
-                                  size={16}
-                                  color={useColorModeValue(
-                                    "gray.400",
-                                    "gray.500"
-                                  )}
-                                />
+                                <GripVertical size={16} color={gripColor} />
                               </Box>
                               <Checkbox
                                 isChecked={task.completed}
                                 size="lg"
                                 onChange={() => onToggleTask(task.id)}
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  e.preventDefault();
-                                }}
+                                onClick={e => e.stopPropagation()}
                                 onMouseDown={e => e.stopPropagation()}
                                 flexShrink={0}
                               />
@@ -200,6 +190,7 @@ export const BacklogDrawer = ({
                                   e.stopPropagation();
                                   onEditTask(task);
                                 }}
+                                onMouseDown={e => e.stopPropagation()}
                                 size="sm"
                                 variant="ghost"
                                 aria-label="Edit task"
@@ -210,6 +201,7 @@ export const BacklogDrawer = ({
                                   e.stopPropagation();
                                   onDeleteTask(task.id);
                                 }}
+                                onMouseDown={e => e.stopPropagation()}
                                 size="sm"
                                 variant="ghost"
                                 colorScheme="red"
@@ -225,7 +217,7 @@ export const BacklogDrawer = ({
                 </>
               )}
 
-              {/* Manual backlog items */}
+              {/* Manual backlog items (quick notes) */}
               {backlog.length > 0 && (
                 <Box>
                   <Text
@@ -239,76 +231,50 @@ export const BacklogDrawer = ({
                   </Text>
                   <VStack align="stretch" spacing={2}>
                     {backlog.map((item, index) => (
-                      <Draggable
+                      <Flex
                         key={item.id}
-                        draggableId={`backlog-item-${item.id}`}
-                        index={index}
+                        align="center"
+                        gap={2}
+                        p={3}
+                        borderRadius="md"
+                        _hover={{ bg: hoverBg }}
                       >
-                        {(provided, snapshot) => (
-                          <Flex
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            align="center"
-                            gap={2}
-                            p={3}
-                            borderRadius="md"
-                            _hover={{ bg: hoverBg }}
-                            cursor="grab"
-                            bg={
-                              snapshot.isDragging
-                                ? useColorModeValue("blue.100", "blue.800")
-                                : "transparent"
-                            }
-                            boxShadow={snapshot.isDragging ? "lg" : "none"}
-                          >
-                            <Box {...provided.dragHandleProps} cursor="grab">
-                              <GripVertical
-                                size={16}
-                                color={useColorModeValue(
-                                  "gray.400",
-                                  "gray.500"
-                                )}
-                              />
-                            </Box>
-                            <Checkbox
-                              isChecked={item.completed}
-                              size="lg"
-                              onChange={() => onToggleBacklog(item.id)}
-                              onClick={e => e.stopPropagation()}
-                            />
-                            <Text
-                              flex={1}
-                              fontSize="sm"
-                              textDecoration={
-                                item.completed ? "line-through" : "none"
-                              }
-                              opacity={item.completed ? 0.5 : 1}
-                              color={textColor}
-                            >
-                              {item.title}
-                            </Text>
-                            <IconButton
-                              icon={<Trash2 size={16} />}
-                              onClick={e => {
-                                e.stopPropagation();
-                                onDeleteBacklog(item.id);
-                              }}
-                              size="sm"
-                              variant="ghost"
-                              colorScheme="red"
-                              aria-label="Delete item"
-                            />
-                          </Flex>
-                        )}
-                      </Draggable>
+                        <Checkbox
+                          isChecked={item.completed}
+                          size="lg"
+                          onChange={() => onToggleBacklog(item.id)}
+                        />
+                        <Text
+                          flex={1}
+                          fontSize="sm"
+                          textDecoration={
+                            item.completed ? "line-through" : "none"
+                          }
+                          opacity={item.completed ? 0.5 : 1}
+                          color={textColor}
+                        >
+                          {item.title}
+                        </Text>
+                        <IconButton
+                          icon={<Trash2 size={16} />}
+                          onClick={() => onDeleteBacklog(item.id)}
+                          size="sm"
+                          variant="ghost"
+                          colorScheme="red"
+                          aria-label="Delete item"
+                        />
+                      </Flex>
                     ))}
                   </VStack>
                 </Box>
               )}
 
+              {/* Empty state */}
               {backlogTasks.length === 0 && backlog.length === 0 && (
                 <Text fontSize="sm" color={mutedText} textAlign="center" py={8}>
-                  No items in backlog
+                  {snapshot.isDraggingOver
+                    ? "Drop here to add to backlog"
+                    : "No items in backlog"}
                 </Text>
               )}
               {provided.placeholder}
@@ -316,12 +282,14 @@ export const BacklogDrawer = ({
           </Box>
         )}
       </Droppable>
+
+      {/* Quick add input */}
       <Box p={4} borderTopWidth="1px" borderColor={borderColor} flexShrink={0}>
         <HStack spacing={2}>
           <Input
             value={newItem}
             onChange={e => setNewItem(e.target.value)}
-            placeholder="Add to backlog..."
+            placeholder="Add quick note..."
             onKeyDown={e => {
               if (e.key === "Enter" && newItem.trim()) {
                 onAdd(newItem.trim());

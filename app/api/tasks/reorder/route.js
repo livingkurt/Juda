@@ -4,8 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function PUT(request) {
   try {
     const body = await request.json();
-    const { taskId, sourceSectionId, targetSectionId, targetTaskId, newOrder } =
-      body;
+    const { taskId, sourceSectionId, targetSectionId, newOrder } = body;
 
     // Get the task to move
     const task = await prisma.task.findUnique({

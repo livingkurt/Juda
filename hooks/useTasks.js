@@ -42,16 +42,14 @@ export const useTasks = () => {
     }
   };
 
-  const updateTask = async (id, taskData, optimisticUpdate = null) => {
-    // Store previous state for rollback
-    let previousTask = null;
-    if (optimisticUpdate) {
-      previousTask = tasks.find(t => t.id === id);
-      // Optimistically update state immediately
-      setTasks(prev =>
-        prev.map(t => (t.id === id ? { ...t, ...optimisticUpdate } : t))
-      );
-    }
+  const updateTask = async (id, taskData) => {
+    // Store previous state for potential rollback
+    const previousTasks = [...tasks];
+    
+    // Optimistically update immediately
+    setTasks(prev =>
+      prev.map(t => (t.id === id ? { ...t, ...taskData } : t))
+    );
 
     try {
       const response = await fetch("/api/tasks", {
@@ -61,69 +59,48 @@ export const useTasks = () => {
       });
       if (!response.ok) throw new Error("Failed to update task");
       const updatedTask = await response.json();
+      // Update with server response to ensure consistency
       setTasks(prev => prev.map(t => (t.id === id ? updatedTask : t)));
       return updatedTask;
     } catch (err) {
       // Rollback on error
-      if (optimisticUpdate && previousTask) {
-        setTasks(prev => prev.map(t => (t.id === id ? previousTask : t)));
-      }
+      setTasks(previousTasks);
       setError(err.message);
       throw err;
     }
   };
 
   const deleteTask = async id => {
+    const previousTasks = [...tasks];
+    
+    // Optimistic delete
+    setTasks(prev => prev.filter(t => t.id !== id));
+    
     try {
       const response = await fetch(`/api/tasks?id=${id}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete task");
-      setTasks(prev => prev.filter(t => t.id !== id));
     } catch (err) {
+      // Rollback on error
+      setTasks(previousTasks);
       setError(err.message);
       throw err;
     }
   };
 
-  const reorderTask = async (
-    taskId,
-    sourceSectionId,
-    targetSectionId,
-    newOrder,
-    optimisticUpdate = null
-  ) => {
-    // Store previous state for rollback
+  const reorderTask = async (taskId, sourceSectionId, targetSectionId, newOrder) => {
     const previousTasks = [...tasks];
-    if (optimisticUpdate) {
-      // Optimistically update state immediately
-      const taskToMove = tasks.find(t => t.id === taskId);
-      if (taskToMove) {
-        setTasks(prev => {
-          const updated = prev.map(t =>
-            t.id === taskId ? { ...t, ...optimisticUpdate } : t
-          );
-          // Reorder within the same section or move between sections
-          if (sourceSectionId === targetSectionId) {
-            const sectionTasks = updated
-              .filter(t => t.sectionId === targetSectionId)
-              .sort((a, b) => a.order - b.order);
-            const taskIndex = sectionTasks.findIndex(t => t.id === taskId);
-            if (taskIndex !== -1) {
-              const [movedTask] = sectionTasks.splice(taskIndex, 1);
-              sectionTasks.splice(newOrder, 0, movedTask);
-              return updated.map(t => {
-                const newIndex = sectionTasks.findIndex(st => st.id === t.id);
-                return newIndex !== -1 && t.sectionId === targetSectionId
-                  ? { ...t, order: newIndex }
-                  : t;
-              });
-            }
-          }
-          return updated;
-        });
-      }
-    }
+    
+    // Optimistic update
+    setTasks(prev => {
+      const updated = prev.map(t =>
+        t.id === taskId
+          ? { ...t, sectionId: targetSectionId, order: newOrder }
+          : t
+      );
+      return updated;
+    });
 
     try {
       const response = await fetch("/api/tasks/reorder", {
@@ -137,12 +114,10 @@ export const useTasks = () => {
         }),
       });
       if (!response.ok) throw new Error("Failed to reorder task");
-      await fetchTasks(); // Refresh tasks
+      // Refresh to get correct order from server
+      await fetchTasks();
     } catch (err) {
-      // Rollback on error
-      if (optimisticUpdate) {
-        setTasks(previousTasks);
-      }
+      setTasks(previousTasks);
       setError(err.message);
       throw err;
     }

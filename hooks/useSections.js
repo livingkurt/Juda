@@ -43,6 +43,11 @@ export const useSections = () => {
   };
 
   const updateSection = async (id, sectionData) => {
+    const previousSections = [...sections];
+    
+    // Optimistic update
+    setSections(prev => prev.map(s => (s.id === id ? { ...s, ...sectionData } : s)));
+    
     try {
       const response = await fetch("/api/sections", {
         method: "PUT",
@@ -54,28 +59,34 @@ export const useSections = () => {
       setSections(prev => prev.map(s => (s.id === id ? updatedSection : s)));
       return updatedSection;
     } catch (err) {
+      setSections(previousSections);
       setError(err.message);
       throw err;
     }
   };
 
   const deleteSection = async id => {
+    const previousSections = [...sections];
+    
+    // Optimistic delete
+    setSections(prev => prev.filter(s => s.id !== id));
+    
     try {
       const response = await fetch(`/api/sections?id=${id}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete section");
-      setSections(prev => prev.filter(s => s.id !== id));
     } catch (err) {
+      setSections(previousSections);
       setError(err.message);
       throw err;
     }
   };
 
   const reorderSections = async newSections => {
-    // Store previous state for rollback
     const previousSections = [...sections];
-    // Optimistically update state immediately
+    
+    // Optimistic update with new order
     setSections(newSections.map((s, index) => ({ ...s, order: index })));
 
     try {
@@ -85,9 +96,8 @@ export const useSections = () => {
         body: JSON.stringify({ sections: newSections }),
       });
       if (!response.ok) throw new Error("Failed to reorder sections");
-      await fetchSections(); // Refresh sections
+      await fetchSections();
     } catch (err) {
-      // Rollback on error
       setSections(previousSections);
       setError(err.message);
       throw err;
