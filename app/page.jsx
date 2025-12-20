@@ -49,87 +49,13 @@ import { useSections } from "@/hooks/useSections";
 import { useBacklog } from "@/hooks/useBacklog";
 import { useCompletions } from "@/hooks/useCompletions";
 import { shouldShowOnDate, getGreeting, hasFutureDateTime, minutesToTime, snapToIncrement } from "@/lib/utils";
+import { parseDroppableId, createDroppableId, createDraggableId, extractTaskId } from "@/lib/dragHelpers";
 import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
 import { DashboardView } from "@/components/DashboardView";
 
-// Helper to parse droppable IDs consistently
-const parseDroppableId = droppableId => {
-  if (droppableId === "backlog") {
-    return { type: "backlog" };
-  }
-
-  // Calendar droppables use format: "calendar-{view}-{subtype}|{date}"
-  // Using pipe instead of colon to avoid conflicts with ISO dates
-  if (droppableId.startsWith("calendar-")) {
-    const [prefix, dateStr] = droppableId.split("|");
-    const parts = prefix.split("-");
-    const view = parts[1]; // "day" or "week"
-    const isUntimed = parts[2] === "untimed";
-
-    return {
-      type: "calendar",
-      view,
-      isUntimed,
-      date: dateStr ? new Date(dateStr) : null,
-    };
-  }
-
-  // Today view sections use format: "today-section|{sectionId}"
-  if (droppableId.startsWith("today-section|")) {
-    const sectionId = droppableId.split("|")[1];
-    return { type: "today-section", sectionId };
-  }
-
-  // Legacy: assume it's a section ID for backwards compatibility
-  return { type: "today-section", sectionId: droppableId };
-};
-
-// Helper to create droppable IDs
-/* eslint-disable react-refresh/only-export-components */
-export const createDroppableId = {
-  backlog: () => "backlog",
-  todaySection: sectionId => `today-section|${sectionId}`,
-  calendarDay: date => `calendar-day|${date.toISOString()}`,
-  calendarDayUntimed: date => `calendar-day-untimed|${date.toISOString()}`,
-  calendarWeek: date => `calendar-week|${date.toISOString()}`,
-  calendarWeekUntimed: date => `calendar-week-untimed|${date.toISOString()}`,
-};
-
-// Helper to create context-aware draggable IDs
-// This ensures each task instance has a unique ID based on its context
-export const createDraggableId = {
-  backlog: taskId => `task-${taskId}-backlog`,
-  todaySection: (taskId, sectionId) => `task-${taskId}-today-section-${sectionId}`,
-  calendarUntimed: (taskId, date) => `task-${taskId}-calendar-untimed-${date.toISOString()}`,
-  calendarTimed: (taskId, date) => `task-${taskId}-calendar-timed-${date.toISOString()}`,
-};
-
-// Helper to extract task ID from context-aware draggable ID
-export const extractTaskId = draggableId => {
-  // All draggable IDs must be context-aware: "task-{taskId}-{context}"
-  if (!draggableId.startsWith("task-")) {
-    throw new Error(`Invalid draggableId format: ${draggableId}. Expected format: task-{taskId}-{context}`);
-  }
-
-  // Remove "task-" prefix
-  const withoutPrefix = draggableId.substring(5);
-
-  // Find the task ID by looking for known context suffixes
-  // Format: {taskId}-{context}
-  const suffixes = ["-backlog", "-today-section-", "-calendar-untimed-", "-calendar-timed-"];
-
-  for (const suffix of suffixes) {
-    const index = withoutPrefix.indexOf(suffix);
-    if (index !== -1) {
-      return withoutPrefix.substring(0, index);
-    }
-  }
-
-  // If no known suffix found, this is an error
-  throw new Error(`Could not extract task ID from draggableId: ${draggableId}. Unknown context format.`);
-};
+export { createDroppableId, createDraggableId, extractTaskId };
 
 export default function DailyTasksApp() {
   const { colorMode, toggleColorMode } = useColorMode();
