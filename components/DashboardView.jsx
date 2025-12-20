@@ -43,7 +43,11 @@ import {
 } from "recharts";
 
 export const DashboardView = () => {
-  const { completions, fetchCompletions, loading: completionsLoading } = useCompletions();
+  const {
+    completions,
+    fetchCompletions,
+    loading: completionsLoading,
+  } = useCompletions();
   const { tasks, loading: tasksLoading } = useTasks();
   const [dateRange, setDateRange] = useState("30"); // days
   const [selectedTask, setSelectedTask] = useState("all");
@@ -87,7 +91,11 @@ export const DashboardView = () => {
     const dataMap = new Map();
 
     // Initialize all dates in range
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    for (
+      let d = new Date(startDate);
+      d <= endDate;
+      d.setDate(d.getDate() + 1)
+    ) {
       const dateKey = d.toISOString().split("T")[0];
       dataMap.set(dateKey, {
         date: dateKey,
@@ -249,12 +257,17 @@ export const DashboardView = () => {
             <TabPanel px={0}>
               <Card bg={cardBg} borderColor={borderColor}>
                 <CardHeader>
-                  <Heading size="md" color={textColor}>Daily Completions Over Time</Heading>
+                  <Heading size="md" color={textColor}>
+                    Daily Completions Over Time
+                  </Heading>
                 </CardHeader>
                 <CardBody>
                   <ResponsiveContainer width="100%" height={400}>
                     <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={borderColor}
+                      />
                       <XAxis
                         dataKey="formattedDate"
                         angle={-45}
@@ -288,12 +301,17 @@ export const DashboardView = () => {
             <TabPanel px={0}>
               <Card bg={cardBg} borderColor={borderColor}>
                 <CardHeader>
-                  <Heading size="md" color={textColor}>Daily Completion Totals</Heading>
+                  <Heading size="md" color={textColor}>
+                    Daily Completion Totals
+                  </Heading>
                 </CardHeader>
                 <CardBody>
                   <ResponsiveContainer width="100%" height={400}>
                     <BarChart data={dailyTotals}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={borderColor}
+                      />
                       <XAxis
                         dataKey="formattedDate"
                         angle={-45}
@@ -321,7 +339,9 @@ export const DashboardView = () => {
             <TabPanel px={0}>
               <Card bg={cardBg} borderColor={borderColor}>
                 <CardHeader>
-                  <Heading size="md" color={textColor}>Completion History Table</Heading>
+                  <Heading size="md" color={textColor}>
+                    Completion History Table
+                  </Heading>
                 </CardHeader>
                 <CardBody>
                   <TableContainer>
@@ -336,10 +356,7 @@ export const DashboardView = () => {
                       </Thead>
                       <Tbody>
                         {completions
-                          .sort(
-                            (a, b) =>
-                              new Date(b.date) - new Date(a.date)
-                          )
+                          .sort((a, b) => new Date(b.date) - new Date(a.date))
                           .map(completion => {
                             const task = tasks.find(
                               t => t.id === completion.taskId
@@ -359,7 +376,9 @@ export const DashboardView = () => {
                                     }
                                   )}
                                 </Td>
-                                <Td color={textColor}>{task?.title || "Unknown Task"}</Td>
+                                <Td color={textColor}>
+                                  {task?.title || "Unknown Task"}
+                                </Td>
                                 <Td>
                                   <Badge colorScheme="blue">
                                     {task?.section?.name || "N/A"}
@@ -397,7 +416,9 @@ export const DashboardView = () => {
         {/* Task Statistics */}
         <Card bg={cardBg} borderColor={borderColor}>
           <CardHeader>
-            <Heading size="md" color={textColor}>Task Completion Statistics</Heading>
+            <Heading size="md" color={textColor}>
+              Task Completion Statistics
+            </Heading>
           </CardHeader>
           <CardBody>
             <TableContainer>
@@ -405,7 +426,9 @@ export const DashboardView = () => {
                 <Thead bg={tableHeaderBg}>
                   <Tr>
                     <Th color={textColor}>Task</Th>
-                    <Th isNumeric color={textColor}>Completions</Th>
+                    <Th isNumeric color={textColor}>
+                      Completions
+                    </Th>
                     <Th color={textColor}>Last Completed</Th>
                   </Tr>
                 </Thead>
@@ -443,4 +466,3 @@ export const DashboardView = () => {
     </Box>
   );
 };
-

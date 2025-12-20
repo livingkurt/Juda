@@ -1188,7 +1188,12 @@ export default function DailyTasksApp() {
 
                   {/* Calendar View */}
                   {showCalendar && (
-                    <Box flex={1} minW={0} display="flex" flexDirection="column">
+                    <Box
+                      flex={1}
+                      minW={0}
+                      display="flex"
+                      flexDirection="column"
+                    >
                       <Card
                         flex={1}
                         overflow="hidden"
