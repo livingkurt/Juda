@@ -16,7 +16,15 @@ import {
   Heading,
 } from "@chakra-ui/react";
 import { Draggable, Droppable } from "@hello-pangea/dnd";
-import { Plus, Trash2, Edit2, X, GripVertical } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Edit2,
+  X,
+  GripVertical,
+  AlertCircle,
+} from "lucide-react";
+import { isOverdue } from "@/lib/utils";
 
 export const BacklogDrawer = ({
   isOpen,
@@ -145,17 +153,31 @@ export const BacklogDrawer = ({
                                 flexShrink={0}
                               />
                               <Box flex={1} minW={0}>
-                                <Text
-                                  fontSize="sm"
-                                  fontWeight="medium"
-                                  textDecoration={
-                                    task.completed ? "line-through" : "none"
-                                  }
-                                  opacity={task.completed ? 0.5 : 1}
-                                  color={textColor}
-                                >
-                                  {task.title}
-                                </Text>
+                                <HStack spacing={2} align="center">
+                                  <Text
+                                    fontSize="sm"
+                                    fontWeight="medium"
+                                    textDecoration={
+                                      task.completed ? "line-through" : "none"
+                                    }
+                                    opacity={task.completed ? 0.5 : 1}
+                                    color={textColor}
+                                  >
+                                    {task.title}
+                                  </Text>
+                                  {isOverdue(task) && (
+                                    <Badge
+                                      size="sm"
+                                      colorScheme="red"
+                                      fontSize="2xs"
+                                    >
+                                      <HStack spacing={1} align="center">
+                                        <AlertCircle size={10} />
+                                        <Text as="span">Overdue</Text>
+                                      </HStack>
+                                    </Badge>
+                                  )}
+                                </HStack>
                                 <HStack spacing={2} mt={1}>
                                   <Text fontSize="xs" color={mutedText}>
                                     {getSectionName(task.sectionId)}

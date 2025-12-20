@@ -45,7 +45,7 @@ import { BacklogDrawer } from "@/components/BacklogDrawer";
 import { useTasks } from "@/hooks/useTasks";
 import { useSections } from "@/hooks/useSections";
 import { useBacklog } from "@/hooks/useBacklog";
-import { shouldShowOnDate, getGreeting } from "@/lib/utils";
+import { shouldShowOnDate, getGreeting, hasFutureDateTime } from "@/lib/utils";
 import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
@@ -213,10 +213,13 @@ export default function DailyTasksApp() {
   }, [todaysTasks, sections]);
 
   // Tasks for backlog: no recurrence AND no time, or recurrence doesn't match today
+  // Exclude tasks with future dates/times
   const backlogTasks = useMemo(() => {
     return tasks.filter(task => {
       if (task.completed) return false;
       if (shouldShowOnDate(task, today)) return false;
+      // Exclude tasks with future date/time
+      if (hasFutureDateTime(task)) return false;
       return true;
     });
   }, [tasks, today]);
