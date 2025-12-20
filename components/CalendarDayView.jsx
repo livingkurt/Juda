@@ -30,9 +30,10 @@ const UntimedTask = ({ task, onTaskClick, createDraggableId, date }) => {
   });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    // Don't apply transform for draggable items - DragOverlay handles the preview
+    // Only hide the original element when dragging
+    opacity: isDragging ? 0 : 1,
+    pointerEvents: isDragging ? "none" : "auto",
   };
 
   return (

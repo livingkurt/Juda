@@ -158,7 +158,9 @@ const SectionCard = ({
           ref={setDropNodeRef}
           bg={isOver ? dropHighlight : "transparent"}
           borderRadius="md"
-          minH="50px"
+          minH="120px"
+          p={3}
+          pb={6}
           transition="background-color 0.2s"
         >
           {tasksWithIds.length === 0 ? (
