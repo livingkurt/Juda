@@ -2,17 +2,52 @@
 
 import { Box, Text } from "@chakra-ui/react";
 import { useColorModeValue } from "@chakra-ui/react";
+import { useDragContext } from "./DragContext";
 
 // Fixed dimensions for all drag previews
 const DRAG_PREVIEW_WIDTH = "180px";
 const DRAG_PREVIEW_HEIGHT = "40px";
 
+// Calculate offset based on droppable ID
+const getOffsetForDroppable = droppableId => {
+  if (!droppableId) return 0;
+
+  // Calendar day view timed area has left={16} (64px in Chakra units)
+  if (
+    droppableId.startsWith("calendar-day|") &&
+    !droppableId.includes("untimed")
+  ) {
+    return 64; // 16 * 4 = 64px (Chakra uses 4px base unit)
+  }
+
+  // Calendar week view timed area has left={12} (48px in Chakra units)
+  if (
+    droppableId.startsWith("calendar-week|") &&
+    !droppableId.includes("untimed")
+  ) {
+    return 48; // 12 * 4 = 48px
+  }
+
+  return 0;
+};
+
 export const DragPreview = ({ title, provided, snapshot }) => {
   const bgColor = useColorModeValue("blue.100", "blue.800");
   const textColor = useColorModeValue("blue.900", "blue.100");
   const borderColor = useColorModeValue("blue.400", "blue.500");
+  const { hoveredDroppable } = useDragContext();
 
   const libraryStyle = provided.draggableProps.style || {};
+
+  // Calculate offset based on hovered droppable
+  const offsetX = getOffsetForDroppable(hoveredDroppable);
+
+  // Adjust the left position to account for dropzone offset
+  const adjustedLeft = libraryStyle.left
+    ? typeof libraryStyle.left === "number"
+      ? libraryStyle.left - offsetX
+      : libraryStyle.left
+    : undefined;
 
   // The library measures the original element before dragging starts
   // We need to ensure the wrapper div has fixed dimensions that override everything
@@ -28,7 +63,7 @@ export const DragPreview = ({ title, provided, snapshot }) => {
         transition: libraryStyle.transition,
         opacity: libraryStyle.opacity,
         zIndex: 9999,
-        left: libraryStyle.left,
+        left: adjustedLeft,
         top: libraryStyle.top,
         width: DRAG_PREVIEW_WIDTH,
         height: DRAG_PREVIEW_HEIGHT,
