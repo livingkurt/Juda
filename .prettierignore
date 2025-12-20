@@ -1,0 +1,39 @@
+# Dependencies
+node_modules
+.next
+dist
+
+# Build outputs
+build
+out
+
+# Database
+prisma/migrations
+*.db
+*.sqlite
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env*.local
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Package managers
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Generated files
+*.min.js
+*.min.css

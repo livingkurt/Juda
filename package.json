@@ -2,11 +2,15 @@
   "name": "juda",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start -p 3001",
-    "lint": "next lint",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,json,md}\"",
     "postinstall": "prisma generate",
     "db:dump": "node scripts/dump-production.js",
     "db:restore": "node scripts/dump-production.js --restore"
@@ -27,8 +31,22 @@
     "recharts": "^3.6.0"
   },
   "devDependencies": {
-    "eslint": "^8.0.0",
+    "@babel/eslint-parser": "^7.23.0",
+    "@babel/preset-env": "^7.23.0",
+    "@babel/preset-react": "^7.23.0",
+    "@eslint/js": "^9.0.0",
+    "@stylistic/eslint-plugin": "^2.0.0",
+    "eslint": "^8.57.0",
     "eslint-config-next": "^14.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-jest": "^28.0.0",
+    "eslint-plugin-prettier": "^5.1.0",
+    "eslint-plugin-react": "^7.33.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "globals": "^15.0.0",
+    "prettier": "^3.2.0",
     "prisma": "^5.7.0"
   }
 }
