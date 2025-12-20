@@ -61,7 +61,7 @@ const SortableBacklogTask = ({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition || "transform 200ms ease",
     opacity: isDragging ? 0.5 : 1,
   };
 
@@ -240,6 +240,10 @@ export const BacklogDrawer = ({
         bg={isOver ? dropHighlight : "transparent"}
         borderRadius="md"
         transition="background-color 0.2s"
+        borderWidth={isOver ? "2px" : "0px"}
+        borderColor={isOver ? "blue.400" : "transparent"}
+        borderStyle="dashed"
+        mx={isOver ? 2 : 0}
       >
         <VStack align="stretch" spacing={3}>
           {/* Unscheduled Tasks */}
@@ -258,9 +262,8 @@ export const BacklogDrawer = ({
                 <SortableContext
                   items={tasksWithIds.map(t => t.draggableId)}
                   strategy={verticalListSortingStrategy}
-                  id="backlog"
                 >
-                  <VStack align="stretch" spacing={2}>
+                  <VStack align="stretch" spacing={3}>
                     {tasksWithIds.map(task => (
                       <SortableBacklogTask
                         key={task.id}
@@ -297,9 +300,8 @@ export const BacklogDrawer = ({
               <SortableContext
                 items={backlog.map(item => `backlog-item-${item.id}`)}
                 strategy={verticalListSortingStrategy}
-                id="backlog-items"
               >
-                <VStack align="stretch" spacing={2}>
+                <VStack align="stretch" spacing={3}>
                   {backlog.map(item => {
                     const {
                       attributes,
@@ -318,7 +320,7 @@ export const BacklogDrawer = ({
 
                     const style = {
                       transform: CSS.Transform.toString(transform),
-                      transition,
+                      transition: transition || "transform 200ms ease",
                       opacity: isDragging ? 0.5 : 1,
                     };
 

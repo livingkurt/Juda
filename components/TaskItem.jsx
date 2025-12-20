@@ -46,6 +46,15 @@ export const TaskItem = ({
     task.subtasks.length > 0 &&
     task.subtasks.every(st => st.completed);
 
+  // Extract containerId from draggableId
+  let containerId = null;
+  if (draggableId.includes("-today-section-")) {
+    const match = draggableId.match(/-today-section-([^-]+)/);
+    if (match) containerId = `today-section|${match[1]}`;
+  } else if (draggableId.includes("-backlog")) {
+    containerId = "backlog";
+  }
+
   const {
     attributes,
     listeners,
@@ -53,16 +62,22 @@ export const TaskItem = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: draggableId });
+  } = useSortable({
+    id: draggableId,
+    data: {
+      type: "TASK",
+      containerId: containerId,
+    },
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition || "transform 200ms ease",
     opacity: isDragging ? 0.5 : 1,
   };
 
   return (
-    <Box ref={setNodeRef} style={style} mb={2}>
+    <Box ref={setNodeRef} style={style}>
       <Box
         borderWidth="1px"
         borderRadius="lg"

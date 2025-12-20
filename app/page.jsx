@@ -29,12 +29,13 @@ import {
   DndContext,
   DragOverlay,
   pointerWithin,
+  closestCenter,
   useSensor,
   useSensors,
   PointerSensor,
   KeyboardSensor,
 } from "@dnd-kit/core";
-import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import {
   ChevronLeft,
   ChevronRight,
@@ -601,7 +602,7 @@ export default function DailyTasksApp() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // 8px movement required to start drag
+        distance: 3, // 3px movement required to start drag (very responsive)
       },
     }),
     useSensor(KeyboardSensor, {
@@ -704,7 +705,7 @@ export default function DailyTasksApp() {
     }
   };
 
-  // Handle drag end - convert from @dnd-kit format to @hello-pangea/dnd format
+  // Handle drag end - properly handle @dnd-kit events
   const handleDragEndNew = async event => {
     const { active, over } = event;
 
@@ -724,87 +725,75 @@ export default function DailyTasksApp() {
     }
 
     const draggableId = active.id;
+    const activeSortable = active.data.current?.sortable;
+    const overSortable = over.data.current?.sortable;
 
-    // Determine source container ID
-    // For sortable items, it's in sortable.containerId
-    // For non-sortable items (calendar tasks), we need to infer from the draggableId
-    let sourceDroppableId = active.data.current?.sortable?.containerId;
-
-    if (!sourceDroppableId) {
-      // Infer from draggableId pattern
+    // Get source container ID from sortable data or infer from draggableId
+    let sourceContainerId = activeSortable?.containerId;
+    if (!sourceContainerId) {
+      // Infer from draggableId pattern for non-sortable items (calendar tasks)
       if (draggableId.includes("-backlog")) {
-        sourceDroppableId = "backlog";
+        sourceContainerId = "backlog";
       } else if (draggableId.includes("-today-section-")) {
         const match = draggableId.match(/-today-section-([^-]+)/);
-        if (match) sourceDroppableId = `today-section|${match[1]}`;
+        if (match) sourceContainerId = `today-section|${match[1]}`;
       } else if (draggableId.includes("-calendar-untimed-")) {
         const match = draggableId.match(/-calendar-untimed-(.+)$/);
         if (match) {
           const dateStr = match[1];
-          // Determine if it's day or week view based on the droppable ID format
-          if (dateStr.includes("T")) {
-            sourceDroppableId = `calendar-day-untimed|${dateStr}`;
-          } else {
-            sourceDroppableId = `calendar-week-untimed|${dateStr}`;
-          }
+          sourceContainerId = dateStr.includes("T")
+            ? `calendar-day-untimed|${dateStr}`
+            : `calendar-week-untimed|${dateStr}`;
         }
       } else if (draggableId.includes("-calendar-timed-")) {
         const match = draggableId.match(/-calendar-timed-(.+)$/);
         if (match) {
           const dateStr = match[1];
-          // Determine if it's day or week view
-          if (dateStr.includes("T")) {
-            sourceDroppableId = `calendar-day|${dateStr}`;
-          } else {
-            sourceDroppableId = `calendar-week|${dateStr}`;
-          }
+          sourceContainerId = dateStr.includes("T")
+            ? `calendar-day|${dateStr}`
+            : `calendar-week|${dateStr}`;
         }
       }
     }
 
-    // For sortable items, get the container ID from sortable data
-    // When dropping on another sortable item, over.id is the item's ID, not the container
-    let destDroppableId = over.data.current?.sortable?.containerId || over.id;
+    // Get destination container ID
+    let destContainerId = overSortable?.containerId || over.id;
 
-    // If destDroppableId looks like a task draggable ID, extract the section from it
-    if (
-      destDroppableId.startsWith("task-") &&
-      destDroppableId.includes("-today-section-")
+    // Check if over is a droppable (not a sortable item)
+    const overDroppable = over.data.current;
+    if (overDroppable?.sectionId) {
+      // Dropping directly on a section droppable area
+      destContainerId = `today-section|${overDroppable.sectionId}`;
+    } else if (
+      over.id.startsWith("task-") &&
+      over.id.includes("-today-section-")
     ) {
-      const match = destDroppableId.match(/-today-section-([^-]+)/);
-      if (match) destDroppableId = `today-section|${match[1]}`;
+      // Dropping on a task in a section - extract section from task's draggableId
+      const match = over.id.match(/-today-section-([^-]+)/);
+      if (match) destContainerId = `today-section|${match[1]}`;
+    } else if (over.id.startsWith("backlog-item-")) {
+      // Dropping on a backlog item - use backlog-items container
+      destContainerId = "backlog-items";
+    } else if (over.id.startsWith("task-") && over.id.includes("-backlog")) {
+      // Dropping on a task in backlog - use backlog container
+      destContainerId = "backlog";
+    } else if (over.id.startsWith("section-")) {
+      // Dropping on a section card itself - extract section ID
+      const sectionId = over.id.replace("section-", "");
+      destContainerId = `today-section|${sectionId}`;
+    } else if (!overSortable && over.id) {
+      // If it's not a sortable item, it might be a droppable ID directly
+      // Check if it matches our droppable ID patterns
+      if (over.id === "backlog") {
+        destContainerId = "backlog";
+      } else if (over.id.startsWith("today-section|")) {
+        destContainerId = over.id;
+      } else if (over.id.startsWith("calendar-")) {
+        destContainerId = over.id;
+      }
     }
 
-    // If destDroppableId looks like a backlog item draggable ID, it's backlog-items container
-    if (destDroppableId.startsWith("backlog-item-")) {
-      destDroppableId = "backlog-items";
-    }
-
-    // If destDroppableId looks like a task in backlog, it's the backlog
-    if (
-      destDroppableId.startsWith("task-") &&
-      destDroppableId.includes("-backlog")
-    ) {
-      destDroppableId = "backlog";
-    }
-
-    // For sortable items, get the index from the sorted items
-    const sourceIndex = active.data.current?.sortable?.index ?? 0;
-    const destIndex = over.data.current?.sortable?.index ?? 0;
-
-    // Debug logging for reorder issues
-    console.log("Drag End:", {
-      activeId: active.id,
-      overId: over.id,
-      sourceDroppableId,
-      destDroppableId,
-      sourceIndex,
-      destIndex,
-      activeSortable: active.data.current?.sortable,
-      overSortable: over.data.current?.sortable,
-    });
-
-    // Determine type based on draggableId or data
+    // Determine type
     let type = active.data.current?.type || "TASK";
     if (draggableId.startsWith("section-")) {
       type = "SECTION";
@@ -812,21 +801,66 @@ export default function DailyTasksApp() {
       type = "BACKLOG_ITEM";
     }
 
-    // Create result object similar to @hello-pangea/dnd format
+    // Handle reordering within the same container using arrayMove
+    if (
+      activeSortable &&
+      overSortable &&
+      sourceContainerId === destContainerId &&
+      sourceContainerId
+    ) {
+      const oldIndex = activeSortable.index;
+      const newIndex = overSortable.index;
+
+      // Skip if dropped in same position
+      if (oldIndex === newIndex) {
+        return;
+      }
+
+      // Handle section reordering
+      if (type === "SECTION" && sourceContainerId === "sections") {
+        const sortedSections = [...sections].sort((a, b) => a.order - b.order);
+        const reordered = arrayMove(sortedSections, oldIndex, newIndex);
+        await reorderSections(reordered);
+        return;
+      }
+
+      // Handle backlog item reordering
+      if (type === "BACKLOG_ITEM" && sourceContainerId === "backlog-items") {
+        const sortedBacklog = [...backlog].sort((a, b) => a.order - b.order);
+        const reordered = arrayMove(sortedBacklog, oldIndex, newIndex);
+        await reorderBacklog(reordered);
+        return;
+      }
+
+      // Handle task reordering within the same section
+      if (type === "TASK" && sourceContainerId.startsWith("today-section|")) {
+        const sectionId = sourceContainerId.split("|")[1];
+        const taskId = extractTaskId(draggableId);
+
+        // Use the reorderTask function which handles the reordering logic
+        await reorderTask(taskId, sectionId, sectionId, newIndex);
+        return;
+      }
+    }
+
+    // Handle cross-container moves (backlog ↔ sections ↔ calendar)
+    // Convert to the format expected by handleDragEnd
+    const sourceIndex = activeSortable?.index ?? 0;
+    const destIndex = overSortable?.index ?? 0;
+
     const result = {
       draggableId,
       type,
       source: {
-        droppableId: sourceDroppableId,
+        droppableId: sourceContainerId || "unknown",
         index: sourceIndex,
       },
       destination: {
-        droppableId: destDroppableId,
+        droppableId: destContainerId,
         index: destIndex,
       },
     };
 
-    // Call the existing handler
     await handleDragEnd(result);
   };
 
@@ -1150,7 +1184,11 @@ export default function DailyTasksApp() {
         </Box>
 
         {/* Drag Overlay */}
-        <DragOverlay>
+        <DragOverlay
+          style={{
+            cursor: "grabbing",
+          }}
+        >
           {activeTask ? (
             <Box
               px={4}
@@ -1162,6 +1200,8 @@ export default function DailyTasksApp() {
               boxShadow="0 10px 25px -5px rgba(59, 130, 246, 0.4)"
               w="180px"
               h="40px"
+              opacity={0.9}
+              transform="rotate(2deg)"
             >
               <Text
                 fontSize="sm"
@@ -1170,6 +1210,46 @@ export default function DailyTasksApp() {
                 isTruncated
               >
                 {activeTask.title}
+              </Text>
+            </Box>
+          ) : activeId?.startsWith("section-") ? (
+            <Box
+              px={4}
+              py={3}
+              borderRadius="lg"
+              bg={useColorModeValue("blue.100", "blue.800")}
+              borderWidth="2px"
+              borderColor={useColorModeValue("blue.400", "blue.500")}
+              boxShadow="0 10px 25px -5px rgba(59, 130, 246, 0.4)"
+              opacity={0.9}
+            >
+              <Text
+                fontSize="sm"
+                fontWeight="semibold"
+                color={useColorModeValue("blue.900", "blue.100")}
+              >
+                {sections.find(s => `section-${s.id}` === activeId)?.name ||
+                  "Section"}
+              </Text>
+            </Box>
+          ) : activeId?.startsWith("backlog-item-") ? (
+            <Box
+              px={4}
+              py={2}
+              borderRadius="lg"
+              bg={useColorModeValue("blue.100", "blue.800")}
+              borderWidth="2px"
+              borderColor={useColorModeValue("blue.400", "blue.500")}
+              boxShadow="0 10px 25px -5px rgba(59, 130, 246, 0.4)"
+              opacity={0.9}
+            >
+              <Text
+                fontSize="sm"
+                fontWeight="semibold"
+                color={useColorModeValue("blue.900", "blue.100")}
+              >
+                {backlog.find(b => `backlog-item-${b.id}` === activeId)
+                  ?.title || "Backlog Item"}
               </Text>
             </Box>
           ) : null}

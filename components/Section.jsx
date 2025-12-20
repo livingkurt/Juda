@@ -9,6 +9,7 @@ import {
   Text,
   Flex,
   HStack,
+  VStack,
   IconButton,
   Menu,
   MenuButton,
@@ -71,11 +72,17 @@ const SectionCard = ({
     transform: sectionTransform,
     transition: sectionTransition,
     isDragging: sectionIsDragging,
-  } = useSortable({ id: `section-${section.id}` });
+  } = useSortable({
+    id: `section-${section.id}`,
+    data: {
+      type: "SECTION",
+      containerId: "sections",
+    },
+  });
 
   const sectionStyle = {
     transform: CSS.Transform.toString(sectionTransform),
-    transition: sectionTransition,
+    transition: sectionTransition || "transform 200ms ease",
   };
 
   // Use droppable for task drop zone
@@ -159,12 +166,16 @@ const SectionCard = ({
           bg={isOver ? dropHighlight : "transparent"}
           borderRadius="md"
           minH="120px"
-          p={3}
+          p={4}
           pb={6}
-          transition="background-color 0.2s"
+          pt={isOver && tasksWithIds.length === 0 ? 6 : 4}
+          transition="background-color 0.2s, padding 0.2s"
+          borderWidth={isOver ? "2px" : "0px"}
+          borderColor={isOver ? "blue.400" : "transparent"}
+          borderStyle="dashed"
         >
           {tasksWithIds.length === 0 ? (
-            <Text fontSize="sm" textAlign="center" py={4} color={mutedText}>
+            <Text fontSize="sm" textAlign="center" py={8} color={mutedText}>
               {isOver ? "Drop here" : "No tasks"}
             </Text>
           ) : (
@@ -172,20 +183,22 @@ const SectionCard = ({
               items={tasksWithIds.map(t => t.draggableId)}
               strategy={verticalListSortingStrategy}
             >
-              {tasksWithIds.map((task, index) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  index={index}
-                  onToggle={onToggleTask}
-                  onToggleSubtask={onToggleSubtask}
-                  onToggleExpand={onToggleExpand}
-                  onEdit={onEditTask}
-                  onDelete={onDeleteTask}
-                  hoveredDroppable={hoveredDroppable}
-                  draggableId={task.draggableId}
-                />
-              ))}
+              <VStack align="stretch" spacing={3}>
+                {tasksWithIds.map((task, index) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    index={index}
+                    onToggle={onToggleTask}
+                    onToggleSubtask={onToggleSubtask}
+                    onToggleExpand={onToggleExpand}
+                    onEdit={onEditTask}
+                    onDelete={onDeleteTask}
+                    hoveredDroppable={hoveredDroppable}
+                    draggableId={task.draggableId}
+                  />
+                ))}
+              </VStack>
             </SortableContext>
           )}
         </Box>
