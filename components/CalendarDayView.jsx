@@ -24,13 +24,14 @@ export const CalendarDayView = ({
   onCreateTask,
   onDropTimeChange,
   createDroppableId,
+  createDraggableId,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
   const dropHighlight = useColorModeValue("blue.50", "blue.900");
   const hourTextColor = useColorModeValue("gray.400", "gray.500");
   const hourBorderColor = useColorModeValue("gray.100", "gray.700");
-  
+
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const dayTasks = tasks.filter(t => t.time && shouldShowOnDate(t, date));
   const untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, date));
@@ -86,7 +87,7 @@ export const CalendarDayView = ({
       if (!internalDrag.taskId) return;
       const deltaY = clientY - internalDrag.startY;
       const hasMoved = Math.abs(deltaY) > DRAG_THRESHOLD;
-      
+
       if (internalDrag.type === "move") {
         const newMinutes = snapToIncrement(
           internalDrag.startMinutes + (deltaY / HOUR_HEIGHT) * 60,
@@ -117,9 +118,10 @@ export const CalendarDayView = ({
 
   const handleInternalDragEnd = useCallback(() => {
     if (!internalDrag.taskId) return;
-    
-    const { taskId, type, currentMinutes, currentDuration, hasMoved } = internalDrag;
-    
+
+    const { taskId, type, currentMinutes, currentDuration, hasMoved } =
+      internalDrag;
+
     // Reset state first
     setInternalDrag({
       taskId: null,
@@ -145,17 +147,23 @@ export const CalendarDayView = ({
         setTimeout(() => onTaskClick(task), 100);
       }
     }
-  }, [internalDrag, onTaskTimeChange, onTaskDurationChange, dayTasks, onTaskClick]);
+  }, [
+    internalDrag,
+    onTaskTimeChange,
+    onTaskDurationChange,
+    dayTasks,
+    onTaskClick,
+  ]);
 
   useEffect(() => {
     if (!internalDrag.taskId) return;
-    
+
     const onMouseMove = e => handleInternalDragMove(e.clientY);
     const onMouseUp = () => handleInternalDragEnd();
-    
+
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
-    
+
     return () => {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
@@ -174,7 +182,10 @@ export const CalendarDayView = ({
   // Calculate drop time from mouse position
   const handleDropTimeCalculation = (e, rect) => {
     const y = e.clientY - rect.top;
-    const minutes = Math.max(0, Math.min(24 * 60 - 1, Math.floor((y / HOUR_HEIGHT) * 60)));
+    const minutes = Math.max(
+      0,
+      Math.min(24 * 60 - 1, Math.floor((y / HOUR_HEIGHT) * 60))
+    );
     const snappedMinutes = snapToIncrement(minutes, 15);
     if (onDropTimeChange) {
       onDropTimeChange(minutesToTime(snappedMinutes));
@@ -213,7 +224,9 @@ export const CalendarDayView = ({
             borderBottomWidth="1px"
             borderColor={borderColor}
             bg={snapshot.isDraggingOver ? dropHighlight : bgColor}
-            minH={untimedTasks.length > 0 || snapshot.isDraggingOver ? "auto" : "0"}
+            minH={
+              untimedTasks.length > 0 || snapshot.isDraggingOver ? "auto" : "0"
+            }
             transition="background-color 0.2s"
           >
             {(untimedTasks.length > 0 || snapshot.isDraggingOver) && (
@@ -222,7 +235,14 @@ export const CalendarDayView = ({
                   All Day
                 </Text>
                 {untimedTasks.map((task, index) => (
-                  <Draggable key={task.id} draggableId={task.id} index={index}>
+                  <Draggable
+                    key={task.id}
+                    draggableId={createDraggableId.calendarUntimed(
+                      task.id,
+                      date
+                    )}
+                    index={index}
+                  >
                     {(provided, snapshot) => (
                       <Box
                         ref={provided.innerRef}
@@ -230,7 +250,11 @@ export const CalendarDayView = ({
                         {...provided.dragHandleProps}
                         p={2}
                         borderRadius="md"
-                        bg={snapshot.isDragging ? dropHighlight : task.color || "#3b82f6"}
+                        bg={
+                          snapshot.isDragging
+                            ? dropHighlight
+                            : task.color || "#3b82f6"
+                        }
                         color="white"
                         cursor="grab"
                         boxShadow={snapshot.isDragging ? "lg" : "sm"}
@@ -244,7 +268,12 @@ export const CalendarDayView = ({
                   </Draggable>
                 ))}
                 {snapshot.isDraggingOver && untimedTasks.length === 0 && (
-                  <Text fontSize="xs" color={hourTextColor} textAlign="center" py={2}>
+                  <Text
+                    fontSize="xs"
+                    color={hourTextColor}
+                    textAlign="center"
+                    py={2}
+                  >
                     Drop here for all-day task
                   </Text>
                 )}
@@ -298,7 +327,11 @@ export const CalendarDayView = ({
         ))}
 
         {/* Droppable timed area */}
-        <Droppable droppableId={timedDroppableId} type="TASK" isDropDisabled={false}>
+        <Droppable
+          droppableId={timedDroppableId}
+          type="TASK"
+          isDropDisabled={false}
+        >
           {(provided, snapshot) => (
             <Box
               ref={provided.innerRef}
@@ -314,98 +347,114 @@ export const CalendarDayView = ({
               onClick={handleCalendarClick}
               onMouseMove={e => {
                 if (snapshot.isDraggingOver) {
-                  handleDropTimeCalculation(e, e.currentTarget.getBoundingClientRect());
+                  handleDropTimeCalculation(
+                    e,
+                    e.currentTarget.getBoundingClientRect()
+                  );
                 }
               }}
             >
               {/* Render positioned tasks */}
-              {calculateTaskPositions(dayTasks, HOUR_HEIGHT).map((task, index) => (
-                <Draggable key={task.id} draggableId={task.id} index={index}>
-                  {(dragProvided, dragSnapshot) => (
-                    <Box
-                      ref={dragProvided.innerRef}
-                      {...dragProvided.draggableProps}
-                      position="absolute"
-                      left={task.left}
-                      width={task.width}
-                      ml={1}
-                      mr={1}
-                      borderRadius="md"
-                      color="white"
-                      fontSize="sm"
-                      overflow="hidden"
-                      cursor="grab"
-                      _hover={{ shadow: "lg" }}
-                      style={{
-                        ...getTaskStyle(task),
-                        ...(dragSnapshot.isDragging ? {} : {}),
-                        ...dragProvided.draggableProps.style,
-                      }}
-                      boxShadow={
-                        dragSnapshot.isDragging || internalDrag.taskId === task.id
-                          ? "xl"
-                          : "none"
-                      }
-                      zIndex={
-                        dragSnapshot.isDragging || internalDrag.taskId === task.id
-                          ? 50
-                          : "auto"
-                      }
-                      opacity={dragSnapshot.isDragging ? 0.8 : 1}
-                      onClick={e => e.stopPropagation()}
-                    >
-                      {/* Task content - drag handle for cross-container DnD */}
+              {calculateTaskPositions(dayTasks, HOUR_HEIGHT).map(
+                (task, index) => (
+                  <Draggable
+                    key={task.id}
+                    draggableId={createDraggableId.calendarTimed(task.id, date)}
+                    index={index}
+                  >
+                    {(dragProvided, dragSnapshot) => (
                       <Box
-                        {...dragProvided.dragHandleProps}
+                        ref={dragProvided.innerRef}
+                        {...dragProvided.draggableProps}
                         position="absolute"
-                        inset={0}
-                        px={2}
-                        py={1}
+                        left={task.left}
+                        width={task.width}
+                        ml={1}
+                        mr={1}
+                        borderRadius="md"
+                        color="white"
+                        fontSize="sm"
+                        overflow="hidden"
                         cursor="grab"
-                        onMouseDown={e => {
-                          // Allow @hello-pangea/dnd to handle cross-container drag
-                          // Don't start internal drag here
+                        _hover={{ shadow: "lg" }}
+                        style={{
+                          ...getTaskStyle(task),
+                          ...(dragSnapshot.isDragging ? {} : {}),
+                          ...dragProvided.draggableProps.style,
                         }}
-                        onClick={e => {
-                          e.stopPropagation();
-                          onTaskClick(task);
-                        }}
-                      >
-                        <Text fontWeight="medium" isTruncated>
-                          {task.title}
-                        </Text>
-                        {(task.duration || 30) >= 45 && (
-                          <Text fontSize="xs" opacity={0.8}>
-                            {formatTime(task.time)}
-                          </Text>
-                        )}
-                      </Box>
-
-                      {/* Resize handle */}
-                      <Box
-                        position="absolute"
-                        bottom={0}
-                        left={0}
-                        right={0}
-                        h={3}
-                        cursor="ns-resize"
-                        _hover={{ bg: "blackAlpha.200" }}
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        onMouseDown={e => {
-                          if (!dragSnapshot.isDragging) {
-                            handleInternalDragStart(e, task, "resize");
-                          }
-                        }}
+                        boxShadow={
+                          dragSnapshot.isDragging ||
+                          internalDrag.taskId === task.id
+                            ? "xl"
+                            : "none"
+                        }
+                        zIndex={
+                          dragSnapshot.isDragging ||
+                          internalDrag.taskId === task.id
+                            ? 50
+                            : "auto"
+                        }
+                        opacity={dragSnapshot.isDragging ? 0.8 : 1}
                         onClick={e => e.stopPropagation()}
                       >
-                        <Box w={8} h={1} borderRadius="full" bg="whiteAlpha.500" />
+                        {/* Task content - drag handle for cross-container DnD */}
+                        <Box
+                          {...dragProvided.dragHandleProps}
+                          position="absolute"
+                          inset={0}
+                          px={2}
+                          py={1}
+                          cursor="grab"
+                          onMouseDown={e => {
+                            // Allow @hello-pangea/dnd to handle cross-container drag
+                            // Don't start internal drag here
+                          }}
+                          onClick={e => {
+                            e.stopPropagation();
+                            onTaskClick(task);
+                          }}
+                        >
+                          <Text fontWeight="medium" isTruncated>
+                            {task.title}
+                          </Text>
+                          {(task.duration || 30) >= 45 && (
+                            <Text fontSize="xs" opacity={0.8}>
+                              {formatTime(task.time)}
+                            </Text>
+                          )}
+                        </Box>
+
+                        {/* Resize handle */}
+                        <Box
+                          position="absolute"
+                          bottom={0}
+                          left={0}
+                          right={0}
+                          h={3}
+                          cursor="ns-resize"
+                          _hover={{ bg: "blackAlpha.200" }}
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          onMouseDown={e => {
+                            if (!dragSnapshot.isDragging) {
+                              handleInternalDragStart(e, task, "resize");
+                            }
+                          }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <Box
+                            w={8}
+                            h={1}
+                            borderRadius="full"
+                            bg="whiteAlpha.500"
+                          />
+                        </Box>
                       </Box>
-                    </Box>
-                  )}
-                </Draggable>
-              ))}
+                    )}
+                  </Draggable>
+                )
+              )}
               {provided.placeholder}
             </Box>
           )}

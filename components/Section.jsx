@@ -37,6 +37,7 @@ const SectionCard = ({
   onDeleteSection,
   hoveredDroppable,
   droppableId,
+  createDraggableId,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -140,19 +141,26 @@ const SectionCard = ({
                       {snapshot.isDraggingOver ? "Drop here" : "No tasks"}
                     </Text>
                   ) : (
-                    tasks.map((task, index) => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        index={index}
-                        onToggle={onToggleTask}
-                        onToggleSubtask={onToggleSubtask}
-                        onToggleExpand={onToggleExpand}
-                        onEdit={onEditTask}
-                        onDelete={onDeleteTask}
-                        hoveredDroppable={hoveredDroppable}
-                      />
-                    ))
+                    tasks.map((task, index) => {
+                      const sectionId = section.id;
+                      return (
+                        <TaskItem
+                          key={task.id}
+                          task={task}
+                          index={index}
+                          onToggle={onToggleTask}
+                          onToggleSubtask={onToggleSubtask}
+                          onToggleExpand={onToggleExpand}
+                          onEdit={onEditTask}
+                          onDelete={onDeleteTask}
+                          hoveredDroppable={hoveredDroppable}
+                          draggableId={createDraggableId.todaySection(
+                            task.id,
+                            sectionId
+                          )}
+                        />
+                      );
+                    })
                   )}
                   {provided.placeholder}
                 </Box>
@@ -180,6 +188,7 @@ export const Section = ({
   onAddSection,
   hoveredDroppable,
   createDroppableId,
+  createDraggableId,
 }) => {
   const dropHighlight = useColorModeValue("gray.50", "gray.800");
 
@@ -208,6 +217,7 @@ export const Section = ({
               onDeleteSection={onDeleteSection}
               hoveredDroppable={hoveredDroppable}
               droppableId={createDroppableId.todaySection(section.id)}
+              createDraggableId={createDraggableId}
             />
           ))}
           {provided.placeholder}

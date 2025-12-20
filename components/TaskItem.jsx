@@ -30,6 +30,7 @@ export const TaskItem = ({
   onEdit,
   onDelete,
   hoveredDroppable,
+  draggableId,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -45,7 +46,7 @@ export const TaskItem = ({
     task.subtasks.every(st => st.completed);
 
   return (
-    <Draggable draggableId={task.id} index={index}>
+    <Draggable draggableId={draggableId} index={index}>
       {(provided, snapshot) => (
         <Box
           ref={provided.innerRef}
@@ -125,7 +126,9 @@ export const TaskItem = ({
                 <Text
                   fontWeight="medium"
                   textDecoration={
-                    task.completed || allSubtasksComplete ? "line-through" : "none"
+                    task.completed || allSubtasksComplete
+                      ? "line-through"
+                      : "none"
                   }
                   opacity={task.completed || allSubtasksComplete ? 0.5 : 1}
                   color={textColor}
@@ -199,7 +202,9 @@ export const TaskItem = ({
                       />
                       <Text
                         fontSize="sm"
-                        textDecoration={subtask.completed ? "line-through" : "none"}
+                        textDecoration={
+                          subtask.completed ? "line-through" : "none"
+                        }
                         opacity={subtask.completed ? 0.5 : 1}
                         color={subtaskText}
                       >

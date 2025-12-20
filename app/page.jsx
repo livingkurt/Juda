@@ -51,11 +51,11 @@ import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
 
 // Helper to parse droppable IDs consistently
-const parseDroppableId = (droppableId) => {
+const parseDroppableId = droppableId => {
   if (droppableId === "backlog") {
     return { type: "backlog" };
   }
-  
+
   // Calendar droppables use format: "calendar-{view}-{subtype}|{date}"
   // Using pipe instead of colon to avoid conflicts with ISO dates
   if (droppableId.startsWith("calendar-")) {
@@ -63,7 +63,7 @@ const parseDroppableId = (droppableId) => {
     const parts = prefix.split("-");
     const view = parts[1]; // "day" or "week"
     const isUntimed = parts[2] === "untimed";
-    
+
     return {
       type: "calendar",
       view,
@@ -71,13 +71,13 @@ const parseDroppableId = (droppableId) => {
       date: dateStr ? new Date(dateStr) : null,
     };
   }
-  
+
   // Today view sections use format: "today-section|{sectionId}"
   if (droppableId.startsWith("today-section|")) {
     const sectionId = droppableId.split("|")[1];
     return { type: "today-section", sectionId };
   }
-  
+
   // Legacy: assume it's a section ID for backwards compatibility
   return { type: "today-section", sectionId: droppableId };
 };
@@ -85,11 +85,57 @@ const parseDroppableId = (droppableId) => {
 // Helper to create droppable IDs
 export const createDroppableId = {
   backlog: () => "backlog",
-  todaySection: (sectionId) => `today-section|${sectionId}`,
-  calendarDay: (date) => `calendar-day|${date.toISOString()}`,
-  calendarDayUntimed: (date) => `calendar-day-untimed|${date.toISOString()}`,
-  calendarWeek: (date) => `calendar-week|${date.toISOString()}`,
-  calendarWeekUntimed: (date) => `calendar-week-untimed|${date.toISOString()}`,
+  todaySection: sectionId => `today-section|${sectionId}`,
+  calendarDay: date => `calendar-day|${date.toISOString()}`,
+  calendarDayUntimed: date => `calendar-day-untimed|${date.toISOString()}`,
+  calendarWeek: date => `calendar-week|${date.toISOString()}`,
+  calendarWeekUntimed: date => `calendar-week-untimed|${date.toISOString()}`,
+};
+
+// Helper to create context-aware draggable IDs
+// This ensures each task instance has a unique ID based on its context
+export const createDraggableId = {
+  backlog: taskId => `task-${taskId}-backlog`,
+  todaySection: (taskId, sectionId) =>
+    `task-${taskId}-today-section-${sectionId}`,
+  calendarUntimed: (taskId, date) =>
+    `task-${taskId}-calendar-untimed-${date.toISOString()}`,
+  calendarTimed: (taskId, date) =>
+    `task-${taskId}-calendar-timed-${date.toISOString()}`,
+};
+
+// Helper to extract task ID from context-aware draggable ID
+export const extractTaskId = draggableId => {
+  // All draggable IDs must be context-aware: "task-{taskId}-{context}"
+  if (!draggableId.startsWith("task-")) {
+    throw new Error(
+      `Invalid draggableId format: ${draggableId}. Expected format: task-{taskId}-{context}`
+    );
+  }
+
+  // Remove "task-" prefix
+  const withoutPrefix = draggableId.substring(5);
+
+  // Find the task ID by looking for known context suffixes
+  // Format: {taskId}-{context}
+  const suffixes = [
+    "-backlog",
+    "-today-section-",
+    "-calendar-untimed-",
+    "-calendar-timed-",
+  ];
+
+  for (const suffix of suffixes) {
+    const index = withoutPrefix.indexOf(suffix);
+    if (index !== -1) {
+      return withoutPrefix.substring(0, index);
+    }
+  }
+
+  // If no known suffix found, this is an error
+  throw new Error(
+    `Could not extract task ID from draggableId: ${draggableId}. Unknown context format.`
+  );
 };
 
 export default function DailyTasksApp() {
@@ -121,7 +167,7 @@ export default function DailyTasksApp() {
   const [defaultTime, setDefaultTime] = useState(null);
   const [defaultDate, setDefaultDate] = useState(null);
   const [hoveredDroppable, setHoveredDroppable] = useState(null);
-  
+
   // Store drop time calculated from mouse position during drag
   const dropTimeRef = useRef(null);
 
@@ -144,7 +190,7 @@ export default function DailyTasksApp() {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   const greeting = getGreeting();
   const GreetingIcon =
     greeting.icon === "Sun" ? Sun : greeting.icon === "Sunset" ? Sunset : Moon;
@@ -154,7 +200,7 @@ export default function DailyTasksApp() {
     () => tasks.filter(task => shouldShowOnDate(task, today)),
     [tasks, today]
   );
-  
+
   // Group today's tasks by section
   const tasksBySection = useMemo(() => {
     const grouped = {};
@@ -269,7 +315,7 @@ export default function DailyTasksApp() {
   // Main drag end handler
   const handleDragEnd = async result => {
     const { destination, source, draggableId, type } = result;
-    
+
     // Clear hovered state
     setHoveredDroppable(null);
 
@@ -280,7 +326,9 @@ export default function DailyTasksApp() {
 
     // Handle section reordering
     if (type === "SECTION") {
-      const newSections = Array.from(sections).sort((a, b) => a.order - b.order);
+      const newSections = Array.from(sections).sort(
+        (a, b) => a.order - b.order
+      );
       const [reorderedSection] = newSections.splice(source.index, 1);
       newSections.splice(destination.index, 0, reorderedSection);
       await reorderSections(newSections);
@@ -289,7 +337,8 @@ export default function DailyTasksApp() {
 
     // Handle task dragging
     if (type === "TASK") {
-      const taskId = draggableId;
+      // Extract task ID from context-aware draggable ID
+      const taskId = extractTaskId(draggableId);
       const task = tasks.find(t => t.id === taskId);
       if (!task) {
         dropTimeRef.current = null;
@@ -298,7 +347,7 @@ export default function DailyTasksApp() {
 
       const sourceParsed = parseDroppableId(source.droppableId);
       const destParsed = parseDroppableId(destination.droppableId);
-      
+
       // Get the calculated drop time (if dropping on timed calendar area)
       const calculatedTime = dropTimeRef.current || "09:00";
       dropTimeRef.current = null;
@@ -348,12 +397,13 @@ export default function DailyTasksApp() {
         const dropDate = destParsed.date || selectedDate;
         updates = {
           time: null,
-          recurrence: task.recurrence?.type && task.recurrence.type !== "none"
-            ? task.recurrence // Keep recurring pattern
-            : {
-                type: "none",
-                startDate: dropDate.toISOString(),
-              },
+          recurrence:
+            task.recurrence?.type && task.recurrence.type !== "none"
+              ? task.recurrence // Keep recurring pattern
+              : {
+                  type: "none",
+                  startDate: dropDate.toISOString(),
+                },
         };
       }
 
@@ -368,10 +418,12 @@ export default function DailyTasksApp() {
         sourceParsed.type === "today-section"
       ) {
         // Reorder within section
-        const sectionTasks = [...(tasksBySection[sourceParsed.sectionId] || [])];
+        const sectionTasks = [
+          ...(tasksBySection[sourceParsed.sectionId] || []),
+        ];
         const [movedTask] = sectionTasks.splice(source.index, 1);
         sectionTasks.splice(destination.index, 0, movedTask);
-        
+
         // Update order for all tasks in section
         for (let i = 0; i < sectionTasks.length; i++) {
           if (sectionTasks[i].order !== i) {
@@ -518,7 +570,7 @@ export default function DailyTasksApp() {
               aria-label="Settings"
             />
           </Flex>
-          
+
           {/* View toggles and calendar nav */}
           <Box mt={4}>
             <Flex align="center" justify="space-between" mb={3}>
@@ -609,7 +661,7 @@ export default function DailyTasksApp() {
                 </Flex>
               )}
             </Flex>
-            
+
             {/* Progress bar */}
             {showDashboard && (
               <Box>
@@ -676,6 +728,7 @@ export default function DailyTasksApp() {
                 onEditTask={handleEditTask}
                 onAdd={createBacklogItem}
                 onAddTask={handleAddTaskToBacklog}
+                createDraggableId={createDraggableId}
               />
             )}
           </Box>
@@ -701,6 +754,7 @@ export default function DailyTasksApp() {
                       onAddSection={handleAddSection}
                       hoveredDroppable={hoveredDroppable}
                       createDroppableId={createDroppableId}
+                      createDraggableId={createDraggableId}
                     />
                   </Box>
                 )}
@@ -746,6 +800,7 @@ export default function DailyTasksApp() {
                               dropTimeRef.current = time;
                             }}
                             createDroppableId={createDroppableId}
+                            createDraggableId={createDraggableId}
                           />
                         )}
                         {calendarView === "month" && (

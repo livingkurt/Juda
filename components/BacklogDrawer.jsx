@@ -31,6 +31,7 @@ export const BacklogDrawer = ({
   onEditTask,
   onAdd,
   onAddTask,
+  createDraggableId,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -40,7 +41,7 @@ export const BacklogDrawer = ({
   const dropHighlight = useColorModeValue("blue.50", "blue.900");
   const dragBg = useColorModeValue("blue.100", "blue.800");
   const gripColor = useColorModeValue("gray.400", "gray.500");
-  
+
   const [newItem, setNewItem] = useState("");
 
   const getSectionName = sectionId => {
@@ -112,7 +113,7 @@ export const BacklogDrawer = ({
                       {backlogTasks.map((task, index) => (
                         <Draggable
                           key={task.id}
-                          draggableId={task.id}
+                          draggableId={createDraggableId.backlog(task.id)}
                           index={index}
                         >
                           {(provided, snapshot) => (

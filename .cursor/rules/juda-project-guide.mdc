@@ -1,0 +1,313 @@
+---
+alwaysApply: true
+---
+
+# Juda - Daily Task Manager
+
+## Project Overview
+
+Juda is a daily task management system built with Next.js, Chakra UI, and PostgreSQL. The core feature is a flexible drag-and-drop interface that allows users to seamlessly move tasks between three main areas:
+
+1. **Backlog** - Unscheduled tasks without dates/times
+2. **Today View** - Tasks organized by sections (Morning, Afternoon, Evening)
+3. **Calendar** - Day/Week/Month views with time-based scheduling
+
+The goal is to make task scheduling feel effortless - drag a task from your backlog to the calendar to schedule it, or drag it back to unschedule it.
+
+---
+
+## Tech Stack
+
+- **Framework**: Next.js 14 (App Router)
+- **UI Library**: Chakra UI v2
+- **Database**: PostgreSQL with Prisma ORM
+- **Drag & Drop**: @hello-pangea/dnd (React DnD fork)
+- **Icons**: Lucide React
+
+---
+
+## Project Structure
+
+```
+juda/
+├── app/
+│   ├── api/                    # API routes
+│   │   ├── tasks/             # Task CRUD + reorder
+│   │   ├── sections/          # Section CRUD + reorder
+│   │   └── backlog/           # Backlog item CRUD
+│   ├── layout.jsx             # Root layout
+│   ├── page.jsx               # Main app (drag context lives here)
+│   └── providers.jsx          # Chakra provider
+├── components/
+│   ├── Section.jsx            # Today view sections container
+│   ├── TaskItem.jsx           # Individual task card
+│   ├── TaskDialog.jsx         # Create/edit task modal
+│   ├── SectionDialog.jsx      # Create/edit section modal
+│   ├── BacklogDrawer.jsx      # Backlog sidebar
+│   ├── CalendarDayView.jsx    # Day calendar view
+│   ├── CalendarWeekView.jsx   # Week calendar view
+│   └── CalendarMonthView.jsx  # Month calendar view
+├── hooks/
+│   ├── useTasks.js            # Task state & API calls
+│   ├── useSections.js         # Section state & API calls
+│   └── useBacklog.js          # Backlog state & API calls
+├── lib/
+│   ├── prisma.js              # Prisma client singleton
+│   ├── utils.js               # Helper functions
+│   └── constants.js           # App constants
+└── prisma/
+    └── schema.prisma          # Database schema
+```
+
+---
+
+## Drag & Drop System Architecture
+
+### The Golden Rule: Droppable IDs
+
+**CRITICAL**: All droppable IDs use a pipe (`|`) separator, NOT colons (`:`).
+
+This is because ISO date strings contain colons (e.g., `2025-01-15T00:00:00.000Z`), which would break string splitting.
+
+```javascript
+// ✅ CORRECT - use pipe separator
+"calendar-day|2025-01-15T00:00:00.000Z";
+"today-section|cuid123abc";
+
+// ❌ WRONG - colons conflict with ISO dates
+"calendar-day:2025-01-15T00:00:00.000Z";
+```
+
+### Droppable ID Format
+
+The `createDroppableId` helper in `page.jsx` generates consistent IDs:
+
+```javascript
+createDroppableId = {
+  backlog: () => "backlog",
+  todaySection: sectionId => `today-section|${sectionId}`,
+  calendarDay: date => `calendar-day|${date.toISOString()}`,
+  calendarDayUntimed: date => `calendar-day-untimed|${date.toISOString()}`,
+  calendarWeek: date => `calendar-week|${date.toISOString()}`,
+  calendarWeekUntimed: date => `calendar-week-untimed|${date.toISOString()}`,
+};
+```
+
+### Parsing Droppable IDs
+
+The `parseDroppableId` function in `page.jsx` extracts structured data:
+
+```javascript
+parseDroppableId("backlog");
+// → { type: "backlog" }
+
+parseDroppableId("today-section|abc123");
+// → { type: "today-section", sectionId: "abc123" }
+
+parseDroppableId("calendar-day|2025-01-15T00:00:00.000Z");
+// → { type: "calendar", view: "day", isUntimed: false, date: Date }
+
+parseDroppableId("calendar-week-untimed|2025-01-15T00:00:00.000Z");
+// → { type: "calendar", view: "week", isUntimed: true, date: Date }
+```
+
+---
+
+## Drag Behavior Matrix
+
+| From     | To                 | Result                              |
+| -------- | ------------------ | ----------------------------------- |
+| Backlog  | Today Section      | Sets date to today, clears time     |
+| Backlog  | Calendar (timed)   | Sets date + time from drop position |
+| Backlog  | Calendar (untimed) | Sets date, no time                  |
+| Today    | Calendar (timed)   | Sets time from drop position        |
+| Today    | Calendar (untimed) | Clears time, keeps date             |
+| Today    | Backlog            | Clears date + time                  |
+| Calendar | Today Section      | Clears time, sets date to today     |
+| Calendar | Backlog            | Clears date + time                  |
+| Calendar | Calendar           | Updates date/time based on position |
+
+---
+
+## Two Drag Systems (Important!)
+
+The calendar views use TWO separate drag systems:
+
+### 1. @hello-pangea/dnd (Cross-Container)
+
+- Handles dragging tasks between containers (backlog ↔ today ↔ calendar)
+- Uses `<DragDropContext>`, `<Droppable>`, `<Draggable>`
+- Controlled by `handleDragEnd` in `page.jsx`
+
+### 2. Internal Mouse Drag (Time/Duration Adjustment)
+
+- Handles dragging tasks vertically within the calendar to change time
+- Handles resizing tasks by dragging the bottom edge
+- Uses `useState` + `onMouseDown/Move/Up` events
+- Lives inside `CalendarDayView.jsx` and `CalendarWeekView.jsx`
+
+**Why two systems?** The DnD library doesn't support free-form positioning needed for time adjustment. The internal system provides pixel-perfect time snapping.
+
+```javascript
+// Internal drag state in calendar views
+const [internalDrag, setInternalDrag] = useState({
+  taskId: null,
+  type: null, // "move" or "resize"
+  startY: 0,
+  startMinutes: 0,
+  currentMinutes: 0,
+  // ...
+});
+```
+
+---
+
+## Task Recurrence Model
+
+Tasks use a `recurrence` JSON field to determine when they appear:
+
+```javascript
+// One-time task (shows only on specific date)
+recurrence: {
+  type: "none",
+  startDate: "2025-01-15T00:00:00.000Z"
+}
+
+// Daily recurring task
+recurrence: {
+  type: "daily",
+  startDate: "2025-01-01T00:00:00.000Z"  // optional start date
+}
+
+// Weekly recurring task (specific days)
+recurrence: {
+  type: "weekly",
+  days: [1, 3, 5],  // Mon, Wed, Fri (0=Sun, 6=Sat)
+  startDate: "2025-01-01T00:00:00.000Z"
+}
+
+// No recurrence (task appears in backlog only)
+recurrence: null
+```
+
+The `shouldShowOnDate(task, date)` function in `lib/utils.js` determines visibility.
+
+---
+
+## State Management Pattern
+
+All state flows through custom hooks with optimistic updates:
+
+```javascript
+// Example from useTasks.js
+const updateTask = async (id, taskData) => {
+  const previousTasks = [...tasks];
+
+  // Optimistic update
+  setTasks(prev => prev.map(t => t.id === id ? { ...t, ...taskData } : t));
+
+  try {
+    const response = await fetch("/api/tasks", { ... });
+    const updatedTask = await response.json();
+    setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
+  } catch (err) {
+    // Rollback on error
+    setTasks(previousTasks);
+    throw err;
+  }
+};
+```
+
+---
+
+## Key Files to Understand
+
+1. **`app/page.jsx`** - Main component with DragDropContext, handleDragEnd logic, and state coordination
+2. **`components/CalendarDayView.jsx`** - Day view with both DnD and internal drag systems
+3. **`lib/utils.js`** - `shouldShowOnDate()`, `calculateTaskPositions()`, time conversion helpers
+4. **`hooks/useTasks.js`** - Task CRUD with optimistic updates
+
+---
+
+## Common Pitfalls
+
+### ❌ Don't use colons in droppable IDs
+
+```javascript
+// Bad - will break parsing
+droppableId={`calendar:${date.toISOString()}`}
+
+// Good - use pipe separator
+droppableId={createDroppableId.calendarDay(date)}
+```
+
+### ❌ Don't forget to pass createDroppableId to components
+
+```jsx
+// Components need this to generate consistent IDs
+<CalendarDayView createDroppableId={createDroppableId} ... />
+```
+
+### ❌ Don't mix up the two drag systems
+
+```javascript
+// Internal drag is for time adjustment WITHIN calendar
+// DnD drag is for moving BETWEEN containers
+// They should not interfere with each other
+```
+
+### ❌ Don't forget optimistic updates need rollback
+
+```javascript
+// Always store previous state before optimistic update
+const previousTasks = [...tasks];
+setTasks(newTasks);
+try {
+  await api();
+} catch {
+  setTasks(previousTasks);
+}
+```
+
+---
+
+## Adding New Features
+
+### Adding a new droppable area:
+
+1. Add ID generator to `createDroppableId` in `page.jsx`
+2. Add parsing logic to `parseDroppableId` in `page.jsx`
+3. Add behavior rules to `handleDragEnd` in `page.jsx`
+4. Create the `<Droppable>` component with correct ID
+
+### Adding a new task property:
+
+1. Update Prisma schema in `prisma/schema.prisma`
+2. Run `npx prisma migrate dev`
+3. Update API routes to handle the field
+4. Update `TaskDialog.jsx` form
+5. Update display in `TaskItem.jsx` / calendar views
+
+---
+
+## Development Commands
+
+```bash
+npm run dev          # Start dev server on port 3001
+npm run build        # Build for production
+npx prisma studio    # Open database GUI
+npx prisma migrate dev --name <name>  # Create migration
+```
+
+---
+
+## Testing Drag & Drop
+
+When testing drag functionality, verify:
+
+1. ✅ Task appears in correct location after drop
+2. ✅ Task's `time` and `recurrence` fields updated correctly
+3. ✅ UI updates immediately (optimistic update works)
+4. ✅ Refresh shows persisted state
+5. ✅ Calendar time adjustment works independently
+6. ✅ Resize handle adjusts duration correctly
