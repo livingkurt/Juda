@@ -56,16 +56,18 @@ export async function POST(request) {
       return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
     }
 
-    // Normalize date to start of day for consistent storage
+    // Normalize date to start of day for consistent storage - use UTC to avoid timezone issues
     const completionDate = date ? new Date(date) : new Date();
-    completionDate.setHours(0, 0, 0, 0);
+    const utcDate = new Date(
+      Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
+    );
 
     // Check if completion already exists for this task and date
     const existing = await prisma.taskCompletion.findUnique({
       where: {
         taskId_date: {
           taskId,
-          date: completionDate,
+          date: utcDate,
         },
       },
     });
@@ -77,7 +79,7 @@ export async function POST(request) {
     const completion = await prisma.taskCompletion.create({
       data: {
         taskId,
-        date: completionDate,
+        date: utcDate,
       },
     });
 
@@ -113,15 +115,17 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "Task ID and date are required" }, { status: 400 });
     }
 
-    // Normalize date to start of day
+    // Normalize date to start of day - use UTC to avoid timezone issues
     const completionDate = new Date(date);
-    completionDate.setHours(0, 0, 0, 0);
+    const utcDate = new Date(
+      Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
+    );
 
     await prisma.taskCompletion.delete({
       where: {
         taskId_date: {
           taskId,
-          date: completionDate,
+          date: utcDate,
         },
       },
     });

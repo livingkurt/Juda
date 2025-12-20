@@ -32,15 +32,17 @@ export const useCompletions = () => {
   }, []);
 
   const createCompletion = async (taskId, date) => {
-    // Normalize date for consistent comparison
+    // Normalize date for consistent comparison - use UTC to avoid timezone issues
     const completionDate = date ? new Date(date) : new Date();
-    completionDate.setHours(0, 0, 0, 0);
+    const utcDate = new Date(
+      Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
+    );
 
     // Optimistic update
     const optimisticCompletion = {
       id: `temp-${Date.now()}`,
       taskId,
-      date: completionDate.toISOString(),
+      date: utcDate.toISOString(),
       createdAt: new Date().toISOString(),
     };
 
@@ -51,7 +53,7 @@ export const useCompletions = () => {
       const response = await fetch("/api/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId, date }),
+        body: JSON.stringify({ taskId, date: utcDate.toISOString() }),
       });
       if (!response.ok) throw new Error("Failed to create completion");
       const newCompletion = await response.json();
@@ -67,22 +69,26 @@ export const useCompletions = () => {
   };
 
   const deleteCompletion = async (taskId, date) => {
-    // Normalize date for consistent comparison
+    // Normalize date for consistent comparison - use UTC to avoid timezone issues
     const completionDate = new Date(date);
-    completionDate.setHours(0, 0, 0, 0);
+    const utcDate = new Date(
+      Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
+    );
 
     // Optimistic delete - store previous state for rollback
     const previousCompletions = [...completions];
     setCompletions(prev =>
       prev.filter(c => {
         const cDate = new Date(c.date);
-        cDate.setHours(0, 0, 0, 0);
-        return c.taskId !== taskId || cDate.getTime() !== completionDate.getTime();
+        const cUtcDate = new Date(
+          Date.UTC(cDate.getUTCFullYear(), cDate.getUTCMonth(), cDate.getUTCDate(), 0, 0, 0, 0)
+        );
+        return c.taskId !== taskId || cUtcDate.getTime() !== utcDate.getTime();
       })
     );
 
     try {
-      const params = new URLSearchParams({ taskId, date });
+      const params = new URLSearchParams({ taskId, date: utcDate.toISOString() });
       const response = await fetch(`/api/completions?${params}`, {
         method: "DELETE",
       });
@@ -100,11 +106,23 @@ export const useCompletions = () => {
   const isCompletedOnDate = useCallback(
     (taskId, date) => {
       const checkDate = new Date(date);
-      checkDate.setHours(0, 0, 0, 0);
+      const utcCheckDate = new Date(
+        Date.UTC(checkDate.getUTCFullYear(), checkDate.getUTCMonth(), checkDate.getUTCDate(), 0, 0, 0, 0)
+      );
       return completions.some(c => {
         const completionDate = new Date(c.date);
-        completionDate.setHours(0, 0, 0, 0);
-        return c.taskId === taskId && completionDate.getTime() === checkDate.getTime();
+        const utcCompletionDate = new Date(
+          Date.UTC(
+            completionDate.getUTCFullYear(),
+            completionDate.getUTCMonth(),
+            completionDate.getUTCDate(),
+            0,
+            0,
+            0,
+            0
+          )
+        );
+        return c.taskId === taskId && utcCompletionDate.getTime() === utcCheckDate.getTime();
       });
     },
     [completions]

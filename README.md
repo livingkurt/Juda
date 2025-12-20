@@ -183,3 +183,4 @@ Quick steps:
 - Drag and drop functionality for reordering
 - Responsive design with Chakra UI components
 - Dark mode support via Chakra UI color mode
+- Task completion records use UTC dates to ensure consistency across timezones (client and server)

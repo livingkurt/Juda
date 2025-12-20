@@ -93,7 +93,7 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
       duration,
       recurrence,
       subtasks,
-      completed: task?.completed || false,
+      // Note: Task completion is tracked via TaskCompletion records, not a field on Task
       expanded: task?.expanded || false,
       color,
       order: task?.order ?? 999,

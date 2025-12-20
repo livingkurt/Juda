@@ -26,7 +26,6 @@ model Task {
   time        String?
   duration    Int              @default(30)
   color       String           @default("#3b82f6")
-  completed   Boolean          @default(false)
   expanded    Boolean          @default(false)
   order       Int              @default(0)
   recurrence  Json?

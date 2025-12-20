@@ -44,7 +44,7 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     const body = await request.json();
-    const { id, title, sectionId, time, duration, color, recurrence, subtasks, completed, expanded, order } = body;
+    const { id, title, sectionId, time, duration, color, recurrence, subtasks, expanded, order } = body;
 
     // Validate required fields
     if (!id) {
@@ -83,7 +83,6 @@ export async function PUT(request) {
     if (color !== undefined) updateData.color = color;
     if (recurrence !== undefined) updateData.recurrence = recurrence;
     if (subtasks !== undefined) updateData.subtasks = subtasks;
-    if (completed !== undefined) updateData.completed = completed;
     if (expanded !== undefined) updateData.expanded = expanded;
     if (order !== undefined) updateData.order = order;
 
