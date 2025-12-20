@@ -72,16 +72,23 @@ export const useSections = () => {
     }
   };
 
-  const reorderSections = async sections => {
+  const reorderSections = async newSections => {
+    // Store previous state for rollback
+    const previousSections = [...sections];
+    // Optimistically update state immediately
+    setSections(newSections.map((s, index) => ({ ...s, order: index })));
+
     try {
       const response = await fetch("/api/sections/reorder", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sections }),
+        body: JSON.stringify({ sections: newSections }),
       });
       if (!response.ok) throw new Error("Failed to reorder sections");
       await fetchSections(); // Refresh sections
     } catch (err) {
+      // Rollback on error
+      setSections(previousSections);
       setError(err.message);
       throw err;
     }
