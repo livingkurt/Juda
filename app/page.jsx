@@ -179,14 +179,20 @@ export default function DailyTasksApp() {
   // Tasks for backlog: no recurrence AND no time, or recurrence doesn't match today
   // Exclude tasks with future dates/times
   const backlogTasks = useMemo(() => {
-    return tasks.filter(task => {
-      if (task.completed) return false;
-      if (shouldShowOnDate(task, today)) return false;
-      // Exclude tasks with future date/time
-      if (hasFutureDateTime(task)) return false;
-      return true;
-    });
-  }, [tasks, today]);
+    return tasks
+      .filter(task => {
+        // Don't use task.completed field - use completion records instead
+        if (shouldShowOnDate(task, today)) return false;
+        // Exclude tasks with future date/time
+        if (hasFutureDateTime(task)) return false;
+        return true;
+      })
+      .map(task => ({
+        ...task,
+        // Add completion status from records for display
+        completed: isCompletedOnDate(task.id, today),
+      }));
+  }, [tasks, today, isCompletedOnDate]);
 
   // Progress calculation - check completion records for today
   const totalTasks = todaysTasks.length;
