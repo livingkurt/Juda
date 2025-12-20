@@ -94,4 +94,3 @@ export const TimedTask = ({
     </Box>
   );
 };
-

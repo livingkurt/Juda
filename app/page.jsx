@@ -55,6 +55,7 @@ import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
 import { DashboardView } from "@/components/DashboardView";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
 
 export default function DailyTasksApp() {

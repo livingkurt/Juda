@@ -1,5 +1,6 @@
 import { Providers } from "./providers";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const metadata = {
   title: "Juda",
   description: "The true personal assistant",
