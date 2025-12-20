@@ -1,8 +1,8 @@
 import { Providers } from "./providers";
 
 export const metadata = {
-  title: "Task Manager",
-  description: "Daily task management system",
+  title: "Juda",
+  description: "The true personal assistant",
 };
 
 export default function RootLayout({ children }) {

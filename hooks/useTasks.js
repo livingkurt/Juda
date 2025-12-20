@@ -157,5 +157,6 @@ export const useTasks = () => {
     deleteTask,
     reorderTask,
     refetch: fetchTasks,
+    setTasks, // Export for optimistic updates
   };
 };

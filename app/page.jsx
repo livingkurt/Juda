@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import {
   Box,
   Button,
@@ -25,8 +25,23 @@ import {
   Badge,
   FormLabel,
   Collapse,
+  Progress,
 } from "@chakra-ui/react";
-import { DragDropContext, Droppable } from "@hello-pangea/dnd";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import {
   ChevronLeft,
   ChevronRight,
@@ -58,8 +73,10 @@ export default function DailyTasksApp() {
   const borderColor = useColorModeValue("gray.200", "gray.600");
   const textColor = useColorModeValue("gray.900", "gray.100");
   const mutedText = useColorModeValue("gray.500", "gray.400");
+  const progressBarBg = useColorModeValue("gray.200", "gray.700");
 
-  const { tasks, createTask, updateTask, deleteTask, reorderTask } = useTasks();
+  const { tasks, createTask, updateTask, deleteTask, reorderTask, setTasks } =
+    useTasks();
   const {
     sections,
     createSection,
@@ -80,7 +97,9 @@ export default function DailyTasksApp() {
   const [defaultTime, setDefaultTime] = useState(null);
   const [defaultDate, setDefaultDate] = useState(null);
   const dropTimeRef = useRef(null);
-  const [hoveredDroppable, setHoveredDroppable] = useState(null);
+  const [activeId, setActiveId] = useState(null);
+  const [activeTask, setActiveTask] = useState(null);
+  const pointerPositionRef = useRef({ x: 0, y: 0 });
 
   const {
     isOpen: taskDialogOpen,
@@ -93,30 +112,52 @@ export default function DailyTasksApp() {
     onClose: closeSectionDialog,
   } = useDisclosure();
   const [backlogOpen, setBacklogOpen] = useState(false);
-  const {
-    isOpen: settingsOpen,
-    onOpen: openSettings,
-    onClose: closeSettings,
-  } = useDisclosure();
 
-  const today = new Date();
-  const greeting = getGreeting();
-  const GreetingIcon =
-    greeting.icon === "Sun" ? Sun : greeting.icon === "Sunset" ? Sunset : Moon;
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
 
-  const todaysTasks = useMemo(
-    () => tasks.filter(task => shouldShowOnDate(task, today)),
-    [tasks]
+  // Set up sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
   );
+
+  const sortedSections = useMemo(() => {
+    return [...sections].sort((a, b) => a.order - b.order);
+  }, [sections]);
+
   const tasksBySection = useMemo(() => {
     const grouped = {};
-    sections.forEach(s => {
-      grouped[s.id] = todaysTasks
-        .filter(t => t.sectionId === s.id)
-        .sort((a, b) => (a.order || 0) - (b.order || 0));
+    sortedSections.forEach(section => {
+      grouped[section.id] = [];
+    });
+    // Filter tasks to only show today's tasks in the dashboard view
+    const todaysTasksForSections = tasks.filter(task =>
+      shouldShowOnDate(task, today)
+    );
+    todaysTasksForSections.forEach(task => {
+      if (grouped[task.sectionId]) {
+        grouped[task.sectionId].push(task);
+      }
+    });
+    Object.keys(grouped).forEach(sectionId => {
+      grouped[sectionId].sort((a, b) => a.order - b.order);
     });
     return grouped;
-  }, [todaysTasks, sections]);
+  }, [tasks, sortedSections, today]);
+
+  const todaysTasks = useMemo(() => {
+    return tasks.filter(task => shouldShowOnDate(task, today));
+  }, [tasks, today]);
 
   // Tasks that should appear in backlog:
   // 1. Tasks that don't match today's date (based on recurrence/startDate)
@@ -138,47 +179,32 @@ export default function DailyTasksApp() {
     });
   }, [tasks, today]);
 
-  const totalTasks = todaysTasks.length;
-  const completedTasks = todaysTasks.filter(
-    t =>
-      t.completed ||
-      (t.subtasks &&
-        t.subtasks.length > 0 &&
-        t.subtasks.every(st => st.completed))
-  ).length;
-  const progressPercent =
-    totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
   const handleToggleTask = async taskId => {
     const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-    await updateTask(taskId, {
-      completed: !task.completed,
-      subtasks:
-        task.subtasks?.map(st => ({ ...st, completed: !task.completed })) || [],
-    });
+    if (task) {
+      await updateTask(taskId, { completed: !task.completed });
+    }
   };
 
   const handleToggleSubtask = async (taskId, subtaskId) => {
     const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-    const updatedSubtasks =
-      task.subtasks?.map(st =>
+    if (task && task.subtasks) {
+      const updatedSubtasks = task.subtasks.map(st =>
         st.id === subtaskId ? { ...st, completed: !st.completed } : st
-      ) || [];
-    await updateTask(taskId, { subtasks: updatedSubtasks });
+      );
+      await updateTask(taskId, { subtasks: updatedSubtasks });
+    }
   };
 
   const handleToggleExpand = async taskId => {
     const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-    await updateTask(taskId, { expanded: !task.expanded });
+    if (task) {
+      await updateTask(taskId, { expanded: !task.expanded });
+    }
   };
 
   const handleEditTask = task => {
     setEditingTask(task);
-    setDefaultSectionId(null);
-    setDefaultTime(null);
     openTaskDialog();
   };
 
@@ -189,6 +215,7 @@ export default function DailyTasksApp() {
   const handleAddTask = sectionId => {
     setDefaultSectionId(sectionId);
     setDefaultTime(null);
+    setDefaultDate(null);
     setEditingTask(null);
     openTaskDialog();
   };
@@ -226,314 +253,296 @@ export default function DailyTasksApp() {
     await updateTask(taskId, { duration: newDuration });
   };
 
-  const handleDragEnd = async result => {
-    const { destination, source, draggableId, type } = result;
+  const handleDragStart = useCallback(
+    event => {
+      const id = event.active.id;
+      setActiveId(id);
+      const task = tasks.find(t => t.id === id);
+      setActiveTask(task || null);
 
-    if (!destination) return;
+      // Track initial position
+      if (event.activatorEvent) {
+        pointerPositionRef.current = {
+          x: event.activatorEvent.clientX,
+          y: event.activatorEvent.clientY,
+        };
+      }
 
-    if (type === "SECTION") {
+      // Add global mouse move listener to track current position during drag
+      const handleGlobalMouseMove = e => {
+        pointerPositionRef.current = {
+          x: e.clientX,
+          y: e.clientY,
+        };
+      };
+
+      window.addEventListener("mousemove", handleGlobalMouseMove);
+
+      // Store cleanup function on active data
+      if (!event.active.data.current) {
+        event.active.data.current = {};
+      }
+      event.active.data.current.cleanup = () => {
+        window.removeEventListener("mousemove", handleGlobalMouseMove);
+      };
+    },
+    [tasks]
+  );
+
+  // Helper to calculate time from mouse position relative to droppable element
+  const calculateTimeFromPosition = useCallback(
+    (clientY, droppableId, calendarView) => {
+      // Find the droppable element by its ID
+      const droppableElement = document.querySelector(
+        `[data-droppable-id="${droppableId}"]`
+      );
+      if (!droppableElement) {
+        // Fallback to stored time
+        return dropTimeRef.current || "09:00";
+      }
+
+      const rect = droppableElement.getBoundingClientRect();
+      const HOUR_HEIGHT = calendarView === "week" ? 48 : 64;
+
+      // Find the scrollable parent container (look for overflow-y: auto/scroll)
+      let scrollContainer = droppableElement.parentElement;
+      while (scrollContainer && scrollContainer !== document.body) {
+        const style = window.getComputedStyle(scrollContainer);
+        if (
+          scrollContainer.scrollHeight > scrollContainer.clientHeight &&
+          (style.overflowY === "auto" || style.overflowY === "scroll")
+        ) {
+          break;
+        }
+        scrollContainer = scrollContainer.parentElement;
+      }
+      const scrollTop = scrollContainer?.scrollTop || 0;
+
+      // Calculate relative Y position accounting for scroll
+      // For week view, we need to account for the column position
+      let y = clientY - rect.top + scrollTop;
+
+      // If week view, adjust for column offset
+      if (calendarView === "week" && droppableId.includes("calendar-week:")) {
+        // The droppable is the column, so y is already relative to it
+        y = clientY - rect.top + scrollTop;
+      }
+
+      const minutes = Math.max(
+        0,
+        Math.min(24 * 60 - 1, Math.floor((y / HOUR_HEIGHT) * 60))
+      );
+      const snappedMinutes = Math.round(minutes / 15) * 15;
+      const h = Math.floor(snappedMinutes / 60) % 24;
+      const m = Math.floor(snappedMinutes % 60);
+      return `${h.toString().padStart(2, "0")}:${m
+        .toString()
+        .padStart(2, "0")}`;
+    },
+    []
+  );
+
+  const handleDragMove = useCallback(event => {
+    // Position is tracked by global listener in handleDragStart
+  }, []);
+
+  // Helper function to determine destination type
+  const getDestination = (overData, overId) => {
+    if (overData.droppableId === "backlog" || overId === "backlog") {
+      return { type: "backlog" };
+    }
+    if (overData.sectionId) {
+      return {
+        type: "today-section",
+        sectionId: overData.sectionId,
+        index: overData.index,
+      };
+    }
+    if (typeof overId === "string" && overId.startsWith("calendar-")) {
+      const isUntimed = overId.includes("untimed");
+      const parts = overId.split(":");
+      const dateStr = parts.slice(1).join(":");
+      let date;
+      try {
+        date = dateStr ? new Date(dateStr) : selectedDate;
+        if (isNaN(date.getTime())) date = selectedDate;
+      } catch (e) {
+        date = selectedDate;
+      }
+      return {
+        type: isUntimed ? "calendar-untimed" : "calendar-timed",
+        date,
+      };
+    }
+    return null;
+  };
+
+  const handleDragEnd = async event => {
+    const { active, over } = event;
+
+    // Cleanup global mouse listener
+    const cleanup = active.data.current?.cleanup;
+    if (cleanup) cleanup();
+
+    setActiveId(null);
+    setActiveTask(null);
+
+    if (!over) return;
+
+    const taskId = active.id;
+    const activeData = active.data.current || {};
+    const overData = over.data.current || {};
+    const overId = over.id;
+
+    // Get final mouse position for accurate time calculation
+    // Use the most recent tracked position
+    const finalMouseY =
+      pointerPositionRef.current?.y || event.activatorEvent?.clientY;
+
+    // Handle section reordering
+    if (activeData.type === "SECTION" && overData.type === "SECTION") {
       const newSections = Array.from(sections).sort(
         (a, b) => a.order - b.order
       );
-      const [reorderedSection] = newSections.splice(source.index, 1);
-      newSections.splice(destination.index, 0, reorderedSection);
-      await reorderSections(newSections);
-    } else if (type === "TASK") {
-      const sourceDroppableId = source.droppableId;
-      const destDroppableId = destination.droppableId;
-      const taskId = draggableId;
-
-      // Handle drag from backlog
-      if (sourceDroppableId === "backlog") {
-        if (destDroppableId === "backlog") {
-          // Reordering within backlog - not applicable for tasks
-          return;
-        } else if (
-          destDroppableId.startsWith("calendar-") &&
-          !destDroppableId.includes("untimed")
-        ) {
-          // Dropped on calendar (timed area) - set date/time based on position
-          const dropParts = destDroppableId.split(":");
-          // dropParts[0] = "calendar-day" or "calendar-week"
-          // Join everything after the first colon (date string may contain colons from ISO format)
-          const dropDateStr = dropParts.slice(1).join(":");
-          let dropDate;
-          try {
-            if (dropDateStr) {
-              dropDate = new Date(dropDateStr);
-              // Validate the date
-              if (isNaN(dropDate.getTime())) {
-                console.error("Invalid date string:", dropDateStr);
-                dropDate = selectedDate;
-              }
-            } else {
-              // Fallback to selectedDate if no date in droppable ID
-              dropDate = selectedDate;
-            }
-          } catch (e) {
-            console.error("Error parsing date:", e);
-            dropDate = selectedDate;
-          }
-          // Use stored drop time from ref, default to 9 AM
-          const dropTime = dropTimeRef.current || "09:00";
-          dropTimeRef.current = null; // Reset
-
-          // Find the task to update
-          const taskToUpdate = tasks.find(t => t.id === taskId);
-          if (!taskToUpdate) return;
-
-          // Optimistically update immediately
-          const optimisticUpdate = {
-            time: dropTime,
-            recurrence: {
-              type: "none",
-              startDate: dropDate.toISOString(),
-            },
-          };
-
-          // Set as one-time task (no recurrence) with the specific date/time
-          await updateTask(
-            taskId,
-            {
-              time: dropTime,
-              recurrence: {
-                type: "none",
-                startDate: dropDate.toISOString(),
-              },
-              sectionId: taskToUpdate.sectionId, // Keep the section
-            },
-            optimisticUpdate
-          );
-        } else {
-          // Dropped on today view section - set date to today, no time, preserve recurrence
-          const taskToUpdateToday = tasks.find(t => t.id === taskId);
-          if (!taskToUpdateToday) return;
-
-          // Keep existing recurrence or set as one-time with today's date
-          const currentRecurrence = taskToUpdateToday.recurrence;
-          let recurrence = currentRecurrence;
-          if (!recurrence) {
-            // If no recurrence, set as one-time task for today
-            recurrence = {
-              type: "none",
-              startDate: today.toISOString(),
-            };
-          } else if (recurrence.type === "none" && recurrence.startDate) {
-            // Update startDate to today if it's already a one-time task
-            recurrence = {
-              ...recurrence,
-              startDate: today.toISOString(),
-            };
-          }
-          // For recurring tasks, we keep the recurrence as-is (it will show up based on recurrence pattern)
-
-          await updateTask(taskId, {
-            sectionId: destDroppableId,
-            time: null,
-            recurrence,
-            order: destination.index,
-          });
-        }
+      const oldIndex = newSections.findIndex(s => s.id === taskId);
+      const newIndex = newSections.findIndex(s => s.id === overId);
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        const reorderedSections = arrayMove(newSections, oldIndex, newIndex);
+        await reorderSections(reorderedSections);
       }
-      // Handle drag from today view sections
-      else if (
-        sourceDroppableId !== "backlog" &&
-        !sourceDroppableId.startsWith("calendar-")
+      return;
+    }
+
+    // Handle task dragging
+    if (activeData.type !== "TASK") return;
+
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const source = activeData.source || "backlog";
+    const destination = getDestination(overData, overId);
+    if (!destination) return;
+
+    // Handle different destination types
+    if (destination.type === "backlog") {
+      // Move to backlog - clear time and recurrence
+      await updateTask(taskId, { time: null, recurrence: null });
+    } else if (destination.type === "today-section") {
+      // Move to today view section
+      const currentRecurrence = task.recurrence;
+      let recurrence = currentRecurrence;
+      if (!recurrence) {
+        recurrence = {
+          type: "none",
+          startDate: today.toISOString(),
+        };
+      } else if (recurrence.type === "none" && recurrence.startDate) {
+        recurrence = {
+          ...recurrence,
+          startDate: today.toISOString(),
+        };
+      }
+
+      if (
+        source === "today" &&
+        activeData.sectionId === destination.sectionId
       ) {
-        if (destDroppableId === "backlog") {
-          // Dropped on backlog - remove date/time
-          const optimisticUpdate = { time: null, recurrence: null };
-          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
-        } else if (destDroppableId.startsWith("calendar-")) {
-          // Dropped on calendar - set date/time based on position
-          const dropParts = destDroppableId.split(":");
-          const calendarType = dropParts[0].split("-")[1];
-          const dropDateStr = dropParts.slice(1).join(":");
-          let dropDate;
+        // Reordering within same section
+        const sectionTasks = [...(tasksBySection[destination.sectionId] || [])];
+        const oldIndex = sectionTasks.findIndex(t => t.id === taskId);
+        const newIndex =
+          destination.index !== undefined
+            ? destination.index
+            : sectionTasks.length - 1;
+
+        if (oldIndex !== -1 && oldIndex !== newIndex) {
+          const reorderedTasks = arrayMove(sectionTasks, oldIndex, newIndex);
+          const previousTasks = [...tasks];
+          setTasks(prev =>
+            prev.map(t => {
+              const newTaskIndex = reorderedTasks.findIndex(
+                rt => rt.id === t.id
+              );
+              return newTaskIndex !== -1 &&
+                t.sectionId === destination.sectionId
+                ? { ...t, order: newTaskIndex }
+                : t;
+            })
+          );
+
           try {
-            dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
-            if (isNaN(dropDate.getTime())) dropDate = selectedDate;
-          } catch (e) {
-            dropDate = selectedDate;
-          }
-          // Use stored drop time from ref, default to 9 AM
-          const dropTime = dropTimeRef.current || "09:00";
-          dropTimeRef.current = null; // Reset
-
-          const optimisticUpdate = {
-            time: dropTime,
-            recurrence: {
-              type: "daily",
-              startDate: dropDate.toISOString(),
-            },
-          };
-          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
-        } else {
-          // Moving within or between sections
-          if (sourceDroppableId === destDroppableId) {
-            const sectionTasks = [...(tasksBySection[sourceDroppableId] || [])];
-            const [reorderedTask] = sectionTasks.splice(source.index, 1);
-            sectionTasks.splice(destination.index, 0, reorderedTask);
-
-            // Batch optimistic updates first
-            const previousTasks = [...tasks];
-            setTasks(prev =>
-              prev.map(t => {
-                const newIndex = sectionTasks.findIndex(st => st.id === t.id);
-                return newIndex !== -1 && t.sectionId === sourceDroppableId
-                  ? { ...t, order: newIndex }
-                  : t;
-              })
+            const updatePromises = reorderedTasks.map((t, index) =>
+              updateTask(t.id, { order: index }, null)
             );
-
-            // Then make API calls
-            try {
-              const updatePromises = sectionTasks.map((t, index) =>
-                updateTask(t.id, { order: index }, null)
-              );
-              await Promise.all(updatePromises);
-            } catch (err) {
-              // Rollback on error
-              setTasks(previousTasks);
-              throw err;
-            }
-          } else {
-            const taskToMove = tasks.find(t => t.id === taskId);
-            if (taskToMove) {
-              const optimisticUpdate = {
-                sectionId: destDroppableId,
-                order: destination.index,
-              };
-              await reorderTask(
-                taskId,
-                sourceDroppableId,
-                destDroppableId,
-                destination.index,
-                optimisticUpdate
-              );
-            }
+            await Promise.all(updatePromises);
+          } catch (err) {
+            setTasks(previousTasks);
+            throw err;
           }
         }
-      }
-      // Handle drag from calendar (including untimed tasks area)
-      else if (sourceDroppableId.startsWith("calendar-")) {
-        if (destDroppableId === "backlog") {
-          // Dropped on backlog - remove date/time
-          const optimisticUpdate = { time: null, recurrence: null };
-          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
-        } else if (
-          destDroppableId.startsWith("calendar-") &&
-          !destDroppableId.includes("untimed")
-        ) {
-          // Moving to timed calendar area - update time/date
-          const dropParts = destDroppableId.split(":");
-          const calendarType = dropParts[0].split("-")[1]; // "day" or "week"
-          // Join everything after the first colon (date string may contain colons from ISO format)
-          const dropDateStr = dropParts.slice(1).join(":");
-          let dropDate;
-          try {
-            if (dropDateStr) {
-              dropDate = new Date(dropDateStr);
-              // Validate the date
-              if (isNaN(dropDate.getTime())) {
-                console.error("Invalid date string:", dropDateStr);
-                dropDate = selectedDate;
-              }
-            } else {
-              // Fallback to selectedDate if no date in droppable ID
-              dropDate = selectedDate;
-            }
-          } catch (e) {
-            console.error("Error parsing date:", e);
-            dropDate = selectedDate;
-          }
-          // Use stored drop time from ref, default to 9 AM
-          const dropTime = dropTimeRef.current || "09:00";
-          dropTimeRef.current = null; // Reset
-
-          // Find the task to update
-          const taskToUpdate = tasks.find(t => t.id === taskId);
-          if (!taskToUpdate) return;
-
-          // When moving calendar items to a different date, always set as one-time task
-          // This ensures the task appears only on the date it's dropped on
-          const optimisticUpdate = {
-            time: dropTime,
-            recurrence: {
-              type: "none",
-              startDate: dropDate.toISOString(),
-            },
-          };
-          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
-        } else if (destDroppableId.includes("untimed")) {
-          // Moving from timed to untimed area - remove time but keep date
-          const dropParts = destDroppableId.split(":");
-          // Handle both "calendar-day-untimed:" and "calendar-week-untimed:" formats
-          // Join everything after the first colon (date string may contain colons from ISO format)
-          const dropDateStr = dropParts.slice(1).join(":");
-          let dropDate;
-          try {
-            if (dropDateStr) {
-              dropDate = new Date(dropDateStr);
-              // Validate the date
-              if (isNaN(dropDate.getTime())) {
-                console.error("Invalid date string:", dropDateStr);
-                dropDate = selectedDate;
-              }
-            } else {
-              // Fallback to selectedDate if no date in droppable ID
-              dropDate = selectedDate;
-            }
-          } catch (e) {
-            console.error("Error parsing date:", e);
-            dropDate = selectedDate;
-          }
-
-          const taskToUpdate = tasks.find(t => t.id === taskId);
-          if (!taskToUpdate) return;
-
-          // Keep recurrence but remove time
-          const currentRecurrence = taskToUpdate.recurrence;
-          const optimisticUpdate = {
-            time: null,
-            recurrence: currentRecurrence || {
-              type: "none",
-              startDate: dropDate.toISOString(),
-            },
-          };
-          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
-        } else {
-          // Dropped on today view section - set date to today, no time, preserve recurrence
-          const taskToUpdateToday = tasks.find(t => t.id === taskId);
-          if (!taskToUpdateToday) return;
-
-          // Keep existing recurrence or set as one-time with today's date
-          const currentRecurrence = taskToUpdateToday.recurrence;
-          let recurrence = currentRecurrence;
-          if (!recurrence) {
-            // If no recurrence, set as one-time task for today
-            recurrence = {
-              type: "none",
-              startDate: today.toISOString(),
-            };
-          } else if (recurrence.type === "none" && recurrence.startDate) {
-            // Update startDate to today if it's already a one-time task
-            recurrence = {
-              ...recurrence,
-              startDate: today.toISOString(),
-            };
-          }
-          // For recurring tasks, we keep the recurrence as-is (it will show up based on recurrence pattern)
-
-          const optimisticUpdate = {
-            sectionId: destDroppableId,
+      } else {
+        // Moving to different section
+        await reorderTask(
+          taskId,
+          activeData.sectionId,
+          destination.sectionId,
+          destination.index || 0,
+          {
+            sectionId: destination.sectionId,
             time: null,
             recurrence,
-            order: destination.index,
-          };
-          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
-        }
+            order: destination.index || 0,
+          }
+        );
       }
+    } else if (destination.type === "calendar-timed") {
+      // Move to calendar timed area - set date and time
+      // Calculate time from final drop position
+      let dropTime = "09:00";
+      if (finalMouseY && overId) {
+        dropTime = calculateTimeFromPosition(finalMouseY, overId, calendarView);
+      } else {
+        dropTime = dropTimeRef.current || "09:00";
+      }
+      dropTimeRef.current = null;
+
+      await updateTask(
+        taskId,
+        {
+          time: dropTime,
+          recurrence: {
+            type: source === "today" ? "daily" : "none",
+            startDate: destination.date.toISOString(),
+          },
+          sectionId: task.sectionId,
+        },
+        {
+          time: dropTime,
+          recurrence: {
+            type: source === "today" ? "daily" : "none",
+            startDate: destination.date.toISOString(),
+          },
+        }
+      );
+    } else if (destination.type === "calendar-untimed") {
+      // Move to calendar untimed area - set date, clear time
+      await updateTask(
+        taskId,
+        {
+          time: null,
+          recurrence: task.recurrence || {
+            type: "none",
+            startDate: destination.date.toISOString(),
+          },
+        },
+        {
+          time: null,
+          recurrence: task.recurrence || {
+            type: "none",
+            startDate: destination.date.toISOString(),
+          },
+        }
+      );
     }
   };
 
@@ -567,232 +576,198 @@ export default function DailyTasksApp() {
 
   const navigateCalendar = dir => {
     const d = new Date(selectedDate);
-    if (calendarView === "day") d.setDate(d.getDate() + dir);
-    else if (calendarView === "week") d.setDate(d.getDate() + dir * 7);
-    else d.setMonth(d.getMonth() + dir);
+    if (calendarView === "day") {
+      d.setDate(d.getDate() + dir);
+    } else if (calendarView === "week") {
+      d.setDate(d.getDate() + dir * 7);
+    } else if (calendarView === "month") {
+      d.setMonth(d.getMonth() + dir);
+    }
     setSelectedDate(d);
   };
 
   const getCalendarTitle = () => {
-    if (calendarView === "day")
+    if (calendarView === "day") {
       return selectedDate.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
+        weekday: "long",
+        year: "numeric",
+        month: "long",
         day: "numeric",
       });
-    if (calendarView === "week") {
+    } else if (calendarView === "week") {
       const start = new Date(selectedDate);
-      start.setDate(selectedDate.getDate() - selectedDate.getDay());
+      start.setDate(start.getDate() - start.getDay());
       const end = new Date(start);
-      end.setDate(start.getDate() + 6);
+      end.setDate(end.getDate() + 6);
       return `${start.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
       })} - ${end.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
+        year: "numeric",
       })}`;
+    } else {
+      return selectedDate.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+      });
     }
-    return selectedDate.toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    });
   };
 
-  const sortedSections = [...sections].sort((a, b) => a.order - b.order);
+  const completedTodayCount = todaysTasks.filter(
+    t =>
+      t.completed ||
+      (t.subtasks &&
+        t.subtasks.length > 0 &&
+        t.subtasks.every(st => st.completed))
+  ).length;
+
+  const dailyProgressPercentage =
+    todaysTasks.length > 0
+      ? Math.round((completedTodayCount / todaysTasks.length) * 100)
+      : 0;
 
   return (
-    <Box
-      h="100vh"
-      display="flex"
-      flexDirection="column"
-      overflow="hidden"
-      bg={bgColor}
-      color={textColor}
-    >
+    <Box h="100vh" display="flex" flexDirection="column" bg={bgColor}>
       <Box
         as="header"
         bg={headerBg}
         borderBottomWidth="1px"
         borderColor={borderColor}
+        px={4}
+        py={3}
         flexShrink={0}
       >
-        <Box w="full" px={4} py={4}>
-          <Flex align="center" justify="space-between">
-            <Flex align="center" gap={3}>
-              <GreetingIcon color="orange.500" size={28} />
-              <Box>
-                <Heading as="h1" size="lg" fontWeight="semibold">
-                  {greeting.text}
-                </Heading>
-                <Text fontSize="sm" color={mutedText}>
-                  {today.toLocaleDateString("en-US", {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </Text>
-              </Box>
-            </Flex>
-            <Modal isOpen={settingsOpen} onClose={closeSettings}>
-              <ModalOverlay />
-              <ModalContent bg={bgColor}>
-                <ModalHeader>Settings</ModalHeader>
-                <ModalCloseButton />
-                <ModalBody>
-                  <Flex align="center" justify="space-between" py={4}>
-                    <Box>
-                      <FormLabel>Dark Mode</FormLabel>
-                      <Text fontSize="sm" color={mutedText}>
-                        Toggle dark theme
-                      </Text>
-                    </Box>
-                    <Switch
-                      isChecked={colorMode === "dark"}
-                      onChange={toggleColorMode}
-                    />
-                  </Flex>
-                </ModalBody>
-              </ModalContent>
-            </Modal>
-            <IconButton
-              icon={<Settings size={20} />}
-              onClick={openSettings}
-              variant="ghost"
-              aria-label="Settings"
-            />
-          </Flex>
-          <Box mt={4}>
-            <Flex align="center" justify="space-between" mb={3}>
-              <HStack spacing={2}>
-                <Box position="relative">
-                  <Button
-                    size="sm"
-                    variant={backlogOpen ? "solid" : "outline"}
-                    colorScheme={backlogOpen ? "blue" : "gray"}
-                    onClick={() => setBacklogOpen(!backlogOpen)}
-                    leftIcon={<List size={16} />}
+        <Flex align="center" justify="space-between">
+          <HStack spacing={4}>
+            <Heading size="md">{getGreeting()}</Heading>
+            <HStack spacing={2}>
+              <Button
+                size="sm"
+                variant={backlogOpen ? "solid" : "ghost"}
+                onClick={() => setBacklogOpen(!backlogOpen)}
+                position="relative"
+                leftIcon={<List size={18} />}
+              >
+                Backlog
+                {backlogTasks.length > 0 && (
+                  <Badge
+                    position="absolute"
+                    top="-1"
+                    right="-1"
+                    bg="red.500"
+                    color="white"
+                    fontSize="2xs"
+                    borderRadius="full"
+                    w={5}
+                    h={5}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
                   >
-                    Backlog
-                  </Button>
-                  {(backlog.filter(b => !b.completed).length > 0 ||
-                    backlogTasks.length > 0) && (
-                    <Badge
-                      position="absolute"
-                      top="-1"
-                      right="-1"
-                      bg="red.500"
-                      color="white"
-                      fontSize="xs"
-                      borderRadius="full"
-                      w={5}
-                      h={5}
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                    >
-                      {backlog.filter(b => !b.completed).length +
-                        backlogTasks.length}
-                    </Badge>
-                  )}
-                </Box>
+                    {backlogTasks.length}
+                  </Badge>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant={showDashboard ? "solid" : "ghost"}
+                onClick={() => setShowDashboard(!showDashboard)}
+                leftIcon={<LayoutDashboard size={18} />}
+              >
+                Today
+              </Button>
+              <Button
+                size="sm"
+                variant={showCalendar ? "solid" : "ghost"}
+                onClick={() => setShowCalendar(!showCalendar)}
+                leftIcon={<Calendar size={18} />}
+              >
+                Calendar
+              </Button>
+            </HStack>
+          </HStack>
+          <HStack spacing={2}>
+            {showDashboard && (
+              <Text fontSize="sm" color={mutedText}>
+                Today's Progress: {completedTodayCount}/{todaysTasks.length} (
+                {todaysTasks.length > 0
+                  ? Math.round((completedTodayCount / todaysTasks.length) * 100)
+                  : 0}
+                %)
+              </Text>
+            )}
+            {showCalendar && (
+              <Flex align="center" gap={2}>
                 <Button
+                  variant="outline"
                   size="sm"
-                  variant={showDashboard ? "solid" : "outline"}
-                  colorScheme={showDashboard ? "blue" : "gray"}
-                  onClick={() => setShowDashboard(!showDashboard)}
-                  leftIcon={<LayoutDashboard size={16} />}
+                  onClick={() => setSelectedDate(new Date())}
                 >
                   Today
                 </Button>
-                <Button
-                  size="sm"
-                  variant={showCalendar ? "solid" : "outline"}
-                  colorScheme={showCalendar ? "blue" : "gray"}
-                  onClick={() => setShowCalendar(!showCalendar)}
-                  leftIcon={<Calendar size={16} />}
+                <IconButton
+                  icon={<ChevronLeft size={18} />}
+                  onClick={() => navigateCalendar(-1)}
+                  variant="ghost"
+                  aria-label="Previous"
+                />
+                <IconButton
+                  icon={<ChevronRight size={18} />}
+                  onClick={() => navigateCalendar(1)}
+                  variant="ghost"
+                  aria-label="Next"
+                />
+                <Text fontSize="sm" fontWeight="medium" minW="120px">
+                  {getCalendarTitle()}
+                </Text>
+                <Select
+                  value={calendarView}
+                  onChange={e => setCalendarView(e.target.value)}
+                  w={24}
                 >
-                  Calendar
-                </Button>
-              </HStack>
-              {showCalendar && (
-                <Flex align="center" gap={2}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedDate(new Date())}
-                  >
-                    Today
-                  </Button>
-                  <IconButton
-                    icon={<ChevronLeft size={18} />}
-                    onClick={() => navigateCalendar(-1)}
-                    variant="ghost"
-                    aria-label="Previous"
-                  />
-                  <IconButton
-                    icon={<ChevronRight size={18} />}
-                    onClick={() => navigateCalendar(1)}
-                    variant="ghost"
-                    aria-label="Next"
-                  />
-                  <Text fontSize="sm" fontWeight="medium" minW="120px">
-                    {getCalendarTitle()}
-                  </Text>
-                  <Select
-                    value={calendarView}
-                    onChange={e => setCalendarView(e.target.value)}
-                    w={24}
-                  >
-                    <option value="day">Day</option>
-                    <option value="week">Week</option>
-                    <option value="month">Month</option>
-                  </Select>
-                </Flex>
-              )}
-            </Flex>
-            {showDashboard && (
-              <Box>
-                <Flex
-                  justify="space-between"
-                  fontSize="sm"
-                  color={mutedText}
-                  mb={1}
-                >
-                  <Text>Today's Progress</Text>
-                  <Text>
-                    {completedTasks}/{totalTasks} ({progressPercent}%)
-                  </Text>
-                </Flex>
-                <Box
-                  h={2}
-                  bg={useColorModeValue("gray.200", "gray.700")}
-                  borderRadius="full"
-                  overflow="hidden"
-                >
-                  <Box
-                    h="full"
-                    bgGradient="linear(to-r, blue.500, green.500)"
-                    transition="all"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </Box>
-              </Box>
+                  <option value="day">Day</option>
+                  <option value="week">Week</option>
+                  <option value="month">Month</option>
+                </Select>
+              </Flex>
             )}
+            <IconButton
+              icon={
+                colorMode === "light" ? <Moon size={18} /> : <Sun size={18} />
+              }
+              onClick={toggleColorMode}
+              variant="ghost"
+              aria-label="Toggle color mode"
+            />
+            <IconButton
+              icon={<Settings size={18} />}
+              variant="ghost"
+              aria-label="Settings"
+            />
+          </HStack>
+        </Flex>
+        {showDashboard && todaysTasks.length > 0 && (
+          <Box w="full" h="6px" bg={progressBarBg} flexShrink={0}>
+            <Progress
+              value={dailyProgressPercentage}
+              size="xs"
+              colorScheme="blue"
+              borderRadius="none"
+              h="6px"
+              bg="transparent"
+            />
           </Box>
-        </Box>
+        )}
       </Box>
 
-      <DragDropContext
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
-        onDragUpdate={update => {
-          // Track which droppable is being hovered over
-          if (update.destination) {
-            setHoveredDroppable(update.destination.droppableId);
-          } else {
-            setHoveredDroppable(null);
-          }
-        }}
       >
         <Box as="main" flex={1} overflow="hidden" display="flex">
           {/* Backlog Sidebar */}
@@ -833,54 +808,40 @@ export default function DailyTasksApp() {
                 {/* Dashboard View */}
                 {showDashboard && (
                   <Box flex={1} minW={0} overflowY="auto">
-                    <Droppable
-                      droppableId="sections"
-                      type="SECTION"
-                      direction="vertical"
+                    <SortableContext
+                      items={sortedSections.map(s => s.id)}
+                      strategy={verticalListSortingStrategy}
                     >
-                      {(provided, snapshot) => (
-                        <Box
-                          ref={provided.innerRef}
-                          {...provided.droppableProps}
-                          bg={
-                            snapshot.isDraggingOver
-                              ? useColorModeValue("gray.50", "gray.800")
-                              : "transparent"
-                          }
-                          borderRadius="md"
+                      <Box>
+                        {sortedSections.map((section, index) => (
+                          <Section
+                            key={section.id}
+                            section={section}
+                            index={index}
+                            tasks={tasksBySection[section.id] || []}
+                            onToggleTask={handleToggleTask}
+                            onToggleSubtask={handleToggleSubtask}
+                            onToggleExpand={handleToggleExpand}
+                            onEditTask={handleEditTask}
+                            onDeleteTask={handleDeleteTask}
+                            onAddTask={handleAddTask}
+                            onEditSection={handleEditSection}
+                            onDeleteSection={handleDeleteSection}
+                          />
+                        ))}
+                        <Button
+                          variant="outline"
+                          onClick={handleAddSection}
+                          w="full"
+                          py={6}
+                          borderStyle="dashed"
+                          mt={4}
                         >
-                          {sortedSections.map((section, index) => (
-                            <Section
-                              key={section.id}
-                              section={section}
-                              index={index}
-                              tasks={tasksBySection[section.id] || []}
-                              onToggleTask={handleToggleTask}
-                              onToggleSubtask={handleToggleSubtask}
-                              onToggleExpand={handleToggleExpand}
-                              onEditTask={handleEditTask}
-                              onDeleteTask={handleDeleteTask}
-                              onAddTask={handleAddTask}
-                              onEditSection={handleEditSection}
-                              onDeleteSection={handleDeleteSection}
-                              hoveredDroppable={hoveredDroppable}
-                            />
-                          ))}
-                          {provided.placeholder}
-                          <Button
-                            variant="outline"
-                            onClick={handleAddSection}
-                            w="full"
-                            py={6}
-                            borderStyle="dashed"
-                            mt={4}
-                          >
-                            <Plus size={20} style={{ marginRight: "8px" }} />
-                            Add Section
-                          </Button>
-                        </Box>
-                      )}
-                    </Droppable>
+                          <Plus size={20} style={{ marginRight: "8px" }} />
+                          Add Section
+                        </Button>
+                      </Box>
+                    </SortableContext>
                   </Box>
                 )}
 
@@ -943,7 +904,26 @@ export default function DailyTasksApp() {
             </Box>
           </Box>
         </Box>
-      </DragDropContext>
+        <DragOverlay>
+          {activeTask ? (
+            <Box
+              p={3}
+              borderRadius="md"
+              bg={activeTask.color || "#3b82f6"}
+              color="white"
+              boxShadow="xl"
+              minW="200px"
+            >
+              <Text fontWeight="medium">{activeTask.title}</Text>
+              {activeTask.time && (
+                <Text fontSize="sm" opacity={0.8} mt={1}>
+                  {activeTask.time}
+                </Text>
+              )}
+            </Box>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       <TaskDialog
         isOpen={taskDialogOpen}
