@@ -477,9 +477,12 @@ export const CalendarWeekView = ({
                               cursor="grab"
                               {...provided.dragHandleProps}
                               onMouseDown={e => {
-                                // Only handle mouse down for internal calendar drags
-                                // The dragHandleProps will handle @hello-pangea/dnd drags
-                                // Only use internal drag for time/duration adjustments
+                                // Prevent internal drag if this is an external drag from @hello-pangea/dnd
+                                if (provided.dragHandleProps.onMouseDown) {
+                                  // This is an external drag, let @hello-pangea/dnd handle it
+                                  return;
+                                }
+                                // Only handle mouse down for internal calendar drags (time/duration adjustments)
                                 e.stopPropagation();
                               }}
                             >

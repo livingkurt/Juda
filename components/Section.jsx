@@ -33,6 +33,7 @@ export const Section = ({
   onAddTask,
   onEditSection,
   onDeleteSection,
+  hoveredDroppable,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -144,6 +145,7 @@ export const Section = ({
                         onToggleExpand={onToggleExpand}
                         onEdit={onEditTask}
                         onDelete={onDeleteTask}
+                        hoveredDroppable={hoveredDroppable}
                       />
                     ))
                   )}
