@@ -147,7 +147,23 @@ npx prisma migrate deploy
 DATABASE_URL="your-production-database-url" npx prisma migrate deploy
 ```
 
-**Note:** The build script already includes `prisma migrate deploy`, so migrations will run automatically on each deployment.
+**Note:** The build script already includes `prisma migrate deploy` and verification, so migrations will run automatically on each deployment. If migrations fail during build, the build will fail with a clear error message.
+
+### Verify Migrations
+
+After running migrations, you can verify they were applied correctly:
+
+```bash
+npm run db:verify
+```
+
+Or manually:
+
+```bash
+DATABASE_URL="your-production-database-url" npm run db:verify
+```
+
+This will check that the `TaskCompletion` table exists and has the correct structure.
 
 ## Step 7: Verify Deployment
 

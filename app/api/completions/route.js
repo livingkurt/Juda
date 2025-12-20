@@ -35,6 +35,20 @@ export async function GET(request) {
     return NextResponse.json(completions);
   } catch (error) {
     console.error("Error fetching completions:", error);
+    // Check if error is related to missing table
+    if (
+      error.code === "P2003" ||
+      error.message?.includes("does not exist") ||
+      error.message?.includes("TaskCompletion")
+    ) {
+      return NextResponse.json(
+        {
+          error: "Database migration required",
+          details: "The TaskCompletion table does not exist. Please run migrations: npx prisma migrate deploy",
+        },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ error: "Failed to fetch completions", details: error.message }, { status: 500 });
   }
 }
@@ -84,7 +98,21 @@ export async function POST(request) {
     return NextResponse.json(completion, { status: 201 });
   } catch (error) {
     console.error("Error creating completion:", error);
-    return NextResponse.json({ error: "Failed to create completion" }, { status: 500 });
+    // Check if error is related to missing table
+    if (
+      error.code === "P2003" ||
+      error.message?.includes("does not exist") ||
+      error.message?.includes("TaskCompletion")
+    ) {
+      return NextResponse.json(
+        {
+          error: "Database migration required",
+          details: "The TaskCompletion table does not exist. Please run migrations: npx prisma migrate deploy",
+        },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ error: "Failed to create completion", details: error.message }, { status: 500 });
   }
 }
 
