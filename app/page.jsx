@@ -374,14 +374,38 @@ export default function DailyTasksApp() {
       }
       // DESTINATION: Today section - set date to today, clear time
       else if (destParsed.type === "today-section") {
+        const targetSectionId = destParsed.sectionId;
+        const sourceSectionId =
+          sourceParsed.type === "today-section" ? sourceParsed.sectionId : null;
+
+        // If moving between sections, use reorderTask
+        if (sourceSectionId && sourceSectionId !== targetSectionId) {
+          // Moving between sections - use reorderTask which handles both sections
+          await reorderTask(
+            taskId,
+            sourceSectionId,
+            targetSectionId,
+            destination.index
+          );
+          // Still need to update date/time/recurrence
+          await updateTask(taskId, {
+            time: null,
+            recurrence: {
+              type: "none",
+              startDate: today.toISOString(),
+            },
+          });
+          return; // reorderTask handles the reordering, so we're done
+        }
+
+        // For same-section moves or coming from backlog/calendar, handle reordering here
         updates = {
-          sectionId: destParsed.sectionId,
+          sectionId: targetSectionId,
           time: null,
           recurrence: {
             type: "none",
             startDate: today.toISOString(),
           },
-          order: destination.index,
         };
       }
       // DESTINATION: Calendar (timed area) - set date and time
@@ -415,23 +439,56 @@ export default function DailyTasksApp() {
         await updateTask(taskId, updates);
       }
 
-      // Handle reordering within same container
-      if (
-        source.droppableId === destination.droppableId &&
-        sourceParsed.type === "today-section"
-      ) {
-        // Reorder within section
-        const sectionTasks = [
-          ...(tasksBySection[sourceParsed.sectionId] || []),
-        ];
-        const [movedTask] = sectionTasks.splice(source.index, 1);
-        sectionTasks.splice(destination.index, 0, movedTask);
+      // Handle reordering when dropping into a section
+      if (destParsed.type === "today-section") {
+        const targetSectionId = destParsed.sectionId;
+        const sourceSectionId =
+          sourceParsed.type === "today-section" ? sourceParsed.sectionId : null;
 
-        // Update order for all tasks in section
-        for (let i = 0; i < sectionTasks.length; i++) {
-          if (sectionTasks[i].order !== i) {
-            await updateTask(sectionTasks[i].id, { order: i });
+        // Get current tasks in target section (excluding the moved task)
+        const targetSectionTasks = [
+          ...(tasksBySection[targetSectionId] || []).filter(
+            t => t.id !== taskId
+          ),
+        ];
+
+        // Insert the moved task at the destination index
+        targetSectionTasks.splice(destination.index, 0, task);
+
+        // Update orders for all tasks in target section
+        const updatePromises = targetSectionTasks.map((t, i) => {
+          if (t.id === taskId) {
+            // Update the moved task with new section and order
+            return updateTask(taskId, {
+              sectionId: targetSectionId,
+              order: i,
+            });
+          } else if (t.order !== i) {
+            // Update other tasks in target section if order changed
+            return updateTask(t.id, { order: i });
           }
+          return Promise.resolve();
+        });
+
+        await Promise.all(updatePromises);
+
+        // If moving from another section, reorder source section tasks
+        if (sourceSectionId && sourceSectionId !== targetSectionId) {
+          const sourceSectionTasks = [
+            ...(tasksBySection[sourceSectionId] || []).filter(
+              t => t.id !== taskId
+            ),
+          ];
+
+          // Update orders for remaining tasks in source section
+          const sourceUpdatePromises = sourceSectionTasks.map((t, i) => {
+            if (t.order !== i) {
+              return updateTask(t.id, { order: i });
+            }
+            return Promise.resolve();
+          });
+
+          await Promise.all(sourceUpdatePromises);
         }
       }
     }
