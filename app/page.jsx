@@ -281,6 +281,8 @@ export default function DailyTasksApp() {
     const isCompletedToday = isCompletedOnDate(taskId, today);
 
     try {
+      // Only update completion record - no need to update task.completed field
+      // The UI will reflect completion status via isCompletedOnDate check
       if (isCompletedToday) {
         // Task is completed today, remove completion record
         await deleteCompletion(taskId, today.toISOString());
@@ -288,17 +290,6 @@ export default function DailyTasksApp() {
         // Task is not completed today, create completion record
         await createCompletion(taskId, today.toISOString());
       }
-
-      // Also update the task's completed field for UI consistency
-      // For recurring tasks, this will be reset when they appear tomorrow
-      await updateTask(taskId, {
-        completed: !isCompletedToday,
-        subtasks:
-          task.subtasks?.map(st => ({
-            ...st,
-            completed: !isCompletedToday,
-          })) || [],
-      });
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Error toggling task completion:", error);

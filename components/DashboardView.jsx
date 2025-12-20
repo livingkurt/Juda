@@ -42,7 +42,13 @@ import {
 } from "recharts";
 
 export const DashboardView = () => {
-  const { completions, fetchCompletions, loading: completionsLoading } = useCompletions();
+  const {
+    completions,
+    fetchCompletions,
+    createCompletion,
+    deleteCompletion,
+    loading: completionsLoading,
+  } = useCompletions();
   const { tasks, loading: tasksLoading } = useTasks();
   const [dateRange, setDateRange] = useState("30"); // days
   const [selectedTask, setSelectedTask] = useState("all");
@@ -80,6 +86,35 @@ export const DashboardView = () => {
       ...(selectedTask !== "all" && { taskId: selectedTask }),
     });
   }, [fetchCompletions, startDate, endDate, selectedTask]);
+
+  // Handle status change in table
+  const handleStatusChange = async (completion, newStatus) => {
+    try {
+      const completionDate = new Date(completion.date).toISOString();
+
+      if (newStatus === "unchecked") {
+        // Delete the completion record
+        await deleteCompletion(completion.taskId, completionDate);
+        // Refetch to update the table
+        await fetchCompletions({
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          ...(selectedTask !== "all" && { taskId: selectedTask }),
+        });
+      } else if (newStatus === "checked") {
+        // Create the completion record (shouldn't happen since all rows are already checked)
+        await createCompletion(completion.taskId, completionDate);
+        // Refetch to update the table
+        await fetchCompletions({
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          ...(selectedTask !== "all" && { taskId: selectedTask }),
+        });
+      }
+    } catch (error) {
+      console.error("Error updating completion status:", error);
+    }
+  };
 
   // Process data for charts
   const chartData = useMemo(() => {
@@ -292,6 +327,7 @@ export const DashboardView = () => {
                           <Th color={textColor}>Task</Th>
                           <Th color={textColor}>Section</Th>
                           <Th color={textColor}>Completed At</Th>
+                          <Th color={textColor}>Status</Th>
                         </Tr>
                       </Thead>
                       <Tbody>
@@ -318,12 +354,25 @@ export const DashboardView = () => {
                                     minute: "2-digit",
                                   })}
                                 </Td>
+                                <Td>
+                                  <Select
+                                    value="checked"
+                                    onChange={e => handleStatusChange(completion, e.target.value)}
+                                    size="sm"
+                                    bg={bgColor}
+                                    borderColor={borderColor}
+                                    w="120px"
+                                  >
+                                    <option value="checked">Checked</option>
+                                    <option value="unchecked">Unchecked</option>
+                                  </Select>
+                                </Td>
                               </Tr>
                             );
                           })}
                         {completions.length === 0 && (
                           <Tr>
-                            <Td colSpan={4} textAlign="center" py={8}>
+                            <Td colSpan={5} textAlign="center" py={8}>
                               <Text color={mutedText}>No completions found for the selected period</Text>
                             </Td>
                           </Tr>

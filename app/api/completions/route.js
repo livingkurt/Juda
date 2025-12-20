@@ -20,13 +20,6 @@ export async function GET(request) {
 
     const completions = await prisma.taskCompletion.findMany({
       where,
-      include: {
-        task: {
-          include: {
-            section: true,
-          },
-        },
-      },
       orderBy: {
         date: "desc",
       },
@@ -85,13 +78,6 @@ export async function POST(request) {
       data: {
         taskId,
         date: completionDate,
-      },
-      include: {
-        task: {
-          include: {
-            section: true,
-          },
-        },
       },
     });
 

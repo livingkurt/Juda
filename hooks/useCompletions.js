@@ -32,6 +32,21 @@ export const useCompletions = () => {
   }, []);
 
   const createCompletion = async (taskId, date) => {
+    // Normalize date for consistent comparison
+    const completionDate = date ? new Date(date) : new Date();
+    completionDate.setHours(0, 0, 0, 0);
+
+    // Optimistic update
+    const optimisticCompletion = {
+      id: `temp-${Date.now()}`,
+      taskId,
+      date: completionDate.toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+
+    const previousCompletions = [...completions];
+    setCompletions(prev => [...prev, optimisticCompletion]);
+
     try {
       const response = await fetch("/api/completions", {
         method: "POST",
@@ -40,25 +55,42 @@ export const useCompletions = () => {
       });
       if (!response.ok) throw new Error("Failed to create completion");
       const newCompletion = await response.json();
-      setCompletions(prev => [...prev, newCompletion]);
+      // Replace optimistic with real completion
+      setCompletions(prev => prev.map(c => (c.id === optimisticCompletion.id ? newCompletion : c)));
       return newCompletion;
     } catch (err) {
+      // Rollback on error
+      setCompletions(previousCompletions);
       setError(err.message);
       throw err;
     }
   };
 
   const deleteCompletion = async (taskId, date) => {
+    // Normalize date for consistent comparison
+    const completionDate = new Date(date);
+    completionDate.setHours(0, 0, 0, 0);
+
+    // Optimistic delete - store previous state for rollback
+    const previousCompletions = [...completions];
+    setCompletions(prev =>
+      prev.filter(c => {
+        const cDate = new Date(c.date);
+        cDate.setHours(0, 0, 0, 0);
+        return c.taskId !== taskId || cDate.getTime() !== completionDate.getTime();
+      })
+    );
+
     try {
       const params = new URLSearchParams({ taskId, date });
       const response = await fetch(`/api/completions?${params}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete completion");
-      setCompletions(prev =>
-        prev.filter(c => c.taskId !== taskId || new Date(c.date).toDateString() !== new Date(date).toDateString())
-      );
+      // State already updated optimistically
     } catch (err) {
+      // Rollback on error
+      setCompletions(previousCompletions);
       setError(err.message);
       throw err;
     }
