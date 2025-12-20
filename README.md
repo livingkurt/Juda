@@ -164,6 +164,17 @@ View and edit your database:
 npx prisma studio
 ```
 
+## Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions on deploying to Vercel.
+
+Quick steps:
+1. Set up a PostgreSQL database (Vercel Postgres or external)
+2. Create initial migration: `npx prisma migrate dev --name init`
+3. Deploy to Vercel via dashboard or CLI
+4. Configure `DATABASE_URL` environment variable in Vercel
+5. Run migrations: `npx prisma migrate deploy`
+
 ## Notes
 
 - All data is persisted in PostgreSQL
