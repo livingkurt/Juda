@@ -10,7 +10,7 @@ export async function GET() {
   } catch (error) {
     console.error("Error fetching sections:", error);
     return NextResponse.json(
-      { error: "Failed to fetch sections" },
+      { error: "Failed to fetch sections", details: error.message },
       { status: 500 }
     );
   }
@@ -33,7 +33,7 @@ export async function POST(request) {
   } catch (error) {
     console.error("Error creating section:", error);
     return NextResponse.json(
-      { error: "Failed to create section" },
+      { error: "Failed to create section", details: error.message },
       { status: 500 }
     );
   }

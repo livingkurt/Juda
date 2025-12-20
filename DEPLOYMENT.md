@@ -19,25 +19,35 @@ git push
 
 ## Step 2: Set Up a PostgreSQL Database
 
-You have two options:
+Vercel offers database providers through their Storage marketplace. Here are the recommended options:
 
-### Option A: Vercel Postgres (Recommended)
+### Option A: Neon (Recommended - Free Tier Available)
 
 1. Go to your Vercel dashboard
-2. Navigate to your project → Storage tab
-3. Click "Create Database" → Select "Postgres"
-4. Choose a name and region
-5. Vercel will automatically create a `POSTGRES_PRISMA_URL` environment variable
+2. Navigate to your project → **Storage** tab
+3. Click **"Create"** on the **Neon** card
+4. Follow the prompts to create your database
+5. Vercel will automatically create environment variables:
+   - `POSTGRES_URL`
+   - `POSTGRES_PRISMA_URL` (use this one for Prisma)
+   - `POSTGRES_URL_NON_POOLING`
 
-### Option B: External PostgreSQL Database
+### Option B: Other Marketplace Providers
 
-You can use any PostgreSQL provider:
-- **Neon** (free tier available): [neon.tech](https://neon.tech)
-- **Supabase** (free tier available): [supabase.com](https://supabase.com)
+You can also use:
+- **Supabase** - Postgres backend (free tier available)
+- **Prisma Postgres** - Instant Serverless Postgres
+- **AWS** - Serverless PostgreSQL
+
+All marketplace providers will automatically create environment variables in your Vercel project.
+
+### Option C: External PostgreSQL Database
+
+You can use any external PostgreSQL provider:
 - **Railway**: [railway.app](https://railway.app)
 - **Render**: [render.com](https://render.com)
 
-For external databases, you'll need to create a connection string in this format:
+For external databases, you'll need to manually create a connection string in this format:
 ```
 postgresql://user:password@host:port/database?schema=public
 ```
@@ -91,17 +101,23 @@ Follow the prompts to link your project.
 In your Vercel project dashboard:
 
 1. Go to **Settings** → **Environment Variables**
-2. Add the following environment variable:
+2. You should see environment variables automatically created by your database provider (like `POSTGRES_PRISMA_URL`)
 
-   **If using Vercel Postgres:**
+3. Add the following environment variable:
+
+   **If using a Vercel Marketplace provider (Neon, Supabase, etc.):**
    - Name: `DATABASE_URL`
-   - Value: Copy from `POSTGRES_PRISMA_URL` (Vercel creates this automatically)
+   - Value: Copy the value from `POSTGRES_PRISMA_URL` (this is automatically created)
    - Environment: Production, Preview, Development (select all)
+   - Click **Save**
 
    **If using external database:**
    - Name: `DATABASE_URL`
    - Value: Your PostgreSQL connection string
    - Environment: Production, Preview, Development (select all)
+   - Click **Save**
+
+**Note:** Your Prisma schema uses `DATABASE_URL`, so you need to copy the `POSTGRES_PRISMA_URL` value to `DATABASE_URL`. Alternatively, you can update your Prisma schema to use `POSTGRES_PRISMA_URL` directly.
 
 ## Step 6: Run Database Migrations
 
