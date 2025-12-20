@@ -222,7 +222,7 @@ export const BacklogDrawer = ({
   }));
 
   return (
-    <Box h="100vh" display="flex" flexDirection="column" bg={bgColor}>
+    <Box h="100%" display="flex" flexDirection="column" bg={bgColor}>
       {/* Header */}
       <Box p={4} borderBottomWidth="1px" borderColor={borderColor} flexShrink={0}>
         <Flex align="center" justify="space-between" mb={2}>
@@ -248,6 +248,7 @@ export const BacklogDrawer = ({
       <Box
         ref={setNodeRef}
         flex={1}
+        minH={0}
         overflowY="auto"
         p={4}
         bg={isOver ? dropHighlight : "transparent"}

@@ -986,12 +986,15 @@ export default function DailyTasksApp() {
           {mainTabIndex === 0 && (
             <Box
               w={backlogOpen ? "320px" : "0"}
+              h="100%"
               transition="width 0.3s"
               overflow="hidden"
               borderRightWidth={backlogOpen ? "1px" : "0"}
               borderColor={borderColor}
               bg={bgColor}
               flexShrink={0}
+              display="flex"
+              flexDirection="column"
             >
               {backlogOpen && (
                 <BacklogDrawer
