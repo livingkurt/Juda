@@ -80,6 +80,7 @@ export default function DailyTasksApp() {
   const [defaultTime, setDefaultTime] = useState(null);
   const [defaultDate, setDefaultDate] = useState(null);
   const dropTimeRef = useRef(null);
+  const [hoveredDroppable, setHoveredDroppable] = useState(null);
 
   const {
     isOpen: taskDialogOpen,
@@ -282,14 +283,32 @@ export default function DailyTasksApp() {
             sectionId: taskToUpdate.sectionId, // Keep the section
           });
         } else {
-          // Dropped on today view section - set date to today, no time, daily recurrence
+          // Dropped on today view section - set date to today, no time, preserve recurrence
+          const taskToUpdateToday = tasks.find(t => t.id === taskId);
+          if (!taskToUpdateToday) return;
+
+          // Keep existing recurrence or set as one-time with today's date
+          const currentRecurrence = taskToUpdateToday.recurrence;
+          let recurrence = currentRecurrence;
+          if (!recurrence) {
+            // If no recurrence, set as one-time task for today
+            recurrence = {
+              type: "none",
+              startDate: today.toISOString(),
+            };
+          } else if (recurrence.type === "none" && recurrence.startDate) {
+            // Update startDate to today if it's already a one-time task
+            recurrence = {
+              ...recurrence,
+              startDate: today.toISOString(),
+            };
+          }
+          // For recurring tasks, we keep the recurrence as-is (it will show up based on recurrence pattern)
+
           await updateTask(taskId, {
             sectionId: destDroppableId,
             time: null,
-            recurrence: {
-              type: "daily",
-              startDate: today.toISOString(),
-            },
+            recurrence,
             order: destination.index,
           });
         }
@@ -426,14 +445,32 @@ export default function DailyTasksApp() {
             },
           });
         } else {
-          // Dropped on today view section - set date to today, no time, daily recurrence
+          // Dropped on today view section - set date to today, no time, preserve recurrence
+          const taskToUpdateToday = tasks.find(t => t.id === taskId);
+          if (!taskToUpdateToday) return;
+
+          // Keep existing recurrence or set as one-time with today's date
+          const currentRecurrence = taskToUpdateToday.recurrence;
+          let recurrence = currentRecurrence;
+          if (!recurrence) {
+            // If no recurrence, set as one-time task for today
+            recurrence = {
+              type: "none",
+              startDate: today.toISOString(),
+            };
+          } else if (recurrence.type === "none" && recurrence.startDate) {
+            // Update startDate to today if it's already a one-time task
+            recurrence = {
+              ...recurrence,
+              startDate: today.toISOString(),
+            };
+          }
+          // For recurring tasks, we keep the recurrence as-is (it will show up based on recurrence pattern)
+
           await updateTask(taskId, {
             sectionId: destDroppableId,
             time: null,
-            recurrence: {
-              type: "daily",
-              startDate: today.toISOString(),
-            },
+            recurrence,
             order: destination.index,
           });
         }
@@ -687,7 +724,17 @@ export default function DailyTasksApp() {
         </Box>
       </Box>
 
-      <DragDropContext onDragEnd={handleDragEnd}>
+      <DragDropContext
+        onDragEnd={handleDragEnd}
+        onDragUpdate={update => {
+          // Track which droppable is being hovered over
+          if (update.destination) {
+            setHoveredDroppable(update.destination.droppableId);
+          } else {
+            setHoveredDroppable(null);
+          }
+        }}
+      >
         <Box as="main" flex={1} overflow="hidden" display="flex">
           {/* Backlog Sidebar */}
           <Box
@@ -757,6 +804,7 @@ export default function DailyTasksApp() {
                               onAddTask={handleAddTask}
                               onEditSection={handleEditSection}
                               onDeleteSection={handleDeleteSection}
+                              hoveredDroppable={hoveredDroppable}
                             />
                           ))}
                           {provided.placeholder}
