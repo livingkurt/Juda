@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "prisma generate && (node scripts/migrate-deploy.js || echo '⚠️  Migrations skipped - run manually with: npm run db:migrate') && next build",
+    "build": "prisma generate && DATABASE_URL=$DATABASE_URL_UNPOOLED prisma migrate deploy && next build",
     "start": "next start -p 3001",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -13,9 +13,7 @@
     "format:check": "prettier --check \"**/*.{js,jsx,json,md}\"",
     "postinstall": "prisma generate",
     "db:dump": "node scripts/dump-production.js",
-    "db:restore": "node scripts/dump-production.js --restore",
-    "db:verify": "node scripts/verify-migrations.js",
-    "db:migrate": "node scripts/migrate-deploy.js"
+    "db:restore": "node scripts/dump-production.js --restore"
   },
   "dependencies": {
     "@chakra-ui/react": "^2.8.2",
