@@ -230,7 +230,10 @@ export const CalendarWeekView = ({
             <Box
               key={i}
               flex={1}
-              borderLeftWidth="1px"
+              flexShrink={0}
+              flexGrow={1}
+              minW={0}
+              borderLeftWidth={i === 0 ? "0" : "1px"}
               borderColor={borderColor}
             >
               {/* Day header */}
@@ -341,6 +344,8 @@ export const CalendarWeekView = ({
               borderTopWidth="1px"
               borderColor={hourBorderColor}
               display="flex"
+              pointerEvents="none"
+              zIndex={1}
               style={{
                 top: `${hour * HOUR_HEIGHT}px`,
                 height: `${HOUR_HEIGHT}px`,
@@ -378,9 +383,15 @@ export const CalendarWeekView = ({
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       flex={1}
-                      borderLeftWidth="1px"
+                      flexShrink={0}
+                      flexGrow={1}
+                      minW={0}
+                      borderLeftWidth={i === 0 ? "0" : "1px"}
                       borderColor={borderColor}
                       position="relative"
+                      h="full"
+                      w="full"
+                      zIndex={2}
                       onClick={e => {
                         if (!snapshot.isDraggingOver) {
                           handleColumnClick(e, day);
