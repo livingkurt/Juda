@@ -254,15 +254,24 @@ export default function DailyTasksApp() {
         ) {
           // Dropped on calendar (timed area) - set date/time based on position
           const dropParts = destDroppableId.split(":");
-          const calendarType = dropParts[0].split("-")[1];
-          const dropDateStr = dropParts[1];
+          // dropParts[0] = "calendar-day" or "calendar-week"
+          // Join everything after the first colon (date string may contain colons from ISO format)
+          const dropDateStr = dropParts.slice(1).join(":");
           let dropDate;
           try {
-            dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
-            if (isNaN(dropDate.getTime())) {
+            if (dropDateStr) {
+              dropDate = new Date(dropDateStr);
+              // Validate the date
+              if (isNaN(dropDate.getTime())) {
+                console.error("Invalid date string:", dropDateStr);
+                dropDate = selectedDate;
+              }
+            } else {
+              // Fallback to selectedDate if no date in droppable ID
               dropDate = selectedDate;
             }
           } catch (e) {
+            console.error("Error parsing date:", e);
             dropDate = selectedDate;
           }
           // Use stored drop time from ref, default to 9 AM
@@ -377,14 +386,23 @@ export default function DailyTasksApp() {
           // Moving to timed calendar area - update time/date
           const dropParts = destDroppableId.split(":");
           const calendarType = dropParts[0].split("-")[1]; // "day" or "week"
-          const dropDateStr = dropParts[1];
+          // Join everything after the first colon (date string may contain colons from ISO format)
+          const dropDateStr = dropParts.slice(1).join(":");
           let dropDate;
           try {
-            dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
-            if (isNaN(dropDate.getTime())) {
+            if (dropDateStr) {
+              dropDate = new Date(dropDateStr);
+              // Validate the date
+              if (isNaN(dropDate.getTime())) {
+                console.error("Invalid date string:", dropDateStr);
+                dropDate = selectedDate;
+              }
+            } else {
+              // Fallback to selectedDate if no date in droppable ID
               dropDate = selectedDate;
             }
           } catch (e) {
+            console.error("Error parsing date:", e);
             dropDate = selectedDate;
           }
           // Use stored drop time from ref, default to 9 AM
@@ -420,15 +438,23 @@ export default function DailyTasksApp() {
           // Moving from timed to untimed area - remove time but keep date
           const dropParts = destDroppableId.split(":");
           // Handle both "calendar-day-untimed:" and "calendar-week-untimed:" formats
-          const dropDateStr =
-            dropParts.length > 1 ? dropParts[dropParts.length - 1] : null;
+          // Join everything after the first colon (date string may contain colons from ISO format)
+          const dropDateStr = dropParts.slice(1).join(":");
           let dropDate;
           try {
-            dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
-            if (isNaN(dropDate.getTime())) {
+            if (dropDateStr) {
+              dropDate = new Date(dropDateStr);
+              // Validate the date
+              if (isNaN(dropDate.getTime())) {
+                console.error("Invalid date string:", dropDateStr);
+                dropDate = selectedDate;
+              }
+            } else {
+              // Fallback to selectedDate if no date in droppable ID
               dropDate = selectedDate;
             }
           } catch (e) {
+            console.error("Error parsing date:", e);
             dropDate = selectedDate;
           }
 
