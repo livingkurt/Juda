@@ -477,12 +477,18 @@ export const CalendarWeekView = ({
                               cursor="grab"
                               {...provided.dragHandleProps}
                               onMouseDown={e => {
-                                // Prevent internal drag if this is an external drag from @hello-pangea/dnd
-                                if (provided.dragHandleProps.onMouseDown) {
-                                  // This is an external drag, let @hello-pangea/dnd handle it
+                                // If @hello-pangea/dnd is handling the drag, don't start internal drag
+                                // The dragHandleProps.onMouseDown will be called first by @hello-pangea/dnd
+                                // So we check if the event is already being handled
+                                if (
+                                  provided.dragHandleProps &&
+                                  provided.dragHandleProps.onMouseDown
+                                ) {
+                                  // Let @hello-pangea/dnd handle it - don't prevent default or stop propagation
                                   return;
                                 }
                                 // Only handle mouse down for internal calendar drags (time/duration adjustments)
+                                e.preventDefault();
                                 e.stopPropagation();
                               }}
                             >
@@ -498,9 +504,13 @@ export const CalendarWeekView = ({
                               h={2}
                               cursor="ns-resize"
                               _hover={{ bg: "blackAlpha.100" }}
-                              onMouseDown={e =>
-                                handleMouseDown(e, task, "resize")
-                              }
+                              onMouseDown={e => {
+                                // Only handle resize if not dragging with @hello-pangea/dnd
+                                if (!snapshot.isDragging) {
+                                  handleMouseDown(e, task, "resize");
+                                }
+                                e.stopPropagation();
+                              }}
                               onClick={e => e.stopPropagation()}
                             />
                           </Box>
