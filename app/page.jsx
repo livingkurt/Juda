@@ -24,6 +24,11 @@ import {
   Heading,
   Badge,
   FormLabel,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
 } from "@chakra-ui/react";
 import {
   DndContext,
@@ -55,6 +60,7 @@ import { BacklogDrawer } from "@/components/BacklogDrawer";
 import { useTasks } from "@/hooks/useTasks";
 import { useSections } from "@/hooks/useSections";
 import { useBacklog } from "@/hooks/useBacklog";
+import { useCompletions } from "@/hooks/useCompletions";
 import {
   shouldShowOnDate,
   getGreeting,
@@ -65,6 +71,7 @@ import {
 import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
+import { DashboardView } from "@/components/DashboardView";
 
 // Helper to parse droppable IDs consistently
 const parseDroppableId = droppableId => {
@@ -177,8 +184,16 @@ export default function DailyTasksApp() {
     deleteBacklogItem,
     reorderBacklog,
   } = useBacklog();
+  const {
+    completions,
+    createCompletion,
+    deleteCompletion,
+    isCompletedOnDate,
+    fetchCompletions,
+  } = useCompletions();
 
   // Initialize state with default values (same on server and client)
+  const [mainTabIndex, setMainTabIndex] = useState(0); // 0 = Tasks, 1 = History
   const [showDashboard, setShowDashboard] = useState(true);
   const [showCalendar, setShowCalendar] = useState(true);
   const [backlogOpen, setBacklogOpen] = useState(true);
@@ -221,6 +236,11 @@ export default function DailyTasksApp() {
       console.error("Error loading view preferences:", error);
     }
   }, [selectedDate]);
+
+  // Load completions on mount
+  useEffect(() => {
+    fetchCompletions();
+  }, [fetchCompletions]);
 
   const {
     isOpen: taskDialogOpen,
@@ -268,10 +288,17 @@ export default function DailyTasksApp() {
   const GreetingIcon =
     greeting.icon === "Sun" ? Sun : greeting.icon === "Sunset" ? Sunset : Moon;
 
-  // Tasks that should show in today's dashboard
+  // Tasks that should show in today's dashboard, enhanced with completion status
   const todaysTasks = useMemo(
-    () => tasks.filter(task => shouldShowOnDate(task, today)),
-    [tasks, today]
+    () =>
+      tasks
+        .filter(task => shouldShowOnDate(task, today))
+        .map(task => ({
+          ...task,
+          // Override completed field with today's completion record status
+          completed: isCompletedOnDate(task.id, today),
+        })),
+    [tasks, today, isCompletedOnDate]
   );
 
   // Group today's tasks by section
@@ -297,15 +324,18 @@ export default function DailyTasksApp() {
     });
   }, [tasks, today]);
 
-  // Progress calculation
+  // Progress calculation - check completion records for today
   const totalTasks = todaysTasks.length;
-  const completedTasks = todaysTasks.filter(
-    t =>
-      t.completed ||
-      (t.subtasks &&
-        t.subtasks.length > 0 &&
-        t.subtasks.every(st => st.completed))
-  ).length;
+  const completedTasks = todaysTasks.filter(t => {
+    // Check if task is completed today via completion record
+    const isCompletedToday = isCompletedOnDate(t.id, today);
+    // Also check subtasks completion
+    const allSubtasksComplete =
+      t.subtasks &&
+      t.subtasks.length > 0 &&
+      t.subtasks.every(st => st.completed);
+    return isCompletedToday || allSubtasksComplete;
+  }).length;
   const progressPercent =
     totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
@@ -313,11 +343,31 @@ export default function DailyTasksApp() {
   const handleToggleTask = async taskId => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    await updateTask(taskId, {
-      completed: !task.completed,
-      subtasks:
-        task.subtasks?.map(st => ({ ...st, completed: !task.completed })) || [],
-    });
+
+    const isCompletedToday = isCompletedOnDate(taskId, today);
+
+    try {
+      if (isCompletedToday) {
+        // Task is completed today, remove completion record
+        await deleteCompletion(taskId, today.toISOString());
+      } else {
+        // Task is not completed today, create completion record
+        await createCompletion(taskId, today.toISOString());
+      }
+
+      // Also update the task's completed field for UI consistency
+      // For recurring tasks, this will be reset when they appear tomorrow
+      await updateTask(taskId, {
+        completed: !isCompletedToday,
+        subtasks:
+          task.subtasks?.map(st => ({
+            ...st,
+            completed: !isCompletedToday,
+          })) || [],
+      });
+    } catch (error) {
+      console.error("Error toggling task completion:", error);
+    }
   };
 
   const handleToggleSubtask = async (taskId, subtaskId) => {
@@ -927,60 +977,72 @@ export default function DailyTasksApp() {
             />
           </Flex>
 
-          {/* View toggles and calendar nav */}
+          {/* Main Tabs */}
           <Box mt={4}>
-            <Flex align="center" justify="space-between" mb={3}>
-              <HStack spacing={2}>
-                <Box position="relative">
+            <Tabs index={mainTabIndex} onChange={setMainTabIndex}>
+              <TabList>
+                <Tab>Tasks</Tab>
+                <Tab>History</Tab>
+              </TabList>
+            </Tabs>
+          </Box>
+
+          {/* View toggles and calendar nav - only show in Tasks tab */}
+          {mainTabIndex === 0 && (
+            <Box mt={4}>
+              <Flex align="center" justify="space-between" mb={3}>
+                <HStack spacing={2}>
+                  <Box position="relative">
+                    <Button
+                      size="sm"
+                      variant={backlogOpen ? "solid" : "outline"}
+                      colorScheme={backlogOpen ? "blue" : "gray"}
+                      onClick={() => setBacklogOpen(!backlogOpen)}
+                      leftIcon={<List size={16} />}
+                    >
+                      Backlog
+                    </Button>
+                    {(backlog.filter(b => !b.completed).length > 0 ||
+                      backlogTasks.length > 0) && (
+                      <Badge
+                        position="absolute"
+                        top="-1"
+                        right="-1"
+                        bg="red.500"
+                        color="white"
+                        fontSize="xs"
+                        borderRadius="full"
+                        w={5}
+                        h={5}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
+                        {backlog.filter(b => !b.completed).length +
+                          backlogTasks.length}
+                      </Badge>
+                    )}
+                  </Box>
                   <Button
                     size="sm"
-                    variant={backlogOpen ? "solid" : "outline"}
-                    colorScheme={backlogOpen ? "blue" : "gray"}
-                    onClick={() => setBacklogOpen(!backlogOpen)}
-                    leftIcon={<List size={16} />}
+                    variant={showDashboard ? "solid" : "outline"}
+                    colorScheme={showDashboard ? "blue" : "gray"}
+                    onClick={() => setShowDashboard(!showDashboard)}
+                    leftIcon={<LayoutDashboard size={16} />}
                   >
-                    Backlog
+                    Today
                   </Button>
-                  {(backlog.filter(b => !b.completed).length > 0 ||
-                    backlogTasks.length > 0) && (
-                    <Badge
-                      position="absolute"
-                      top="-1"
-                      right="-1"
-                      bg="red.500"
-                      color="white"
-                      fontSize="xs"
-                      borderRadius="full"
-                      w={5}
-                      h={5}
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                    >
-                      {backlog.filter(b => !b.completed).length +
-                        backlogTasks.length}
-                    </Badge>
-                  )}
-                </Box>
-                <Button
-                  size="sm"
-                  variant={showDashboard ? "solid" : "outline"}
-                  colorScheme={showDashboard ? "blue" : "gray"}
-                  onClick={() => setShowDashboard(!showDashboard)}
-                  leftIcon={<LayoutDashboard size={16} />}
-                >
-                  Today
-                </Button>
-                <Button
-                  size="sm"
-                  variant={showCalendar ? "solid" : "outline"}
-                  colorScheme={showCalendar ? "blue" : "gray"}
-                  onClick={() => setShowCalendar(!showCalendar)}
-                  leftIcon={<Calendar size={16} />}
-                >
-                  Calendar
-                </Button>
-              </HStack>
+                  <Button
+                    size="sm"
+                    variant={showCalendar ? "solid" : "outline"}
+                    colorScheme={showCalendar ? "blue" : "gray"}
+                    onClick={() => setShowCalendar(!showCalendar)}
+                    leftIcon={<Calendar size={16} />}
+                  >
+                    Calendar
+                  </Button>
+                </HStack>
+              </Flex>
               {showCalendar && (
                 <Flex align="center" gap={2}>
                   <Button
@@ -1019,38 +1081,38 @@ export default function DailyTasksApp() {
                   </Select>
                 </Flex>
               )}
-            </Flex>
 
-            {/* Progress bar */}
-            {showDashboard && (
-              <Box>
-                <Flex
-                  justify="space-between"
-                  fontSize="sm"
-                  color={mutedText}
-                  mb={1}
-                >
-                  <Text>Today's Progress</Text>
-                  <Text>
-                    {completedTasks}/{totalTasks} ({progressPercent}%)
-                  </Text>
-                </Flex>
-                <Box
-                  h={2}
-                  bg={useColorModeValue("gray.200", "gray.700")}
-                  borderRadius="full"
-                  overflow="hidden"
-                >
+              {/* Progress bar */}
+              {showDashboard && (
+                <Box>
+                  <Flex
+                    justify="space-between"
+                    fontSize="sm"
+                    color={mutedText}
+                    mb={1}
+                  >
+                    <Text>Today's Progress</Text>
+                    <Text>
+                      {completedTasks}/{totalTasks} ({progressPercent}%)
+                    </Text>
+                  </Flex>
                   <Box
-                    h="full"
-                    bgGradient="linear(to-r, blue.500, green.500)"
-                    transition="all"
-                    style={{ width: `${progressPercent}%` }}
-                  />
+                    h={2}
+                    bg={useColorModeValue("gray.200", "gray.700")}
+                    borderRadius="full"
+                    overflow="hidden"
+                  >
+                    <Box
+                      h="full"
+                      bgGradient="linear(to-r, blue.500, green.500)"
+                      transition="all"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </Box>
                 </Box>
-              </Box>
-            )}
-          </Box>
+              )}
+            </Box>
+          )}
         </Box>
       </Box>
 
@@ -1063,122 +1125,130 @@ export default function DailyTasksApp() {
         onDragEnd={handleDragEndNew}
       >
         <Box as="main" flex={1} overflow="hidden" display="flex">
-          {/* Backlog Sidebar */}
-          <Box
-            w={backlogOpen ? "320px" : "0"}
-            transition="width 0.3s"
-            overflow="hidden"
-            borderRightWidth={backlogOpen ? "1px" : "0"}
-            borderColor={borderColor}
-            bg={bgColor}
-            flexShrink={0}
-          >
-            {backlogOpen && (
-              <BacklogDrawer
-                isOpen={true}
-                onClose={() => setBacklogOpen(false)}
-                backlog={backlog}
-                backlogTasks={backlogTasks}
-                sections={sections}
-                onToggleBacklog={async id => {
-                  const item = backlog.find(b => b.id === id);
-                  if (item) await updateBacklogItem(id, !item.completed);
-                }}
-                onToggleTask={handleToggleTask}
-                onDeleteBacklog={deleteBacklogItem}
-                onDeleteTask={handleDeleteTask}
-                onEditTask={handleEditTask}
-                onAdd={createBacklogItem}
-                onAddTask={handleAddTaskToBacklog}
-                createDraggableId={createDraggableId}
-              />
-            )}
-          </Box>
+          {/* Backlog Sidebar - only show on Tasks tab */}
+          {mainTabIndex === 0 && (
+            <Box
+              w={backlogOpen ? "320px" : "0"}
+              transition="width 0.3s"
+              overflow="hidden"
+              borderRightWidth={backlogOpen ? "1px" : "0"}
+              borderColor={borderColor}
+              bg={bgColor}
+              flexShrink={0}
+            >
+              {backlogOpen && (
+                <BacklogDrawer
+                  isOpen={true}
+                  onClose={() => setBacklogOpen(false)}
+                  backlog={backlog}
+                  backlogTasks={backlogTasks}
+                  sections={sections}
+                  onToggleBacklog={async id => {
+                    const item = backlog.find(b => b.id === id);
+                    if (item) await updateBacklogItem(id, !item.completed);
+                  }}
+                  onToggleTask={handleToggleTask}
+                  onDeleteBacklog={deleteBacklogItem}
+                  onDeleteTask={handleDeleteTask}
+                  onEditTask={handleEditTask}
+                  onAdd={createBacklogItem}
+                  onAddTask={handleAddTaskToBacklog}
+                  createDraggableId={createDraggableId}
+                />
+              )}
+            </Box>
+          )}
 
           {/* Main Content Area */}
           <Box flex={1} overflow="hidden" display="flex" flexDirection="column">
             <Box flex={1} overflowY="auto">
-              <Box w="full" px={4} py={6} display="flex" gap={6} h="full">
-                {/* Dashboard View */}
-                {showDashboard && (
-                  <Box flex={1} minW={0} overflowY="auto">
-                    <Section
-                      sections={sortedSections}
-                      tasksBySection={tasksBySection}
-                      onToggleTask={handleToggleTask}
-                      onToggleSubtask={handleToggleSubtask}
-                      onToggleExpand={handleToggleExpand}
-                      onEditTask={handleEditTask}
-                      onDeleteTask={handleDeleteTask}
-                      onAddTask={handleAddTask}
-                      onEditSection={handleEditSection}
-                      onDeleteSection={handleDeleteSection}
-                      onAddSection={handleAddSection}
-                      createDroppableId={createDroppableId}
-                      createDraggableId={createDraggableId}
-                    />
-                  </Box>
-                )}
+              {mainTabIndex === 0 ? (
+                /* Tasks Tab Content */
+                <Box w="full" px={4} py={6} display="flex" gap={6} h="full">
+                  {/* Dashboard View */}
+                  {showDashboard && (
+                    <Box flex={1} minW={0} overflowY="auto">
+                      <Section
+                        sections={sortedSections}
+                        tasksBySection={tasksBySection}
+                        onToggleTask={handleToggleTask}
+                        onToggleSubtask={handleToggleSubtask}
+                        onToggleExpand={handleToggleExpand}
+                        onEditTask={handleEditTask}
+                        onDeleteTask={handleDeleteTask}
+                        onAddTask={handleAddTask}
+                        onEditSection={handleEditSection}
+                        onDeleteSection={handleDeleteSection}
+                        onAddSection={handleAddSection}
+                        createDroppableId={createDroppableId}
+                        createDraggableId={createDraggableId}
+                      />
+                    </Box>
+                  )}
 
-                {/* Calendar View */}
-                {showCalendar && (
-                  <Box flex={1} minW={0} display="flex" flexDirection="column">
-                    <Card
-                      flex={1}
-                      overflow="hidden"
-                      bg={bgColor}
-                      borderColor={borderColor}
-                      minH="600px"
-                    >
-                      <CardBody p={0} h="full">
-                        {calendarView === "day" && selectedDate && (
-                          <CalendarDayView
-                            date={selectedDate}
-                            tasks={tasks}
-                            onTaskClick={handleEditTask}
-                            onTaskTimeChange={handleTaskTimeChange}
-                            onTaskDurationChange={handleTaskDurationChange}
-                            onCreateTask={handleCreateTaskFromCalendar}
-                            onDropTimeChange={time => {
-                              dropTimeRef.current = time;
-                            }}
-                            createDroppableId={createDroppableId}
-                          />
-                        )}
-                        {calendarView === "week" && selectedDate && (
-                          <CalendarWeekView
-                            date={selectedDate}
-                            tasks={tasks}
-                            onTaskClick={handleEditTask}
-                            onDayClick={d => {
-                              setSelectedDate(d);
-                              setCalendarView("day");
-                            }}
-                            onTaskTimeChange={handleTaskTimeChange}
-                            onTaskDurationChange={handleTaskDurationChange}
-                            onCreateTask={handleCreateTaskFromCalendar}
-                            onDropTimeChange={time => {
-                              dropTimeRef.current = time;
-                            }}
-                            createDroppableId={createDroppableId}
-                            createDraggableId={createDraggableId}
-                          />
-                        )}
-                        {calendarView === "month" && selectedDate && (
-                          <CalendarMonthView
-                            date={selectedDate}
-                            tasks={tasks}
-                            onDayClick={d => {
-                              setSelectedDate(d);
-                              setCalendarView("day");
-                            }}
-                          />
-                        )}
-                      </CardBody>
-                    </Card>
-                  </Box>
-                )}
-              </Box>
+                  {/* Calendar View */}
+                  {showCalendar && (
+                    <Box flex={1} minW={0} display="flex" flexDirection="column">
+                      <Card
+                        flex={1}
+                        overflow="hidden"
+                        bg={bgColor}
+                        borderColor={borderColor}
+                        minH="600px"
+                      >
+                        <CardBody p={0} h="full">
+                          {calendarView === "day" && selectedDate && (
+                            <CalendarDayView
+                              date={selectedDate}
+                              tasks={tasks}
+                              onTaskClick={handleEditTask}
+                              onTaskTimeChange={handleTaskTimeChange}
+                              onTaskDurationChange={handleTaskDurationChange}
+                              onCreateTask={handleCreateTaskFromCalendar}
+                              onDropTimeChange={time => {
+                                dropTimeRef.current = time;
+                              }}
+                              createDroppableId={createDroppableId}
+                            />
+                          )}
+                          {calendarView === "week" && selectedDate && (
+                            <CalendarWeekView
+                              date={selectedDate}
+                              tasks={tasks}
+                              onTaskClick={handleEditTask}
+                              onDayClick={d => {
+                                setSelectedDate(d);
+                                setCalendarView("day");
+                              }}
+                              onTaskTimeChange={handleTaskTimeChange}
+                              onTaskDurationChange={handleTaskDurationChange}
+                              onCreateTask={handleCreateTaskFromCalendar}
+                              onDropTimeChange={time => {
+                                dropTimeRef.current = time;
+                              }}
+                              createDroppableId={createDroppableId}
+                              createDraggableId={createDraggableId}
+                            />
+                          )}
+                          {calendarView === "month" && selectedDate && (
+                            <CalendarMonthView
+                              date={selectedDate}
+                              tasks={tasks}
+                              onDayClick={d => {
+                                setSelectedDate(d);
+                                setCalendarView("day");
+                              }}
+                            />
+                          )}
+                        </CardBody>
+                      </Card>
+                    </Box>
+                  )}
+                </Box>
+              ) : (
+                /* History Tab Content */
+                <DashboardView />
+              )}
             </Box>
           </Box>
         </Box>
