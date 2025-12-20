@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   Box,
   Button,
@@ -172,9 +172,56 @@ export default function DailyTasksApp() {
   const { backlog, createBacklogItem, updateBacklogItem, deleteBacklogItem } =
     useBacklog();
 
-  const [showDashboard, setShowDashboard] = useState(true);
-  const [showCalendar, setShowCalendar] = useState(true);
-  const [calendarView, setCalendarView] = useState("week");
+  // Load view preferences from localStorage on mount using lazy initializers
+  // Use a shared variable to ensure we only read from localStorage once
+  let initialPreferences = null;
+  const getInitialPreferences = () => {
+    if (initialPreferences !== null) return initialPreferences;
+
+    if (typeof window === "undefined") {
+      initialPreferences = {
+        showDashboard: true,
+        showCalendar: true,
+        calendarView: "week",
+        backlogOpen: false,
+      };
+      return initialPreferences;
+    }
+
+    try {
+      const saved = localStorage.getItem("juda-view-preferences");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        initialPreferences = {
+          showDashboard: parsed.showDashboard ?? true,
+          showCalendar: parsed.showCalendar ?? true,
+          calendarView: parsed.calendarView ?? "week",
+          backlogOpen: parsed.backlogOpen ?? false,
+        };
+        return initialPreferences;
+      }
+    } catch (error) {
+      console.error("Error loading view preferences:", error);
+    }
+
+    initialPreferences = {
+      showDashboard: true,
+      showCalendar: true,
+      calendarView: "week",
+      backlogOpen: false,
+    };
+    return initialPreferences;
+  };
+
+  const [showDashboard, setShowDashboard] = useState(
+    () => getInitialPreferences().showDashboard
+  );
+  const [showCalendar, setShowCalendar] = useState(
+    () => getInitialPreferences().showCalendar
+  );
+  const [calendarView, setCalendarView] = useState(
+    () => getInitialPreferences().calendarView
+  );
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [editingTask, setEditingTask] = useState(null);
   const [editingSection, setEditingSection] = useState(null);
@@ -197,7 +244,29 @@ export default function DailyTasksApp() {
     onOpen: openSectionDialog,
     onClose: closeSectionDialog,
   } = useDisclosure();
-  const [backlogOpen, setBacklogOpen] = useState(false);
+  const [backlogOpen, setBacklogOpen] = useState(
+    () => getInitialPreferences().backlogOpen
+  );
+
+  // Save view preferences to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const preferences = {
+        showDashboard,
+        showCalendar,
+        calendarView,
+        backlogOpen,
+      };
+      localStorage.setItem(
+        "juda-view-preferences",
+        JSON.stringify(preferences)
+      );
+    } catch (error) {
+      console.error("Error saving view preferences:", error);
+    }
+  }, [showDashboard, showCalendar, calendarView, backlogOpen]);
   const {
     isOpen: settingsOpen,
     onOpen: openSettings,
