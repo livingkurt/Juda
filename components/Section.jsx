@@ -17,7 +17,13 @@ import {
   Button,
   useColorModeValue,
 } from "@chakra-ui/react";
-import { Draggable, Droppable } from "@hello-pangea/dnd";
+import { useDroppable } from "@dnd-kit/core";
+import {
+  useSortable,
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Plus, MoreVertical, GripVertical, Sun } from "lucide-react";
 import { TaskItem } from "./TaskItem";
 import { SECTION_ICONS } from "@/lib/constants";
@@ -57,119 +63,132 @@ const SectionCard = ({
 
   const isDropTarget = hoveredDroppable === droppableId;
 
+  // Use sortable for section reordering
+  const {
+    attributes: sectionAttributes,
+    listeners: sectionListeners,
+    setNodeRef: setSectionNodeRef,
+    transform: sectionTransform,
+    transition: sectionTransition,
+    isDragging: sectionIsDragging,
+  } = useSortable({ id: `section-${section.id}` });
+
+  const sectionStyle = {
+    transform: CSS.Transform.toString(sectionTransform),
+    transition: sectionTransition,
+  };
+
+  // Use droppable for task drop zone
+  const { setNodeRef: setDropNodeRef, isOver } = useDroppable({
+    id: droppableId,
+    data: {
+      type: "TASK",
+      sectionId: section.id,
+    },
+  });
+
+  // Prepare tasks with draggable IDs
+  const tasksWithIds = tasks.map(task => ({
+    ...task,
+    draggableId: createDraggableId.todaySection(task.id, section.id),
+  }));
+
   return (
-    <Draggable draggableId={`section-${section.id}`} index={sectionIndex}>
-      {(provided, snapshot) => (
-        <Card
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          mb={4}
-          bg={bgColor}
-          borderColor={isDropTarget ? "blue.400" : borderColor}
-          borderWidth={isDropTarget ? "2px" : "1px"}
-          opacity={snapshot.isDragging ? 0.5 : 1}
-          transition="border-color 0.2s, border-width 0.2s"
+    <Card
+      ref={setSectionNodeRef}
+      style={sectionStyle}
+      mb={4}
+      bg={bgColor}
+      borderColor={isDropTarget || isOver ? "blue.400" : borderColor}
+      borderWidth={isDropTarget || isOver ? "2px" : "1px"}
+      opacity={sectionIsDragging ? 0.5 : 1}
+      transition="border-color 0.2s, border-width 0.2s"
+    >
+      <CardHeader pb={2}>
+        <Flex align="center" justify="space-between">
+          <Flex align="center" gap={2}>
+            <Box
+              {...sectionAttributes}
+              {...sectionListeners}
+              cursor="grab"
+              _active={{ cursor: "grabbing" }}
+              color={mutedText}
+            >
+              <GripVertical size={18} />
+            </Box>
+            <IconComponent size={20} color="orange.500" />
+            <Heading size="md" color={textColor}>
+              {section.name}
+            </Heading>
+            <Text fontSize="sm" color={mutedText}>
+              ({completedCount}/{tasks.length})
+            </Text>
+          </Flex>
+          <HStack spacing={1}>
+            <IconButton
+              icon={<Plus size={16} />}
+              onClick={() => onAddTask(section.id)}
+              size="sm"
+              variant="ghost"
+              aria-label="Add task"
+            />
+            <Menu>
+              <MenuButton
+                as={IconButton}
+                icon={<MoreVertical size={16} />}
+                size="sm"
+                variant="ghost"
+                aria-label="Section menu"
+              />
+              <MenuList>
+                <MenuItem onClick={() => onEditSection(section)}>Edit</MenuItem>
+                <MenuItem
+                  onClick={() => onDeleteSection(section.id)}
+                  color="red.500"
+                >
+                  Delete
+                </MenuItem>
+              </MenuList>
+            </Menu>
+          </HStack>
+        </Flex>
+      </CardHeader>
+      <CardBody>
+        <Box
+          ref={setDropNodeRef}
+          bg={isOver ? dropHighlight : "transparent"}
+          borderRadius="md"
+          minH="50px"
+          transition="background-color 0.2s"
         >
-          <CardHeader pb={2}>
-            <Flex align="center" justify="space-between">
-              <Flex align="center" gap={2}>
-                <Box
-                  {...provided.dragHandleProps}
-                  cursor="grab"
-                  _active={{ cursor: "grabbing" }}
-                  color={mutedText}
-                >
-                  <GripVertical size={18} />
-                </Box>
-                <IconComponent size={20} color="orange.500" />
-                <Heading size="md" color={textColor}>
-                  {section.name}
-                </Heading>
-                <Text fontSize="sm" color={mutedText}>
-                  ({completedCount}/{tasks.length})
-                </Text>
-              </Flex>
-              <HStack spacing={1}>
-                <IconButton
-                  icon={<Plus size={16} />}
-                  onClick={() => onAddTask(section.id)}
-                  size="sm"
-                  variant="ghost"
-                  aria-label="Add task"
+          {tasksWithIds.length === 0 ? (
+            <Text fontSize="sm" textAlign="center" py={4} color={mutedText}>
+              {isOver ? "Drop here" : "No tasks"}
+            </Text>
+          ) : (
+            <SortableContext
+              items={tasksWithIds.map(t => t.draggableId)}
+              strategy={verticalListSortingStrategy}
+            >
+              {tasksWithIds.map((task, index) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  index={index}
+                  onToggle={onToggleTask}
+                  onToggleSubtask={onToggleSubtask}
+                  onToggleExpand={onToggleExpand}
+                  onEdit={onEditTask}
+                  onDelete={onDeleteTask}
+                  hoveredDroppable={hoveredDroppable}
+                  draggableId={task.draggableId}
                 />
-                <Menu>
-                  <MenuButton
-                    as={IconButton}
-                    icon={<MoreVertical size={16} />}
-                    size="sm"
-                    variant="ghost"
-                    aria-label="Section menu"
-                  />
-                  <MenuList>
-                    <MenuItem onClick={() => onEditSection(section)}>
-                      Edit
-                    </MenuItem>
-                    <MenuItem
-                      onClick={() => onDeleteSection(section.id)}
-                      color="red.500"
-                    >
-                      Delete
-                    </MenuItem>
-                  </MenuList>
-                </Menu>
-              </HStack>
-            </Flex>
-          </CardHeader>
-          <CardBody>
-            <Droppable droppableId={droppableId} type="TASK">
-              {(provided, snapshot) => (
-                <Box
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  bg={snapshot.isDraggingOver ? dropHighlight : "transparent"}
-                  borderRadius="md"
-                  minH="50px"
-                  transition="background-color 0.2s"
-                >
-                  {tasks.length === 0 ? (
-                    <Text
-                      fontSize="sm"
-                      textAlign="center"
-                      py={4}
-                      color={mutedText}
-                    >
-                      {snapshot.isDraggingOver ? "Drop here" : "No tasks"}
-                    </Text>
-                  ) : (
-                    tasks.map((task, index) => {
-                      const sectionId = section.id;
-                      return (
-                        <TaskItem
-                          key={task.id}
-                          task={task}
-                          index={index}
-                          onToggle={onToggleTask}
-                          onToggleSubtask={onToggleSubtask}
-                          onToggleExpand={onToggleExpand}
-                          onEdit={onEditTask}
-                          onDelete={onDeleteTask}
-                          hoveredDroppable={hoveredDroppable}
-                          draggableId={createDraggableId.todaySection(
-                            task.id,
-                            sectionId
-                          )}
-                        />
-                      );
-                    })
-                  )}
-                  {provided.placeholder}
-                </Box>
-              )}
-            </Droppable>
-          </CardBody>
-        </Card>
-      )}
-    </Draggable>
+              ))}
+            </SortableContext>
+          )}
+        </Box>
+      </CardBody>
+    </Card>
   );
 };
 
@@ -192,48 +211,53 @@ export const Section = ({
 }) => {
   const dropHighlight = useColorModeValue("gray.50", "gray.800");
 
+  // Use droppable for section reordering
+  const { setNodeRef, isOver } = useDroppable({
+    id: "sections",
+    data: { type: "SECTION" },
+  });
+
   return (
-    <Droppable droppableId="sections" type="SECTION" direction="vertical">
-      {(provided, snapshot) => (
-        <Box
-          ref={provided.innerRef}
-          {...provided.droppableProps}
-          bg={snapshot.isDraggingOver ? dropHighlight : "transparent"}
-          borderRadius="md"
+    <SortableContext
+      items={sections.map(s => `section-${s.id}`)}
+      strategy={verticalListSortingStrategy}
+    >
+      <Box
+        ref={setNodeRef}
+        bg={isOver ? dropHighlight : "transparent"}
+        borderRadius="md"
+      >
+        {sections.map((section, index) => (
+          <SectionCard
+            key={section.id}
+            section={section}
+            index={index}
+            tasks={tasksBySection[section.id] || []}
+            onToggleTask={onToggleTask}
+            onToggleSubtask={onToggleSubtask}
+            onToggleExpand={onToggleExpand}
+            onEditTask={onEditTask}
+            onDeleteTask={onDeleteTask}
+            onAddTask={onAddTask}
+            onEditSection={onEditSection}
+            onDeleteSection={onDeleteSection}
+            hoveredDroppable={hoveredDroppable}
+            droppableId={createDroppableId.todaySection(section.id)}
+            createDraggableId={createDraggableId}
+          />
+        ))}
+        <Button
+          variant="outline"
+          onClick={onAddSection}
+          w="full"
+          py={6}
+          borderStyle="dashed"
+          mt={4}
         >
-          {sections.map((section, index) => (
-            <SectionCard
-              key={section.id}
-              section={section}
-              index={index}
-              tasks={tasksBySection[section.id] || []}
-              onToggleTask={onToggleTask}
-              onToggleSubtask={onToggleSubtask}
-              onToggleExpand={onToggleExpand}
-              onEditTask={onEditTask}
-              onDeleteTask={onDeleteTask}
-              onAddTask={onAddTask}
-              onEditSection={onEditSection}
-              onDeleteSection={onDeleteSection}
-              hoveredDroppable={hoveredDroppable}
-              droppableId={createDroppableId.todaySection(section.id)}
-              createDraggableId={createDraggableId}
-            />
-          ))}
-          {provided.placeholder}
-          <Button
-            variant="outline"
-            onClick={onAddSection}
-            w="full"
-            py={6}
-            borderStyle="dashed"
-            mt={4}
-          >
-            <Plus size={20} style={{ marginRight: "8px" }} />
-            Add Section
-          </Button>
-        </Box>
-      )}
-    </Droppable>
+          <Plus size={20} style={{ marginRight: "8px" }} />
+          Add Section
+        </Button>
+      </Box>
+    </SortableContext>
   );
 };

@@ -15,7 +15,13 @@ import {
   useColorModeValue,
   Heading,
 } from "@chakra-ui/react";
-import { Draggable, Droppable } from "@hello-pangea/dnd";
+import { useDroppable } from "@dnd-kit/core";
+import {
+  useSortable,
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Plus,
   Trash2,
@@ -25,7 +31,131 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { isOverdue } from "@/lib/utils";
-import { DragPreview } from "./DragPreview";
+
+// Sortable task item component
+const SortableBacklogTask = ({
+  task,
+  onToggleTask,
+  onEditTask,
+  onDeleteTask,
+  getSectionName,
+  textColor,
+  mutedText,
+  hoverBg,
+  gripColor,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: task.draggableId,
+    data: {
+      type: "TASK",
+      containerId: "backlog",
+    },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Flex
+      ref={setNodeRef}
+      style={style}
+      align="center"
+      gap={2}
+      p={3}
+      borderRadius="md"
+      _hover={{ bg: hoverBg }}
+      cursor="grab"
+      borderLeftWidth="3px"
+      borderLeftColor={task.color || "#3b82f6"}
+      bg="transparent"
+    >
+      <Box flexShrink={0} {...attributes} {...listeners}>
+        <GripVertical size={16} color={gripColor} />
+      </Box>
+      <Checkbox
+        isChecked={task.completed}
+        size="lg"
+        onChange={() => onToggleTask(task.id)}
+        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
+        flexShrink={0}
+      />
+      <Box flex={1} minW={0}>
+        <HStack spacing={2} align="center">
+          <Text
+            fontSize="sm"
+            fontWeight="medium"
+            textDecoration={task.completed ? "line-through" : "none"}
+            opacity={task.completed ? 0.5 : 1}
+            color={textColor}
+          >
+            {task.title}
+          </Text>
+          {isOverdue(task) && (
+            <Badge size="sm" colorScheme="red" fontSize="2xs">
+              <HStack spacing={1} align="center">
+                <AlertCircle size={10} />
+                <Text as="span">Overdue</Text>
+              </HStack>
+            </Badge>
+          )}
+        </HStack>
+        <HStack spacing={2} mt={1}>
+          <Text fontSize="xs" color={mutedText}>
+            {getSectionName(task.sectionId)}
+          </Text>
+          {task.recurrence && task.recurrence.type !== "none" && (
+            <Badge size="sm" colorScheme="purple" fontSize="2xs">
+              {task.recurrence.type === "daily"
+                ? "Daily"
+                : task.recurrence.type === "weekly"
+                ? "Weekly"
+                : "Recurring"}
+            </Badge>
+          )}
+          {!task.time && (
+            <Badge size="sm" colorScheme="orange" fontSize="2xs">
+              No time
+            </Badge>
+          )}
+        </HStack>
+      </Box>
+      <IconButton
+        icon={<Edit2 size={14} />}
+        onClick={e => {
+          e.stopPropagation();
+          onEditTask(task);
+        }}
+        onMouseDown={e => e.stopPropagation()}
+        size="sm"
+        variant="ghost"
+        aria-label="Edit task"
+      />
+      <IconButton
+        icon={<Trash2 size={14} />}
+        onClick={e => {
+          e.stopPropagation();
+          onDeleteTask(task.id);
+        }}
+        onMouseDown={e => e.stopPropagation()}
+        size="sm"
+        variant="ghost"
+        colorScheme="red"
+        aria-label="Delete task"
+      />
+    </Flex>
+  );
+};
 
 export const BacklogDrawer = ({
   isOpen,
@@ -56,6 +186,17 @@ export const BacklogDrawer = ({
   const getSectionName = sectionId => {
     return sections.find(s => s.id === sectionId)?.name || "Unknown";
   };
+
+  // Use droppable hook for backlog area
+  const { setNodeRef, isOver } = useDroppable({
+    id: "backlog",
+  });
+
+  // Prepare tasks with draggable IDs
+  const tasksWithIds = backlogTasks.map(task => ({
+    ...task,
+    draggableId: createDraggableId.backlog(task.id),
+  }));
 
   return (
     <Box h="100vh" display="flex" flexDirection="column" bg={bgColor}>
@@ -92,232 +233,114 @@ export const BacklogDrawer = ({
       </Box>
 
       {/* Droppable area for tasks */}
-      <Droppable droppableId="backlog" type="TASK">
-        {(provided, snapshot) => (
-          <Box
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            flex={1}
-            overflowY="auto"
-            p={4}
-            bg={snapshot.isDraggingOver ? dropHighlight : "transparent"}
-            borderRadius="md"
-            transition="background-color 0.2s"
-          >
-            <VStack align="stretch" spacing={3}>
-              {/* Unscheduled Tasks */}
-              {backlogTasks.length > 0 && (
-                <>
-                  <Box>
-                    <Text
-                      fontSize="xs"
-                      fontWeight="semibold"
-                      color={mutedText}
-                      mb={2}
-                      textTransform="uppercase"
-                    >
-                      Unscheduled Tasks
-                    </Text>
-                    <VStack align="stretch" spacing={2}>
-                      {backlogTasks.map((task, index) => (
-                        <Draggable
-                          key={task.id}
-                          draggableId={createDraggableId.backlog(task.id)}
-                          index={index}
-                        >
-                          {(provided, snapshot) => {
-                            // Show unified drag preview when dragging
-                            if (snapshot.isDragging) {
-                              return (
-                                <DragPreview
-                                  title={task.title}
-                                  provided={provided}
-                                  snapshot={snapshot}
-                                />
-                              );
-                            }
-
-                            // Show normal component when not dragging
-                            return (
-                              <Flex
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                align="center"
-                                gap={2}
-                                p={3}
-                                borderRadius="md"
-                                _hover={{ bg: hoverBg }}
-                                cursor="grab"
-                                borderLeftWidth="3px"
-                                borderLeftColor={task.color || "#3b82f6"}
-                                bg="transparent"
-                              >
-                                <Box flexShrink={0}>
-                                  <GripVertical size={16} color={gripColor} />
-                                </Box>
-                                <Checkbox
-                                  isChecked={task.completed}
-                                  size="lg"
-                                  onChange={() => onToggleTask(task.id)}
-                                  onClick={e => e.stopPropagation()}
-                                  onMouseDown={e => e.stopPropagation()}
-                                  flexShrink={0}
-                                />
-                                <Box flex={1} minW={0}>
-                                  <HStack spacing={2} align="center">
-                                    <Text
-                                      fontSize="sm"
-                                      fontWeight="medium"
-                                      textDecoration={
-                                        task.completed ? "line-through" : "none"
-                                      }
-                                      opacity={task.completed ? 0.5 : 1}
-                                      color={textColor}
-                                    >
-                                      {task.title}
-                                    </Text>
-                                    {isOverdue(task) && (
-                                      <Badge
-                                        size="sm"
-                                        colorScheme="red"
-                                        fontSize="2xs"
-                                      >
-                                        <HStack spacing={1} align="center">
-                                          <AlertCircle size={10} />
-                                          <Text as="span">Overdue</Text>
-                                        </HStack>
-                                      </Badge>
-                                    )}
-                                  </HStack>
-                                  <HStack spacing={2} mt={1}>
-                                    <Text fontSize="xs" color={mutedText}>
-                                      {getSectionName(task.sectionId)}
-                                    </Text>
-                                    {task.recurrence &&
-                                      task.recurrence.type !== "none" && (
-                                        <Badge
-                                          size="sm"
-                                          colorScheme="purple"
-                                          fontSize="2xs"
-                                        >
-                                          {task.recurrence.type === "daily"
-                                            ? "Daily"
-                                            : task.recurrence.type === "weekly"
-                                            ? "Weekly"
-                                            : "Recurring"}
-                                        </Badge>
-                                      )}
-                                    {!task.time && (
-                                      <Badge
-                                        size="sm"
-                                        colorScheme="orange"
-                                        fontSize="2xs"
-                                      >
-                                        No time
-                                      </Badge>
-                                    )}
-                                  </HStack>
-                                </Box>
-                                <IconButton
-                                  icon={<Edit2 size={14} />}
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    onEditTask(task);
-                                  }}
-                                  onMouseDown={e => e.stopPropagation()}
-                                  size="sm"
-                                  variant="ghost"
-                                  aria-label="Edit task"
-                                />
-                                <IconButton
-                                  icon={<Trash2 size={14} />}
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    onDeleteTask(task.id);
-                                  }}
-                                  onMouseDown={e => e.stopPropagation()}
-                                  size="sm"
-                                  variant="ghost"
-                                  colorScheme="red"
-                                  aria-label="Delete task"
-                                />
-                              </Flex>
-                            );
-                          }}
-                        </Draggable>
-                      ))}
-                    </VStack>
-                  </Box>
-                  {backlog.length > 0 && <Divider />}
-                </>
-              )}
-
-              {/* Manual backlog items (quick notes) */}
-              {backlog.length > 0 && (
-                <Box>
-                  <Text
-                    fontSize="xs"
-                    fontWeight="semibold"
-                    color={mutedText}
-                    mb={2}
-                    textTransform="uppercase"
-                  >
-                    Quick Notes
-                  </Text>
+      <Box
+        ref={setNodeRef}
+        flex={1}
+        overflowY="auto"
+        p={4}
+        bg={isOver ? dropHighlight : "transparent"}
+        borderRadius="md"
+        transition="background-color 0.2s"
+      >
+        <VStack align="stretch" spacing={3}>
+          {/* Unscheduled Tasks */}
+          {tasksWithIds.length > 0 && (
+            <>
+              <Box>
+                <Text
+                  fontSize="xs"
+                  fontWeight="semibold"
+                  color={mutedText}
+                  mb={2}
+                  textTransform="uppercase"
+                >
+                  Unscheduled Tasks
+                </Text>
+                <SortableContext
+                  items={tasksWithIds.map(t => t.draggableId)}
+                  strategy={verticalListSortingStrategy}
+                  id="backlog"
+                >
                   <VStack align="stretch" spacing={2}>
-                    {backlog.map((item, index) => (
-                      <Flex
-                        key={item.id}
-                        align="center"
-                        gap={2}
-                        p={3}
-                        borderRadius="md"
-                        _hover={{ bg: hoverBg }}
-                      >
-                        <Checkbox
-                          isChecked={item.completed}
-                          size="lg"
-                          onChange={() => onToggleBacklog(item.id)}
-                        />
-                        <Text
-                          flex={1}
-                          fontSize="sm"
-                          textDecoration={
-                            item.completed ? "line-through" : "none"
-                          }
-                          opacity={item.completed ? 0.5 : 1}
-                          color={textColor}
-                        >
-                          {item.title}
-                        </Text>
-                        <IconButton
-                          icon={<Trash2 size={16} />}
-                          onClick={() => onDeleteBacklog(item.id)}
-                          size="sm"
-                          variant="ghost"
-                          colorScheme="red"
-                          aria-label="Delete item"
-                        />
-                      </Flex>
+                    {tasksWithIds.map(task => (
+                      <SortableBacklogTask
+                        key={task.id}
+                        task={task}
+                        onToggleTask={onToggleTask}
+                        onEditTask={onEditTask}
+                        onDeleteTask={onDeleteTask}
+                        getSectionName={getSectionName}
+                        textColor={textColor}
+                        mutedText={mutedText}
+                        hoverBg={hoverBg}
+                        gripColor={gripColor}
+                      />
                     ))}
                   </VStack>
-                </Box>
-              )}
+                </SortableContext>
+              </Box>
+              {backlog.length > 0 && <Divider />}
+            </>
+          )}
 
-              {/* Empty state */}
-              {backlogTasks.length === 0 && backlog.length === 0 && (
-                <Text fontSize="sm" color={mutedText} textAlign="center" py={8}>
-                  {snapshot.isDraggingOver
-                    ? "Drop here to add to backlog"
-                    : "No items in backlog"}
-                </Text>
-              )}
-              {provided.placeholder}
-            </VStack>
-          </Box>
-        )}
-      </Droppable>
+          {/* Manual backlog items (quick notes) */}
+          {backlog.length > 0 && (
+            <Box>
+              <Text
+                fontSize="xs"
+                fontWeight="semibold"
+                color={mutedText}
+                mb={2}
+                textTransform="uppercase"
+              >
+                Quick Notes
+              </Text>
+              <VStack align="stretch" spacing={2}>
+                {backlog.map(item => (
+                  <Flex
+                    key={item.id}
+                    align="center"
+                    gap={2}
+                    p={3}
+                    borderRadius="md"
+                    _hover={{ bg: hoverBg }}
+                  >
+                    <Checkbox
+                      isChecked={item.completed}
+                      size="lg"
+                      onChange={() => onToggleBacklog(item.id)}
+                    />
+                    <Text
+                      flex={1}
+                      fontSize="sm"
+                      textDecoration={item.completed ? "line-through" : "none"}
+                      opacity={item.completed ? 0.5 : 1}
+                      color={textColor}
+                    >
+                      {item.title}
+                    </Text>
+                    <IconButton
+                      icon={<Trash2 size={16} />}
+                      onClick={() => onDeleteBacklog(item.id)}
+                      size="sm"
+                      variant="ghost"
+                      colorScheme="red"
+                      aria-label="Delete item"
+                    />
+                  </Flex>
+                ))}
+              </VStack>
+            </Box>
+          )}
+
+          {/* Empty state */}
+          {tasksWithIds.length === 0 && backlog.length === 0 && (
+            <Text fontSize="sm" color={mutedText} textAlign="center" py={8}>
+              {isOver ? "Drop here to add to backlog" : "No items in backlog"}
+            </Text>
+          )}
+        </VStack>
+      </Box>
 
       {/* Quick add input */}
       <Box p={4} borderTopWidth="1px" borderColor={borderColor} flexShrink={0}>

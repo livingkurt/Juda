@@ -25,7 +25,16 @@ import {
   Badge,
   FormLabel,
 } from "@chakra-ui/react";
-import { DragDropContext } from "@hello-pangea/dnd";
+import {
+  DndContext,
+  DragOverlay,
+  pointerWithin,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  KeyboardSensor,
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import {
   ChevronLeft,
   ChevronRight,
@@ -49,7 +58,6 @@ import { shouldShowOnDate, getGreeting, hasFutureDateTime } from "@/lib/utils";
 import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
-import { DragContextProvider, dragContextRef } from "@/components/DragContext";
 
 // Helper to parse droppable IDs consistently
 const parseDroppableId = droppableId => {
@@ -169,6 +177,9 @@ export default function DailyTasksApp() {
   const [defaultDate, setDefaultDate] = useState(null);
   // Store drop time calculated from mouse position during drag
   const dropTimeRef = useRef(null);
+  // Track active drag item for DragOverlay
+  const [activeId, setActiveId] = useState(null);
+  const [activeTask, setActiveTask] = useState(null);
 
   const {
     isOpen: taskDialogOpen,
@@ -318,11 +329,6 @@ export default function DailyTasksApp() {
   const handleDragEnd = async result => {
     const { destination, source, draggableId, type } = result;
 
-    // Clear hovered state
-    if (dragContextRef.current) {
-      dragContextRef.current(null);
-    }
-
     if (!destination) {
       dropTimeRef.current = null;
       return;
@@ -400,8 +406,8 @@ export default function DailyTasksApp() {
         }
 
         // For same-section moves or coming from backlog/calendar, handle reordering here
+        // Don't set sectionId here - let the reordering logic below handle it
         updates = {
-          sectionId: targetSectionId,
           time: null,
           recurrence: {
             type: "none",
@@ -435,11 +441,6 @@ export default function DailyTasksApp() {
         };
       }
 
-      // Apply updates
-      if (Object.keys(updates).length > 0) {
-        await updateTask(taskId, updates);
-      }
-
       // Handle reordering when dropping into a section
       if (destParsed.type === "today-section") {
         const targetSectionId = destParsed.sectionId;
@@ -459,10 +460,11 @@ export default function DailyTasksApp() {
         // Update orders for all tasks in target section
         const updatePromises = targetSectionTasks.map((t, i) => {
           if (t.id === taskId) {
-            // Update the moved task with new section and order
+            // Update the moved task with new section, order, and other updates
             return updateTask(taskId, {
               sectionId: targetSectionId,
               order: i,
+              ...updates, // Include time/recurrence updates
             });
           } else if (t.order !== i) {
             // Update other tasks in target section if order changed
@@ -472,6 +474,9 @@ export default function DailyTasksApp() {
         });
 
         await Promise.all(updatePromises);
+
+        // Clear updates since they've been applied
+        updates = {};
 
         // If moving from another section, reorder source section tasks
         if (sourceSectionId && sourceSectionId !== targetSectionId) {
@@ -491,6 +496,11 @@ export default function DailyTasksApp() {
 
           await Promise.all(sourceUpdatePromises);
         }
+      }
+
+      // Apply any remaining updates (for non-section destinations)
+      if (Object.keys(updates).length > 0) {
+        await updateTask(taskId, updates);
       }
     }
   };
@@ -560,6 +570,121 @@ export default function DailyTasksApp() {
   };
 
   const sortedSections = [...sections].sort((a, b) => a.order - b.order);
+
+  // Configure sensors for @dnd-kit
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required to start drag
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag start
+  const handleDragStart = event => {
+    const { active } = event;
+    setActiveId(active.id);
+
+    // Extract task ID and find the task
+    try {
+      const taskId = extractTaskId(active.id);
+      const task = tasks.find(t => t.id === taskId);
+      setActiveTask(task);
+    } catch (e) {
+      // Not a task drag (might be section reorder)
+      setActiveTask(null);
+    }
+  };
+
+  // Handle drag over (for real-time updates like time calculation)
+  const handleDragOver = event => {
+    const { over } = event;
+    // This can be used for real-time feedback if needed
+  };
+
+  // Handle drag end - convert from @dnd-kit format to @hello-pangea/dnd format
+  const handleDragEndNew = async event => {
+    const { active, over } = event;
+
+    setActiveId(null);
+    setActiveTask(null);
+
+    if (!over) {
+      dropTimeRef.current = null;
+      return;
+    }
+
+    const draggableId = active.id;
+
+    // Determine source container ID
+    // For sortable items, it's in sortable.containerId
+    // For non-sortable items (calendar tasks), we need to infer from the draggableId
+    let sourceDroppableId = active.data.current?.sortable?.containerId;
+
+    if (!sourceDroppableId) {
+      // Infer from draggableId pattern
+      if (draggableId.includes("-backlog")) {
+        sourceDroppableId = "backlog";
+      } else if (draggableId.includes("-today-section-")) {
+        const match = draggableId.match(/-today-section-([^-]+)/);
+        if (match) sourceDroppableId = `today-section|${match[1]}`;
+      } else if (draggableId.includes("-calendar-untimed-")) {
+        const match = draggableId.match(/-calendar-untimed-(.+)$/);
+        if (match) {
+          const dateStr = match[1];
+          // Determine if it's day or week view based on the droppable ID format
+          if (dateStr.includes("T")) {
+            sourceDroppableId = `calendar-day-untimed|${dateStr}`;
+          } else {
+            sourceDroppableId = `calendar-week-untimed|${dateStr}`;
+          }
+        }
+      } else if (draggableId.includes("-calendar-timed-")) {
+        const match = draggableId.match(/-calendar-timed-(.+)$/);
+        if (match) {
+          const dateStr = match[1];
+          // Determine if it's day or week view
+          if (dateStr.includes("T")) {
+            sourceDroppableId = `calendar-day|${dateStr}`;
+          } else {
+            sourceDroppableId = `calendar-week|${dateStr}`;
+          }
+        }
+      }
+    }
+
+    const destDroppableId = over.id;
+
+    // For sortable items, get the index from the sorted items
+    const sourceIndex = active.data.current?.sortable?.index ?? 0;
+    const destIndex = over.data.current?.sortable?.index ?? 0;
+
+    // Determine type based on draggableId
+    let type = "TASK";
+    if (draggableId.startsWith("section-")) {
+      type = "SECTION";
+    }
+
+    // Create result object similar to @hello-pangea/dnd format
+    const result = {
+      draggableId,
+      type,
+      source: {
+        droppableId: sourceDroppableId,
+        index: sourceIndex,
+      },
+      destination: {
+        droppableId: destDroppableId,
+        index: destIndex,
+      },
+    };
+
+    // Call the existing handler
+    await handleDragEnd(result);
+  };
 
   return (
     <Box
@@ -748,141 +873,161 @@ export default function DailyTasksApp() {
         </Box>
       </Box>
 
-      {/* Main content with DragDropContext */}
-      <DragContextProvider>
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Box as="main" flex={1} overflow="hidden" display="flex">
-            {/* Backlog Sidebar */}
-            <Box
-              w={backlogOpen ? "320px" : "0"}
-              transition="width 0.3s"
-              overflow="hidden"
-              borderRightWidth={backlogOpen ? "1px" : "0"}
-              borderColor={borderColor}
-              bg={bgColor}
-              flexShrink={0}
-            >
-              {backlogOpen && (
-                <BacklogDrawer
-                  isOpen={true}
-                  onClose={() => setBacklogOpen(false)}
-                  backlog={backlog}
-                  backlogTasks={backlogTasks}
-                  sections={sections}
-                  onToggleBacklog={async id => {
-                    const item = backlog.find(b => b.id === id);
-                    if (item) await updateBacklogItem(id, !item.completed);
-                  }}
-                  onToggleTask={handleToggleTask}
-                  onDeleteBacklog={deleteBacklogItem}
-                  onDeleteTask={handleDeleteTask}
-                  onEditTask={handleEditTask}
-                  onAdd={createBacklogItem}
-                  onAddTask={handleAddTaskToBacklog}
-                  createDraggableId={createDraggableId}
-                />
-              )}
-            </Box>
+      {/* Main content with DndContext */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={pointerWithin}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEndNew}
+      >
+        <Box as="main" flex={1} overflow="hidden" display="flex">
+          {/* Backlog Sidebar */}
+          <Box
+            w={backlogOpen ? "320px" : "0"}
+            transition="width 0.3s"
+            overflow="hidden"
+            borderRightWidth={backlogOpen ? "1px" : "0"}
+            borderColor={borderColor}
+            bg={bgColor}
+            flexShrink={0}
+          >
+            {backlogOpen && (
+              <BacklogDrawer
+                isOpen={true}
+                onClose={() => setBacklogOpen(false)}
+                backlog={backlog}
+                backlogTasks={backlogTasks}
+                sections={sections}
+                onToggleBacklog={async id => {
+                  const item = backlog.find(b => b.id === id);
+                  if (item) await updateBacklogItem(id, !item.completed);
+                }}
+                onToggleTask={handleToggleTask}
+                onDeleteBacklog={deleteBacklogItem}
+                onDeleteTask={handleDeleteTask}
+                onEditTask={handleEditTask}
+                onAdd={createBacklogItem}
+                onAddTask={handleAddTaskToBacklog}
+                createDraggableId={createDraggableId}
+              />
+            )}
+          </Box>
 
-            {/* Main Content Area */}
-            <Box
-              flex={1}
-              overflow="hidden"
-              display="flex"
-              flexDirection="column"
-            >
-              <Box flex={1} overflowY="auto">
-                <Box w="full" px={4} py={6} display="flex" gap={6} h="full">
-                  {/* Dashboard View */}
-                  {showDashboard && (
-                    <Box flex={1} minW={0} overflowY="auto">
-                      <Section
-                        sections={sortedSections}
-                        tasksBySection={tasksBySection}
-                        onToggleTask={handleToggleTask}
-                        onToggleSubtask={handleToggleSubtask}
-                        onToggleExpand={handleToggleExpand}
-                        onEditTask={handleEditTask}
-                        onDeleteTask={handleDeleteTask}
-                        onAddTask={handleAddTask}
-                        onEditSection={handleEditSection}
-                        onDeleteSection={handleDeleteSection}
-                        onAddSection={handleAddSection}
-                        createDroppableId={createDroppableId}
-                        createDraggableId={createDraggableId}
-                      />
-                    </Box>
-                  )}
+          {/* Main Content Area */}
+          <Box flex={1} overflow="hidden" display="flex" flexDirection="column">
+            <Box flex={1} overflowY="auto">
+              <Box w="full" px={4} py={6} display="flex" gap={6} h="full">
+                {/* Dashboard View */}
+                {showDashboard && (
+                  <Box flex={1} minW={0} overflowY="auto">
+                    <Section
+                      sections={sortedSections}
+                      tasksBySection={tasksBySection}
+                      onToggleTask={handleToggleTask}
+                      onToggleSubtask={handleToggleSubtask}
+                      onToggleExpand={handleToggleExpand}
+                      onEditTask={handleEditTask}
+                      onDeleteTask={handleDeleteTask}
+                      onAddTask={handleAddTask}
+                      onEditSection={handleEditSection}
+                      onDeleteSection={handleDeleteSection}
+                      onAddSection={handleAddSection}
+                      createDroppableId={createDroppableId}
+                      createDraggableId={createDraggableId}
+                    />
+                  </Box>
+                )}
 
-                  {/* Calendar View */}
-                  {showCalendar && (
-                    <Box
+                {/* Calendar View */}
+                {showCalendar && (
+                  <Box flex={1} minW={0} display="flex" flexDirection="column">
+                    <Card
                       flex={1}
-                      minW={0}
-                      display="flex"
-                      flexDirection="column"
+                      overflow="hidden"
+                      bg={bgColor}
+                      borderColor={borderColor}
+                      minH="600px"
                     >
-                      <Card
-                        flex={1}
-                        overflow="hidden"
-                        bg={bgColor}
-                        borderColor={borderColor}
-                        minH="600px"
-                      >
-                        <CardBody p={0} h="full">
-                          {calendarView === "day" && (
-                            <CalendarDayView
-                              date={selectedDate}
-                              tasks={tasks}
-                              onTaskClick={handleEditTask}
-                              onTaskTimeChange={handleTaskTimeChange}
-                              onTaskDurationChange={handleTaskDurationChange}
-                              onCreateTask={handleCreateTaskFromCalendar}
-                              onDropTimeChange={time => {
-                                dropTimeRef.current = time;
-                              }}
-                              createDroppableId={createDroppableId}
-                            />
-                          )}
-                          {calendarView === "week" && (
-                            <CalendarWeekView
-                              date={selectedDate}
-                              tasks={tasks}
-                              onTaskClick={handleEditTask}
-                              onDayClick={d => {
-                                setSelectedDate(d);
-                                setCalendarView("day");
-                              }}
-                              onTaskTimeChange={handleTaskTimeChange}
-                              onTaskDurationChange={handleTaskDurationChange}
-                              onCreateTask={handleCreateTaskFromCalendar}
-                              onDropTimeChange={time => {
-                                dropTimeRef.current = time;
-                              }}
-                              createDroppableId={createDroppableId}
-                              createDraggableId={createDraggableId}
-                            />
-                          )}
-                          {calendarView === "month" && (
-                            <CalendarMonthView
-                              date={selectedDate}
-                              tasks={tasks}
-                              onDayClick={d => {
-                                setSelectedDate(d);
-                                setCalendarView("day");
-                              }}
-                            />
-                          )}
-                        </CardBody>
-                      </Card>
-                    </Box>
-                  )}
-                </Box>
+                      <CardBody p={0} h="full">
+                        {calendarView === "day" && (
+                          <CalendarDayView
+                            date={selectedDate}
+                            tasks={tasks}
+                            onTaskClick={handleEditTask}
+                            onTaskTimeChange={handleTaskTimeChange}
+                            onTaskDurationChange={handleTaskDurationChange}
+                            onCreateTask={handleCreateTaskFromCalendar}
+                            onDropTimeChange={time => {
+                              dropTimeRef.current = time;
+                            }}
+                            createDroppableId={createDroppableId}
+                          />
+                        )}
+                        {calendarView === "week" && (
+                          <CalendarWeekView
+                            date={selectedDate}
+                            tasks={tasks}
+                            onTaskClick={handleEditTask}
+                            onDayClick={d => {
+                              setSelectedDate(d);
+                              setCalendarView("day");
+                            }}
+                            onTaskTimeChange={handleTaskTimeChange}
+                            onTaskDurationChange={handleTaskDurationChange}
+                            onCreateTask={handleCreateTaskFromCalendar}
+                            onDropTimeChange={time => {
+                              dropTimeRef.current = time;
+                            }}
+                            createDroppableId={createDroppableId}
+                            createDraggableId={createDraggableId}
+                          />
+                        )}
+                        {calendarView === "month" && (
+                          <CalendarMonthView
+                            date={selectedDate}
+                            tasks={tasks}
+                            onDayClick={d => {
+                              setSelectedDate(d);
+                              setCalendarView("day");
+                            }}
+                          />
+                        )}
+                      </CardBody>
+                    </Card>
+                  </Box>
+                )}
               </Box>
             </Box>
           </Box>
-        </DragDropContext>
-      </DragContextProvider>
+        </Box>
+
+        {/* Drag Overlay */}
+        <DragOverlay>
+          {activeTask ? (
+            <Box
+              px={4}
+              py={2}
+              borderRadius="lg"
+              bg={useColorModeValue("blue.100", "blue.800")}
+              borderWidth="2px"
+              borderColor={useColorModeValue("blue.400", "blue.500")}
+              boxShadow="0 10px 25px -5px rgba(59, 130, 246, 0.4)"
+              w="180px"
+              h="40px"
+            >
+              <Text
+                fontSize="sm"
+                fontWeight="semibold"
+                color={useColorModeValue("blue.900", "blue.100")}
+                isTruncated
+              >
+                {activeTask.title}
+              </Text>
+            </Box>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {/* Dialogs */}
       <TaskDialog

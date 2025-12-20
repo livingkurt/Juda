@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Box, Text, Flex, VStack, useColorModeValue } from "@chakra-ui/react";
-import { Droppable, Draggable } from "@hello-pangea/dnd";
+import { useDroppable, useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import {
   timeToMinutes,
   minutesToTime,
@@ -11,10 +12,291 @@ import {
   calculateTaskPositions,
 } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
-import { DragPreview } from "./DragPreview";
 
 const HOUR_HEIGHT = 48;
 const DRAG_THRESHOLD = 5;
+
+// Draggable untimed task for week view
+const UntimedWeekTask = ({ task, onTaskClick, createDraggableId, day }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useDraggable({
+    id: createDraggableId.calendarUntimed(task.id, day),
+    data: { task, type: "TASK" },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Box
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      p={1}
+      borderRadius="sm"
+      bg={task.color || "#3b82f6"}
+      color="white"
+      cursor="grab"
+      boxShadow="sm"
+      onClick={e => {
+        e.stopPropagation();
+        onTaskClick(task);
+      }}
+    >
+      <Text fontSize="2xs" fontWeight="medium" noOfLines={2}>
+        {task.title}
+      </Text>
+    </Box>
+  );
+};
+
+// Draggable timed task for week view
+const TimedWeekTask = ({
+  task,
+  onTaskClick,
+  createDraggableId,
+  day,
+  getTaskStyle,
+  internalDrag,
+  handleInternalDragStart,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useDraggable({
+    id: createDraggableId.calendarTimed(task.id, day),
+    data: { task, type: "TASK" },
+  });
+
+  const style = {
+    ...getTaskStyle(task),
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging && !internalDrag.taskId ? 0.5 : 1,
+  };
+
+  return (
+    <Box
+      ref={setNodeRef}
+      position="absolute"
+      left={task.left}
+      width={task.width}
+      ml={1}
+      mr={1}
+      borderRadius="md"
+      color="white"
+      fontSize="xs"
+      overflow="hidden"
+      cursor="grab"
+      _hover={{ shadow: "md" }}
+      bg={task.color || "#3b82f6"}
+      style={style}
+      boxShadow={internalDrag.taskId === task.id ? "xl" : "none"}
+      zIndex={internalDrag.taskId === task.id ? 50 : "auto"}
+      onClick={e => e.stopPropagation()}
+    >
+      {/* Task content */}
+      <Box
+        {...attributes}
+        {...listeners}
+        position="absolute"
+        inset={0}
+        px={1}
+        py={0.5}
+        cursor="grab"
+        onClick={e => {
+          e.stopPropagation();
+          onTaskClick(task);
+        }}
+      >
+        <Text isTruncated fontWeight="medium">
+          {task.title}
+        </Text>
+      </Box>
+
+      {/* Resize handle */}
+      <Box
+        position="absolute"
+        bottom={0}
+        left={0}
+        right={0}
+        h={2}
+        cursor="ns-resize"
+        _hover={{ bg: "blackAlpha.200" }}
+        onMouseDown={e => {
+          if (!isDragging) {
+            handleInternalDragStart(e, task, "resize");
+          }
+        }}
+        onClick={e => e.stopPropagation()}
+      />
+    </Box>
+  );
+};
+
+// Day column component for header (untimed tasks only)
+const DayHeaderColumn = ({
+  day,
+  dayIndex,
+  untimedTasks,
+  isToday,
+  onTaskClick,
+  onDayClick,
+  createDroppableId,
+  createDraggableId,
+  borderColor,
+  dropHighlight,
+  hourTextColor,
+  hoverBg,
+}) => {
+  const untimedDroppableId = createDroppableId.calendarWeekUntimed(day);
+
+  const { setNodeRef, isOver } = useDroppable({
+    id: untimedDroppableId,
+    data: { type: "TASK", date: day, isUntimed: true },
+  });
+
+  return (
+    <Box
+      flex={1}
+      flexShrink={0}
+      flexGrow={1}
+      minW={0}
+      borderLeftWidth={dayIndex === 0 ? "0" : "1px"}
+      borderColor={borderColor}
+    >
+      {/* Day header */}
+      <Box
+        textAlign="center"
+        py={2}
+        cursor="pointer"
+        _hover={{ bg: hoverBg }}
+        onClick={() => onDayClick(day)}
+      >
+        <Text fontSize="xs" color={hourTextColor}>
+          {DAYS_OF_WEEK[dayIndex].short}
+        </Text>
+        <Box
+          as="span"
+          fontSize="lg"
+          fontWeight="semibold"
+          display="inline-block"
+          bg={isToday ? "blue.500" : "transparent"}
+          color={isToday ? "white" : "inherit"}
+          borderRadius="full"
+          w={8}
+          h={8}
+          lineHeight="32px"
+        >
+          {day.getDate()}
+        </Box>
+      </Box>
+
+      {/* Untimed tasks for this day */}
+      <Box
+        ref={setNodeRef}
+        px={1}
+        py={1}
+        borderTopWidth="1px"
+        borderColor={borderColor}
+        bg={isOver ? dropHighlight : "transparent"}
+        minH={untimedTasks.length > 0 || isOver ? "40px" : "0"}
+        transition="background-color 0.2s"
+      >
+        <VStack align="stretch" spacing={1}>
+          {untimedTasks.map(task => (
+            <UntimedWeekTask
+              key={task.id}
+              task={task}
+              onTaskClick={onTaskClick}
+              createDraggableId={createDraggableId}
+              day={day}
+            />
+          ))}
+        </VStack>
+      </Box>
+    </Box>
+  );
+};
+
+// Timed column component for time grid
+const TimedColumn = ({
+  day,
+  dayIndex,
+  timedTasks,
+  onTaskClick,
+  handleColumnClick,
+  handleDropTimeCalculation,
+  createDroppableId,
+  createDraggableId,
+  getTaskStyle,
+  internalDrag,
+  handleInternalDragStart,
+  borderColor,
+  dropHighlight,
+}) => {
+  const timedDroppableId = createDroppableId.calendarWeek(day);
+  const { setNodeRef, isOver } = useDroppable({
+    id: timedDroppableId,
+    data: { type: "TASK", date: day, isUntimed: false },
+  });
+
+  return (
+    <Box
+      ref={setNodeRef}
+      flex={1}
+      flexShrink={0}
+      flexGrow={1}
+      minW={0}
+      borderLeftWidth={dayIndex === 0 ? "0" : "1px"}
+      borderColor={borderColor}
+      position="relative"
+      h="full"
+      w="full"
+      zIndex={2}
+      onClick={e => {
+        if (!isOver) {
+          handleColumnClick(e, day);
+        }
+      }}
+      bg={isOver ? dropHighlight : "transparent"}
+      transition="background-color 0.2s"
+      onMouseMove={e => {
+        if (isOver) {
+          handleDropTimeCalculation(e, e.currentTarget.getBoundingClientRect());
+        }
+      }}
+    >
+      {/* Render tasks */}
+      {calculateTaskPositions(timedTasks, HOUR_HEIGHT).map(task => (
+        <TimedWeekTask
+          key={task.id}
+          task={task}
+          onTaskClick={onTaskClick}
+          createDraggableId={createDraggableId}
+          day={day}
+          getTaskStyle={getTaskStyle}
+          internalDrag={internalDrag}
+          handleInternalDragStart={handleInternalDragStart}
+        />
+      ))}
+    </Box>
+  );
+};
 
 export const CalendarWeekView = ({
   date,
@@ -225,120 +507,23 @@ export const CalendarWeekView = ({
         {weekDays.map((day, i) => {
           const untimedTasksForDay = getUntimedTasksForDay(day);
           const isToday = day.toDateString() === today.toDateString();
-          const untimedDroppableId = createDroppableId.calendarWeekUntimed(day);
 
           return (
-            <Box
+            <DayHeaderColumn
               key={i}
-              flex={1}
-              flexShrink={0}
-              flexGrow={1}
-              minW={0}
-              borderLeftWidth={i === 0 ? "0" : "1px"}
+              day={day}
+              dayIndex={i}
+              untimedTasks={untimedTasksForDay}
+              isToday={isToday}
+              onTaskClick={onTaskClick}
+              onDayClick={onDayClick}
+              createDroppableId={createDroppableId}
+              createDraggableId={createDraggableId}
               borderColor={borderColor}
-            >
-              {/* Day header */}
-              <Box
-                textAlign="center"
-                py={2}
-                cursor="pointer"
-                _hover={{ bg: hoverBg }}
-                onClick={() => onDayClick(day)}
-              >
-                <Text fontSize="xs" color={hourTextColor}>
-                  {DAYS_OF_WEEK[i].short}
-                </Text>
-                <Box
-                  as="span"
-                  fontSize="lg"
-                  fontWeight="semibold"
-                  display="inline-block"
-                  bg={isToday ? "blue.500" : "transparent"}
-                  color={isToday ? "white" : "inherit"}
-                  borderRadius="full"
-                  w={8}
-                  h={8}
-                  lineHeight="32px"
-                >
-                  {day.getDate()}
-                </Box>
-              </Box>
-
-              {/* Untimed tasks for this day */}
-              <Droppable droppableId={untimedDroppableId} type="TASK">
-                {(provided, snapshot) => (
-                  <Box
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    px={1}
-                    py={1}
-                    borderTopWidth="1px"
-                    borderColor={borderColor}
-                    bg={snapshot.isDraggingOver ? dropHighlight : "transparent"}
-                    minH={
-                      untimedTasksForDay.length > 0 || snapshot.isDraggingOver
-                        ? "40px"
-                        : "0"
-                    }
-                    transition="background-color 0.2s"
-                  >
-                    <VStack align="stretch" spacing={1}>
-                      {untimedTasksForDay.map((task, taskIdx) => (
-                        <Draggable
-                          key={task.id}
-                          draggableId={createDraggableId.calendarUntimed(
-                            task.id,
-                            day
-                          )}
-                          index={taskIdx}
-                        >
-                          {(provided, snapshot) => {
-                            // Show unified drag preview when dragging
-                            if (snapshot.isDragging) {
-                              return (
-                                <DragPreview
-                                  title={task.title}
-                                  provided={provided}
-                                  snapshot={snapshot}
-                                />
-                              );
-                            }
-
-                            // Show normal component when not dragging
-                            return (
-                              <Box
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                p={1}
-                                borderRadius="sm"
-                                bg={task.color || "#3b82f6"}
-                                color="white"
-                                cursor="grab"
-                                boxShadow="sm"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  onTaskClick(task);
-                                }}
-                              >
-                                <Text
-                                  fontSize="2xs"
-                                  fontWeight="medium"
-                                  noOfLines={2}
-                                >
-                                  {task.title}
-                                </Text>
-                              </Box>
-                            );
-                          }}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </VStack>
-                  </Box>
-                )}
-              </Droppable>
-            </Box>
+              dropHighlight={dropHighlight}
+              hourTextColor={hourTextColor}
+              hoverBg={hoverBg}
+            />
           );
         })}
       </Flex>
@@ -384,150 +569,25 @@ export const CalendarWeekView = ({
           {/* Day columns */}
           <Flex position="absolute" left={12} right={0} top={0} bottom={0}>
             {weekDays.map((day, i) => {
-              const timedDroppableId = createDroppableId.calendarWeek(day);
               const dayTasks = getTasksForDay(day);
 
               return (
-                <Droppable key={i} droppableId={timedDroppableId} type="TASK">
-                  {(provided, snapshot) => (
-                    <Box
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      flex={1}
-                      flexShrink={0}
-                      flexGrow={1}
-                      minW={0}
-                      borderLeftWidth={i === 0 ? "0" : "1px"}
-                      borderColor={borderColor}
-                      position="relative"
-                      h="full"
-                      w="full"
-                      zIndex={2}
-                      onClick={e => {
-                        if (!snapshot.isDraggingOver) {
-                          handleColumnClick(e, day);
-                        }
-                      }}
-                      bg={
-                        snapshot.isDraggingOver ? dropHighlight : "transparent"
-                      }
-                      transition="background-color 0.2s"
-                      onMouseMove={e => {
-                        if (snapshot.isDraggingOver) {
-                          handleDropTimeCalculation(
-                            e,
-                            e.currentTarget.getBoundingClientRect()
-                          );
-                        }
-                      }}
-                    >
-                      {/* Render tasks */}
-                      {calculateTaskPositions(dayTasks, HOUR_HEIGHT).map(
-                        (task, taskIndex) => (
-                          <Draggable
-                            key={task.id}
-                            draggableId={createDraggableId.calendarTimed(
-                              task.id,
-                              day
-                            )}
-                            index={taskIndex}
-                          >
-                            {(dragProvided, dragSnapshot) => {
-                              // Show unified drag preview when dragging (but not during internal drag)
-                              if (
-                                dragSnapshot.isDragging &&
-                                !internalDrag.taskId
-                              ) {
-                                return (
-                                  <DragPreview
-                                    title={task.title}
-                                    provided={dragProvided}
-                                    snapshot={dragSnapshot}
-                                  />
-                                );
-                              }
-
-                              // Show normal component when not dragging
-                              return (
-                                <Box
-                                  ref={dragProvided.innerRef}
-                                  {...dragProvided.draggableProps}
-                                  position="absolute"
-                                  left={task.left}
-                                  width={task.width}
-                                  ml={1}
-                                  mr={1}
-                                  borderRadius="md"
-                                  color="white"
-                                  fontSize="xs"
-                                  overflow="hidden"
-                                  cursor="grab"
-                                  _hover={{ shadow: "md" }}
-                                  bg={task.color || "#3b82f6"}
-                                  style={{
-                                    ...getTaskStyle(task),
-                                    ...dragProvided.draggableProps.style,
-                                  }}
-                                  boxShadow={
-                                    internalDrag.taskId === task.id
-                                      ? "xl"
-                                      : "none"
-                                  }
-                                  zIndex={
-                                    internalDrag.taskId === task.id
-                                      ? 50
-                                      : "auto"
-                                  }
-                                  onClick={e => e.stopPropagation()}
-                                >
-                                  {/* Task content */}
-                                  <Box
-                                    {...dragProvided.dragHandleProps}
-                                    position="absolute"
-                                    inset={0}
-                                    px={1}
-                                    py={0.5}
-                                    cursor="grab"
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      onTaskClick(task);
-                                    }}
-                                  >
-                                    <Text isTruncated fontWeight="medium">
-                                      {task.title}
-                                    </Text>
-                                  </Box>
-
-                                  {/* Resize handle */}
-                                  <Box
-                                    position="absolute"
-                                    bottom={0}
-                                    left={0}
-                                    right={0}
-                                    h={2}
-                                    cursor="ns-resize"
-                                    _hover={{ bg: "blackAlpha.200" }}
-                                    onMouseDown={e => {
-                                      if (!dragSnapshot.isDragging) {
-                                        handleInternalDragStart(
-                                          e,
-                                          task,
-                                          "resize"
-                                        );
-                                      }
-                                    }}
-                                    onClick={e => e.stopPropagation()}
-                                  />
-                                </Box>
-                              );
-                            }}
-                          </Draggable>
-                        )
-                      )}
-                      {provided.placeholder}
-                    </Box>
-                  )}
-                </Droppable>
+                <TimedColumn
+                  key={i}
+                  day={day}
+                  dayIndex={i}
+                  timedTasks={dayTasks}
+                  onTaskClick={onTaskClick}
+                  handleColumnClick={handleColumnClick}
+                  handleDropTimeCalculation={handleDropTimeCalculation}
+                  createDroppableId={createDroppableId}
+                  createDraggableId={createDraggableId}
+                  getTaskStyle={getTaskStyle}
+                  internalDrag={internalDrag}
+                  handleInternalDragStart={handleInternalDragStart}
+                  borderColor={borderColor}
+                  dropHighlight={dropHighlight}
+                />
               );
             })}
           </Flex>
