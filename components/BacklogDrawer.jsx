@@ -74,13 +74,12 @@ const SortableBacklogTask = ({
       p={3}
       borderRadius="md"
       _hover={{ bg: hoverBg }}
-      cursor="grab"
       borderLeftWidth="3px"
       borderLeftColor={task.color || "#3b82f6"}
       bg="transparent"
     >
       <Box flexShrink={0} {...attributes} {...listeners}>
-        <GripVertical size={16} color={gripColor} />
+        <GripVertical size={16} style={{ color: gripColor, cursor: "grab" }} />
       </Box>
       <Checkbox
         isChecked={task.completed}

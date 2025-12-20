@@ -80,9 +80,10 @@ const TimedTask = ({
 
   const style = {
     ...getTaskStyle(task),
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging && !internalDrag.taskId ? 0.5 : 1,
+    // Don't apply transform for draggable items - DragOverlay handles the preview
+    // Only hide the original element when dragging
+    opacity: isDragging && !internalDrag.taskId ? 0 : 1,
+    pointerEvents: isDragging && !internalDrag.taskId ? "none" : "auto",
   };
 
   return (

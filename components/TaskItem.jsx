@@ -75,7 +75,6 @@ export const TaskItem = ({
           gap={2}
           p={3}
           _hover={{ bg: hoverBg }}
-          cursor="grab"
           _active={{ cursor: "grabbing" }}
         >
           {/* Drag handle */}
