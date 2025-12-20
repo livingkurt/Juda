@@ -54,7 +54,13 @@ import { BacklogDrawer } from "@/components/BacklogDrawer";
 import { useTasks } from "@/hooks/useTasks";
 import { useSections } from "@/hooks/useSections";
 import { useBacklog } from "@/hooks/useBacklog";
-import { shouldShowOnDate, getGreeting, hasFutureDateTime } from "@/lib/utils";
+import {
+  shouldShowOnDate,
+  getGreeting,
+  hasFutureDateTime,
+  minutesToTime,
+  snapToIncrement,
+} from "@/lib/utils";
 import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
@@ -597,12 +603,85 @@ export default function DailyTasksApp() {
       // Not a task drag (might be section reorder)
       setActiveTask(null);
     }
+
+    // Clear calendar droppable tracking
+    currentCalendarDroppableRef.current = null;
+    dropTimeRef.current = null;
   };
+
+  // Track which calendar droppable we're over for time calculation
+  const currentCalendarDroppableRef = useRef(null);
+  const mouseMoveListenerRef = useRef(null);
 
   // Handle drag over (for real-time updates like time calculation)
   const handleDragOver = event => {
     const { over } = event;
-    // This can be used for real-time feedback if needed
+
+    if (over && over.id && typeof over.id === "string") {
+      const droppableId = over.id;
+
+      // Check if we're over a timed calendar area
+      if (
+        droppableId.startsWith("calendar-day|") ||
+        droppableId.startsWith("calendar-week|")
+      ) {
+        currentCalendarDroppableRef.current = droppableId;
+
+        // Set up mousemove listener if not already set
+        if (!mouseMoveListenerRef.current) {
+          const handleMouseMove = e => {
+            if (!currentCalendarDroppableRef.current) return;
+
+            // Find calendar timed area using data attribute
+            const timedAreas = Array.from(
+              document.querySelectorAll('[data-calendar-timed="true"]')
+            ).filter(el => {
+              const rect = el.getBoundingClientRect();
+              return (
+                rect.top <= e.clientY &&
+                rect.bottom >= e.clientY &&
+                rect.left <= e.clientX &&
+                rect.right >= e.clientX
+              );
+            });
+
+            if (timedAreas.length > 0) {
+              const timedArea = timedAreas[0];
+              const rect = timedArea.getBoundingClientRect();
+              const y = e.clientY - rect.top;
+
+              // Get HOUR_HEIGHT from data attribute or use default based on view
+              const hourHeight =
+                parseInt(timedArea.getAttribute("data-hour-height")) ||
+                (calendarView === "day" ? 64 : 48);
+
+              const minutes = Math.max(
+                0,
+                Math.min(24 * 60 - 1, Math.floor((y / hourHeight) * 60))
+              );
+              const snappedMinutes = snapToIncrement(minutes, 15);
+              dropTimeRef.current = minutesToTime(snappedMinutes);
+            }
+          };
+
+          window.addEventListener("mousemove", handleMouseMove);
+          mouseMoveListenerRef.current = handleMouseMove;
+        }
+      } else {
+        // Not over timed calendar area - clear
+        currentCalendarDroppableRef.current = null;
+        if (mouseMoveListenerRef.current) {
+          window.removeEventListener("mousemove", mouseMoveListenerRef.current);
+          mouseMoveListenerRef.current = null;
+        }
+        if (
+          droppableId.startsWith("calendar-day-untimed|") ||
+          droppableId.startsWith("calendar-week-untimed|")
+        ) {
+          dropTimeRef.current = null;
+        }
+      }
+    }
   };
 
   // Handle drag end - convert from @dnd-kit format to @hello-pangea/dnd format
@@ -611,6 +690,13 @@ export default function DailyTasksApp() {
 
     setActiveId(null);
     setActiveTask(null);
+
+    // Clean up mousemove listener
+    if (mouseMoveListenerRef.current) {
+      window.removeEventListener("mousemove", mouseMoveListenerRef.current);
+      mouseMoveListenerRef.current = null;
+    }
+    currentCalendarDroppableRef.current = null;
 
     if (!over) {
       dropTimeRef.current = null;

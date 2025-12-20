@@ -458,6 +458,9 @@ export const CalendarDayView = ({
           borderRadius="md"
           transition="background-color 0.2s"
           onClick={handleCalendarClick}
+          data-calendar-timed="true"
+          data-calendar-view="day"
+          data-hour-height={HOUR_HEIGHT}
           onMouseMove={e => {
             if (isOverTimed) {
               handleDropTimeCalculation(

@@ -277,6 +277,9 @@ const TimedColumn = ({
       }}
       bg={isOver ? dropHighlight : "transparent"}
       transition="background-color 0.2s"
+      data-calendar-timed="true"
+      data-calendar-view="week"
+      data-hour-height={HOUR_HEIGHT}
       onMouseMove={e => {
         if (isOver) {
           handleDropTimeCalculation(e, e.currentTarget.getBoundingClientRect());
