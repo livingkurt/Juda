@@ -19,11 +19,7 @@ import {
   useColorModeValue,
 } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
-import {
-  useSortable,
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Plus, MoreVertical, GripVertical, Sun } from "lucide-react";
 import { TaskItem } from "./TaskItem";
@@ -32,7 +28,6 @@ import { SECTION_ICONS } from "@/lib/constants";
 // Single section card component
 const SectionCard = ({
   section,
-  index: sectionIndex,
   tasks,
   onToggleTask,
   onToggleSubtask,
@@ -52,14 +47,9 @@ const SectionCard = ({
   const mutedText = useColorModeValue("gray.500", "gray.400");
   const dropHighlight = useColorModeValue("blue.50", "blue.900");
 
-  const IconComponent =
-    SECTION_ICONS.find(i => i.value === section.icon)?.Icon || Sun;
+  const IconComponent = SECTION_ICONS.find(i => i.value === section.icon)?.Icon || Sun;
   const completedCount = tasks.filter(
-    t =>
-      t.completed ||
-      (t.subtasks &&
-        t.subtasks.length > 0 &&
-        t.subtasks.every(st => st.completed))
+    t => t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed))
   ).length;
 
   const isDropTarget = hoveredDroppable === droppableId;
@@ -81,7 +71,7 @@ const SectionCard = ({
   });
 
   const sectionStyle = {
-    transform: CSS.Transform.toString(sectionTransform),
+    transform: sectionTransform ? CSS.Transform.toString(sectionTransform) : undefined,
     transition: sectionTransition || "transform 200ms ease",
   };
 
@@ -149,10 +139,7 @@ const SectionCard = ({
               />
               <MenuList>
                 <MenuItem onClick={() => onEditSection(section)}>Edit</MenuItem>
-                <MenuItem
-                  onClick={() => onDeleteSection(section.id)}
-                  color="red.500"
-                >
+                <MenuItem onClick={() => onDeleteSection(section.id)} color="red.500">
                   Delete
                 </MenuItem>
               </MenuList>
@@ -179,10 +166,7 @@ const SectionCard = ({
               {isOver ? "Drop here" : "No tasks"}
             </Text>
           ) : (
-            <SortableContext
-              items={tasksWithIds.map(t => t.draggableId)}
-              strategy={verticalListSortingStrategy}
-            >
+            <SortableContext items={tasksWithIds.map(t => t.draggableId)} strategy={verticalListSortingStrategy}>
               <VStack align="stretch" spacing={3}>
                 {tasksWithIds.map((task, index) => (
                   <TaskItem
@@ -233,15 +217,8 @@ export const Section = ({
   });
 
   return (
-    <SortableContext
-      items={sections.map(s => `section-${s.id}`)}
-      strategy={verticalListSortingStrategy}
-    >
-      <Box
-        ref={setNodeRef}
-        bg={isOver ? dropHighlight : "transparent"}
-        borderRadius="md"
-      >
+    <SortableContext items={sections.map(s => `section-${s.id}`)} strategy={verticalListSortingStrategy}>
+      <Box ref={setNodeRef} bg={isOver ? dropHighlight : "transparent"} borderRadius="md">
         {sections.map((section, index) => (
           <SectionCard
             key={section.id}
@@ -261,14 +238,7 @@ export const Section = ({
             createDraggableId={createDraggableId}
           />
         ))}
-        <Button
-          variant="outline"
-          onClick={onAddSection}
-          w="full"
-          py={6}
-          borderStyle="dashed"
-          mt={4}
-        >
+        <Button variant="outline" onClick={onAddSection} w="full" py={6} borderStyle="dashed" mt={4}>
           <Plus size={20} style={{ marginRight: "8px" }} />
           Add Section
         </Button>

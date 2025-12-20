@@ -57,8 +57,7 @@ export const useTasks = () => {
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage =
-          errorData.error || `Failed to update task (${response.status})`;
+        const errorMessage = errorData.error || `Failed to update task (${response.status})`;
         throw new Error(errorMessage);
       }
       const updatedTask = await response.json();
@@ -92,21 +91,12 @@ export const useTasks = () => {
     }
   };
 
-  const reorderTask = async (
-    taskId,
-    sourceSectionId,
-    targetSectionId,
-    newOrder
-  ) => {
+  const reorderTask = async (taskId, sourceSectionId, targetSectionId, newOrder) => {
     const previousTasks = [...tasks];
 
     // Optimistic update
     setTasks(prev => {
-      const updated = prev.map(t =>
-        t.id === taskId
-          ? { ...t, sectionId: targetSectionId, order: newOrder }
-          : t
-      );
+      const updated = prev.map(t => (t.id === taskId ? { ...t, sectionId: targetSectionId, order: newOrder } : t));
       return updated;
     });
 

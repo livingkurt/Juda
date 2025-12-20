@@ -42,20 +42,22 @@ const productionUrl = process.env.PRODUCTION_DATABASE_URL;
 const localUrl = process.env.DATABASE_URL;
 
 if (!productionUrl) {
+  // eslint-disable-next-line no-console
   console.error("❌ Error: PRODUCTION_DATABASE_URL not found in .env file");
+  // eslint-disable-next-line no-console
   console.error("   Add it to your .env file:");
+  // eslint-disable-next-line no-console
   console.error('   PRODUCTION_DATABASE_URL="your-production-database-url"');
-  console.error(
-    "   Get it from Vercel: Settings → Environment Variables → DATABASE_URL"
-  );
+  // eslint-disable-next-line no-console
+  console.error("   Get it from Vercel: Settings → Environment Variables → DATABASE_URL");
   process.exit(1);
 }
 
 if (!localUrl) {
+  // eslint-disable-next-line no-console
   console.error("❌ Error: DATABASE_URL not found in .env file");
-  console.error(
-    "   Make sure your .env file has DATABASE_URL set for your local database"
-  );
+  // eslint-disable-next-line no-console
+  console.error("   Make sure your .env file has DATABASE_URL set for your local database");
   process.exit(1);
 }
 
@@ -76,6 +78,7 @@ const localPrisma = new PrismaClient({
 });
 
 async function dumpProduction() {
+  // eslint-disable-next-line no-console
   console.log("📦 Dumping production database...\n");
 
   try {
@@ -106,13 +109,18 @@ async function dumpProduction() {
 
     fs.writeFileSync(dumpFile, JSON.stringify(dump, null, 2));
 
+    // eslint-disable-next-line no-console
     console.log(`✅ Dump saved to: ${dumpFile}`);
+    // eslint-disable-next-line no-console
     console.log(`   Sections: ${sections.length}`);
+    // eslint-disable-next-line no-console
     console.log(`   Tasks: ${tasks.length}`);
+    // eslint-disable-next-line no-console
     console.log(`   Backlog Items: ${backlogItems.length}\n`);
 
     return dump;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("❌ Error dumping production database:", error.message);
     throw error;
   }
@@ -120,10 +128,12 @@ async function dumpProduction() {
 
 async function restoreToLocal(dump) {
   if (!localUrl) {
+    // eslint-disable-next-line no-console
     console.log("⚠️  Skipping local restore (no LOCAL_DATABASE_URL set)");
     return;
   }
 
+  // eslint-disable-next-line no-console
   console.log("🔄 Restoring to local database...\n");
 
   try {
@@ -132,6 +142,7 @@ async function restoreToLocal(dump) {
     await localPrisma.backlogItem.deleteMany();
     await localPrisma.section.deleteMany();
 
+    // eslint-disable-next-line no-console
     console.log("   ✓ Cleared local database");
 
     // Restore sections first (tasks depend on them)
@@ -139,6 +150,7 @@ async function restoreToLocal(dump) {
       await localPrisma.section.createMany({
         data: dump.sections,
       });
+      // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.sections.length} sections`);
     }
 
@@ -147,6 +159,7 @@ async function restoreToLocal(dump) {
       await localPrisma.task.createMany({
         data: dump.tasks,
       });
+      // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.tasks.length} tasks`);
     }
 
@@ -155,11 +168,14 @@ async function restoreToLocal(dump) {
       await localPrisma.backlogItem.createMany({
         data: dump.backlogItems,
       });
+      // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.backlogItems.length} backlog items`);
     }
 
+    // eslint-disable-next-line no-console
     console.log("\n✅ Local database restored successfully!");
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("❌ Error restoring to local database:", error.message);
     throw error;
   }
@@ -174,11 +190,11 @@ async function main() {
     if (shouldRestore) {
       await restoreToLocal(dump);
     } else {
-      console.log(
-        '💡 Tip: Use "npm run db:restore" to automatically restore to local database'
-      );
+      // eslint-disable-next-line no-console
+      console.log('💡 Tip: Use "npm run db:restore" to automatically restore to local database');
     }
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("\n❌ Failed:", error.message);
     process.exit(1);
   } finally {

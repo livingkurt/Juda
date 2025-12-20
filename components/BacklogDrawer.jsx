@@ -16,21 +16,59 @@ import {
   Heading,
 } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
-import {
-  useSortable,
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import {
-  Plus,
-  Trash2,
-  Edit2,
-  X,
-  GripVertical,
-  AlertCircle,
-} from "lucide-react";
+import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { Plus, Trash2, Edit2, X, GripVertical, AlertCircle } from "lucide-react";
 import { isOverdue } from "@/lib/utils";
+
+// Sortable backlog item component
+const SortableBacklogItem = ({ item, onDeleteBacklog, onToggleBacklog }) => {
+  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
+    id: `backlog-item-${item.id}`,
+    data: {
+      type: "BACKLOG_ITEM",
+      containerId: "backlog-items",
+    },
+  });
+
+  const hoverBg = useColorModeValue("gray.50", "gray.700");
+  const textColor = useColorModeValue("gray.900", "gray.100");
+  const gripColor = useColorModeValue("gray.400", "gray.500");
+
+  const style = {
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Flex ref={setNodeRef} style={style} align="center" gap={2} p={3} borderRadius="md" _hover={{ bg: hoverBg }}>
+      <Box flexShrink={0} {...attributes} {...listeners}>
+        <GripVertical size={16} style={{ color: gripColor, cursor: "grab" }} />
+      </Box>
+      <Checkbox
+        isChecked={item.completed}
+        size="lg"
+        onChange={() => onToggleBacklog(item.id)}
+        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
+      />
+      <Text
+        flex={1}
+        fontSize="sm"
+        textDecoration={item.completed ? "line-through" : "none"}
+        opacity={item.completed ? 0.5 : 1}
+        color={textColor}
+      >
+        {item.title}
+      </Text>
+      <IconButton
+        icon={<Trash2 size={16} />}
+        size="sm"
+        variant="ghost"
+        onClick={() => onDeleteBacklog(item.id)}
+        aria-label="Delete backlog item"
+      />
+    </Flex>
+  );
+};
 
 // Sortable task item component
 const SortableBacklogTask = ({
@@ -44,14 +82,7 @@ const SortableBacklogTask = ({
   hoverBg,
   gripColor,
 }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: task.draggableId,
     data: {
       type: "TASK",
@@ -60,8 +91,7 @@ const SortableBacklogTask = ({
   });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition: transition || "transform 200ms ease",
+    // Don't apply transform - DragOverlay handles the preview
     opacity: isDragging ? 0.5 : 1,
   };
 
@@ -115,11 +145,7 @@ const SortableBacklogTask = ({
           </Text>
           {task.recurrence && task.recurrence.type !== "none" && (
             <Badge size="sm" colorScheme="purple" fontSize="2xs">
-              {task.recurrence.type === "daily"
-                ? "Daily"
-                : task.recurrence.type === "weekly"
-                ? "Weekly"
-                : "Recurring"}
+              {task.recurrence.type === "daily" ? "Daily" : task.recurrence.type === "weekly" ? "Weekly" : "Recurring"}
             </Badge>
           )}
           {!task.time && (
@@ -157,7 +183,6 @@ const SortableBacklogTask = ({
 };
 
 export const BacklogDrawer = ({
-  isOpen,
   onClose,
   backlog,
   backlogTasks,
@@ -177,7 +202,6 @@ export const BacklogDrawer = ({
   const mutedText = useColorModeValue("gray.500", "gray.400");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
   const dropHighlight = useColorModeValue("blue.50", "blue.900");
-  const dragBg = useColorModeValue("blue.100", "blue.800");
   const gripColor = useColorModeValue("gray.400", "gray.500");
 
   const [newItem, setNewItem] = useState("");
@@ -200,12 +224,7 @@ export const BacklogDrawer = ({
   return (
     <Box h="100vh" display="flex" flexDirection="column" bg={bgColor}>
       {/* Header */}
-      <Box
-        p={4}
-        borderBottomWidth="1px"
-        borderColor={borderColor}
-        flexShrink={0}
-      >
+      <Box p={4} borderBottomWidth="1px" borderColor={borderColor} flexShrink={0}>
         <Flex align="center" justify="space-between" mb={2}>
           <Heading size="md">Backlog</Heading>
           <HStack spacing={2}>
@@ -217,13 +236,7 @@ export const BacklogDrawer = ({
               colorScheme="blue"
               aria-label="Add task to backlog"
             />
-            <IconButton
-              icon={<X size={18} />}
-              onClick={onClose}
-              size="sm"
-              variant="ghost"
-              aria-label="Close backlog"
-            />
+            <IconButton icon={<X size={18} />} onClick={onClose} size="sm" variant="ghost" aria-label="Close backlog" />
           </HStack>
         </Flex>
         <Badge colorScheme="blue">
@@ -250,19 +263,10 @@ export const BacklogDrawer = ({
           {tasksWithIds.length > 0 && (
             <>
               <Box>
-                <Text
-                  fontSize="xs"
-                  fontWeight="semibold"
-                  color={mutedText}
-                  mb={2}
-                  textTransform="uppercase"
-                >
+                <Text fontSize="xs" fontWeight="semibold" color={mutedText} mb={2} textTransform="uppercase">
                   Unscheduled Tasks
                 </Text>
-                <SortableContext
-                  items={tasksWithIds.map(t => t.draggableId)}
-                  strategy={verticalListSortingStrategy}
-                >
+                <SortableContext items={tasksWithIds.map(t => t.draggableId)} strategy={verticalListSortingStrategy}>
                   <VStack align="stretch" spacing={3}>
                     {tasksWithIds.map(task => (
                       <SortableBacklogTask
@@ -288,13 +292,7 @@ export const BacklogDrawer = ({
           {/* Manual backlog items (quick notes) */}
           {backlog.length > 0 && (
             <Box>
-              <Text
-                fontSize="xs"
-                fontWeight="semibold"
-                color={mutedText}
-                mb={2}
-                textTransform="uppercase"
-              >
+              <Text fontSize="xs" fontWeight="semibold" color={mutedText} mb={2} textTransform="uppercase">
                 Quick Notes
               </Text>
               <SortableContext
@@ -302,78 +300,14 @@ export const BacklogDrawer = ({
                 strategy={verticalListSortingStrategy}
               >
                 <VStack align="stretch" spacing={3}>
-                  {backlog.map(item => {
-                    const {
-                      attributes,
-                      listeners,
-                      setNodeRef,
-                      transform,
-                      transition,
-                      isDragging,
-                    } = useSortable({
-                      id: `backlog-item-${item.id}`,
-                      data: {
-                        type: "BACKLOG_ITEM",
-                        containerId: "backlog-items",
-                      },
-                    });
-
-                    const style = {
-                      transform: CSS.Transform.toString(transform),
-                      transition: transition || "transform 200ms ease",
-                      opacity: isDragging ? 0.5 : 1,
-                    };
-
-                    return (
-                      <Flex
-                        key={item.id}
-                        ref={setNodeRef}
-                        style={style}
-                        align="center"
-                        gap={2}
-                        p={3}
-                        borderRadius="md"
-                        _hover={{ bg: hoverBg }}
-                      >
-                        <Box flexShrink={0} {...attributes} {...listeners}>
-                          <GripVertical
-                            size={16}
-                            style={{ color: gripColor, cursor: "grab" }}
-                          />
-                        </Box>
-                        <Checkbox
-                          isChecked={item.completed}
-                          size="lg"
-                          onChange={() => onToggleBacklog(item.id)}
-                          onClick={e => e.stopPropagation()}
-                          onMouseDown={e => e.stopPropagation()}
-                        />
-                        <Text
-                          flex={1}
-                          fontSize="sm"
-                          textDecoration={
-                            item.completed ? "line-through" : "none"
-                          }
-                          opacity={item.completed ? 0.5 : 1}
-                          color={textColor}
-                        >
-                          {item.title}
-                        </Text>
-                        <IconButton
-                          icon={<Trash2 size={16} />}
-                          onClick={e => {
-                            e.stopPropagation();
-                            onDeleteBacklog(item.id);
-                          }}
-                          onMouseDown={e => e.stopPropagation()}
-                          size="sm"
-                          variant="ghost"
-                          colorScheme="red"
-                          aria-label="Delete item"
-                        />
-                      </Flex>
-                    );
-                  })}
+                  {backlog.map(item => (
+                    <SortableBacklogItem
+                      key={item.id}
+                      item={item}
+                      onDeleteBacklog={onDeleteBacklog}
+                      onToggleBacklog={onToggleBacklog}
+                    />
+                  ))}
                 </VStack>
               </SortableContext>
             </Box>

@@ -9,10 +9,7 @@ export async function GET() {
     return NextResponse.json(sections);
   } catch (error) {
     console.error("Error fetching sections:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch sections", details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch sections", details: error.message }, { status: 500 });
   }
 }
 
@@ -32,10 +29,7 @@ export async function POST(request) {
     return NextResponse.json(section, { status: 201 });
   } catch (error) {
     console.error("Error creating section:", error);
-    return NextResponse.json(
-      { error: "Failed to create section", details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create section", details: error.message }, { status: 500 });
   }
 }
 
@@ -56,10 +50,7 @@ export async function PUT(request) {
     return NextResponse.json(section);
   } catch (error) {
     console.error("Error updating section:", error);
-    return NextResponse.json(
-      { error: "Failed to update section" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update section" }, { status: 500 });
   }
 }
 
@@ -69,10 +60,7 @@ export async function DELETE(request) {
     const id = searchParams.get("id");
 
     if (!id) {
-      return NextResponse.json(
-        { error: "Section ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Section ID is required" }, { status: 400 });
     }
 
     await prisma.section.delete({
@@ -82,9 +70,6 @@ export async function DELETE(request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting section:", error);
-    return NextResponse.json(
-      { error: "Failed to delete section" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete section" }, { status: 500 });
   }
 }

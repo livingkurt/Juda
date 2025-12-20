@@ -7,10 +7,7 @@ export async function PUT(request) {
     const { items } = body;
 
     if (!items || !Array.isArray(items)) {
-      return NextResponse.json(
-        { error: "Items array is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Items array is required" }, { status: 400 });
     }
 
     // Update all backlog items with new order in a transaction
@@ -26,9 +23,6 @@ export async function PUT(request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error reordering backlog:", error);
-    return NextResponse.json(
-      { error: "Failed to reorder backlog" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to reorder backlog" }, { status: 500 });
   }
 }

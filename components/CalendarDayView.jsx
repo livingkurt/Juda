@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Box, Text, Flex, VStack, useColorModeValue } from "@chakra-ui/react";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 import {
   formatTime,
   timeToMinutes,
@@ -17,14 +16,7 @@ const DRAG_THRESHOLD = 5;
 
 // Draggable untimed task component
 const UntimedTask = ({ task, onTaskClick, createDraggableId, date }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: createDraggableId.calendarUntimed(task.id, date),
     data: { task, type: "TASK" },
   });
@@ -67,14 +59,7 @@ const TimedTask = ({
   internalDrag,
   handleInternalDragStart,
 }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: createDraggableId.calendarTimed(task.id, date),
     data: { task, type: "TASK" },
   });
@@ -192,14 +177,8 @@ export const CalendarDayView = ({
 
   const getTaskStyle = task => {
     const isDragging = internalDrag.taskId === task.id;
-    const minutes =
-      isDragging && internalDrag.type === "move"
-        ? internalDrag.currentMinutes
-        : timeToMinutes(task.time);
-    const duration =
-      isDragging && internalDrag.type === "resize"
-        ? internalDrag.currentDuration
-        : task.duration || 30;
+    const minutes = isDragging && internalDrag.type === "move" ? internalDrag.currentMinutes : timeToMinutes(task.time);
+    const duration = isDragging && internalDrag.type === "resize" ? internalDrag.currentDuration : task.duration || 30;
     return {
       top: `${(minutes / 60) * HOUR_HEIGHT}px`,
       height: `${Math.max((duration / 60) * HOUR_HEIGHT, 24)}px`,
@@ -230,23 +209,14 @@ export const CalendarDayView = ({
       const hasMoved = Math.abs(deltaY) > DRAG_THRESHOLD;
 
       if (internalDrag.type === "move") {
-        const newMinutes = snapToIncrement(
-          internalDrag.startMinutes + (deltaY / HOUR_HEIGHT) * 60,
-          15
-        );
+        const newMinutes = snapToIncrement(internalDrag.startMinutes + (deltaY / HOUR_HEIGHT) * 60, 15);
         setInternalDrag(prev => ({
           ...prev,
-          currentMinutes: Math.max(
-            0,
-            Math.min(24 * 60 - prev.startDuration, newMinutes)
-          ),
+          currentMinutes: Math.max(0, Math.min(24 * 60 - prev.startDuration, newMinutes)),
           hasMoved: hasMoved || prev.hasMoved,
         }));
       } else {
-        const newDuration = snapToIncrement(
-          internalDrag.startDuration + (deltaY / HOUR_HEIGHT) * 60,
-          15
-        );
+        const newDuration = snapToIncrement(internalDrag.startDuration + (deltaY / HOUR_HEIGHT) * 60, 15);
         setInternalDrag(prev => ({
           ...prev,
           currentDuration: Math.max(15, newDuration),
@@ -260,8 +230,7 @@ export const CalendarDayView = ({
   const handleInternalDragEnd = useCallback(() => {
     if (!internalDrag.taskId) return;
 
-    const { taskId, type, currentMinutes, currentDuration, hasMoved } =
-      internalDrag;
+    const { taskId, type, currentMinutes, currentDuration, hasMoved } = internalDrag;
 
     // Reset state first
     setInternalDrag({
@@ -288,13 +257,7 @@ export const CalendarDayView = ({
         setTimeout(() => onTaskClick(task), 100);
       }
     }
-  }, [
-    internalDrag,
-    onTaskTimeChange,
-    onTaskDurationChange,
-    dayTasks,
-    onTaskClick,
-  ]);
+  }, [internalDrag, onTaskTimeChange, onTaskDurationChange, dayTasks, onTaskClick]);
 
   useEffect(() => {
     if (!internalDrag.taskId) return;
@@ -323,10 +286,7 @@ export const CalendarDayView = ({
   // Calculate drop time from mouse position
   const handleDropTimeCalculation = (e, rect) => {
     const y = e.clientY - rect.top;
-    const minutes = Math.max(
-      0,
-      Math.min(24 * 60 - 1, Math.floor((y / HOUR_HEIGHT) * 60))
-    );
+    const minutes = Math.max(0, Math.min(24 * 60 - 1, Math.floor((y / HOUR_HEIGHT) * 60)));
     const snappedMinutes = snapToIncrement(minutes, 15);
     if (onDropTimeChange) {
       onDropTimeChange(minutesToTime(snappedMinutes));
@@ -350,13 +310,7 @@ export const CalendarDayView = ({
   return (
     <Flex direction="column" h="full">
       {/* Day header */}
-      <Box
-        textAlign="center"
-        py={3}
-        borderBottomWidth="1px"
-        borderColor={borderColor}
-        bg={bgColor}
-      >
+      <Box textAlign="center" py={3} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor}>
         <Text fontSize="2xl" fontWeight="bold">
           {date.getDate()}
         </Text>
@@ -391,12 +345,7 @@ export const CalendarDayView = ({
               />
             ))}
             {isOverUntimed && untimedTasks.length === 0 && (
-              <Text
-                fontSize="xs"
-                color={hourTextColor}
-                textAlign="center"
-                py={2}
-              >
+              <Text fontSize="xs" color={hourTextColor} textAlign="center" py={2}>
                 Drop here for all-day task
               </Text>
             )}
@@ -405,13 +354,7 @@ export const CalendarDayView = ({
       </Box>
 
       {/* Timed calendar grid */}
-      <Box
-        ref={containerRef}
-        flex={1}
-        overflowY="auto"
-        position="relative"
-        style={{ height: `${24 * HOUR_HEIGHT}px` }}
-      >
+      <Box ref={containerRef} flex={1} overflowY="auto" position="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
         {/* Hour lines */}
         {hours.map(hour => (
           <Box
@@ -426,21 +369,8 @@ export const CalendarDayView = ({
               height: `${HOUR_HEIGHT}px`,
             }}
           >
-            <Box
-              w={16}
-              fontSize="xs"
-              color={hourTextColor}
-              pr={2}
-              textAlign="right"
-              pt={1}
-            >
-              {hour === 0
-                ? "12 AM"
-                : hour < 12
-                ? `${hour} AM`
-                : hour === 12
-                ? "12 PM"
-                : `${hour - 12} PM`}
+            <Box w={16} fontSize="xs" color={hourTextColor} pr={2} textAlign="right" pt={1}>
+              {hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
             </Box>
             <Box flex={1} borderLeftWidth="1px" borderColor={borderColor} />
           </Box>
@@ -463,15 +393,12 @@ export const CalendarDayView = ({
           data-hour-height={HOUR_HEIGHT}
           onMouseMove={e => {
             if (isOverTimed) {
-              handleDropTimeCalculation(
-                e,
-                e.currentTarget.getBoundingClientRect()
-              );
+              handleDropTimeCalculation(e, e.currentTarget.getBoundingClientRect());
             }
           }}
         >
           {/* Render positioned tasks */}
-          {calculateTaskPositions(dayTasks, HOUR_HEIGHT).map(task => (
+          {calculateTaskPositions(dayTasks).map(task => (
             <TimedTask
               key={task.id}
               task={task}

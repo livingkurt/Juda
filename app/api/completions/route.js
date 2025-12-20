@@ -35,10 +35,7 @@ export async function GET(request) {
     return NextResponse.json(completions);
   } catch (error) {
     console.error("Error fetching completions:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch completions", details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch completions", details: error.message }, { status: 500 });
   }
 }
 
@@ -49,10 +46,7 @@ export async function POST(request) {
     const { taskId, date } = body;
 
     if (!taskId) {
-      return NextResponse.json(
-        { error: "Task ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
     }
 
     // Normalize date to start of day for consistent storage
@@ -90,10 +84,7 @@ export async function POST(request) {
     return NextResponse.json(completion, { status: 201 });
   } catch (error) {
     console.error("Error creating completion:", error);
-    return NextResponse.json(
-      { error: "Failed to create completion" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create completion" }, { status: 500 });
   }
 }
 
@@ -105,10 +96,7 @@ export async function DELETE(request) {
     const date = searchParams.get("date");
 
     if (!taskId || !date) {
-      return NextResponse.json(
-        { error: "Task ID and date are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Task ID and date are required" }, { status: 400 });
     }
 
     // Normalize date to start of day
@@ -128,14 +116,8 @@ export async function DELETE(request) {
   } catch (error) {
     console.error("Error deleting completion:", error);
     if (error.code === "P2025") {
-      return NextResponse.json(
-        { error: "Completion not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Completion not found" }, { status: 404 });
     }
-    return NextResponse.json(
-      { error: "Failed to delete completion" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete completion" }, { status: 500 });
   }
 }

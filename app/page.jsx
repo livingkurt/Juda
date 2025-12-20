@@ -19,6 +19,7 @@ import {
   IconButton,
   useColorMode,
   useColorModeValue,
+  useToast,
   Card,
   CardBody,
   Heading,
@@ -26,33 +27,19 @@ import {
   FormLabel,
   Tabs,
   TabList,
-  TabPanels,
   Tab,
-  TabPanel,
 } from "@chakra-ui/react";
 import {
   DndContext,
   DragOverlay,
   pointerWithin,
-  closestCenter,
   useSensor,
   useSensors,
   PointerSensor,
   KeyboardSensor,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Settings,
-  Calendar,
-  LayoutDashboard,
-  List,
-  Sun,
-  Sunset,
-  Moon,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Settings, Calendar, LayoutDashboard, List, Sun, Sunset, Moon } from "lucide-react";
 import { Section } from "@/components/Section";
 import { TaskDialog } from "@/components/TaskDialog";
 import { SectionDialog } from "@/components/SectionDialog";
@@ -61,13 +48,7 @@ import { useTasks } from "@/hooks/useTasks";
 import { useSections } from "@/hooks/useSections";
 import { useBacklog } from "@/hooks/useBacklog";
 import { useCompletions } from "@/hooks/useCompletions";
-import {
-  shouldShowOnDate,
-  getGreeting,
-  hasFutureDateTime,
-  minutesToTime,
-  snapToIncrement,
-} from "@/lib/utils";
+import { shouldShowOnDate, getGreeting, hasFutureDateTime, minutesToTime, snapToIncrement } from "@/lib/utils";
 import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
@@ -106,6 +87,7 @@ const parseDroppableId = droppableId => {
 };
 
 // Helper to create droppable IDs
+/* eslint-disable react-refresh/only-export-components */
 export const createDroppableId = {
   backlog: () => "backlog",
   todaySection: sectionId => `today-section|${sectionId}`,
@@ -119,21 +101,16 @@ export const createDroppableId = {
 // This ensures each task instance has a unique ID based on its context
 export const createDraggableId = {
   backlog: taskId => `task-${taskId}-backlog`,
-  todaySection: (taskId, sectionId) =>
-    `task-${taskId}-today-section-${sectionId}`,
-  calendarUntimed: (taskId, date) =>
-    `task-${taskId}-calendar-untimed-${date.toISOString()}`,
-  calendarTimed: (taskId, date) =>
-    `task-${taskId}-calendar-timed-${date.toISOString()}`,
+  todaySection: (taskId, sectionId) => `task-${taskId}-today-section-${sectionId}`,
+  calendarUntimed: (taskId, date) => `task-${taskId}-calendar-untimed-${date.toISOString()}`,
+  calendarTimed: (taskId, date) => `task-${taskId}-calendar-timed-${date.toISOString()}`,
 };
 
 // Helper to extract task ID from context-aware draggable ID
 export const extractTaskId = draggableId => {
   // All draggable IDs must be context-aware: "task-{taskId}-{context}"
   if (!draggableId.startsWith("task-")) {
-    throw new Error(
-      `Invalid draggableId format: ${draggableId}. Expected format: task-{taskId}-{context}`
-    );
+    throw new Error(`Invalid draggableId format: ${draggableId}. Expected format: task-{taskId}-{context}`);
   }
 
   // Remove "task-" prefix
@@ -141,12 +118,7 @@ export const extractTaskId = draggableId => {
 
   // Find the task ID by looking for known context suffixes
   // Format: {taskId}-{context}
-  const suffixes = [
-    "-backlog",
-    "-today-section-",
-    "-calendar-untimed-",
-    "-calendar-timed-",
-  ];
+  const suffixes = ["-backlog", "-today-section-", "-calendar-untimed-", "-calendar-timed-"];
 
   for (const suffix of suffixes) {
     const index = withoutPrefix.indexOf(suffix);
@@ -156,41 +128,26 @@ export const extractTaskId = draggableId => {
   }
 
   // If no known suffix found, this is an error
-  throw new Error(
-    `Could not extract task ID from draggableId: ${draggableId}. Unknown context format.`
-  );
+  throw new Error(`Could not extract task ID from draggableId: ${draggableId}. Unknown context format.`);
 };
 
 export default function DailyTasksApp() {
   const { colorMode, toggleColorMode } = useColorMode();
+  const toast = useToast();
   const bgColor = useColorModeValue("gray.50", "gray.900");
   const headerBg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
   const textColor = useColorModeValue("gray.900", "gray.100");
   const mutedText = useColorModeValue("gray.500", "gray.400");
+  const progressBarBg = useColorModeValue("gray.200", "gray.700");
+  const dragOverlayBg = useColorModeValue("blue.100", "blue.800");
+  const dragOverlayBorder = useColorModeValue("blue.400", "blue.500");
+  const dragOverlayText = useColorModeValue("blue.900", "blue.100");
 
   const { tasks, createTask, updateTask, deleteTask, reorderTask } = useTasks();
-  const {
-    sections,
-    createSection,
-    updateSection,
-    deleteSection,
-    reorderSections,
-  } = useSections();
-  const {
-    backlog,
-    createBacklogItem,
-    updateBacklogItem,
-    deleteBacklogItem,
-    reorderBacklog,
-  } = useBacklog();
-  const {
-    completions,
-    createCompletion,
-    deleteCompletion,
-    isCompletedOnDate,
-    fetchCompletions,
-  } = useCompletions();
+  const { sections, createSection, updateSection, deleteSection, reorderSections } = useSections();
+  const { backlog, createBacklogItem, updateBacklogItem, deleteBacklogItem, reorderBacklog } = useBacklog();
+  const { createCompletion, deleteCompletion, isCompletedOnDate, fetchCompletions } = useCompletions();
 
   // Initialize state with default values (same on server and client)
   const [mainTabIndex, setMainTabIndex] = useState(0); // 0 = Tasks, 1 = History
@@ -224,15 +181,13 @@ export default function DailyTasksApp() {
       const saved = localStorage.getItem("juda-view-preferences");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.showDashboard !== undefined)
-          setShowDashboard(parsed.showDashboard);
-        if (parsed.showCalendar !== undefined)
-          setShowCalendar(parsed.showCalendar);
+        if (parsed.showDashboard !== undefined) setShowDashboard(parsed.showDashboard);
+        if (parsed.showCalendar !== undefined) setShowCalendar(parsed.showCalendar);
         if (parsed.calendarView) setCalendarView(parsed.calendarView);
-        if (parsed.backlogOpen !== undefined)
-          setBacklogOpen(parsed.backlogOpen);
+        if (parsed.backlogOpen !== undefined) setBacklogOpen(parsed.backlogOpen);
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error("Error loading view preferences:", error);
     }
   }, [selectedDate]);
@@ -242,16 +197,8 @@ export default function DailyTasksApp() {
     fetchCompletions();
   }, [fetchCompletions]);
 
-  const {
-    isOpen: taskDialogOpen,
-    onOpen: openTaskDialog,
-    onClose: closeTaskDialog,
-  } = useDisclosure();
-  const {
-    isOpen: sectionDialogOpen,
-    onOpen: openSectionDialog,
-    onClose: closeSectionDialog,
-  } = useDisclosure();
+  const { isOpen: taskDialogOpen, onOpen: openTaskDialog, onClose: closeTaskDialog } = useDisclosure();
+  const { isOpen: sectionDialogOpen, onOpen: openSectionDialog, onClose: closeSectionDialog } = useDisclosure();
 
   // Save view preferences to localStorage whenever they change
   useEffect(() => {
@@ -264,19 +211,13 @@ export default function DailyTasksApp() {
         calendarView,
         backlogOpen,
       };
-      localStorage.setItem(
-        "juda-view-preferences",
-        JSON.stringify(preferences)
-      );
+      localStorage.setItem("juda-view-preferences", JSON.stringify(preferences));
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error("Error saving view preferences:", error);
     }
   }, [showDashboard, showCalendar, calendarView, backlogOpen]);
-  const {
-    isOpen: settingsOpen,
-    onOpen: openSettings,
-    onClose: closeSettings,
-  } = useDisclosure();
+  const { isOpen: settingsOpen, onOpen: openSettings, onClose: closeSettings } = useDisclosure();
 
   const today = useMemo(() => {
     const d = new Date();
@@ -285,8 +226,7 @@ export default function DailyTasksApp() {
   }, []);
 
   const greeting = getGreeting();
-  const GreetingIcon =
-    greeting.icon === "Sun" ? Sun : greeting.icon === "Sunset" ? Sunset : Moon;
+  const GreetingIcon = greeting.icon === "Sun" ? Sun : greeting.icon === "Sunset" ? Sunset : Moon;
 
   // Tasks that should show in today's dashboard, enhanced with completion status
   const todaysTasks = useMemo(
@@ -305,9 +245,7 @@ export default function DailyTasksApp() {
   const tasksBySection = useMemo(() => {
     const grouped = {};
     sections.forEach(s => {
-      grouped[s.id] = todaysTasks
-        .filter(t => t.sectionId === s.id)
-        .sort((a, b) => (a.order || 0) - (b.order || 0));
+      grouped[s.id] = todaysTasks.filter(t => t.sectionId === s.id).sort((a, b) => (a.order || 0) - (b.order || 0));
     });
     return grouped;
   }, [todaysTasks, sections]);
@@ -330,14 +268,10 @@ export default function DailyTasksApp() {
     // Check if task is completed today via completion record
     const isCompletedToday = isCompletedOnDate(t.id, today);
     // Also check subtasks completion
-    const allSubtasksComplete =
-      t.subtasks &&
-      t.subtasks.length > 0 &&
-      t.subtasks.every(st => st.completed);
+    const allSubtasksComplete = t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed);
     return isCompletedToday || allSubtasksComplete;
   }).length;
-  const progressPercent =
-    totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   // Task handlers
   const handleToggleTask = async taskId => {
@@ -366,6 +300,7 @@ export default function DailyTasksApp() {
           })) || [],
       });
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error("Error toggling task completion:", error);
     }
   };
@@ -374,9 +309,7 @@ export default function DailyTasksApp() {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
     const updatedSubtasks =
-      task.subtasks?.map(st =>
-        st.id === subtaskId ? { ...st, completed: !st.completed } : st
-      ) || [];
+      task.subtasks?.map(st => (st.id === subtaskId ? { ...st, completed: !st.completed } : st)) || [];
     await updateTask(taskId, { subtasks: updatedSubtasks });
   };
 
@@ -449,9 +382,7 @@ export default function DailyTasksApp() {
 
     // Handle section reordering
     if (type === "SECTION") {
-      const newSections = Array.from(sections).sort(
-        (a, b) => a.order - b.order
-      );
+      const newSections = Array.from(sections).sort((a, b) => a.order - b.order);
       const [reorderedSection] = newSections.splice(source.index, 1);
       newSections.splice(destination.index, 0, reorderedSection);
       await reorderSections(newSections);
@@ -461,10 +392,7 @@ export default function DailyTasksApp() {
     // Handle backlog item reordering (quick notes)
     if (type === "BACKLOG_ITEM") {
       // Only allow reordering within the backlog-items container
-      if (
-        source.droppableId === "backlog-items" &&
-        destination.droppableId === "backlog-items"
-      ) {
+      if (source.droppableId === "backlog-items" && destination.droppableId === "backlog-items") {
         // Skip if dropped in same position
         if (source.index === destination.index) {
           return;
@@ -494,13 +422,6 @@ export default function DailyTasksApp() {
       // Get the calculated drop time (if dropping on timed calendar area)
       const calculatedTime = dropTimeRef.current || "09:00";
       dropTimeRef.current = null;
-
-      console.log("Drag:", {
-        from: sourceParsed,
-        to: destParsed,
-        task: task.title,
-        calculatedTime,
-      });
 
       // Determine what updates to make based on source and destination
       let updates = {};
@@ -552,18 +473,10 @@ export default function DailyTasksApp() {
       // Handle reordering when dropping into a section
       if (destParsed.type === "today-section") {
         const targetSectionId = destParsed.sectionId;
-        const sourceSectionId =
-          sourceParsed.type === "today-section"
-            ? sourceParsed.sectionId
-            : task.sectionId; // Use task's current sectionId if not from a section
+        const sourceSectionId = sourceParsed.type === "today-section" ? sourceParsed.sectionId : task.sectionId; // Use task's current sectionId if not from a section
 
         // Use the dedicated reorderTask function which handles all reordering logic
-        await reorderTask(
-          taskId,
-          sourceSectionId,
-          targetSectionId,
-          destination.index
-        );
+        await reorderTask(taskId, sourceSectionId, targetSectionId, destination.index);
 
         // Apply time/recurrence updates separately if there are any
         if (Object.keys(updates).length > 0) {
@@ -604,7 +517,13 @@ export default function DailyTasksApp() {
 
   const handleDeleteSection = async sectionId => {
     if (sections.length <= 1) {
-      alert("Need at least one section");
+      toast({
+        title: "Cannot delete section",
+        description: "You need at least one section",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
       return;
     }
     await deleteSection(sectionId);
@@ -692,10 +611,7 @@ export default function DailyTasksApp() {
       const droppableId = over.id;
 
       // Check if we're over a timed calendar area
-      if (
-        droppableId.startsWith("calendar-day|") ||
-        droppableId.startsWith("calendar-week|")
-      ) {
+      if (droppableId.startsWith("calendar-day|") || droppableId.startsWith("calendar-week|")) {
         currentCalendarDroppableRef.current = droppableId;
 
         // Set up mousemove listener if not already set
@@ -704,15 +620,10 @@ export default function DailyTasksApp() {
             if (!currentCalendarDroppableRef.current) return;
 
             // Find calendar timed area using data attribute
-            const timedAreas = Array.from(
-              document.querySelectorAll('[data-calendar-timed="true"]')
-            ).filter(el => {
+            const timedAreas = Array.from(document.querySelectorAll('[data-calendar-timed="true"]')).filter(el => {
               const rect = el.getBoundingClientRect();
               return (
-                rect.top <= e.clientY &&
-                rect.bottom >= e.clientY &&
-                rect.left <= e.clientX &&
-                rect.right >= e.clientX
+                rect.top <= e.clientY && rect.bottom >= e.clientY && rect.left <= e.clientX && rect.right >= e.clientX
               );
             });
 
@@ -723,13 +634,9 @@ export default function DailyTasksApp() {
 
               // Get HOUR_HEIGHT from data attribute or use default based on view
               const hourHeight =
-                parseInt(timedArea.getAttribute("data-hour-height")) ||
-                (calendarView === "day" ? 64 : 48);
+                parseInt(timedArea.getAttribute("data-hour-height")) || (calendarView === "day" ? 64 : 48);
 
-              const minutes = Math.max(
-                0,
-                Math.min(24 * 60 - 1, Math.floor((y / hourHeight) * 60))
-              );
+              const minutes = Math.max(0, Math.min(24 * 60 - 1, Math.floor((y / hourHeight) * 60)));
               const snappedMinutes = snapToIncrement(minutes, 15);
               dropTimeRef.current = minutesToTime(snappedMinutes);
             }
@@ -745,10 +652,7 @@ export default function DailyTasksApp() {
           window.removeEventListener("mousemove", mouseMoveListenerRef.current);
           mouseMoveListenerRef.current = null;
         }
-        if (
-          droppableId.startsWith("calendar-day-untimed|") ||
-          droppableId.startsWith("calendar-week-untimed|")
-        ) {
+        if (droppableId.startsWith("calendar-day-untimed|") || droppableId.startsWith("calendar-week-untimed|")) {
           dropTimeRef.current = null;
         }
       }
@@ -799,9 +703,7 @@ export default function DailyTasksApp() {
         const match = draggableId.match(/-calendar-timed-(.+)$/);
         if (match) {
           const dateStr = match[1];
-          sourceContainerId = dateStr.includes("T")
-            ? `calendar-day|${dateStr}`
-            : `calendar-week|${dateStr}`;
+          sourceContainerId = dateStr.includes("T") ? `calendar-day|${dateStr}` : `calendar-week|${dateStr}`;
         }
       }
     }
@@ -814,10 +716,7 @@ export default function DailyTasksApp() {
     if (overDroppable?.sectionId) {
       // Dropping directly on a section droppable area
       destContainerId = `today-section|${overDroppable.sectionId}`;
-    } else if (
-      over.id.startsWith("task-") &&
-      over.id.includes("-today-section-")
-    ) {
+    } else if (over.id.startsWith("task-") && over.id.includes("-today-section-")) {
       // Dropping on a task in a section - extract section from task's draggableId
       const match = over.id.match(/-today-section-([^-]+)/);
       if (match) destContainerId = `today-section|${match[1]}`;
@@ -852,12 +751,7 @@ export default function DailyTasksApp() {
     }
 
     // Handle reordering within the same container using arrayMove
-    if (
-      activeSortable &&
-      overSortable &&
-      sourceContainerId === destContainerId &&
-      sourceContainerId
-    ) {
+    if (activeSortable && overSortable && sourceContainerId === destContainerId && sourceContainerId) {
       const oldIndex = activeSortable.index;
       const newIndex = overSortable.index;
 
@@ -915,22 +809,9 @@ export default function DailyTasksApp() {
   };
 
   return (
-    <Box
-      h="100vh"
-      display="flex"
-      flexDirection="column"
-      overflow="hidden"
-      bg={bgColor}
-      color={textColor}
-    >
+    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg={bgColor} color={textColor}>
       {/* Header */}
-      <Box
-        as="header"
-        bg={headerBg}
-        borderBottomWidth="1px"
-        borderColor={borderColor}
-        flexShrink={0}
-      >
+      <Box as="header" bg={headerBg} borderBottomWidth="1px" borderColor={borderColor} flexShrink={0}>
         <Box w="full" px={4} py={4}>
           <Flex align="center" justify="space-between">
             <Flex align="center" gap={3}>
@@ -961,20 +842,12 @@ export default function DailyTasksApp() {
                         Toggle dark theme
                       </Text>
                     </Box>
-                    <Switch
-                      isChecked={colorMode === "dark"}
-                      onChange={toggleColorMode}
-                    />
+                    <Switch isChecked={colorMode === "dark"} onChange={toggleColorMode} />
                   </Flex>
                 </ModalBody>
               </ModalContent>
             </Modal>
-            <IconButton
-              icon={<Settings size={20} />}
-              onClick={openSettings}
-              variant="ghost"
-              aria-label="Settings"
-            />
+            <IconButton icon={<Settings size={20} />} onClick={openSettings} variant="ghost" aria-label="Settings" />
           </Flex>
 
           {/* Main Tabs */}
@@ -1002,8 +875,7 @@ export default function DailyTasksApp() {
                     >
                       Backlog
                     </Button>
-                    {(backlog.filter(b => !b.completed).length > 0 ||
-                      backlogTasks.length > 0) && (
+                    {(backlog.filter(b => !b.completed).length > 0 || backlogTasks.length > 0) && (
                       <Badge
                         position="absolute"
                         top="-1"
@@ -1018,8 +890,7 @@ export default function DailyTasksApp() {
                         alignItems="center"
                         justifyContent="center"
                       >
-                        {backlog.filter(b => !b.completed).length +
-                          backlogTasks.length}
+                        {backlog.filter(b => !b.completed).length + backlogTasks.length}
                       </Badge>
                     )}
                   </Box>
@@ -1070,11 +941,7 @@ export default function DailyTasksApp() {
                   <Text fontSize="sm" fontWeight="medium" minW="120px">
                     {getCalendarTitle()}
                   </Text>
-                  <Select
-                    value={calendarView}
-                    onChange={e => setCalendarView(e.target.value)}
-                    w={24}
-                  >
+                  <Select value={calendarView} onChange={e => setCalendarView(e.target.value)} w={24}>
                     <option value="day">Day</option>
                     <option value="week">Week</option>
                     <option value="month">Month</option>
@@ -1085,23 +952,13 @@ export default function DailyTasksApp() {
               {/* Progress bar */}
               {showDashboard && (
                 <Box>
-                  <Flex
-                    justify="space-between"
-                    fontSize="sm"
-                    color={mutedText}
-                    mb={1}
-                  >
-                    <Text>Today's Progress</Text>
+                  <Flex justify="space-between" fontSize="sm" color={mutedText} mb={1}>
+                    <Text>Today&apos;s Progress</Text>
                     <Text>
                       {completedTasks}/{totalTasks} ({progressPercent}%)
                     </Text>
                   </Flex>
-                  <Box
-                    h={2}
-                    bg={useColorModeValue("gray.200", "gray.700")}
-                    borderRadius="full"
-                    overflow="hidden"
-                  >
+                  <Box h={2} bg={progressBarBg} borderRadius="full" overflow="hidden">
                     <Box
                       h="full"
                       bgGradient="linear(to-r, blue.500, green.500)"
@@ -1138,7 +995,6 @@ export default function DailyTasksApp() {
             >
               {backlogOpen && (
                 <BacklogDrawer
-                  isOpen={true}
                   onClose={() => setBacklogOpen(false)}
                   backlog={backlog}
                   backlogTasks={backlogTasks}
@@ -1188,19 +1044,8 @@ export default function DailyTasksApp() {
 
                   {/* Calendar View */}
                   {showCalendar && (
-                    <Box
-                      flex={1}
-                      minW={0}
-                      display="flex"
-                      flexDirection="column"
-                    >
-                      <Card
-                        flex={1}
-                        overflow="hidden"
-                        bg={bgColor}
-                        borderColor={borderColor}
-                        minH="600px"
-                      >
+                    <Box flex={1} minW={0} display="flex" flexDirection="column">
+                      <Card flex={1} overflow="hidden" bg={bgColor} borderColor={borderColor} minH="600px">
                         <CardBody p={0} h="full">
                           {calendarView === "day" && selectedDate && (
                             <CalendarDayView
@@ -1269,21 +1114,16 @@ export default function DailyTasksApp() {
               px={4}
               py={2}
               borderRadius="lg"
-              bg={useColorModeValue("blue.100", "blue.800")}
+              bg={dragOverlayBg}
               borderWidth="2px"
-              borderColor={useColorModeValue("blue.400", "blue.500")}
+              borderColor={dragOverlayBorder}
               boxShadow="0 10px 25px -5px rgba(59, 130, 246, 0.4)"
               w="180px"
               h="40px"
               opacity={0.9}
               transform="rotate(2deg)"
             >
-              <Text
-                fontSize="sm"
-                fontWeight="semibold"
-                color={useColorModeValue("blue.900", "blue.100")}
-                isTruncated
-              >
+              <Text fontSize="sm" fontWeight="semibold" color={dragOverlayText} isTruncated>
                 {activeTask.title}
               </Text>
             </Box>
@@ -1292,19 +1132,14 @@ export default function DailyTasksApp() {
               px={4}
               py={3}
               borderRadius="lg"
-              bg={useColorModeValue("blue.100", "blue.800")}
+              bg={dragOverlayBg}
               borderWidth="2px"
-              borderColor={useColorModeValue("blue.400", "blue.500")}
+              borderColor={dragOverlayBorder}
               boxShadow="0 10px 25px -5px rgba(59, 130, 246, 0.4)"
               opacity={0.9}
             >
-              <Text
-                fontSize="sm"
-                fontWeight="semibold"
-                color={useColorModeValue("blue.900", "blue.100")}
-              >
-                {sections.find(s => `section-${s.id}` === activeId)?.name ||
-                  "Section"}
+              <Text fontSize="sm" fontWeight="semibold" color={dragOverlayText}>
+                {sections.find(s => `section-${s.id}` === activeId)?.name || "Section"}
               </Text>
             </Box>
           ) : activeId?.startsWith("backlog-item-") ? (
@@ -1312,19 +1147,14 @@ export default function DailyTasksApp() {
               px={4}
               py={2}
               borderRadius="lg"
-              bg={useColorModeValue("blue.100", "blue.800")}
+              bg={dragOverlayBg}
               borderWidth="2px"
-              borderColor={useColorModeValue("blue.400", "blue.500")}
+              borderColor={dragOverlayBorder}
               boxShadow="0 10px 25px -5px rgba(59, 130, 246, 0.4)"
               opacity={0.9}
             >
-              <Text
-                fontSize="sm"
-                fontWeight="semibold"
-                color={useColorModeValue("blue.900", "blue.100")}
-              >
-                {backlog.find(b => `backlog-item-${b.id}` === activeId)
-                  ?.title || "Backlog Item"}
+              <Text fontSize="sm" fontWeight="semibold" color={dragOverlayText}>
+                {backlog.find(b => `backlog-item-${b.id}` === activeId)?.title || "Backlog Item"}
               </Text>
             </Box>
           ) : null}

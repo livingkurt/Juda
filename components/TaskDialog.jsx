@@ -25,16 +25,7 @@ import {
 import { Plus, Trash2 } from "lucide-react";
 import { DAYS_OF_WEEK, DURATION_OPTIONS } from "@/lib/constants";
 
-export const TaskDialog = ({
-  isOpen,
-  onClose,
-  task,
-  sections,
-  onSave,
-  defaultSectionId,
-  defaultTime,
-  defaultDate,
-}) => {
+export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSectionId, defaultTime, defaultDate }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const [title, setTitle] = useState("");
   const [sectionId, setSectionId] = useState("");
@@ -47,16 +38,7 @@ export const TaskDialog = ({
   const [newSubtask, setNewSubtask] = useState("");
   const [color, setColor] = useState("#3b82f6");
 
-  const colors = [
-    "#3b82f6",
-    "#10b981",
-    "#f59e0b",
-    "#ef4444",
-    "#8b5cf6",
-    "#ec4899",
-    "#6366f1",
-    "#14b8a6",
-  ];
+  const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6"];
 
   useEffect(() => {
     if (task) {
@@ -78,10 +60,7 @@ export const TaskDialog = ({
       setTitle("");
       setSectionId(defaultSectionId || sections[0]?.id || "");
       setTime(defaultTime || "");
-      setDate(
-        defaultDate ||
-          (defaultTime ? new Date().toISOString().split("T")[0] : "")
-      );
+      setDate(defaultDate || (defaultTime ? new Date().toISOString().split("T")[0] : ""));
       setDuration(30);
       setRecurrenceType("none");
       setSelectedDays([]);
@@ -155,10 +134,7 @@ export const TaskDialog = ({
             </Box>
             <Box w="full">
               <FormLabel>Section</FormLabel>
-              <Select
-                value={sectionId}
-                onChange={e => setSectionId(e.target.value)}
-              >
+              <Select value={sectionId} onChange={e => setSectionId(e.target.value)}>
                 {sections.map(s => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -169,29 +145,16 @@ export const TaskDialog = ({
             <SimpleGrid columns={2} spacing={4} w="full">
               <Box>
                 <FormLabel>Date</FormLabel>
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                  placeholder="Optional"
-                />
+                <Input type="date" value={date} onChange={e => setDate(e.target.value)} placeholder="Optional" />
               </Box>
               <Box>
                 <FormLabel>Time</FormLabel>
-                <Input
-                  type="time"
-                  value={time}
-                  onChange={e => setTime(e.target.value)}
-                  placeholder="Optional"
-                />
+                <Input type="time" value={time} onChange={e => setTime(e.target.value)} placeholder="Optional" />
               </Box>
             </SimpleGrid>
             <Box w="full">
               <FormLabel>Duration</FormLabel>
-              <Select
-                value={duration.toString()}
-                onChange={e => setDuration(parseInt(e.target.value))}
-              >
+              <Select value={duration.toString()} onChange={e => setDuration(parseInt(e.target.value))}>
                 {DURATION_OPTIONS.map(d => (
                   <option key={d.value} value={d.value.toString()}>
                     {d.label}
@@ -201,10 +164,7 @@ export const TaskDialog = ({
             </Box>
             <Box w="full">
               <FormLabel>Recurrence</FormLabel>
-              <Select
-                value={recurrenceType}
-                onChange={e => setRecurrenceType(e.target.value)}
-              >
+              <Select value={recurrenceType} onChange={e => setRecurrenceType(e.target.value)}>
                 <option value="none">None (One-time task)</option>
                 <option value="daily">Every day</option>
                 <option value="weekly">Specific days</option>
@@ -222,17 +182,11 @@ export const TaskDialog = ({
                     fontWeight="medium"
                     onClick={() =>
                       setSelectedDays(prev =>
-                        prev.includes(day.value)
-                          ? prev.filter(d => d !== day.value)
-                          : [...prev, day.value]
+                        prev.includes(day.value) ? prev.filter(d => d !== day.value) : [...prev, day.value]
                       )
                     }
-                    colorScheme={
-                      selectedDays.includes(day.value) ? "blue" : "gray"
-                    }
-                    variant={
-                      selectedDays.includes(day.value) ? "solid" : "outline"
-                    }
+                    colorScheme={selectedDays.includes(day.value) ? "blue" : "gray"}
+                    variant={selectedDays.includes(day.value) ? "solid" : "outline"}
                   >
                     {day.short}
                   </Button>
@@ -249,9 +203,7 @@ export const TaskDialog = ({
                     </Text>
                     <IconButton
                       icon={<Trash2 size={14} />}
-                      onClick={() =>
-                        setSubtasks(subtasks.filter(s => s.id !== st.id))
-                      }
+                      onClick={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
                       size="sm"
                       variant="ghost"
                       colorScheme="red"

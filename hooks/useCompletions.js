@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 
 export const useCompletions = () => {
   const [completions, setCompletions] = useState([]);
@@ -16,9 +16,7 @@ export const useCompletions = () => {
       const response = await fetch(`/api/completions?${params}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error || `Failed to fetch completions (${response.status})`
-        );
+        throw new Error(errorData.error || `Failed to fetch completions (${response.status})`);
       }
       const data = await response.json();
       setCompletions(data);
@@ -58,11 +56,7 @@ export const useCompletions = () => {
       });
       if (!response.ok) throw new Error("Failed to delete completion");
       setCompletions(prev =>
-        prev.filter(
-          c =>
-            c.taskId !== taskId ||
-            new Date(c.date).toDateString() !== new Date(date).toDateString()
-        )
+        prev.filter(c => c.taskId !== taskId || new Date(c.date).toDateString() !== new Date(date).toDateString())
       );
     } catch (err) {
       setError(err.message);
@@ -78,10 +72,7 @@ export const useCompletions = () => {
       return completions.some(c => {
         const completionDate = new Date(c.date);
         completionDate.setHours(0, 0, 0, 0);
-        return (
-          c.taskId === taskId &&
-          completionDate.getTime() === checkDate.getTime()
-        );
+        return c.taskId === taskId && completionDate.getTime() === checkDate.getTime();
       });
     },
     [completions]

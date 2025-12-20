@@ -8,10 +8,7 @@ export async function PUT(request) {
 
     // Validate that both section IDs are provided
     if (!sourceSectionId || !targetSectionId) {
-      return NextResponse.json(
-        { error: "Source and target section IDs are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Source and target section IDs are required" }, { status: 400 });
     }
 
     // Get the task to move
@@ -113,9 +110,6 @@ export async function PUT(request) {
     return NextResponse.json(updatedTask);
   } catch (error) {
     console.error("Error reordering task:", error);
-    return NextResponse.json(
-      { error: "Failed to reorder task" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to reorder task" }, { status: 500 });
   }
 }

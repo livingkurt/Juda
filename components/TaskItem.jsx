@@ -1,38 +1,12 @@
 "use client";
 
-import {
-  Box,
-  Checkbox,
-  Text,
-  Flex,
-  HStack,
-  IconButton,
-  VStack,
-} from "@chakra-ui/react";
+import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack } from "@chakra-ui/react";
 import { useColorModeValue } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import {
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Edit2,
-  Trash2,
-  GripVertical,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Clock, Edit2, Trash2, GripVertical } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 
-export const TaskItem = ({
-  task,
-  index,
-  onToggle,
-  onToggleSubtask,
-  onToggleExpand,
-  onEdit,
-  onDelete,
-  hoveredDroppable,
-  draggableId,
-}) => {
+export const TaskItem = ({ task, onToggle, onToggleSubtask, onToggleExpand, onEdit, onDelete, draggableId }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
@@ -41,10 +15,7 @@ export const TaskItem = ({
   const subtaskText = useColorModeValue("gray.700", "gray.200");
   const gripColor = useColorModeValue("gray.400", "gray.500");
 
-  const allSubtasksComplete =
-    task.subtasks &&
-    task.subtasks.length > 0 &&
-    task.subtasks.every(st => st.completed);
+  const allSubtasksComplete = task.subtasks && task.subtasks.length > 0 && task.subtasks.every(st => st.completed);
 
   // Extract containerId from draggableId
   let containerId = null;
@@ -55,14 +26,7 @@ export const TaskItem = ({
     containerId = "backlog";
   }
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: draggableId,
     data: {
       type: "TASK",
@@ -71,8 +35,7 @@ export const TaskItem = ({
   });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition: transition || "transform 200ms ease",
+    // Don't apply transform - DragOverlay handles the preview
     opacity: isDragging ? 0.5 : 1,
   };
 
@@ -85,34 +48,16 @@ export const TaskItem = ({
         borderColor={borderColor}
         transition="box-shadow 0.2s, border-color 0.2s"
       >
-        <Flex
-          align="center"
-          gap={2}
-          p={3}
-          _hover={{ bg: hoverBg }}
-          _active={{ cursor: "grabbing" }}
-        >
+        <Flex align="center" gap={2} p={3} _hover={{ bg: hoverBg }} _active={{ cursor: "grabbing" }}>
           {/* Drag handle */}
-          <Box
-            {...attributes}
-            {...listeners}
-            cursor="grab"
-            _active={{ cursor: "grabbing" }}
-            color={gripColor}
-          >
+          <Box {...attributes} {...listeners} cursor="grab" _active={{ cursor: "grabbing" }} color={gripColor}>
             <GripVertical size={16} />
           </Box>
 
           {/* Expand button for subtasks */}
           {task.subtasks && task.subtasks.length > 0 ? (
             <IconButton
-              icon={
-                task.expanded ? (
-                  <ChevronDown size={16} />
-                ) : (
-                  <ChevronRight size={16} />
-                )
-              }
+              icon={task.expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               onClick={e => {
                 e.stopPropagation();
                 onToggleExpand(task.id);
@@ -136,21 +81,13 @@ export const TaskItem = ({
           />
 
           {/* Color indicator */}
-          <Box
-            w={3}
-            h={3}
-            borderRadius="full"
-            bg={task.color || "#3b82f6"}
-            flexShrink={0}
-          />
+          <Box w={3} h={3} borderRadius="full" bg={task.color || "#3b82f6"} flexShrink={0} />
 
           {/* Task content */}
           <Box flex={1} minW={0}>
             <Text
               fontWeight="medium"
-              textDecoration={
-                task.completed || allSubtasksComplete ? "line-through" : "none"
-              }
+              textDecoration={task.completed || allSubtasksComplete ? "line-through" : "none"}
               opacity={task.completed || allSubtasksComplete ? 0.5 : 1}
               color={textColor}
             >
@@ -158,8 +95,7 @@ export const TaskItem = ({
             </Text>
             {task.subtasks && task.subtasks.length > 0 && (
               <Text as="span" ml={2} fontSize="xs" color={mutedText}>
-                ({task.subtasks.filter(st => st.completed).length}/
-                {task.subtasks.length})
+                ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})
               </Text>
             )}
           </Box>

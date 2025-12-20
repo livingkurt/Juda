@@ -46,9 +46,7 @@ export const useBacklog = () => {
     const previousBacklog = [...backlog];
 
     // Optimistic update
-    setBacklog(prev =>
-      prev.map(item => (item.id === id ? { ...item, completed } : item))
-    );
+    setBacklog(prev => prev.map(item => (item.id === id ? { ...item, completed } : item)));
 
     try {
       const response = await fetch("/api/backlog", {
@@ -58,9 +56,7 @@ export const useBacklog = () => {
       });
       if (!response.ok) throw new Error("Failed to update backlog item");
       const updatedItem = await response.json();
-      setBacklog(prev =>
-        prev.map(item => (item.id === id ? updatedItem : item))
-      );
+      setBacklog(prev => prev.map(item => (item.id === id ? updatedItem : item)));
       return updatedItem;
     } catch (err) {
       setBacklog(previousBacklog);

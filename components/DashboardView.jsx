@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   Box,
-  Container,
   Heading,
   Text,
   Table,
@@ -43,11 +42,7 @@ import {
 } from "recharts";
 
 export const DashboardView = () => {
-  const {
-    completions,
-    fetchCompletions,
-    loading: completionsLoading,
-  } = useCompletions();
+  const { completions, fetchCompletions, loading: completionsLoading } = useCompletions();
   const { tasks, loading: tasksLoading } = useTasks();
   const [dateRange, setDateRange] = useState("30"); // days
   const [selectedTask, setSelectedTask] = useState("all");
@@ -91,11 +86,7 @@ export const DashboardView = () => {
     const dataMap = new Map();
 
     // Initialize all dates in range
-    for (
-      let d = new Date(startDate);
-      d <= endDate;
-      d.setDate(d.getDate() + 1)
-    ) {
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
       const dateKey = d.toISOString().split("T")[0];
       dataMap.set(dateKey, {
         date: dateKey,
@@ -155,31 +146,6 @@ export const DashboardView = () => {
     }));
   }, [chartData]);
 
-  // Task completion breakdown
-  const taskBreakdown = useMemo(() => {
-    const breakdown = new Map();
-
-    completions.forEach(completion => {
-      const taskId = completion.taskId;
-      const task = tasks.find(t => t.id === taskId);
-      const taskTitle = task?.title || "Unknown Task";
-
-      if (!breakdown.has(taskId)) {
-        breakdown.set(taskId, {
-          taskId,
-          taskTitle,
-          count: 0,
-        });
-      }
-
-      breakdown.get(taskId).count += 1;
-    });
-
-    return Array.from(breakdown.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10); // Top 10 tasks
-  }, [completions, tasks]);
-
   if (loading) {
     return (
       <Box p={6}>
@@ -195,9 +161,7 @@ export const DashboardView = () => {
           <Heading size="lg" mb={2} color={textColor}>
             Completion History Dashboard
           </Heading>
-          <Text color={mutedText}>
-            Track your task completion history over time
-          </Text>
+          <Text color={mutedText}>Track your task completion history over time</Text>
         </Box>
 
         {/* Filters */}
@@ -264,17 +228,8 @@ export const DashboardView = () => {
                 <CardBody>
                   <ResponsiveContainer width="100%" height={400}>
                     <LineChart data={chartData}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke={borderColor}
-                      />
-                      <XAxis
-                        dataKey="formattedDate"
-                        angle={-45}
-                        textAnchor="end"
-                        height={100}
-                        stroke={mutedText}
-                      />
+                      <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
+                      <XAxis dataKey="formattedDate" angle={-45} textAnchor="end" height={100} stroke={mutedText} />
                       <YAxis stroke={mutedText} />
                       <Tooltip
                         contentStyle={{
@@ -284,13 +239,7 @@ export const DashboardView = () => {
                         }}
                       />
                       <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="completions"
-                        stroke="#3b82f6"
-                        strokeWidth={2}
-                        name="Completions"
-                      />
+                      <Line type="monotone" dataKey="completions" stroke="#3b82f6" strokeWidth={2} name="Completions" />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardBody>
@@ -308,17 +257,8 @@ export const DashboardView = () => {
                 <CardBody>
                   <ResponsiveContainer width="100%" height={400}>
                     <BarChart data={dailyTotals}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke={borderColor}
-                      />
-                      <XAxis
-                        dataKey="formattedDate"
-                        angle={-45}
-                        textAnchor="end"
-                        height={100}
-                        stroke={mutedText}
-                      />
+                      <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
+                      <XAxis dataKey="formattedDate" angle={-45} textAnchor="end" height={100} stroke={mutedText} />
                       <YAxis stroke={mutedText} />
                       <Tooltip
                         contentStyle={{
@@ -358,36 +298,22 @@ export const DashboardView = () => {
                         {completions
                           .sort((a, b) => new Date(b.date) - new Date(a.date))
                           .map(completion => {
-                            const task = tasks.find(
-                              t => t.id === completion.taskId
-                            );
+                            const task = tasks.find(t => t.id === completion.taskId);
                             return (
-                              <Tr
-                                key={completion.id}
-                                _hover={{ bg: tableRowHover }}
-                              >
+                              <Tr key={completion.id} _hover={{ bg: tableRowHover }}>
                                 <Td color={textColor}>
-                                  {new Date(completion.date).toLocaleDateString(
-                                    "en-US",
-                                    {
-                                      year: "numeric",
-                                      month: "short",
-                                      day: "numeric",
-                                    }
-                                  )}
+                                  {new Date(completion.date).toLocaleDateString("en-US", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
                                 </Td>
-                                <Td color={textColor}>
-                                  {task?.title || "Unknown Task"}
-                                </Td>
+                                <Td color={textColor}>{task?.title || "Unknown Task"}</Td>
                                 <Td>
-                                  <Badge colorScheme="blue">
-                                    {task?.section?.name || "N/A"}
-                                  </Badge>
+                                  <Badge colorScheme="blue">{task?.section?.name || "N/A"}</Badge>
                                 </Td>
                                 <Td color={textColor}>
-                                  {new Date(
-                                    completion.createdAt
-                                  ).toLocaleString("en-US", {
+                                  {new Date(completion.createdAt).toLocaleString("en-US", {
                                     hour: "numeric",
                                     minute: "2-digit",
                                   })}
@@ -398,9 +324,7 @@ export const DashboardView = () => {
                         {completions.length === 0 && (
                           <Tr>
                             <Td colSpan={4} textAlign="center" py={8}>
-                              <Text color={mutedText}>
-                                No completions found for the selected period
-                              </Text>
+                              <Text color={mutedText}>No completions found for the selected period</Text>
                             </Td>
                           </Tr>
                         )}

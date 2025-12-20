@@ -3,14 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Box, Text, Flex, VStack, useColorModeValue } from "@chakra-ui/react";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
-import {
-  timeToMinutes,
-  minutesToTime,
-  snapToIncrement,
-  shouldShowOnDate,
-  calculateTaskPositions,
-} from "@/lib/utils";
+import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate, calculateTaskPositions } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 
 const HOUR_HEIGHT = 48;
@@ -18,14 +11,7 @@ const DRAG_THRESHOLD = 5;
 
 // Draggable untimed task for week view
 const UntimedWeekTask = ({ task, onTaskClick, createDraggableId, day }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: createDraggableId.calendarUntimed(task.id, day),
     data: { task, type: "TASK" },
   });
@@ -71,14 +57,7 @@ const TimedWeekTask = ({
   internalDrag,
   handleInternalDragStart,
 }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: createDraggableId.calendarTimed(task.id, day),
     data: { task, type: "TASK" },
   });
@@ -182,13 +161,7 @@ const DayHeaderColumn = ({
       borderColor={borderColor}
     >
       {/* Day header */}
-      <Box
-        textAlign="center"
-        py={2}
-        cursor="pointer"
-        _hover={{ bg: hoverBg }}
-        onClick={() => onDayClick(day)}
-      >
+      <Box textAlign="center" py={2} cursor="pointer" _hover={{ bg: hoverBg }} onClick={() => onDayClick(day)}>
         <Text fontSize="xs" color={hourTextColor}>
           {DAYS_OF_WEEK[dayIndex].short}
         </Text>
@@ -287,7 +260,7 @@ const TimedColumn = ({
       }}
     >
       {/* Render tasks */}
-      {calculateTaskPositions(timedTasks, HOUR_HEIGHT).map(task => (
+      {calculateTaskPositions(timedTasks).map(task => (
         <TimedWeekTask
           key={task.id}
           task={task}
@@ -349,21 +322,13 @@ export const CalendarWeekView = ({
     hasMoved: false,
   });
 
-  const getTasksForDay = day =>
-    tasks.filter(t => t.time && shouldShowOnDate(t, day));
-  const getUntimedTasksForDay = day =>
-    tasks.filter(t => !t.time && shouldShowOnDate(t, day));
+  const getTasksForDay = useCallback(day => tasks.filter(t => t.time && shouldShowOnDate(t, day)), [tasks]);
+  const getUntimedTasksForDay = useCallback(day => tasks.filter(t => !t.time && shouldShowOnDate(t, day)), [tasks]);
 
   const getTaskStyle = task => {
     const isDragging = internalDrag.taskId === task.id;
-    const minutes =
-      isDragging && internalDrag.type === "move"
-        ? internalDrag.currentMinutes
-        : timeToMinutes(task.time);
-    const duration =
-      isDragging && internalDrag.type === "resize"
-        ? internalDrag.currentDuration
-        : task.duration || 30;
+    const minutes = isDragging && internalDrag.type === "move" ? internalDrag.currentMinutes : timeToMinutes(task.time);
+    const duration = isDragging && internalDrag.type === "resize" ? internalDrag.currentDuration : task.duration || 30;
     return {
       top: `${(minutes / 60) * HOUR_HEIGHT}px`,
       height: `${Math.max((duration / 60) * HOUR_HEIGHT, 18)}px`,
@@ -393,23 +358,14 @@ export const CalendarWeekView = ({
       const hasMoved = Math.abs(deltaY) > DRAG_THRESHOLD;
 
       if (internalDrag.type === "move") {
-        const newMinutes = snapToIncrement(
-          internalDrag.startMinutes + (deltaY / HOUR_HEIGHT) * 60,
-          15
-        );
+        const newMinutes = snapToIncrement(internalDrag.startMinutes + (deltaY / HOUR_HEIGHT) * 60, 15);
         setInternalDrag(prev => ({
           ...prev,
-          currentMinutes: Math.max(
-            0,
-            Math.min(24 * 60 - prev.startDuration, newMinutes)
-          ),
+          currentMinutes: Math.max(0, Math.min(24 * 60 - prev.startDuration, newMinutes)),
           hasMoved: hasMoved || prev.hasMoved,
         }));
       } else {
-        const newDuration = snapToIncrement(
-          internalDrag.startDuration + (deltaY / HOUR_HEIGHT) * 60,
-          15
-        );
+        const newDuration = snapToIncrement(internalDrag.startDuration + (deltaY / HOUR_HEIGHT) * 60, 15);
         setInternalDrag(prev => ({
           ...prev,
           currentDuration: Math.max(15, newDuration),
@@ -423,8 +379,7 @@ export const CalendarWeekView = ({
   const handleInternalDragEnd = useCallback(() => {
     if (!internalDrag.taskId) return;
 
-    const { taskId, type, currentMinutes, currentDuration, hasMoved } =
-      internalDrag;
+    const { taskId, type, currentMinutes, currentDuration, hasMoved } = internalDrag;
 
     setInternalDrag({
       taskId: null,
@@ -453,14 +408,7 @@ export const CalendarWeekView = ({
       if (!task) task = tasks.find(t => t.id === taskId);
       if (task) setTimeout(() => onTaskClick(task), 100);
     }
-  }, [
-    internalDrag,
-    onTaskTimeChange,
-    onTaskDurationChange,
-    weekDays,
-    tasks,
-    onTaskClick,
-  ]);
+  }, [internalDrag, onTaskTimeChange, onTaskDurationChange, weekDays, tasks, onTaskClick, getTasksForDay]);
 
   useEffect(() => {
     if (!internalDrag.taskId) return;
@@ -487,10 +435,7 @@ export const CalendarWeekView = ({
 
   const handleDropTimeCalculation = (e, rect) => {
     const y = e.clientY - rect.top;
-    const minutes = Math.max(
-      0,
-      Math.min(24 * 60 - 1, Math.floor((y / HOUR_HEIGHT) * 60))
-    );
+    const minutes = Math.max(0, Math.min(24 * 60 - 1, Math.floor((y / HOUR_HEIGHT) * 60)));
     const snappedMinutes = snapToIncrement(minutes, 15);
     if (onDropTimeChange) {
       onDropTimeChange(minutesToTime(snappedMinutes));
@@ -500,14 +445,7 @@ export const CalendarWeekView = ({
   return (
     <Flex direction="column" h="full">
       {/* Week header */}
-      <Flex
-        borderBottomWidth="1px"
-        borderColor={borderColor}
-        bg={bgColor}
-        position="sticky"
-        top={0}
-        zIndex={10}
-      >
+      <Flex borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} position="sticky" top={0} zIndex={10}>
         <Box w={12} flexShrink={0} />
         {weekDays.map((day, i) => {
           const untimedTasksForDay = getUntimedTasksForDay(day);
@@ -552,21 +490,8 @@ export const CalendarWeekView = ({
                 height: `${HOUR_HEIGHT}px`,
               }}
             >
-              <Box
-                w={12}
-                fontSize="xs"
-                color={hourTextColor}
-                pr={1}
-                textAlign="right"
-                pt={1}
-              >
-                {hour === 0
-                  ? ""
-                  : hour < 12
-                  ? `${hour}a`
-                  : hour === 12
-                  ? "12p"
-                  : `${hour - 12}p`}
+              <Box w={12} fontSize="xs" color={hourTextColor} pr={1} textAlign="right" pt={1}>
+                {hour === 0 ? "" : hour < 12 ? `${hour}a` : hour === 12 ? "12p" : `${hour - 12}p`}
               </Box>
             </Box>
           ))}

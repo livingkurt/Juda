@@ -44,10 +44,10 @@ export const useSections = () => {
 
   const updateSection = async (id, sectionData) => {
     const previousSections = [...sections];
-    
+
     // Optimistic update
     setSections(prev => prev.map(s => (s.id === id ? { ...s, ...sectionData } : s)));
-    
+
     try {
       const response = await fetch("/api/sections", {
         method: "PUT",
@@ -67,10 +67,10 @@ export const useSections = () => {
 
   const deleteSection = async id => {
     const previousSections = [...sections];
-    
+
     // Optimistic delete
     setSections(prev => prev.filter(s => s.id !== id));
-    
+
     try {
       const response = await fetch(`/api/sections?id=${id}`, {
         method: "DELETE",
@@ -85,7 +85,7 @@ export const useSections = () => {
 
   const reorderSections = async newSections => {
     const previousSections = [...sections];
-    
+
     // Optimistic update with new order
     setSections(newSections.map((s, index) => ({ ...s, order: index })));
 

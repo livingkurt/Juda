@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Box,
-  Text,
-  Flex,
-  SimpleGrid,
-  useColorModeValue,
-} from "@chakra-ui/react";
+import { Box, Flex, SimpleGrid, useColorModeValue } from "@chakra-ui/react";
 import { shouldShowOnDate } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 
@@ -16,6 +10,8 @@ export const CalendarMonthView = ({ date, tasks, onDayClick }) => {
   const hoverBg = useColorModeValue("gray.50", "gray.700");
   const textColor = useColorModeValue("gray.900", "gray.200");
   const mutedText = useColorModeValue("gray.400", "gray.600");
+  const dayHeaderColor = useColorModeValue("gray.500", "gray.400");
+  const nonCurrentMonthBg = useColorModeValue("gray.50", "gray.850");
 
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -23,7 +19,7 @@ export const CalendarMonthView = ({ date, tasks, onDayClick }) => {
   const lastDay = new Date(year, month + 1, 0);
   const startDate = new Date(firstDay);
   startDate.setDate(startDate.getDate() - firstDay.getDay());
-  
+
   const weeks = [];
   const current = new Date(startDate);
   while (current <= lastDay || weeks.length < 6) {
@@ -35,45 +31,26 @@ export const CalendarMonthView = ({ date, tasks, onDayClick }) => {
     weeks.push(week);
     if (weeks.length >= 6) break;
   }
-  
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   return (
     <Flex direction="column" h="full">
-      <SimpleGrid
-        columns={7}
-        borderBottomWidth="1px"
-        borderColor={borderColor}
-        bg={bgColor}
-      >
+      <SimpleGrid columns={7} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor}>
         {DAYS_OF_WEEK.map(day => (
-          <Box
-            key={day.value}
-            textAlign="center"
-            py={2}
-            fontSize="sm"
-            fontWeight="medium"
-            color={useColorModeValue("gray.500", "gray.400")}
-          >
+          <Box key={day.value} textAlign="center" py={2} fontSize="sm" fontWeight="medium" color={dayHeaderColor}>
             {day.label}
           </Box>
         ))}
       </SimpleGrid>
       <Box flex={1}>
         {weeks.map((week, wi) => (
-          <SimpleGrid
-            key={wi}
-            columns={7}
-            borderBottomWidth="1px"
-            borderColor={borderColor}
-          >
+          <SimpleGrid key={wi} columns={7} borderBottomWidth="1px" borderColor={borderColor}>
             {week.map((day, di) => {
               const isCurrentMonth = day.getMonth() === month;
               const isToday = day.toDateString() === today.toDateString();
-              const dayTasks = tasks
-                .filter(t => shouldShowOnDate(t, day))
-                .slice(0, 3);
+              const dayTasks = tasks.filter(t => shouldShowOnDate(t, day)).slice(0, 3);
               return (
                 <Box
                   key={di}
@@ -83,11 +60,7 @@ export const CalendarMonthView = ({ date, tasks, onDayClick }) => {
                   minH="80px"
                   cursor="pointer"
                   _hover={{ bg: hoverBg }}
-                  bg={
-                    !isCurrentMonth
-                      ? useColorModeValue("gray.50", "gray.850")
-                      : "transparent"
-                  }
+                  bg={!isCurrentMonth ? nonCurrentMonthBg : "transparent"}
                   onClick={() => onDayClick(day)}
                 >
                   <Box
@@ -96,13 +69,7 @@ export const CalendarMonthView = ({ date, tasks, onDayClick }) => {
                     mb={1}
                     display="inline-block"
                     bg={isToday ? "blue.500" : "transparent"}
-                    color={
-                      isToday
-                        ? "white"
-                        : !isCurrentMonth
-                        ? mutedText
-                        : textColor
-                    }
+                    color={isToday ? "white" : !isCurrentMonth ? mutedText : textColor}
                     borderRadius="full"
                     w={6}
                     h={6}

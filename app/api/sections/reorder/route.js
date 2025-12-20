@@ -19,9 +19,6 @@ export async function PUT(request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error reordering sections:", error);
-    return NextResponse.json(
-      { error: "Failed to reorder sections" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to reorder sections" }, { status: 500 });
   }
 }

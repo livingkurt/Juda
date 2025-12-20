@@ -11,6 +11,7 @@ This guide will walk you through deploying your Next.js task manager app to Verc
 ## Step 1: Prepare Your Repository
 
 1. Make sure your code is committed to a Git repository:
+
 ```bash
 git add .
 git commit -m "Prepare for Vercel deployment"
@@ -35,6 +36,7 @@ Vercel offers database providers through their Storage marketplace. Here are the
 ### Option B: Other Marketplace Providers
 
 You can also use:
+
 - **Supabase** - Postgres backend (free tier available)
 - **Prisma Postgres** - Instant Serverless Postgres
 - **AWS** - Serverless PostgreSQL
@@ -44,10 +46,12 @@ All marketplace providers will automatically create environment variables in you
 ### Option C: External PostgreSQL Database
 
 You can use any external PostgreSQL provider:
+
 - **Railway**: [railway.app](https://railway.app)
 - **Render**: [render.com](https://render.com)
 
 For external databases, you'll need to manually create a connection string in this format:
+
 ```
 postgresql://user:password@host:port/database?schema=public
 ```
@@ -80,16 +84,19 @@ This will create a `prisma/migrations` folder. Make sure to commit this folder t
 ### Method 2: Via Vercel CLI
 
 1. Install Vercel CLI:
+
 ```bash
 npm i -g vercel
 ```
 
 2. Login to Vercel:
+
 ```bash
 vercel login
 ```
 
 3. Deploy:
+
 ```bash
 vercel
 ```
@@ -135,6 +142,7 @@ npx prisma migrate deploy
 1. Go to your project → Settings → Environment Variables
 2. Copy your `DATABASE_URL`
 3. Run migrations locally with the production database:
+
 ```bash
 DATABASE_URL="your-production-database-url" npx prisma migrate deploy
 ```
@@ -187,4 +195,3 @@ After making changes:
 - [Vercel Documentation](https://vercel.com/docs)
 - [Prisma Deployment Guide](https://www.prisma.io/docs/guides/deployment)
 - [Next.js Deployment](https://nextjs.org/docs/deployment)
-
