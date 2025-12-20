@@ -44,12 +44,12 @@ export const useBacklog = () => {
 
   const updateBacklogItem = async (id, completed) => {
     const previousBacklog = [...backlog];
-    
+
     // Optimistic update
     setBacklog(prev =>
       prev.map(item => (item.id === id ? { ...item, completed } : item))
     );
-    
+
     try {
       const response = await fetch("/api/backlog", {
         method: "PUT",
@@ -71,15 +71,36 @@ export const useBacklog = () => {
 
   const deleteBacklogItem = async id => {
     const previousBacklog = [...backlog];
-    
+
     // Optimistic delete
     setBacklog(prev => prev.filter(item => item.id !== id));
-    
+
     try {
       const response = await fetch(`/api/backlog?id=${id}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete backlog item");
+    } catch (err) {
+      setBacklog(previousBacklog);
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  const reorderBacklog = async newBacklog => {
+    const previousBacklog = [...backlog];
+
+    // Optimistic update with new order
+    setBacklog(newBacklog.map((item, index) => ({ ...item, order: index })));
+
+    try {
+      const response = await fetch("/api/backlog/reorder", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: newBacklog }),
+      });
+      if (!response.ok) throw new Error("Failed to reorder backlog");
+      await fetchBacklog();
     } catch (err) {
       setBacklog(previousBacklog);
       setError(err.message);
@@ -94,6 +115,7 @@ export const useBacklog = () => {
     createBacklogItem,
     updateBacklogItem,
     deleteBacklogItem,
+    reorderBacklog,
     refetch: fetchBacklog,
   };
 };

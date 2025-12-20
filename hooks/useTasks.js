@@ -45,11 +45,9 @@ export const useTasks = () => {
   const updateTask = async (id, taskData) => {
     // Store previous state for potential rollback
     const previousTasks = [...tasks];
-    
+
     // Optimistically update immediately
-    setTasks(prev =>
-      prev.map(t => (t.id === id ? { ...t, ...taskData } : t))
-    );
+    setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...taskData } : t)));
 
     try {
       const response = await fetch("/api/tasks", {
@@ -57,7 +55,12 @@ export const useTasks = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, ...taskData }),
       });
-      if (!response.ok) throw new Error("Failed to update task");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage =
+          errorData.error || `Failed to update task (${response.status})`;
+        throw new Error(errorMessage);
+      }
       const updatedTask = await response.json();
       // Update with server response to ensure consistency
       setTasks(prev => prev.map(t => (t.id === id ? updatedTask : t)));
@@ -72,10 +75,10 @@ export const useTasks = () => {
 
   const deleteTask = async id => {
     const previousTasks = [...tasks];
-    
+
     // Optimistic delete
     setTasks(prev => prev.filter(t => t.id !== id));
-    
+
     try {
       const response = await fetch(`/api/tasks?id=${id}`, {
         method: "DELETE",
@@ -89,9 +92,14 @@ export const useTasks = () => {
     }
   };
 
-  const reorderTask = async (taskId, sourceSectionId, targetSectionId, newOrder) => {
+  const reorderTask = async (
+    taskId,
+    sourceSectionId,
+    targetSectionId,
+    newOrder
+  ) => {
     const previousTasks = [...tasks];
-    
+
     // Optimistic update
     setTasks(prev => {
       const updated = prev.map(t =>

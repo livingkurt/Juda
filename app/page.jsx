@@ -169,60 +169,20 @@ export default function DailyTasksApp() {
     deleteSection,
     reorderSections,
   } = useSections();
-  const { backlog, createBacklogItem, updateBacklogItem, deleteBacklogItem } =
-    useBacklog();
+  const {
+    backlog,
+    createBacklogItem,
+    updateBacklogItem,
+    deleteBacklogItem,
+    reorderBacklog,
+  } = useBacklog();
 
-  // Load view preferences from localStorage on mount using lazy initializers
-  // Use a shared variable to ensure we only read from localStorage once
-  let initialPreferences = null;
-  const getInitialPreferences = () => {
-    if (initialPreferences !== null) return initialPreferences;
-
-    if (typeof window === "undefined") {
-      initialPreferences = {
-        showDashboard: true,
-        showCalendar: true,
-        calendarView: "week",
-        backlogOpen: false,
-      };
-      return initialPreferences;
-    }
-
-    try {
-      const saved = localStorage.getItem("juda-view-preferences");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        initialPreferences = {
-          showDashboard: parsed.showDashboard ?? true,
-          showCalendar: parsed.showCalendar ?? true,
-          calendarView: parsed.calendarView ?? "week",
-          backlogOpen: parsed.backlogOpen ?? false,
-        };
-        return initialPreferences;
-      }
-    } catch (error) {
-      console.error("Error loading view preferences:", error);
-    }
-
-    initialPreferences = {
-      showDashboard: true,
-      showCalendar: true,
-      calendarView: "week",
-      backlogOpen: false,
-    };
-    return initialPreferences;
-  };
-
-  const [showDashboard, setShowDashboard] = useState(
-    () => getInitialPreferences().showDashboard
-  );
-  const [showCalendar, setShowCalendar] = useState(
-    () => getInitialPreferences().showCalendar
-  );
-  const [calendarView, setCalendarView] = useState(
-    () => getInitialPreferences().calendarView
-  );
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  // Initialize state with default values (same on server and client)
+  const [showDashboard, setShowDashboard] = useState(true);
+  const [showCalendar, setShowCalendar] = useState(true);
+  const [calendarView, setCalendarView] = useState("week");
+  // Initialize selectedDate to null, then set it in useEffect to avoid hydration mismatch
+  const [selectedDate, setSelectedDate] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [editingSection, setEditingSection] = useState(null);
   const [defaultSectionId, setDefaultSectionId] = useState(null);
@@ -234,6 +194,32 @@ export default function DailyTasksApp() {
   const [activeId, setActiveId] = useState(null);
   const [activeTask, setActiveTask] = useState(null);
 
+  // Load view preferences from localStorage after mount (client-side only)
+  useEffect(() => {
+    // Set selectedDate on mount to avoid hydration mismatch
+    if (selectedDate === null) {
+      setSelectedDate(new Date());
+    }
+
+    if (typeof window === "undefined") return;
+
+    try {
+      const saved = localStorage.getItem("juda-view-preferences");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.showDashboard !== undefined)
+          setShowDashboard(parsed.showDashboard);
+        if (parsed.showCalendar !== undefined)
+          setShowCalendar(parsed.showCalendar);
+        if (parsed.calendarView) setCalendarView(parsed.calendarView);
+        if (parsed.backlogOpen !== undefined)
+          setBacklogOpen(parsed.backlogOpen);
+      }
+    } catch (error) {
+      console.error("Error loading view preferences:", error);
+    }
+  }, [selectedDate]);
+
   const {
     isOpen: taskDialogOpen,
     onOpen: openTaskDialog,
@@ -244,9 +230,7 @@ export default function DailyTasksApp() {
     onOpen: openSectionDialog,
     onClose: closeSectionDialog,
   } = useDisclosure();
-  const [backlogOpen, setBacklogOpen] = useState(
-    () => getInitialPreferences().backlogOpen
-  );
+  const [backlogOpen, setBacklogOpen] = useState(false);
 
   // Save view preferences to localStorage whenever they change
   useEffect(() => {
@@ -273,8 +257,11 @@ export default function DailyTasksApp() {
     onClose: closeSettings,
   } = useDisclosure();
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
 
   const greeting = getGreeting();
   const GreetingIcon =
@@ -420,6 +407,26 @@ export default function DailyTasksApp() {
       return;
     }
 
+    // Handle backlog item reordering (quick notes)
+    if (type === "BACKLOG_ITEM") {
+      // Only allow reordering within the backlog-items container
+      if (
+        source.droppableId === "backlog-items" &&
+        destination.droppableId === "backlog-items"
+      ) {
+        // Skip if dropped in same position
+        if (source.index === destination.index) {
+          return;
+        }
+
+        const sortedBacklog = [...backlog].sort((a, b) => a.order - b.order);
+        const [reorderedItem] = sortedBacklog.splice(source.index, 1);
+        sortedBacklog.splice(destination.index, 0, reorderedItem);
+        await reorderBacklog(sortedBacklog);
+      }
+      return;
+    }
+
     // Handle task dragging
     if (type === "TASK") {
       // Extract task ID from context-aware draggable ID
@@ -456,31 +463,6 @@ export default function DailyTasksApp() {
       }
       // DESTINATION: Today section - set date to today, clear time
       else if (destParsed.type === "today-section") {
-        const targetSectionId = destParsed.sectionId;
-        const sourceSectionId =
-          sourceParsed.type === "today-section" ? sourceParsed.sectionId : null;
-
-        // If moving between sections, use reorderTask
-        if (sourceSectionId && sourceSectionId !== targetSectionId) {
-          // Moving between sections - use reorderTask which handles both sections
-          await reorderTask(
-            taskId,
-            sourceSectionId,
-            targetSectionId,
-            destination.index
-          );
-          // Still need to update date/time/recurrence
-          await updateTask(taskId, {
-            time: null,
-            recurrence: {
-              type: "none",
-              startDate: today.toISOString(),
-            },
-          });
-          return; // reorderTask handles the reordering, so we're done
-        }
-
-        // For same-section moves or coming from backlog/calendar, handle reordering here
         // Don't set sectionId here - let the reordering logic below handle it
         updates = {
           time: null,
@@ -492,7 +474,7 @@ export default function DailyTasksApp() {
       }
       // DESTINATION: Calendar (timed area) - set date and time
       else if (destParsed.type === "calendar" && !destParsed.isUntimed) {
-        const dropDate = destParsed.date || selectedDate;
+        const dropDate = destParsed.date || selectedDate || new Date();
         updates = {
           time: calculatedTime,
           recurrence: {
@@ -503,7 +485,7 @@ export default function DailyTasksApp() {
       }
       // DESTINATION: Calendar (untimed area) - set date, clear time
       else if (destParsed.type === "calendar" && destParsed.isUntimed) {
-        const dropDate = destParsed.date || selectedDate;
+        const dropDate = destParsed.date || selectedDate || new Date();
         updates = {
           time: null,
           recurrence:
@@ -520,57 +502,25 @@ export default function DailyTasksApp() {
       if (destParsed.type === "today-section") {
         const targetSectionId = destParsed.sectionId;
         const sourceSectionId =
-          sourceParsed.type === "today-section" ? sourceParsed.sectionId : null;
+          sourceParsed.type === "today-section"
+            ? sourceParsed.sectionId
+            : task.sectionId; // Use task's current sectionId if not from a section
 
-        // Get current tasks in target section (excluding the moved task)
-        const targetSectionTasks = [
-          ...(tasksBySection[targetSectionId] || []).filter(
-            t => t.id !== taskId
-          ),
-        ];
+        // Use the dedicated reorderTask function which handles all reordering logic
+        await reorderTask(
+          taskId,
+          sourceSectionId,
+          targetSectionId,
+          destination.index
+        );
 
-        // Insert the moved task at the destination index
-        targetSectionTasks.splice(destination.index, 0, task);
-
-        // Update orders for all tasks in target section
-        const updatePromises = targetSectionTasks.map((t, i) => {
-          if (t.id === taskId) {
-            // Update the moved task with new section, order, and other updates
-            return updateTask(taskId, {
-              sectionId: targetSectionId,
-              order: i,
-              ...updates, // Include time/recurrence updates
-            });
-          } else if (t.order !== i) {
-            // Update other tasks in target section if order changed
-            return updateTask(t.id, { order: i });
-          }
-          return Promise.resolve();
-        });
-
-        await Promise.all(updatePromises);
+        // Apply time/recurrence updates separately if there are any
+        if (Object.keys(updates).length > 0) {
+          await updateTask(taskId, updates);
+        }
 
         // Clear updates since they've been applied
         updates = {};
-
-        // If moving from another section, reorder source section tasks
-        if (sourceSectionId && sourceSectionId !== targetSectionId) {
-          const sourceSectionTasks = [
-            ...(tasksBySection[sourceSectionId] || []).filter(
-              t => t.id !== taskId
-            ),
-          ];
-
-          // Update orders for remaining tasks in source section
-          const sourceUpdatePromises = sourceSectionTasks.map((t, i) => {
-            if (t.order !== i) {
-              return updateTask(t.id, { order: i });
-            }
-            return Promise.resolve();
-          });
-
-          await Promise.all(sourceUpdatePromises);
-        }
       }
 
       // Apply any remaining updates (for non-section destinations)
@@ -619,6 +569,7 @@ export default function DailyTasksApp() {
   };
 
   const getCalendarTitle = () => {
+    if (!selectedDate) return "";
     if (calendarView === "day")
       return selectedDate.toLocaleDateString("en-US", {
         weekday: "short",
@@ -811,16 +762,54 @@ export default function DailyTasksApp() {
       }
     }
 
-    const destDroppableId = over.id;
+    // For sortable items, get the container ID from sortable data
+    // When dropping on another sortable item, over.id is the item's ID, not the container
+    let destDroppableId = over.data.current?.sortable?.containerId || over.id;
+
+    // If destDroppableId looks like a task draggable ID, extract the section from it
+    if (
+      destDroppableId.startsWith("task-") &&
+      destDroppableId.includes("-today-section-")
+    ) {
+      const match = destDroppableId.match(/-today-section-([^-]+)/);
+      if (match) destDroppableId = `today-section|${match[1]}`;
+    }
+
+    // If destDroppableId looks like a backlog item draggable ID, it's backlog-items container
+    if (destDroppableId.startsWith("backlog-item-")) {
+      destDroppableId = "backlog-items";
+    }
+
+    // If destDroppableId looks like a task in backlog, it's the backlog
+    if (
+      destDroppableId.startsWith("task-") &&
+      destDroppableId.includes("-backlog")
+    ) {
+      destDroppableId = "backlog";
+    }
 
     // For sortable items, get the index from the sorted items
     const sourceIndex = active.data.current?.sortable?.index ?? 0;
     const destIndex = over.data.current?.sortable?.index ?? 0;
 
-    // Determine type based on draggableId
-    let type = "TASK";
+    // Debug logging for reorder issues
+    console.log("Drag End:", {
+      activeId: active.id,
+      overId: over.id,
+      sourceDroppableId,
+      destDroppableId,
+      sourceIndex,
+      destIndex,
+      activeSortable: active.data.current?.sortable,
+      overSortable: over.data.current?.sortable,
+    });
+
+    // Determine type based on draggableId or data
+    let type = active.data.current?.type || "TASK";
     if (draggableId.startsWith("section-")) {
       type = "SECTION";
+    } else if (draggableId.startsWith("backlog-item-")) {
+      type = "BACKLOG_ITEM";
     }
 
     // Create result object similar to @hello-pangea/dnd format
@@ -963,7 +952,10 @@ export default function DailyTasksApp() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setSelectedDate(new Date())}
+                    onClick={() => {
+                      const today = new Date();
+                      setSelectedDate(today);
+                    }}
                   >
                     Today
                   </Button>
@@ -1105,7 +1097,7 @@ export default function DailyTasksApp() {
                       minH="600px"
                     >
                       <CardBody p={0} h="full">
-                        {calendarView === "day" && (
+                        {calendarView === "day" && selectedDate && (
                           <CalendarDayView
                             date={selectedDate}
                             tasks={tasks}
@@ -1119,7 +1111,7 @@ export default function DailyTasksApp() {
                             createDroppableId={createDroppableId}
                           />
                         )}
-                        {calendarView === "week" && (
+                        {calendarView === "week" && selectedDate && (
                           <CalendarWeekView
                             date={selectedDate}
                             tasks={tasks}
@@ -1138,7 +1130,7 @@ export default function DailyTasksApp() {
                             createDraggableId={createDraggableId}
                           />
                         )}
-                        {calendarView === "month" && (
+                        {calendarView === "month" && selectedDate && (
                           <CalendarMonthView
                             date={selectedDate}
                             tasks={tasks}

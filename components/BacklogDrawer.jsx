@@ -294,41 +294,86 @@ export const BacklogDrawer = ({
               >
                 Quick Notes
               </Text>
-              <VStack align="stretch" spacing={2}>
-                {backlog.map(item => (
-                  <Flex
-                    key={item.id}
-                    align="center"
-                    gap={2}
-                    p={3}
-                    borderRadius="md"
-                    _hover={{ bg: hoverBg }}
-                  >
-                    <Checkbox
-                      isChecked={item.completed}
-                      size="lg"
-                      onChange={() => onToggleBacklog(item.id)}
-                    />
-                    <Text
-                      flex={1}
-                      fontSize="sm"
-                      textDecoration={item.completed ? "line-through" : "none"}
-                      opacity={item.completed ? 0.5 : 1}
-                      color={textColor}
-                    >
-                      {item.title}
-                    </Text>
-                    <IconButton
-                      icon={<Trash2 size={16} />}
-                      onClick={() => onDeleteBacklog(item.id)}
-                      size="sm"
-                      variant="ghost"
-                      colorScheme="red"
-                      aria-label="Delete item"
-                    />
-                  </Flex>
-                ))}
-              </VStack>
+              <SortableContext
+                items={backlog.map(item => `backlog-item-${item.id}`)}
+                strategy={verticalListSortingStrategy}
+                id="backlog-items"
+              >
+                <VStack align="stretch" spacing={2}>
+                  {backlog.map(item => {
+                    const {
+                      attributes,
+                      listeners,
+                      setNodeRef,
+                      transform,
+                      transition,
+                      isDragging,
+                    } = useSortable({
+                      id: `backlog-item-${item.id}`,
+                      data: {
+                        type: "BACKLOG_ITEM",
+                        containerId: "backlog-items",
+                      },
+                    });
+
+                    const style = {
+                      transform: CSS.Transform.toString(transform),
+                      transition,
+                      opacity: isDragging ? 0.5 : 1,
+                    };
+
+                    return (
+                      <Flex
+                        key={item.id}
+                        ref={setNodeRef}
+                        style={style}
+                        align="center"
+                        gap={2}
+                        p={3}
+                        borderRadius="md"
+                        _hover={{ bg: hoverBg }}
+                      >
+                        <Box flexShrink={0} {...attributes} {...listeners}>
+                          <GripVertical
+                            size={16}
+                            style={{ color: gripColor, cursor: "grab" }}
+                          />
+                        </Box>
+                        <Checkbox
+                          isChecked={item.completed}
+                          size="lg"
+                          onChange={() => onToggleBacklog(item.id)}
+                          onClick={e => e.stopPropagation()}
+                          onMouseDown={e => e.stopPropagation()}
+                        />
+                        <Text
+                          flex={1}
+                          fontSize="sm"
+                          textDecoration={
+                            item.completed ? "line-through" : "none"
+                          }
+                          opacity={item.completed ? 0.5 : 1}
+                          color={textColor}
+                        >
+                          {item.title}
+                        </Text>
+                        <IconButton
+                          icon={<Trash2 size={16} />}
+                          onClick={e => {
+                            e.stopPropagation();
+                            onDeleteBacklog(item.id);
+                          }}
+                          onMouseDown={e => e.stopPropagation()}
+                          size="sm"
+                          variant="ghost"
+                          colorScheme="red"
+                          aria-label="Delete item"
+                        />
+                      </Flex>
+                    );
+                  })}
+                </VStack>
+              </SortableContext>
             </Box>
           )}
 

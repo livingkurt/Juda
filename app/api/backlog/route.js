@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const backlog = await prisma.backlogItem.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: { order: "asc" },
     });
     return NextResponse.json(backlog);
   } catch (error) {
@@ -21,9 +21,16 @@ export async function POST(request) {
     const body = await request.json();
     const { title } = body;
 
+    // Get the highest order value and add 1
+    const maxOrderItem = await prisma.backlogItem.findFirst({
+      orderBy: { order: "desc" },
+      select: { order: true },
+    });
+
     const item = await prisma.backlogItem.create({
       data: {
         title,
+        order: (maxOrderItem?.order ?? -1) + 1,
       },
     });
 
