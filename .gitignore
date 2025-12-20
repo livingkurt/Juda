@@ -42,3 +42,7 @@ next-env.d.ts
 # prisma
 # Note: migrations should be committed to the repo
 
+# database dumps
+/dumps
+*.sql
+*.dump
