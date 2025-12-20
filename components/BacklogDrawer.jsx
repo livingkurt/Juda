@@ -25,6 +25,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { isOverdue } from "@/lib/utils";
+import { DragPreview } from "./DragPreview";
 
 export const BacklogDrawer = ({
   isOpen,
@@ -124,114 +125,126 @@ export const BacklogDrawer = ({
                           draggableId={createDraggableId.backlog(task.id)}
                           index={index}
                         >
-                          {(provided, snapshot) => (
-                            <Flex
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              align="center"
-                              gap={2}
-                              p={3}
-                              borderRadius="md"
-                              _hover={{ bg: hoverBg }}
-                              cursor="grab"
-                              borderLeftWidth="3px"
-                              borderLeftColor={task.color || "#3b82f6"}
-                              bg={snapshot.isDragging ? dragBg : "transparent"}
-                              boxShadow={snapshot.isDragging ? "lg" : "none"}
-                              style={provided.draggableProps.style}
-                            >
-                              <Box flexShrink={0}>
-                                <GripVertical size={16} color={gripColor} />
-                              </Box>
-                              <Checkbox
-                                isChecked={task.completed}
-                                size="lg"
-                                onChange={() => onToggleTask(task.id)}
-                                onClick={e => e.stopPropagation()}
-                                onMouseDown={e => e.stopPropagation()}
-                                flexShrink={0}
-                              />
-                              <Box flex={1} minW={0}>
-                                <HStack spacing={2} align="center">
-                                  <Text
-                                    fontSize="sm"
-                                    fontWeight="medium"
-                                    textDecoration={
-                                      task.completed ? "line-through" : "none"
-                                    }
-                                    opacity={task.completed ? 0.5 : 1}
-                                    color={textColor}
-                                  >
-                                    {task.title}
-                                  </Text>
-                                  {isOverdue(task) && (
-                                    <Badge
-                                      size="sm"
-                                      colorScheme="red"
-                                      fontSize="2xs"
+                          {(provided, snapshot) => {
+                            // Show unified drag preview when dragging
+                            if (snapshot.isDragging) {
+                              return (
+                                <DragPreview
+                                  title={task.title}
+                                  provided={provided}
+                                  snapshot={snapshot}
+                                />
+                              );
+                            }
+
+                            // Show normal component when not dragging
+                            return (
+                              <Flex
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                align="center"
+                                gap={2}
+                                p={3}
+                                borderRadius="md"
+                                _hover={{ bg: hoverBg }}
+                                cursor="grab"
+                                borderLeftWidth="3px"
+                                borderLeftColor={task.color || "#3b82f6"}
+                                bg="transparent"
+                              >
+                                <Box flexShrink={0}>
+                                  <GripVertical size={16} color={gripColor} />
+                                </Box>
+                                <Checkbox
+                                  isChecked={task.completed}
+                                  size="lg"
+                                  onChange={() => onToggleTask(task.id)}
+                                  onClick={e => e.stopPropagation()}
+                                  onMouseDown={e => e.stopPropagation()}
+                                  flexShrink={0}
+                                />
+                                <Box flex={1} minW={0}>
+                                  <HStack spacing={2} align="center">
+                                    <Text
+                                      fontSize="sm"
+                                      fontWeight="medium"
+                                      textDecoration={
+                                        task.completed ? "line-through" : "none"
+                                      }
+                                      opacity={task.completed ? 0.5 : 1}
+                                      color={textColor}
                                     >
-                                      <HStack spacing={1} align="center">
-                                        <AlertCircle size={10} />
-                                        <Text as="span">Overdue</Text>
-                                      </HStack>
-                                    </Badge>
-                                  )}
-                                </HStack>
-                                <HStack spacing={2} mt={1}>
-                                  <Text fontSize="xs" color={mutedText}>
-                                    {getSectionName(task.sectionId)}
-                                  </Text>
-                                  {task.recurrence &&
-                                    task.recurrence.type !== "none" && (
+                                      {task.title}
+                                    </Text>
+                                    {isOverdue(task) && (
                                       <Badge
                                         size="sm"
-                                        colorScheme="purple"
+                                        colorScheme="red"
                                         fontSize="2xs"
                                       >
-                                        {task.recurrence.type === "daily"
-                                          ? "Daily"
-                                          : task.recurrence.type === "weekly"
-                                          ? "Weekly"
-                                          : "Recurring"}
+                                        <HStack spacing={1} align="center">
+                                          <AlertCircle size={10} />
+                                          <Text as="span">Overdue</Text>
+                                        </HStack>
                                       </Badge>
                                     )}
-                                  {!task.time && (
-                                    <Badge
-                                      size="sm"
-                                      colorScheme="orange"
-                                      fontSize="2xs"
-                                    >
-                                      No time
-                                    </Badge>
-                                  )}
-                                </HStack>
-                              </Box>
-                              <IconButton
-                                icon={<Edit2 size={14} />}
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  onEditTask(task);
-                                }}
-                                onMouseDown={e => e.stopPropagation()}
-                                size="sm"
-                                variant="ghost"
-                                aria-label="Edit task"
-                              />
-                              <IconButton
-                                icon={<Trash2 size={14} />}
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  onDeleteTask(task.id);
-                                }}
-                                onMouseDown={e => e.stopPropagation()}
-                                size="sm"
-                                variant="ghost"
-                                colorScheme="red"
-                                aria-label="Delete task"
-                              />
-                            </Flex>
-                          )}
+                                  </HStack>
+                                  <HStack spacing={2} mt={1}>
+                                    <Text fontSize="xs" color={mutedText}>
+                                      {getSectionName(task.sectionId)}
+                                    </Text>
+                                    {task.recurrence &&
+                                      task.recurrence.type !== "none" && (
+                                        <Badge
+                                          size="sm"
+                                          colorScheme="purple"
+                                          fontSize="2xs"
+                                        >
+                                          {task.recurrence.type === "daily"
+                                            ? "Daily"
+                                            : task.recurrence.type === "weekly"
+                                            ? "Weekly"
+                                            : "Recurring"}
+                                        </Badge>
+                                      )}
+                                    {!task.time && (
+                                      <Badge
+                                        size="sm"
+                                        colorScheme="orange"
+                                        fontSize="2xs"
+                                      >
+                                        No time
+                                      </Badge>
+                                    )}
+                                  </HStack>
+                                </Box>
+                                <IconButton
+                                  icon={<Edit2 size={14} />}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    onEditTask(task);
+                                  }}
+                                  onMouseDown={e => e.stopPropagation()}
+                                  size="sm"
+                                  variant="ghost"
+                                  aria-label="Edit task"
+                                />
+                                <IconButton
+                                  icon={<Trash2 size={14} />}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    onDeleteTask(task.id);
+                                  }}
+                                  onMouseDown={e => e.stopPropagation()}
+                                  size="sm"
+                                  variant="ghost"
+                                  colorScheme="red"
+                                  aria-label="Delete task"
+                                />
+                              </Flex>
+                            );
+                          }}
                         </Draggable>
                       ))}
                     </VStack>

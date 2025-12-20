@@ -11,6 +11,7 @@ import {
   calculateTaskPositions,
 } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
+import { DragPreview } from "./DragPreview";
 
 const HOUR_HEIGHT = 48;
 const DRAG_THRESHOLD = 5;
@@ -291,35 +292,45 @@ export const CalendarWeekView = ({
                           )}
                           index={taskIdx}
                         >
-                          {(provided, snapshot) => (
-                            <Box
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              p={1}
-                              borderRadius="sm"
-                              bg={
-                                snapshot.isDragging
-                                  ? dropHighlight
-                                  : task.color || "#3b82f6"
-                              }
-                              color="white"
-                              cursor="grab"
-                              boxShadow={snapshot.isDragging ? "lg" : "sm"}
-                              onClick={e => {
-                                e.stopPropagation();
-                                onTaskClick(task);
-                              }}
-                            >
-                              <Text
-                                fontSize="2xs"
-                                fontWeight="medium"
-                                noOfLines={2}
+                          {(provided, snapshot) => {
+                            // Show unified drag preview when dragging
+                            if (snapshot.isDragging) {
+                              return (
+                                <DragPreview
+                                  title={task.title}
+                                  provided={provided}
+                                  snapshot={snapshot}
+                                />
+                              );
+                            }
+
+                            // Show normal component when not dragging
+                            return (
+                              <Box
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                p={1}
+                                borderRadius="sm"
+                                bg={task.color || "#3b82f6"}
+                                color="white"
+                                cursor="grab"
+                                boxShadow="sm"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  onTaskClick(task);
+                                }}
                               >
-                                {task.title}
-                              </Text>
-                            </Box>
-                          )}
+                                <Text
+                                  fontSize="2xs"
+                                  fontWeight="medium"
+                                  noOfLines={2}
+                                >
+                                  {task.title}
+                                </Text>
+                              </Box>
+                            );
+                          }}
                         </Draggable>
                       ))}
                       {provided.placeholder}
@@ -421,80 +432,95 @@ export const CalendarWeekView = ({
                             )}
                             index={taskIndex}
                           >
-                            {(dragProvided, dragSnapshot) => (
-                              <Box
-                                ref={dragProvided.innerRef}
-                                {...dragProvided.draggableProps}
-                                position="absolute"
-                                left={task.left}
-                                width={task.width}
-                                ml={1}
-                                mr={1}
-                                borderRadius="md"
-                                color="white"
-                                fontSize="xs"
-                                overflow="hidden"
-                                cursor="grab"
-                                _hover={{ shadow: "md" }}
-                                style={{
-                                  ...getTaskStyle(task),
-                                  ...dragProvided.draggableProps.style,
-                                }}
-                                boxShadow={
-                                  dragSnapshot.isDragging ||
-                                  internalDrag.taskId === task.id
-                                    ? "xl"
-                                    : "none"
-                                }
-                                zIndex={
-                                  dragSnapshot.isDragging ||
-                                  internalDrag.taskId === task.id
-                                    ? 50
-                                    : "auto"
-                                }
-                                opacity={dragSnapshot.isDragging ? 0.8 : 1}
-                                onClick={e => e.stopPropagation()}
-                              >
-                                {/* Task content */}
-                                <Box
-                                  {...dragProvided.dragHandleProps}
-                                  position="absolute"
-                                  inset={0}
-                                  px={1}
-                                  py={0.5}
-                                  cursor="grab"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    onTaskClick(task);
-                                  }}
-                                >
-                                  <Text isTruncated fontWeight="medium">
-                                    {task.title}
-                                  </Text>
-                                </Box>
+                            {(dragProvided, dragSnapshot) => {
+                              // Show unified drag preview when dragging (but not during internal drag)
+                              if (
+                                dragSnapshot.isDragging &&
+                                !internalDrag.taskId
+                              ) {
+                                return (
+                                  <DragPreview
+                                    title={task.title}
+                                    provided={dragProvided}
+                                    snapshot={dragSnapshot}
+                                  />
+                                );
+                              }
 
-                                {/* Resize handle */}
+                              // Show normal component when not dragging
+                              return (
                                 <Box
+                                  ref={dragProvided.innerRef}
+                                  {...dragProvided.draggableProps}
                                   position="absolute"
-                                  bottom={0}
-                                  left={0}
-                                  right={0}
-                                  h={2}
-                                  cursor="ns-resize"
-                                  _hover={{ bg: "blackAlpha.200" }}
-                                  onMouseDown={e => {
-                                    if (!dragSnapshot.isDragging) {
-                                      handleInternalDragStart(
-                                        e,
-                                        task,
-                                        "resize"
-                                      );
-                                    }
+                                  left={task.left}
+                                  width={task.width}
+                                  ml={1}
+                                  mr={1}
+                                  borderRadius="md"
+                                  color="white"
+                                  fontSize="xs"
+                                  overflow="hidden"
+                                  cursor="grab"
+                                  _hover={{ shadow: "md" }}
+                                  bg={task.color || "#3b82f6"}
+                                  style={{
+                                    ...getTaskStyle(task),
+                                    ...dragProvided.draggableProps.style,
                                   }}
+                                  boxShadow={
+                                    internalDrag.taskId === task.id
+                                      ? "xl"
+                                      : "none"
+                                  }
+                                  zIndex={
+                                    internalDrag.taskId === task.id
+                                      ? 50
+                                      : "auto"
+                                  }
                                   onClick={e => e.stopPropagation()}
-                                />
-                              </Box>
-                            )}
+                                >
+                                  {/* Task content */}
+                                  <Box
+                                    {...dragProvided.dragHandleProps}
+                                    position="absolute"
+                                    inset={0}
+                                    px={1}
+                                    py={0.5}
+                                    cursor="grab"
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      onTaskClick(task);
+                                    }}
+                                  >
+                                    <Text isTruncated fontWeight="medium">
+                                      {task.title}
+                                    </Text>
+                                  </Box>
+
+                                  {/* Resize handle */}
+                                  <Box
+                                    position="absolute"
+                                    bottom={0}
+                                    left={0}
+                                    right={0}
+                                    h={2}
+                                    cursor="ns-resize"
+                                    _hover={{ bg: "blackAlpha.200" }}
+                                    onMouseDown={e => {
+                                      if (!dragSnapshot.isDragging) {
+                                        handleInternalDragStart(
+                                          e,
+                                          task,
+                                          "resize"
+                                        );
+                                      }
+                                    }}
+                                    onClick={e => e.stopPropagation()}
+                                  />
+                                </Box>
+                              );
+                            }}
                           </Draggable>
                         )
                       )}
