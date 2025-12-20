@@ -180,6 +180,7 @@ export default function DailyTasksApp() {
   // Initialize state with default values (same on server and client)
   const [showDashboard, setShowDashboard] = useState(true);
   const [showCalendar, setShowCalendar] = useState(true);
+  const [backlogOpen, setBacklogOpen] = useState(true);
   const [calendarView, setCalendarView] = useState("week");
   // Initialize selectedDate to null, then set it in useEffect to avoid hydration mismatch
   const [selectedDate, setSelectedDate] = useState(null);
@@ -230,7 +231,6 @@ export default function DailyTasksApp() {
     onOpen: openSectionDialog,
     onClose: closeSectionDialog,
   } = useDisclosure();
-  const [backlogOpen, setBacklogOpen] = useState(false);
 
   // Save view preferences to localStorage whenever they change
   useEffect(() => {
