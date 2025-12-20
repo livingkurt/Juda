@@ -10,14 +10,17 @@
 
 import { spawnSync } from "child_process";
 
-const nonPoolingUrl = process.env.POSTGRES_URL_NON_POOLING;
+// Check for non-pooling URLs (Neon provides POSTGRES_URL_NON_POOLING, but some setups use DATABASE_URL_UNPOOLED)
+const nonPoolingUrl = process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL_UNPOOLED;
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl && !nonPoolingUrl) {
   // eslint-disable-next-line no-console
-  console.error("❌ Error: Neither DATABASE_URL nor POSTGRES_URL_NON_POOLING is set");
+  console.error("❌ Error: Neither DATABASE_URL nor a non-pooling URL is set");
   // eslint-disable-next-line no-console
   console.error("   Migrations cannot run without a database connection.");
+  // eslint-disable-next-line no-console
+  console.error("   Please set one of: POSTGRES_URL_NON_POOLING, DATABASE_URL_UNPOOLED, or DATABASE_URL");
   process.exit(1);
 }
 
@@ -27,13 +30,18 @@ const migrationUrl = nonPoolingUrl || databaseUrl;
 // eslint-disable-next-line no-console
 console.log("🔄 Running database migrations...");
 if (nonPoolingUrl) {
+  const urlSource = process.env.POSTGRES_URL_NON_POOLING
+    ? "POSTGRES_URL_NON_POOLING"
+    : process.env.DATABASE_URL_UNPOOLED
+      ? "DATABASE_URL_UNPOOLED"
+      : "non-pooling URL";
   // eslint-disable-next-line no-console
-  console.log("   Using POSTGRES_URL_NON_POOLING (required for Neon)");
+  console.log(`   Using ${urlSource} (required for Neon)`);
 } else {
   // eslint-disable-next-line no-console
   console.log("   Using DATABASE_URL");
   // eslint-disable-next-line no-console
-  console.warn("   ⚠️  Warning: If using Neon, migrations may fail. Use POSTGRES_URL_NON_POOLING instead.");
+  console.warn("   ⚠️  Warning: If using Neon, migrations may fail. Use a non-pooling URL instead.");
 }
 
 try {
