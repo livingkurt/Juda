@@ -282,15 +282,28 @@ export default function DailyTasksApp() {
           const taskToUpdate = tasks.find(t => t.id === taskId);
           if (!taskToUpdate) return;
 
-          // Set as one-time task (no recurrence) with the specific date/time
-          await updateTask(taskId, {
+          // Optimistically update immediately
+          const optimisticUpdate = {
             time: dropTime,
             recurrence: {
               type: "none",
               startDate: dropDate.toISOString(),
             },
-            sectionId: taskToUpdate.sectionId, // Keep the section
-          });
+          };
+
+          // Set as one-time task (no recurrence) with the specific date/time
+          await updateTask(
+            taskId,
+            {
+              time: dropTime,
+              recurrence: {
+                type: "none",
+                startDate: dropDate.toISOString(),
+              },
+              sectionId: taskToUpdate.sectionId, // Keep the section
+            },
+            optimisticUpdate
+          );
         } else {
           // Dropped on today view section - set date to today, no time, preserve recurrence
           const taskToUpdateToday = tasks.find(t => t.id === taskId);
@@ -329,27 +342,32 @@ export default function DailyTasksApp() {
       ) {
         if (destDroppableId === "backlog") {
           // Dropped on backlog - remove date/time
-          await updateTask(taskId, {
-            time: null,
-            recurrence: null,
-          });
+          const optimisticUpdate = { time: null, recurrence: null };
+          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
         } else if (destDroppableId.startsWith("calendar-")) {
           // Dropped on calendar - set date/time based on position
           const dropParts = destDroppableId.split(":");
           const calendarType = dropParts[0].split("-")[1];
-          const dropDateStr = dropParts[1];
-          const dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
+          const dropDateStr = dropParts.slice(1).join(":");
+          let dropDate;
+          try {
+            dropDate = dropDateStr ? new Date(dropDateStr) : selectedDate;
+            if (isNaN(dropDate.getTime())) dropDate = selectedDate;
+          } catch (e) {
+            dropDate = selectedDate;
+          }
           // Use stored drop time from ref, default to 9 AM
           const dropTime = dropTimeRef.current || "09:00";
           dropTimeRef.current = null; // Reset
 
-          await updateTask(taskId, {
+          const optimisticUpdate = {
             time: dropTime,
             recurrence: {
               type: "daily",
               startDate: dropDate.toISOString(),
             },
-          });
+          };
+          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
         } else {
           // Moving within or between sections
           if (sourceDroppableId === destDroppableId) {
@@ -357,17 +375,43 @@ export default function DailyTasksApp() {
             const [reorderedTask] = sectionTasks.splice(source.index, 1);
             sectionTasks.splice(destination.index, 0, reorderedTask);
 
-            const updatePromises = sectionTasks.map((t, index) =>
-              updateTask(t.id, { order: index })
+            // Batch optimistic updates first
+            const previousTasks = [...tasks];
+            setTasks(prev =>
+              prev.map(t => {
+                const newIndex = sectionTasks.findIndex(st => st.id === t.id);
+                return newIndex !== -1 && t.sectionId === sourceDroppableId
+                  ? { ...t, order: newIndex }
+                  : t;
+              })
             );
-            await Promise.all(updatePromises);
+
+            // Then make API calls
+            try {
+              const updatePromises = sectionTasks.map((t, index) =>
+                updateTask(t.id, { order: index }, null)
+              );
+              await Promise.all(updatePromises);
+            } catch (err) {
+              // Rollback on error
+              setTasks(previousTasks);
+              throw err;
+            }
           } else {
-            await reorderTask(
-              taskId,
-              sourceDroppableId,
-              destDroppableId,
-              destination.index
-            );
+            const taskToMove = tasks.find(t => t.id === taskId);
+            if (taskToMove) {
+              const optimisticUpdate = {
+                sectionId: destDroppableId,
+                order: destination.index,
+              };
+              await reorderTask(
+                taskId,
+                sourceDroppableId,
+                destDroppableId,
+                destination.index,
+                optimisticUpdate
+              );
+            }
           }
         }
       }
@@ -375,10 +419,8 @@ export default function DailyTasksApp() {
       else if (sourceDroppableId.startsWith("calendar-")) {
         if (destDroppableId === "backlog") {
           // Dropped on backlog - remove date/time
-          await updateTask(taskId, {
-            time: null,
-            recurrence: null,
-          });
+          const optimisticUpdate = { time: null, recurrence: null };
+          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
         } else if (
           destDroppableId.startsWith("calendar-") &&
           !destDroppableId.includes("untimed")
@@ -409,31 +451,20 @@ export default function DailyTasksApp() {
           const dropTime = dropTimeRef.current || "09:00";
           dropTimeRef.current = null; // Reset
 
-          // Find the task to get its current recurrence
+          // Find the task to update
           const taskToUpdate = tasks.find(t => t.id === taskId);
           if (!taskToUpdate) return;
 
-          // Preserve recurrence type if it exists, otherwise set as one-time
-          const currentRecurrence = taskToUpdate.recurrence;
-          let recurrence;
-          if (currentRecurrence && currentRecurrence.type !== "none") {
-            // Keep existing recurrence pattern, just update startDate
-            recurrence = {
-              ...currentRecurrence,
-              startDate: dropDate.toISOString(),
-            };
-          } else {
-            // Set as one-time task
-            recurrence = {
+          // When moving calendar items to a different date, always set as one-time task
+          // This ensures the task appears only on the date it's dropped on
+          const optimisticUpdate = {
+            time: dropTime,
+            recurrence: {
               type: "none",
               startDate: dropDate.toISOString(),
-            };
-          }
-
-          await updateTask(taskId, {
-            time: dropTime,
-            recurrence,
-          });
+            },
+          };
+          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
         } else if (destDroppableId.includes("untimed")) {
           // Moving from timed to untimed area - remove time but keep date
           const dropParts = destDroppableId.split(":");
@@ -463,13 +494,14 @@ export default function DailyTasksApp() {
 
           // Keep recurrence but remove time
           const currentRecurrence = taskToUpdate.recurrence;
-          await updateTask(taskId, {
+          const optimisticUpdate = {
             time: null,
             recurrence: currentRecurrence || {
               type: "none",
               startDate: dropDate.toISOString(),
             },
-          });
+          };
+          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
         } else {
           // Dropped on today view section - set date to today, no time, preserve recurrence
           const taskToUpdateToday = tasks.find(t => t.id === taskId);
@@ -493,12 +525,13 @@ export default function DailyTasksApp() {
           }
           // For recurring tasks, we keep the recurrence as-is (it will show up based on recurrence pattern)
 
-          await updateTask(taskId, {
+          const optimisticUpdate = {
             sectionId: destDroppableId,
             time: null,
             recurrence,
             order: destination.index,
-          });
+          };
+          await updateTask(taskId, optimisticUpdate, optimisticUpdate);
         }
       }
     }

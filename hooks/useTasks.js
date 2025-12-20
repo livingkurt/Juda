@@ -42,7 +42,17 @@ export const useTasks = () => {
     }
   };
 
-  const updateTask = async (id, taskData) => {
+  const updateTask = async (id, taskData, optimisticUpdate = null) => {
+    // Store previous state for rollback
+    let previousTask = null;
+    if (optimisticUpdate) {
+      previousTask = tasks.find(t => t.id === id);
+      // Optimistically update state immediately
+      setTasks(prev =>
+        prev.map(t => (t.id === id ? { ...t, ...optimisticUpdate } : t))
+      );
+    }
+
     try {
       const response = await fetch("/api/tasks", {
         method: "PUT",
@@ -54,6 +64,10 @@ export const useTasks = () => {
       setTasks(prev => prev.map(t => (t.id === id ? updatedTask : t)));
       return updatedTask;
     } catch (err) {
+      // Rollback on error
+      if (optimisticUpdate && previousTask) {
+        setTasks(prev => prev.map(t => (t.id === id ? previousTask : t)));
+      }
       setError(err.message);
       throw err;
     }
@@ -76,8 +90,41 @@ export const useTasks = () => {
     taskId,
     sourceSectionId,
     targetSectionId,
-    newOrder
+    newOrder,
+    optimisticUpdate = null
   ) => {
+    // Store previous state for rollback
+    const previousTasks = [...tasks];
+    if (optimisticUpdate) {
+      // Optimistically update state immediately
+      const taskToMove = tasks.find(t => t.id === taskId);
+      if (taskToMove) {
+        setTasks(prev => {
+          const updated = prev.map(t =>
+            t.id === taskId ? { ...t, ...optimisticUpdate } : t
+          );
+          // Reorder within the same section or move between sections
+          if (sourceSectionId === targetSectionId) {
+            const sectionTasks = updated
+              .filter(t => t.sectionId === targetSectionId)
+              .sort((a, b) => a.order - b.order);
+            const taskIndex = sectionTasks.findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+              const [movedTask] = sectionTasks.splice(taskIndex, 1);
+              sectionTasks.splice(newOrder, 0, movedTask);
+              return updated.map(t => {
+                const newIndex = sectionTasks.findIndex(st => st.id === t.id);
+                return newIndex !== -1 && t.sectionId === targetSectionId
+                  ? { ...t, order: newIndex }
+                  : t;
+              });
+            }
+          }
+          return updated;
+        });
+      }
+    }
+
     try {
       const response = await fetch("/api/tasks/reorder", {
         method: "PUT",
@@ -92,6 +139,10 @@ export const useTasks = () => {
       if (!response.ok) throw new Error("Failed to reorder task");
       await fetchTasks(); // Refresh tasks
     } catch (err) {
+      // Rollback on error
+      if (optimisticUpdate) {
+        setTasks(previousTasks);
+      }
       setError(err.message);
       throw err;
     }

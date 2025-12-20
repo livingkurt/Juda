@@ -169,19 +169,20 @@ export const BacklogDrawer = ({
                                   <Text fontSize="xs" color={mutedText}>
                                     {getSectionName(task.sectionId)}
                                   </Text>
-                                  {task.recurrence && (
-                                    <Badge
-                                      size="sm"
-                                      colorScheme="purple"
-                                      fontSize="2xs"
-                                    >
-                                      {task.recurrence.type === "daily"
-                                        ? "Daily"
-                                        : task.recurrence.type === "weekly"
-                                        ? "Weekly"
-                                        : "Recurring"}
-                                    </Badge>
-                                  )}
+                                  {task.recurrence &&
+                                    task.recurrence.type !== "none" && (
+                                      <Badge
+                                        size="sm"
+                                        colorScheme="purple"
+                                        fontSize="2xs"
+                                      >
+                                        {task.recurrence.type === "daily"
+                                          ? "Daily"
+                                          : task.recurrence.type === "weekly"
+                                          ? "Weekly"
+                                          : "Recurring"}
+                                      </Badge>
+                                    )}
                                   {!task.time && (
                                     <Badge
                                       size="sm"
