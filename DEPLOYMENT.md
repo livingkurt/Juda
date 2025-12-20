@@ -110,9 +110,22 @@ In your Vercel project dashboard:
 1. Go to **Settings** → **Environment Variables**
 2. You should see environment variables automatically created by your database provider (like `POSTGRES_PRISMA_URL`)
 
-3. Add the following environment variable:
+3. Add the following environment variables:
 
-   **If using a Vercel Marketplace provider (Neon, Supabase, etc.):**
+   **If using Neon (Vercel Marketplace):**
+   - Name: `DATABASE_URL`
+   - Value: Copy the value from `POSTGRES_PRISMA_URL` (this is automatically created)
+   - Environment: Production, Preview, Development (select all)
+   - Click **Save**
+
+   - Name: `POSTGRES_URL_NON_POOLING`
+   - Value: Copy the value from `POSTGRES_URL_NON_POOLING` (this is automatically created by Neon)
+   - Environment: Production, Preview, Development (select all)
+   - Click **Save**
+
+   **Important:** Neon requires `POSTGRES_URL_NON_POOLING` for migrations. The build script will automatically use this for running migrations.
+
+   **If using other Vercel Marketplace providers (Supabase, etc.):**
    - Name: `DATABASE_URL`
    - Value: Copy the value from `POSTGRES_PRISMA_URL` (this is automatically created)
    - Environment: Production, Preview, Development (select all)
@@ -124,7 +137,7 @@ In your Vercel project dashboard:
    - Environment: Production, Preview, Development (select all)
    - Click **Save**
 
-**Note:** Your Prisma schema uses `DATABASE_URL`, so you need to copy the `POSTGRES_PRISMA_URL` value to `DATABASE_URL`. Alternatively, you can update your Prisma schema to use `POSTGRES_PRISMA_URL` directly.
+**Note:** Your Prisma schema uses `DATABASE_URL` for regular database operations. Migrations will automatically use `POSTGRES_URL_NON_POOLING` if available (required for Neon), otherwise fall back to `DATABASE_URL`.
 
 ## Step 6: Run Database Migrations
 
@@ -134,20 +147,32 @@ After your first deployment, you need to run migrations. You can do this in two 
 
 ```bash
 vercel env pull .env.local
-npx prisma migrate deploy
+npm run db:migrate
+```
+
+Or directly:
+
+```bash
+vercel env pull .env.local
+# For Neon, use POSTGRES_URL_NON_POOLING
+POSTGRES_URL_NON_POOLING="your-non-pooling-url" npx prisma migrate deploy
 ```
 
 ### Option B: Via Vercel Dashboard
 
 1. Go to your project → Settings → Environment Variables
-2. Copy your `DATABASE_URL`
+2. Copy your `POSTGRES_URL_NON_POOLING` (for Neon) or `DATABASE_URL` (for others)
 3. Run migrations locally with the production database:
 
 ```bash
+# For Neon:
+POSTGRES_URL_NON_POOLING="your-non-pooling-url" npx prisma migrate deploy
+
+# For other providers:
 DATABASE_URL="your-production-database-url" npx prisma migrate deploy
 ```
 
-**Note:** The build script already includes `prisma migrate deploy` and verification, so migrations will run automatically on each deployment. If migrations fail during build, the build will fail with a clear error message.
+**Note:** The build script automatically runs migrations using `POSTGRES_URL_NON_POOLING` if available (required for Neon), otherwise falls back to `DATABASE_URL`. If migrations fail during build, the build will fail with a clear error message.
 
 ### Verify Migrations
 

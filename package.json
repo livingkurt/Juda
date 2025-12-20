@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "prisma generate && prisma migrate deploy && node scripts/verify-migrations.js && next build",
+    "build": "prisma generate && node scripts/migrate-deploy.js && node scripts/verify-migrations.js && next build",
     "start": "next start -p 3001",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -14,7 +14,8 @@
     "postinstall": "prisma generate",
     "db:dump": "node scripts/dump-production.js",
     "db:restore": "node scripts/dump-production.js --restore",
-    "db:verify": "node scripts/verify-migrations.js"
+    "db:verify": "node scripts/verify-migrations.js",
+    "db:migrate": "node scripts/migrate-deploy.js"
   },
   "dependencies": {
     "@chakra-ui/react": "^2.8.2",
