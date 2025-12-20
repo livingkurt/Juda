@@ -11,6 +11,7 @@ import {
   shouldShowOnDate,
   calculateTaskPositions,
 } from "@/lib/utils";
+import { DragPreview } from "./DragPreview";
 
 const HOUR_HEIGHT = 64;
 const DRAG_THRESHOLD = 5;
@@ -375,6 +376,9 @@ export const CalendarDayView = ({
                     {(dragProvided, dragSnapshot) => {
                       // Show unified drag preview when dragging (but not during internal drag)
                       if (dragSnapshot.isDragging && !internalDrag.taskId) {
+                        // Return DragPreview directly - it will be cloned by the library
+                        // The library measures the element before dragging, so we need to ensure
+                        // the placeholder (rendered via provided.placeholder) has fixed dimensions
                         return (
                           <DragPreview
                             title={task.title}
