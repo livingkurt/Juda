@@ -16,7 +16,7 @@ import {
 } from "@chakra-ui/react";
 import { useAuth } from "@/contexts/AuthContext";
 
-export function LoginForm({ onSwitchToRegister }) {
+export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -76,6 +76,10 @@ export function LoginForm({ onSwitchToRegister }) {
 
         <Button type="submit" colorScheme="blue" w="full" isLoading={loading}>
           Sign In
+        </Button>
+
+        <Button variant="link" onClick={onForgotPassword} size="sm" colorScheme="blue">
+          Forgot Password?
         </Button>
 
         <Text fontSize="sm">
