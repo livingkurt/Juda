@@ -2,6 +2,7 @@
 
 import { ChakraProvider, extendTheme } from "@chakra-ui/react";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { PreferencesProvider } from "@/contexts/PreferencesContext";
 
 const theme = extendTheme({
   config: {
@@ -39,7 +40,9 @@ const theme = extendTheme({
 export function Providers({ children }) {
   return (
     <ChakraProvider theme={theme}>
-      <AuthProvider>{children}</AuthProvider>
+      <AuthProvider>
+        <PreferencesProvider>{children}</PreferencesProvider>
+      </AuthProvider>
     </ChakraProvider>
   );
 }

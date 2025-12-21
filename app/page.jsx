@@ -9,7 +9,6 @@ import {
   Text,
   Flex,
   IconButton,
-  useColorMode,
   useColorModeValue,
   useToast,
   Card,
@@ -23,6 +22,8 @@ import {
   useDisclosure,
 } from "@chakra-ui/react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePreferencesContext } from "@/contexts/PreferencesContext";
+import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { AuthPage } from "@/components/AuthPage";
 import {
   DndContext,
@@ -82,7 +83,7 @@ export { createDroppableId, createDraggableId, extractTaskId };
 
 export default function DailyTasksApp() {
   const { isAuthenticated, loading: authLoading, logout } = useAuth();
-  const { colorMode, toggleColorMode } = useColorMode();
+  const { colorMode, toggleColorMode } = useColorModeSync();
   const toast = useToast();
   const bgColor = useColorModeValue("gray.50", "gray.900");
   const headerBg = useColorModeValue("white", "gray.800");
@@ -117,119 +118,66 @@ export default function DailyTasksApp() {
   const { createCompletion, deleteCompletion, isCompletedOnDate, fetchCompletions } = useCompletions();
   const { tags, createTag, deleteTag } = useTags();
 
-  const isLoading = tasksLoading || sectionsLoading;
+  // Get preferences from context
+  const { preferences, initialized: prefsInitialized, updatePreference } = usePreferencesContext();
+
+  // Use synced color mode
+  // const { colorMode, toggleColorMode } = useColorModeSync(); // Already imported above
+
+  // Destructure preferences for easier access
+  const {
+    showDashboard,
+    showCalendar,
+    backlogOpen,
+    backlogWidth,
+    calendarView,
+    calendarZoom,
+    showCompletedTasks,
+    showRecurringTasks,
+    showCompletedTasksCalendar,
+  } = preferences;
+
+  // Create setter functions that update preferences
+  const setShowDashboard = useCallback(value => updatePreference("showDashboard", value), [updatePreference]);
+  const setShowCalendar = useCallback(value => updatePreference("showCalendar", value), [updatePreference]);
+  const setBacklogOpen = useCallback(value => updatePreference("backlogOpen", value), [updatePreference]);
+  const setBacklogWidth = useCallback(value => updatePreference("backlogWidth", value), [updatePreference]);
+  const setCalendarView = useCallback(value => updatePreference("calendarView", value), [updatePreference]);
+  const setShowCompletedTasks = useCallback(value => updatePreference("showCompletedTasks", value), [updatePreference]);
+
+  // For nested preferences
+  const setCalendarZoom = updater => {
+    if (typeof updater === "function") {
+      const newZoom = updater(calendarZoom);
+      updatePreference("calendarZoom", newZoom);
+    } else {
+      updatePreference("calendarZoom", updater);
+    }
+  };
+
+  const setShowRecurringTasks = updater => {
+    if (typeof updater === "function") {
+      const newValue = updater(showRecurringTasks);
+      updatePreference("showRecurringTasks", newValue);
+    } else {
+      updatePreference("showRecurringTasks", updater);
+    }
+  };
+
+  const setShowCompletedTasksCalendar = updater => {
+    if (typeof updater === "function") {
+      const newValue = updater(showCompletedTasksCalendar);
+      updatePreference("showCompletedTasksCalendar", newValue);
+    } else {
+      updatePreference("showCompletedTasksCalendar", updater);
+    }
+  };
+
+  const isLoading = tasksLoading || sectionsLoading || !prefsInitialized;
 
   // Initialize state with default values (same on server and client)
   const [mainTabIndex, setMainTabIndex] = useState(0); // 0 = Tasks, 1 = History
-  const [showDashboard, setShowDashboard] = useState(true);
-  const [showCalendar, setShowCalendar] = useState(true);
-  const [backlogOpen, setBacklogOpen] = useState(true);
-  // Initialize showCompletedTasks from localStorage if available, otherwise default to true
-  const [showCompletedTasks, setShowCompletedTasks] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("juda-view-preferences");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.showCompletedTasks !== undefined) {
-            return parsed.showCompletedTasks;
-          }
-        }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error("Error loading show completed tasks preference:", error);
-      }
-    }
-    return true; // Default to showing completed tasks (like Reminders)
-  });
-  // Initialize backlogWidth from localStorage if available, otherwise default to 500
-  const [backlogWidth, setBacklogWidth] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("juda-view-preferences");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.backlogWidth !== undefined) {
-            return parsed.backlogWidth;
-          }
-        }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error("Error loading backlog width:", error);
-      }
-    }
-    return 500;
-  });
   const [isResizing, setIsResizing] = useState(false);
-  const [calendarView, setCalendarView] = useState("week");
-  // Initialize showRecurringTasks per view from localStorage if available, otherwise default to true for all
-  const [showRecurringTasks, setShowRecurringTasks] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("juda-view-preferences");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.showRecurringTasks) {
-            return {
-              day: parsed.showRecurringTasks.day !== undefined ? parsed.showRecurringTasks.day : true,
-              week: parsed.showRecurringTasks.week !== undefined ? parsed.showRecurringTasks.week : true,
-              month: parsed.showRecurringTasks.month !== undefined ? parsed.showRecurringTasks.month : true,
-            };
-          }
-        }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error("Error loading show recurring tasks preference:", error);
-      }
-    }
-    return { day: true, week: true, month: true }; // Default to showing recurring tasks
-  });
-  // Initialize showCompletedTasksCalendar per view from localStorage if available, otherwise default to true for all
-  const [showCompletedTasksCalendar, setShowCompletedTasksCalendar] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("juda-view-preferences");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.showCompletedTasksCalendar) {
-            return {
-              day: parsed.showCompletedTasksCalendar.day !== undefined ? parsed.showCompletedTasksCalendar.day : true,
-              week:
-                parsed.showCompletedTasksCalendar.week !== undefined ? parsed.showCompletedTasksCalendar.week : true,
-              month:
-                parsed.showCompletedTasksCalendar.month !== undefined ? parsed.showCompletedTasksCalendar.month : true,
-            };
-          }
-        }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error("Error loading show completed tasks calendar preference:", error);
-      }
-    }
-    return { day: true, week: true, month: true }; // Default to showing completed tasks
-  });
-  // Initialize calendarZoom per view from localStorage if available, otherwise default to 1.0 for all
-  const [calendarZoom, setCalendarZoom] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("juda-view-preferences");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.calendarZoom) {
-            return {
-              day: parsed.calendarZoom.day !== undefined ? parsed.calendarZoom.day : 1.0,
-              week: parsed.calendarZoom.week !== undefined ? parsed.calendarZoom.week : 1.0,
-              month: parsed.calendarZoom.month !== undefined ? parsed.calendarZoom.month : 1.0,
-            };
-          }
-        }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error("Error loading calendar zoom preference:", error);
-      }
-    }
-    return { day: 1.0, week: 1.0, month: 1.0 }; // Default to 1.0 (100%)
-  });
   // Initialize selectedDate to null, then set it in useEffect to avoid hydration mismatch
   const [selectedDate, setSelectedDate] = useState(null);
   // Initialize todayViewDate to null, then set it in useEffect to avoid hydration mismatch
@@ -248,13 +196,11 @@ export default function DailyTasksApp() {
   const [activeId, setActiveId] = useState(null);
   const [activeTask, setActiveTask] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  // Track if preferences have been loaded to avoid saving before load completes
-  const preferencesLoadedRef = useRef(false);
   // Track recently completed tasks that should remain visible for a delay
   const [recentlyCompletedTasks, setRecentlyCompletedTasks] = useState(new Set());
   const recentlyCompletedTimeoutsRef = useRef({});
 
-  // Load view preferences from localStorage after mount (client-side only)
+  // Set selectedDate and todayViewDate on mount to avoid hydration mismatch
   useEffect(() => {
     // Set selectedDate on mount to avoid hydration mismatch
     if (selectedDate === null) {
@@ -267,49 +213,6 @@ export default function DailyTasksApp() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       setTodayViewDate(today);
-    }
-
-    if (typeof window === "undefined") return;
-
-    try {
-      const saved = localStorage.getItem("juda-view-preferences");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.showDashboard !== undefined) setShowDashboard(parsed.showDashboard);
-        if (parsed.showCalendar !== undefined) setShowCalendar(parsed.showCalendar);
-        if (parsed.calendarView) setCalendarView(parsed.calendarView);
-        if (parsed.backlogOpen !== undefined) setBacklogOpen(parsed.backlogOpen);
-        if (parsed.showCompletedTasks !== undefined) setShowCompletedTasks(parsed.showCompletedTasks);
-        if (parsed.showRecurringTasks) {
-          setShowRecurringTasks({
-            day: parsed.showRecurringTasks.day !== undefined ? parsed.showRecurringTasks.day : true,
-            week: parsed.showRecurringTasks.week !== undefined ? parsed.showRecurringTasks.week : true,
-            month: parsed.showRecurringTasks.month !== undefined ? parsed.showRecurringTasks.month : true,
-          });
-        }
-        if (parsed.showCompletedTasksCalendar) {
-          setShowCompletedTasksCalendar({
-            day: parsed.showCompletedTasksCalendar.day !== undefined ? parsed.showCompletedTasksCalendar.day : true,
-            week: parsed.showCompletedTasksCalendar.week !== undefined ? parsed.showCompletedTasksCalendar.week : true,
-            month:
-              parsed.showCompletedTasksCalendar.month !== undefined ? parsed.showCompletedTasksCalendar.month : true,
-          });
-        }
-        if (parsed.calendarZoom) {
-          setCalendarZoom({
-            day: parsed.calendarZoom.day !== undefined ? parsed.calendarZoom.day : 1.0,
-            week: parsed.calendarZoom.week !== undefined ? parsed.calendarZoom.week : 1.0,
-            month: parsed.calendarZoom.month !== undefined ? parsed.calendarZoom.month : 1.0,
-          });
-        }
-        // backlogWidth is now initialized from localStorage in useState, but update if it exists
-        if (parsed.backlogWidth !== undefined) setBacklogWidth(parsed.backlogWidth);
-      }
-      preferencesLoadedRef.current = true;
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error("Error loading view preferences:", error);
-      preferencesLoadedRef.current = true;
     }
   }, [selectedDate, todayViewDate]);
 
@@ -343,41 +246,6 @@ export default function DailyTasksApp() {
 
   const { isOpen: taskDialogOpen, onOpen: openTaskDialog, onClose: closeTaskDialog } = useDisclosure();
   const { isOpen: sectionDialogOpen, onOpen: openSectionDialog, onClose: closeSectionDialog } = useDisclosure();
-
-  // Save view preferences to localStorage whenever they change
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    // Don't save until preferences have been loaded to avoid overwriting with defaults
-    if (!preferencesLoadedRef.current) return;
-
-    try {
-      const preferences = {
-        showDashboard,
-        showCalendar,
-        calendarView,
-        backlogOpen,
-        backlogWidth,
-        showCompletedTasks,
-        showRecurringTasks,
-        showCompletedTasksCalendar,
-        calendarZoom,
-      };
-      localStorage.setItem("juda-view-preferences", JSON.stringify(preferences));
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error("Error saving view preferences:", error);
-    }
-  }, [
-    showDashboard,
-    showCalendar,
-    calendarView,
-    backlogOpen,
-    backlogWidth,
-    showCompletedTasks,
-    showRecurringTasks,
-    showCompletedTasksCalendar,
-    calendarZoom,
-  ]);
 
   // Resize handlers for backlog drawer
   const resizeStartRef = useRef(null);
@@ -416,7 +284,7 @@ export default function DailyTasksApp() {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isResizing, backlogWidth]);
+  }, [isResizing, backlogWidth, setBacklogWidth]);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -1606,6 +1474,7 @@ export default function DailyTasksApp() {
         }
 
         // Reorder the task (this handles section change and order)
+        // eslint-disable-next-line no-console
         console.log("Reordering task:", {
           taskId,
           sourceSectionId,
@@ -1668,7 +1537,13 @@ export default function DailyTasksApp() {
 
   // Show skeleton on initial load
   if (isLoading && tasks.length === 0 && sections.length === 0) {
-    return <PageSkeleton showBacklog={backlogOpen} showDashboard={showDashboard} showCalendar={showCalendar} />;
+    return (
+      <PageSkeleton
+        showBacklog={backlogOpen || false}
+        showDashboard={showDashboard || false}
+        showCalendar={showCalendar || false}
+      />
+    );
   }
 
   return (

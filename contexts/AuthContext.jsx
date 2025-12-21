@@ -84,45 +84,90 @@ export function AuthProvider({ children }) {
     };
   }, [accessToken, refreshAccessToken]);
 
-  // Login function
-  const login = useCallback(async (email, password) => {
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ email, password }),
-    });
+  // Helper function to migrate localStorage to DB
+  const migrateLocalStoragePreferences = useCallback(async token => {
+    if (typeof window === "undefined") return;
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Login failed");
+    try {
+      const viewPrefs = localStorage.getItem("juda-view-preferences");
+      const colorMode = localStorage.getItem("chakra-ui-color-mode");
+
+      if (viewPrefs || colorMode) {
+        const prefs = viewPrefs ? JSON.parse(viewPrefs) : {};
+        if (colorMode) prefs.colorMode = colorMode;
+
+        // Save to database
+        await fetch("/api/preferences", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(prefs),
+        });
+
+        // Clear localStorage after migration
+        localStorage.removeItem("juda-view-preferences");
+        // Note: Keep chakra-ui-color-mode for initial page load performance
+      }
+    } catch (error) {
+      console.error("Error migrating preferences:", error);
     }
-
-    const data = await response.json();
-    setUser(data.user);
-    setAccessToken(data.accessToken);
-    return data.user;
   }, []);
+
+  // Login function
+  const login = useCallback(
+    async (email, password) => {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Login failed");
+      }
+
+      const data = await response.json();
+      setUser(data.user);
+      setAccessToken(data.accessToken);
+
+      // Migrate localStorage preferences to database
+      await migrateLocalStoragePreferences(data.accessToken);
+
+      return data.user;
+    },
+    [migrateLocalStoragePreferences]
+  );
 
   // Register function
-  const register = useCallback(async (email, password, name) => {
-    const response = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ email, password, name }),
-    });
+  const register = useCallback(
+    async (email, password, name) => {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password, name }),
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Registration failed");
-    }
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Registration failed");
+      }
 
-    const data = await response.json();
-    setUser(data.user);
-    setAccessToken(data.accessToken);
-    return data.user;
-  }, []);
+      const data = await response.json();
+      setUser(data.user);
+      setAccessToken(data.accessToken);
+
+      // Migrate localStorage preferences to database
+      await migrateLocalStoragePreferences(data.accessToken);
+
+      return data.user;
+    },
+    [migrateLocalStoragePreferences]
+  );
 
   // Logout function
   const logout = useCallback(async () => {

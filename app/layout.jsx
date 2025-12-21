@@ -15,7 +15,23 @@ export default function RootLayout({ children }) {
             __html: `
               (function() {
                 try {
-                  const colorMode = localStorage.getItem('chakra-ui-color-mode') || 'dark';
+                  // Check localStorage first (for backwards compatibility and initial load)
+                  let colorMode = localStorage.getItem('chakra-ui-color-mode');
+
+                  // If no chakra color mode, check our preferences
+                  if (!colorMode) {
+                    const prefs = localStorage.getItem('juda-view-preferences');
+                    if (prefs) {
+                      try {
+                        const parsed = JSON.parse(prefs);
+                        colorMode = parsed.colorMode;
+                      } catch (e) {}
+                    }
+                  }
+
+                  // Default to dark if nothing found
+                  colorMode = colorMode || 'dark';
+
                   document.documentElement.setAttribute('data-theme', colorMode);
                   document.documentElement.style.colorScheme = colorMode;
                   if (colorMode === 'dark') {
