@@ -3,16 +3,19 @@
 import { Box, Text } from "@chakra-ui/react";
 import { useDraggable } from "@dnd-kit/core";
 
-export const UntimedWeekTask = ({ task, onTaskClick, createDraggableId, day }) => {
+export const UntimedWeekTask = ({ task, onTaskClick, createDraggableId, day, isCompletedOnDate }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: createDraggableId.calendarUntimed(task.id, day),
     data: { task, type: "TASK" },
   });
 
+  const isCompleted = isCompletedOnDate ? isCompletedOnDate(task.id, day) : false;
+
   const style = {
     // Don't apply transform for draggable items - DragOverlay handles the preview
     // Only hide the original element when dragging
-    opacity: isDragging ? 0 : 1,
+    opacity: isDragging ? 0 : isCompleted ? 0.6 : 1,
+    filter: isCompleted ? "brightness(0.7)" : "none",
     pointerEvents: isDragging ? "none" : "auto",
   };
 
@@ -33,7 +36,7 @@ export const UntimedWeekTask = ({ task, onTaskClick, createDraggableId, day }) =
         onTaskClick(task);
       }}
     >
-      <Text fontSize="2xs" fontWeight="medium" noOfLines={2}>
+      <Text fontSize="2xs" fontWeight="medium" noOfLines={2} textDecoration={isCompleted ? "line-through" : "none"}>
         {task.title}
       </Text>
     </Box>

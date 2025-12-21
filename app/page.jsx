@@ -1304,6 +1304,7 @@ export default function DailyTasksApp() {
                                   dropTimeRef.current = time;
                                 }}
                                 createDroppableId={createDroppableId}
+                                isCompletedOnDate={isCompletedOnDate}
                               />
                             )}
                             {calendarView === "week" && selectedDate && (
@@ -1323,6 +1324,7 @@ export default function DailyTasksApp() {
                                 }}
                                 createDroppableId={createDroppableId}
                                 createDraggableId={createDraggableId}
+                                isCompletedOnDate={isCompletedOnDate}
                               />
                             )}
                             {calendarView === "month" && selectedDate && (

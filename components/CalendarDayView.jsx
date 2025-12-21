@@ -20,6 +20,7 @@ export const CalendarDayView = ({
   onDropTimeChange,
   createDroppableId,
   createDraggableId,
+  isCompletedOnDate,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
@@ -214,6 +215,7 @@ export const CalendarDayView = ({
                 onTaskClick={onTaskClick}
                 createDraggableId={createDraggableId}
                 date={date}
+                isCompletedOnDate={isCompletedOnDate}
               />
             ))}
             {isOverUntimed && untimedTasks.length === 0 && (
@@ -280,6 +282,7 @@ export const CalendarDayView = ({
               getTaskStyle={getTaskStyle}
               internalDrag={internalDrag}
               handleInternalDragStart={handleInternalDragStart}
+              isCompletedOnDate={isCompletedOnDate}
             />
           ))}
         </Box>

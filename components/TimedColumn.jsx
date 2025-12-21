@@ -19,6 +19,7 @@ export const TimedColumn = ({
   handleInternalDragStart,
   borderColor,
   dropHighlight,
+  isCompletedOnDate,
 }) => {
   const timedDroppableId = createDroppableId.calendarWeek(day);
   const { setNodeRef, isOver } = useDroppable({
@@ -66,6 +67,7 @@ export const TimedColumn = ({
           getTaskStyle={getTaskStyle}
           internalDrag={internalDrag}
           handleInternalDragStart={handleInternalDragStart}
+          isCompletedOnDate={isCompletedOnDate}
         />
       ))}
     </Box>

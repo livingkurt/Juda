@@ -12,21 +12,24 @@ export const TimedTask = ({
   getTaskStyle,
   internalDrag,
   handleInternalDragStart,
+  isCompletedOnDate,
 }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: createDraggableId.calendarTimed(task.id, date),
     data: { task, type: "TASK" },
   });
 
+  const isNoDuration = task.duration === 0;
+  const isCompleted = isCompletedOnDate ? isCompletedOnDate(task.id, date) : false;
+
   const style = {
     ...getTaskStyle(task),
     // Don't apply transform for draggable items - DragOverlay handles the preview
     // Only hide the original element when dragging
-    opacity: isDragging && !internalDrag.taskId ? 0 : 1,
+    opacity: isDragging && !internalDrag.taskId ? 0 : isCompleted ? 0.6 : 1,
+    filter: isCompleted ? "brightness(0.7)" : "none",
     pointerEvents: isDragging && !internalDrag.taskId ? "none" : "auto",
   };
-
-  const isNoDuration = task.duration === 0;
 
   return (
     <Box
@@ -65,7 +68,7 @@ export const TimedTask = ({
           onTaskClick(task);
         }}
       >
-        <Text fontWeight="medium" isTruncated>
+        <Text fontWeight="medium" isTruncated textDecoration={isCompleted ? "line-through" : "none"}>
           {task.title}
         </Text>
         {(task.duration || 30) >= 45 && (

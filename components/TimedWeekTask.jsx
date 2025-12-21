@@ -11,21 +11,24 @@ export const TimedWeekTask = ({
   getTaskStyle,
   internalDrag,
   handleInternalDragStart,
+  isCompletedOnDate,
 }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: createDraggableId.calendarTimed(task.id, day),
     data: { task, type: "TASK" },
   });
 
+  const isNoDuration = task.duration === 0;
+  const isCompleted = isCompletedOnDate ? isCompletedOnDate(task.id, day) : false;
+
   const style = {
     ...getTaskStyle(task),
     // Don't apply transform for draggable items - DragOverlay handles the preview
     // Only hide the original element when dragging
-    opacity: isDragging && !internalDrag.taskId ? 0 : 1,
+    opacity: isDragging && !internalDrag.taskId ? 0 : isCompleted ? 0.6 : 1,
+    filter: isCompleted ? "brightness(0.7)" : "none",
     pointerEvents: isDragging && !internalDrag.taskId ? "none" : "auto",
   };
-
-  const isNoDuration = task.duration === 0;
 
   return (
     <Box
@@ -64,7 +67,7 @@ export const TimedWeekTask = ({
           onTaskClick(task);
         }}
       >
-        <Text isTruncated fontWeight="medium">
+        <Text isTruncated fontWeight="medium" textDecoration={isCompleted ? "line-through" : "none"}>
           {task.title}
         </Text>
       </Box>

@@ -18,6 +18,7 @@ export const DayHeaderColumn = ({
   dropHighlight,
   hourTextColor,
   hoverBg,
+  isCompletedOnDate,
 }) => {
   const untimedDroppableId = createDroppableId.calendarWeekUntimed(day);
 
@@ -75,6 +76,7 @@ export const DayHeaderColumn = ({
               onTaskClick={onTaskClick}
               createDraggableId={createDraggableId}
               day={day}
+              isCompletedOnDate={isCompletedOnDate}
             />
           ))}
         </VStack>

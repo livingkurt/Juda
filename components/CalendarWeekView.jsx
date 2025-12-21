@@ -20,6 +20,7 @@ export const CalendarWeekView = ({
   onDropTimeChange,
   createDroppableId,
   createDraggableId,
+  isCompletedOnDate,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -204,6 +205,7 @@ export const CalendarWeekView = ({
               dropHighlight={dropHighlight}
               hourTextColor={hourTextColor}
               hoverBg={hoverBg}
+              isCompletedOnDate={isCompletedOnDate}
             />
           );
         })}
@@ -255,6 +257,7 @@ export const CalendarWeekView = ({
                   handleInternalDragStart={handleInternalDragStart}
                   borderColor={borderColor}
                   dropHighlight={dropHighlight}
+                  isCompletedOnDate={isCompletedOnDate}
                 />
               );
             })}
