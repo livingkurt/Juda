@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "drizzle-kit push --force && next build",
+    "build": "next build",
     "start": "next start -p 3001",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

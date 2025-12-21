@@ -136,7 +136,13 @@ async function restoreToDev(dump) {
 
     // Restore sections first (tasks depend on them)
     if (dump.sections && dump.sections.length > 0) {
-      await devDb.insert(sections).values(dump.sections);
+      // Convert date strings to Date objects
+      const sectionsToInsert = dump.sections.map(section => ({
+        ...section,
+        createdAt: new Date(section.createdAt),
+        updatedAt: new Date(section.updatedAt),
+      }));
+      await devDb.insert(sections).values(sectionsToInsert);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.sections.length} sections`);
     }
@@ -161,7 +167,12 @@ async function restoreToDev(dump) {
         const filtered = {};
         for (const field of validTaskFields) {
           if (task[field] !== undefined) {
-            filtered[field] = task[field];
+            // Convert date strings to Date objects
+            if (field === "createdAt" || field === "updatedAt") {
+              filtered[field] = new Date(task[field]);
+            } else {
+              filtered[field] = task[field];
+            }
           }
         }
         return filtered;
