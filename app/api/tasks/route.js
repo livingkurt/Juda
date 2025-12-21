@@ -21,18 +21,18 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { title, sectionId, time, duration, color, recurrence, subtasks, order } = body;
+    const { title, sectionId, parentId, time, duration, color, recurrence, order } = body;
 
     const [task] = await db
       .insert(tasks)
       .values({
         title,
         sectionId,
+        parentId: parentId || null,
         time: time || null,
         duration: duration ?? 30,
         color: color ?? "#3b82f6",
         recurrence: recurrence || null,
-        subtasks: subtasks || [],
         order: order ?? 0,
       })
       .returning();
@@ -47,7 +47,7 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     const body = await request.json();
-    const { id, title, sectionId, time, duration, color, recurrence, subtasks, expanded, order } = body;
+    const { id, title, sectionId, parentId, time, duration, color, recurrence, expanded, order } = body;
 
     // Validate required fields
     if (!id) {
@@ -79,11 +79,11 @@ export async function PUT(request) {
         updateData.sectionId = sectionId;
       }
     }
+    if (parentId !== undefined) updateData.parentId = parentId; // Allow null to clear parent
     if (time !== undefined) updateData.time = time;
     if (duration !== undefined) updateData.duration = duration;
     if (color !== undefined) updateData.color = color;
     if (recurrence !== undefined) updateData.recurrence = recurrence;
-    if (subtasks !== undefined) updateData.subtasks = subtasks;
     if (expanded !== undefined) updateData.expanded = expanded;
     if (order !== undefined) updateData.order = order;
 

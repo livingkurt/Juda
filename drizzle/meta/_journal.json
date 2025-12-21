@@ -8,6 +8,20 @@
       "when": 1766335918946,
       "tag": "0000_silent_mandroid",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1734811200000,
+      "tag": "0001_add_parent_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1734811300000,
+      "tag": "0002_migrate_subtasks_to_tasks",
+      "breakpoints": true
     }
   ]
 }

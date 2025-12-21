@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack, Input, Badge } from "@chakra-ui/react";
 import { useColorModeValue } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ChevronDown, ChevronRight, Clock, Edit2, Trash2, GripVertical, Copy, AlertCircle } from "lucide-react";
 import { formatTime, isOverdue } from "@/lib/utils";
+import { SortableSubtaskItem } from "./SortableSubtaskItem";
+import { createDroppableId } from "@/lib/dragHelpers";
 
 export const TaskItem = ({
   task,
@@ -40,7 +44,6 @@ export const TaskItem = ({
   const hoverBg = useColorModeValue("gray.50", "gray.700");
   const textColorDefault = useColorModeValue("gray.900", "gray.100");
   const mutedTextDefault = useColorModeValue("gray.500", "gray.400");
-  const subtaskText = useColorModeValue("gray.700", "gray.200");
   const gripColorDefault = useColorModeValue("gray.400", "gray.500");
 
   const textColor = textColorProp || textColorDefault;
@@ -53,6 +56,7 @@ export const TaskItem = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(task.title);
   const titleInputRef = useRef(null);
+  const hoverTimeoutRef = useRef(null);
 
   useEffect(() => {
     setEditedTitle(task.title);
@@ -117,21 +121,76 @@ export const TaskItem = ({
     },
   });
 
+  // Make task a drop target for combining tasks
+  const taskDropId = createDroppableId.taskTarget(task.id);
+  const { isOver, setNodeRef: setDropRef } = useDroppable({
+    id: taskDropId,
+    data: {
+      type: "TASK_TARGET",
+      taskId: task.id,
+    },
+  });
+
+  // Hover-to-expand: Auto-expand when dragging over for 800ms
+  const handleDragOver = useCallback(() => {
+    if (!isOver || !task.subtasks || task.subtasks.length === 0) return;
+
+    // Clear any existing timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+
+    // Set new timeout to expand after 800ms
+    hoverTimeoutRef.current = setTimeout(() => {
+      if (!task.expanded && onToggleExpand) {
+        onToggleExpand(task.id);
+      }
+    }, 800);
+  }, [isOver, task.subtasks, task.expanded, task.id, onToggleExpand]);
+
+  useEffect(() => {
+    if (isOver) {
+      handleDragOver();
+    } else {
+      // Clear timeout when no longer hovering
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, [isOver, handleDragOver]);
+
+  // Combine refs for sortable and droppable
+  const combinedRef = node => {
+    setNodeRef(node);
+    setDropRef(node);
+  };
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: transition || "transform 200ms ease",
     opacity: isDragging ? 0.5 : 1,
   };
 
+  // Visual feedback for drop target
+  const dropTargetStyle = {
+    borderColor: isOver ? "blue.400" : borderColor,
+    borderWidth: isOver ? "2px" : "1px",
+    borderStyle: isOver ? "dashed" : "solid",
+    transform: isOver ? "scale(1.02)" : "scale(1)",
+    transition: "all 0.2s ease",
+  };
+
   return (
-    <Box ref={setNodeRef} style={style}>
-      <Box
-        borderWidth="1px"
-        borderRadius="lg"
-        bg={bgColor}
-        borderColor={borderColor}
-        transition="box-shadow 0.2s, border-color 0.2s"
-      >
+    <Box ref={combinedRef} style={style}>
+      <Box borderRadius="lg" bg={bgColor} transition="box-shadow 0.2s, border-color 0.2s" {...dropTargetStyle}>
         <Flex align="center" gap={2} p={3} _hover={{ bg: hoverBg }} _active={{ cursor: "grabbing" }}>
           {/* Drag handle */}
           <Box {...attributes} {...listeners} cursor="grab" _active={{ cursor: "grabbing" }} color={gripColor}>
@@ -325,35 +384,38 @@ export const TaskItem = ({
         {/* Expanded subtasks */}
         {task.expanded && task.subtasks && task.subtasks.length > 0 && onToggleSubtask && (
           <Box pl={16} pr={3} pb={3}>
-            <VStack align="stretch" spacing={2}>
-              {task.subtasks.map(subtask => (
-                <Flex
-                  key={subtask.id}
-                  align="center"
-                  gap={2}
-                  p={1}
-                  borderRadius="md"
-                  _hover={{ bg: hoverBg }}
-                  cursor="pointer"
-                  onClick={() => onToggleSubtask(task.id, subtask.id)}
-                >
-                  <Checkbox
-                    isChecked={subtask.completed}
-                    size="sm"
-                    onChange={() => onToggleSubtask(task.id, subtask.id)}
-                    onClick={e => e.stopPropagation()}
+            <SortableContext
+              items={task.subtasks.map(st => createDroppableId.subtask(task.id, st.id))}
+              strategy={verticalListSortingStrategy}
+            >
+              <VStack align="stretch" spacing={2}>
+                {task.subtasks.map(subtask => (
+                  <SortableSubtaskItem
+                    key={subtask.id}
+                    subtask={subtask}
+                    parentTaskId={task.id}
+                    onToggle={onToggleSubtask}
+                    onEdit={
+                      handleEdit
+                        ? () => {
+                            // Open task dialog with subtask to edit
+                            handleEdit({ ...task, subtaskToEdit: subtask });
+                          }
+                        : undefined
+                    }
+                    onDelete={
+                      handleEdit
+                        ? async (parentId, subtaskId) => {
+                            // Delete subtask by updating parent task
+                            const updatedSubtasks = task.subtasks.filter(st => st.id !== subtaskId);
+                            await handleEdit({ ...task, subtasks: updatedSubtasks });
+                          }
+                        : undefined
+                    }
                   />
-                  <Text
-                    fontSize="sm"
-                    textDecoration={subtask.completed ? "line-through" : "none"}
-                    opacity={subtask.completed ? 0.5 : 1}
-                    color={subtaskText}
-                  >
-                    {subtask.title}
-                  </Text>
-                </Flex>
-              ))}
-            </VStack>
+                ))}
+              </VStack>
+            </SortableContext>
           </Box>
         )}
       </Box>

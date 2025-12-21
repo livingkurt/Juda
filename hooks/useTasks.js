@@ -11,7 +11,23 @@ export const useTasks = () => {
       const response = await fetch("/api/tasks");
       if (!response.ok) throw new Error("Failed to fetch tasks");
       const data = await response.json();
-      setTasks(data);
+
+      // Organize tasks with subtasks
+      const tasksMap = new Map(data.map(t => [t.id, { ...t, subtasks: [] }]));
+      const rootTasks = [];
+
+      data.forEach(task => {
+        const taskWithSubtasks = tasksMap.get(task.id);
+        if (task.parentId && tasksMap.has(task.parentId)) {
+          // This is a subtask - add it to its parent
+          tasksMap.get(task.parentId).subtasks.push(taskWithSubtasks);
+        } else {
+          // This is a root task
+          rootTasks.push(taskWithSubtasks);
+        }
+      });
+
+      setTasks(rootTasks);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -44,10 +60,23 @@ export const useTasks = () => {
 
   const updateTask = async (id, taskData) => {
     // Store previous state for potential rollback
-    const previousTasks = [...tasks];
+    const previousTasks = JSON.parse(JSON.stringify(tasks));
 
-    // Optimistically update immediately
-    setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...taskData } : t)));
+    // Helper to recursively update a task in the tree
+    const updateTaskInTree = (taskList, taskId, updates) => {
+      return taskList.map(t => {
+        if (t.id === taskId) {
+          return { ...t, ...updates };
+        }
+        if (t.subtasks && t.subtasks.length > 0) {
+          return { ...t, subtasks: updateTaskInTree(t.subtasks, taskId, updates) };
+        }
+        return t;
+      });
+    };
+
+    // Optimistically update immediately (handles nested tasks)
+    setTasks(prev => updateTaskInTree(prev, id, taskData));
 
     try {
       const response = await fetch("/api/tasks", {
@@ -61,8 +90,16 @@ export const useTasks = () => {
         throw new Error(errorMessage);
       }
       const updatedTask = await response.json();
-      // Update with server response to ensure consistency
-      setTasks(prev => prev.map(t => (t.id === id ? updatedTask : t)));
+      // Update with server response, preserving subtasks array
+      setTasks(prev =>
+        updateTaskInTree(prev, id, {
+          ...updatedTask,
+          subtasks:
+            prev.find(t => t.id === id)?.subtasks ||
+            prev.flatMap(t => t.subtasks || []).find(st => st.id === id)?.subtasks ||
+            [],
+        })
+      );
       return updatedTask;
     } catch (err) {
       // Rollback on error
@@ -160,6 +197,111 @@ export const useTasks = () => {
     }
   };
 
+  const combineAsSubtask = async (sourceTaskId, targetTaskId) => {
+    // Find tasks recursively
+    const findTask = (taskList, id) => {
+      for (const task of taskList) {
+        if (task.id === id) return task;
+        if (task.subtasks && task.subtasks.length > 0) {
+          const found = findTask(task.subtasks, id);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const sourceTask = findTask(tasks, sourceTaskId);
+    const targetTask = findTask(tasks, targetTaskId);
+
+    if (!sourceTask || !targetTask) {
+      throw new Error("Source or target task not found");
+    }
+
+    // Prevent dropping task on itself or on its own subtask
+    if (sourceTaskId === targetTaskId) {
+      throw new Error("Cannot combine task with itself");
+    }
+
+    // Check for circular references (prevent dropping task on its own subtask)
+    const checkCircular = (task, targetId) => {
+      if (task.id === targetId) return true;
+      if (task.subtasks && task.subtasks.length > 0) {
+        return task.subtasks.some(st => checkCircular(st, targetId));
+      }
+      return false;
+    };
+
+    if (checkCircular(sourceTask, targetTaskId)) {
+      throw new Error("Cannot create circular reference");
+    }
+
+    const previousTasks = [...tasks];
+
+    try {
+      // Update source task to set parentId
+      const updateResponse = await fetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: sourceTaskId,
+          parentId: targetTaskId,
+          order: targetTask.subtasks?.length || 0,
+        }),
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error("Failed to update source task");
+      }
+
+      // Expand target task to show new subtask
+      await fetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: targetTaskId,
+          expanded: true,
+        }),
+      });
+
+      // Refresh to get server state
+      await fetchTasks();
+    } catch (err) {
+      // Rollback on error
+      setTasks(previousTasks);
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  const promoteSubtask = async (taskId, additionalData = {}) => {
+    const previousTasks = [...tasks];
+
+    try {
+      // Clear parentId to promote to root task, and apply any additional updates
+      const updateResponse = await fetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: taskId,
+          parentId: null,
+          ...additionalData,
+        }),
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error("Failed to promote subtask");
+      }
+
+      // Refresh to get server state
+      await fetchTasks();
+    } catch (err) {
+      // Rollback on error
+      setTasks(previousTasks);
+      setError(err.message);
+      throw err;
+    }
+  };
+
   return {
     tasks,
     loading,
@@ -169,6 +311,8 @@ export const useTasks = () => {
     deleteTask,
     reorderTask,
     duplicateTask,
+    combineAsSubtask,
+    promoteSubtask,
     refetch: fetchTasks,
   };
 };

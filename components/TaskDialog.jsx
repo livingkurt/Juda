@@ -21,13 +21,15 @@ import {
   Flex,
   IconButton,
   useColorModeValue,
+  Badge,
 } from "@chakra-ui/react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Edit2 } from "lucide-react";
 import { DAYS_OF_WEEK, DURATION_OPTIONS } from "@/lib/constants";
 import { formatLocalDate } from "@/lib/utils";
 
 export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSectionId, defaultTime, defaultDate }) => {
   const bgColor = useColorModeValue("white", "gray.800");
+  const subtaskBgColor = useColorModeValue("gray.50", "gray.700");
   const [title, setTitle] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [time, setTime] = useState("");
@@ -37,6 +39,11 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
   const [selectedDays, setSelectedDays] = useState([]);
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtask, setNewSubtask] = useState("");
+  const [editingSubtask, setEditingSubtask] = useState(null);
+  const [subtaskTitle, setSubtaskTitle] = useState("");
+  const [subtaskTime, setSubtaskTime] = useState("");
+  const [subtaskDuration, setSubtaskDuration] = useState(30);
+  const [subtaskColor, setSubtaskColor] = useState("#3b82f6");
   const [color, setColor] = useState("#3b82f6");
 
   const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6"];
@@ -239,10 +246,38 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
                 <FormLabel>Subtasks</FormLabel>
                 <VStack align="stretch" spacing={2} mt={2}>
                   {subtasks.map(st => (
-                    <Flex key={st.id} align="center" gap={2}>
+                    <Flex key={st.id} align="center" gap={2} p={2} borderRadius="md" bg={subtaskBgColor}>
+                      <Box w={2} h={2} borderRadius="full" bg={st.color || "#3b82f6"} flexShrink={0} />
                       <Text flex={1} fontSize="sm">
                         {st.title}
                       </Text>
+                      {st.time && (
+                        <Badge size="sm" colorScheme="blue" fontSize="2xs">
+                          {st.time}
+                        </Badge>
+                      )}
+                      {st.duration && st.duration > 0 && (
+                        <Badge size="sm" colorScheme="gray" fontSize="2xs">
+                          {st.duration}m
+                        </Badge>
+                      )}
+                      <IconButton
+                        icon={
+                          <Box as="span" color="currentColor">
+                            <Edit2 size={12} stroke="currentColor" />
+                          </Box>
+                        }
+                        onClick={() => {
+                          setEditingSubtask(st);
+                          setSubtaskTitle(st.title);
+                          setSubtaskTime(st.time || "");
+                          setSubtaskDuration(st.duration || 30);
+                          setSubtaskColor(st.color || "#3b82f6");
+                        }}
+                        size="xs"
+                        variant="ghost"
+                        aria-label="Edit subtask"
+                      />
                       <IconButton
                         icon={
                           <Box as="span" color="currentColor">
@@ -250,7 +285,7 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
                           </Box>
                         }
                         onClick={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
-                        size="sm"
+                        size="xs"
                         variant="ghost"
                         colorScheme="red"
                         aria-label="Delete subtask"
@@ -261,7 +296,7 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
                     <Input
                       value={newSubtask}
                       onChange={e => setNewSubtask(e.target.value)}
-                      placeholder="Add subtask"
+                      placeholder="Add subtask (quick)"
                       onKeyDown={e => {
                         if (e.key === "Enter" && newSubtask.trim()) {
                           e.preventDefault();
@@ -272,6 +307,10 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
                               id: Date.now().toString(),
                               title: newSubtask.trim(),
                               completed: false,
+                              time: null,
+                              duration: 30,
+                              color: "#3b82f6",
+                              order: subtasks.length,
                             },
                           ]);
                           setNewSubtask("");
@@ -292,6 +331,10 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
                               id: Date.now().toString(),
                               title: newSubtask.trim(),
                               completed: false,
+                              time: null,
+                              duration: 30,
+                              color: "#3b82f6",
+                              order: subtasks.length,
                             },
                           ]);
                           setNewSubtask("");
@@ -304,6 +347,101 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
                   </HStack>
                 </VStack>
               </Box>
+              {/* Subtask Edit Modal */}
+              <Modal isOpen={editingSubtask !== null} onClose={() => setEditingSubtask(null)} size="sm">
+                <ModalOverlay />
+                <ModalContent bg={bgColor}>
+                  <ModalHeader>Edit Subtask</ModalHeader>
+                  <ModalCloseButton />
+                  <ModalBody>
+                    <VStack spacing={4} py={4}>
+                      <Box w="full">
+                        <FormLabel>Title</FormLabel>
+                        <Input
+                          value={subtaskTitle}
+                          onChange={e => setSubtaskTitle(e.target.value)}
+                          placeholder="Subtask title"
+                        />
+                      </Box>
+                      <Box w="full">
+                        <FormLabel>Color</FormLabel>
+                        <HStack spacing={2} mt={2} flexWrap="wrap">
+                          {colors.map(c => (
+                            <Button
+                              key={c}
+                              w={6}
+                              h={6}
+                              borderRadius="full"
+                              bg={c}
+                              onClick={() => setSubtaskColor(c)}
+                              borderWidth={subtaskColor === c ? "3px" : "0px"}
+                              borderColor="blue.400"
+                              _hover={{ transform: "scale(1.1)" }}
+                              aria-label={`Select color ${c}`}
+                            />
+                          ))}
+                        </HStack>
+                      </Box>
+                      <SimpleGrid columns={2} spacing={4} w="full">
+                        <Box>
+                          <FormLabel>Time</FormLabel>
+                          <Input
+                            type="time"
+                            value={subtaskTime}
+                            onChange={e => setSubtaskTime(e.target.value)}
+                            placeholder="Optional"
+                          />
+                        </Box>
+                        <Box>
+                          <FormLabel>Duration</FormLabel>
+                          <Select
+                            value={subtaskDuration.toString()}
+                            onChange={e => setSubtaskDuration(parseInt(e.target.value))}
+                          >
+                            {DURATION_OPTIONS.map(d => (
+                              <option key={d.value} value={d.value.toString()}>
+                                {d.label}
+                              </option>
+                            ))}
+                          </Select>
+                        </Box>
+                      </SimpleGrid>
+                    </VStack>
+                  </ModalBody>
+                  <ModalFooter>
+                    <Button variant="outline" mr={3} onClick={() => setEditingSubtask(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (subtaskTitle.trim() && editingSubtask) {
+                          setSubtasks(
+                            subtasks.map(st =>
+                              st.id === editingSubtask.id
+                                ? {
+                                    ...st,
+                                    title: subtaskTitle.trim(),
+                                    time: subtaskTime || null,
+                                    duration: subtaskDuration,
+                                    color: subtaskColor,
+                                  }
+                                : st
+                            )
+                          );
+                          setEditingSubtask(null);
+                          setSubtaskTitle("");
+                          setSubtaskTime("");
+                          setSubtaskDuration(30);
+                          setSubtaskColor("#3b82f6");
+                        }
+                      }}
+                      isDisabled={!subtaskTitle.trim()}
+                    >
+                      Save
+                    </Button>
+                  </ModalFooter>
+                </ModalContent>
+              </Modal>
             </VStack>
           </form>
         </ModalBody>
