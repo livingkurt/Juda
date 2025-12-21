@@ -61,6 +61,7 @@ import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
 import { DashboardView } from "@/components/DashboardView";
 import { PageSkeleton, SectionSkeleton, BacklogSkeleton, CalendarSkeleton } from "@/components/Skeletons";
+import { DateNavigation } from "@/components/DateNavigation";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
@@ -118,6 +119,8 @@ export default function DailyTasksApp() {
   const [calendarView, setCalendarView] = useState("week");
   // Initialize selectedDate to null, then set it in useEffect to avoid hydration mismatch
   const [selectedDate, setSelectedDate] = useState(null);
+  // Initialize todayViewDate to null, then set it in useEffect to avoid hydration mismatch
+  const [todayViewDate, setTodayViewDate] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [editingSection, setEditingSection] = useState(null);
   const [defaultSectionId, setDefaultSectionId] = useState(null);
@@ -139,6 +142,12 @@ export default function DailyTasksApp() {
       today.setHours(0, 0, 0, 0);
       setSelectedDate(today);
     }
+    // Set todayViewDate on mount to avoid hydration mismatch
+    if (todayViewDate === null) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      setTodayViewDate(today);
+    }
 
     if (typeof window === "undefined") return;
 
@@ -159,7 +168,7 @@ export default function DailyTasksApp() {
       console.error("Error loading view preferences:", error);
       preferencesLoadedRef.current = true;
     }
-  }, [selectedDate]);
+  }, [selectedDate, todayViewDate]);
 
   // Load completions on mount
   useEffect(() => {
@@ -236,16 +245,18 @@ export default function DailyTasksApp() {
   const GreetingIcon = greeting.icon === "Sun" ? Sun : greeting.icon === "Sunset" ? Sunset : Moon;
 
   // Tasks that should show in today's dashboard, enhanced with completion status
+  // Use todayViewDate if available, otherwise fall back to today
+  const viewDate = todayViewDate || today;
   const todaysTasks = useMemo(
     () =>
       tasks
-        .filter(task => shouldShowOnDate(task, today))
+        .filter(task => shouldShowOnDate(task, viewDate))
         .map(task => ({
           ...task,
-          // Override completed field with today's completion record status
-          completed: isCompletedOnDate(task.id, today),
+          // Override completed field with the selected date's completion record status
+          completed: isCompletedOnDate(task.id, viewDate),
         })),
-    [tasks, today, isCompletedOnDate]
+    [tasks, viewDate, isCompletedOnDate]
   );
 
   // Group today's tasks by section
@@ -259,6 +270,7 @@ export default function DailyTasksApp() {
 
   // Tasks for backlog: no recurrence AND no time, or recurrence doesn't match today
   // Exclude tasks with future dates/times
+  // Note: Backlog is always relative to today, not the selected date in Today View
   const backlogTasks = useMemo(() => {
     return tasks
       .filter(task => {
@@ -275,14 +287,14 @@ export default function DailyTasksApp() {
       }));
   }, [tasks, today, isCompletedOnDate]);
 
-  // Progress calculation - check completion records for today
+  // Progress calculation - check completion records for the selected date
   const totalTasks = todaysTasks.length;
   const completedTasks = todaysTasks.filter(t => {
-    // Check if task is completed today via completion record
-    const isCompletedToday = isCompletedOnDate(t.id, today);
+    // Check if task is completed on the selected date via completion record
+    const isCompletedOnViewDate = isCompletedOnDate(t.id, viewDate);
     // Also check subtasks completion
     const allSubtasksComplete = t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed);
-    return isCompletedToday || allSubtasksComplete;
+    return isCompletedOnViewDate || allSubtasksComplete;
   }).length;
   const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
@@ -291,17 +303,17 @@ export default function DailyTasksApp() {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    const isCompletedToday = isCompletedOnDate(taskId, today);
+    const isCompletedOnViewDate = isCompletedOnDate(taskId, viewDate);
 
     try {
       // Only update completion record - no need to update task.completed field
       // The UI will reflect completion status via isCompletedOnDate check
-      if (isCompletedToday) {
-        // Task is completed today, remove completion record
-        await deleteCompletion(taskId, today.toISOString());
+      if (isCompletedOnViewDate) {
+        // Task is completed on the selected date, remove completion record
+        await deleteCompletion(taskId, viewDate.toISOString());
       } else {
-        // Task is not completed today, create completion record
-        await createCompletion(taskId, today.toISOString());
+        // Task is not completed on the selected date, create completion record
+        await createCompletion(taskId, viewDate.toISOString());
       }
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -362,7 +374,7 @@ export default function DailyTasksApp() {
   const handleAddTask = sectionId => {
     setDefaultSectionId(sectionId);
     setDefaultTime(null);
-    setDefaultDate(formatLocalDate(new Date()));
+    setDefaultDate(formatLocalDate(viewDate || new Date()));
     setEditingTask(null);
     openTaskDialog();
   };
@@ -371,8 +383,8 @@ export default function DailyTasksApp() {
     if (!title.trim()) return;
 
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const taskDate = viewDate || new Date();
+      taskDate.setHours(0, 0, 0, 0);
 
       await createTask({
         title: title.trim(),
@@ -382,7 +394,7 @@ export default function DailyTasksApp() {
         color: "#3b82f6",
         recurrence: {
           type: "none",
-          startDate: today.toISOString(),
+          startDate: taskDate.toISOString(),
         },
         subtasks: [],
         order: 999,
@@ -477,11 +489,12 @@ export default function DailyTasksApp() {
           recurrence: null,
         };
       }
-      // DESTINATION: Today section - set date to today, clear time, preserve recurrence
+      // DESTINATION: Today section - set date to the selected date in Today View, clear time, preserve recurrence
       else if (destParsed.type === "today-section") {
         // Don't set sectionId here - let the reordering logic below handle it
-        // Use local date to match user's calendar view
-        const todayDateStr = formatLocalDate(today);
+        // Use the selected date in Today View (todayViewDate), or fall back to today
+        const targetDate = viewDate || today;
+        const targetDateStr = formatLocalDate(targetDate);
 
         // Preserve existing recurrence if it exists, otherwise set to none with today's date
         let recurrenceUpdate;
@@ -489,10 +502,10 @@ export default function DailyTasksApp() {
           // Preserve the recurrence pattern (daily, weekly, etc.)
           recurrenceUpdate = task.recurrence;
         } else {
-          // No recurrence or type is "none" - set to none with today's date
+          // No recurrence or type is "none" - set to none with the selected date
           recurrenceUpdate = {
             type: "none",
-            startDate: `${todayDateStr}T00:00:00.000Z`,
+            startDate: `${targetDateStr}T00:00:00.000Z`,
           };
         }
 
@@ -627,6 +640,25 @@ export default function DailyTasksApp() {
     else d.setMonth(d.getMonth() + dir);
     d.setHours(0, 0, 0, 0);
     setSelectedDate(d);
+  };
+
+  // Today View navigation
+  const navigateTodayView = dir => {
+    if (!todayViewDate) return;
+    const d = new Date(todayViewDate);
+    d.setDate(d.getDate() + dir);
+    d.setHours(0, 0, 0, 0);
+    setTodayViewDate(d);
+  };
+
+  const handleTodayViewToday = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    setTodayViewDate(today);
+  };
+
+  const handleTodayViewDateChange = date => {
+    setTodayViewDate(date);
   };
 
   const getCalendarTitle = () => {
@@ -1025,7 +1057,15 @@ export default function DailyTasksApp() {
               {showDashboard && (
                 <Box>
                   <Flex justify="space-between" fontSize="sm" color={mutedText} mb={1}>
-                    <Text>Today&apos;s Progress</Text>
+                    <Text>
+                      {viewDate && viewDate.toDateString() === today.toDateString()
+                        ? "Today's Progress"
+                        : `${viewDate?.toLocaleDateString("en-US", {
+                            weekday: "long",
+                            month: "long",
+                            day: "numeric",
+                          })} Progress`}
+                    </Text>
                     <Text>
                       {completedTasks}/{totalTasks} ({progressPercent}%)
                     </Text>
@@ -1138,24 +1178,35 @@ export default function DailyTasksApp() {
                           <SectionSkeleton />
                         </Box>
                       ) : (
-                        <Section
-                          sections={sortedSections}
-                          tasksBySection={tasksBySection}
-                          onToggleTask={handleToggleTask}
-                          onToggleSubtask={handleToggleSubtask}
-                          onToggleExpand={handleToggleExpand}
-                          onEditTask={handleEditTask}
-                          onUpdateTaskTitle={handleUpdateTaskTitle}
-                          onDeleteTask={handleDeleteTask}
-                          onDuplicateTask={handleDuplicateTask}
-                          onAddTask={handleAddTask}
-                          onCreateTaskInline={handleCreateTaskInline}
-                          onEditSection={handleEditSection}
-                          onDeleteSection={handleDeleteSection}
-                          onAddSection={handleAddSection}
-                          createDroppableId={createDroppableId}
-                          createDraggableId={createDraggableId}
-                        />
+                        <>
+                          {todayViewDate && (
+                            <DateNavigation
+                              selectedDate={todayViewDate}
+                              onDateChange={handleTodayViewDateChange}
+                              onPrevious={() => navigateTodayView(-1)}
+                              onNext={() => navigateTodayView(1)}
+                              onToday={handleTodayViewToday}
+                            />
+                          )}
+                          <Section
+                            sections={sortedSections}
+                            tasksBySection={tasksBySection}
+                            onToggleTask={handleToggleTask}
+                            onToggleSubtask={handleToggleSubtask}
+                            onToggleExpand={handleToggleExpand}
+                            onEditTask={handleEditTask}
+                            onUpdateTaskTitle={handleUpdateTaskTitle}
+                            onDeleteTask={handleDeleteTask}
+                            onDuplicateTask={handleDuplicateTask}
+                            onAddTask={handleAddTask}
+                            onCreateTaskInline={handleCreateTaskInline}
+                            onEditSection={handleEditSection}
+                            onDeleteSection={handleDeleteSection}
+                            onAddSection={handleAddSection}
+                            createDroppableId={createDroppableId}
+                            createDraggableId={createDraggableId}
+                          />
+                        </>
                       )}
                     </Box>
                   )}
