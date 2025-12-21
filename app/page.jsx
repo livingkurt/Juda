@@ -51,6 +51,8 @@ import {
   Moon,
   Eye,
   EyeOff,
+  Repeat,
+  X,
 } from "lucide-react";
 import { Section } from "@/components/Section";
 import { TaskDialog } from "@/components/TaskDialog";
@@ -147,6 +149,28 @@ export default function DailyTasksApp() {
   });
   const [isResizing, setIsResizing] = useState(false);
   const [calendarView, setCalendarView] = useState("week");
+  // Initialize showRecurringTasks per view from localStorage if available, otherwise default to true for all
+  const [showRecurringTasks, setShowRecurringTasks] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("juda-view-preferences");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.showRecurringTasks) {
+            return {
+              day: parsed.showRecurringTasks.day !== undefined ? parsed.showRecurringTasks.day : true,
+              week: parsed.showRecurringTasks.week !== undefined ? parsed.showRecurringTasks.week : true,
+              month: parsed.showRecurringTasks.month !== undefined ? parsed.showRecurringTasks.month : true,
+            };
+          }
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Error loading show recurring tasks preference:", error);
+      }
+    }
+    return { day: true, week: true, month: true }; // Default to showing recurring tasks
+  });
   // Initialize selectedDate to null, then set it in useEffect to avoid hydration mismatch
   const [selectedDate, setSelectedDate] = useState(null);
   // Initialize todayViewDate to null, then set it in useEffect to avoid hydration mismatch
@@ -193,6 +217,13 @@ export default function DailyTasksApp() {
         if (parsed.calendarView) setCalendarView(parsed.calendarView);
         if (parsed.backlogOpen !== undefined) setBacklogOpen(parsed.backlogOpen);
         if (parsed.showCompletedTasks !== undefined) setShowCompletedTasks(parsed.showCompletedTasks);
+        if (parsed.showRecurringTasks) {
+          setShowRecurringTasks({
+            day: parsed.showRecurringTasks.day !== undefined ? parsed.showRecurringTasks.day : true,
+            week: parsed.showRecurringTasks.week !== undefined ? parsed.showRecurringTasks.week : true,
+            month: parsed.showRecurringTasks.month !== undefined ? parsed.showRecurringTasks.month : true,
+          });
+        }
         // backlogWidth is now initialized from localStorage in useState, but update if it exists
         if (parsed.backlogWidth !== undefined) setBacklogWidth(parsed.backlogWidth);
       }
@@ -249,13 +280,14 @@ export default function DailyTasksApp() {
         backlogOpen,
         backlogWidth,
         showCompletedTasks,
+        showRecurringTasks,
       };
       localStorage.setItem("juda-view-preferences", JSON.stringify(preferences));
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Error saving view preferences:", error);
     }
-  }, [showDashboard, showCalendar, calendarView, backlogOpen, backlogWidth, showCompletedTasks]);
+  }, [showDashboard, showCalendar, calendarView, backlogOpen, backlogWidth, showCompletedTasks, showRecurringTasks]);
   const { isOpen: settingsOpen, onOpen: openSettings, onClose: closeSettings } = useDisclosure();
 
   // Resize handlers for backlog drawer
@@ -1424,6 +1456,30 @@ export default function DailyTasksApp() {
                       <Box mb={3} pb={3} borderBottomWidth="1px" borderColor={borderColor}>
                         <Flex align="center" justify="space-between" mb={2}>
                           <Heading size="md">Calendar</Heading>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setShowRecurringTasks(prev => ({
+                                ...prev,
+                                [calendarView]: !prev[calendarView],
+                              }));
+                            }}
+                            leftIcon={
+                              <Box as="span" color="currentColor">
+                                {showRecurringTasks[calendarView] ? (
+                                  <Repeat size={16} stroke="currentColor" />
+                                ) : (
+                                  <X size={16} stroke="currentColor" />
+                                )}
+                              </Box>
+                            }
+                            fontSize="sm"
+                            color={mutedText}
+                            _hover={{ color: textColor }}
+                          >
+                            {showRecurringTasks[calendarView] ? "Hide Recurring" : "Show Recurring"}
+                          </Button>
                         </Flex>
                         {/* Calendar Controls */}
                         <Flex align="center" gap={2} px={2}>
@@ -1473,51 +1529,62 @@ export default function DailyTasksApp() {
                       ) : (
                         <Card flex={1} overflow="hidden" bg={bgColor} borderColor={borderColor} minH="600px">
                           <CardBody p={0} h="full">
-                            {calendarView === "day" && selectedDate && (
-                              <CalendarDayView
-                                date={selectedDate}
-                                tasks={tasks}
-                                onTaskClick={handleEditTask}
-                                onTaskTimeChange={handleTaskTimeChange}
-                                onTaskDurationChange={handleTaskDurationChange}
-                                onCreateTask={handleCreateTaskFromCalendar}
-                                onDropTimeChange={time => {
-                                  dropTimeRef.current = time;
-                                }}
-                                createDroppableId={createDroppableId}
-                                isCompletedOnDate={isCompletedOnDate}
-                              />
-                            )}
-                            {calendarView === "week" && selectedDate && (
-                              <CalendarWeekView
-                                date={selectedDate}
-                                tasks={tasks}
-                                onTaskClick={handleEditTask}
-                                onDayClick={d => {
-                                  setSelectedDate(d);
-                                  setCalendarView("day");
-                                }}
-                                onTaskTimeChange={handleTaskTimeChange}
-                                onTaskDurationChange={handleTaskDurationChange}
-                                onCreateTask={handleCreateTaskFromCalendar}
-                                onDropTimeChange={time => {
-                                  dropTimeRef.current = time;
-                                }}
-                                createDroppableId={createDroppableId}
-                                createDraggableId={createDraggableId}
-                                isCompletedOnDate={isCompletedOnDate}
-                              />
-                            )}
-                            {calendarView === "month" && selectedDate && (
-                              <CalendarMonthView
-                                date={selectedDate}
-                                tasks={tasks}
-                                onDayClick={d => {
-                                  setSelectedDate(d);
-                                  setCalendarView("day");
-                                }}
-                              />
-                            )}
+                            {(() => {
+                              // Filter tasks based on recurring preference for current view
+                              const filteredTasks = showRecurringTasks[calendarView]
+                                ? tasks
+                                : tasks.filter(task => !task.recurrence || task.recurrence.type === "none");
+
+                              return (
+                                <>
+                                  {calendarView === "day" && selectedDate && (
+                                    <CalendarDayView
+                                      date={selectedDate}
+                                      tasks={filteredTasks}
+                                      onTaskClick={handleEditTask}
+                                      onTaskTimeChange={handleTaskTimeChange}
+                                      onTaskDurationChange={handleTaskDurationChange}
+                                      onCreateTask={handleCreateTaskFromCalendar}
+                                      onDropTimeChange={time => {
+                                        dropTimeRef.current = time;
+                                      }}
+                                      createDroppableId={createDroppableId}
+                                      isCompletedOnDate={isCompletedOnDate}
+                                    />
+                                  )}
+                                  {calendarView === "week" && selectedDate && (
+                                    <CalendarWeekView
+                                      date={selectedDate}
+                                      tasks={filteredTasks}
+                                      onTaskClick={handleEditTask}
+                                      onDayClick={d => {
+                                        setSelectedDate(d);
+                                        setCalendarView("day");
+                                      }}
+                                      onTaskTimeChange={handleTaskTimeChange}
+                                      onTaskDurationChange={handleTaskDurationChange}
+                                      onCreateTask={handleCreateTaskFromCalendar}
+                                      onDropTimeChange={time => {
+                                        dropTimeRef.current = time;
+                                      }}
+                                      createDroppableId={createDroppableId}
+                                      createDraggableId={createDraggableId}
+                                      isCompletedOnDate={isCompletedOnDate}
+                                    />
+                                  )}
+                                  {calendarView === "month" && selectedDate && (
+                                    <CalendarMonthView
+                                      date={selectedDate}
+                                      tasks={filteredTasks}
+                                      onDayClick={d => {
+                                        setSelectedDate(d);
+                                        setCalendarView("day");
+                                      }}
+                                    />
+                                  )}
+                                </>
+                              );
+                            })()}
                           </CardBody>
                         </Card>
                       )}
