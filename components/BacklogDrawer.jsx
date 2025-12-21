@@ -4,7 +4,7 @@ import { Box, VStack, HStack, Flex, Text, IconButton, Badge, useColorModeValue, 
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus, X } from "lucide-react";
-import { SortableBacklogTask } from "./SortableBacklogTask";
+import { TaskItem } from "./TaskItem";
 
 export const BacklogDrawer = ({
   onClose,
@@ -15,6 +15,8 @@ export const BacklogDrawer = ({
   onDeleteTask,
   onDuplicateTask,
   onAddTask,
+  onToggleExpand,
+  onToggleSubtask,
   createDraggableId,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
@@ -100,17 +102,21 @@ export const BacklogDrawer = ({
             <SortableContext items={tasksWithIds.map(t => t.draggableId)} strategy={verticalListSortingStrategy}>
               <VStack align="stretch" spacing={2} px={2}>
                 {tasksWithIds.map(task => (
-                  <SortableBacklogTask
+                  <TaskItem
                     key={task.id}
                     task={task}
+                    variant="backlog"
                     onEditTask={onEditTask}
                     onUpdateTaskTitle={onUpdateTaskTitle}
                     onDeleteTask={onDeleteTask}
                     onDuplicateTask={onDuplicateTask}
+                    onToggleExpand={onToggleExpand}
+                    onToggleSubtask={onToggleSubtask}
                     getSectionName={getSectionName}
                     textColor={textColor}
                     mutedText={mutedText}
                     gripColor={gripColor}
+                    draggableId={task.draggableId}
                   />
                 ))}
               </VStack>

@@ -1,31 +1,53 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack, Input } from "@chakra-ui/react";
+import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack, Input, Badge } from "@chakra-ui/react";
 import { useColorModeValue } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, ChevronRight, Clock, Edit2, Trash2, GripVertical, Copy } from "lucide-react";
-import { formatTime } from "@/lib/utils";
+import { ChevronDown, ChevronRight, Clock, Edit2, Trash2, GripVertical, Copy, AlertCircle } from "lucide-react";
+import { formatTime, isOverdue } from "@/lib/utils";
 
 export const TaskItem = ({
   task,
+  variant = "today", // "today" or "backlog"
   onToggle,
   onToggleSubtask,
   onToggleExpand,
   onEdit,
+  onEditTask, // Alternative prop name for backlog variant
   onUpdateTitle,
+  onUpdateTaskTitle, // Alternative prop name for backlog variant
   onDelete,
+  onDeleteTask, // Alternative prop name for backlog variant
   onDuplicate,
+  onDuplicateTask, // Alternative prop name for backlog variant
   draggableId,
+  getSectionName, // For backlog variant to show section name
+  textColor: textColorProp, // Optional override
+  mutedText: mutedTextProp, // Optional override
+  gripColor: gripColorProp, // Optional override
 }) => {
+  // Normalize prop names - support both naming conventions
+  const handleEdit = onEdit || onEditTask;
+  const handleUpdateTitle = onUpdateTitle || onUpdateTaskTitle;
+  const handleDelete = onDelete || onDeleteTask;
+  const handleDuplicate = onDuplicate || onDuplicateTask;
+
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
-  const textColor = useColorModeValue("gray.900", "gray.100");
-  const mutedText = useColorModeValue("gray.500", "gray.400");
+  const textColorDefault = useColorModeValue("gray.900", "gray.100");
+  const mutedTextDefault = useColorModeValue("gray.500", "gray.400");
   const subtaskText = useColorModeValue("gray.700", "gray.200");
-  const gripColor = useColorModeValue("gray.400", "gray.500");
+  const gripColorDefault = useColorModeValue("gray.400", "gray.500");
+
+  const textColor = textColorProp || textColorDefault;
+  const mutedText = mutedTextProp || mutedTextDefault;
+  const gripColor = gripColorProp || gripColorDefault;
+
+  const isBacklog = variant === "backlog";
+  const isToday = variant === "today";
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(task.title);
@@ -50,8 +72,8 @@ export const TaskItem = ({
   };
 
   const handleTitleBlur = async () => {
-    if (editedTitle.trim() && editedTitle !== task.title && onUpdateTitle) {
-      await onUpdateTitle(task.id, editedTitle);
+    if (editedTitle.trim() && editedTitle !== task.title && handleUpdateTitle) {
+      await handleUpdateTitle(task.id, editedTitle);
     } else if (!editedTitle.trim()) {
       setEditedTitle(task.title);
     }
@@ -61,8 +83,8 @@ export const TaskItem = ({
   const handleTitleKeyDown = async e => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (editedTitle.trim() && editedTitle !== task.title && onUpdateTitle) {
-        await onUpdateTitle(task.id, editedTitle);
+      if (editedTitle.trim() && editedTitle !== task.title && handleUpdateTitle) {
+        await handleUpdateTitle(task.id, editedTitle);
       }
       setIsEditingTitle(false);
       titleInputRef.current?.blur();
@@ -77,11 +99,13 @@ export const TaskItem = ({
 
   // Extract containerId from draggableId
   let containerId = null;
-  if (draggableId.includes("-today-section-")) {
-    const match = draggableId.match(/-today-section-([^-]+)/);
-    if (match) containerId = `today-section|${match[1]}`;
-  } else if (draggableId.includes("-backlog")) {
-    containerId = "backlog";
+  if (draggableId) {
+    if (draggableId.includes("-today-section-")) {
+      const match = draggableId.match(/-today-section-([^-]+)/);
+      if (match) containerId = `today-section|${match[1]}`;
+    } else if (draggableId.includes("-backlog") || draggableId.includes("backlog")) {
+      containerId = "backlog";
+    }
   }
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -115,33 +139,43 @@ export const TaskItem = ({
 
           {/* Expand button for subtasks */}
           {task.subtasks && task.subtasks.length > 0 ? (
-            <IconButton
-              icon={
-                <Box as="span" color="currentColor">
-                  {task.expanded ? <ChevronDown size={16} stroke="currentColor" /> : <ChevronRight size={16} stroke="currentColor" />}
-                </Box>
-              }
-              onClick={e => {
-                e.stopPropagation();
-                onToggleExpand(task.id);
-              }}
-              onMouseDown={e => e.stopPropagation()}
-              size="sm"
-              variant="ghost"
-              aria-label="Toggle expand"
-            />
+            onToggleExpand ? (
+              <IconButton
+                icon={
+                  <Box as="span" color="currentColor">
+                    {task.expanded ? (
+                      <ChevronDown size={16} stroke="currentColor" />
+                    ) : (
+                      <ChevronRight size={16} stroke="currentColor" />
+                    )}
+                  </Box>
+                }
+                onClick={e => {
+                  e.stopPropagation();
+                  onToggleExpand(task.id);
+                }}
+                onMouseDown={e => e.stopPropagation()}
+                size="sm"
+                variant="ghost"
+                aria-label="Toggle expand"
+              />
+            ) : (
+              <Box w={6} />
+            )
           ) : (
             <Box w={6} />
           )}
 
-          {/* Checkbox */}
-          <Checkbox
-            isChecked={task.completed || allSubtasksComplete}
-            size="lg"
-            onChange={() => onToggle(task.id)}
-            onClick={e => e.stopPropagation()}
-            onMouseDown={e => e.stopPropagation()}
-          />
+          {/* Checkbox - only show for today variant */}
+          {isToday && (
+            <Checkbox
+              isChecked={task.completed || allSubtasksComplete}
+              size="lg"
+              onChange={() => onToggle?.(task.id)}
+              onClick={e => e.stopPropagation()}
+              onMouseDown={e => e.stopPropagation()}
+            />
+          )}
 
           {/* Color indicator */}
           <Box w={3} h={3} borderRadius="full" bg={task.color || "#3b82f6"} flexShrink={0} />
@@ -188,6 +222,40 @@ export const TaskItem = ({
                 ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})
               </Text>
             )}
+            {/* Badges - only show for backlog variant */}
+            {isBacklog && (
+              <HStack spacing={2} mt={1} align="center">
+                {isOverdue(task) && (
+                  <Badge size="sm" colorScheme="red" fontSize="2xs">
+                    <HStack spacing={1} align="center">
+                      <Box as="span" color="currentColor">
+                        <AlertCircle size={10} stroke="currentColor" />
+                      </Box>
+                      <Text as="span">Overdue</Text>
+                    </HStack>
+                  </Badge>
+                )}
+                {getSectionName && task.sectionId && (
+                  <Text fontSize="xs" color={mutedText}>
+                    {getSectionName(task.sectionId)}
+                  </Text>
+                )}
+                {task.recurrence && task.recurrence.type !== "none" && (
+                  <Badge size="sm" colorScheme="purple" fontSize="2xs">
+                    {task.recurrence.type === "daily"
+                      ? "Daily"
+                      : task.recurrence.type === "weekly"
+                        ? "Weekly"
+                        : "Recurring"}
+                  </Badge>
+                )}
+                {!task.time && (
+                  <Badge size="sm" colorScheme="orange" fontSize="2xs">
+                    No time
+                  </Badge>
+                )}
+              </HStack>
+            )}
           </Box>
 
           {/* Time display */}
@@ -211,14 +279,14 @@ export const TaskItem = ({
             }
             onClick={e => {
               e.stopPropagation();
-              onEdit(task);
+              handleEdit(task);
             }}
             onMouseDown={e => e.stopPropagation()}
             size="sm"
             variant="ghost"
             aria-label="Edit task"
           />
-          {onDuplicate && (
+          {handleDuplicate && (
             <IconButton
               icon={
                 <Box as="span" color="currentColor">
@@ -227,7 +295,7 @@ export const TaskItem = ({
               }
               onClick={e => {
                 e.stopPropagation();
-                onDuplicate(task.id);
+                handleDuplicate(task.id);
               }}
               onMouseDown={e => e.stopPropagation()}
               size="sm"
@@ -243,7 +311,7 @@ export const TaskItem = ({
             }
             onClick={e => {
               e.stopPropagation();
-              onDelete(task.id);
+              handleDelete(task.id);
             }}
             onMouseDown={e => e.stopPropagation()}
             size="sm"
@@ -254,7 +322,7 @@ export const TaskItem = ({
         </Flex>
 
         {/* Expanded subtasks */}
-        {task.expanded && task.subtasks && task.subtasks.length > 0 && (
+        {task.expanded && task.subtasks && task.subtasks.length > 0 && onToggleSubtask && (
           <Box pl={16} pr={3} pb={3}>
             <VStack align="stretch" spacing={2}>
               {task.subtasks.map(subtask => (

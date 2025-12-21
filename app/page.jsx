@@ -1065,6 +1065,8 @@ export default function DailyTasksApp() {
                     onUpdateTaskTitle={handleUpdateTaskTitle}
                     onDuplicateTask={handleDuplicateTask}
                     onAddTask={handleAddTaskToBacklog}
+                    onToggleExpand={handleToggleExpand}
+                    onToggleSubtask={handleToggleSubtask}
                     createDraggableId={createDraggableId}
                   />
                   {/* Resize handle */}

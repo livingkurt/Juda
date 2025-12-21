@@ -244,6 +244,7 @@ export const SectionCard = ({
                   <TaskItem
                     key={task.id}
                     task={task}
+                    variant="today"
                     index={index}
                     onToggle={onToggleTask}
                     onToggleSubtask={onToggleSubtask}
