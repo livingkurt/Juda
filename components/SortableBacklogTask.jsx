@@ -3,13 +3,14 @@
 import { Box, Flex, Text, IconButton, HStack, Badge } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Edit2, Trash2, GripVertical, AlertCircle } from "lucide-react";
+import { Edit2, Trash2, GripVertical, AlertCircle, Copy } from "lucide-react";
 import { isOverdue } from "@/lib/utils";
 
 export const SortableBacklogTask = ({
   task,
   onEditTask,
   onDeleteTask,
+  onDuplicateTask,
   getSectionName,
   textColor,
   mutedText,
@@ -85,6 +86,19 @@ export const SortableBacklogTask = ({
         variant="ghost"
         aria-label="Edit task"
       />
+      {onDuplicateTask && (
+        <IconButton
+          icon={<Copy size={14} />}
+          onClick={e => {
+            e.stopPropagation();
+            onDuplicateTask(task.id);
+          }}
+          onMouseDown={e => e.stopPropagation()}
+          size="sm"
+          variant="ghost"
+          aria-label="Duplicate task"
+        />
+      )}
       <IconButton
         icon={<Trash2 size={14} />}
         onClick={e => {

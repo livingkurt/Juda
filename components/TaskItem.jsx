@@ -4,10 +4,19 @@ import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack } from "@chakra-u
 import { useColorModeValue } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, ChevronRight, Clock, Edit2, Trash2, GripVertical } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock, Edit2, Trash2, GripVertical, Copy } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 
-export const TaskItem = ({ task, onToggle, onToggleSubtask, onToggleExpand, onEdit, onDelete, draggableId }) => {
+export const TaskItem = ({
+  task,
+  onToggle,
+  onToggleSubtask,
+  onToggleExpand,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  draggableId,
+}) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
@@ -124,6 +133,19 @@ export const TaskItem = ({ task, onToggle, onToggleSubtask, onToggleExpand, onEd
             variant="ghost"
             aria-label="Edit task"
           />
+          {onDuplicate && (
+            <IconButton
+              icon={<Copy size={16} />}
+              onClick={e => {
+                e.stopPropagation();
+                onDuplicate(task.id);
+              }}
+              onMouseDown={e => e.stopPropagation()}
+              size="sm"
+              variant="ghost"
+              aria-label="Duplicate task"
+            />
+          )}
           <IconButton
             icon={<Trash2 size={16} />}
             onClick={e => {

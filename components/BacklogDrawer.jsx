@@ -12,6 +12,7 @@ export const BacklogDrawer = ({
   sections,
   onEditTask,
   onDeleteTask,
+  onDuplicateTask,
   onAddTask,
   createDraggableId,
 }) => {
@@ -89,6 +90,7 @@ export const BacklogDrawer = ({
                     task={task}
                     onEditTask={onEditTask}
                     onDeleteTask={onDeleteTask}
+                    onDuplicateTask={onDuplicateTask}
                     getSectionName={getSectionName}
                     textColor={textColor}
                     mutedText={mutedText}

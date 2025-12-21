@@ -121,6 +121,45 @@ export const useTasks = () => {
     }
   };
 
+  const duplicateTask = async taskId => {
+    const taskToDuplicate = tasks.find(t => t.id === taskId);
+    if (!taskToDuplicate) {
+      throw new Error("Task not found");
+    }
+
+    try {
+      // Create a copy of the task with "Copy of" prefix
+      const duplicatedTaskData = {
+        title: `Copy of ${taskToDuplicate.title}`,
+        sectionId: taskToDuplicate.sectionId,
+        time: taskToDuplicate.time,
+        duration: taskToDuplicate.duration,
+        color: taskToDuplicate.color,
+        recurrence: taskToDuplicate.recurrence,
+        subtasks: taskToDuplicate.subtasks
+          ? taskToDuplicate.subtasks.map(st => ({
+              ...st,
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            }))
+          : [],
+        order: taskToDuplicate.order,
+      };
+
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(duplicatedTaskData),
+      });
+      if (!response.ok) throw new Error("Failed to duplicate task");
+      const newTask = await response.json();
+      setTasks(prev => [...prev, newTask]);
+      return newTask;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
   return {
     tasks,
     loading,
@@ -129,6 +168,7 @@ export const useTasks = () => {
     updateTask,
     deleteTask,
     reorderTask,
+    duplicateTask,
     refetch: fetchTasks,
   };
 };

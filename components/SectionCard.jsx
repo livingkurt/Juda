@@ -32,6 +32,7 @@ export const SectionCard = ({
   onToggleExpand,
   onEditTask,
   onDeleteTask,
+  onDuplicateTask,
   onAddTask,
   onEditSection,
   onDeleteSection,
@@ -174,6 +175,7 @@ export const SectionCard = ({
                     onToggleExpand={onToggleExpand}
                     onEdit={onEditTask}
                     onDelete={onDeleteTask}
+                    onDuplicate={onDuplicateTask}
                     hoveredDroppable={hoveredDroppable}
                     draggableId={task.draggableId}
                   />

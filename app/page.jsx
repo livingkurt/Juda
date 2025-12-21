@@ -77,7 +77,7 @@ export default function DailyTasksApp() {
   const dragOverlayBorder = useColorModeValue("blue.400", "blue.500");
   const dragOverlayText = useColorModeValue("blue.900", "blue.100");
 
-  const { tasks, createTask, updateTask, deleteTask, reorderTask } = useTasks();
+  const { tasks, createTask, updateTask, deleteTask, reorderTask, duplicateTask } = useTasks();
   const { sections, createSection, updateSection, deleteSection, reorderSections } = useSections();
   const { createCompletion, deleteCompletion, isCompletedOnDate, fetchCompletions } = useCompletions();
 
@@ -259,6 +259,26 @@ export default function DailyTasksApp() {
 
   const handleDeleteTask = async taskId => {
     await deleteTask(taskId);
+  };
+
+  const handleDuplicateTask = async taskId => {
+    try {
+      await duplicateTask(taskId);
+      toast({
+        title: "Task duplicated",
+        status: "success",
+        duration: 2000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to duplicate task",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
   const handleAddTask = sectionId => {
@@ -923,6 +943,7 @@ export default function DailyTasksApp() {
                   sections={sections}
                   onDeleteTask={handleDeleteTask}
                   onEditTask={handleEditTask}
+                  onDuplicateTask={handleDuplicateTask}
                   onAddTask={handleAddTaskToBacklog}
                   createDraggableId={createDraggableId}
                 />
@@ -947,6 +968,7 @@ export default function DailyTasksApp() {
                         onToggleExpand={handleToggleExpand}
                         onEditTask={handleEditTask}
                         onDeleteTask={handleDeleteTask}
+                        onDuplicateTask={handleDuplicateTask}
                         onAddTask={handleAddTask}
                         onEditSection={handleEditSection}
                         onDeleteSection={handleDeleteSection}
