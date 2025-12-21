@@ -4,15 +4,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
   Box,
   Button,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  useDisclosure,
   Select,
-  Switch,
   HStack,
   Text,
   Flex,
@@ -24,11 +16,11 @@ import {
   CardBody,
   Heading,
   Badge,
-  FormLabel,
   Tabs,
   TabList,
   Tab,
   Spinner,
+  useDisclosure,
 } from "@chakra-ui/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthPage } from "@/components/AuthPage";
@@ -45,7 +37,6 @@ import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import {
   ChevronLeft,
   ChevronRight,
-  Settings,
   Calendar,
   LayoutDashboard,
   List,
@@ -58,6 +49,7 @@ import {
   X,
   ZoomIn,
   ZoomOut,
+  LogOut,
 } from "lucide-react";
 import { Section } from "@/components/Section";
 import { TaskDialog } from "@/components/TaskDialog";
@@ -386,7 +378,6 @@ export default function DailyTasksApp() {
     showCompletedTasksCalendar,
     calendarZoom,
   ]);
-  const { isOpen: settingsOpen, onOpen: openSettings, onClose: closeSettings } = useDisclosure();
 
   // Resize handlers for backlog drawer
   const resizeStartRef = useRef(null);
@@ -1549,45 +1540,33 @@ export default function DailyTasksApp() {
                 </Text>
               </Box>
             </Flex>
-            <Modal isOpen={settingsOpen} onClose={closeSettings}>
-              <ModalOverlay />
-              <ModalContent bg={bgColor}>
-                <ModalHeader>Settings</ModalHeader>
-                <ModalCloseButton />
-                <ModalBody>
-                  <Flex align="center" justify="space-between" py={4}>
-                    <Box>
-                      <FormLabel>Dark Mode</FormLabel>
-                      <Text fontSize="sm" color={mutedText}>
-                        Toggle dark theme
-                      </Text>
-                    </Box>
-                    <Switch isChecked={colorMode === "dark"} onChange={toggleColorMode} />
-                  </Flex>
-                  <Flex align="center" justify="space-between" py={4} borderTopWidth="1px" borderColor={borderColor}>
-                    <Box>
-                      <FormLabel>Account</FormLabel>
-                      <Text fontSize="sm" color={mutedText}>
-                        Sign out of your account
-                      </Text>
-                    </Box>
-                    <Button onClick={logout} colorScheme="red" size="sm">
-                      Logout
-                    </Button>
-                  </Flex>
-                </ModalBody>
-              </ModalContent>
-            </Modal>
-            <IconButton
-              icon={
-                <Box as="span" color="currentColor">
-                  <Settings size={20} stroke="currentColor" />
-                </Box>
-              }
-              onClick={openSettings}
-              variant="ghost"
-              aria-label="Settings"
-            />
+            <HStack spacing={2}>
+              <IconButton
+                icon={
+                  <Box as="span" color="currentColor">
+                    {colorMode === "dark" ? (
+                      <Sun size={20} stroke="currentColor" />
+                    ) : (
+                      <Moon size={20} stroke="currentColor" />
+                    )}
+                  </Box>
+                }
+                onClick={toggleColorMode}
+                variant="ghost"
+                aria-label={colorMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              />
+              <IconButton
+                icon={
+                  <Box as="span" color="currentColor">
+                    <LogOut size={20} stroke="currentColor" />
+                  </Box>
+                }
+                onClick={logout}
+                variant="ghost"
+                colorScheme="red"
+                aria-label="Logout"
+              />
+            </HStack>
           </Flex>
 
           {/* Main Tabs */}
