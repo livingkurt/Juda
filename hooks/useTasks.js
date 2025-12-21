@@ -112,8 +112,19 @@ export const useTasks = () => {
   const deleteTask = async id => {
     const previousTasks = [...tasks];
 
-    // Optimistic delete
-    setTasks(prev => prev.filter(t => t.id !== id));
+    // Optimistic delete - handle both root tasks and subtasks
+    setTasks(prev => {
+      // First check if it's a root task
+      if (prev.some(t => t.id === id)) {
+        return prev.filter(t => t.id !== id);
+      }
+
+      // If not a root task, it must be a subtask - remove it from parent's subtasks
+      return prev.map(task => ({
+        ...task,
+        subtasks: task.subtasks ? task.subtasks.filter(st => st.id !== id) : task.subtasks,
+      }));
+    });
 
     try {
       const response = await fetch(`/api/tasks?id=${id}`, {
@@ -159,7 +170,19 @@ export const useTasks = () => {
   };
 
   const duplicateTask = async taskId => {
-    const taskToDuplicate = tasks.find(t => t.id === taskId);
+    // Search for task in root tasks and subtasks
+    let taskToDuplicate = tasks.find(t => t.id === taskId);
+
+    // If not found in root tasks, search in subtasks
+    if (!taskToDuplicate) {
+      for (const task of tasks) {
+        if (task.subtasks && task.subtasks.length > 0) {
+          taskToDuplicate = task.subtasks.find(st => st.id === taskId);
+          if (taskToDuplicate) break;
+        }
+      }
+    }
+
     if (!taskToDuplicate) {
       throw new Error("Task not found");
     }
@@ -173,6 +196,7 @@ export const useTasks = () => {
         duration: taskToDuplicate.duration,
         color: taskToDuplicate.color,
         recurrence: taskToDuplicate.recurrence,
+        parentId: taskToDuplicate.parentId, // Preserve parent relationship for subtasks
         subtasks: taskToDuplicate.subtasks
           ? taskToDuplicate.subtasks.map(st => ({
               ...st,
@@ -189,7 +213,22 @@ export const useTasks = () => {
       });
       if (!response.ok) throw new Error("Failed to duplicate task");
       const newTask = await response.json();
-      setTasks(prev => [...prev, newTask]);
+
+      // Update state based on whether it's a subtask or root task
+      if (newTask.parentId) {
+        // It's a subtask - add it to the parent's subtasks array
+        setTasks(prev =>
+          prev.map(task =>
+            task.id === newTask.parentId
+              ? { ...task, subtasks: [...(task.subtasks || []), newTask] }
+              : task
+          )
+        );
+      } else {
+        // It's a root task - add it to the root tasks array
+        setTasks(prev => [...prev, newTask]);
+      }
+
       return newTask;
     } catch (err) {
       setError(err.message);

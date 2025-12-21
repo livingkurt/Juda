@@ -15,6 +15,7 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  Portal,
 } from "@chakra-ui/react";
 import { useColorModeValue } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
@@ -68,7 +69,6 @@ export const TaskItem = ({
   const isSubtask = variant === "subtask";
 
   const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
   const textColorDefault = useColorModeValue("gray.900", "gray.100");
   const mutedTextDefault = useColorModeValue("gray.500", "gray.400");
@@ -264,46 +264,48 @@ export const TaskItem = ({
 
           {/* Task content */}
           <Box flex={1} minW={0}>
-            {isEditingTitle ? (
-              <Input
-                ref={titleInputRef}
-                value={editedTitle}
-                onChange={e => setEditedTitle(e.target.value)}
-                onBlur={handleTitleBlur}
-                onKeyDown={handleTitleKeyDown}
-                onClick={e => e.stopPropagation()}
-                variant="unstyled"
-                fontWeight="medium"
-                fontSize="md"
-                color={textColor}
-                px={1}
-                py={0}
-                minH="auto"
-                h="auto"
-                _focus={{
-                  outline: "none",
-                }}
-              />
-            ) : (
-              <Text
-                fontWeight="medium"
-                textDecoration={task.completed || allSubtasksComplete ? "line-through" : "none"}
-                opacity={task.completed || allSubtasksComplete ? 0.5 : 1}
-                color={textColor}
-                cursor="text"
-                onClick={handleTitleClick}
-                _hover={{
-                  opacity: task.completed || allSubtasksComplete ? 0.7 : 1,
-                }}
-              >
-                {task.title}
-              </Text>
-            )}
-            {task.subtasks && task.subtasks.length > 0 && (
-              <Text as="span" ml={2} fontSize="xs" color={mutedText}>
-                ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})
-              </Text>
-            )}
+            <Flex align="center" gap={0}>
+              {isEditingTitle ? (
+                <Input
+                  ref={titleInputRef}
+                  value={editedTitle}
+                  onChange={e => setEditedTitle(e.target.value)}
+                  onBlur={handleTitleBlur}
+                  onKeyDown={handleTitleKeyDown}
+                  onClick={e => e.stopPropagation()}
+                  variant="unstyled"
+                  fontWeight="medium"
+                  fontSize="md"
+                  color={textColor}
+                  px={1}
+                  py={0}
+                  minH="auto"
+                  h="auto"
+                  _focus={{
+                    outline: "none",
+                  }}
+                />
+              ) : (
+                <Text
+                  fontWeight="medium"
+                  textDecoration={task.completed || allSubtasksComplete ? "line-through" : "none"}
+                  opacity={task.completed || allSubtasksComplete ? 0.5 : 1}
+                  color={textColor}
+                  cursor="text"
+                  onClick={handleTitleClick}
+                  _hover={{
+                    opacity: task.completed || allSubtasksComplete ? 0.7 : 1,
+                  }}
+                >
+                  {task.title}
+                </Text>
+              )}
+              {task.subtasks && task.subtasks.length > 0 && (
+                <Text as="span" ml={2} fontSize="xs" color={mutedText} flexShrink={0}>
+                  ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})
+                </Text>
+              )}
+            </Flex>
             {/* Badges - show for backlog and today variants */}
             {(isBacklog || isToday) && (
               <HStack spacing={2} mt={1} align="center">
@@ -367,38 +369,40 @@ export const TaskItem = ({
               variant="ghost"
               aria-label="Task actions"
             />
-            <MenuList onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-              <MenuItem
-                icon={<Edit2 size={16} />}
-                onClick={e => {
-                  e.stopPropagation();
-                  handleEdit(task);
-                }}
-              >
-                Edit
-              </MenuItem>
-              {handleDuplicate && (
+            <Portal>
+              <MenuList onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
                 <MenuItem
-                  icon={<Copy size={16} />}
+                  icon={<Edit2 size={16} />}
                   onClick={e => {
                     e.stopPropagation();
-                    handleDuplicate(task.id);
+                    handleEdit(task);
                   }}
                 >
-                  Duplicate
+                  Edit
                 </MenuItem>
-              )}
-              <MenuItem
-                icon={<Trash2 size={16} />}
-                color="red.500"
-                onClick={e => {
-                  e.stopPropagation();
-                  isSubtask ? handleDelete(parentTaskId, task.id) : handleDelete(task.id);
-                }}
-              >
-                Delete
-              </MenuItem>
-            </MenuList>
+                {handleDuplicate && (
+                  <MenuItem
+                    icon={<Copy size={16} />}
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleDuplicate(task.id);
+                    }}
+                  >
+                    Duplicate
+                  </MenuItem>
+                )}
+                <MenuItem
+                  icon={<Trash2 size={16} />}
+                  color="red.500"
+                  onClick={e => {
+                    e.stopPropagation();
+                    isSubtask ? handleDelete(parentTaskId, task.id) : handleDelete(task.id);
+                  }}
+                >
+                  Delete
+                </MenuItem>
+              </MenuList>
+            </Portal>
           </Menu>
         </Flex>
 
@@ -418,23 +422,9 @@ export const TaskItem = ({
                     parentTaskId={task.id}
                     draggableId={createDroppableId.subtask(task.id, subtask.id)}
                     onToggle={onToggleSubtask}
-                    onEdit={
-                      handleEdit
-                        ? () => {
-                            // Open task dialog with subtask to edit
-                            handleEdit({ ...task, subtaskToEdit: subtask });
-                          }
-                        : undefined
-                    }
-                    onDelete={
-                      handleEdit
-                        ? async (parentId, subtaskId) => {
-                            // Delete subtask by updating parent task
-                            const updatedSubtasks = task.subtasks.filter(st => st.id !== subtaskId);
-                            await handleEdit({ ...task, subtasks: updatedSubtasks });
-                          }
-                        : undefined
-                    }
+                    onEdit={handleEdit ? () => handleEdit(subtask) : undefined}
+                    onDuplicate={handleDuplicate}
+                    onDelete={handleDelete ? async (parentId, subtaskId) => handleDelete(subtaskId) : undefined}
                     textColor={textColor}
                     mutedText={mutedText}
                     gripColor={gripColor}
