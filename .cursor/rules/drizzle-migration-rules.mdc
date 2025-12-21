@@ -6,65 +6,38 @@ alwaysApply: true
 
 ## Overview
 
-This project uses **Drizzle ORM** with Neon PostgreSQL. We use **migration files** for production safety, NOT `drizzle-kit push`.
+This project uses **Drizzle ORM** with Neon PostgreSQL. Migrations work like **Rails migrations** - fully automated with no manual file creation.
 
-## Project Structure
-
-```
-juda/
-├── lib/
-│   ├── db.js              # Database connection
-│   └── schema.js          # Drizzle schema definitions
-├── drizzle/
-│   ├── 0000_*.sql         # Generated SQL migration files
-│   └── meta/              # Migration metadata
-├── drizzle.config.js      # Drizzle Kit configuration
-└── .env                   # DATABASE_URL
-```
-
-## ⚠️ CRITICAL: Push vs Migrate
-
-| Command                | What It Does                                | Safe for Production?           |
-| ---------------------- | ------------------------------------------- | ------------------------------ |
-| `drizzle-kit push`     | Forces DB to match schema (CAN DELETE DATA) | ❌ **NEVER USE IN PRODUCTION** |
-| `drizzle-kit migrate`  | Applies only new migration files            | ✅ **SAFE - Use this**         |
-| `drizzle-kit generate` | Creates migration file from schema diff     | ✅ Safe (just creates file)    |
-
-**NEVER use `drizzle-kit push` for production deployments!** It can delete tables/columns not in your schema.
-
-## Standard Workflow for Schema Changes
-
-When asked to add a field, modify a table, or make any database schema change:
-
-### Step 1: Edit the schema
-
-Modify `lib/schema.js`:
-
-```javascript
-import { pgTable, text, boolean, timestamp, integer } from "drizzle-orm/pg-core";
-
-export const sections = pgTable("Section", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => generateCuid()),
-  name: text("name").notNull(),
-  icon: text("icon").notNull(),
-  order: integer("order").notNull().default(0),
-  expanded: boolean("expanded").notNull().default(true), // ← New field
-  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
-});
-```
-
-### Step 2: Generate the migration
+## ⚠️ CRITICAL: The One Command You Need
 
 ```bash
-npm run db:generate
+npm run db:generate migration_name
 ```
 
-This creates a SQL migration file in `drizzle/` (e.g., `0001_add_expanded.sql`).
+This **automatically creates everything**:
 
-**Review the generated SQL** to ensure it's correct!
+- ✅ `drizzle/000X_migration_name.sql` - Empty SQL file for you to fill in
+- ✅ `drizzle/meta/000X_snapshot.json` - Schema snapshot (auto-generated)
+- ✅ Updates `drizzle/meta/_journal.json` - Migration tracking (auto-updated)
+
+**You only write the SQL. Everything else is automatic.**
+
+## Standard Workflow
+
+### Step 1: Generate the migration
+
+```bash
+npm run db:generate add_priority_field
+```
+
+### Step 2: Write your SQL
+
+Edit the generated file `drizzle/000X_add_priority_field.sql`:
+
+```sql
+-- Add priority column to Task table
+ALTER TABLE "Task" ADD COLUMN "priority" integer DEFAULT 0 NOT NULL;
+```
 
 ### Step 3: Test locally
 
@@ -72,112 +45,7 @@ This creates a SQL migration file in `drizzle/` (e.g., `0001_add_expanded.sql`).
 npm run db:migrate
 ```
 
-Verify the migration works on your local database.
-
 ### Step 4: Commit and deploy
-
-```bash
-git add .
-git commit -m "Add expanded field to sections"
-git push
-```
-
-The build process automatically runs `drizzle-kit migrate` during deployment.
-
-### Step 5: Inform the user
-
-Tell the user: "Schema updated. The migration will run automatically on next deployment."
-
-## Commands Reference
-
-| Command               | Purpose                                    | When to Use                              |
-| --------------------- | ------------------------------------------ | ---------------------------------------- |
-| `npm run db:generate` | Generate SQL migration from schema changes | After editing `lib/schema.js`            |
-| `npm run db:migrate`  | Apply pending migrations                   | Testing locally, automatic in build      |
-| `npm run db:push`     | Force sync schema (DANGEROUS)              | **Local development ONLY, never commit** |
-| `npm run db:studio`   | Open Drizzle Studio (DB browser)           | To inspect/edit data                     |
-
-## Migration Safety
-
-### Why `drizzle-kit migrate` is Safe
-
-- Only applies migrations not yet in `__drizzle_migrations` table
-- Never deletes anything unless you explicitly write that SQL
-- Non-interactive - works in CI/CD
-- Idempotent - safe to run multiple times
-
-### Why `drizzle-kit push` is Dangerous
-
-- Forces DB to match schema exactly
-- Will DELETE tables/columns not in your schema
-- Can cause data loss
-- Should NEVER be in build scripts
-
-## Adding Fields with Existing Data
-
-When adding a new column to a table that has existing rows:
-
-```javascript
-// ✅ CORRECT - has default value, safe for existing rows
-expanded: boolean("expanded").notNull().default(true),
-
-// ✅ CORRECT - nullable, safe for existing rows
-expanded: boolean("expanded"),
-
-// ❌ RISKY - notNull without default will fail if table has data
-expanded: boolean("expanded").notNull(),
-```
-
-If you need a NOT NULL column without a default on a table with data, use a two-step migration:
-
-1. Add column as nullable
-2. Update existing rows with values
-3. Alter column to NOT NULL
-
-## Environment Variables
-
-```env
-# Neon PostgreSQL connection string
-DATABASE_URL="postgresql://user:password@ep-xxx.us-east-1.aws.neon.tech/neondb"
-```
-
-Note: The `?schema=public` parameter from Prisma is automatically removed by our `cleanDatabaseUrl()` function.
-
-## Example Workflow
-
-**User asks:** "Add a 'priority' integer field to the Task model"
-
-1. **Edit** `lib/schema.js`:
-
-```javascript
-export const tasks = pgTable("Task", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => generateCuid()),
-  title: text("title").notNull(),
-  sectionId: text("sectionId")
-    .notNull()
-    .references(() => sections.id, { onDelete: "cascade" }),
-  priority: integer("priority").notNull().default(0), // ← Added with default
-  // ... other fields
-});
-```
-
-2. **Generate migration:**
-
-```bash
-npm run db:generate
-```
-
-3. **Review the generated SQL** in `drizzle/0001_*.sql`
-
-4. **Test locally:**
-
-```bash
-npm run db:migrate
-```
-
-5. **Commit and push:**
 
 ```bash
 git add .
@@ -185,65 +53,144 @@ git commit -m "Add priority field to tasks"
 git push
 ```
 
-6. **Inform user:** "Priority field added. Migration will run automatically on deployment."
+**Done!** Vercel automatically runs `drizzle-kit migrate` during build.
+
+## Commands Reference
+
+| Command                              | What It Does                                       |
+| ------------------------------------ | -------------------------------------------------- |
+| `npm run db:generate migration_name` | Creates empty migration + snapshot + journal entry |
+| `npm run db:migrate`                 | Applies pending migrations to database             |
+| `npm run db:studio`                  | Opens database browser                             |
+| `npm run db:push`                    | ❌ DANGEROUS - Never use in production             |
+
+## How It Works Under the Hood
+
+The `scripts/generate-migration.js` script uses Drizzle's `--custom` flag:
+
+```javascript
+execSync(`npx drizzle-kit generate --name=${migrationName} --custom`);
+```
+
+This bypasses all interactive prompts and generates all required files automatically.
+
+## ❌ NEVER Do These
+
+1. **Never manually create migration files** - Use `npm run db:generate`
+2. **Never manually edit `_journal.json`** - Auto-managed by Drizzle
+3. **Never manually create snapshot files** - Auto-generated by `--custom`
+4. **Never use `drizzle-kit push` in production** - Deletes data!
+5. **Never skip migrations** - Always generate and commit them
+
+## ✅ ALWAYS Do These
+
+1. **Use `npm run db:generate migration_name`** for new migrations
+2. **Write SQL with `IF NOT EXISTS` / `IF EXISTS`** for safety
+3. **Add defaults to NOT NULL columns** on tables with existing data
+4. **Test locally with `npm run db:migrate`** before pushing
+5. **Commit ALL migration files** (SQL + meta/) to git
+
+## Migration File Structure
+
+After running `npm run db:generate my_migration`:
+
+```
+drizzle/
+├── 0000_silent_mandroid.sql      # Existing
+├── 0001_add_parent_id.sql        # Existing
+├── 0002_migrate_subtasks.sql     # Existing
+├── 0003_my_migration.sql         # ← NEW (empty, you fill it in)
+└── meta/
+    ├── _journal.json             # ← AUTO-UPDATED
+    ├── 0000_snapshot.json        # Existing
+    ├── 0001_snapshot.json        # Existing
+    ├── 0002_snapshot.json        # Existing
+    └── 0003_snapshot.json        # ← AUTO-GENERATED
+```
+
+## Example: Adding a Field
+
+**User asks:** "Add a 'priority' field to Task"
+
+```bash
+# 1. Generate migration
+npm run db:generate add_task_priority
+
+# 2. Edit the generated SQL file
+cat > drizzle/0003_add_task_priority.sql << 'EOF'
+ALTER TABLE "Task" ADD COLUMN "priority" integer DEFAULT 0 NOT NULL;
+EOF
+
+# 3. Test locally
+npm run db:migrate
+
+# 4. Commit and push
+git add .
+git commit -m "Add priority field to tasks"
+git push
+```
+
+## Example: Complex Data Migration
+
+```bash
+# 1. Generate migration
+npm run db:generate migrate_user_data
+
+# 2. Edit with complex SQL
+```
+
+```sql
+-- drizzle/0003_migrate_user_data.sql
+DO $$
+DECLARE
+    row RECORD;
+BEGIN
+    FOR row IN SELECT * FROM "OldTable" LOOP
+        INSERT INTO "NewTable" (id, data) VALUES (row.id, row.data);
+    END LOOP;
+END $$;
+
+ALTER TABLE "OldTable" DROP COLUMN IF EXISTS "deprecated_field";
+```
+
+## Deployment Flow
+
+```
+Local Development          →    Git Push    →    Vercel Build
+─────────────────────────────────────────────────────────────
+1. npm run db:generate     →    git push    →    drizzle-kit migrate
+2. Write SQL                                     (runs automatically)
+3. npm run db:migrate                            next build
+4. git add & commit                              Deploy! ✅
+```
 
 ## Troubleshooting
 
-### "Column X does not exist" error
+### "Column already exists" error
 
-The migration wasn't applied. Run:
+Migration already ran. Drizzle skips applied migrations automatically. This is safe.
 
-```bash
-npm run db:migrate
-```
+### Migration fails on Vercel
 
-### "relation X already exists" error
-
-The table/column already exists. This is normal if:
-
-- Migration already ran
-- Using `IF NOT EXISTS` in migration (which we do)
-
-Just continue - it's safe.
-
-### Need to see what's in the database?
-
-```bash
-npm run db:studio
-```
-
-### Migration failed during build?
-
-1. Check Vercel build logs for the error
-2. Fix the migration SQL in `drizzle/` folder
+1. Check build logs for error
+2. Fix the SQL in the migration file
 3. Commit and push the fix
-4. The build will retry with the corrected migration
 
-### Want to undo a migration?
+### Need to undo a migration
 
-Create a NEW migration that reverses the change:
+Create a NEW migration that reverses it:
 
 ```bash
-# Edit lib/schema.js to remove the field
-npm run db:generate
-# This creates a new migration that drops the column
-npm run db:migrate
+npm run db:generate revert_priority_field
+# Then write SQL to drop the column
 ```
-
-## Build Process
-
-The `package.json` build script:
-
-```json
-"build": "drizzle-kit migrate && next build"
-```
-
-This ensures migrations run before the app builds, making deployment automatic and safe.
 
 ## Key Reminders
 
-1. ✅ **Always use `drizzle-kit generate` + `drizzle-kit migrate`** for production
-2. ❌ **Never use `drizzle-kit push` in production** - it can delete data
-3. ✅ **Commit migration files** to git - they're part of your codebase
-4. ✅ **Review generated SQL** before committing
-5. ✅ **Add defaults to new NOT NULL columns** on tables with data
+| Do This                         | Not This                        |
+| ------------------------------- | ------------------------------- |
+| `npm run db:generate name`      | Manually create SQL files       |
+| Let `--custom` create snapshots | Manually create snapshot files  |
+| Let Drizzle update journal      | Manually edit `_journal.json`   |
+| `npm run db:migrate`            | `npm run db:push` in production |
+| Commit everything in `drizzle/` | Ignore migration files          |
