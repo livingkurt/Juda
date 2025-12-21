@@ -22,12 +22,26 @@ import {
   IconButton,
   useColorModeValue,
   Badge,
+  Tag,
 } from "@chakra-ui/react";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 import { DAYS_OF_WEEK, DURATION_OPTIONS } from "@/lib/constants";
 import { formatLocalDate } from "@/lib/utils";
+import { TagSelector } from "./TagSelector";
 
-export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSectionId, defaultTime, defaultDate }) => {
+export const TaskDialog = ({
+  isOpen,
+  onClose,
+  task,
+  sections,
+  onSave,
+  defaultSectionId,
+  defaultTime,
+  defaultDate,
+  tags = [],
+  onCreateTag,
+  onDeleteTag,
+}) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const subtaskBgColor = useColorModeValue("gray.50", "gray.700");
   const [title, setTitle] = useState("");
@@ -45,6 +59,7 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
   const [subtaskDuration, setSubtaskDuration] = useState(30);
   const [subtaskColor, setSubtaskColor] = useState("#3b82f6");
   const [color, setColor] = useState("#3b82f6");
+  const [selectedTagIds, setSelectedTagIds] = useState([]);
 
   const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6"];
 
@@ -65,6 +80,7 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
       setSelectedDays(task.recurrence?.days || []);
       setSubtasks(task.subtasks || []);
       setColor(task.color || "#3b82f6");
+      setSelectedTagIds(task.tags?.map(t => t.id) || []);
     } else {
       setTitle("");
       setSectionId(defaultSectionId || sections[0]?.id || "");
@@ -75,6 +91,7 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
       setSelectedDays([]);
       setSubtasks([]);
       setColor("#3b82f6");
+      setSelectedTagIds([]);
     }
   }, [task, isOpen, sections, defaultSectionId, defaultTime, defaultDate]);
 
@@ -109,6 +126,7 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
       expanded: task?.expanded || false,
       color,
       order: task?.order ?? 999,
+      tagIds: selectedTagIds,
     });
     onClose();
   };
@@ -218,6 +236,37 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
                   <option value="daily">Every day</option>
                   <option value="weekly">Specific days</option>
                 </Select>
+              </Box>
+              {/* Tags */}
+              <Box w="full">
+                <FormLabel>Tags</FormLabel>
+                <HStack spacing={2} flexWrap="wrap" align="center" mt={2}>
+                  {/* Tags */}
+                  {tags
+                    .filter(t => selectedTagIds.includes(t.id))
+                    .map(tag => (
+                      <Tag
+                        key={tag.id}
+                        size="sm"
+                        borderRadius="full"
+                        variant="solid"
+                        bg={tag.color}
+                        color="white"
+                        fontSize="xs"
+                      >
+                        {tag.name}
+                      </Tag>
+                    ))}
+                  {/* Add Tag button */}
+                  <TagSelector
+                    tags={tags}
+                    selectedTagIds={selectedTagIds}
+                    onTagsChange={setSelectedTagIds}
+                    onCreateTag={onCreateTag}
+                    onDeleteTag={onDeleteTag}
+                    inline
+                  />
+                </HStack>
               </Box>
               {recurrenceType === "weekly" && (
                 <HStack spacing={1} w="full">

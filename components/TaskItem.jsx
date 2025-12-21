@@ -16,6 +16,7 @@ import {
   MenuList,
   MenuItem,
   Portal,
+  Tag,
 } from "@chakra-ui/react";
 import { useColorModeValue } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
@@ -308,7 +309,7 @@ export const TaskItem = ({
             </Flex>
             {/* Badges - show for backlog and today variants */}
             {(isBacklog || isToday) && (
-              <HStack spacing={2} mt={1} align="center">
+              <HStack spacing={2} mt={1} align="center" flexWrap="wrap">
                 {isOverdue(task, viewDate, task.completed) && (
                   <Badge size="sm" colorScheme="red" fontSize="2xs">
                     <HStack spacing={1} align="center">
@@ -337,6 +338,16 @@ export const TaskItem = ({
                   <Badge size="sm" colorScheme="orange" fontSize="2xs">
                     No time
                   </Badge>
+                )}
+                {/* Tags inline with badges */}
+                {task.tags && task.tags.length > 0 && (
+                  <>
+                    {task.tags.map(tag => (
+                      <Tag key={tag.id} size="sm" borderRadius="full" bg={tag.color} color="white" fontSize="2xs">
+                        {tag.name}
+                      </Tag>
+                    ))}
+                  </>
                 )}
               </HStack>
             )}

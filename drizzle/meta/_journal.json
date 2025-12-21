@@ -29,6 +29,13 @@
       "when": 1766341230337,
       "tag": "0003_cleanup_old_subtasks_data",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1766354644552,
+      "tag": "0004_add_tags_feature",
+      "breakpoints": true
     }
   ]
 }

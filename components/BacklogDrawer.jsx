@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Box, VStack, HStack, Flex, Text, IconButton, Badge, useColorModeValue, Heading } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus, X } from "lucide-react";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
+import { TagFilter } from "./TagFilter";
 
 export const BacklogDrawer = ({
   onClose,
@@ -22,6 +23,8 @@ export const BacklogDrawer = ({
   onToggleTask,
   createDraggableId,
   viewDate,
+  tags = [],
+  onCreateTag,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -31,17 +34,37 @@ export const BacklogDrawer = ({
   const gripColor = useColorModeValue("gray.400", "gray.500");
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTagIds, setSelectedTagIds] = useState([]);
 
   const getSectionName = sectionId => {
     return sections.find(s => s.id === sectionId)?.name || "Unknown";
   };
 
-  // Filter tasks by search term
+  // Filter tasks by search term and tags
   const filteredTasks = useMemo(() => {
-    if (!searchTerm.trim()) return backlogTasks;
-    const lowerSearch = searchTerm.toLowerCase();
-    return backlogTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
-  }, [backlogTasks, searchTerm]);
+    let result = backlogTasks;
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const lowerSearch = searchTerm.toLowerCase();
+      result = result.filter(task => task.title.toLowerCase().includes(lowerSearch));
+    }
+
+    // Filter by tags
+    if (selectedTagIds.length > 0) {
+      result = result.filter(task => task.tags?.some(tag => selectedTagIds.includes(tag.id)));
+    }
+
+    return result;
+  }, [backlogTasks, searchTerm, selectedTagIds]);
+
+  const handleTagSelect = useCallback(tagId => {
+    setSelectedTagIds(prev => [...prev, tagId]);
+  }, []);
+
+  const handleTagDeselect = useCallback(tagId => {
+    setSelectedTagIds(prev => prev.filter(id => id !== tagId));
+  }, []);
 
   // Use droppable hook for backlog area
   const { setNodeRef, isOver } = useDroppable({
@@ -88,9 +111,23 @@ export const BacklogDrawer = ({
         </Flex>
         <Badge colorScheme="blue" mb={2}>
           {filteredTasks.length} task{filteredTasks.length !== 1 ? "s" : ""}
-          {searchTerm && filteredTasks.length !== backlogTasks.length && ` of ${backlogTasks.length}`}
+          {(searchTerm || selectedTagIds.length > 0) &&
+            filteredTasks.length !== backlogTasks.length &&
+            ` of ${backlogTasks.length}`}
         </Badge>
-        <TaskSearchInput onSearchChange={setSearchTerm} />
+        <HStack spacing={4} align="center">
+          <Box flex={1}>
+            <TaskSearchInput onSearchChange={setSearchTerm} />
+          </Box>
+          <TagFilter
+            tags={tags}
+            selectedTagIds={selectedTagIds}
+            onTagSelect={handleTagSelect}
+            onTagDeselect={handleTagDeselect}
+            onCreateTag={onCreateTag}
+            compact
+          />
+        </HStack>
       </Box>
 
       {/* Droppable area for tasks */}

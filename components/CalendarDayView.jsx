@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Box, Text, Flex, VStack, useColorModeValue } from "@chakra-ui/react";
+import { Box, Text, Flex, VStack, HStack, useColorModeValue } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate, calculateTaskPositions } from "@/lib/utils";
 import { HOUR_HEIGHT_DAY, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { UntimedTask } from "./UntimedTask";
 import { TimedTask } from "./TimedTask";
 import { TaskSearchInput } from "./TaskSearchInput";
+import { TagFilter } from "./TagFilter";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_DAY;
 
@@ -24,6 +25,8 @@ export const CalendarDayView = ({
   isCompletedOnDate,
   showCompleted = true,
   zoom = 1.0,
+  tags = [],
+  onCreateTag,
 }) => {
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
   const bgColor = useColorModeValue("white", "gray.800");
@@ -33,6 +36,7 @@ export const CalendarDayView = ({
   const hourBorderColor = useColorModeValue("gray.100", "gray.700");
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTagIds, setSelectedTagIds] = useState([]);
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
@@ -54,8 +58,26 @@ export const CalendarDayView = ({
       untimedTasks = untimedTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
     }
 
+    // Filter by tags
+    if (selectedTagIds.length > 0) {
+      dayTasks = dayTasks.filter(task =>
+        task.tags?.some(tag => selectedTagIds.includes(tag.id))
+      );
+      untimedTasks = untimedTasks.filter(task =>
+        task.tags?.some(tag => selectedTagIds.includes(tag.id))
+      );
+    }
+
     return { dayTasks, untimedTasks };
-  }, [tasks, date, showCompleted, isCompletedOnDate, searchTerm]);
+  }, [tasks, date, showCompleted, isCompletedOnDate, searchTerm, selectedTagIds]);
+
+  const handleTagSelect = useCallback(tagId => {
+    setSelectedTagIds(prev => [...prev, tagId]);
+  }, []);
+
+  const handleTagDeselect = useCallback(tagId => {
+    setSelectedTagIds(prev => prev.filter(id => id !== tagId));
+  }, []);
 
   const { dayTasks, untimedTasks } = filteredTasks;
 
@@ -219,8 +241,20 @@ export const CalendarDayView = ({
         <Text fontSize="sm" color={hourTextColor} mb={3}>
           {date.toLocaleDateString("en-US", { weekday: "long", month: "long" })}
         </Text>
-        <Box px={4}>
-          <TaskSearchInput onSearchChange={setSearchTerm} />
+        <Box px={4} py={2}>
+          <HStack spacing={4} align="center">
+            <Box flex={1}>
+              <TaskSearchInput onSearchChange={setSearchTerm} />
+            </Box>
+            <TagFilter
+              tags={tags}
+              selectedTagIds={selectedTagIds}
+              onTagSelect={handleTagSelect}
+              onTagDeselect={handleTagDeselect}
+              onCreateTag={onCreateTag}
+              compact
+            />
+          </HStack>
         </Box>
       </Box>
 

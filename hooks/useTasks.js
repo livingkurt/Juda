@@ -58,6 +58,70 @@ export const useTasks = () => {
     }
   };
 
+  const saveTask = useCallback(
+    async taskData => {
+      const { tagIds, ...taskFields } = taskData;
+
+      try {
+        let savedTask;
+
+        if (taskData.id) {
+          // Update existing task
+          const response = await fetch("/api/tasks", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(taskFields),
+          });
+          if (!response.ok) throw new Error("Failed to update task");
+          savedTask = await response.json();
+        } else {
+          // Create new task
+          const response = await fetch("/api/tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(taskFields),
+          });
+          if (!response.ok) throw new Error("Failed to create task");
+          savedTask = await response.json();
+        }
+
+        // Handle tag assignments if tagIds provided
+        if (tagIds !== undefined) {
+          const currentTagIds = savedTask.tags?.map(t => t.id) || [];
+
+          // Tags to add
+          const tagsToAdd = tagIds.filter(id => !currentTagIds.includes(id));
+          // Tags to remove
+          const tagsToRemove = currentTagIds.filter(id => !tagIds.includes(id));
+
+          // Add new tags
+          for (const tagId of tagsToAdd) {
+            await fetch("/api/task-tags", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ taskId: savedTask.id, tagId }),
+            });
+          }
+
+          // Remove old tags
+          for (const tagId of tagsToRemove) {
+            await fetch(`/api/task-tags?taskId=${savedTask.id}&tagId=${tagId}`, {
+              method: "DELETE",
+            });
+          }
+        }
+
+        // Refetch to get updated task with tags
+        await fetchTasks();
+        return savedTask;
+      } catch (err) {
+        console.error("Error saving task:", err);
+        throw err;
+      }
+    },
+    [fetchTasks]
+  );
+
   const updateTask = async (id, taskData) => {
     // Store previous state for potential rollback
     const previousTasks = JSON.parse(JSON.stringify(tasks));
@@ -350,6 +414,7 @@ export const useTasks = () => {
     duplicateTask,
     combineAsSubtask,
     promoteSubtask,
+    saveTask,
     refetch: fetchTasks,
   };
 };

@@ -8,10 +8,22 @@ export async function GET() {
     const allTasks = await db.query.tasks.findMany({
       with: {
         section: true,
+        taskTags: {
+          with: {
+            tag: true,
+          },
+        },
       },
       orderBy: [asc(tasks.sectionId), asc(tasks.order)],
     });
-    return NextResponse.json(allTasks);
+
+    // Transform to include tags array directly on task
+    const tasksWithTags = allTasks.map(task => ({
+      ...task,
+      tags: task.taskTags?.map(tt => tt.tag) || [],
+    }));
+
+    return NextResponse.json(tasksWithTags);
   } catch (error) {
     console.error("Error fetching tasks:", error);
     return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });
@@ -97,15 +109,26 @@ export async function PUT(request) {
 
     await db.update(tasks).set(updateData).where(eq(tasks.id, id)).returning();
 
-    // Fetch with section relation
-    const taskWithSection = await db.query.tasks.findFirst({
+    // Fetch with section and tags relations
+    const taskWithRelations = await db.query.tasks.findFirst({
       where: eq(tasks.id, id),
       with: {
         section: true,
+        taskTags: {
+          with: {
+            tag: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json(taskWithSection);
+    // Transform to include tags array directly on task
+    const taskWithTags = {
+      ...taskWithRelations,
+      tags: taskWithRelations.taskTags?.map(tt => tt.tag) || [],
+    };
+
+    return NextResponse.json(taskWithTags);
   } catch (error) {
     console.error("Error updating task:", error);
     // Return more detailed error information

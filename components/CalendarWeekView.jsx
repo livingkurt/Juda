@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Box, Flex, useColorModeValue } from "@chakra-ui/react";
+import { Box, Flex, HStack, useColorModeValue } from "@chakra-ui/react";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate } from "@/lib/utils";
 import { HOUR_HEIGHT_WEEK, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { DayHeaderColumn } from "./DayHeaderColumn";
 import { TimedColumn } from "./TimedColumn";
 import { TaskSearchInput } from "./TaskSearchInput";
+import { TagFilter } from "./TagFilter";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_WEEK;
 
@@ -24,6 +25,8 @@ export const CalendarWeekView = ({
   isCompletedOnDate,
   showCompleted = true,
   zoom = 1.0,
+  tags = [],
+  onCreateTag,
 }) => {
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
   const bgColor = useColorModeValue("white", "gray.800");
@@ -50,6 +53,7 @@ export const CalendarWeekView = ({
 
   const containerRef = useRef(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTagIds, setSelectedTagIds] = useState([]);
 
   // Internal drag state for time/duration adjustments
   const [internalDrag, setInternalDrag] = useState({
@@ -63,12 +67,33 @@ export const CalendarWeekView = ({
     hasMoved: false,
   });
 
-  // Filter tasks by search term
+  // Filter tasks by search term and tags
   const filteredTasks = useMemo(() => {
-    if (!searchTerm.trim()) return tasks;
-    const lowerSearch = searchTerm.toLowerCase();
-    return tasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
-  }, [tasks, searchTerm]);
+    let result = tasks;
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const lowerSearch = searchTerm.toLowerCase();
+      result = result.filter(task => task.title.toLowerCase().includes(lowerSearch));
+    }
+
+    // Filter by tags
+    if (selectedTagIds.length > 0) {
+      result = result.filter(task =>
+        task.tags?.some(tag => selectedTagIds.includes(tag.id))
+      );
+    }
+
+    return result;
+  }, [tasks, searchTerm, selectedTagIds]);
+
+  const handleTagSelect = useCallback(tagId => {
+    setSelectedTagIds(prev => [...prev, tagId]);
+  }, []);
+
+  const handleTagDeselect = useCallback(tagId => {
+    setSelectedTagIds(prev => prev.filter(id => id !== tagId));
+  }, []);
 
   const getTasksForDay = useCallback(
     day => {
@@ -216,7 +241,19 @@ export const CalendarWeekView = ({
     <Flex direction="column" h="full">
       {/* Search input */}
       <Box px={4} py={2} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} flexShrink={0}>
-        <TaskSearchInput onSearchChange={setSearchTerm} />
+        <HStack spacing={4} align="center">
+          <Box flex={1}>
+            <TaskSearchInput onSearchChange={setSearchTerm} />
+          </Box>
+          <TagFilter
+            tags={tags}
+            selectedTagIds={selectedTagIds}
+            onTagSelect={handleTagSelect}
+            onTagDeselect={handleTagDeselect}
+            onCreateTag={onCreateTag}
+            compact
+          />
+        </HStack>
       </Box>
       {/* Week header */}
       <Flex borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} position="sticky" top={0} zIndex={10}>

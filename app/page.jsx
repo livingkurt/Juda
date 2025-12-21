@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
   Box,
   Button,
@@ -63,6 +63,7 @@ import { BacklogDrawer } from "@/components/BacklogDrawer";
 import { useTasks } from "@/hooks/useTasks";
 import { useSections } from "@/hooks/useSections";
 import { useCompletions } from "@/hooks/useCompletions";
+import { useTags } from "@/hooks/useTags";
 import {
   shouldShowOnDate,
   getGreeting,
@@ -79,6 +80,7 @@ import { DashboardView } from "@/components/DashboardView";
 import { PageSkeleton, SectionSkeleton, BacklogSkeleton, CalendarSkeleton } from "@/components/Skeletons";
 import { DateNavigation } from "@/components/DateNavigation";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
+import { TagFilter } from "@/components/TagFilter";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
@@ -105,6 +107,7 @@ export default function DailyTasksApp() {
     duplicateTask,
     combineAsSubtask,
     promoteSubtask,
+    saveTask,
     loading: tasksLoading,
   } = useTasks();
   const {
@@ -116,6 +119,7 @@ export default function DailyTasksApp() {
     loading: sectionsLoading,
   } = useSections();
   const { createCompletion, deleteCompletion, isCompletedOnDate, fetchCompletions } = useCompletions();
+  const { tags, createTag, deleteTag } = useTags();
 
   const isLoading = tasksLoading || sectionsLoading;
 
@@ -236,6 +240,7 @@ export default function DailyTasksApp() {
   const [todayViewDate, setTodayViewDate] = useState(null);
   // Search state for Today view
   const [todaySearchTerm, setTodaySearchTerm] = useState("");
+  const [todaySelectedTagIds, setTodaySelectedTagIds] = useState([]);
   const [editingTask, setEditingTask] = useState(null);
   const [editingSection, setEditingSection] = useState(null);
   const [defaultSectionId, setDefaultSectionId] = useState(null);
@@ -437,12 +442,23 @@ export default function DailyTasksApp() {
     [tasks, viewDate, isCompletedOnDate]
   );
 
-  // Filter today's tasks by search term
+  // Filter today's tasks by search term and tags
   const filteredTodaysTasks = useMemo(() => {
-    if (!todaySearchTerm.trim()) return todaysTasks;
-    const lowerSearch = todaySearchTerm.toLowerCase();
-    return todaysTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
-  }, [todaysTasks, todaySearchTerm]);
+    let result = todaysTasks;
+
+    // Filter by search term
+    if (todaySearchTerm.trim()) {
+      const lowerSearch = todaySearchTerm.toLowerCase();
+      result = result.filter(task => task.title.toLowerCase().includes(lowerSearch));
+    }
+
+    // Filter by tags
+    if (todaySelectedTagIds.length > 0) {
+      result = result.filter(task => task.tags?.some(tag => todaySelectedTagIds.includes(tag.id)));
+    }
+
+    return result;
+  }, [todaysTasks, todaySearchTerm, todaySelectedTagIds]);
 
   // Group today's tasks by section, optionally filtering out completed tasks
   const tasksBySection = useMemo(() => {
@@ -702,14 +718,18 @@ export default function DailyTasksApp() {
   };
 
   const handleSaveTask = async taskData => {
-    if (editingTask) {
-      await updateTask(editingTask.id, taskData);
-    } else {
-      await createTask(taskData);
-    }
+    await saveTask(taskData);
     setEditingTask(null);
     closeTaskDialog();
   };
+
+  const handleTodayTagSelect = useCallback(tagId => {
+    setTodaySelectedTagIds(prev => [...prev, tagId]);
+  }, []);
+
+  const handleTodayTagDeselect = useCallback(tagId => {
+    setTodaySelectedTagIds(prev => prev.filter(id => id !== tagId));
+  }, []);
 
   const handleTaskTimeChange = async (taskId, newTime) => {
     await updateTask(taskId, { time: newTime });
@@ -1659,6 +1679,8 @@ export default function DailyTasksApp() {
                       onToggleTask={handleToggleTask}
                       createDraggableId={createDraggableId}
                       viewDate={today}
+                      tags={tags}
+                      onCreateTag={createTag}
                     />
                   )}
                   {/* Resize handle */}
@@ -1766,7 +1788,18 @@ export default function DailyTasksApp() {
                               />
                             )}
                             <Box mt={3}>
-                              <TaskSearchInput onSearchChange={setTodaySearchTerm} />
+                              <HStack spacing={4} align="center">
+                                <Box flex={1}>
+                                  <TaskSearchInput onSearchChange={setTodaySearchTerm} />
+                                </Box>
+                                <TagFilter
+                                  tags={tags}
+                                  selectedTagIds={todaySelectedTagIds}
+                                  onTagSelect={handleTodayTagSelect}
+                                  onTagDeselect={handleTodayTagDeselect}
+                                  onCreateTag={createTag}
+                                />
+                              </HStack>
                             </Box>
                           </Box>
                           {/* Scrollable Sections Container */}
@@ -1978,6 +2011,8 @@ export default function DailyTasksApp() {
                                       isCompletedOnDate={isCompletedOnDate}
                                       showCompleted={showCompletedTasksCalendar.day}
                                       zoom={calendarZoom.day}
+                                      tags={tags}
+                                      onCreateTag={createTag}
                                     />
                                   )}
                                   {calendarView === "week" && selectedDate && (
@@ -1997,6 +2032,8 @@ export default function DailyTasksApp() {
                                       }}
                                       createDroppableId={createDroppableId}
                                       createDraggableId={createDraggableId}
+                                      tags={tags}
+                                      onCreateTag={createTag}
                                       isCompletedOnDate={isCompletedOnDate}
                                       showCompleted={showCompletedTasksCalendar.week}
                                       zoom={calendarZoom.week}
@@ -2013,6 +2050,8 @@ export default function DailyTasksApp() {
                                       isCompletedOnDate={isCompletedOnDate}
                                       showCompleted={showCompletedTasksCalendar.month}
                                       zoom={calendarZoom.month}
+                                      tags={tags}
+                                      onCreateTag={createTag}
                                     />
                                   )}
                                 </>
@@ -2091,6 +2130,9 @@ export default function DailyTasksApp() {
         defaultSectionId={defaultSectionId}
         defaultTime={defaultTime}
         defaultDate={defaultDate}
+        tags={tags}
+        onCreateTag={createTag}
+        onDeleteTag={deleteTag}
       />
       <SectionDialog
         isOpen={sectionDialogOpen}
