@@ -2,25 +2,35 @@
 alwaysApply: true
 ---
 
-# Drizzle ORM Migration Rules for Neon PostgreSQL
+# Drizzle ORM Migration Rules for Juda Project
 
 ## Overview
 
-This project uses **Drizzle ORM** with Neon PostgreSQL. Drizzle has a simple, reliable migration system that actually works in non-interactive environments like Cursor.
+This project uses **Drizzle ORM** with Neon PostgreSQL. We use **migration files** for production safety, NOT `drizzle-kit push`.
 
 ## Project Structure
 
 ```
-project/
-├── src/
-│   └── db/
-│       ├── index.ts          # Database connection
-│       └── schema.ts         # Drizzle schema definitions
+juda/
+├── lib/
+│   ├── db.js              # Database connection
+│   └── schema.js          # Drizzle schema definitions
 ├── drizzle/
-│   └── migrations/           # Generated SQL migration files
-├── drizzle.config.ts         # Drizzle Kit configuration
-└── .env                      # DATABASE_URL
+│   ├── 0000_*.sql         # Generated SQL migration files
+│   └── meta/              # Migration metadata
+├── drizzle.config.js      # Drizzle Kit configuration
+└── .env                   # DATABASE_URL
 ```
+
+## ⚠️ CRITICAL: Push vs Migrate
+
+| Command                | What It Does                                | Safe for Production?           |
+| ---------------------- | ------------------------------------------- | ------------------------------ |
+| `drizzle-kit push`     | Forces DB to match schema (CAN DELETE DATA) | ❌ **NEVER USE IN PRODUCTION** |
+| `drizzle-kit migrate`  | Applies only new migration files            | ✅ **SAFE - Use this**         |
+| `drizzle-kit generate` | Creates migration file from schema diff     | ✅ Safe (just creates file)    |
+
+**NEVER use `drizzle-kit push` for production deployments!** It can delete tables/columns not in your schema.
 
 ## Standard Workflow for Schema Changes
 
@@ -28,178 +38,154 @@ When asked to add a field, modify a table, or make any database schema change:
 
 ### Step 1: Edit the schema
 
-Modify `src/db/schema.ts` (or wherever your schema is defined):
+Modify `lib/schema.js`:
 
-```typescript
+```javascript
 import { pgTable, text, boolean, timestamp, integer } from "drizzle-orm/pg-core";
 
 export const sections = pgTable("Section", {
   id: text("id")
     .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
+    .$defaultFn(() => generateCuid()),
   name: text("name").notNull(),
   icon: text("icon").notNull(),
-  order: integer("order").default(0),
-  expanded: boolean("expanded").default(true), // <-- New field
-  createdAt: timestamp("createdAt").defaultNow(),
-  updatedAt: timestamp("updatedAt").defaultNow(),
+  order: integer("order").notNull().default(0),
+  expanded: boolean("expanded").notNull().default(true), // ← New field
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });
 ```
 
 ### Step 2: Generate the migration
 
 ```bash
-npx drizzle-kit generate
+npm run db:generate
 ```
 
-This creates a SQL migration file in `drizzle/migrations/` - you can review it to see exactly what will run.
+This creates a SQL migration file in `drizzle/` (e.g., `0001_add_expanded.sql`).
 
-### Step 3: Apply the migration
+**Review the generated SQL** to ensure it's correct!
+
+### Step 3: Test locally
 
 ```bash
-npx drizzle-kit migrate
+npm run db:migrate
 ```
 
-Or for development, you can use push (applies changes directly without migration files):
+Verify the migration works on your local database.
+
+### Step 4: Commit and deploy
 
 ```bash
-npx drizzle-kit push
+git add .
+git commit -m "Add expanded field to sections"
+git push
 ```
 
-### Step 4: Inform the user
+The build process automatically runs `drizzle-kit migrate` during deployment.
 
-Tell the user to restart their development server (`npm run dev`).
+### Step 5: Inform the user
+
+Tell the user: "Schema updated. The migration will run automatically on next deployment."
 
 ## Commands Reference
 
-| Command                    | Purpose                                        | When to Use                                   |
-| -------------------------- | ---------------------------------------------- | --------------------------------------------- |
-| `npx drizzle-kit generate` | Generate SQL migration from schema changes     | After editing schema.ts                       |
-| `npx drizzle-kit migrate`  | Apply pending migrations                       | After generate, for production-style workflow |
-| `npx drizzle-kit push`     | Push schema directly to DB (no migration file) | Quick development iteration                   |
-| `npx drizzle-kit studio`   | Open Drizzle Studio (DB browser)               | To inspect data                               |
-| `npx drizzle-kit check`    | Check for schema drift                         | Debugging                                     |
-| `npx drizzle-kit drop`     | Drop a migration                               | If you need to redo a migration               |
+| Command               | Purpose                                    | When to Use                              |
+| --------------------- | ------------------------------------------ | ---------------------------------------- |
+| `npm run db:generate` | Generate SQL migration from schema changes | After editing `lib/schema.js`            |
+| `npm run db:migrate`  | Apply pending migrations                   | Testing locally, automatic in build      |
+| `npm run db:push`     | Force sync schema (DANGEROUS)              | **Local development ONLY, never commit** |
+| `npm run db:studio`   | Open Drizzle Studio (DB browser)           | To inspect/edit data                     |
 
-## Two Approaches
+## Migration Safety
 
-### Approach 1: `drizzle-kit push` (Fast Development)
+### Why `drizzle-kit migrate` is Safe
 
-Best for quick iteration during development:
+- Only applies migrations not yet in `__drizzle_migrations` table
+- Never deletes anything unless you explicitly write that SQL
+- Non-interactive - works in CI/CD
+- Idempotent - safe to run multiple times
 
-```bash
-# Edit schema.ts, then:
-npx drizzle-kit push
-```
+### Why `drizzle-kit push` is Dangerous
 
-- Directly syncs schema to database
-- No migration files created
-- Fast and simple
-
-### Approach 2: `drizzle-kit generate` + `migrate` (Production)
-
-Best for production deployments and migration history:
-
-```bash
-# Edit schema.ts, then:
-npx drizzle-kit generate
-npx drizzle-kit migrate
-```
-
-- Creates SQL migration files you can review
-- Migration history preserved
-- Recommended for production
+- Forces DB to match schema exactly
+- Will DELETE tables/columns not in your schema
+- Can cause data loss
+- Should NEVER be in build scripts
 
 ## Adding Fields with Existing Data
 
 When adding a new column to a table that has existing rows:
 
-```typescript
-// CORRECT - has default value, safe for existing rows
-expanded: boolean('expanded').default(true),
+```javascript
+// ✅ CORRECT - has default value, safe for existing rows
+expanded: boolean("expanded").notNull().default(true),
 
-// CORRECT - nullable, safe for existing rows
-expanded: boolean('expanded'),
+// ✅ CORRECT - nullable, safe for existing rows
+expanded: boolean("expanded"),
 
-// RISKY - notNull without default will fail if table has data
-expanded: boolean('expanded').notNull(),
+// ❌ RISKY - notNull without default will fail if table has data
+expanded: boolean("expanded").notNull(),
 ```
 
 If you need a NOT NULL column without a default on a table with data, use a two-step migration:
 
 1. Add column as nullable
-2. Update existing rows
-3. Alter to NOT NULL
+2. Update existing rows with values
+3. Alter column to NOT NULL
 
 ## Environment Variables
 
 ```env
 # Neon PostgreSQL connection string
-DATABASE_URL="postgresql://user:password@ep-xxx.us-east-1.aws.neon.tech/neondb?sslmode=require"
+DATABASE_URL="postgresql://user:password@ep-xxx.us-east-1.aws.neon.tech/neondb"
 ```
 
-## Example drizzle.config.ts
-
-```typescript
-import { defineConfig } from "drizzle-kit";
-
-export default defineConfig({
-  schema: "./src/db/schema.ts",
-  out: "./drizzle/migrations",
-  dialect: "postgresql",
-  dbCredentials: {
-    url: process.env.DATABASE_URL!,
-  },
-});
-```
-
-## Example Database Connection (src/db/index.ts)
-
-```typescript
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
-import * as schema from "./schema";
-
-const sql = neon(process.env.DATABASE_URL!);
-export const db = drizzle(sql, { schema });
-```
+Note: The `?schema=public` parameter from Prisma is automatically removed by our `cleanDatabaseUrl()` function.
 
 ## Example Workflow
 
-User asks: "Add an 'expanded' boolean field to the Section model"
+**User asks:** "Add a 'priority' integer field to the Task model"
 
-1. Edit `src/db/schema.ts`:
+1. **Edit** `lib/schema.js`:
 
-```typescript
-export const sections = pgTable("Section", {
+```javascript
+export const tasks = pgTable("Task", {
   id: text("id")
     .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: text("name").notNull(),
-  icon: text("icon").notNull(),
-  order: integer("order").default(0),
-  expanded: boolean("expanded").default(true), // Added with default
-  createdAt: timestamp("createdAt").defaultNow(),
-  updatedAt: timestamp("updatedAt").defaultNow(),
+    .$defaultFn(() => generateCuid()),
+  title: text("title").notNull(),
+  sectionId: text("sectionId")
+    .notNull()
+    .references(() => sections.id, { onDelete: "cascade" }),
+  priority: integer("priority").notNull().default(0), // ← Added with default
+  // ... other fields
 });
 ```
 
-2. Generate and apply migration:
+2. **Generate migration:**
 
 ```bash
-npx drizzle-kit generate
-npx drizzle-kit migrate
+npm run db:generate
 ```
 
-Or for quick dev:
+3. **Review the generated SQL** in `drizzle/0001_*.sql`
+
+4. **Test locally:**
 
 ```bash
-npx drizzle-kit push
+npm run db:migrate
 ```
 
-3. Update API routes to handle the new field
+5. **Commit and push:**
 
-4. Tell user: "Schema updated. Please restart your dev server."
+```bash
+git add .
+git commit -m "Add priority field to tasks"
+git push
+```
+
+6. **Inform user:** "Priority field added. Migration will run automatically on deployment."
 
 ## Troubleshooting
 
@@ -208,27 +194,56 @@ npx drizzle-kit push
 The migration wasn't applied. Run:
 
 ```bash
-npx drizzle-kit push
+npm run db:migrate
 ```
 
 ### "relation X already exists" error
 
-The table/column already exists. Check your schema matches the database:
+The table/column already exists. This is normal if:
 
-```bash
-npx drizzle-kit check
-```
+- Migration already ran
+- Using `IF NOT EXISTS` in migration (which we do)
+
+Just continue - it's safe.
 
 ### Need to see what's in the database?
 
 ```bash
-npx drizzle-kit studio
+npm run db:studio
 ```
 
-### Migration failed partway through?
+### Migration failed during build?
 
-Check the generated SQL in `drizzle/migrations/`, fix the issue, then:
+1. Check Vercel build logs for the error
+2. Fix the migration SQL in `drizzle/` folder
+3. Commit and push the fix
+4. The build will retry with the corrected migration
+
+### Want to undo a migration?
+
+Create a NEW migration that reverses the change:
 
 ```bash
-npx drizzle-kit push
+# Edit lib/schema.js to remove the field
+npm run db:generate
+# This creates a new migration that drops the column
+npm run db:migrate
 ```
+
+## Build Process
+
+The `package.json` build script:
+
+```json
+"build": "drizzle-kit migrate && next build"
+```
+
+This ensures migrations run before the app builds, making deployment automatic and safe.
+
+## Key Reminders
+
+1. ✅ **Always use `drizzle-kit generate` + `drizzle-kit migrate`** for production
+2. ❌ **Never use `drizzle-kit push` in production** - it can delete data
+3. ✅ **Commit migration files** to git - they're part of your codebase
+4. ✅ **Review generated SQL** before committing
+5. ✅ **Add defaults to new NOT NULL columns** on tables with data
