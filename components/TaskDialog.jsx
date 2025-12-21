@@ -46,8 +46,9 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
       setSectionId(task.sectionId || sections[0]?.id || "");
       setTime(task.time || "");
       if (task.recurrence?.startDate) {
-        const taskDate = new Date(task.recurrence.startDate);
-        setDate(taskDate.toISOString().split("T")[0]);
+        // Extract just the date portion from the ISO string to avoid timezone conversion
+        const isoDate = task.recurrence.startDate.split("T")[0];
+        setDate(isoDate);
       } else {
         setDate("");
       }
@@ -73,16 +74,17 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
     let recurrence = null;
     if (recurrenceType === "none") {
       if (date) {
+        // Create ISO string at midnight UTC from the date string to avoid timezone shifts
         recurrence = {
           type: "none",
-          startDate: new Date(date).toISOString(),
+          startDate: `${date}T00:00:00.000Z`,
         };
       }
     } else {
       recurrence = {
         type: recurrenceType,
         ...(recurrenceType === "weekly" && { days: selectedDays }),
-        ...(date && { startDate: new Date(date).toISOString() }),
+        ...(date && { startDate: `${date}T00:00:00.000Z` }),
       };
     }
     onSave({

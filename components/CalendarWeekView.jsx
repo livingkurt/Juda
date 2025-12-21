@@ -31,9 +31,11 @@ export const CalendarWeekView = ({
   // Calculate week days
   const startOfWeek = new Date(date);
   startOfWeek.setDate(date.getDate() - date.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(startOfWeek);
     d.setDate(startOfWeek.getDate() + i);
+    d.setHours(0, 0, 0, 0);
     return d;
   });
 

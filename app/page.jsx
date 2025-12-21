@@ -97,7 +97,9 @@ export default function DailyTasksApp() {
   useEffect(() => {
     // Set selectedDate on mount to avoid hydration mismatch
     if (selectedDate === null) {
-      setSelectedDate(new Date());
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      setSelectedDate(today);
     }
 
     if (typeof window === "undefined") return;
@@ -341,28 +343,44 @@ export default function DailyTasksApp() {
       // DESTINATION: Today section - set date to today, clear time
       else if (destParsed.type === "today-section") {
         // Don't set sectionId here - let the reordering logic below handle it
+        // Extract date string to avoid timezone conversion
+        const todayDateStr = today.toISOString().split("T")[0];
         updates = {
           time: null,
           recurrence: {
             type: "none",
-            startDate: today.toISOString(),
+            startDate: `${todayDateStr}T00:00:00.000Z`,
           },
         };
       }
       // DESTINATION: Calendar (timed area) - set date and time
       else if (destParsed.type === "calendar" && !destParsed.isUntimed) {
-        const dropDate = destParsed.date || selectedDate || new Date();
+        // Use dateStr from parsed droppable ID to avoid timezone conversion
+        let dropDateStr;
+        if (destParsed.dateStr) {
+          dropDateStr = destParsed.dateStr.split("T")[0];
+        } else {
+          const fallbackDate = selectedDate || new Date();
+          dropDateStr = fallbackDate.toISOString().split("T")[0];
+        }
         updates = {
           time: calculatedTime,
           recurrence: {
             type: "none",
-            startDate: dropDate.toISOString(),
+            startDate: `${dropDateStr}T00:00:00.000Z`,
           },
         };
       }
       // DESTINATION: Calendar (untimed area) - set date, clear time
       else if (destParsed.type === "calendar" && destParsed.isUntimed) {
-        const dropDate = destParsed.date || selectedDate || new Date();
+        // Use dateStr from parsed droppable ID to avoid timezone conversion
+        let dropDateStr;
+        if (destParsed.dateStr) {
+          dropDateStr = destParsed.dateStr.split("T")[0];
+        } else {
+          const fallbackDate = selectedDate || new Date();
+          dropDateStr = fallbackDate.toISOString().split("T")[0];
+        }
         updates = {
           time: null,
           recurrence:
@@ -370,7 +388,7 @@ export default function DailyTasksApp() {
               ? task.recurrence // Keep recurring pattern
               : {
                   type: "none",
-                  startDate: dropDate.toISOString(),
+                  startDate: `${dropDateStr}T00:00:00.000Z`,
                 },
         };
       }
@@ -440,6 +458,7 @@ export default function DailyTasksApp() {
     if (calendarView === "day") d.setDate(d.getDate() + dir);
     else if (calendarView === "week") d.setDate(d.getDate() + dir * 7);
     else d.setMonth(d.getMonth() + dir);
+    d.setHours(0, 0, 0, 0);
     setSelectedDate(d);
   };
 
@@ -813,6 +832,7 @@ export default function DailyTasksApp() {
                     size="sm"
                     onClick={() => {
                       const today = new Date();
+                      today.setHours(0, 0, 0, 0);
                       setSelectedDate(today);
                     }}
                   >
