@@ -12,7 +12,7 @@
 
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { sections, tasks } from "../lib/schema.js";
+import { sections, tasks, taskCompletions } from "../lib/schema.js";
 import { asc } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
@@ -87,14 +87,16 @@ async function dumpProduction() {
   console.log("📦 Dumping production database...\n");
 
   try {
-    // Fetch all data from production
+    // Fetch all data from production (automatically gets all fields)
     const allSections = await productionDb.select().from(sections).orderBy(asc(sections.order));
     const allTasks = await productionDb.select().from(tasks).orderBy(asc(tasks.sectionId), asc(tasks.order));
+    const allCompletions = await productionDb.select().from(taskCompletions).orderBy(asc(taskCompletions.date));
 
     const dump = {
       timestamp: new Date().toISOString(),
       sections: allSections,
       tasks: allTasks,
+      taskCompletions: allCompletions,
     };
 
     // Save to file
@@ -113,7 +115,9 @@ async function dumpProduction() {
     // eslint-disable-next-line no-console
     console.log(`   Sections: ${allSections.length}`);
     // eslint-disable-next-line no-console
-    console.log(`   Tasks: ${allTasks.length}\n`);
+    console.log(`   Tasks: ${allTasks.length}`);
+    // eslint-disable-next-line no-console
+    console.log(`   Task Completions: ${allCompletions.length}\n`);
 
     return dump;
   } catch (error) {
@@ -121,6 +125,20 @@ async function dumpProduction() {
     console.error("❌ Error dumping production database:", error.message);
     throw error;
   }
+}
+
+// Convert date strings to Date objects for all timestamp fields
+function convertDates(record) {
+  const converted = { ...record };
+  const dateFields = ["createdAt", "updatedAt", "date"];
+
+  for (const field of dateFields) {
+    if (converted[field] && typeof converted[field] === "string") {
+      converted[field] = new Date(converted[field]);
+    }
+  }
+
+  return converted;
 }
 
 async function restoreToLocal(dump) {
@@ -135,6 +153,7 @@ async function restoreToLocal(dump) {
 
   try {
     // Clear local database (in reverse order due to foreign keys)
+    await localDb.delete(taskCompletions);
     await localDb.delete(tasks);
     await localDb.delete(sections);
 
@@ -142,17 +161,27 @@ async function restoreToLocal(dump) {
     console.log("   ✓ Cleared local database");
 
     // Restore sections first (tasks depend on them)
-    if (dump.sections.length > 0) {
-      await localDb.insert(sections).values(dump.sections);
+    if (dump.sections && dump.sections.length > 0) {
+      const sectionsToInsert = dump.sections.map(convertDates);
+      await localDb.insert(sections).values(sectionsToInsert);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.sections.length} sections`);
     }
 
-    // Restore tasks
-    if (dump.tasks.length > 0) {
-      await localDb.insert(tasks).values(dump.tasks);
+    // Restore tasks (Drizzle will automatically handle field validation)
+    if (dump.tasks && dump.tasks.length > 0) {
+      const tasksToInsert = dump.tasks.map(convertDates);
+      await localDb.insert(tasks).values(tasksToInsert);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.tasks.length} tasks`);
+    }
+
+    // Restore task completions (if present in dump)
+    if (dump.taskCompletions && dump.taskCompletions.length > 0) {
+      const completionsToInsert = dump.taskCompletions.map(convertDates);
+      await localDb.insert(taskCompletions).values(completionsToInsert);
+      // eslint-disable-next-line no-console
+      console.log(`   ✓ Restored ${dump.taskCompletions.length} task completions`);
     }
 
     // eslint-disable-next-line no-console

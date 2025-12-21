@@ -12,7 +12,7 @@
 
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { sections, tasks } from "../lib/schema.js";
+import { sections, tasks, taskCompletions } from "../lib/schema.js";
 import { count } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
@@ -54,7 +54,7 @@ loadEnvFile();
 
 // Get database URL from environment (dev database)
 // Prefer DEV_DATABASE_URL if set, otherwise fall back to DATABASE_URL
-const devUrl = cleanDatabaseUrl(process.env.PRODUCTION_DATABASE_URL);
+const devUrl = cleanDatabaseUrl(process.env.DEV_DATABASE_URL || process.env.DATABASE_URL);
 
 if (!devUrl) {
   // eslint-disable-next-line no-console
@@ -116,18 +116,37 @@ function loadDump(dumpPath) {
   }
 }
 
+// Convert date strings to Date objects for all timestamp fields
+// This function automatically detects timestamp fields (createdAt, updatedAt, date)
+function convertDates(record) {
+  const converted = { ...record };
+  const dateFields = ["createdAt", "updatedAt", "date"];
+
+  for (const field of dateFields) {
+    if (converted[field] && typeof converted[field] === "string") {
+      converted[field] = new Date(converted[field]);
+    }
+  }
+
+  return converted;
+}
+
 async function restoreToDev(dump) {
   // eslint-disable-next-line no-console
   console.log("🔄 Restoring to dev database...\n");
 
   try {
-    // Verify connection by checking table count
+    // Verify connection by checking table counts
     const [sectionCountResult] = await devDb.select({ count: count() }).from(sections);
     const [taskCountResult] = await devDb.select({ count: count() }).from(tasks);
+    const [completionCountResult] = await devDb.select({ count: count() }).from(taskCompletions);
     // eslint-disable-next-line no-console
-    console.log(`   Current database state: ${sectionCountResult.count} sections, ${taskCountResult.count} tasks`);
+    console.log(
+      `   Current database state: ${sectionCountResult.count} sections, ${taskCountResult.count} tasks, ${completionCountResult.count} completions`
+    );
 
     // Clear dev database (in reverse order due to foreign keys)
+    await devDb.delete(taskCompletions);
     await devDb.delete(tasks);
     await devDb.delete(sections);
 
@@ -136,68 +155,55 @@ async function restoreToDev(dump) {
 
     // Restore sections first (tasks depend on them)
     if (dump.sections && dump.sections.length > 0) {
-      // Convert date strings to Date objects
-      const sectionsToInsert = dump.sections.map(section => ({
-        ...section,
-        createdAt: new Date(section.createdAt),
-        updatedAt: new Date(section.updatedAt),
-      }));
+      const sectionsToInsert = dump.sections.map(convertDates);
       await devDb.insert(sections).values(sectionsToInsert);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.sections.length} sections`);
     }
 
-    // Restore tasks (filter out fields that don't exist in schema)
+    // Restore tasks (Drizzle will automatically handle field validation)
     if (dump.tasks && dump.tasks.length > 0) {
-      const validTaskFields = [
-        "id",
-        "title",
-        "sectionId",
-        "time",
-        "duration",
-        "color",
-        "expanded",
-        "order",
-        "recurrence",
-        "subtasks",
-        "createdAt",
-        "updatedAt",
-      ];
-      const filteredTasks = dump.tasks.map(task => {
-        const filtered = {};
-        for (const field of validTaskFields) {
-          if (task[field] !== undefined) {
-            // Convert date strings to Date objects
-            if (field === "createdAt" || field === "updatedAt") {
-              filtered[field] = new Date(task[field]);
-            } else {
-              filtered[field] = task[field];
-            }
-          }
-        }
-        return filtered;
-      });
-      await devDb.insert(tasks).values(filteredTasks);
+      const tasksToInsert = dump.tasks.map(convertDates);
+      await devDb.insert(tasks).values(tasksToInsert);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.tasks.length} tasks`);
+    }
+
+    // Restore task completions (if present in dump)
+    if (dump.taskCompletions && dump.taskCompletions.length > 0) {
+      const completionsToInsert = dump.taskCompletions.map(convertDates);
+      await devDb.insert(taskCompletions).values(completionsToInsert);
+      // eslint-disable-next-line no-console
+      console.log(`   ✓ Restored ${dump.taskCompletions.length} task completions`);
     }
 
     // Verify the restore by counting records
     const [finalSectionCountResult] = await devDb.select({ count: count() }).from(sections);
     const [finalTaskCountResult] = await devDb.select({ count: count() }).from(tasks);
+    const [finalCompletionCountResult] = await devDb.select({ count: count() }).from(taskCompletions);
 
     // eslint-disable-next-line no-console
     console.log("\n✅ Dev database restored successfully!");
     // eslint-disable-next-line no-console
-    console.log(`   Final counts: ${finalSectionCountResult.count} sections, ${finalTaskCountResult.count} tasks`);
+    console.log(
+      `   Final counts: ${finalSectionCountResult.count} sections, ${finalTaskCountResult.count} tasks, ${finalCompletionCountResult.count} completions`
+    );
 
-    if (finalSectionCountResult.count !== dump.sections?.length || finalTaskCountResult.count !== dump.tasks?.length) {
+    const sectionMatch = finalSectionCountResult.count === (dump.sections?.length || 0);
+    const taskMatch = finalTaskCountResult.count === (dump.tasks?.length || 0);
+    const completionMatch = finalCompletionCountResult.count === (dump.taskCompletions?.length || 0);
+
+    if (!sectionMatch || !taskMatch || !completionMatch) {
       // eslint-disable-next-line no-console
       console.warn("\n⚠️  Warning: Record counts don't match!");
       // eslint-disable-next-line no-console
-      console.warn(`   Expected: ${dump.sections?.length || 0} sections, ${dump.tasks?.length || 0} tasks`);
+      console.warn(
+        `   Expected: ${dump.sections?.length || 0} sections, ${dump.tasks?.length || 0} tasks, ${dump.taskCompletions?.length || 0} completions`
+      );
       // eslint-disable-next-line no-console
-      console.warn(`   Actual: ${finalSectionCountResult.count} sections, ${finalTaskCountResult.count} tasks`);
+      console.warn(
+        `   Actual: ${finalSectionCountResult.count} sections, ${finalTaskCountResult.count} tasks, ${finalCompletionCountResult.count} completions`
+      );
     }
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -220,7 +226,9 @@ async function main() {
     // eslint-disable-next-line no-console
     console.log(`   Sections: ${dump.sections?.length || 0}`);
     // eslint-disable-next-line no-console
-    console.log(`   Tasks: ${dump.tasks?.length || 0}\n`);
+    console.log(`   Tasks: ${dump.tasks?.length || 0}`);
+    // eslint-disable-next-line no-console
+    console.log(`   Task Completions: ${dump.taskCompletions?.length || 0}\n`);
 
     // Restore to dev
     await restoreToDev(dump);
