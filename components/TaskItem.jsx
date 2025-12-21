@@ -1,20 +1,43 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack, Input, Badge } from "@chakra-ui/react";
+import {
+  Box,
+  Checkbox,
+  Text,
+  Flex,
+  HStack,
+  IconButton,
+  VStack,
+  Input,
+  Badge,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+} from "@chakra-ui/react";
 import { useColorModeValue } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, ChevronRight, Clock, Edit2, Trash2, GripVertical, Copy, AlertCircle } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Edit2,
+  Trash2,
+  GripVertical,
+  Copy,
+  AlertCircle,
+  MoreVertical,
+} from "lucide-react";
 import { formatTime, isOverdue } from "@/lib/utils";
-import { SortableSubtaskItem } from "./SortableSubtaskItem";
 import { createDroppableId } from "@/lib/dragHelpers";
 
 export const TaskItem = ({
   task,
-  variant = "today", // "today" or "backlog"
+  variant = "today", // "today", "backlog", or "subtask"
   onToggle,
   onToggleSubtask,
   onToggleExpand,
@@ -32,12 +55,17 @@ export const TaskItem = ({
   mutedText: mutedTextProp, // Optional override
   gripColor: gripColorProp, // Optional override
   viewDate, // Date being viewed (for overdue calculation)
+  parentTaskId, // For subtask variant
 }) => {
   // Normalize prop names - support both naming conventions
   const handleEdit = onEdit || onEditTask;
   const handleUpdateTitle = onUpdateTitle || onUpdateTaskTitle;
   const handleDelete = onDelete || onDeleteTask;
   const handleDuplicate = onDuplicate || onDuplicateTask;
+
+  const isBacklog = variant === "backlog";
+  const isToday = variant === "today";
+  const isSubtask = variant === "subtask";
 
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -49,9 +77,6 @@ export const TaskItem = ({
   const textColor = textColorProp || textColorDefault;
   const mutedText = mutedTextProp || mutedTextDefault;
   const gripColor = gripColorProp || gripColorDefault;
-
-  const isBacklog = variant === "backlog";
-  const isToday = variant === "today";
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(task.title);
@@ -181,8 +206,8 @@ export const TaskItem = ({
 
   // Visual feedback for drop target
   const dropTargetStyle = {
-    borderColor: isOver ? "blue.400" : borderColor,
-    borderWidth: isOver ? "2px" : "1px",
+    borderColor: isOver ? "blue.400" : task.color,
+    borderWidth: isOver ? "2px" : "2px",
     borderStyle: isOver ? "dashed" : "solid",
     transform: isOver ? "scale(1.02)" : "scale(1)",
     transition: "all 0.2s ease",
@@ -223,22 +248,19 @@ export const TaskItem = ({
               <Box w={6} />
             )
           ) : (
-            <Box w={6} />
+            <Box />
           )}
 
-          {/* Checkbox - show for today and backlog variants */}
-          {(isToday || isBacklog) && (
-            <Checkbox
-              isChecked={task.completed || allSubtasksComplete}
-              size="lg"
-              onChange={() => onToggle?.(task.id)}
-              onClick={e => e.stopPropagation()}
-              onMouseDown={e => e.stopPropagation()}
-            />
-          )}
-
+          {/* Checkbox - show for today, backlog, and subtask variants */}
+          <Checkbox
+            isChecked={task.completed || allSubtasksComplete}
+            size="lg"
+            onChange={() => (isSubtask ? onToggle?.(parentTaskId, task.id) : onToggle?.(task.id))}
+            onClick={e => e.stopPropagation()}
+            onMouseDown={e => e.stopPropagation()}
+          />
           {/* Color indicator */}
-          <Box w={3} h={3} borderRadius="full" bg={task.color || "#3b82f6"} flexShrink={0} />
+          {/* <Box w={3} h={3} borderRadius="full" bg={task.color || "#3b82f6"} flexShrink={0} /> */}
 
           {/* Task content */}
           <Box flex={1} minW={0}>
@@ -330,55 +352,54 @@ export const TaskItem = ({
             </HStack>
           )}
 
-          {/* Action buttons */}
-          <IconButton
-            icon={
-              <Box as="span" color="currentColor">
-                <Edit2 size={16} stroke="currentColor" />
-              </Box>
-            }
-            onClick={e => {
-              e.stopPropagation();
-              handleEdit(task);
-            }}
-            onMouseDown={e => e.stopPropagation()}
-            size="sm"
-            variant="ghost"
-            aria-label="Edit task"
-          />
-          {handleDuplicate && (
-            <IconButton
+          {/* Action menu */}
+          <Menu>
+            <MenuButton
+              as={IconButton}
               icon={
                 <Box as="span" color="currentColor">
-                  <Copy size={16} stroke="currentColor" />
+                  <MoreVertical size={16} stroke="currentColor" />
                 </Box>
               }
-              onClick={e => {
-                e.stopPropagation();
-                handleDuplicate(task.id);
-              }}
+              onClick={e => e.stopPropagation()}
               onMouseDown={e => e.stopPropagation()}
-              size="sm"
+              size={"sm"}
               variant="ghost"
-              aria-label="Duplicate task"
+              aria-label="Task actions"
             />
-          )}
-          <IconButton
-            icon={
-              <Box as="span" color="currentColor">
-                <Trash2 size={16} stroke="currentColor" />
-              </Box>
-            }
-            onClick={e => {
-              e.stopPropagation();
-              handleDelete(task.id);
-            }}
-            onMouseDown={e => e.stopPropagation()}
-            size="sm"
-            variant="ghost"
-            colorScheme="red"
-            aria-label="Delete task"
-          />
+            <MenuList onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+              <MenuItem
+                icon={<Edit2 size={16} />}
+                onClick={e => {
+                  e.stopPropagation();
+                  handleEdit(task);
+                }}
+              >
+                Edit
+              </MenuItem>
+              {handleDuplicate && (
+                <MenuItem
+                  icon={<Copy size={16} />}
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleDuplicate(task.id);
+                  }}
+                >
+                  Duplicate
+                </MenuItem>
+              )}
+              <MenuItem
+                icon={<Trash2 size={16} />}
+                color="red.500"
+                onClick={e => {
+                  e.stopPropagation();
+                  isSubtask ? handleDelete(parentTaskId, task.id) : handleDelete(task.id);
+                }}
+              >
+                Delete
+              </MenuItem>
+            </MenuList>
+          </Menu>
         </Flex>
 
         {/* Expanded subtasks */}
@@ -390,10 +411,12 @@ export const TaskItem = ({
             >
               <VStack align="stretch" spacing={2}>
                 {task.subtasks.map(subtask => (
-                  <SortableSubtaskItem
+                  <TaskItem
                     key={subtask.id}
-                    subtask={subtask}
+                    task={subtask}
+                    variant="subtask"
                     parentTaskId={task.id}
+                    draggableId={createDroppableId.subtask(task.id, subtask.id)}
                     onToggle={onToggleSubtask}
                     onEdit={
                       handleEdit
@@ -412,6 +435,9 @@ export const TaskItem = ({
                           }
                         : undefined
                     }
+                    textColor={textColor}
+                    mutedText={mutedText}
+                    gripColor={gripColor}
                   />
                 ))}
               </VStack>
