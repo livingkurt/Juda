@@ -1549,6 +1549,7 @@ export default function DailyTasksApp() {
                                         dropTimeRef.current = time;
                                       }}
                                       createDroppableId={createDroppableId}
+                                      createDraggableId={createDraggableId}
                                       isCompletedOnDate={isCompletedOnDate}
                                     />
                                   )}
