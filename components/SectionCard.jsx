@@ -43,6 +43,7 @@ export const SectionCard = ({
   hoveredDroppable,
   droppableId,
   createDraggableId,
+  viewDate,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -255,6 +256,7 @@ export const SectionCard = ({
                     onDuplicate={onDuplicateTask}
                     hoveredDroppable={hoveredDroppable}
                     draggableId={task.draggableId}
+                    viewDate={viewDate}
                   />
                 ))}
                 <Input

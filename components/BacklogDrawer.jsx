@@ -17,7 +17,9 @@ export const BacklogDrawer = ({
   onAddTask,
   onToggleExpand,
   onToggleSubtask,
+  onToggleTask,
   createDraggableId,
+  viewDate,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -112,11 +114,13 @@ export const BacklogDrawer = ({
                     onDuplicateTask={onDuplicateTask}
                     onToggleExpand={onToggleExpand}
                     onToggleSubtask={onToggleSubtask}
+                    onToggle={onToggleTask}
                     getSectionName={getSectionName}
                     textColor={textColor}
                     mutedText={mutedText}
                     gripColor={gripColor}
                     draggableId={task.draggableId}
+                    viewDate={viewDate}
                   />
                 ))}
               </VStack>

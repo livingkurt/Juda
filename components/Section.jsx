@@ -25,6 +25,7 @@ export const Section = ({
   hoveredDroppable,
   createDroppableId,
   createDraggableId,
+  viewDate,
 }) => {
   const dropHighlight = useColorModeValue("gray.50", "gray.800");
 
@@ -57,6 +58,7 @@ export const Section = ({
             hoveredDroppable={hoveredDroppable}
             droppableId={createDroppableId.todaySection(section.id)}
             createDraggableId={createDraggableId}
+            viewDate={viewDate}
           />
         ))}
         <Button variant="outline" onClick={onAddSection} w="full" py={6} borderStyle="dashed" mt={4}>

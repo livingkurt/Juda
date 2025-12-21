@@ -303,17 +303,45 @@ export default function DailyTasksApp() {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    const isCompletedOnViewDate = isCompletedOnDate(taskId, viewDate);
+    // Check if task has no recurrence (appears in backlog)
+    const hasNoRecurrence = !task.recurrence;
+
+    // Determine which date to use: viewDate for Today View, today for backlog
+    const targetDate = hasNoRecurrence ? today : viewDate;
+    const isCompletedOnTargetDate = isCompletedOnDate(taskId, targetDate);
 
     try {
-      // Only update completion record - no need to update task.completed field
-      // The UI will reflect completion status via isCompletedOnDate check
-      if (isCompletedOnViewDate) {
-        // Task is completed on the selected date, remove completion record
-        await deleteCompletion(taskId, viewDate.toISOString());
+      // Get current time when checking
+      const now = new Date();
+      const currentTime = minutesToTime(now.getHours() * 60 + now.getMinutes());
+
+      // If task has no recurrence and is being checked, set it to show on calendar with current time
+      if (hasNoRecurrence && !isCompletedOnTargetDate) {
+        // Set recurrence to today's date and time to current time so it appears in calendar
+        const todayDateStr = formatLocalDate(today);
+        await updateTask(taskId, {
+          recurrence: {
+            type: "none",
+            startDate: `${todayDateStr}T00:00:00.000Z`,
+          },
+          time: currentTime,
+        });
+      }
+      // If task is in Today View and doesn't have a time, set it to current time when checking
+      else if (!hasNoRecurrence && !task.time && !isCompletedOnTargetDate) {
+        // Task already has a date (from recurrence), just set the time
+        await updateTask(taskId, {
+          time: currentTime,
+        });
+      }
+
+      // Update completion record
+      if (isCompletedOnTargetDate) {
+        // Task is completed on the target date, remove completion record
+        await deleteCompletion(taskId, targetDate.toISOString());
       } else {
-        // Task is not completed on the selected date, create completion record
-        await createCompletion(taskId, viewDate.toISOString());
+        // Task is not completed on the target date, create completion record
+        await createCompletion(taskId, targetDate.toISOString());
       }
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -1125,7 +1153,9 @@ export default function DailyTasksApp() {
                       onAddTask={handleAddTaskToBacklog}
                       onToggleExpand={handleToggleExpand}
                       onToggleSubtask={handleToggleSubtask}
+                      onToggleTask={handleToggleTask}
                       createDraggableId={createDraggableId}
+                      viewDate={today}
                     />
                   )}
                   {/* Resize handle */}
@@ -1205,6 +1235,7 @@ export default function DailyTasksApp() {
                             onAddSection={handleAddSection}
                             createDroppableId={createDroppableId}
                             createDraggableId={createDraggableId}
+                            viewDate={viewDate}
                           />
                         </>
                       )}

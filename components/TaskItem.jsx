@@ -27,6 +27,7 @@ export const TaskItem = ({
   textColor: textColorProp, // Optional override
   mutedText: mutedTextProp, // Optional override
   gripColor: gripColorProp, // Optional override
+  viewDate, // Date being viewed (for overdue calculation)
 }) => {
   // Normalize prop names - support both naming conventions
   const handleEdit = onEdit || onEditTask;
@@ -166,8 +167,8 @@ export const TaskItem = ({
             <Box w={6} />
           )}
 
-          {/* Checkbox - only show for today variant */}
-          {isToday && (
+          {/* Checkbox - show for today and backlog variants */}
+          {(isToday || isBacklog) && (
             <Checkbox
               isChecked={task.completed || allSubtasksComplete}
               size="lg"
@@ -222,10 +223,10 @@ export const TaskItem = ({
                 ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})
               </Text>
             )}
-            {/* Badges - only show for backlog variant */}
-            {isBacklog && (
+            {/* Badges - show for backlog and today variants */}
+            {(isBacklog || isToday) && (
               <HStack spacing={2} mt={1} align="center">
-                {isOverdue(task) && (
+                {isOverdue(task, viewDate, task.completed) && (
                   <Badge size="sm" colorScheme="red" fontSize="2xs">
                     <HStack spacing={1} align="center">
                       <Box as="span" color="currentColor">
@@ -235,7 +236,7 @@ export const TaskItem = ({
                     </HStack>
                   </Badge>
                 )}
-                {getSectionName && task.sectionId && (
+                {isBacklog && getSectionName && task.sectionId && (
                   <Text fontSize="xs" color={mutedText}>
                     {getSectionName(task.sectionId)}
                   </Text>
