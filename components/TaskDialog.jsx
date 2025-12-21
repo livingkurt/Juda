@@ -106,7 +106,7 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
     onClose();
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = e => {
     e.preventDefault();
     handleSave();
   };
@@ -120,191 +120,191 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
         <ModalBody>
           <form onSubmit={handleFormSubmit}>
             <VStack spacing={4} py={4}>
-            <Box w="full">
-              <FormLabel>Task Name</FormLabel>
-              <Input
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter" && title.trim()) {
-                    e.preventDefault();
-                    handleSave();
-                  }
-                }}
-              />
-            </Box>
-            <Box w="full">
-              <FormLabel>Color</FormLabel>
-              <HStack spacing={2} mt={2} flexWrap="wrap">
-                {colors.map(c => (
-                  <Button
-                    key={c}
-                    w={8}
-                    h={8}
-                    borderRadius="full"
-                    bg={c}
-                    onClick={() => setColor(c)}
-                    borderWidth={color === c ? "3px" : "0px"}
-                    borderColor="blue.400"
-                    _hover={{ transform: "scale(1.1)" }}
-                    aria-label={`Select color ${c}`}
+              <Box w="full">
+                <FormLabel>Task Name</FormLabel>
+                <Input
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && title.trim()) {
+                      e.preventDefault();
+                      handleSave();
+                    }
+                  }}
+                />
+              </Box>
+              <Box w="full">
+                <FormLabel>Color</FormLabel>
+                <HStack spacing={2} mt={2} flexWrap="wrap">
+                  {colors.map(c => (
+                    <Button
+                      key={c}
+                      w={8}
+                      h={8}
+                      borderRadius="full"
+                      bg={c}
+                      onClick={() => setColor(c)}
+                      borderWidth={color === c ? "3px" : "0px"}
+                      borderColor="blue.400"
+                      _hover={{ transform: "scale(1.1)" }}
+                      aria-label={`Select color ${c}`}
+                    />
+                  ))}
+                </HStack>
+              </Box>
+              <Box w="full">
+                <FormLabel>Section</FormLabel>
+                <Select value={sectionId} onChange={e => setSectionId(e.target.value)}>
+                  {sections.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </Select>
+              </Box>
+              <SimpleGrid columns={2} spacing={4} w="full">
+                <Box>
+                  <FormLabel>Date</FormLabel>
+                  <Input
+                    type="date"
+                    value={date}
+                    onChange={e => setDate(e.target.value)}
+                    placeholder="Optional"
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && title.trim()) {
+                        e.preventDefault();
+                        handleSave();
+                      }
+                    }}
                   />
-                ))}
-              </HStack>
-            </Box>
-            <Box w="full">
-              <FormLabel>Section</FormLabel>
-              <Select value={sectionId} onChange={e => setSectionId(e.target.value)}>
-                {sections.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </Select>
-            </Box>
-            <SimpleGrid columns={2} spacing={4} w="full">
-              <Box>
-                <FormLabel>Date</FormLabel>
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                  placeholder="Optional"
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && title.trim()) {
-                      e.preventDefault();
-                      handleSave();
-                    }
-                  }}
-                />
+                </Box>
+                <Box>
+                  <FormLabel>Time</FormLabel>
+                  <Input
+                    type="time"
+                    value={time}
+                    onChange={e => setTime(e.target.value)}
+                    placeholder="Optional"
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && title.trim()) {
+                        e.preventDefault();
+                        handleSave();
+                      }
+                    }}
+                  />
+                </Box>
+              </SimpleGrid>
+              <Box w="full">
+                <FormLabel>Duration</FormLabel>
+                <Select value={duration.toString()} onChange={e => setDuration(parseInt(e.target.value))}>
+                  {DURATION_OPTIONS.map(d => (
+                    <option key={d.value} value={d.value.toString()}>
+                      {d.label}
+                    </option>
+                  ))}
+                </Select>
               </Box>
-              <Box>
-                <FormLabel>Time</FormLabel>
-                <Input
-                  type="time"
-                  value={time}
-                  onChange={e => setTime(e.target.value)}
-                  placeholder="Optional"
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && title.trim()) {
-                      e.preventDefault();
-                      handleSave();
-                    }
-                  }}
-                />
+              <Box w="full">
+                <FormLabel>Recurrence</FormLabel>
+                <Select value={recurrenceType} onChange={e => setRecurrenceType(e.target.value)}>
+                  <option value="none">None (One-time task)</option>
+                  <option value="daily">Every day</option>
+                  <option value="weekly">Specific days</option>
+                </Select>
               </Box>
-            </SimpleGrid>
-            <Box w="full">
-              <FormLabel>Duration</FormLabel>
-              <Select value={duration.toString()} onChange={e => setDuration(parseInt(e.target.value))}>
-                {DURATION_OPTIONS.map(d => (
-                  <option key={d.value} value={d.value.toString()}>
-                    {d.label}
-                  </option>
-                ))}
-              </Select>
-            </Box>
-            <Box w="full">
-              <FormLabel>Recurrence</FormLabel>
-              <Select value={recurrenceType} onChange={e => setRecurrenceType(e.target.value)}>
-                <option value="none">None (One-time task)</option>
-                <option value="daily">Every day</option>
-                <option value="weekly">Specific days</option>
-              </Select>
-            </Box>
-            {recurrenceType === "weekly" && (
-              <HStack spacing={1} w="full">
-                {DAYS_OF_WEEK.map(day => (
-                  <Button
-                    key={day.value}
-                    w={9}
-                    h={9}
-                    borderRadius="full"
-                    fontSize="sm"
-                    fontWeight="medium"
-                    onClick={() =>
-                      setSelectedDays(prev =>
-                        prev.includes(day.value) ? prev.filter(d => d !== day.value) : [...prev, day.value]
-                      )
-                    }
-                    colorScheme={selectedDays.includes(day.value) ? "blue" : "gray"}
-                    variant={selectedDays.includes(day.value) ? "solid" : "outline"}
-                  >
-                    {day.short}
-                  </Button>
-                ))}
-              </HStack>
-            )}
-            <Box w="full">
-              <FormLabel>Subtasks</FormLabel>
-              <VStack align="stretch" spacing={2} mt={2}>
-                {subtasks.map(st => (
-                  <Flex key={st.id} align="center" gap={2}>
-                    <Text flex={1} fontSize="sm">
-                      {st.title}
-                    </Text>
+              {recurrenceType === "weekly" && (
+                <HStack spacing={1} w="full">
+                  {DAYS_OF_WEEK.map(day => (
+                    <Button
+                      key={day.value}
+                      w={9}
+                      h={9}
+                      borderRadius="full"
+                      fontSize="sm"
+                      fontWeight="medium"
+                      onClick={() =>
+                        setSelectedDays(prev =>
+                          prev.includes(day.value) ? prev.filter(d => d !== day.value) : [...prev, day.value]
+                        )
+                      }
+                      colorScheme={selectedDays.includes(day.value) ? "blue" : "gray"}
+                      variant={selectedDays.includes(day.value) ? "solid" : "outline"}
+                    >
+                      {day.short}
+                    </Button>
+                  ))}
+                </HStack>
+              )}
+              <Box w="full">
+                <FormLabel>Subtasks</FormLabel>
+                <VStack align="stretch" spacing={2} mt={2}>
+                  {subtasks.map(st => (
+                    <Flex key={st.id} align="center" gap={2}>
+                      <Text flex={1} fontSize="sm">
+                        {st.title}
+                      </Text>
+                      <IconButton
+                        icon={
+                          <Box as="span" color="currentColor">
+                            <Trash2 size={14} stroke="currentColor" />
+                          </Box>
+                        }
+                        onClick={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
+                        size="sm"
+                        variant="ghost"
+                        colorScheme="red"
+                        aria-label="Delete subtask"
+                      />
+                    </Flex>
+                  ))}
+                  <HStack spacing={2}>
+                    <Input
+                      value={newSubtask}
+                      onChange={e => setNewSubtask(e.target.value)}
+                      placeholder="Add subtask"
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && newSubtask.trim()) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSubtasks([
+                            ...subtasks,
+                            {
+                              id: Date.now().toString(),
+                              title: newSubtask.trim(),
+                              completed: false,
+                            },
+                          ]);
+                          setNewSubtask("");
+                        }
+                      }}
+                    />
                     <IconButton
                       icon={
                         <Box as="span" color="currentColor">
-                          <Trash2 size={14} stroke="currentColor" />
+                          <Plus size={16} stroke="currentColor" />
                         </Box>
                       }
-                      onClick={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
+                      onClick={() => {
+                        if (newSubtask.trim()) {
+                          setSubtasks([
+                            ...subtasks,
+                            {
+                              id: Date.now().toString(),
+                              title: newSubtask.trim(),
+                              completed: false,
+                            },
+                          ]);
+                          setNewSubtask("");
+                        }
+                      }}
                       size="sm"
-                      variant="ghost"
-                      colorScheme="red"
-                      aria-label="Delete subtask"
+                      variant="outline"
+                      aria-label="Add subtask"
                     />
-                  </Flex>
-                ))}
-                <HStack spacing={2}>
-                  <Input
-                    value={newSubtask}
-                    onChange={e => setNewSubtask(e.target.value)}
-                    placeholder="Add subtask"
-                    onKeyDown={e => {
-                      if (e.key === "Enter" && newSubtask.trim()) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setSubtasks([
-                          ...subtasks,
-                          {
-                            id: Date.now().toString(),
-                            title: newSubtask.trim(),
-                            completed: false,
-                          },
-                        ]);
-                        setNewSubtask("");
-                      }
-                    }}
-                  />
-                  <IconButton
-                    icon={
-                      <Box as="span" color="currentColor">
-                        <Plus size={16} stroke="currentColor" />
-                      </Box>
-                    }
-                    onClick={() => {
-                      if (newSubtask.trim()) {
-                        setSubtasks([
-                          ...subtasks,
-                          {
-                            id: Date.now().toString(),
-                            title: newSubtask.trim(),
-                            completed: false,
-                          },
-                        ]);
-                        setNewSubtask("");
-                      }
-                    }}
-                    size="sm"
-                    variant="outline"
-                    aria-label="Add subtask"
-                  />
-                </HStack>
-              </VStack>
-            </Box>
-          </VStack>
+                  </HStack>
+                </VStack>
+              </Box>
+            </VStack>
           </form>
         </ModalBody>
         <ModalFooter>
