@@ -74,7 +74,6 @@ BEGIN
     RAISE NOTICE 'Subtask migration completed successfully!';
 END $$;
 
--- Optional: Drop the subtasks column after migration is verified
--- Uncomment the line below after confirming migration worked correctly
--- ALTER TABLE "Task" DROP COLUMN IF EXISTS "subtasks";
+-- Drop the subtasks column after migration
+ALTER TABLE "Task" DROP COLUMN IF EXISTS "subtasks";
 
