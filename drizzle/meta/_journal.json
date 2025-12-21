@@ -12,14 +12,14 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1734811200000,
+      "when": 1766340857053,
       "tag": "0001_add_parent_id",
       "breakpoints": true
     },
     {
       "idx": 2,
       "version": "7",
-      "when": 1734811300000,
+      "when": 1766340857466,
       "tag": "0002_migrate_subtasks_to_tasks",
       "breakpoints": true
     }

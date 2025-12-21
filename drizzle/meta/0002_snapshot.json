@@ -1,6 +1,6 @@
 {
-  "id": "b2c3d4e5-2222-2222-2222-222222222222",
-  "prevId": "a1b2c3d4-1111-1111-1111-111111111111",
+  "id": "811a8021-2c62-4ee9-b9b3-c3ab57ed9a01",
+  "prevId": "aba4d135-0380-4c43-b666-cd750bdfccae",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -106,9 +106,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "TaskCompletion_date_idx": {
           "name": "TaskCompletion_date_idx",
@@ -121,35 +121,35 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "TaskCompletion_taskId_Task_id_fk": {
           "name": "TaskCompletion_taskId_Task_id_fk",
           "tableFrom": "TaskCompletion",
-          "tableTo": "Task",
           "columnsFrom": [
             "taskId"
           ],
+          "tableTo": "Task",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "TaskCompletion_taskId_date_unique": {
           "name": "TaskCompletion_taskId_date_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "taskId",
             "date"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -218,6 +218,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "subtasks": {
+          "name": "subtasks",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
         "createdAt": {
           "name": "createdAt",
           "type": "timestamp",
@@ -231,57 +238,22 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "parentId": {
-          "name": "parentId",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
-      "indexes": {
-        "Task_parentId_idx": {
-          "name": "Task_parentId_idx",
-          "columns": [
-            {
-              "expression": "parentId",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "Task_sectionId_Section_id_fk": {
           "name": "Task_sectionId_Section_id_fk",
           "tableFrom": "Task",
-          "tableTo": "Section",
           "columnsFrom": [
             "sectionId"
           ],
+          "tableTo": "Section",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "Task_parentId_Task_id_fk": {
-          "name": "Task_parentId_Task_id_fk",
-          "tableFrom": "Task",
-          "tableTo": "Task",
-          "columnsFrom": [
-            "parentId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -293,10 +265,10 @@
   },
   "enums": {},
   "schemas": {},
+  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},
