@@ -22,6 +22,13 @@
       "when": 1766340857466,
       "tag": "0002_migrate_subtasks_to_tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1766341230337,
+      "tag": "0003_cleanup_old_subtasks_data",
+      "breakpoints": true
     }
   ]
 }
