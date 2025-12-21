@@ -7,6 +7,14 @@ const theme = extendTheme({
     initialColorMode: "light",
     useSystemColorMode: false,
   },
+  // breakpoints: {
+  //   base: "0px",
+  //   sm: "480px",
+  //   md: "768px",
+  //   lg: "960px",
+  //   xl: "1280px", // Default wide breakpoint - adjust this value as needed
+  //   xxl: "1536px",
+  // },
   styles: {
     global: {
       body: {

@@ -956,10 +956,24 @@ export default function DailyTasksApp() {
             <Box flex={1} overflowY="auto">
               {mainTabIndex === 0 ? (
                 /* Tasks Tab Content */
-                <Box w="full" px={4} py={6} display="flex" gap={6} h="full">
+                <Box
+                  w="full"
+                  px={4}
+                  py={6}
+                  display="flex"
+                  gap={6}
+                  h="full"
+                  justifyContent={!backlogOpen && !showCalendar && showDashboard ? "center" : "flex-start"}
+                >
                   {/* Dashboard View */}
                   {showDashboard && (
-                    <Box flex={1} minW={0} overflowY="auto">
+                    <Box
+                      flex={!backlogOpen && !showCalendar ? "0 1 auto" : 1}
+                      minW={0}
+                      maxW={!backlogOpen && !showCalendar ? "1250px" : "none"}
+                      w={!backlogOpen && !showCalendar ? "full" : "auto"}
+                      overflowY="auto"
+                    >
                       <Section
                         sections={sortedSections}
                         tasksBySection={tasksBySection}
