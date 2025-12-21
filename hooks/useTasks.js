@@ -219,9 +219,7 @@ export const useTasks = () => {
         // It's a subtask - add it to the parent's subtasks array
         setTasks(prev =>
           prev.map(task =>
-            task.id === newTask.parentId
-              ? { ...task, subtasks: [...(task.subtasks || []), newTask] }
-              : task
+            task.id === newTask.parentId ? { ...task, subtasks: [...(task.subtasks || []), newTask] } : task
           )
         );
       } else {
