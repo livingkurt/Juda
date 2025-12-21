@@ -229,12 +229,17 @@ export const useTasks = () => {
           newOrder,
         }),
       });
-      if (!response.ok) throw new Error("Failed to reorder task");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || `Failed to reorder task (${response.status})`;
+        throw new Error(errorMessage);
+      }
       // Refresh to get correct order from server
       await fetchTasks();
     } catch (err) {
       setTasks(previousTasks);
       setError(err.message);
+      console.error("Error reordering task:", err, { taskId, sourceSectionId, targetSectionId, newOrder });
       throw err;
     }
   };

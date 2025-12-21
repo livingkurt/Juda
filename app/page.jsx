@@ -1137,13 +1137,27 @@ export default function DailyTasksApp() {
 
     // Get source container ID from sortable data or infer from draggableId
     let sourceContainerId = activeSortable?.containerId;
-    if (!sourceContainerId) {
-      // Infer from draggableId pattern for non-sortable items (calendar tasks)
+
+    // Validate containerId format - it should match our droppable ID patterns
+    // If it doesn't look valid (e.g., "Sortable-8"), extract from draggableId instead
+    const isValidContainerId =
+      sourceContainerId &&
+      (sourceContainerId === "backlog" ||
+        sourceContainerId.startsWith("today-section|") ||
+        sourceContainerId.startsWith("calendar-"));
+
+    if (!sourceContainerId || !isValidContainerId) {
+      // Infer from draggableId pattern
       if (draggableId.includes("-backlog")) {
         sourceContainerId = "backlog";
       } else if (draggableId.includes("-today-section-")) {
-        const match = draggableId.match(/-today-section-([^-]+)/);
-        if (match) sourceContainerId = `today-section|${match[1]}`;
+        // Extract section ID - it's everything after "-today-section-"
+        const match = draggableId.match(/-today-section-(.+)$/);
+        if (match) {
+          sourceContainerId = `today-section|${match[1]}`;
+        } else {
+          console.warn("Failed to extract section ID from draggableId:", draggableId);
+        }
       } else if (draggableId.includes("-calendar-untimed-")) {
         const match = draggableId.match(/-calendar-untimed-(.+)$/);
         if (match) {
@@ -1159,6 +1173,16 @@ export default function DailyTasksApp() {
           sourceContainerId = dateStr.includes("T") ? `calendar-day|${dateStr}` : `calendar-week|${dateStr}`;
         }
       }
+
+      // Log if we had to fall back to draggableId extraction
+      if (activeSortable?.containerId && !isValidContainerId) {
+        // eslint-disable-next-line no-console
+        console.warn("Invalid containerId from sortable, extracted from draggableId:", {
+          originalContainerId: activeSortable.containerId,
+          extractedContainerId: sourceContainerId,
+          draggableId,
+        });
+      }
     }
 
     // Determine type early
@@ -1167,11 +1191,30 @@ export default function DailyTasksApp() {
       type = "SECTION";
     }
 
-    // Get destination container ID
-    let destContainerId = overSortable?.containerId || over.id;
+    // Get destination container ID - check droppable ID first, then sortable container
+    let destContainerId = null;
 
     // Check if dropping on a task drop target (for combining tasks)
     const overDroppable = over.data.current;
+
+    // Priority 1: If over.id is a droppable ID pattern, use it directly
+    if (over.id && (over.id === "backlog" || over.id.startsWith("today-section|") || over.id.startsWith("calendar-"))) {
+      destContainerId = over.id;
+    }
+    // Priority 2: Use the sortable container ID (for tasks within sections)
+    else if (overSortable?.containerId) {
+      destContainerId = overSortable.containerId;
+    }
+    // Priority 3: Extract container ID from task draggableId pattern
+    else if (over.id && over.id.startsWith("task-")) {
+      if (over.id.includes("-today-section-")) {
+        // Extract section ID - it's everything after "-today-section-"
+        const match = over.id.match(/-today-section-(.+)$/);
+        if (match) destContainerId = `today-section|${match[1]}`;
+      } else if (over.id.includes("-backlog")) {
+        destContainerId = "backlog";
+      }
+    }
 
     // Check if we're dragging a subtask (type is SUBTASK or draggableId starts with subtask|)
     const isSubtaskDrag = type === "SUBTASK" || draggableId.startsWith("subtask|");
@@ -1374,17 +1417,21 @@ export default function DailyTasksApp() {
     }
 
     // Check if over is a droppable (not a sortable item)
+    // Priority: droppable data > task draggableId pattern > section card > droppable ID pattern
     if (overDroppable?.sectionId) {
       // Dropping directly on a section droppable area
       destContainerId = `today-section|${overDroppable.sectionId}`;
-    } else if (over.id.startsWith("task-") && over.id.includes("-today-section-")) {
+    } else if (over.id && over.id.startsWith("task-") && over.id.includes("-today-section-")) {
       // Dropping on a task in a section - extract section from task's draggableId
-      const match = over.id.match(/-today-section-([^-]+)/);
-      if (match) destContainerId = `today-section|${match[1]}`;
-    } else if (over.id.startsWith("task-") && over.id.includes("-backlog")) {
+      // Extract section ID - it's everything after "-today-section-"
+      const match = over.id.match(/-today-section-(.+)$/);
+      if (match) {
+        destContainerId = `today-section|${match[1]}`;
+      }
+    } else if (over.id && over.id.startsWith("task-") && over.id.includes("-backlog")) {
       // Dropping on a task in backlog - use backlog container
       destContainerId = "backlog";
-    } else if (over.id.startsWith("section-")) {
+    } else if (over.id && over.id.startsWith("section-")) {
       // Dropping on a section card itself - extract section ID
       const sectionId = over.id.replace("section-", "");
       destContainerId = `today-section|${sectionId}`;
@@ -1417,9 +1464,8 @@ export default function DailyTasksApp() {
       }
     }
 
-    if (!overSortable && over.id) {
-      // If it's not a sortable item, it might be a droppable ID directly
-      // Check if it matches our droppable ID patterns
+    // Final fallback: if destContainerId still isn't set and over.id matches droppable patterns
+    if (!destContainerId && over.id) {
       if (over.id === "backlog") {
         destContainerId = "backlog";
       } else if (over.id.startsWith("today-section|")) {
@@ -1478,9 +1524,117 @@ export default function DailyTasksApp() {
     }
 
     // Handle cross-container moves (backlog ↔ sections ↔ calendar)
-    // Convert to the format expected by handleDragEnd
+    // First, handle section-to-section moves directly
+    if (type === "TASK" && sourceContainerId && destContainerId) {
+      const sourceParsed = parseDroppableId(sourceContainerId);
+      const destParsed = parseDroppableId(destContainerId);
+
+      // Only handle section-to-section moves here (both source and dest must be sections)
+      if (sourceParsed.type === "today-section" && destParsed.type === "today-section") {
+        const taskId = extractTaskId(draggableId);
+
+        // Find the task to get its current data
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) {
+          console.error("Task not found:", taskId);
+          return;
+        }
+
+        // Get source and target section IDs
+        const sourceSectionId = sourceParsed.sectionId;
+        const targetSectionId = destParsed.sectionId;
+
+        // Calculate destination index
+        // If dropping on a sortable item, use its index
+        // If dropping on empty area, use the length of tasks in target section (append to end)
+        let destIndex = 0;
+        if (overSortable?.index !== undefined && overSortable.index !== null) {
+          destIndex = overSortable.index;
+        } else {
+          // Dropping on empty area - append to end of target section
+          const targetSectionTasks = tasksBySection[targetSectionId] || [];
+          destIndex = targetSectionTasks.length;
+        }
+
+        // Validate section IDs and index
+        if (!sourceSectionId || !targetSectionId) {
+          console.error("Invalid section IDs", {
+            sourceParsed,
+            destParsed,
+            sourceSectionId,
+            targetSectionId,
+            taskSectionId: task.sectionId,
+            sourceContainerId,
+            destContainerId,
+            draggableId,
+          });
+          return;
+        }
+        if (typeof destIndex !== "number" || destIndex < 0) {
+          console.error("Invalid destination index", { destIndex, overSortable });
+          return;
+        }
+
+        // Verify sections exist
+        const sourceSection = sections.find(s => s.id === sourceSectionId);
+        const targetSection = sections.find(s => s.id === targetSectionId);
+        if (!sourceSection || !targetSection) {
+          console.error("Section not found", {
+            sourceSectionId,
+            targetSectionId,
+            availableSections: sections.map(s => s.id),
+          });
+          return;
+        }
+
+        // Clear any drop time since we're moving to a section (not calendar)
+        dropTimeRef.current = null;
+
+        // Use the selected date in Today View (todayViewDate), or fall back to today
+        const targetDate = viewDate || today;
+        const targetDateStr = formatLocalDate(targetDate);
+
+        // Preserve existing recurrence if it exists, otherwise set to none with today's date
+        let recurrenceUpdate;
+        if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
+          recurrenceUpdate = task.recurrence;
+        } else {
+          recurrenceUpdate = {
+            type: "none",
+            startDate: `${targetDateStr}T00:00:00.000Z`,
+          };
+        }
+
+        // Reorder the task (this handles section change and order)
+        console.log("Reordering task:", {
+          taskId,
+          sourceSectionId,
+          targetSectionId,
+          destIndex,
+          sourceContainerId,
+          destContainerId,
+        });
+        await reorderTask(taskId, sourceSectionId, targetSectionId, destIndex);
+
+        // Apply time/recurrence updates if needed (only if time should be cleared)
+        await updateTask(taskId, {
+          time: null,
+          recurrence: recurrenceUpdate,
+        });
+
+        return;
+      }
+    }
+
+    // Convert to the format expected by handleDragEnd for other cross-container moves
     const sourceIndex = activeSortable?.index ?? 0;
     const destIndex = overSortable?.index ?? 0;
+
+    // Ensure destContainerId is set
+    if (!destContainerId) {
+      console.error("Destination container ID not set", { over, overSortable, overDroppable });
+      return;
+    }
 
     const result = {
       draggableId,

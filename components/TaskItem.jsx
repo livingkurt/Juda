@@ -122,7 +122,8 @@ export const TaskItem = ({
   let containerId = null;
   if (draggableId) {
     if (draggableId.includes("-today-section-")) {
-      const match = draggableId.match(/-today-section-([^-]+)/);
+      // Extract section ID - it's everything after "-today-section-"
+      const match = draggableId.match(/-today-section-(.+)$/);
       if (match) containerId = `today-section|${match[1]}`;
     } else if (draggableId.includes("-backlog") || draggableId.includes("backlog")) {
       containerId = "backlog";
