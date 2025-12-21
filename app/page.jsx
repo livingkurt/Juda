@@ -53,6 +53,8 @@ import {
   EyeOff,
   Repeat,
   X,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { Section } from "@/components/Section";
 import { TaskDialog } from "@/components/TaskDialog";
@@ -195,6 +197,28 @@ export default function DailyTasksApp() {
     }
     return { day: true, week: true, month: true }; // Default to showing completed tasks
   });
+  // Initialize calendarZoom per view from localStorage if available, otherwise default to 1.0 for all
+  const [calendarZoom, setCalendarZoom] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("juda-view-preferences");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.calendarZoom) {
+            return {
+              day: parsed.calendarZoom.day !== undefined ? parsed.calendarZoom.day : 1.0,
+              week: parsed.calendarZoom.week !== undefined ? parsed.calendarZoom.week : 1.0,
+              month: parsed.calendarZoom.month !== undefined ? parsed.calendarZoom.month : 1.0,
+            };
+          }
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Error loading calendar zoom preference:", error);
+      }
+    }
+    return { day: 1.0, week: 1.0, month: 1.0 }; // Default to 1.0 (100%)
+  });
   // Initialize selectedDate to null, then set it in useEffect to avoid hydration mismatch
   const [selectedDate, setSelectedDate] = useState(null);
   // Initialize todayViewDate to null, then set it in useEffect to avoid hydration mismatch
@@ -256,6 +280,13 @@ export default function DailyTasksApp() {
               parsed.showCompletedTasksCalendar.month !== undefined ? parsed.showCompletedTasksCalendar.month : true,
           });
         }
+        if (parsed.calendarZoom) {
+          setCalendarZoom({
+            day: parsed.calendarZoom.day !== undefined ? parsed.calendarZoom.day : 1.0,
+            week: parsed.calendarZoom.week !== undefined ? parsed.calendarZoom.week : 1.0,
+            month: parsed.calendarZoom.month !== undefined ? parsed.calendarZoom.month : 1.0,
+          });
+        }
         // backlogWidth is now initialized from localStorage in useState, but update if it exists
         if (parsed.backlogWidth !== undefined) setBacklogWidth(parsed.backlogWidth);
       }
@@ -314,6 +345,7 @@ export default function DailyTasksApp() {
         showCompletedTasks,
         showRecurringTasks,
         showCompletedTasksCalendar,
+        calendarZoom,
       };
       localStorage.setItem("juda-view-preferences", JSON.stringify(preferences));
     } catch (error) {
@@ -329,6 +361,7 @@ export default function DailyTasksApp() {
     showCompletedTasks,
     showRecurringTasks,
     showCompletedTasksCalendar,
+    calendarZoom,
   ]);
   const { isOpen: settingsOpen, onOpen: openSettings, onClose: closeSettings } = useDisclosure();
 
@@ -1499,6 +1532,51 @@ export default function DailyTasksApp() {
                         <Flex align="center" justify="space-between" mb={2}>
                           <Heading size="md">Calendar</Heading>
                           <HStack spacing={2}>
+                            <HStack spacing={1}>
+                              <IconButton
+                                size="sm"
+                                variant="ghost"
+                                icon={
+                                  <Box as="span" color="currentColor">
+                                    <ZoomOut size={16} stroke="currentColor" />
+                                  </Box>
+                                }
+                                onClick={() => {
+                                  setCalendarZoom(prev => ({
+                                    ...prev,
+                                    [calendarView]: Math.max(0.25, prev[calendarView] - 0.25),
+                                  }));
+                                }}
+                                aria-label="Zoom Out"
+                                fontSize="sm"
+                                color={mutedText}
+                                _hover={{ color: textColor }}
+                                isDisabled={calendarZoom[calendarView] <= 0.25}
+                              />
+                              <Text fontSize="xs" color={mutedText} minW="40px" textAlign="center">
+                                {Math.round(calendarZoom[calendarView] * 100)}%
+                              </Text>
+                              <IconButton
+                                size="sm"
+                                variant="ghost"
+                                icon={
+                                  <Box as="span" color="currentColor">
+                                    <ZoomIn size={16} stroke="currentColor" />
+                                  </Box>
+                                }
+                                onClick={() => {
+                                  setCalendarZoom(prev => ({
+                                    ...prev,
+                                    [calendarView]: Math.min(3.0, prev[calendarView] + 0.25),
+                                  }));
+                                }}
+                                aria-label="Zoom In"
+                                fontSize="sm"
+                                color={mutedText}
+                                _hover={{ color: textColor }}
+                                isDisabled={calendarZoom[calendarView] >= 3.0}
+                              />
+                            </HStack>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -1626,6 +1704,7 @@ export default function DailyTasksApp() {
                                       createDraggableId={createDraggableId}
                                       isCompletedOnDate={isCompletedOnDate}
                                       showCompleted={showCompletedTasksCalendar.day}
+                                      zoom={calendarZoom.day}
                                     />
                                   )}
                                   {calendarView === "week" && selectedDate && (
@@ -1647,6 +1726,7 @@ export default function DailyTasksApp() {
                                       createDraggableId={createDraggableId}
                                       isCompletedOnDate={isCompletedOnDate}
                                       showCompleted={showCompletedTasksCalendar.week}
+                                      zoom={calendarZoom.week}
                                     />
                                   )}
                                   {calendarView === "month" && selectedDate && (
@@ -1659,6 +1739,7 @@ export default function DailyTasksApp() {
                                       }}
                                       isCompletedOnDate={isCompletedOnDate}
                                       showCompleted={showCompletedTasksCalendar.month}
+                                      zoom={calendarZoom.month}
                                     />
                                   )}
                                 </>

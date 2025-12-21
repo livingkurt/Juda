@@ -8,7 +8,7 @@ import { HOUR_HEIGHT_DAY, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { UntimedTask } from "./UntimedTask";
 import { TimedTask } from "./TimedTask";
 
-const HOUR_HEIGHT = HOUR_HEIGHT_DAY;
+const BASE_HOUR_HEIGHT = HOUR_HEIGHT_DAY;
 
 export const CalendarDayView = ({
   date,
@@ -22,7 +22,9 @@ export const CalendarDayView = ({
   createDraggableId,
   isCompletedOnDate,
   showCompleted = true,
+  zoom = 1.0,
 }) => {
+  const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
   const dropHighlight = useColorModeValue("blue.50", "blue.900");
@@ -106,7 +108,7 @@ export const CalendarDayView = ({
         }));
       }
     },
-    [internalDrag]
+    [internalDrag, HOUR_HEIGHT]
   );
 
   const handleInternalDragEnd = useCallback(() => {
@@ -274,6 +276,7 @@ export const CalendarDayView = ({
           data-calendar-timed="true"
           data-calendar-view="day"
           data-hour-height={HOUR_HEIGHT}
+          key={`timed-area-${zoom}`}
           onMouseMove={e => {
             if (isOverTimed) {
               handleDropTimeCalculation(e, e.currentTarget.getBoundingClientRect());

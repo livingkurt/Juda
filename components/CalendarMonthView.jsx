@@ -4,7 +4,14 @@ import { Box, Flex, SimpleGrid, useColorModeValue } from "@chakra-ui/react";
 import { shouldShowOnDate } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 
-export const CalendarMonthView = ({ date, tasks, onDayClick, isCompletedOnDate, showCompleted = true }) => {
+export const CalendarMonthView = ({
+  date,
+  tasks,
+  onDayClick,
+  isCompletedOnDate,
+  showCompleted = true,
+  zoom = 1.0,
+}) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
@@ -62,7 +69,7 @@ export const CalendarMonthView = ({ date, tasks, onDayClick, isCompletedOnDate, 
                   borderRightWidth="1px"
                   borderColor={borderColor}
                   p={1}
-                  minH="80px"
+                  minH={`${80 * zoom}px`}
                   cursor="pointer"
                   _hover={{ bg: hoverBg }}
                   bg={!isCurrentMonth ? nonCurrentMonthBg : "transparent"}
@@ -70,15 +77,15 @@ export const CalendarMonthView = ({ date, tasks, onDayClick, isCompletedOnDate, 
                 >
                   <Box
                     as="span"
-                    fontSize="sm"
+                    fontSize={zoom >= 1.5 ? "md" : zoom >= 1.0 ? "sm" : "xs"}
                     mb={1}
                     display="inline-block"
                     bg={isToday ? "blue.500" : "transparent"}
                     color={isToday ? "white" : !isCurrentMonth ? mutedText : textColor}
                     borderRadius="full"
-                    w={6}
-                    h={6}
-                    lineHeight="24px"
+                    w={6 * zoom}
+                    h={6 * zoom}
+                    lineHeight={`${24 * zoom}px`}
                     textAlign="center"
                   >
                     {day.getDate()}
@@ -86,7 +93,7 @@ export const CalendarMonthView = ({ date, tasks, onDayClick, isCompletedOnDate, 
                   {dayTasks.map(task => (
                     <Box
                       key={task.id}
-                      fontSize="xs"
+                      fontSize={zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs"}
                       px={1}
                       py={0.5}
                       borderRadius="md"

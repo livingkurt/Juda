@@ -20,6 +20,7 @@ export const TimedColumn = ({
   borderColor,
   dropHighlight,
   isCompletedOnDate,
+  hourHeight = 48,
 }) => {
   const timedDroppableId = createDroppableId.calendarWeek(day);
   const { setNodeRef, isOver } = useDroppable({
@@ -49,7 +50,7 @@ export const TimedColumn = ({
       transition="background-color 0.2s"
       data-calendar-timed="true"
       data-calendar-view="week"
-      data-hour-height={48}
+      data-hour-height={hourHeight}
       onMouseMove={e => {
         if (isOver) {
           handleDropTimeCalculation(e, e.currentTarget.getBoundingClientRect());

@@ -7,7 +7,7 @@ import { HOUR_HEIGHT_WEEK, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { DayHeaderColumn } from "./DayHeaderColumn";
 import { TimedColumn } from "./TimedColumn";
 
-const HOUR_HEIGHT = HOUR_HEIGHT_WEEK;
+const BASE_HOUR_HEIGHT = HOUR_HEIGHT_WEEK;
 
 export const CalendarWeekView = ({
   date,
@@ -22,7 +22,9 @@ export const CalendarWeekView = ({
   createDraggableId,
   isCompletedOnDate,
   showCompleted = true,
+  zoom = 1.0,
 }) => {
+  const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
   const dropHighlight = useColorModeValue("blue.50", "blue.900");
@@ -132,7 +134,7 @@ export const CalendarWeekView = ({
         }));
       }
     },
-    [internalDrag]
+    [internalDrag, HOUR_HEIGHT]
   );
 
   const handleInternalDragEnd = useCallback(() => {
@@ -278,6 +280,7 @@ export const CalendarWeekView = ({
                   borderColor={borderColor}
                   dropHighlight={dropHighlight}
                   isCompletedOnDate={isCompletedOnDate}
+                  hourHeight={HOUR_HEIGHT}
                 />
               );
             })}
