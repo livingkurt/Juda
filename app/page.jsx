@@ -251,6 +251,7 @@ export default function DailyTasksApp() {
   // Track active drag item for DragOverlay
   const [activeId, setActiveId] = useState(null);
   const [activeTask, setActiveTask] = useState(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   // Track if preferences have been loaded to avoid saving before load completes
   const preferencesLoadedRef = useRef(false);
   // Track recently completed tasks that should remain visible for a delay
@@ -1008,6 +1009,25 @@ export default function DailyTasksApp() {
     const { active } = event;
     setActiveId(active.id);
 
+    // Calculate offset from click position relative to the dragged element
+    const activatorEvent = event.activatorEvent;
+    if (activatorEvent && activatorEvent.offsetX !== undefined && activatorEvent.offsetY !== undefined) {
+      // offsetX and offsetY are relative to the target element - perfect!
+      const clickX = activatorEvent.offsetX;
+      const clickY = activatorEvent.offsetY;
+
+      // The DragOverlay positions its top-left at the cursor
+      // We want the cursor to be at the click point, so we offset by the click position
+      // minus half the preview size to center it
+      setDragOffset({
+        x: clickX - 90, // 90 is half of 180px preview width
+        y: clickY - 20, // 20 is half of 40px preview height
+      });
+    } else {
+      // Fallback: center the preview
+      setDragOffset({ x: -90, y: -20 });
+    }
+
     // Extract task ID and find the task
     try {
       const taskId = extractTaskId(active.id);
@@ -1089,6 +1109,7 @@ export default function DailyTasksApp() {
 
     setActiveId(null);
     setActiveTask(null);
+    setDragOffset({ x: 0, y: 0 });
 
     // Clean up mousemove listener
     if (mouseMoveListenerRef.current) {
@@ -2071,10 +2092,12 @@ export default function DailyTasksApp() {
           </Box>
         </Box>
 
-        {/* Drag Overlay */}
+        {/* Drag Overlay - dynamically offset based on click position */}
         <DragOverlay
           style={{
             cursor: "grabbing",
+            marginLeft: `${dragOffset.x}px`,
+            marginTop: `${dragOffset.y}px`,
           }}
         >
           {activeTask ? (

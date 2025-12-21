@@ -23,17 +23,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Edit2,
-  Trash2,
-  GripVertical,
-  Copy,
-  AlertCircle,
-  MoreVertical,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Clock, Edit2, Trash2, Copy, AlertCircle, MoreVertical } from "lucide-react";
 import { formatTime, isOverdue } from "@/lib/utils";
 import { createDroppableId } from "@/lib/dragHelpers";
 
@@ -217,12 +207,16 @@ export const TaskItem = ({
   return (
     <Box ref={combinedRef} style={style}>
       <Box borderRadius="lg" bg={bgColor} transition="box-shadow 0.2s, border-color 0.2s" {...dropTargetStyle}>
-        <Flex align="center" gap={2} p={3} _hover={{ bg: hoverBg }} _active={{ cursor: "grabbing" }}>
-          {/* Drag handle */}
-          <Box {...attributes} {...listeners} cursor="grab" _active={{ cursor: "grabbing" }} color={gripColor}>
-            <GripVertical size={16} stroke="currentColor" />
-          </Box>
-
+        <Flex
+          align="center"
+          gap={2}
+          p={3}
+          _hover={{ bg: hoverBg }}
+          _active={{ cursor: "grabbing" }}
+          {...attributes}
+          {...listeners}
+          cursor="grab"
+        >
           {/* Expand button for subtasks */}
           {task.subtasks && task.subtasks.length > 0 ? (
             onToggleExpand ? (
@@ -241,6 +235,7 @@ export const TaskItem = ({
                   onToggleExpand(task.id);
                 }}
                 onMouseDown={e => e.stopPropagation()}
+                onPointerDown={e => e.stopPropagation()}
                 size="sm"
                 variant="ghost"
                 aria-label="Toggle expand"
@@ -259,6 +254,7 @@ export const TaskItem = ({
             onChange={() => (isSubtask ? onToggle?.(parentTaskId, task.id) : onToggle?.(task.id))}
             onClick={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
           />
           {/* Color indicator */}
           {/* <Box w={3} h={3} borderRadius="full" bg={task.color || "#3b82f6"} flexShrink={0} /> */}
@@ -274,6 +270,8 @@ export const TaskItem = ({
                   onBlur={handleTitleBlur}
                   onKeyDown={handleTitleKeyDown}
                   onClick={e => e.stopPropagation()}
+                  onMouseDown={e => e.stopPropagation()}
+                  onPointerDown={e => e.stopPropagation()}
                   variant="unstyled"
                   fontWeight="medium"
                   fontSize="md"
@@ -294,6 +292,8 @@ export const TaskItem = ({
                   color={textColor}
                   cursor="text"
                   onClick={handleTitleClick}
+                  onMouseDown={e => e.stopPropagation()}
+                  onPointerDown={e => e.stopPropagation()}
                   _hover={{
                     opacity: task.completed || allSubtasksComplete ? 0.7 : 1,
                   }}
@@ -376,6 +376,7 @@ export const TaskItem = ({
               }
               onClick={e => e.stopPropagation()}
               onMouseDown={e => e.stopPropagation()}
+              onPointerDown={e => e.stopPropagation()}
               size={"sm"}
               variant="ghost"
               aria-label="Task actions"
