@@ -62,13 +62,17 @@ export const TaskItem = ({
         <Flex align="center" gap={2} p={3} _hover={{ bg: hoverBg }} _active={{ cursor: "grabbing" }}>
           {/* Drag handle */}
           <Box {...attributes} {...listeners} cursor="grab" _active={{ cursor: "grabbing" }} color={gripColor}>
-            <GripVertical size={16} />
+            <GripVertical size={16} stroke="currentColor" />
           </Box>
 
           {/* Expand button for subtasks */}
           {task.subtasks && task.subtasks.length > 0 ? (
             <IconButton
-              icon={task.expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              icon={
+                <Box as="span" color="currentColor">
+                  {task.expanded ? <ChevronDown size={16} stroke="currentColor" /> : <ChevronRight size={16} stroke="currentColor" />}
+                </Box>
+              }
               onClick={e => {
                 e.stopPropagation();
                 onToggleExpand(task.id);
@@ -114,7 +118,9 @@ export const TaskItem = ({
           {/* Time display */}
           {task.time && (
             <HStack spacing={1}>
-              <Clock size={14} />
+              <Box as="span" color={mutedText}>
+                <Clock size={14} stroke="currentColor" />
+              </Box>
               <Text fontSize="sm" color={mutedText}>
                 {formatTime(task.time)}
               </Text>
@@ -123,7 +129,11 @@ export const TaskItem = ({
 
           {/* Action buttons */}
           <IconButton
-            icon={<Edit2 size={16} />}
+            icon={
+              <Box as="span" color="currentColor">
+                <Edit2 size={16} stroke="currentColor" />
+              </Box>
+            }
             onClick={e => {
               e.stopPropagation();
               onEdit(task);
@@ -135,7 +145,11 @@ export const TaskItem = ({
           />
           {onDuplicate && (
             <IconButton
-              icon={<Copy size={16} />}
+              icon={
+                <Box as="span" color="currentColor">
+                  <Copy size={16} stroke="currentColor" />
+                </Box>
+              }
               onClick={e => {
                 e.stopPropagation();
                 onDuplicate(task.id);
@@ -147,7 +161,11 @@ export const TaskItem = ({
             />
           )}
           <IconButton
-            icon={<Trash2 size={16} />}
+            icon={
+              <Box as="span" color="currentColor">
+                <Trash2 size={16} stroke="currentColor" />
+              </Box>
+            }
             onClick={e => {
               e.stopPropagation();
               onDelete(task.id);

@@ -205,7 +205,11 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
                       {st.title}
                     </Text>
                     <IconButton
-                      icon={<Trash2 size={14} />}
+                      icon={
+                        <Box as="span" color="currentColor">
+                          <Trash2 size={14} stroke="currentColor" />
+                        </Box>
+                      }
                       onClick={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
                       size="sm"
                       variant="ghost"
@@ -234,7 +238,11 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
                     }}
                   />
                   <IconButton
-                    icon={<Plus size={16} />}
+                    icon={
+                      <Box as="span" color="currentColor">
+                        <Plus size={16} stroke="currentColor" />
+                      </Box>
+                    }
                     onClick={() => {
                       if (newSubtask.trim()) {
                         setSubtasks([

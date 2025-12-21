@@ -847,7 +847,9 @@ export default function DailyTasksApp() {
         <Box w="full" px={4} py={4}>
           <Flex align="center" justify="space-between">
             <Flex align="center" gap={3}>
-              <GreetingIcon color="orange.500" size={28} />
+              <Box as="span" color="orange.500">
+                <GreetingIcon size={28} stroke="currentColor" />
+              </Box>
               <Box>
                 <Heading as="h1" size="lg" fontWeight="semibold">
                   {greeting.text}
@@ -879,7 +881,16 @@ export default function DailyTasksApp() {
                 </ModalBody>
               </ModalContent>
             </Modal>
-            <IconButton icon={<Settings size={20} />} onClick={openSettings} variant="ghost" aria-label="Settings" />
+            <IconButton
+              icon={
+                <Box as="span" color="currentColor">
+                  <Settings size={20} stroke="currentColor" />
+                </Box>
+              }
+              onClick={openSettings}
+              variant="ghost"
+              aria-label="Settings"
+            />
           </Flex>
 
           {/* Main Tabs */}
@@ -903,7 +914,11 @@ export default function DailyTasksApp() {
                       variant={backlogOpen ? "solid" : "outline"}
                       colorScheme={backlogOpen ? "blue" : "gray"}
                       onClick={() => setBacklogOpen(!backlogOpen)}
-                      leftIcon={<List size={16} />}
+                      leftIcon={
+                        <Box as="span" color="currentColor">
+                          <List size={16} stroke="currentColor" />
+                        </Box>
+                      }
                     >
                       Backlog
                     </Button>
@@ -931,7 +946,11 @@ export default function DailyTasksApp() {
                     variant={showDashboard ? "solid" : "outline"}
                     colorScheme={showDashboard ? "blue" : "gray"}
                     onClick={() => setShowDashboard(!showDashboard)}
-                    leftIcon={<LayoutDashboard size={16} />}
+                    leftIcon={
+                      <Box as="span" color="currentColor">
+                        <LayoutDashboard size={16} stroke="currentColor" />
+                      </Box>
+                    }
                   >
                     Today
                   </Button>
@@ -940,7 +959,11 @@ export default function DailyTasksApp() {
                     variant={showCalendar ? "solid" : "outline"}
                     colorScheme={showCalendar ? "blue" : "gray"}
                     onClick={() => setShowCalendar(!showCalendar)}
-                    leftIcon={<Calendar size={16} />}
+                    leftIcon={
+                      <Box as="span" color="currentColor">
+                        <Calendar size={16} stroke="currentColor" />
+                      </Box>
+                    }
                   >
                     Calendar
                   </Button>
@@ -1086,13 +1109,21 @@ export default function DailyTasksApp() {
                           Today
                         </Button>
                         <IconButton
-                          icon={<ChevronLeft size={18} />}
+                          icon={
+                            <Box as="span" color="currentColor">
+                              <ChevronLeft size={18} stroke="currentColor" />
+                            </Box>
+                          }
                           onClick={() => navigateCalendar(-1)}
                           variant="ghost"
                           aria-label="Previous"
                         />
                         <IconButton
-                          icon={<ChevronRight size={18} />}
+                          icon={
+                            <Box as="span" color="currentColor">
+                              <ChevronRight size={18} stroke="currentColor" />
+                            </Box>
+                          }
                           onClick={() => navigateCalendar(1)}
                           variant="ghost"
                           aria-label="Next"

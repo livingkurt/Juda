@@ -48,7 +48,11 @@ export const SectionDialog = ({ isOpen, onClose, section, onSave }) => {
                 {SECTION_ICONS.map(({ value, Icon }) => (
                   <IconButton
                     key={value}
-                    icon={<Icon size={20} />}
+                    icon={
+                      <Box as="span" color="currentColor">
+                        <Icon size={20} stroke="currentColor" />
+                      </Box>
+                    }
                     onClick={() => setIcon(value)}
                     colorScheme={icon === value ? "orange" : "gray"}
                     variant={icon === value ? "solid" : "outline"}

@@ -110,9 +110,11 @@ export const SectionCard = ({
               _active={{ cursor: "grabbing" }}
               color={mutedText}
             >
-              <GripVertical size={18} />
+              <GripVertical size={18} stroke="currentColor" />
             </Box>
-            <IconComponent size={20} color="orange.500" />
+            <Box as="span" color="orange.500">
+              <IconComponent size={20} stroke="currentColor" />
+            </Box>
             <Heading size="md" color={textColor}>
               {section.name}
             </Heading>
@@ -122,7 +124,11 @@ export const SectionCard = ({
           </Flex>
           <HStack spacing={1}>
             <IconButton
-              icon={<Plus size={16} />}
+              icon={
+                <Box as="span" color="currentColor">
+                  <Plus size={16} stroke="currentColor" />
+                </Box>
+              }
               onClick={() => onAddTask(section.id)}
               size="sm"
               variant="ghost"
@@ -131,7 +137,11 @@ export const SectionCard = ({
             <Menu>
               <MenuButton
                 as={IconButton}
-                icon={<MoreVertical size={16} />}
+                icon={
+                  <Box as="span" color="currentColor">
+                    <MoreVertical size={16} stroke="currentColor" />
+                  </Box>
+                }
                 size="sm"
                 variant="ghost"
                 aria-label="Section menu"

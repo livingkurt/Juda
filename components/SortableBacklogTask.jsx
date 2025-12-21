@@ -42,8 +42,8 @@ export const SortableBacklogTask = ({
       borderLeftColor={task.color || "#3b82f6"}
       bg="transparent"
     >
-      <Box flexShrink={0} {...attributes} {...listeners}>
-        <GripVertical size={16} style={{ color: gripColor, cursor: "grab" }} />
+      <Box flexShrink={0} {...attributes} {...listeners} color={gripColor} cursor="grab">
+        <GripVertical size={16} stroke="currentColor" />
       </Box>
       <Box flex={1} minW={0}>
         <HStack spacing={2} align="center">
@@ -53,7 +53,9 @@ export const SortableBacklogTask = ({
           {isOverdue(task) && (
             <Badge size="sm" colorScheme="red" fontSize="2xs">
               <HStack spacing={1} align="center">
-                <AlertCircle size={10} />
+                <Box as="span" color="currentColor">
+                  <AlertCircle size={10} stroke="currentColor" />
+                </Box>
                 <Text as="span">Overdue</Text>
               </HStack>
             </Badge>
@@ -76,7 +78,11 @@ export const SortableBacklogTask = ({
         </HStack>
       </Box>
       <IconButton
-        icon={<Edit2 size={14} />}
+        icon={
+          <Box as="span" color="currentColor">
+            <Edit2 size={14} stroke="currentColor" />
+          </Box>
+        }
         onClick={e => {
           e.stopPropagation();
           onEditTask(task);
@@ -88,7 +94,11 @@ export const SortableBacklogTask = ({
       />
       {onDuplicateTask && (
         <IconButton
-          icon={<Copy size={14} />}
+          icon={
+            <Box as="span" color="currentColor">
+              <Copy size={14} stroke="currentColor" />
+            </Box>
+          }
           onClick={e => {
             e.stopPropagation();
             onDuplicateTask(task.id);
@@ -100,7 +110,11 @@ export const SortableBacklogTask = ({
         />
       )}
       <IconButton
-        icon={<Trash2 size={14} />}
+        icon={
+          <Box as="span" color="currentColor">
+            <Trash2 size={14} stroke="currentColor" />
+          </Box>
+        }
         onClick={e => {
           e.stopPropagation();
           onDeleteTask(task.id);

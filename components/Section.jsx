@@ -56,7 +56,9 @@ export const Section = ({
           />
         ))}
         <Button variant="outline" onClick={onAddSection} w="full" py={6} borderStyle="dashed" mt={4}>
-          <Plus size={20} style={{ marginRight: "8px" }} />
+          <Box as="span" display="inline-flex" alignItems="center" mr={2}>
+            <Plus size={20} stroke="currentColor" />
+          </Box>
           Add Section
         </Button>
       </Box>

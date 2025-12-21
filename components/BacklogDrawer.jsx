@@ -46,14 +46,28 @@ export const BacklogDrawer = ({
           <Heading size="md">Backlog</Heading>
           <HStack spacing={2}>
             <IconButton
-              icon={<Plus size={18} />}
+              icon={
+                <Box as="span" color="currentColor">
+                  <Plus size={18} stroke="currentColor" />
+                </Box>
+              }
               onClick={onAddTask}
               size="sm"
               variant="ghost"
               colorScheme="blue"
               aria-label="Add task to backlog"
             />
-            <IconButton icon={<X size={18} />} onClick={onClose} size="sm" variant="ghost" aria-label="Close backlog" />
+            <IconButton
+              icon={
+                <Box as="span" color="currentColor">
+                  <X size={18} stroke="currentColor" />
+                </Box>
+              }
+              onClick={onClose}
+              size="sm"
+              variant="ghost"
+              aria-label="Close backlog"
+            />
           </HStack>
         </Flex>
         <Badge colorScheme="blue">
