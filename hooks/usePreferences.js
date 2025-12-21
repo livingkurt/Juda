@@ -10,7 +10,6 @@ export function usePreferences() {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const authFetch = useAuthFetch();
-  const { isAuthenticated } = useAuth();
 
   // Debounce timer ref for saving
   const saveTimerRef = useRef(null);
@@ -19,37 +18,14 @@ export function usePreferences() {
 
   // Fetch preferences from server
   const fetchPreferences = useCallback(async () => {
-    if (!isAuthenticated) {
-      // Not logged in - try to load from localStorage for backwards compatibility
-      if (typeof window !== "undefined") {
-        try {
-          const saved = localStorage.getItem("juda-view-preferences");
-          const colorMode = localStorage.getItem("chakra-ui-color-mode");
-
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            const merged = mergeWithDefaults({
-              ...parsed,
-              colorMode: colorMode || "dark",
-            });
-            setPreferences(merged);
-          }
-        } catch (error) {
-          console.error("Error loading localStorage preferences:", error);
-        }
-      }
-      setLoading(false);
-      setInitialized(true);
-      return;
-    }
-
     try {
       setLoading(true);
       const response = await authFetch("/api/preferences");
 
       if (response.ok) {
         const data = await response.json();
-        setPreferences(mergeWithDefaults(data));
+        const mergedPrefs = mergeWithDefaults(data);
+        setPreferences(mergedPrefs);
       }
     } catch (error) {
       console.error("Error fetching preferences:", error);
@@ -57,7 +33,7 @@ export function usePreferences() {
       setLoading(false);
       setInitialized(true);
     }
-  }, [authFetch, isAuthenticated]);
+  }, [authFetch]);
 
   // Load preferences on mount and when auth state changes
   useEffect(() => {
@@ -67,22 +43,6 @@ export function usePreferences() {
   // Save preferences to server (debounced)
   const savePreferences = useCallback(
     async updates => {
-      if (!isAuthenticated) {
-        // Not logged in - save to localStorage for backwards compatibility
-        if (typeof window !== "undefined") {
-          try {
-            const { colorMode, ...viewPrefs } = { ...preferences, ...updates };
-            localStorage.setItem("juda-view-preferences", JSON.stringify(viewPrefs));
-            if (colorMode) {
-              localStorage.setItem("chakra-ui-color-mode", colorMode);
-            }
-          } catch (error) {
-            console.error("Error saving to localStorage:", error);
-          }
-        }
-        return;
-      }
-
       // Accumulate pending updates
       pendingUpdatesRef.current = {
         ...pendingUpdatesRef.current,
@@ -109,7 +69,7 @@ export function usePreferences() {
         }
       }, 500);
     },
-    [authFetch, isAuthenticated, preferences]
+    [authFetch]
   );
 
   // Update a single preference

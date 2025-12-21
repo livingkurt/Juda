@@ -1,26 +1,21 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useColorMode } from "@chakra-ui/react";
 import { usePreferencesContext } from "@/contexts/PreferencesContext";
-import { useAuth } from "@/contexts/AuthContext";
 
 export function useColorModeSync() {
   const { colorMode, setColorMode } = useColorMode();
   const { preferences, updatePreference, initialized } = usePreferencesContext();
-  const { isAuthenticated } = useAuth();
-  const initialSyncDone = useRef(false);
 
-  // Sync color mode from preferences on initial load
+  // Sync color mode from preferences whenever preferences change
   useEffect(() => {
-    if (!initialized || initialSyncDone.current) return;
+    if (!initialized) return;
 
-    // Only sync once after preferences are loaded
+    // Sync whenever preferences.colorMode changes and doesn't match Chakra UI's colorMode
     if (preferences.colorMode && preferences.colorMode !== colorMode) {
       setColorMode(preferences.colorMode);
     }
-
-    initialSyncDone.current = true;
   }, [initialized, preferences.colorMode, colorMode, setColorMode]);
 
   // Save color mode changes to preferences
