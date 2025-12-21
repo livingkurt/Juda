@@ -1028,10 +1028,23 @@ export default function DailyTasksApp() {
       setDragOffset({ x: -90, y: -20 });
     }
 
-    // Extract task ID and find the task
+    // Extract task ID and find the task (including subtasks)
     try {
       const taskId = extractTaskId(active.id);
-      const task = tasks.find(t => t.id === taskId);
+
+      // Helper to recursively find a task (including subtasks)
+      const findTask = (taskList, id) => {
+        for (const task of taskList) {
+          if (task.id === id) return task;
+          if (task.subtasks && task.subtasks.length > 0) {
+            const found = findTask(task.subtasks, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      const task = findTask(tasks, taskId);
       setActiveTask(task);
     } catch (e) {
       // Not a task drag (might be section reorder)
