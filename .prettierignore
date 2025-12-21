@@ -8,7 +8,6 @@ build
 out
 
 # Database
-prisma/migrations
 *.db
 *.sqlite
 

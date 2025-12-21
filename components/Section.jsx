@@ -22,6 +22,7 @@ export const Section = ({
   onEditSection,
   onDeleteSection,
   onAddSection,
+  onToggleSectionExpand,
   hoveredDroppable,
   createDroppableId,
   createDraggableId,
@@ -55,6 +56,7 @@ export const Section = ({
             onCreateTaskInline={onCreateTaskInline}
             onEditSection={onEditSection}
             onDeleteSection={onDeleteSection}
+            onToggleSectionExpand={onToggleSectionExpand}
             hoveredDroppable={hoveredDroppable}
             droppableId={createDroppableId.todaySection(section.id)}
             createDraggableId={createDraggableId}

@@ -660,6 +660,12 @@ export default function DailyTasksApp() {
     await deleteSection(sectionId);
   };
 
+  const handleToggleSectionExpand = async sectionId => {
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) return;
+    await updateSection(sectionId, { expanded: !(section.expanded !== false) });
+  };
+
   // Calendar navigation
   const navigateCalendar = dir => {
     const d = new Date(selectedDate);
@@ -1233,6 +1239,7 @@ export default function DailyTasksApp() {
                             onEditSection={handleEditSection}
                             onDeleteSection={handleDeleteSection}
                             onAddSection={handleAddSection}
+                            onToggleSectionExpand={handleToggleSectionExpand}
                             createDroppableId={createDroppableId}
                             createDraggableId={createDraggableId}
                             viewDate={viewDate}

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/db";
+import { taskCompletions } from "@/lib/schema";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 
 // GET - Fetch completions with optional filters
 export async function GET(request) {
@@ -10,38 +12,19 @@ export async function GET(request) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    const where = {};
-    if (taskId) where.taskId = taskId;
-    if (startDate || endDate) {
-      where.date = {};
-      if (startDate) where.date.gte = new Date(startDate);
-      if (endDate) where.date.lte = new Date(endDate);
-    }
+    const conditions = [];
+    if (taskId) conditions.push(eq(taskCompletions.taskId, taskId));
+    if (startDate) conditions.push(gte(taskCompletions.date, new Date(startDate)));
+    if (endDate) conditions.push(lte(taskCompletions.date, new Date(endDate)));
 
-    const completions = await prisma.taskCompletion.findMany({
-      where,
-      orderBy: {
-        date: "desc",
-      },
+    const completions = await db.query.taskCompletions.findMany({
+      where: conditions.length > 0 ? and(...conditions) : undefined,
+      orderBy: [desc(taskCompletions.date)],
     });
 
     return NextResponse.json(completions);
   } catch (error) {
     console.error("Error fetching completions:", error);
-    // Check if error is related to missing table
-    if (
-      error.code === "P2003" ||
-      error.message?.includes("does not exist") ||
-      error.message?.includes("TaskCompletion")
-    ) {
-      return NextResponse.json(
-        {
-          error: "Database migration required",
-          details: "The TaskCompletion table does not exist. Please run migrations: npx prisma migrate deploy",
-        },
-        { status: 500 }
-      );
-    }
     return NextResponse.json({ error: "Failed to fetch completions", details: error.message }, { status: 500 });
   }
 }
@@ -63,43 +46,25 @@ export async function POST(request) {
     );
 
     // Check if completion already exists for this task and date
-    const existing = await prisma.taskCompletion.findUnique({
-      where: {
-        taskId_date: {
-          taskId,
-          date: utcDate,
-        },
-      },
+    const existing = await db.query.taskCompletions.findFirst({
+      where: and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)),
     });
 
     if (existing) {
       return NextResponse.json(existing);
     }
 
-    const completion = await prisma.taskCompletion.create({
-      data: {
+    const [completion] = await db
+      .insert(taskCompletions)
+      .values({
         taskId,
         date: utcDate,
-      },
-    });
+      })
+      .returning();
 
     return NextResponse.json(completion, { status: 201 });
   } catch (error) {
     console.error("Error creating completion:", error);
-    // Check if error is related to missing table
-    if (
-      error.code === "P2003" ||
-      error.message?.includes("does not exist") ||
-      error.message?.includes("TaskCompletion")
-    ) {
-      return NextResponse.json(
-        {
-          error: "Database migration required",
-          details: "The TaskCompletion table does not exist. Please run migrations: npx prisma migrate deploy",
-        },
-        { status: 500 }
-      );
-    }
     return NextResponse.json({ error: "Failed to create completion", details: error.message }, { status: 500 });
   }
 }
@@ -121,21 +86,18 @@ export async function DELETE(request) {
       Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
     );
 
-    await prisma.taskCompletion.delete({
-      where: {
-        taskId_date: {
-          taskId,
-          date: utcDate,
-        },
-      },
-    });
+    const result = await db
+      .delete(taskCompletions)
+      .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)))
+      .returning();
+
+    if (result.length === 0) {
+      return NextResponse.json({ error: "Completion not found" }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting completion:", error);
-    if (error.code === "P2025") {
-      return NextResponse.json({ error: "Completion not found" }, { status: 404 });
-    }
     return NextResponse.json({ error: "Failed to delete completion" }, { status: 500 });
   }
 }

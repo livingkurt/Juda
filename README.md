@@ -23,7 +23,7 @@ A daily task management system built with Next.js, Chakra UI, and PostgreSQL.
 - **Next.js 14**: React framework with App Router
 - **Chakra UI**: Component library
 - **PostgreSQL**: Database
-- **Prisma**: ORM for database access
+- **Drizzle ORM**: Type-safe ORM for database access
 - **@hello-pangea/dnd**: Drag and drop library
 - **Lucide React**: Icon library
 
@@ -57,14 +57,11 @@ DATABASE_URL="postgresql://user:password@localhost:5432/judaDB?schema=public"
 3. Set up the database:
 
 ```bash
-# Generate Prisma Client
-npx prisma generate
+# Push the schema to your database
+npm run db:push
 
-# Run migrations
-npx prisma migrate dev --name init
-
-# (Optional) Seed initial data
-npx prisma db seed
+# (Optional) Open Drizzle Studio to view/edit data
+npm run db:studio
 ```
 
 4. Start the development server:
@@ -106,11 +103,11 @@ juda/
 │   ├── useSections.js
 │   └── useBacklog.js
 ├── lib/                 # Utilities
-│   ├── prisma.js        # Prisma client
+│   ├── db.js            # Drizzle database client
+│   ├── schema.js        # Database schema
 │   ├── utils.js         # Helper functions
 │   └── constants.js     # Constants
-└── prisma/
-    └── schema.prisma    # Database schema
+└── drizzle.config.js    # Drizzle configuration
 ```
 
 ## Database Schema
@@ -146,22 +143,17 @@ juda/
 
 ## Development
 
-### Database Migrations
+### Database Management
 
 ```bash
-# Create a new migration
-npx prisma migrate dev --name migration_name
+# Push schema changes to database
+npm run db:push
 
-# Apply migrations in production
-npx prisma migrate deploy
-```
+# Generate migration files (optional)
+npm run db:generate
 
-### Prisma Studio
-
-View and edit your database:
-
-```bash
-npx prisma studio
+# Open Drizzle Studio to view/edit data
+npm run db:studio
 ```
 
 ## Deployment
@@ -171,10 +163,9 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions on deploying to V
 Quick steps:
 
 1. Set up a PostgreSQL database (Vercel Postgres or external)
-2. Create initial migration: `npx prisma migrate dev --name init`
-3. Deploy to Vercel via dashboard or CLI
-4. Configure `DATABASE_URL` environment variable in Vercel
-5. Run migrations: `npx prisma migrate deploy`
+2. Deploy to Vercel via dashboard or CLI
+3. Configure `DATABASE_URL` environment variable in Vercel
+4. The build process will automatically push the schema to your database
 
 ## Notes
 

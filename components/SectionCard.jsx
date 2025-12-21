@@ -22,7 +22,7 @@ import {
 import { useDroppable } from "@dnd-kit/core";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, MoreVertical, GripVertical, Sun } from "lucide-react";
+import { Plus, MoreVertical, GripVertical, Sun, ChevronDown, ChevronUp } from "lucide-react";
 import { TaskItem } from "./TaskItem";
 import { SECTION_ICONS } from "@/lib/constants";
 
@@ -40,6 +40,7 @@ export const SectionCard = ({
   onCreateTaskInline,
   onEditSection,
   onDeleteSection,
+  onToggleSectionExpand,
   hoveredDroppable,
   droppableId,
   createDraggableId,
@@ -165,6 +166,21 @@ export const SectionCard = ({
             <IconButton
               icon={
                 <Box as="span" color="currentColor">
+                  {section.expanded !== false ? (
+                    <ChevronUp size={16} stroke="currentColor" />
+                  ) : (
+                    <ChevronDown size={16} stroke="currentColor" />
+                  )}
+                </Box>
+              }
+              onClick={() => onToggleSectionExpand && onToggleSectionExpand(section.id)}
+              size="sm"
+              variant="ghost"
+              aria-label={section.expanded !== false ? "Collapse section" : "Expand section"}
+            />
+            <IconButton
+              icon={
+                <Box as="span" color="currentColor">
                   <Plus size={16} stroke="currentColor" />
                 </Box>
               }
@@ -195,70 +211,24 @@ export const SectionCard = ({
           </HStack>
         </Flex>
       </CardHeader>
-      <CardBody pt={2}>
-        <Box
-          ref={setDropNodeRef}
-          bg={isOver ? dropHighlight : "transparent"}
-          borderRadius="md"
-          minH={tasksWithIds.length === 0 ? "120px" : "60px"}
-          p={tasksWithIds.length === 0 ? 4 : 2}
-          transition="background-color 0.2s, padding 0.2s, min-height 0.2s"
-          borderWidth={isOver ? "2px" : "0px"}
-          borderColor={isOver ? "blue.400" : "transparent"}
-          borderStyle="dashed"
-        >
-          {tasksWithIds.length === 0 ? (
-            <VStack align="stretch" spacing={2}>
-              <Text fontSize="sm" textAlign="center" py={8} color={mutedText}>
-                {isOver ? "Drop here" : "No tasks"}
-              </Text>
-              <Input
-                ref={inlineInputRef}
-                value={inlineInputValue}
-                onChange={e => setInlineInputValue(e.target.value)}
-                onBlur={handleInlineInputBlur}
-                onKeyDown={handleInlineInputKeyDown}
-                onClick={handleInlineInputClick}
-                placeholder="New task..."
-                size="sm"
-                variant="unstyled"
-                bg="transparent"
-                borderWidth="0px"
-                px={2}
-                py={1}
-                fontSize="sm"
-                color={isInlineInputActive ? textColor : mutedText}
-                _focus={{
-                  outline: "none",
-                  color: textColor,
-                }}
-                _placeholder={{ color: mutedText }}
-                _hover={{
-                  color: textColor,
-                }}
-              />
-            </VStack>
-          ) : (
-            <SortableContext items={tasksWithIds.map(t => t.draggableId)} strategy={verticalListSortingStrategy}>
-              <VStack align="stretch" spacing={3} py={2}>
-                {tasksWithIds.map((task, index) => (
-                  <TaskItem
-                    key={task.id}
-                    task={task}
-                    variant="today"
-                    index={index}
-                    onToggle={onToggleTask}
-                    onToggleSubtask={onToggleSubtask}
-                    onToggleExpand={onToggleExpand}
-                    onEdit={onEditTask}
-                    onUpdateTitle={onUpdateTaskTitle}
-                    onDelete={onDeleteTask}
-                    onDuplicate={onDuplicateTask}
-                    hoveredDroppable={hoveredDroppable}
-                    draggableId={task.draggableId}
-                    viewDate={viewDate}
-                  />
-                ))}
+      {section.expanded !== false && (
+        <CardBody pt={2}>
+          <Box
+            ref={setDropNodeRef}
+            bg={isOver ? dropHighlight : "transparent"}
+            borderRadius="md"
+            minH={tasksWithIds.length === 0 ? "120px" : "60px"}
+            p={tasksWithIds.length === 0 ? 4 : 2}
+            transition="background-color 0.2s, padding 0.2s, min-height 0.2s"
+            borderWidth={isOver ? "2px" : "0px"}
+            borderColor={isOver ? "blue.400" : "transparent"}
+            borderStyle="dashed"
+          >
+            {tasksWithIds.length === 0 ? (
+              <VStack align="stretch" spacing={2}>
+                <Text fontSize="sm" textAlign="center" py={8} color={mutedText}>
+                  {isOver ? "Drop here" : "No tasks"}
+                </Text>
                 <Input
                   ref={inlineInputRef}
                   value={inlineInputValue}
@@ -285,10 +255,58 @@ export const SectionCard = ({
                   }}
                 />
               </VStack>
-            </SortableContext>
-          )}
-        </Box>
-      </CardBody>
+            ) : (
+              <SortableContext items={tasksWithIds.map(t => t.draggableId)} strategy={verticalListSortingStrategy}>
+                <VStack align="stretch" spacing={3} py={2}>
+                  {tasksWithIds.map((task, index) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      variant="today"
+                      index={index}
+                      onToggle={onToggleTask}
+                      onToggleSubtask={onToggleSubtask}
+                      onToggleExpand={onToggleExpand}
+                      onEdit={onEditTask}
+                      onUpdateTitle={onUpdateTaskTitle}
+                      onDelete={onDeleteTask}
+                      onDuplicate={onDuplicateTask}
+                      hoveredDroppable={hoveredDroppable}
+                      draggableId={task.draggableId}
+                      viewDate={viewDate}
+                    />
+                  ))}
+                  <Input
+                    ref={inlineInputRef}
+                    value={inlineInputValue}
+                    onChange={e => setInlineInputValue(e.target.value)}
+                    onBlur={handleInlineInputBlur}
+                    onKeyDown={handleInlineInputKeyDown}
+                    onClick={handleInlineInputClick}
+                    placeholder="New task..."
+                    size="sm"
+                    variant="unstyled"
+                    bg="transparent"
+                    borderWidth="0px"
+                    px={2}
+                    py={1}
+                    fontSize="sm"
+                    color={isInlineInputActive ? textColor : mutedText}
+                    _focus={{
+                      outline: "none",
+                      color: textColor,
+                    }}
+                    _placeholder={{ color: mutedText }}
+                    _hover={{
+                      color: textColor,
+                    }}
+                  />
+                </VStack>
+              </SortableContext>
+            )}
+          </Box>
+        </CardBody>
+      )}
     </Card>
   );
 };

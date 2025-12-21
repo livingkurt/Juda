@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/db";
+import { tasks } from "@/lib/schema";
+import { eq, asc } from "drizzle-orm";
 
 export async function PUT(request) {
   try {
@@ -12,8 +14,8 @@ export async function PUT(request) {
     }
 
     // Get the task to move
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
+    const task = await db.query.tasks.findFirst({
+      where: eq(tasks.id, taskId),
     });
 
     if (!task) {
@@ -22,9 +24,9 @@ export async function PUT(request) {
 
     // If moving within the same section, reorder tasks
     if (sourceSectionId === targetSectionId) {
-      const sectionTasks = await prisma.task.findMany({
-        where: { sectionId: sourceSectionId },
-        orderBy: { order: "asc" },
+      const sectionTasks = await db.query.tasks.findMany({
+        where: eq(tasks.sectionId, sourceSectionId),
+        orderBy: [asc(tasks.order)],
       });
 
       // Remove the moved task from its current position
@@ -33,25 +35,20 @@ export async function PUT(request) {
       // Insert it at the new position
       filteredTasks.splice(newOrder, 0, task);
 
-      // Update all task orders in a transaction
-      await prisma.$transaction(
-        filteredTasks.map((t, index) =>
-          prisma.task.update({
-            where: { id: t.id },
-            data: { order: index },
-          })
-        )
-      );
+      // Update all task orders
+      for (let i = 0; i < filteredTasks.length; i++) {
+        await db.update(tasks).set({ order: i, updatedAt: new Date() }).where(eq(tasks.id, filteredTasks[i].id));
+      }
     } else {
       // Moving between sections
-      const sourceTasks = await prisma.task.findMany({
-        where: { sectionId: sourceSectionId },
-        orderBy: { order: "asc" },
+      const sourceTasks = await db.query.tasks.findMany({
+        where: eq(tasks.sectionId, sourceSectionId),
+        orderBy: [asc(tasks.order)],
       });
 
-      const targetTasks = await prisma.task.findMany({
-        where: { sectionId: targetSectionId },
-        orderBy: { order: "asc" },
+      const targetTasks = await db.query.tasks.findMany({
+        where: eq(tasks.sectionId, targetSectionId),
+        orderBy: [asc(tasks.order)],
       });
 
       // Remove task from source
@@ -61,50 +58,34 @@ export async function PUT(request) {
       const updatedTargetTasks = [...targetTasks];
       updatedTargetTasks.splice(newOrder, 0, task);
 
-      // Create all updates in a transaction
-      const updates = [];
-
       // Update the moved task's section and order
-      updates.push(
-        prisma.task.update({
-          where: { id: taskId },
-          data: {
-            sectionId: targetSectionId,
-            order: newOrder,
-          },
+      await db
+        .update(tasks)
+        .set({
+          sectionId: targetSectionId,
+          order: newOrder,
+          updatedAt: new Date(),
         })
-      );
+        .where(eq(tasks.id, taskId));
 
       // Reorder remaining source section tasks
-      updatedSourceTasks.forEach((t, index) => {
-        if (t.order !== index) {
-          updates.push(
-            prisma.task.update({
-              where: { id: t.id },
-              data: { order: index },
-            })
-          );
+      for (let i = 0; i < updatedSourceTasks.length; i++) {
+        if (updatedSourceTasks[i].order !== i) {
+          await db.update(tasks).set({ order: i, updatedAt: new Date() }).where(eq(tasks.id, updatedSourceTasks[i].id));
         }
-      });
+      }
 
       // Reorder target section tasks
-      updatedTargetTasks.forEach((t, index) => {
-        if (t.id !== taskId && t.order !== index) {
-          updates.push(
-            prisma.task.update({
-              where: { id: t.id },
-              data: { order: index },
-            })
-          );
+      for (let i = 0; i < updatedTargetTasks.length; i++) {
+        if (updatedTargetTasks[i].id !== taskId && updatedTargetTasks[i].order !== i) {
+          await db.update(tasks).set({ order: i, updatedAt: new Date() }).where(eq(tasks.id, updatedTargetTasks[i].id));
         }
-      });
-
-      await prisma.$transaction(updates);
+      }
     }
 
     // Fetch the updated task
-    const updatedTask = await prisma.task.findUnique({
-      where: { id: taskId },
+    const updatedTask = await db.query.tasks.findFirst({
+      where: eq(tasks.id, taskId),
     });
 
     return NextResponse.json(updatedTask);

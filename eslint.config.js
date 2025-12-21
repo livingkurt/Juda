@@ -49,7 +49,7 @@ const customPlugin = {
 };
 
 export default [
-  { ignores: ["dist", ".next", "node_modules", "prisma/migrations", "*.config.js"] },
+  { ignores: ["dist", ".next", "node_modules", "drizzle", "*.config.js"] },
   js.configs.recommended,
   eslintConfigPrettier,
   {

@@ -1,0 +1,234 @@
+---
+alwaysApply: true
+---
+
+# Drizzle ORM Migration Rules for Neon PostgreSQL
+
+## Overview
+
+This project uses **Drizzle ORM** with Neon PostgreSQL. Drizzle has a simple, reliable migration system that actually works in non-interactive environments like Cursor.
+
+## Project Structure
+
+```
+project/
+├── src/
+│   └── db/
+│       ├── index.ts          # Database connection
+│       └── schema.ts         # Drizzle schema definitions
+├── drizzle/
+│   └── migrations/           # Generated SQL migration files
+├── drizzle.config.ts         # Drizzle Kit configuration
+└── .env                      # DATABASE_URL
+```
+
+## Standard Workflow for Schema Changes
+
+When asked to add a field, modify a table, or make any database schema change:
+
+### Step 1: Edit the schema
+
+Modify `src/db/schema.ts` (or wherever your schema is defined):
+
+```typescript
+import { pgTable, text, boolean, timestamp, integer } from "drizzle-orm/pg-core";
+
+export const sections = pgTable("Section", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
+  icon: text("icon").notNull(),
+  order: integer("order").default(0),
+  expanded: boolean("expanded").default(true), // <-- New field
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+});
+```
+
+### Step 2: Generate the migration
+
+```bash
+npx drizzle-kit generate
+```
+
+This creates a SQL migration file in `drizzle/migrations/` - you can review it to see exactly what will run.
+
+### Step 3: Apply the migration
+
+```bash
+npx drizzle-kit migrate
+```
+
+Or for development, you can use push (applies changes directly without migration files):
+
+```bash
+npx drizzle-kit push
+```
+
+### Step 4: Inform the user
+
+Tell the user to restart their development server (`npm run dev`).
+
+## Commands Reference
+
+| Command                    | Purpose                                        | When to Use                                   |
+| -------------------------- | ---------------------------------------------- | --------------------------------------------- |
+| `npx drizzle-kit generate` | Generate SQL migration from schema changes     | After editing schema.ts                       |
+| `npx drizzle-kit migrate`  | Apply pending migrations                       | After generate, for production-style workflow |
+| `npx drizzle-kit push`     | Push schema directly to DB (no migration file) | Quick development iteration                   |
+| `npx drizzle-kit studio`   | Open Drizzle Studio (DB browser)               | To inspect data                               |
+| `npx drizzle-kit check`    | Check for schema drift                         | Debugging                                     |
+| `npx drizzle-kit drop`     | Drop a migration                               | If you need to redo a migration               |
+
+## Two Approaches
+
+### Approach 1: `drizzle-kit push` (Fast Development)
+
+Best for quick iteration during development:
+
+```bash
+# Edit schema.ts, then:
+npx drizzle-kit push
+```
+
+- Directly syncs schema to database
+- No migration files created
+- Fast and simple
+
+### Approach 2: `drizzle-kit generate` + `migrate` (Production)
+
+Best for production deployments and migration history:
+
+```bash
+# Edit schema.ts, then:
+npx drizzle-kit generate
+npx drizzle-kit migrate
+```
+
+- Creates SQL migration files you can review
+- Migration history preserved
+- Recommended for production
+
+## Adding Fields with Existing Data
+
+When adding a new column to a table that has existing rows:
+
+```typescript
+// CORRECT - has default value, safe for existing rows
+expanded: boolean('expanded').default(true),
+
+// CORRECT - nullable, safe for existing rows
+expanded: boolean('expanded'),
+
+// RISKY - notNull without default will fail if table has data
+expanded: boolean('expanded').notNull(),
+```
+
+If you need a NOT NULL column without a default on a table with data, use a two-step migration:
+
+1. Add column as nullable
+2. Update existing rows
+3. Alter to NOT NULL
+
+## Environment Variables
+
+```env
+# Neon PostgreSQL connection string
+DATABASE_URL="postgresql://user:password@ep-xxx.us-east-1.aws.neon.tech/neondb?sslmode=require"
+```
+
+## Example drizzle.config.ts
+
+```typescript
+import { defineConfig } from "drizzle-kit";
+
+export default defineConfig({
+  schema: "./src/db/schema.ts",
+  out: "./drizzle/migrations",
+  dialect: "postgresql",
+  dbCredentials: {
+    url: process.env.DATABASE_URL!,
+  },
+});
+```
+
+## Example Database Connection (src/db/index.ts)
+
+```typescript
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+import * as schema from "./schema";
+
+const sql = neon(process.env.DATABASE_URL!);
+export const db = drizzle(sql, { schema });
+```
+
+## Example Workflow
+
+User asks: "Add an 'expanded' boolean field to the Section model"
+
+1. Edit `src/db/schema.ts`:
+
+```typescript
+export const sections = pgTable("Section", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
+  icon: text("icon").notNull(),
+  order: integer("order").default(0),
+  expanded: boolean("expanded").default(true), // Added with default
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+});
+```
+
+2. Generate and apply migration:
+
+```bash
+npx drizzle-kit generate
+npx drizzle-kit migrate
+```
+
+Or for quick dev:
+
+```bash
+npx drizzle-kit push
+```
+
+3. Update API routes to handle the new field
+
+4. Tell user: "Schema updated. Please restart your dev server."
+
+## Troubleshooting
+
+### "Column X does not exist" error
+
+The migration wasn't applied. Run:
+
+```bash
+npx drizzle-kit push
+```
+
+### "relation X already exists" error
+
+The table/column already exists. Check your schema matches the database:
+
+```bash
+npx drizzle-kit check
+```
+
+### Need to see what's in the database?
+
+```bash
+npx drizzle-kit studio
+```
+
+### Migration failed partway through?
+
+Check the generated SQL in `drizzle/migrations/`, fix the issue, then:
+
+```bash
+npx drizzle-kit push
+```

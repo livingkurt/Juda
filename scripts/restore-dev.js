@@ -10,9 +10,16 @@
  *   npm run db:restore-dev
  */
 
-import { PrismaClient } from "@prisma/client";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { sections, tasks } from "../lib/schema.js";
+import { count } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load .env file
 function loadEnvFile() {
@@ -34,12 +41,20 @@ function loadEnvFile() {
   }
 }
 
+// Remove unsupported query parameters from DATABASE_URL
+function cleanDatabaseUrl(url) {
+  if (!url) return url;
+  const urlObj = new URL(url);
+  urlObj.searchParams.delete("schema");
+  return urlObj.toString();
+}
+
 // Load .env file
 loadEnvFile();
 
 // Get database URL from environment (dev database)
 // Prefer DEV_DATABASE_URL if set, otherwise fall back to DATABASE_URL
-const devUrl = process.env.PRODUCTION_DATABASE_URL;
+const devUrl = cleanDatabaseUrl(process.env.PRODUCTION_DATABASE_URL);
 
 if (!devUrl) {
   // eslint-disable-next-line no-console
@@ -57,13 +72,8 @@ const maskedUrl = `${urlObj.protocol}//${urlObj.username}@${urlObj.hostname}${ur
 // eslint-disable-next-line no-console
 console.log(`🔗 Connecting to: ${maskedUrl}\n`);
 
-const devPrisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: devUrl,
-    },
-  },
-});
+const devClient = postgres(devUrl);
+const devDb = drizzle(devClient);
 
 function findMostRecentDump() {
   const dumpDir = path.join(process.cwd(), "dumps");
@@ -111,27 +121,22 @@ async function restoreToDev(dump) {
   console.log("🔄 Restoring to dev database...\n");
 
   try {
-    // Connect to database
-    await devPrisma.$connect();
-
     // Verify connection by checking table count
-    const sectionCount = await devPrisma.section.count();
-    const taskCount = await devPrisma.task.count();
+    const [sectionCountResult] = await devDb.select({ count: count() }).from(sections);
+    const [taskCountResult] = await devDb.select({ count: count() }).from(tasks);
     // eslint-disable-next-line no-console
-    console.log(`   Current database state: ${sectionCount} sections, ${taskCount} tasks`);
+    console.log(`   Current database state: ${sectionCountResult.count} sections, ${taskCountResult.count} tasks`);
 
     // Clear dev database (in reverse order due to foreign keys)
-    await devPrisma.task.deleteMany();
-    await devPrisma.section.deleteMany();
+    await devDb.delete(tasks);
+    await devDb.delete(sections);
 
     // eslint-disable-next-line no-console
     console.log("   ✓ Cleared dev database");
 
     // Restore sections first (tasks depend on them)
     if (dump.sections && dump.sections.length > 0) {
-      await devPrisma.section.createMany({
-        data: dump.sections,
-      });
+      await devDb.insert(sections).values(dump.sections);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.sections.length} sections`);
     }
@@ -161,35 +166,27 @@ async function restoreToDev(dump) {
         }
         return filtered;
       });
-      await devPrisma.task.createMany({
-        data: filteredTasks,
-      });
+      await devDb.insert(tasks).values(filteredTasks);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.tasks.length} tasks`);
     }
 
-    // Note: BacklogItem model doesn't exist in current schema, skipping
-    if (dump.backlogItems && dump.backlogItems.length > 0) {
-      // eslint-disable-next-line no-console
-      console.log(`   ⚠ Skipped ${dump.backlogItems.length} backlog items (model not in schema)`);
-    }
-
     // Verify the restore by counting records
-    const finalSectionCount = await devPrisma.section.count();
-    const finalTaskCount = await devPrisma.task.count();
+    const [finalSectionCountResult] = await devDb.select({ count: count() }).from(sections);
+    const [finalTaskCountResult] = await devDb.select({ count: count() }).from(tasks);
 
     // eslint-disable-next-line no-console
     console.log("\n✅ Dev database restored successfully!");
     // eslint-disable-next-line no-console
-    console.log(`   Final counts: ${finalSectionCount} sections, ${finalTaskCount} tasks`);
+    console.log(`   Final counts: ${finalSectionCountResult.count} sections, ${finalTaskCountResult.count} tasks`);
 
-    if (finalSectionCount !== dump.sections?.length || finalTaskCount !== dump.tasks?.length) {
+    if (finalSectionCountResult.count !== dump.sections?.length || finalTaskCountResult.count !== dump.tasks?.length) {
       // eslint-disable-next-line no-console
       console.warn("\n⚠️  Warning: Record counts don't match!");
       // eslint-disable-next-line no-console
       console.warn(`   Expected: ${dump.sections?.length || 0} sections, ${dump.tasks?.length || 0} tasks`);
       // eslint-disable-next-line no-console
-      console.warn(`   Actual: ${finalSectionCount} sections, ${finalTaskCount} tasks`);
+      console.warn(`   Actual: ${finalSectionCountResult.count} sections, ${finalTaskCountResult.count} tasks`);
     }
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -212,9 +209,7 @@ async function main() {
     // eslint-disable-next-line no-console
     console.log(`   Sections: ${dump.sections?.length || 0}`);
     // eslint-disable-next-line no-console
-    console.log(`   Tasks: ${dump.tasks?.length || 0}`);
-    // eslint-disable-next-line no-console
-    console.log(`   Backlog Items: ${dump.backlogItems?.length || 0}\n`);
+    console.log(`   Tasks: ${dump.tasks?.length || 0}\n`);
 
     // Restore to dev
     await restoreToDev(dump);
@@ -223,7 +218,7 @@ async function main() {
     console.error("\n❌ Failed:", error.message);
     process.exit(1);
   } finally {
-    await devPrisma.$disconnect();
+    await devClient.end();
   }
 }
 

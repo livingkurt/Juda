@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/db";
+import { sections } from "@/lib/schema";
+import { eq, asc } from "drizzle-orm";
 
 export async function GET() {
   try {
-    const sections = await prisma.section.findMany({
-      orderBy: { order: "asc" },
+    const allSections = await db.query.sections.findMany({
+      orderBy: [asc(sections.order), asc(sections.createdAt)],
     });
-    return NextResponse.json(sections);
+    return NextResponse.json(allSections);
   } catch (error) {
     console.error("Error fetching sections:", error);
     return NextResponse.json({ error: "Failed to fetch sections", details: error.message }, { status: 500 });
@@ -16,15 +18,17 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, icon, order } = body;
+    const { name, icon, order, expanded } = body;
 
-    const section = await prisma.section.create({
-      data: {
+    const [section] = await db
+      .insert(sections)
+      .values({
         name,
         icon,
         order: order ?? 0,
-      },
-    });
+        expanded: expanded ?? true,
+      })
+      .returning();
 
     return NextResponse.json(section, { status: 201 });
   } catch (error) {
@@ -36,16 +40,18 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     const body = await request.json();
-    const { id, name, icon, order } = body;
+    const { id, name, icon, order, expanded } = body;
 
-    const section = await prisma.section.update({
-      where: { id },
-      data: {
-        name,
-        icon,
-        order,
-      },
-    });
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (icon !== undefined) updateData.icon = icon;
+    if (order !== undefined) updateData.order = order;
+    if (expanded !== undefined) updateData.expanded = expanded;
+
+    // Add updatedAt timestamp
+    updateData.updatedAt = new Date();
+
+    const [section] = await db.update(sections).set(updateData).where(eq(sections.id, id)).returning();
 
     return NextResponse.json(section);
   } catch (error) {
@@ -63,9 +69,7 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "Section ID is required" }, { status: 400 });
     }
 
-    await prisma.section.delete({
-      where: { id },
-    });
+    await db.delete(sections).where(eq(sections.id, id));
 
     return NextResponse.json({ success: true });
   } catch (error) {

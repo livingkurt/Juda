@@ -30,7 +30,6 @@ Vercel offers database providers through their Storage marketplace. Here are the
 4. Follow the prompts to create your database
 5. Vercel will automatically create environment variables:
    - `POSTGRES_URL`
-   - `POSTGRES_PRISMA_URL` (use this one for Prisma)
    - `POSTGRES_URL_NON_POOLING`
 
 ### Option B: Other Marketplace Providers
@@ -38,7 +37,7 @@ Vercel offers database providers through their Storage marketplace. Here are the
 You can also use:
 
 - **Supabase** - Postgres backend (free tier available)
-- **Prisma Postgres** - Instant Serverless Postgres
+- **PlanetScale** - MySQL-compatible serverless database
 - **AWS** - Serverless PostgreSQL
 
 All marketplace providers will automatically create environment variables in your Vercel project.
@@ -56,15 +55,9 @@ For external databases, you'll need to manually create a connection string in th
 postgresql://user:password@host:port/database?schema=public
 ```
 
-## Step 3: Create Initial Migration
+## Step 3: Prepare Your Database Schema
 
-Before deploying, create your initial database migration:
-
-```bash
-npx prisma migrate dev --name init
-```
-
-This will create a `prisma/migrations` folder. Make sure to commit this folder to your repository.
+Your database schema is defined in `lib/schema.js` using Drizzle ORM. The build process will automatically push the schema to your database during deployment.
 
 ## Step 4: Deploy to Vercel
 
@@ -114,20 +107,13 @@ In your Vercel project dashboard:
 
    **If using Neon (Vercel Marketplace):**
    - Name: `DATABASE_URL`
-   - Value: Copy the value from `POSTGRES_PRISMA_URL` (this is automatically created)
+   - Value: Copy the value from `POSTGRES_PRISMA_URL` (Vercel's default name for the pooled connection URL)
    - Environment: Production, Preview, Development (select all)
    - Click **Save**
-
-   - Name: `POSTGRES_URL_NON_POOLING`
-   - Value: Copy the value from `POSTGRES_URL_NON_POOLING` (this is automatically created by Neon)
-   - Environment: Production, Preview, Development (select all)
-   - Click **Save**
-
-   **Important:** Neon requires `POSTGRES_URL_NON_POOLING` for migrations. The build script will automatically use this for running migrations.
 
    **If using other Vercel Marketplace providers (Supabase, etc.):**
    - Name: `DATABASE_URL`
-   - Value: Copy the value from `POSTGRES_PRISMA_URL` (this is automatically created)
+   - Value: Copy the value from `POSTGRES_PRISMA_URL` (Vercel's default name for the pooled connection URL)
    - Environment: Production, Preview, Development (select all)
    - Click **Save**
 
@@ -137,58 +123,35 @@ In your Vercel project dashboard:
    - Environment: Production, Preview, Development (select all)
    - Click **Save**
 
-**Note:** Your Prisma schema uses `DATABASE_URL` for regular database operations. Migrations will automatically use `POSTGRES_URL_NON_POOLING` if available (required for Neon), otherwise fall back to `DATABASE_URL`.
+**Note:** Drizzle ORM uses `DATABASE_URL` for all database operations including schema pushes.
 
-## Step 6: Run Database Migrations
+## Step 6: Database Schema Push
 
-After your first deployment, you need to run migrations. You can do this in two ways:
+The build process automatically pushes your database schema using Drizzle. No manual migration steps are required!
 
-### Option A: Via Vercel CLI (Recommended)
+If you need to manually push the schema:
 
-```bash
-vercel env pull .env.local
-npm run db:migrate
-```
-
-Or directly:
+### Via Vercel CLI
 
 ```bash
 vercel env pull .env.local
-# For Neon, use POSTGRES_URL_NON_POOLING
-POSTGRES_URL_NON_POOLING="your-non-pooling-url" npx prisma migrate deploy
+npm run db:push
 ```
 
-### Option B: Via Vercel Dashboard
-
-1. Go to your project → Settings → Environment Variables
-2. Copy your `POSTGRES_URL_NON_POOLING` (for Neon) or `DATABASE_URL` (for others)
-3. Run migrations locally with the production database:
+### Via Local Environment
 
 ```bash
-# For Neon:
-POSTGRES_URL_NON_POOLING="your-non-pooling-url" npx prisma migrate deploy
-
-# For other providers:
-DATABASE_URL="your-production-database-url" npx prisma migrate deploy
+DATABASE_URL="your-production-database-url" npm run db:push
 ```
 
-**Note:** The build script automatically runs migrations using `POSTGRES_URL_NON_POOLING` if available (required for Neon), otherwise falls back to `DATABASE_URL`. If migrations fail during build, the build will fail with a clear error message.
+### View Your Database
 
-### Verify Migrations
-
-After running migrations, you can verify they were applied correctly:
+You can use Drizzle Studio to view and edit your production data:
 
 ```bash
-npm run db:verify
+vercel env pull .env.local
+npm run db:studio
 ```
-
-Or manually:
-
-```bash
-DATABASE_URL="your-production-database-url" npm run db:verify
-```
-
-This will check that the `TaskCompletion` table exists and has the correct structure.
 
 ## Step 7: Verify Deployment
 
@@ -204,10 +167,10 @@ This will check that the `TaskCompletion` table exists and has the correct struc
 - Check that your database allows connections from Vercel's IP addresses
 - For external databases, ensure SSL is enabled (add `?sslmode=require` to connection string)
 
-### Migration Errors
+### Schema Push Errors
 
-- Ensure `prisma/migrations` folder is committed to your repository
-- Run `npx prisma migrate deploy` manually if migrations fail during build
+- Ensure `lib/schema.js` is committed to your repository
+- Run `npm run db:push` manually if schema push fails during build
 - Check Vercel build logs for specific error messages
 
 ### Build Failures
@@ -222,7 +185,7 @@ After making changes:
 
 1. Commit and push to your repository
 2. Vercel will automatically trigger a new deployment
-3. Migrations will run automatically during the build process
+3. Schema changes will be pushed automatically during the build process
 
 ## Production Considerations
 
@@ -234,5 +197,5 @@ After making changes:
 ## Additional Resources
 
 - [Vercel Documentation](https://vercel.com/docs)
-- [Prisma Deployment Guide](https://www.prisma.io/docs/guides/deployment)
+- [Drizzle ORM Documentation](https://orm.drizzle.team/docs/overview)
 - [Next.js Deployment](https://nextjs.org/docs/deployment)

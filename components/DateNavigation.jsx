@@ -120,4 +120,3 @@ export const DateNavigation = ({ selectedDate, onDateChange, onPrevious, onNext,
     </Box>
   );
 };
-

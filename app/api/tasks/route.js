@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/db";
+import { tasks, sections } from "@/lib/schema";
+import { eq, asc } from "drizzle-orm";
 
 export async function GET() {
   try {
-    const tasks = await prisma.task.findMany({
-      include: {
+    const allTasks = await db.query.tasks.findMany({
+      with: {
         section: true,
       },
-      orderBy: [{ sectionId: "asc" }, { order: "asc" }],
+      orderBy: [asc(tasks.sectionId), asc(tasks.order)],
     });
-    return NextResponse.json(tasks);
+    return NextResponse.json(allTasks);
   } catch (error) {
     console.error("Error fetching tasks:", error);
     return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });
@@ -21,18 +23,19 @@ export async function POST(request) {
     const body = await request.json();
     const { title, sectionId, time, duration, color, recurrence, subtasks, order } = body;
 
-    const task = await prisma.task.create({
-      data: {
+    const [task] = await db
+      .insert(tasks)
+      .values({
         title,
         sectionId,
-        time,
+        time: time || null,
         duration: duration ?? 30,
         color: color ?? "#3b82f6",
         recurrence: recurrence || null,
         subtasks: subtasks || [],
         order: order ?? 0,
-      },
-    });
+      })
+      .returning();
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
@@ -52,8 +55,8 @@ export async function PUT(request) {
     }
 
     // Verify task exists
-    const existingTask = await prisma.task.findUnique({
-      where: { id },
+    const existingTask = await db.query.tasks.findFirst({
+      where: eq(tasks.id, id),
     });
 
     if (!existingTask) {
@@ -61,22 +64,20 @@ export async function PUT(request) {
     }
 
     // Build update data object, only including defined and non-null fields
-    // sectionId must always be valid since it's required
     const updateData = {};
     if (title !== undefined) updateData.title = title;
     if (sectionId !== undefined && sectionId !== null) {
       // Only validate and update sectionId if it's different from current value
       if (sectionId !== existingTask.sectionId) {
         // Validate section exists if sectionId is being updated
-        const section = await prisma.section.findUnique({
-          where: { id: sectionId },
+        const section = await db.query.sections.findFirst({
+          where: eq(sections.id, sectionId),
         });
         if (!section) {
           return NextResponse.json({ error: "Invalid section ID" }, { status: 400 });
         }
         updateData.sectionId = sectionId;
       }
-      // If sectionId is the same, skip updating it (no-op)
     }
     if (time !== undefined) updateData.time = time;
     if (duration !== undefined) updateData.duration = duration;
@@ -91,21 +92,25 @@ export async function PUT(request) {
       return NextResponse.json(existingTask);
     }
 
-    const task = await prisma.task.update({
-      where: { id },
-      data: updateData,
-      include: {
+    // Add updatedAt timestamp
+    updateData.updatedAt = new Date();
+
+    const [updatedTask] = await db.update(tasks).set(updateData).where(eq(tasks.id, id)).returning();
+
+    // Fetch with section relation
+    const taskWithSection = await db.query.tasks.findFirst({
+      where: eq(tasks.id, id),
+      with: {
         section: true,
       },
     });
 
-    return NextResponse.json(task);
+    return NextResponse.json(taskWithSection);
   } catch (error) {
     console.error("Error updating task:", error);
     // Return more detailed error information
     const errorMessage = error.message || "Failed to update task";
-    const statusCode = error.code === "P2025" ? 404 : 500;
-    return NextResponse.json({ error: errorMessage }, { status: statusCode });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -118,9 +123,7 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
     }
 
-    await prisma.task.delete({
-      where: { id },
-    });
+    await db.delete(tasks).where(eq(tasks.id, id));
 
     return NextResponse.json({ success: true });
   } catch (error) {

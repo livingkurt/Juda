@@ -10,9 +10,16 @@
  *   npm run db:restore
  */
 
-const { PrismaClient } = require("@prisma/client");
-const fs = require("fs");
-const path = require("path");
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { sections, tasks } from "../lib/schema.js";
+import { asc } from "drizzle-orm";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load .env file
 function loadEnvFile() {
@@ -34,12 +41,20 @@ function loadEnvFile() {
   }
 }
 
+// Remove unsupported query parameters from DATABASE_URL
+function cleanDatabaseUrl(url) {
+  if (!url) return url;
+  const urlObj = new URL(url);
+  urlObj.searchParams.delete("schema");
+  return urlObj.toString();
+}
+
 // Load .env file
 loadEnvFile();
 
 // Get database URLs from environment (now loaded from .env)
-const productionUrl = process.env.PRODUCTION_DATABASE_URL;
-const localUrl = process.env.DATABASE_URL;
+const productionUrl = cleanDatabaseUrl(process.env.PRODUCTION_DATABASE_URL);
+const localUrl = cleanDatabaseUrl(process.env.DATABASE_URL);
 
 if (!productionUrl) {
   // eslint-disable-next-line no-console
@@ -61,21 +76,11 @@ if (!localUrl) {
   process.exit(1);
 }
 
-const productionPrisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: productionUrl,
-    },
-  },
-});
+const productionClient = postgres(productionUrl);
+const productionDb = drizzle(productionClient);
 
-const localPrisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: localUrl,
-    },
-  },
-});
+const localClient = postgres(localUrl);
+const localDb = drizzle(localClient);
 
 async function dumpProduction() {
   // eslint-disable-next-line no-console
@@ -83,19 +88,13 @@ async function dumpProduction() {
 
   try {
     // Fetch all data from production
-    const [sections, tasks, backlogItems] = await Promise.all([
-      productionPrisma.section.findMany({ orderBy: { order: "asc" } }),
-      productionPrisma.task.findMany({
-        orderBy: [{ sectionId: "asc" }, { order: "asc" }],
-      }),
-      productionPrisma.backlogItem.findMany({ orderBy: { order: "asc" } }),
-    ]);
+    const allSections = await productionDb.select().from(sections).orderBy(asc(sections.order));
+    const allTasks = await productionDb.select().from(tasks).orderBy(asc(tasks.sectionId), asc(tasks.order));
 
     const dump = {
       timestamp: new Date().toISOString(),
-      sections,
-      tasks,
-      backlogItems,
+      sections: allSections,
+      tasks: allTasks,
     };
 
     // Save to file
@@ -112,11 +111,9 @@ async function dumpProduction() {
     // eslint-disable-next-line no-console
     console.log(`✅ Dump saved to: ${dumpFile}`);
     // eslint-disable-next-line no-console
-    console.log(`   Sections: ${sections.length}`);
+    console.log(`   Sections: ${allSections.length}`);
     // eslint-disable-next-line no-console
-    console.log(`   Tasks: ${tasks.length}`);
-    // eslint-disable-next-line no-console
-    console.log(`   Backlog Items: ${backlogItems.length}\n`);
+    console.log(`   Tasks: ${allTasks.length}\n`);
 
     return dump;
   } catch (error) {
@@ -129,7 +126,7 @@ async function dumpProduction() {
 async function restoreToLocal(dump) {
   if (!localUrl) {
     // eslint-disable-next-line no-console
-    console.log("⚠️  Skipping local restore (no LOCAL_DATABASE_URL set)");
+    console.log("⚠️  Skipping local restore (no DATABASE_URL set)");
     return;
   }
 
@@ -138,38 +135,24 @@ async function restoreToLocal(dump) {
 
   try {
     // Clear local database (in reverse order due to foreign keys)
-    await localPrisma.task.deleteMany();
-    await localPrisma.backlogItem.deleteMany();
-    await localPrisma.section.deleteMany();
+    await localDb.delete(tasks);
+    await localDb.delete(sections);
 
     // eslint-disable-next-line no-console
     console.log("   ✓ Cleared local database");
 
     // Restore sections first (tasks depend on them)
     if (dump.sections.length > 0) {
-      await localPrisma.section.createMany({
-        data: dump.sections,
-      });
+      await localDb.insert(sections).values(dump.sections);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.sections.length} sections`);
     }
 
     // Restore tasks
     if (dump.tasks.length > 0) {
-      await localPrisma.task.createMany({
-        data: dump.tasks,
-      });
+      await localDb.insert(tasks).values(dump.tasks);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.tasks.length} tasks`);
-    }
-
-    // Restore backlog items
-    if (dump.backlogItems.length > 0) {
-      await localPrisma.backlogItem.createMany({
-        data: dump.backlogItems,
-      });
-      // eslint-disable-next-line no-console
-      console.log(`   ✓ Restored ${dump.backlogItems.length} backlog items`);
     }
 
     // eslint-disable-next-line no-console
@@ -198,8 +181,8 @@ async function main() {
     console.error("\n❌ Failed:", error.message);
     process.exit(1);
   } finally {
-    await productionPrisma.$disconnect();
-    await localPrisma.$disconnect();
+    await productionClient.end();
+    await localClient.end();
   }
 }
 

@@ -48,7 +48,8 @@ export const CalendarDayView = ({
   const getTaskStyle = task => {
     const isDragging = internalDrag.taskId === task.id;
     const minutes = isDragging && internalDrag.type === "move" ? internalDrag.currentMinutes : timeToMinutes(task.time);
-    const duration = isDragging && internalDrag.type === "resize" ? internalDrag.currentDuration : (task.duration ?? 30);
+    const duration =
+      isDragging && internalDrag.type === "resize" ? internalDrag.currentDuration : (task.duration ?? 30);
     const isNoDuration = duration === 0;
     return {
       top: `${(minutes / 60) * HOUR_HEIGHT}px`,

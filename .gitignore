@@ -39,9 +39,6 @@ next-env.d.ts
 .env.local
 .env*.local
 
-# prisma
-# Note: migrations should be committed to the repo
-
 # database dumps
 /dumps
 *.sql

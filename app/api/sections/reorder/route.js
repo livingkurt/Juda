@@ -1,20 +1,17 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/db";
+import { sections } from "@/lib/schema";
+import { eq } from "drizzle-orm";
 
 export async function PUT(request) {
   try {
     const body = await request.json();
-    const { sections } = body;
+    const { sections: sectionsToUpdate } = body;
 
     // Update all sections with new order
-    const updatePromises = sections.map((section, index) =>
-      prisma.section.update({
-        where: { id: section.id },
-        data: { order: index },
-      })
-    );
-
-    await Promise.all(updatePromises);
+    for (let i = 0; i < sectionsToUpdate.length; i++) {
+      await db.update(sections).set({ order: i, updatedAt: new Date() }).where(eq(sections.id, sectionsToUpdate[i].id));
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

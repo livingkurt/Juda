@@ -97,10 +97,10 @@ The `completed` field on the Task model was conceptually incorrect and confusing
 
 **Changed files:**
 
-- `prisma/schema.prisma` - Removed `completed Boolean @default(false)` from Task model
+- `lib/schema.js` - Removed `completed` field from Task model
 - `app/api/tasks/route.js` - Removed `completed` from accepted update fields
 - `components/TaskDialog.jsx` - Removed `completed` from form initial values
-- Created migration: `20251220111053_remove_task_completed_field`
+- Schema updated via `drizzle-kit push`
 
 ### How Completion Works Now
 
@@ -142,7 +142,7 @@ The BacklogItem table was unnecessary - tasks already handle everything needed f
 
 **Changed files:**
 
-- `prisma/schema.prisma` - Removed BacklogItem model
+- `lib/schema.js` - Removed BacklogItem model
 - `app/api/backlog/route.js` - Deleted (entire API route)
 - `app/api/backlog/reorder/route.js` - Deleted
 - `hooks/useBacklog.js` - Deleted
@@ -151,7 +151,7 @@ The BacklogItem table was unnecessary - tasks already handle everything needed f
 - `components/SortableBacklogTask.jsx` - Removed checkbox functionality (can't check off backlog tasks)
 - `app/page.jsx` - Removed all BacklogItem state, handlers, and drag logic
 
-**Database migration:** Used `npx prisma db push` to drop BacklogItem table
+**Database migration:** Used `drizzle-kit push` to drop BacklogItem table
 
 ### Backlog Logic Now
 
