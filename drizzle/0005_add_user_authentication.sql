@@ -81,14 +81,29 @@ END $$;
 
 -- Step 7: Add foreign key constraints
 -- Note: We defer making columns NOT NULL until migration 0008 ensures all data has userId
-ALTER TABLE "Section"
-  ADD CONSTRAINT IF NOT EXISTS "Section_userId_User_id_fk" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'Section_userId_User_id_fk'
+  ) THEN
+    ALTER TABLE "Section"
+      ADD CONSTRAINT "Section_userId_User_id_fk" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
 
-ALTER TABLE "Task"
-  ADD CONSTRAINT IF NOT EXISTS "Task_userId_User_id_fk" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'Task_userId_User_id_fk'
+  ) THEN
+    ALTER TABLE "Task"
+      ADD CONSTRAINT "Task_userId_User_id_fk" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
 
-ALTER TABLE "Tag"
-  ADD CONSTRAINT IF NOT EXISTS "Tag_userId_User_id_fk" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'Tag_userId_User_id_fk'
+  ) THEN
+    ALTER TABLE "Tag"
+      ADD CONSTRAINT "Tag_userId_User_id_fk" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
+END $$;
 
 -- Step 8: Create indexes for userId columns
 CREATE INDEX IF NOT EXISTS "Section_userId_idx" ON "Section"("userId");
