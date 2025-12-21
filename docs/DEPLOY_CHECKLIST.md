@@ -19,7 +19,7 @@ Modify `lib/schema.js`:
 // Example: Add a new field
 export const tasks = pgTable("Task", {
   // ... existing fields
-  priority: integer("priority").default(0),  // ← New field
+  priority: integer("priority").default(0), // ← New field
 });
 ```
 
@@ -51,12 +51,12 @@ The build process runs `drizzle-kit migrate` automatically - it only applies NEW
 
 ## Key Commands
 
-| Command | Purpose | When to Use |
-|---------|---------|-------------|
-| `npm run db:generate` | Create migration file | After editing schema |
-| `npm run db:migrate` | Apply pending migrations | Automatic in build, or manual testing |
-| `npm run db:push` | Force sync schema (DANGEROUS) | **Development ONLY, never production** |
-| `npm run db:studio` | Open database GUI | Debugging/viewing data |
+| Command               | Purpose                       | When to Use                            |
+| --------------------- | ----------------------------- | -------------------------------------- |
+| `npm run db:generate` | Create migration file         | After editing schema                   |
+| `npm run db:migrate`  | Apply pending migrations      | Automatic in build, or manual testing  |
+| `npm run db:push`     | Force sync schema (DANGEROUS) | **Development ONLY, never production** |
+| `npm run db:studio`   | Open database GUI             | Debugging/viewing data                 |
 
 ## Why This Is Safe
 
