@@ -51,4 +51,3 @@ export const TaskSearchInput = ({ onSearchChange, placeholder = "Search tasks...
     </InputGroup>
   );
 };
-
