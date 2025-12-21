@@ -13,7 +13,8 @@
     "format:check": "prettier --check \"**/*.{js,jsx,json,md}\"",
     "postinstall": "prisma generate",
     "db:dump": "node scripts/dump-production.js",
-    "db:restore": "node scripts/dump-production.js --restore"
+    "db:restore": "node scripts/dump-production.js --restore",
+    "db:restore-dev": "node scripts/restore-dev.js"
   },
   "dependencies": {
     "@chakra-ui/react": "^2.8.2",
