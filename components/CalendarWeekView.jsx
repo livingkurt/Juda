@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Box, Flex, useColorModeValue } from "@chakra-ui/react";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate } from "@/lib/utils";
 import { HOUR_HEIGHT_WEEK, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { DayHeaderColumn } from "./DayHeaderColumn";
 import { TimedColumn } from "./TimedColumn";
+import { TaskSearchInput } from "./TaskSearchInput";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_WEEK;
 
@@ -48,6 +49,7 @@ export const CalendarWeekView = ({
   today.setHours(0, 0, 0, 0);
 
   const containerRef = useRef(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Internal drag state for time/duration adjustments
   const [internalDrag, setInternalDrag] = useState({
@@ -61,25 +63,32 @@ export const CalendarWeekView = ({
     hasMoved: false,
   });
 
+  // Filter tasks by search term
+  const filteredTasks = useMemo(() => {
+    if (!searchTerm.trim()) return tasks;
+    const lowerSearch = searchTerm.toLowerCase();
+    return tasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
+  }, [tasks, searchTerm]);
+
   const getTasksForDay = useCallback(
     day => {
-      let dayTasks = tasks.filter(t => t.time && shouldShowOnDate(t, day));
+      let dayTasks = filteredTasks.filter(t => t.time && shouldShowOnDate(t, day));
       if (!showCompleted) {
         dayTasks = dayTasks.filter(task => !isCompletedOnDate(task.id, day));
       }
       return dayTasks;
     },
-    [tasks, showCompleted, isCompletedOnDate]
+    [filteredTasks, showCompleted, isCompletedOnDate]
   );
   const getUntimedTasksForDay = useCallback(
     day => {
-      let untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, day));
+      let untimedTasks = filteredTasks.filter(t => !t.time && shouldShowOnDate(t, day));
       if (!showCompleted) {
         untimedTasks = untimedTasks.filter(task => !isCompletedOnDate(task.id, day));
       }
       return untimedTasks;
     },
-    [tasks, showCompleted, isCompletedOnDate]
+    [filteredTasks, showCompleted, isCompletedOnDate]
   );
 
   const getTaskStyle = task => {
@@ -205,6 +214,10 @@ export const CalendarWeekView = ({
 
   return (
     <Flex direction="column" h="full">
+      {/* Search input */}
+      <Box px={4} py={2} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} flexShrink={0}>
+        <TaskSearchInput onSearchChange={setSearchTerm} />
+      </Box>
       {/* Week header */}
       <Flex borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} position="sticky" top={0} zIndex={10}>
         <Box w={12} flexShrink={0} />

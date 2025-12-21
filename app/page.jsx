@@ -78,6 +78,7 @@ import { CalendarMonthView } from "@/components/CalendarMonthView";
 import { DashboardView } from "@/components/DashboardView";
 import { PageSkeleton, SectionSkeleton, BacklogSkeleton, CalendarSkeleton } from "@/components/Skeletons";
 import { DateNavigation } from "@/components/DateNavigation";
+import { TaskSearchInput } from "@/components/TaskSearchInput";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
@@ -233,6 +234,8 @@ export default function DailyTasksApp() {
   const [selectedDate, setSelectedDate] = useState(null);
   // Initialize todayViewDate to null, then set it in useEffect to avoid hydration mismatch
   const [todayViewDate, setTodayViewDate] = useState(null);
+  // Search state for Today view
+  const [todaySearchTerm, setTodaySearchTerm] = useState("");
   const [editingTask, setEditingTask] = useState(null);
   const [editingSection, setEditingSection] = useState(null);
   const [defaultSectionId, setDefaultSectionId] = useState(null);
@@ -434,11 +437,18 @@ export default function DailyTasksApp() {
     [tasks, viewDate, isCompletedOnDate]
   );
 
+  // Filter today's tasks by search term
+  const filteredTodaysTasks = useMemo(() => {
+    if (!todaySearchTerm.trim()) return todaysTasks;
+    const lowerSearch = todaySearchTerm.toLowerCase();
+    return todaysTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
+  }, [todaysTasks, todaySearchTerm]);
+
   // Group today's tasks by section, optionally filtering out completed tasks
   const tasksBySection = useMemo(() => {
     const grouped = {};
     sections.forEach(s => {
-      let sectionTasks = todaysTasks.filter(t => t.sectionId === s.id);
+      let sectionTasks = filteredTodaysTasks.filter(t => t.sectionId === s.id);
       // Filter out completed tasks if showCompletedTasks is false
       // But keep recently completed tasks visible for a delay period
       if (!showCompletedTasks) {
@@ -455,7 +465,7 @@ export default function DailyTasksApp() {
       grouped[s.id] = sectionTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
     });
     return grouped;
-  }, [todaysTasks, sections, showCompletedTasks, recentlyCompletedTasks]);
+  }, [filteredTodaysTasks, sections, showCompletedTasks, recentlyCompletedTasks]);
 
   // Tasks for backlog: no recurrence AND no time, or recurrence doesn't match today
   // Exclude tasks with future dates/times
@@ -477,8 +487,8 @@ export default function DailyTasksApp() {
   }, [tasks, today, isCompletedOnDate]);
 
   // Progress calculation - check completion records for the selected date
-  const totalTasks = todaysTasks.length;
-  const completedTasks = todaysTasks.filter(t => {
+  const totalTasks = filteredTodaysTasks.length;
+  const completedTasks = filteredTodaysTasks.filter(t => {
     // Check if task is completed on the selected date via completion record
     const isCompletedOnViewDate = isCompletedOnDate(t.id, viewDate);
     // Also check subtasks completion
@@ -1720,7 +1730,10 @@ export default function DailyTasksApp() {
                               <Heading size="md">Today</Heading>
                               <Flex align="center" gap={2}>
                                 <Badge colorScheme="blue">
-                                  {todaysTasks.length} task{todaysTasks.length !== 1 ? "s" : ""}
+                                  {filteredTodaysTasks.length} task{filteredTodaysTasks.length !== 1 ? "s" : ""}
+                                  {todaySearchTerm &&
+                                    filteredTodaysTasks.length !== todaysTasks.length &&
+                                    ` of ${todaysTasks.length}`}
                                 </Badge>
                                 <Button
                                   size="sm"
@@ -1752,6 +1765,9 @@ export default function DailyTasksApp() {
                                 onToday={handleTodayViewToday}
                               />
                             )}
+                            <Box mt={3}>
+                              <TaskSearchInput onSearchChange={setTodaySearchTerm} />
+                            </Box>
                           </Box>
                           {/* Scrollable Sections Container */}
                           <Box flex={1} overflowY="auto" minH={0}>

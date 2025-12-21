@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Box, Text, Flex, VStack, useColorModeValue } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate, calculateTaskPositions } from "@/lib/utils";
 import { HOUR_HEIGHT_DAY, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { UntimedTask } from "./UntimedTask";
 import { TimedTask } from "./TimedTask";
+import { TaskSearchInput } from "./TaskSearchInput";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_DAY;
 
@@ -31,15 +32,32 @@ export const CalendarDayView = ({
   const hourTextColor = useColorModeValue("gray.400", "gray.500");
   const hourBorderColor = useColorModeValue("gray.100", "gray.700");
 
-  const hours = Array.from({ length: 24 }, (_, i) => i);
-  let dayTasks = tasks.filter(t => t.time && shouldShowOnDate(t, date));
-  let untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, date));
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Filter out completed tasks if showCompleted is false
-  if (!showCompleted) {
-    dayTasks = dayTasks.filter(task => !isCompletedOnDate(task.id, date));
-    untimedTasks = untimedTasks.filter(task => !isCompletedOnDate(task.id, date));
-  }
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+
+  // Filter tasks by date and search term
+  const filteredTasks = useMemo(() => {
+    let dayTasks = tasks.filter(t => t.time && shouldShowOnDate(t, date));
+    let untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, date));
+
+    // Filter out completed tasks if showCompleted is false
+    if (!showCompleted) {
+      dayTasks = dayTasks.filter(task => !isCompletedOnDate(task.id, date));
+      untimedTasks = untimedTasks.filter(task => !isCompletedOnDate(task.id, date));
+    }
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const lowerSearch = searchTerm.toLowerCase();
+      dayTasks = dayTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
+      untimedTasks = untimedTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
+    }
+
+    return { dayTasks, untimedTasks };
+  }, [tasks, date, showCompleted, isCompletedOnDate, searchTerm]);
+
+  const { dayTasks, untimedTasks } = filteredTasks;
 
   const containerRef = useRef(null);
 
@@ -194,13 +212,16 @@ export const CalendarDayView = ({
   return (
     <Flex direction="column" h="full">
       {/* Day header */}
-      <Box textAlign="center" py={3} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor}>
+      <Box textAlign="center" py={3} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} flexShrink={0}>
         <Text fontSize="2xl" fontWeight="bold">
           {date.getDate()}
         </Text>
-        <Text fontSize="sm" color={hourTextColor}>
+        <Text fontSize="sm" color={hourTextColor} mb={3}>
           {date.toLocaleDateString("en-US", { weekday: "long", month: "long" })}
         </Text>
+        <Box px={4}>
+          <TaskSearchInput onSearchChange={setSearchTerm} />
+        </Box>
       </Box>
 
       {/* Untimed tasks area */}

@@ -1,10 +1,13 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { Box, Flex, SimpleGrid, useColorModeValue } from "@chakra-ui/react";
 import { shouldShowOnDate } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
+import { TaskSearchInput } from "./TaskSearchInput";
 
 export const CalendarMonthView = ({ date, tasks, onDayClick, isCompletedOnDate, showCompleted = true, zoom = 1.0 }) => {
+  const [searchTerm, setSearchTerm] = useState("");
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
@@ -12,6 +15,13 @@ export const CalendarMonthView = ({ date, tasks, onDayClick, isCompletedOnDate, 
   const mutedText = useColorModeValue("gray.400", "gray.600");
   const dayHeaderColor = useColorModeValue("gray.500", "gray.400");
   const nonCurrentMonthBg = useColorModeValue("gray.50", "gray.850");
+
+  // Filter tasks by search term
+  const filteredTasks = useMemo(() => {
+    if (!searchTerm.trim()) return tasks;
+    const lowerSearch = searchTerm.toLowerCase();
+    return tasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
+  }, [tasks, searchTerm]);
 
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -37,6 +47,10 @@ export const CalendarMonthView = ({ date, tasks, onDayClick, isCompletedOnDate, 
 
   return (
     <Flex direction="column" h="full">
+      {/* Search input */}
+      <Box px={4} py={2} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} flexShrink={0}>
+        <TaskSearchInput onSearchChange={setSearchTerm} />
+      </Box>
       <SimpleGrid columns={7} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor}>
         {DAYS_OF_WEEK.map(day => (
           <Box key={day.value} textAlign="center" py={2} fontSize="sm" fontWeight="medium" color={dayHeaderColor}>
@@ -50,7 +64,7 @@ export const CalendarMonthView = ({ date, tasks, onDayClick, isCompletedOnDate, 
             {week.map((day, di) => {
               const isCurrentMonth = day.getMonth() === month;
               const isToday = day.toDateString() === today.toDateString();
-              let dayTasks = tasks.filter(t => shouldShowOnDate(t, day));
+              let dayTasks = filteredTasks.filter(t => shouldShowOnDate(t, day));
               // Filter out completed tasks if showCompleted is false
               if (!showCompleted) {
                 dayTasks = dayTasks.filter(task => !isCompletedOnDate(task.id, day));

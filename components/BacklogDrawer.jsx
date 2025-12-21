@@ -1,10 +1,12 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { Box, VStack, HStack, Flex, Text, IconButton, Badge, useColorModeValue, Heading } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus, X } from "lucide-react";
 import { TaskItem } from "./TaskItem";
+import { TaskSearchInput } from "./TaskSearchInput";
 
 export const BacklogDrawer = ({
   onClose,
@@ -28,9 +30,18 @@ export const BacklogDrawer = ({
   const dropHighlight = useColorModeValue("blue.50", "blue.900");
   const gripColor = useColorModeValue("gray.400", "gray.500");
 
+  const [searchTerm, setSearchTerm] = useState("");
+
   const getSectionName = sectionId => {
     return sections.find(s => s.id === sectionId)?.name || "Unknown";
   };
+
+  // Filter tasks by search term
+  const filteredTasks = useMemo(() => {
+    if (!searchTerm.trim()) return backlogTasks;
+    const lowerSearch = searchTerm.toLowerCase();
+    return backlogTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
+  }, [backlogTasks, searchTerm]);
 
   // Use droppable hook for backlog area
   const { setNodeRef, isOver } = useDroppable({
@@ -38,7 +49,7 @@ export const BacklogDrawer = ({
   });
 
   // Prepare tasks with draggable IDs
-  const tasksWithIds = backlogTasks.map(task => ({
+  const tasksWithIds = filteredTasks.map(task => ({
     ...task,
     draggableId: createDraggableId.backlog(task.id),
   }));
@@ -75,9 +86,11 @@ export const BacklogDrawer = ({
             />
           </HStack>
         </Flex>
-        <Badge colorScheme="blue">
-          {backlogTasks.length} task{backlogTasks.length !== 1 ? "s" : ""}
+        <Badge colorScheme="blue" mb={2}>
+          {filteredTasks.length} task{filteredTasks.length !== 1 ? "s" : ""}
+          {searchTerm && filteredTasks.length !== backlogTasks.length && ` of ${backlogTasks.length}`}
         </Badge>
+        <TaskSearchInput onSearchChange={setSearchTerm} />
       </Box>
 
       {/* Droppable area for tasks */}
