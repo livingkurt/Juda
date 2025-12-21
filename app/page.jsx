@@ -361,27 +361,38 @@ export default function DailyTasksApp() {
       // Determine what updates to make based on source and destination
       let updates = {};
 
-      // DESTINATION: Backlog - clear date and time
+      // DESTINATION: Backlog - clear date, time, and recurrence
       if (destParsed.type === "backlog") {
         updates = {
           time: null,
           recurrence: null,
         };
       }
-      // DESTINATION: Today section - set date to today, clear time
+      // DESTINATION: Today section - set date to today, clear time, preserve recurrence
       else if (destParsed.type === "today-section") {
         // Don't set sectionId here - let the reordering logic below handle it
         // Use local date to match user's calendar view
         const todayDateStr = formatLocalDate(today);
-        updates = {
-          time: null,
-          recurrence: {
+
+        // Preserve existing recurrence if it exists, otherwise set to none with today's date
+        let recurrenceUpdate;
+        if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
+          // Preserve the recurrence pattern (daily, weekly, etc.)
+          recurrenceUpdate = task.recurrence;
+        } else {
+          // No recurrence or type is "none" - set to none with today's date
+          recurrenceUpdate = {
             type: "none",
             startDate: `${todayDateStr}T00:00:00.000Z`,
-          },
+          };
+        }
+
+        updates = {
+          time: null,
+          recurrence: recurrenceUpdate,
         };
       }
-      // DESTINATION: Calendar (timed area) - set date and time
+      // DESTINATION: Calendar (timed area) - set date and time, preserve recurrence
       else if (destParsed.type === "calendar" && !destParsed.isUntimed) {
         // Use dateStr from parsed droppable ID, or format local date as fallback
         let dropDateStr;
@@ -391,15 +402,26 @@ export default function DailyTasksApp() {
           const fallbackDate = selectedDate || new Date();
           dropDateStr = formatLocalDate(fallbackDate);
         }
-        updates = {
-          time: calculatedTime,
-          recurrence: {
+
+        // Preserve existing recurrence if it exists, otherwise set to none with drop date
+        let recurrenceUpdate;
+        if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
+          // Preserve the recurrence pattern (daily, weekly, etc.)
+          recurrenceUpdate = task.recurrence;
+        } else {
+          // No recurrence or type is "none" - set to none with drop date
+          recurrenceUpdate = {
             type: "none",
             startDate: `${dropDateStr}T00:00:00.000Z`,
-          },
+          };
+        }
+
+        updates = {
+          time: calculatedTime,
+          recurrence: recurrenceUpdate,
         };
       }
-      // DESTINATION: Calendar (untimed area) - set date, clear time
+      // DESTINATION: Calendar (untimed area) - set date, clear time, preserve recurrence
       else if (destParsed.type === "calendar" && destParsed.isUntimed) {
         // Use dateStr from parsed droppable ID, or format local date as fallback
         let dropDateStr;
@@ -409,15 +431,23 @@ export default function DailyTasksApp() {
           const fallbackDate = selectedDate || new Date();
           dropDateStr = formatLocalDate(fallbackDate);
         }
+
+        // Preserve existing recurrence if it exists, otherwise set to none with drop date
+        let recurrenceUpdate;
+        if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
+          // Preserve the recurrence pattern (daily, weekly, etc.)
+          recurrenceUpdate = task.recurrence;
+        } else {
+          // No recurrence or type is "none" - set to none with drop date
+          recurrenceUpdate = {
+            type: "none",
+            startDate: `${dropDateStr}T00:00:00.000Z`,
+          };
+        }
+
         updates = {
           time: null,
-          recurrence:
-            task.recurrence?.type && task.recurrence.type !== "none"
-              ? task.recurrence // Keep recurring pattern
-              : {
-                  type: "none",
-                  startDate: `${dropDateStr}T00:00:00.000Z`,
-                },
+          recurrence: recurrenceUpdate,
         };
       }
 
@@ -853,41 +883,6 @@ export default function DailyTasksApp() {
                   </Button>
                 </HStack>
               </Flex>
-              {showCalendar && (
-                <Flex align="center" gap={2}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      setSelectedDate(today);
-                    }}
-                  >
-                    Today
-                  </Button>
-                  <IconButton
-                    icon={<ChevronLeft size={18} />}
-                    onClick={() => navigateCalendar(-1)}
-                    variant="ghost"
-                    aria-label="Previous"
-                  />
-                  <IconButton
-                    icon={<ChevronRight size={18} />}
-                    onClick={() => navigateCalendar(1)}
-                    variant="ghost"
-                    aria-label="Next"
-                  />
-                  <Text fontSize="sm" fontWeight="medium" minW="120px">
-                    {getCalendarTitle()}
-                  </Text>
-                  <Select value={calendarView} onChange={e => setCalendarView(e.target.value)} w={24}>
-                    <option value="day">Day</option>
-                    <option value="week">Week</option>
-                    <option value="month">Month</option>
-                  </Select>
-                </Flex>
-              )}
 
               {/* Progress bar */}
               {showDashboard && (
@@ -996,6 +991,40 @@ export default function DailyTasksApp() {
                   {/* Calendar View */}
                   {showCalendar && (
                     <Box flex={1} minW={0} display="flex" flexDirection="column">
+                      {/* Calendar Controls */}
+                      <Flex align="center" gap={2} mb={3} px={2}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            setSelectedDate(today);
+                          }}
+                        >
+                          Today
+                        </Button>
+                        <IconButton
+                          icon={<ChevronLeft size={18} />}
+                          onClick={() => navigateCalendar(-1)}
+                          variant="ghost"
+                          aria-label="Previous"
+                        />
+                        <IconButton
+                          icon={<ChevronRight size={18} />}
+                          onClick={() => navigateCalendar(1)}
+                          variant="ghost"
+                          aria-label="Next"
+                        />
+                        <Text fontSize="sm" fontWeight="medium" minW="120px">
+                          {getCalendarTitle()}
+                        </Text>
+                        <Select value={calendarView} onChange={e => setCalendarView(e.target.value)} w={24}>
+                          <option value="day">Day</option>
+                          <option value="week">Week</option>
+                          <option value="month">Month</option>
+                        </Select>
+                      </Flex>
                       <Card flex={1} overflow="hidden" bg={bgColor} borderColor={borderColor} minH="600px">
                         <CardBody p={0} h="full">
                           {calendarView === "day" && selectedDate && (
