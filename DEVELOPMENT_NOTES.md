@@ -225,3 +225,118 @@ All completion dates are stored and compared using **UTC with UTC methods** to e
 **Critical:** Always use `getUTCFullYear()`, `getUTCMonth()`, `getUTCDate()` when normalizing dates, not the local equivalents. This prevents bugs where dates coming from ISO strings are interpreted in the wrong timezone.
 
 This prevents subtle bugs where dates appear to match visually but fail equality checks due to timezone offsets.
+
+---
+
+## Session: December 20, 2025 (Part 4) - Improved Drag & Drop UX
+
+### Issue
+
+The drag-and-drop experience in sections and backlog had several UX problems:
+
+1. **No visual feedback during drag** - Items didn't animate out of the way when dragging
+2. **Small drop zones** - Could only drop in tiny spaces between items
+3. **No smooth transitions** - Items jumped instead of smoothly moving
+4. **Didn't feel like native drag-and-drop** - Unlike Apple's drag-and-drop or @hello-pangea/dnd's default behavior
+
+### Root Cause
+
+The `useSortable()` hook from `@dnd-kit/sortable` provides `transform` and `transition` values that enable smooth animations, but we weren't applying them to the draggable items. We were only using `isDragging` to set opacity.
+
+### Solution
+
+**Applied CSS transforms and transitions from `@dnd-kit/sortable` to enable smooth animations**
+
+**Changed files:**
+
+1. **`components/TaskItem.jsx`**
+   - Added `CSS` import from `@dnd-kit/utilities`
+   - Extracted `transform` and `transition` from `useSortable()`
+   - Applied them to the style object with proper CSS transform string conversion
+
+2. **`components/SortableBacklogTask.jsx`**
+   - Same changes as TaskItem.jsx
+   - Now backlog tasks smoothly animate when reordering
+
+3. **`components/SectionCard.jsx`**
+   - Improved drop zone sizing - reduced padding when tasks present, increased when empty
+   - Made the entire card body a larger drop target
+   - Added smooth transitions for padding and min-height changes
+   - Better visual feedback with dashed borders when hovering
+
+4. **`components/BacklogDrawer.jsx`**
+   - Improved drop zone sizing - dynamic padding based on content
+   - Removed unnecessary VStack wrapper
+   - Better spacing between items
+   - Cleaner layout with consistent padding
+
+### Key Code Changes
+
+**Before:**
+```javascript
+const { attributes, listeners, setNodeRef, isDragging } = useSortable({
+  id: draggableId,
+  data: { type: "TASK", containerId: containerId },
+});
+
+const style = {
+  opacity: isDragging ? 0.5 : 1,
+};
+```
+
+**After:**
+```javascript
+import { CSS } from "@dnd-kit/utilities";
+
+const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  id: draggableId,
+  data: { type: "TASK", containerId: containerId },
+});
+
+const style = {
+  transform: CSS.Transform.toString(transform),
+  transition: transition || "transform 200ms ease",
+  opacity: isDragging ? 0.5 : 1,
+};
+```
+
+### How It Works
+
+1. **@dnd-kit calculates transforms** - When dragging, the library calculates how much each item should move
+2. **CSS transforms applied** - Items smoothly translate to their new positions
+3. **Transitions smooth the movement** - CSS transitions make the movement feel natural
+4. **Large drop zones** - The entire section/backlog area is droppable, not just gaps between items
+5. **Visual feedback** - Dashed borders and background colors indicate valid drop targets
+
+### User Experience Improvements
+
+**Before:**
+- ❌ Items jumped instantly to new positions
+- ❌ Had to precisely aim for small gaps between items
+- ❌ No visual indication of where item would land
+- ❌ Felt clunky and unpolished
+
+**After:**
+- ✅ Items smoothly slide out of the way as you drag
+- ✅ Can drop anywhere in the section/backlog area
+- ✅ Clear visual feedback with borders and backgrounds
+- ✅ Feels like native macOS/iOS drag-and-drop
+- ✅ Matches @hello-pangea/dnd behavior expectations
+
+### Technical Notes
+
+- The `CSS.Transform.toString()` utility properly converts the transform object to a CSS string
+- Fallback transition ensures smooth movement even if library doesn't provide one
+- The `transform` is separate from `isDragging` opacity - both work together
+- Drop zones now use dynamic padding to feel spacious but not wasteful
+- The DragOverlay still shows the dragged item preview (unchanged)
+
+### Benefits
+
+- ✅ Much better user experience - feels professional and polished
+- ✅ Easier to use - larger drop targets reduce precision needed
+- ✅ Matches user expectations from other modern apps
+- ✅ No breaking changes - all existing functionality preserved
+- ✅ Minimal code changes - just applying values that were already available
+
+---

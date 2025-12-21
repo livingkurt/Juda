@@ -3,6 +3,7 @@
 import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack } from "@chakra-ui/react";
 import { useColorModeValue } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { ChevronDown, ChevronRight, Clock, Edit2, Trash2, GripVertical } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 
@@ -26,7 +27,7 @@ export const TaskItem = ({ task, onToggle, onToggleSubtask, onToggleExpand, onEd
     containerId = "backlog";
   }
 
-  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: draggableId,
     data: {
       type: "TASK",
@@ -35,7 +36,8 @@ export const TaskItem = ({ task, onToggle, onToggleSubtask, onToggleExpand, onEd
   });
 
   const style = {
-    // Don't apply transform - DragOverlay handles the preview
+    transform: CSS.Transform.toString(transform),
+    transition: transition || "transform 200ms ease",
     opacity: isDragging ? 0.5 : 1,
   };
 

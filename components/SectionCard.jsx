@@ -145,16 +145,14 @@ export const SectionCard = ({
           </HStack>
         </Flex>
       </CardHeader>
-      <CardBody>
+      <CardBody pt={2}>
         <Box
           ref={setDropNodeRef}
           bg={isOver ? dropHighlight : "transparent"}
           borderRadius="md"
-          minH="120px"
-          p={4}
-          pb={6}
-          pt={isOver && tasksWithIds.length === 0 ? 6 : 4}
-          transition="background-color 0.2s, padding 0.2s"
+          minH={tasksWithIds.length === 0 ? "120px" : "60px"}
+          p={tasksWithIds.length === 0 ? 4 : 2}
+          transition="background-color 0.2s, padding 0.2s, min-height 0.2s"
           borderWidth={isOver ? "2px" : "0px"}
           borderColor={isOver ? "blue.400" : "transparent"}
           borderStyle="dashed"
@@ -165,7 +163,7 @@ export const SectionCard = ({
             </Text>
           ) : (
             <SortableContext items={tasksWithIds.map(t => t.draggableId)} strategy={verticalListSortingStrategy}>
-              <VStack align="stretch" spacing={3}>
+              <VStack align="stretch" spacing={3} py={2}>
                 {tasksWithIds.map((task, index) => (
                   <TaskItem
                     key={task.id}

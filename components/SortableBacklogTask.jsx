@@ -2,6 +2,7 @@
 
 import { Box, Flex, Text, IconButton, HStack, Badge } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Edit2, Trash2, GripVertical, AlertCircle } from "lucide-react";
 import { isOverdue } from "@/lib/utils";
 
@@ -14,7 +15,7 @@ export const SortableBacklogTask = ({
   mutedText,
   gripColor,
 }) => {
-  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.draggableId,
     data: {
       type: "TASK",
@@ -23,7 +24,8 @@ export const SortableBacklogTask = ({
   });
 
   const style = {
-    // Don't apply transform - DragOverlay handles the preview
+    transform: CSS.Transform.toString(transform),
+    transition: transition || "transform 200ms ease",
     opacity: isDragging ? 0.5 : 1,
   };
 
