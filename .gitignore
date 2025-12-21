@@ -41,5 +41,8 @@ next-env.d.ts
 
 # database dumps
 /dumps
-*.sql
 *.dump
+
+# SQL files (but not drizzle migrations)
+/*.sql
+!drizzle/*.sql
