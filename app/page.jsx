@@ -86,6 +86,25 @@ export default function DailyTasksApp() {
   const [showDashboard, setShowDashboard] = useState(true);
   const [showCalendar, setShowCalendar] = useState(true);
   const [backlogOpen, setBacklogOpen] = useState(true);
+  // Initialize backlogWidth from localStorage if available, otherwise default to 500
+  const [backlogWidth, setBacklogWidth] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("juda-view-preferences");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.backlogWidth !== undefined) {
+            return parsed.backlogWidth;
+          }
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Error loading backlog width:", error);
+      }
+    }
+    return 500;
+  });
+  const [isResizing, setIsResizing] = useState(false);
   const [calendarView, setCalendarView] = useState("week");
   // Initialize selectedDate to null, then set it in useEffect to avoid hydration mismatch
   const [selectedDate, setSelectedDate] = useState(null);
@@ -99,6 +118,8 @@ export default function DailyTasksApp() {
   // Track active drag item for DragOverlay
   const [activeId, setActiveId] = useState(null);
   const [activeTask, setActiveTask] = useState(null);
+  // Track if preferences have been loaded to avoid saving before load completes
+  const preferencesLoadedRef = useRef(false);
 
   // Load view preferences from localStorage after mount (client-side only)
   useEffect(() => {
@@ -119,10 +140,14 @@ export default function DailyTasksApp() {
         if (parsed.showCalendar !== undefined) setShowCalendar(parsed.showCalendar);
         if (parsed.calendarView) setCalendarView(parsed.calendarView);
         if (parsed.backlogOpen !== undefined) setBacklogOpen(parsed.backlogOpen);
+        // backlogWidth is now initialized from localStorage in useState, but update if it exists
+        if (parsed.backlogWidth !== undefined) setBacklogWidth(parsed.backlogWidth);
       }
+      preferencesLoadedRef.current = true;
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Error loading view preferences:", error);
+      preferencesLoadedRef.current = true;
     }
   }, [selectedDate]);
 
@@ -137,6 +162,8 @@ export default function DailyTasksApp() {
   // Save view preferences to localStorage whenever they change
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // Don't save until preferences have been loaded to avoid overwriting with defaults
+    if (!preferencesLoadedRef.current) return;
 
     try {
       const preferences = {
@@ -144,14 +171,50 @@ export default function DailyTasksApp() {
         showCalendar,
         calendarView,
         backlogOpen,
+        backlogWidth,
       };
       localStorage.setItem("juda-view-preferences", JSON.stringify(preferences));
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Error saving view preferences:", error);
     }
-  }, [showDashboard, showCalendar, calendarView, backlogOpen]);
+  }, [showDashboard, showCalendar, calendarView, backlogOpen, backlogWidth]);
   const { isOpen: settingsOpen, onOpen: openSettings, onClose: closeSettings } = useDisclosure();
+
+  // Resize handlers for backlog drawer
+  const resizeStartRef = useRef(null);
+  const handleResizeStart = e => {
+    e.preventDefault();
+    setIsResizing(true);
+    resizeStartRef.current = {
+      startX: e.clientX,
+      startWidth: backlogWidth,
+    };
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = e => {
+      if (!resizeStartRef.current) return;
+      const deltaX = e.clientX - resizeStartRef.current.startX;
+      const newWidth = Math.max(300, Math.min(800, resizeStartRef.current.startWidth + deltaX));
+      setBacklogWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      resizeStartRef.current = null;
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing, backlogWidth]);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -920,9 +983,9 @@ export default function DailyTasksApp() {
           {/* Backlog Sidebar - only show on Tasks tab */}
           {mainTabIndex === 0 && (
             <Box
-              w={backlogOpen ? "500px" : "0"}
+              w={backlogOpen ? `${backlogWidth}px` : "0"}
               h="100%"
-              transition="width 0.3s"
+              transition={isResizing ? "none" : "width 0.3s"}
               overflow="hidden"
               borderRightWidth={backlogOpen ? "1px" : "0"}
               borderColor={borderColor}
@@ -930,18 +993,36 @@ export default function DailyTasksApp() {
               flexShrink={0}
               display="flex"
               flexDirection="column"
+              position="relative"
             >
               {backlogOpen && (
-                <BacklogDrawer
-                  onClose={() => setBacklogOpen(false)}
-                  backlogTasks={backlogTasks}
-                  sections={sections}
-                  onDeleteTask={handleDeleteTask}
-                  onEditTask={handleEditTask}
-                  onDuplicateTask={handleDuplicateTask}
-                  onAddTask={handleAddTaskToBacklog}
-                  createDraggableId={createDraggableId}
-                />
+                <>
+                  <BacklogDrawer
+                    onClose={() => setBacklogOpen(false)}
+                    backlogTasks={backlogTasks}
+                    sections={sections}
+                    onDeleteTask={handleDeleteTask}
+                    onEditTask={handleEditTask}
+                    onDuplicateTask={handleDuplicateTask}
+                    onAddTask={handleAddTaskToBacklog}
+                    createDraggableId={createDraggableId}
+                  />
+                  {/* Resize handle */}
+                  <Box
+                    position="absolute"
+                    right={0}
+                    top={0}
+                    bottom={0}
+                    w="4px"
+                    cursor="col-resize"
+                    bg={isResizing ? "blue.400" : "transparent"}
+                    _hover={{ bg: "blue.300" }}
+                    transition="background-color 0.2s"
+                    onMouseDown={handleResizeStart}
+                    zIndex={10}
+                    sx={{ userSelect: "none" }}
+                  />
+                </>
               )}
             </Box>
           )}
