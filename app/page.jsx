@@ -47,7 +47,14 @@ import { BacklogDrawer } from "@/components/BacklogDrawer";
 import { useTasks } from "@/hooks/useTasks";
 import { useSections } from "@/hooks/useSections";
 import { useCompletions } from "@/hooks/useCompletions";
-import { shouldShowOnDate, getGreeting, hasFutureDateTime, minutesToTime, snapToIncrement } from "@/lib/utils";
+import {
+  shouldShowOnDate,
+  getGreeting,
+  hasFutureDateTime,
+  minutesToTime,
+  snapToIncrement,
+  formatLocalDate,
+} from "@/lib/utils";
 import { parseDroppableId, createDroppableId, createDraggableId, extractTaskId } from "@/lib/dragHelpers";
 import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
@@ -257,6 +264,7 @@ export default function DailyTasksApp() {
   const handleAddTask = sectionId => {
     setDefaultSectionId(sectionId);
     setDefaultTime(null);
+    setDefaultDate(formatLocalDate(new Date()));
     setEditingTask(null);
     openTaskDialog();
   };
@@ -271,7 +279,7 @@ export default function DailyTasksApp() {
 
   const handleCreateTaskFromCalendar = (time, day) => {
     setDefaultTime(time);
-    setDefaultDate(day ? day.toISOString().split("T")[0] : null);
+    setDefaultDate(day ? formatLocalDate(day) : null);
     setDefaultSectionId(sections[0]?.id);
     setEditingTask(null);
     openTaskDialog();
@@ -343,8 +351,8 @@ export default function DailyTasksApp() {
       // DESTINATION: Today section - set date to today, clear time
       else if (destParsed.type === "today-section") {
         // Don't set sectionId here - let the reordering logic below handle it
-        // Extract date string to avoid timezone conversion
-        const todayDateStr = today.toISOString().split("T")[0];
+        // Use local date to match user's calendar view
+        const todayDateStr = formatLocalDate(today);
         updates = {
           time: null,
           recurrence: {
@@ -355,13 +363,13 @@ export default function DailyTasksApp() {
       }
       // DESTINATION: Calendar (timed area) - set date and time
       else if (destParsed.type === "calendar" && !destParsed.isUntimed) {
-        // Use dateStr from parsed droppable ID to avoid timezone conversion
+        // Use dateStr from parsed droppable ID, or format local date as fallback
         let dropDateStr;
         if (destParsed.dateStr) {
           dropDateStr = destParsed.dateStr.split("T")[0];
         } else {
           const fallbackDate = selectedDate || new Date();
-          dropDateStr = fallbackDate.toISOString().split("T")[0];
+          dropDateStr = formatLocalDate(fallbackDate);
         }
         updates = {
           time: calculatedTime,
@@ -373,13 +381,13 @@ export default function DailyTasksApp() {
       }
       // DESTINATION: Calendar (untimed area) - set date, clear time
       else if (destParsed.type === "calendar" && destParsed.isUntimed) {
-        // Use dateStr from parsed droppable ID to avoid timezone conversion
+        // Use dateStr from parsed droppable ID, or format local date as fallback
         let dropDateStr;
         if (destParsed.dateStr) {
           dropDateStr = destParsed.dateStr.split("T")[0];
         } else {
           const fallbackDate = selectedDate || new Date();
-          dropDateStr = fallbackDate.toISOString().split("T")[0];
+          dropDateStr = formatLocalDate(fallbackDate);
         }
         updates = {
           time: null,

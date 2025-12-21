@@ -24,6 +24,7 @@ import {
 } from "@chakra-ui/react";
 import { Plus, Trash2 } from "lucide-react";
 import { DAYS_OF_WEEK, DURATION_OPTIONS } from "@/lib/constants";
+import { formatLocalDate } from "@/lib/utils";
 
 export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSectionId, defaultTime, defaultDate }) => {
   const bgColor = useColorModeValue("white", "gray.800");
@@ -61,7 +62,7 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
       setTitle("");
       setSectionId(defaultSectionId || sections[0]?.id || "");
       setTime(defaultTime || "");
-      setDate(defaultDate || (defaultTime ? new Date().toISOString().split("T")[0] : ""));
+      setDate(defaultDate || (defaultTime ? formatLocalDate(new Date()) : ""));
       setDuration(30);
       setRecurrenceType("none");
       setSelectedDays([]);
