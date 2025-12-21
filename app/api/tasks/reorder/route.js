@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tasks } from "@/lib/schema";
-import { eq, asc } from "drizzle-orm";
+import { tasks, sections } from "@/lib/schema";
+import { eq, and, asc } from "drizzle-orm";
+import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authMiddleware";
 
 export async function PUT(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const body = await request.json();
     const { taskId, sourceSectionId, targetSectionId, newOrder } = body;
@@ -13,9 +17,21 @@ export async function PUT(request) {
       return NextResponse.json({ error: "Source and target section IDs are required" }, { status: 400 });
     }
 
-    // Get the task to move
+    // Verify sections belong to user
+    const sourceSection = await db.query.sections.findFirst({
+      where: and(eq(sections.id, sourceSectionId), eq(sections.userId, userId)),
+    });
+    const targetSection = await db.query.sections.findFirst({
+      where: and(eq(sections.id, targetSectionId), eq(sections.userId, userId)),
+    });
+
+    if (!sourceSection || !targetSection) {
+      return NextResponse.json({ error: "Section not found" }, { status: 404 });
+    }
+
+    // Get the task to move (verify it belongs to user)
     const task = await db.query.tasks.findFirst({
-      where: eq(tasks.id, taskId),
+      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
     });
 
     if (!task) {
@@ -25,7 +41,7 @@ export async function PUT(request) {
     // If moving within the same section, reorder tasks
     if (sourceSectionId === targetSectionId) {
       const sectionTasks = await db.query.tasks.findMany({
-        where: eq(tasks.sectionId, sourceSectionId),
+        where: and(eq(tasks.sectionId, sourceSectionId), eq(tasks.userId, userId)),
         orderBy: [asc(tasks.order)],
       });
 
@@ -37,17 +53,20 @@ export async function PUT(request) {
 
       // Update all task orders
       for (let i = 0; i < filteredTasks.length; i++) {
-        await db.update(tasks).set({ order: i, updatedAt: new Date() }).where(eq(tasks.id, filteredTasks[i].id));
+        await db
+          .update(tasks)
+          .set({ order: i, updatedAt: new Date() })
+          .where(and(eq(tasks.id, filteredTasks[i].id), eq(tasks.userId, userId)));
       }
     } else {
       // Moving between sections
       const sourceTasks = await db.query.tasks.findMany({
-        where: eq(tasks.sectionId, sourceSectionId),
+        where: and(eq(tasks.sectionId, sourceSectionId), eq(tasks.userId, userId)),
         orderBy: [asc(tasks.order)],
       });
 
       const targetTasks = await db.query.tasks.findMany({
-        where: eq(tasks.sectionId, targetSectionId),
+        where: and(eq(tasks.sectionId, targetSectionId), eq(tasks.userId, userId)),
         orderBy: [asc(tasks.order)],
       });
 
@@ -66,26 +85,32 @@ export async function PUT(request) {
           order: newOrder,
           updatedAt: new Date(),
         })
-        .where(eq(tasks.id, taskId));
+        .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
 
       // Reorder remaining source section tasks
       for (let i = 0; i < updatedSourceTasks.length; i++) {
         if (updatedSourceTasks[i].order !== i) {
-          await db.update(tasks).set({ order: i, updatedAt: new Date() }).where(eq(tasks.id, updatedSourceTasks[i].id));
+          await db
+            .update(tasks)
+            .set({ order: i, updatedAt: new Date() })
+            .where(and(eq(tasks.id, updatedSourceTasks[i].id), eq(tasks.userId, userId)));
         }
       }
 
       // Reorder target section tasks
       for (let i = 0; i < updatedTargetTasks.length; i++) {
         if (updatedTargetTasks[i].id !== taskId && updatedTargetTasks[i].order !== i) {
-          await db.update(tasks).set({ order: i, updatedAt: new Date() }).where(eq(tasks.id, updatedTargetTasks[i].id));
+          await db
+            .update(tasks)
+            .set({ order: i, updatedAt: new Date() })
+            .where(and(eq(tasks.id, updatedTargetTasks[i].id), eq(tasks.userId, userId)));
         }
       }
     }
 
     // Fetch the updated task
     const updatedTask = await db.query.tasks.findFirst({
-      where: eq(tasks.id, taskId),
+      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
     });
 
     return NextResponse.json(updatedTask);

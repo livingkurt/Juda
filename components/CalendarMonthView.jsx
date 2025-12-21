@@ -1,13 +1,22 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Box, Flex, SimpleGrid, HStack, useColorModeValue } from "@chakra-ui/react";
 import { shouldShowOnDate } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
 
-export const CalendarMonthView = ({ date, tasks, onDayClick, isCompletedOnDate, showCompleted = true, zoom = 1.0, tags = [], onCreateTag }) => {
+export const CalendarMonthView = ({
+  date,
+  tasks,
+  onDayClick,
+  isCompletedOnDate,
+  showCompleted = true,
+  zoom = 1.0,
+  tags = [],
+  onCreateTag,
+}) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState([]);
   const bgColor = useColorModeValue("white", "gray.800");
@@ -30,9 +39,7 @@ export const CalendarMonthView = ({ date, tasks, onDayClick, isCompletedOnDate, 
 
     // Filter by tags
     if (selectedTagIds.length > 0) {
-      result = result.filter(task =>
-        task.tags?.some(tag => selectedTagIds.includes(tag.id))
-      );
+      result = result.filter(task => task.tags?.some(tag => selectedTagIds.includes(tag.id)));
     }
 
     return result;

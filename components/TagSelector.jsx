@@ -24,7 +24,14 @@ import {
 } from "@chakra-ui/react";
 import { Tag as TagIcon, Plus, Trash2 } from "lucide-react";
 
-export const TagSelector = ({ tags = [], selectedTagIds = [], onTagsChange, onCreateTag, onDeleteTag, inline = false }) => {
+export const TagSelector = ({
+  tags = [],
+  selectedTagIds = [],
+  onTagsChange,
+  onCreateTag,
+  onDeleteTag,
+  inline = false,
+}) => {
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState("#6366f1");
   const { isOpen, onOpen, onClose } = useDisclosure();

@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, sections } from "@/lib/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
+import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authMiddleware";
 
-export async function GET() {
+export async function GET(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const allTasks = await db.query.tasks.findMany({
+      where: eq(tasks.userId, userId),
       with: {
         section: true,
         taskTags: {
@@ -31,13 +36,26 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const body = await request.json();
     const { title, sectionId, parentId, time, duration, color, recurrence, order } = body;
 
+    // Verify the section belongs to this user
+    const section = await db.query.sections.findFirst({
+      where: and(eq(sections.id, sectionId), eq(sections.userId, userId)),
+    });
+
+    if (!section) {
+      return NextResponse.json({ error: "Section not found" }, { status: 404 });
+    }
+
     const [task] = await db
       .insert(tasks)
       .values({
+        userId,
         title,
         sectionId,
         parentId: parentId || null,
@@ -57,6 +75,9 @@ export async function POST(request) {
 }
 
 export async function PUT(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const body = await request.json();
     const { id, title, sectionId, parentId, time, duration, color, recurrence, expanded, order } = body;
@@ -66,9 +87,9 @@ export async function PUT(request) {
       return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
     }
 
-    // Verify task exists
+    // Verify task exists and belongs to user
     const existingTask = await db.query.tasks.findFirst({
-      where: eq(tasks.id, id),
+      where: and(eq(tasks.id, id), eq(tasks.userId, userId)),
     });
 
     if (!existingTask) {
@@ -81,9 +102,9 @@ export async function PUT(request) {
     if (sectionId !== undefined && sectionId !== null) {
       // Only validate and update sectionId if it's different from current value
       if (sectionId !== existingTask.sectionId) {
-        // Validate section exists if sectionId is being updated
+        // Validate section exists and belongs to user if sectionId is being updated
         const section = await db.query.sections.findFirst({
-          where: eq(sections.id, sectionId),
+          where: and(eq(sections.id, sectionId), eq(sections.userId, userId)),
         });
         if (!section) {
           return NextResponse.json({ error: "Invalid section ID" }, { status: 400 });
@@ -107,11 +128,15 @@ export async function PUT(request) {
     // Add updatedAt timestamp
     updateData.updatedAt = new Date();
 
-    await db.update(tasks).set(updateData).where(eq(tasks.id, id)).returning();
+    await db
+      .update(tasks)
+      .set(updateData)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+      .returning();
 
     // Fetch with section and tags relations
     const taskWithRelations = await db.query.tasks.findFirst({
-      where: eq(tasks.id, id),
+      where: and(eq(tasks.id, id), eq(tasks.userId, userId)),
       with: {
         section: true,
         taskTags: {
@@ -138,6 +163,9 @@ export async function PUT(request) {
 }
 
 export async function DELETE(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -146,7 +174,8 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
     }
 
-    await db.delete(tasks).where(eq(tasks.id, id));
+    // Verify and delete (only if belongs to user)
+    await db.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
 
     return NextResponse.json({ success: true });
   } catch (error) {

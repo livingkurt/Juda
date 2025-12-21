@@ -87,16 +87,72 @@ async function dumpProduction() {
   console.log("📦 Dumping production database...\n");
 
   try {
-    // Fetch all data from production (automatically gets all fields)
-    const allSections = await productionDb.select().from(sections).orderBy(asc(sections.order));
-    const allTasks = await productionDb.select().from(tasks).orderBy(asc(tasks.sectionId), asc(tasks.order));
-    const allCompletions = await productionDb.select().from(taskCompletions).orderBy(asc(taskCompletions.date));
+    // Use raw SQL to query only columns that exist (production may not have userId yet)
+    // Check if userId column exists in Section table
+    const sectionColumnsResult = await productionClient`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'Section' AND column_name = 'userId'
+    `;
+    const hasSectionUserId = sectionColumnsResult.length > 0;
+
+    const taskColumnsResult = await productionClient`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'Task' AND column_name = 'userId'
+    `;
+    const hasTaskUserId = taskColumnsResult.length > 0;
+
+    const tagColumnsResult = await productionClient`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'Tag' AND column_name = 'userId'
+    `;
+    const hasTagUserId = tagColumnsResult.length > 0;
+
+    // Build SELECT queries based on what columns exist
+    const sectionFields = hasSectionUserId
+      ? '"id", "userId", "name", "icon", "order", "expanded", "createdAt", "updatedAt"'
+      : '"id", "name", "icon", "order", "expanded", "createdAt", "updatedAt"';
+
+    const taskFields = hasTaskUserId
+      ? '"id", "userId", "title", "sectionId", "parentId", "time", "duration", "color", "expanded", "order", "recurrence", "createdAt", "updatedAt"'
+      : '"id", "title", "sectionId", "parentId", "time", "duration", "color", "expanded", "order", "recurrence", "createdAt", "updatedAt"';
+
+    // Fetch all data from production using raw SQL
+    const allSections = await productionClient.unsafe(`SELECT ${sectionFields} FROM "Section" ORDER BY "order" ASC`);
+    const allTasks = await productionClient.unsafe(
+      `SELECT ${taskFields} FROM "Task" ORDER BY "sectionId" ASC, "order" ASC`
+    );
+    const allCompletions = await productionClient.unsafe(
+      `SELECT "id", "taskId", "date", "createdAt" FROM "TaskCompletion" ORDER BY "date" DESC`
+    );
+
+    // Also dump tags and taskTags if they exist
+    let allTags = [];
+    let allTaskTags = [];
+
+    try {
+      const tagFields = hasTagUserId
+        ? '"id", "userId", "name", "color", "createdAt", "updatedAt"'
+        : '"id", "name", "color", "createdAt", "updatedAt"';
+
+      allTags = await productionClient.unsafe(`SELECT ${tagFields} FROM "Tag" ORDER BY "name" ASC`);
+
+      allTaskTags = await productionClient.unsafe(`SELECT "id", "taskId", "tagId", "createdAt" FROM "TaskTag"`);
+    } catch (error) {
+      // Tags table might not exist yet, that's okay
+      // eslint-disable-next-line no-console
+      console.log("   ⚠️  Tags table not found (skipping)");
+    }
 
     const dump = {
       timestamp: new Date().toISOString(),
       sections: allSections,
       tasks: allTasks,
       taskCompletions: allCompletions,
+      tags: allTags,
+      taskTags: allTaskTags,
     };
 
     // Save to file
@@ -117,7 +173,11 @@ async function dumpProduction() {
     // eslint-disable-next-line no-console
     console.log(`   Tasks: ${allTasks.length}`);
     // eslint-disable-next-line no-console
-    console.log(`   Task Completions: ${allCompletions.length}\n`);
+    console.log(`   Task Completions: ${allCompletions.length}`);
+    // eslint-disable-next-line no-console
+    console.log(`   Tags: ${allTags.length}`);
+    // eslint-disable-next-line no-console
+    console.log(`   Task Tags: ${allTaskTags.length}\n`);
 
     return dump;
   } catch (error) {
@@ -154,7 +214,9 @@ async function restoreToLocal(dump) {
   try {
     // Clear local database (in reverse order due to foreign keys)
     await localDb.delete(taskCompletions);
+    await localDb.delete(taskTags);
     await localDb.delete(tasks);
+    await localDb.delete(tags);
     await localDb.delete(sections);
 
     // eslint-disable-next-line no-console
@@ -163,7 +225,12 @@ async function restoreToLocal(dump) {
     // Restore sections first (tasks depend on them)
     if (dump.sections && dump.sections.length > 0) {
       const sectionsToInsert = dump.sections.map(convertDates);
-      await localDb.insert(sections).values(sectionsToInsert);
+      // Add userId if it doesn't exist in dump (for backward compatibility)
+      const sectionsWithUserId = sectionsToInsert.map(s => ({
+        ...s,
+        userId: s.userId || null, // Will be set by migration 0008
+      }));
+      await localDb.insert(sections).values(sectionsWithUserId);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.sections.length} sections`);
     }
@@ -171,7 +238,12 @@ async function restoreToLocal(dump) {
     // Restore tasks (Drizzle will automatically handle field validation)
     if (dump.tasks && dump.tasks.length > 0) {
       const tasksToInsert = dump.tasks.map(convertDates);
-      await localDb.insert(tasks).values(tasksToInsert);
+      // Add userId if it doesn't exist in dump (for backward compatibility)
+      const tasksWithUserId = tasksToInsert.map(t => ({
+        ...t,
+        userId: t.userId || null, // Will be set by migration 0008
+      }));
+      await localDb.insert(tasks).values(tasksWithUserId);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.tasks.length} tasks`);
     }
@@ -182,6 +254,27 @@ async function restoreToLocal(dump) {
       await localDb.insert(taskCompletions).values(completionsToInsert);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.taskCompletions.length} task completions`);
+    }
+
+    // Restore tags (if present in dump)
+    if (dump.tags && dump.tags.length > 0) {
+      const tagsToInsert = dump.tags.map(convertDates);
+      // Add userId if it doesn't exist in dump (for backward compatibility)
+      const tagsWithUserId = tagsToInsert.map(t => ({
+        ...t,
+        userId: t.userId || null, // Will be set by migration 0008
+      }));
+      await localDb.insert(tags).values(tagsWithUserId);
+      // eslint-disable-next-line no-console
+      console.log(`   ✓ Restored ${dump.tags.length} tags`);
+    }
+
+    // Restore task tags (if present in dump)
+    if (dump.taskTags && dump.taskTags.length > 0) {
+      const taskTagsToInsert = dump.taskTags.map(convertDates);
+      await localDb.insert(taskTags).values(taskTagsToInsert);
+      // eslint-disable-next-line no-console
+      console.log(`   ✓ Restored ${dump.taskTags.length} task tags`);
     }
 
     // eslint-disable-next-line no-console

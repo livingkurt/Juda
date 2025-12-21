@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tags } from "@/lib/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
+import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authMiddleware";
 
 // GET all tags
-export async function GET() {
+export async function GET(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const allTags = await db.query.tags.findMany({
+      where: eq(tags.userId, userId),
       orderBy: [asc(tags.name)],
     });
     return NextResponse.json(allTags);
@@ -18,6 +23,9 @@ export async function GET() {
 
 // POST create new tag
 export async function POST(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const body = await request.json();
     const { name, color } = body;
@@ -29,6 +37,7 @@ export async function POST(request) {
     const [tag] = await db
       .insert(tags)
       .values({
+        userId,
         name: name.trim(),
         color: color || "#6366f1",
       })
@@ -43,6 +52,9 @@ export async function POST(request) {
 
 // PUT update tag
 export async function PUT(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const body = await request.json();
     const { id, name, color } = body;
@@ -51,11 +63,24 @@ export async function PUT(request) {
       return NextResponse.json({ error: "Tag ID is required" }, { status: 400 });
     }
 
+    // Verify tag belongs to user
+    const existingTag = await db.query.tags.findFirst({
+      where: and(eq(tags.id, id), eq(tags.userId, userId)),
+    });
+
+    if (!existingTag) {
+      return NextResponse.json({ error: "Tag not found" }, { status: 404 });
+    }
+
     const updateData = {};
     if (name !== undefined) updateData.name = name.trim();
     if (color !== undefined) updateData.color = color;
 
-    const [updatedTag] = await db.update(tags).set(updateData).where(eq(tags.id, id)).returning();
+    const [updatedTag] = await db
+      .update(tags)
+      .set(updateData)
+      .where(and(eq(tags.id, id), eq(tags.userId, userId)))
+      .returning();
 
     if (!updatedTag) {
       return NextResponse.json({ error: "Tag not found" }, { status: 404 });
@@ -70,6 +95,9 @@ export async function PUT(request) {
 
 // DELETE tag
 export async function DELETE(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -78,7 +106,8 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "Tag ID is required" }, { status: 400 });
     }
 
-    await db.delete(tags).where(eq(tags.id, id));
+    // Verify and delete (only if belongs to user)
+    await db.delete(tags).where(and(eq(tags.id, id), eq(tags.userId, userId)));
 
     return NextResponse.json({ success: true });
   } catch (error) {

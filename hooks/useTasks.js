@@ -1,14 +1,26 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
+import { useAuthFetch } from "./useAuthFetch.js";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const useTasks = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const authFetch = useAuthFetch();
+  const { isAuthenticated } = useAuth();
 
   const fetchTasks = useCallback(async () => {
+    if (!isAuthenticated) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await fetch("/api/tasks");
+      const response = await authFetch("/api/tasks");
       if (!response.ok) throw new Error("Failed to fetch tasks");
       const data = await response.json();
 
@@ -35,7 +47,7 @@ export const useTasks = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authFetch, isAuthenticated]);
 
   useEffect(() => {
     fetchTasks();
@@ -43,9 +55,8 @@ export const useTasks = () => {
 
   const createTask = async taskData => {
     try {
-      const response = await fetch("/api/tasks", {
+      const response = await authFetch("/api/tasks", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(taskData),
       });
       if (!response.ok) throw new Error("Failed to create task");
@@ -67,18 +78,16 @@ export const useTasks = () => {
 
         if (taskData.id) {
           // Update existing task
-          const response = await fetch("/api/tasks", {
+          const response = await authFetch("/api/tasks", {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(taskFields),
           });
           if (!response.ok) throw new Error("Failed to update task");
           savedTask = await response.json();
         } else {
           // Create new task
-          const response = await fetch("/api/tasks", {
+          const response = await authFetch("/api/tasks", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(taskFields),
           });
           if (!response.ok) throw new Error("Failed to create task");
@@ -96,16 +105,15 @@ export const useTasks = () => {
 
           // Add new tags
           for (const tagId of tagsToAdd) {
-            await fetch("/api/task-tags", {
+            await authFetch("/api/task-tags", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ taskId: savedTask.id, tagId }),
             });
           }
 
           // Remove old tags
           for (const tagId of tagsToRemove) {
-            await fetch(`/api/task-tags?taskId=${savedTask.id}&tagId=${tagId}`, {
+            await authFetch(`/api/task-tags?taskId=${savedTask.id}&tagId=${tagId}`, {
               method: "DELETE",
             });
           }
@@ -119,7 +127,7 @@ export const useTasks = () => {
         throw err;
       }
     },
-    [fetchTasks]
+    [fetchTasks, authFetch]
   );
 
   const updateTask = async (id, taskData) => {
@@ -143,9 +151,8 @@ export const useTasks = () => {
     setTasks(prev => updateTaskInTree(prev, id, taskData));
 
     try {
-      const response = await fetch("/api/tasks", {
+      const response = await authFetch("/api/tasks", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, ...taskData }),
       });
       if (!response.ok) {
@@ -191,7 +198,7 @@ export const useTasks = () => {
     });
 
     try {
-      const response = await fetch(`/api/tasks?id=${id}`, {
+      const response = await authFetch(`/api/tasks?id=${id}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete task");
@@ -213,9 +220,8 @@ export const useTasks = () => {
     });
 
     try {
-      const response = await fetch("/api/tasks/reorder", {
+      const response = await authFetch("/api/tasks/reorder", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           taskId,
           sourceSectionId,
@@ -270,9 +276,8 @@ export const useTasks = () => {
         order: taskToDuplicate.order,
       };
 
-      const response = await fetch("/api/tasks", {
+      const response = await authFetch("/api/tasks", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(duplicatedTaskData),
       });
       if (!response.ok) throw new Error("Failed to duplicate task");
@@ -340,9 +345,8 @@ export const useTasks = () => {
 
     try {
       // Update source task to set parentId
-      const updateResponse = await fetch("/api/tasks", {
+      const updateResponse = await authFetch("/api/tasks", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: sourceTaskId,
           parentId: targetTaskId,
@@ -355,9 +359,8 @@ export const useTasks = () => {
       }
 
       // Expand target task to show new subtask
-      await fetch("/api/tasks", {
+      await authFetch("/api/tasks", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: targetTaskId,
           expanded: true,
@@ -379,9 +382,8 @@ export const useTasks = () => {
 
     try {
       // Clear parentId to promote to root task, and apply any additional updates
-      const updateResponse = await fetch("/api/tasks", {
+      const updateResponse = await authFetch("/api/tasks", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: taskId,
           parentId: null,

@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sections } from "@/lib/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
+import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authMiddleware";
 
-export async function GET() {
+export async function GET(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const allSections = await db.query.sections.findMany({
+      where: eq(sections.userId, userId),
       orderBy: [asc(sections.order), asc(sections.createdAt)],
     });
     return NextResponse.json(allSections);
@@ -16,6 +21,9 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const body = await request.json();
     const { name, icon, order, expanded } = body;
@@ -23,6 +31,7 @@ export async function POST(request) {
     const [section] = await db
       .insert(sections)
       .values({
+        userId,
         name,
         icon,
         order: order ?? 0,
@@ -38,9 +47,21 @@ export async function POST(request) {
 }
 
 export async function PUT(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const body = await request.json();
     const { id, name, icon, order, expanded } = body;
+
+    // Verify section belongs to user
+    const existingSection = await db.query.sections.findFirst({
+      where: and(eq(sections.id, id), eq(sections.userId, userId)),
+    });
+
+    if (!existingSection) {
+      return NextResponse.json({ error: "Section not found" }, { status: 404 });
+    }
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -51,7 +72,11 @@ export async function PUT(request) {
     // Add updatedAt timestamp
     updateData.updatedAt = new Date();
 
-    const [section] = await db.update(sections).set(updateData).where(eq(sections.id, id)).returning();
+    const [section] = await db
+      .update(sections)
+      .set(updateData)
+      .where(and(eq(sections.id, id), eq(sections.userId, userId)))
+      .returning();
 
     return NextResponse.json(section);
   } catch (error) {
@@ -61,6 +86,9 @@ export async function PUT(request) {
 }
 
 export async function DELETE(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -69,7 +97,8 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "Section ID is required" }, { status: 400 });
     }
 
-    await db.delete(sections).where(eq(sections.id, id));
+    // Verify and delete (only if belongs to user)
+    await db.delete(sections).where(and(eq(sections.id, id), eq(sections.userId, userId)));
 
     return NextResponse.json({ success: true });
   } catch (error) {

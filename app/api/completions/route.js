@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { taskCompletions } from "@/lib/schema";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { taskCompletions, tasks } from "@/lib/schema";
+import { eq, and, gte, lte, desc, inArray } from "drizzle-orm";
+import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authMiddleware";
 
 // GET - Fetch completions with optional filters
 export async function GET(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const url = new URL(request.url);
     const { searchParams } = url;
@@ -12,13 +16,30 @@ export async function GET(request) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
+    // Get user's task IDs
+    const userTasks = await db.query.tasks.findMany({
+      where: eq(tasks.userId, userId),
+      columns: { id: true },
+    });
+    const userTaskIds = userTasks.map(t => t.id);
+
+    if (userTaskIds.length === 0) {
+      return NextResponse.json([]);
+    }
+
     const conditions = [];
-    if (taskId) conditions.push(eq(taskCompletions.taskId, taskId));
+    if (taskId && userTaskIds.includes(taskId)) {
+      // If specific taskId is provided and belongs to user, filter by it
+      conditions.push(eq(taskCompletions.taskId, taskId));
+    } else {
+      // Otherwise, filter by all user's task IDs
+      conditions.push(inArray(taskCompletions.taskId, userTaskIds));
+    }
     if (startDate) conditions.push(gte(taskCompletions.date, new Date(startDate)));
     if (endDate) conditions.push(lte(taskCompletions.date, new Date(endDate)));
 
     const completions = await db.query.taskCompletions.findMany({
-      where: conditions.length > 0 ? and(...conditions) : undefined,
+      where: and(...conditions),
       orderBy: [desc(taskCompletions.date)],
     });
 
@@ -31,12 +52,24 @@ export async function GET(request) {
 
 // POST - Create a completion record
 export async function POST(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const body = await request.json();
     const { taskId, date } = body;
 
     if (!taskId) {
       return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
+    }
+
+    // Verify task belongs to user
+    const task = await db.query.tasks.findFirst({
+      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+    });
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
     // Normalize date to start of day for consistent storage - use UTC to avoid timezone issues
@@ -71,6 +104,9 @@ export async function POST(request) {
 
 // DELETE - Remove a completion record
 export async function DELETE(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const { searchParams } = new URL(request.url);
     const taskId = searchParams.get("taskId");
@@ -78,6 +114,15 @@ export async function DELETE(request) {
 
     if (!taskId || !date) {
       return NextResponse.json({ error: "Task ID and date are required" }, { status: 400 });
+    }
+
+    // Verify task belongs to user
+    const task = await db.query.tasks.findFirst({
+      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+    });
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
     // Normalize date to start of day - use UTC to avoid timezone issues

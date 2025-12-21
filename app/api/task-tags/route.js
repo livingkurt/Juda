@@ -1,16 +1,29 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { taskTags } from "@/lib/schema";
+import { taskTags, tasks, tags } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
+import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authMiddleware";
 
 // GET tags for a specific task
 export async function GET(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const { searchParams } = new URL(request.url);
     const taskId = searchParams.get("taskId");
 
     if (!taskId) {
       return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
+    }
+
+    // Verify task belongs to user
+    const task = await db.query.tasks.findFirst({
+      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+    });
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
     const result = await db.query.taskTags.findMany({
@@ -30,12 +43,27 @@ export async function GET(request) {
 
 // POST assign tag to task
 export async function POST(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const body = await request.json();
     const { taskId, tagId } = body;
 
     if (!taskId || !tagId) {
       return NextResponse.json({ error: "Task ID and Tag ID are required" }, { status: 400 });
+    }
+
+    // Verify task and tag belong to user
+    const task = await db.query.tasks.findFirst({
+      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+    });
+    const tag = await db.query.tags.findFirst({
+      where: and(eq(tags.id, tagId), eq(tags.userId, userId)),
+    });
+
+    if (!task || !tag) {
+      return NextResponse.json({ error: "Task or tag not found" }, { status: 404 });
     }
 
     // Check if assignment already exists
@@ -58,6 +86,9 @@ export async function POST(request) {
 
 // DELETE remove tag from task
 export async function DELETE(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
   try {
     const { searchParams } = new URL(request.url);
     const taskId = searchParams.get("taskId");
@@ -65,6 +96,18 @@ export async function DELETE(request) {
 
     if (!taskId || !tagId) {
       return NextResponse.json({ error: "Task ID and Tag ID are required" }, { status: 400 });
+    }
+
+    // Verify task and tag belong to user
+    const task = await db.query.tasks.findFirst({
+      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+    });
+    const tag = await db.query.tags.findFirst({
+      where: and(eq(tags.id, tagId), eq(tags.userId, userId)),
+    });
+
+    if (!task || !tag) {
+      return NextResponse.json({ error: "Task or tag not found" }, { status: 404 });
     }
 
     await db.delete(taskTags).where(and(eq(taskTags.taskId, taskId), eq(taskTags.tagId, tagId)));

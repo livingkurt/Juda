@@ -1,35 +1,50 @@
+"use client";
+
 import { useState, useCallback } from "react";
+import { useAuthFetch } from "./useAuthFetch.js";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const useCompletions = () => {
   const [completions, setCompletions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const authFetch = useAuthFetch();
+  const { isAuthenticated } = useAuth();
 
-  const fetchCompletions = useCallback(async (filters = {}) => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (filters.taskId) params.append("taskId", filters.taskId);
-      if (filters.startDate) params.append("startDate", filters.startDate);
-      if (filters.endDate) params.append("endDate", filters.endDate);
-
-      const response = await fetch(`/api/completions?${params}`);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to fetch completions (${response.status})`);
+  const fetchCompletions = useCallback(
+    async (filters = {}) => {
+      if (!isAuthenticated) {
+        setCompletions([]);
+        setLoading(false);
+        return;
       }
-      const data = await response.json();
-      setCompletions(data);
-      setError(null);
-      return data;
-    } catch (err) {
-      setError(err.message);
-      console.error("Error fetching completions:", err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+
+      try {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (filters.taskId) params.append("taskId", filters.taskId);
+        if (filters.startDate) params.append("startDate", filters.startDate);
+        if (filters.endDate) params.append("endDate", filters.endDate);
+
+        const response = await authFetch(`/api/completions?${params}`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Failed to fetch completions (${response.status})`);
+        }
+        const data = await response.json();
+        setCompletions(data);
+        setError(null);
+        return data;
+      } catch (err) {
+        setError(err.message);
+        console.error("Error fetching completions:", err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [authFetch, isAuthenticated]
+  );
 
   const createCompletion = async (taskId, date) => {
     // Normalize date for consistent comparison - use UTC to avoid timezone issues
@@ -50,9 +65,8 @@ export const useCompletions = () => {
     setCompletions(prev => [...prev, optimisticCompletion]);
 
     try {
-      const response = await fetch("/api/completions", {
+      const response = await authFetch("/api/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ taskId, date: utcDate.toISOString() }),
       });
       if (!response.ok) throw new Error("Failed to create completion");
@@ -89,7 +103,7 @@ export const useCompletions = () => {
 
     try {
       const params = new URLSearchParams({ taskId, date: utcDate.toISOString() });
-      const response = await fetch(`/api/completions?${params}`, {
+      const response = await authFetch(`/api/completions?${params}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete completion");

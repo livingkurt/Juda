@@ -12,7 +12,7 @@
 
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { sections, tasks, taskCompletions } from "../lib/schema.js";
+import { sections, tasks, taskCompletions, tags, taskTags } from "../lib/schema.js";
 import { count } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
@@ -147,7 +147,9 @@ async function restoreToDev(dump) {
 
     // Clear dev database (in reverse order due to foreign keys)
     await devDb.delete(taskCompletions);
+    await devDb.delete(taskTags);
     await devDb.delete(tasks);
+    await devDb.delete(tags);
     await devDb.delete(sections);
 
     // eslint-disable-next-line no-console
@@ -156,7 +158,12 @@ async function restoreToDev(dump) {
     // Restore sections first (tasks depend on them)
     if (dump.sections && dump.sections.length > 0) {
       const sectionsToInsert = dump.sections.map(convertDates);
-      await devDb.insert(sections).values(sectionsToInsert);
+      // Add userId if it doesn't exist in dump (for backward compatibility)
+      const sectionsWithUserId = sectionsToInsert.map(s => ({
+        ...s,
+        userId: s.userId || null, // Will be set by migration 0008
+      }));
+      await devDb.insert(sections).values(sectionsWithUserId);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.sections.length} sections`);
     }
@@ -164,7 +171,12 @@ async function restoreToDev(dump) {
     // Restore tasks (Drizzle will automatically handle field validation)
     if (dump.tasks && dump.tasks.length > 0) {
       const tasksToInsert = dump.tasks.map(convertDates);
-      await devDb.insert(tasks).values(tasksToInsert);
+      // Add userId if it doesn't exist in dump (for backward compatibility)
+      const tasksWithUserId = tasksToInsert.map(t => ({
+        ...t,
+        userId: t.userId || null, // Will be set by migration 0008
+      }));
+      await devDb.insert(tasks).values(tasksWithUserId);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.tasks.length} tasks`);
     }
@@ -175,6 +187,27 @@ async function restoreToDev(dump) {
       await devDb.insert(taskCompletions).values(completionsToInsert);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.taskCompletions.length} task completions`);
+    }
+
+    // Restore tags (if present in dump)
+    if (dump.tags && dump.tags.length > 0) {
+      const tagsToInsert = dump.tags.map(convertDates);
+      // Add userId if it doesn't exist in dump (for backward compatibility)
+      const tagsWithUserId = tagsToInsert.map(t => ({
+        ...t,
+        userId: t.userId || null, // Will be set by migration 0008
+      }));
+      await devDb.insert(tags).values(tagsWithUserId);
+      // eslint-disable-next-line no-console
+      console.log(`   ✓ Restored ${dump.tags.length} tags`);
+    }
+
+    // Restore task tags (if present in dump)
+    if (dump.taskTags && dump.taskTags.length > 0) {
+      const taskTagsToInsert = dump.taskTags.map(convertDates);
+      await devDb.insert(taskTags).values(taskTagsToInsert);
+      // eslint-disable-next-line no-console
+      console.log(`   ✓ Restored ${dump.taskTags.length} task tags`);
     }
 
     // Verify the restore by counting records

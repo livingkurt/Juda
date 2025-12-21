@@ -1,14 +1,26 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
+import { useAuthFetch } from "./useAuthFetch.js";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const useSections = () => {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const authFetch = useAuthFetch();
+  const { isAuthenticated } = useAuth();
 
   const fetchSections = useCallback(async () => {
+    if (!isAuthenticated) {
+      setSections([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await fetch("/api/sections");
+      const response = await authFetch("/api/sections");
       if (!response.ok) throw new Error("Failed to fetch sections");
       const data = await response.json();
       setSections(data);
@@ -19,7 +31,7 @@ export const useSections = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authFetch, isAuthenticated]);
 
   useEffect(() => {
     fetchSections();
@@ -27,9 +39,8 @@ export const useSections = () => {
 
   const createSection = async sectionData => {
     try {
-      const response = await fetch("/api/sections", {
+      const response = await authFetch("/api/sections", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(sectionData),
       });
       if (!response.ok) throw new Error("Failed to create section");
@@ -49,9 +60,8 @@ export const useSections = () => {
     setSections(prev => prev.map(s => (s.id === id ? { ...s, ...sectionData } : s)));
 
     try {
-      const response = await fetch("/api/sections", {
+      const response = await authFetch("/api/sections", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, ...sectionData }),
       });
       if (!response.ok) throw new Error("Failed to update section");
@@ -72,7 +82,7 @@ export const useSections = () => {
     setSections(prev => prev.filter(s => s.id !== id));
 
     try {
-      const response = await fetch(`/api/sections?id=${id}`, {
+      const response = await authFetch(`/api/sections?id=${id}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete section");
@@ -90,9 +100,8 @@ export const useSections = () => {
     setSections(newSections.map((s, index) => ({ ...s, order: index })));
 
     try {
-      const response = await fetch("/api/sections/reorder", {
+      const response = await authFetch("/api/sections/reorder", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sections: newSections }),
       });
       if (!response.ok) throw new Error("Failed to reorder sections");

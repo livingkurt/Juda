@@ -36,6 +36,34 @@
       "when": 1766354644552,
       "tag": "0004_add_tags_feature",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1766357121885,
+      "tag": "0005_add_user_authentication",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1766357544978,
+      "tag": "0006_link_existing_data_to_user",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1766357652579,
+      "tag": "0007_reassign_all_data_to_latest_user",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1766357753514,
+      "tag": "0008_create_user_and_assign_data",
+      "breakpoints": true
     }
   ]
 }

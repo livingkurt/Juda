@@ -79,9 +79,7 @@ export const CalendarWeekView = ({
 
     // Filter by tags
     if (selectedTagIds.length > 0) {
-      result = result.filter(task =>
-        task.tags?.some(tag => selectedTagIds.includes(tag.id))
-      );
+      result = result.filter(task => task.tags?.some(tag => selectedTagIds.includes(tag.id)));
     }
 
     return result;

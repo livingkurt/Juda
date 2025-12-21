@@ -60,12 +60,8 @@ export const CalendarDayView = ({
 
     // Filter by tags
     if (selectedTagIds.length > 0) {
-      dayTasks = dayTasks.filter(task =>
-        task.tags?.some(tag => selectedTagIds.includes(tag.id))
-      );
-      untimedTasks = untimedTasks.filter(task =>
-        task.tags?.some(tag => selectedTagIds.includes(tag.id))
-      );
+      dayTasks = dayTasks.filter(task => task.tags?.some(tag => selectedTagIds.includes(tag.id)));
+      untimedTasks = untimedTasks.filter(task => task.tags?.some(tag => selectedTagIds.includes(tag.id)));
     }
 
     return { dayTasks, untimedTasks };

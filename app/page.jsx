@@ -28,7 +28,10 @@ import {
   Tabs,
   TabList,
   Tab,
+  Spinner,
 } from "@chakra-ui/react";
+import { useAuth } from "@/contexts/AuthContext";
+import { AuthPage } from "@/components/AuthPage";
 import {
   DndContext,
   DragOverlay,
@@ -86,6 +89,7 @@ import { TagFilter } from "@/components/TagFilter";
 export { createDroppableId, createDraggableId, extractTaskId };
 
 export default function DailyTasksApp() {
+  const { isAuthenticated, loading: authLoading, logout } = useAuth();
   const { colorMode, toggleColorMode } = useColorMode();
   const toast = useToast();
   const bgColor = useColorModeValue("gray.50", "gray.900");
@@ -386,6 +390,10 @@ export default function DailyTasksApp() {
 
   // Resize handlers for backlog drawer
   const resizeStartRef = useRef(null);
+
+  // Track which calendar droppable we're over for time calculation
+  const currentCalendarDroppableRef = useRef(null);
+  const mouseMoveListenerRef = useRef(null);
   const handleResizeStart = e => {
     e.preventDefault();
     setIsResizing(true);
@@ -1056,10 +1064,6 @@ export default function DailyTasksApp() {
     dropTimeRef.current = null;
   };
 
-  // Track which calendar droppable we're over for time calculation
-  const currentCalendarDroppableRef = useRef(null);
-  const mouseMoveListenerRef = useRef(null);
-
   // Handle drag over (for real-time updates like time calculation)
   const handleDragOver = event => {
     const { over } = event;
@@ -1503,6 +1507,20 @@ export default function DailyTasksApp() {
     await handleDragEnd(result);
   };
 
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <Flex h="100vh" align="center" justify="center">
+        <Spinner size="xl" />
+      </Flex>
+    );
+  }
+
+  // Show auth page if not authenticated
+  if (!isAuthenticated) {
+    return <AuthPage />;
+  }
+
   // Show skeleton on initial load
   if (isLoading && tasks.length === 0 && sections.length === 0) {
     return <PageSkeleton showBacklog={backlogOpen} showDashboard={showDashboard} showCalendar={showCalendar} />;
@@ -1545,6 +1563,17 @@ export default function DailyTasksApp() {
                       </Text>
                     </Box>
                     <Switch isChecked={colorMode === "dark"} onChange={toggleColorMode} />
+                  </Flex>
+                  <Flex align="center" justify="space-between" py={4} borderTopWidth="1px" borderColor={borderColor}>
+                    <Box>
+                      <FormLabel>Account</FormLabel>
+                      <Text fontSize="sm" color={mutedText}>
+                        Sign out of your account
+                      </Text>
+                    </Box>
+                    <Button onClick={logout} colorScheme="red" size="sm">
+                      Logout
+                    </Button>
                   </Flex>
                 </ModalBody>
               </ModalContent>
