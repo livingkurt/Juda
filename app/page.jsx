@@ -920,7 +920,7 @@ export default function DailyTasksApp() {
           {/* Backlog Sidebar - only show on Tasks tab */}
           {mainTabIndex === 0 && (
             <Box
-              w={backlogOpen ? "320px" : "0"}
+              w={backlogOpen ? "500px" : "0"}
               h="100%"
               transition="width 0.3s"
               overflow="hidden"

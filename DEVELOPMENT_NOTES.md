@@ -273,6 +273,7 @@ The `useSortable()` hook from `@dnd-kit/sortable` provides `transform` and `tran
 ### Key Code Changes
 
 **Before:**
+
 ```javascript
 const { attributes, listeners, setNodeRef, isDragging } = useSortable({
   id: draggableId,
@@ -285,6 +286,7 @@ const style = {
 ```
 
 **After:**
+
 ```javascript
 import { CSS } from "@dnd-kit/utilities";
 
@@ -311,12 +313,14 @@ const style = {
 ### User Experience Improvements
 
 **Before:**
+
 - ❌ Items jumped instantly to new positions
 - ❌ Had to precisely aim for small gaps between items
 - ❌ No visual indication of where item would land
 - ❌ Felt clunky and unpolished
 
 **After:**
+
 - ✅ Items smoothly slide out of the way as you drag
 - ✅ Can drop anywhere in the section/backlog area
 - ✅ Clear visual feedback with borders and backgrounds
