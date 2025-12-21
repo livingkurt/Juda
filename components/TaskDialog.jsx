@@ -72,6 +72,8 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
   }, [task, isOpen, sections, defaultSectionId, defaultTime, defaultDate]);
 
   const handleSave = () => {
+    if (!title.trim()) return;
+
     let recurrence = null;
     if (recurrenceType === "none") {
       if (date) {
@@ -104,6 +106,11 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
     onClose();
   };
 
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    handleSave();
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md">
       <ModalOverlay />
@@ -111,10 +118,20 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
         <ModalHeader>{task ? "Edit Task" : "New Task"}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          <VStack spacing={4} py={4}>
+          <form onSubmit={handleFormSubmit}>
+            <VStack spacing={4} py={4}>
             <Box w="full">
               <FormLabel>Task Name</FormLabel>
-              <Input value={title} onChange={e => setTitle(e.target.value)} />
+              <Input
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && title.trim()) {
+                    e.preventDefault();
+                    handleSave();
+                  }
+                }}
+              />
             </Box>
             <Box w="full">
               <FormLabel>Color</FormLabel>
@@ -148,11 +165,33 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
             <SimpleGrid columns={2} spacing={4} w="full">
               <Box>
                 <FormLabel>Date</FormLabel>
-                <Input type="date" value={date} onChange={e => setDate(e.target.value)} placeholder="Optional" />
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                  placeholder="Optional"
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && title.trim()) {
+                      e.preventDefault();
+                      handleSave();
+                    }
+                  }}
+                />
               </Box>
               <Box>
                 <FormLabel>Time</FormLabel>
-                <Input type="time" value={time} onChange={e => setTime(e.target.value)} placeholder="Optional" />
+                <Input
+                  type="time"
+                  value={time}
+                  onChange={e => setTime(e.target.value)}
+                  placeholder="Optional"
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && title.trim()) {
+                      e.preventDefault();
+                      handleSave();
+                    }
+                  }}
+                />
               </Box>
             </SimpleGrid>
             <Box w="full">
@@ -225,6 +264,8 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
                     placeholder="Add subtask"
                     onKeyDown={e => {
                       if (e.key === "Enter" && newSubtask.trim()) {
+                        e.preventDefault();
+                        e.stopPropagation();
                         setSubtasks([
                           ...subtasks,
                           {
@@ -264,6 +305,7 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
               </VStack>
             </Box>
           </VStack>
+          </form>
         </ModalBody>
         <ModalFooter>
           <Button variant="outline" mr={3} onClick={onClose}>
