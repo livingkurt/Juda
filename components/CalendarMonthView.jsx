@@ -4,7 +4,7 @@ import { Box, Flex, SimpleGrid, useColorModeValue } from "@chakra-ui/react";
 import { shouldShowOnDate } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 
-export const CalendarMonthView = ({ date, tasks, onDayClick }) => {
+export const CalendarMonthView = ({ date, tasks, onDayClick, isCompletedOnDate, showCompleted = true }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
@@ -50,7 +50,12 @@ export const CalendarMonthView = ({ date, tasks, onDayClick }) => {
             {week.map((day, di) => {
               const isCurrentMonth = day.getMonth() === month;
               const isToday = day.toDateString() === today.toDateString();
-              const dayTasks = tasks.filter(t => shouldShowOnDate(t, day)).slice(0, 3);
+              let dayTasks = tasks.filter(t => shouldShowOnDate(t, day));
+              // Filter out completed tasks if showCompleted is false
+              if (!showCompleted) {
+                dayTasks = dayTasks.filter(task => !isCompletedOnDate(task.id, day));
+              }
+              dayTasks = dayTasks.slice(0, 3);
               return (
                 <Box
                   key={di}

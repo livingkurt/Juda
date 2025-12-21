@@ -21,6 +21,7 @@ export const CalendarDayView = ({
   createDroppableId,
   createDraggableId,
   isCompletedOnDate,
+  showCompleted = true,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
@@ -29,8 +30,15 @@ export const CalendarDayView = ({
   const hourBorderColor = useColorModeValue("gray.100", "gray.700");
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
-  const dayTasks = tasks.filter(t => t.time && shouldShowOnDate(t, date));
-  const untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, date));
+  let dayTasks = tasks.filter(t => t.time && shouldShowOnDate(t, date));
+  let untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, date));
+
+  // Filter out completed tasks if showCompleted is false
+  if (!showCompleted) {
+    dayTasks = dayTasks.filter(task => !isCompletedOnDate(task.id, date));
+    untimedTasks = untimedTasks.filter(task => !isCompletedOnDate(task.id, date));
+  }
+
   const containerRef = useRef(null);
 
   // Internal drag state for time/duration adjustments (not cross-container)

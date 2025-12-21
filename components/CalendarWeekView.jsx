@@ -21,6 +21,7 @@ export const CalendarWeekView = ({
   createDroppableId,
   createDraggableId,
   isCompletedOnDate,
+  showCompleted = true,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -58,8 +59,26 @@ export const CalendarWeekView = ({
     hasMoved: false,
   });
 
-  const getTasksForDay = useCallback(day => tasks.filter(t => t.time && shouldShowOnDate(t, day)), [tasks]);
-  const getUntimedTasksForDay = useCallback(day => tasks.filter(t => !t.time && shouldShowOnDate(t, day)), [tasks]);
+  const getTasksForDay = useCallback(
+    day => {
+      let dayTasks = tasks.filter(t => t.time && shouldShowOnDate(t, day));
+      if (!showCompleted) {
+        dayTasks = dayTasks.filter(task => !isCompletedOnDate(task.id, day));
+      }
+      return dayTasks;
+    },
+    [tasks, showCompleted, isCompletedOnDate]
+  );
+  const getUntimedTasksForDay = useCallback(
+    day => {
+      let untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, day));
+      if (!showCompleted) {
+        untimedTasks = untimedTasks.filter(task => !isCompletedOnDate(task.id, day));
+      }
+      return untimedTasks;
+    },
+    [tasks, showCompleted, isCompletedOnDate]
+  );
 
   const getTaskStyle = task => {
     const isDragging = internalDrag.taskId === task.id;

@@ -7,7 +7,6 @@ export const DateNavigation = ({ selectedDate, onDateChange, onPrevious, onNext,
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
   const textColor = useColorModeValue("gray.900", "gray.100");
-  const mutedText = useColorModeValue("gray.500", "gray.400");
   const warningBg = useColorModeValue("orange.50", "orange.900");
   const warningBorder = useColorModeValue("orange.200", "orange.700");
   const warningText = useColorModeValue("orange.800", "orange.200");

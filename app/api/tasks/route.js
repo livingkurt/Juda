@@ -95,7 +95,7 @@ export async function PUT(request) {
     // Add updatedAt timestamp
     updateData.updatedAt = new Date();
 
-    const [updatedTask] = await db.update(tasks).set(updateData).where(eq(tasks.id, id)).returning();
+    await db.update(tasks).set(updateData).where(eq(tasks.id, id)).returning();
 
     // Fetch with section relation
     const taskWithSection = await db.query.tasks.findFirst({

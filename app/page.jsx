@@ -171,6 +171,30 @@ export default function DailyTasksApp() {
     }
     return { day: true, week: true, month: true }; // Default to showing recurring tasks
   });
+  // Initialize showCompletedTasksCalendar per view from localStorage if available, otherwise default to true for all
+  const [showCompletedTasksCalendar, setShowCompletedTasksCalendar] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("juda-view-preferences");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.showCompletedTasksCalendar) {
+            return {
+              day: parsed.showCompletedTasksCalendar.day !== undefined ? parsed.showCompletedTasksCalendar.day : true,
+              week:
+                parsed.showCompletedTasksCalendar.week !== undefined ? parsed.showCompletedTasksCalendar.week : true,
+              month:
+                parsed.showCompletedTasksCalendar.month !== undefined ? parsed.showCompletedTasksCalendar.month : true,
+            };
+          }
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Error loading show completed tasks calendar preference:", error);
+      }
+    }
+    return { day: true, week: true, month: true }; // Default to showing completed tasks
+  });
   // Initialize selectedDate to null, then set it in useEffect to avoid hydration mismatch
   const [selectedDate, setSelectedDate] = useState(null);
   // Initialize todayViewDate to null, then set it in useEffect to avoid hydration mismatch
@@ -222,6 +246,14 @@ export default function DailyTasksApp() {
             day: parsed.showRecurringTasks.day !== undefined ? parsed.showRecurringTasks.day : true,
             week: parsed.showRecurringTasks.week !== undefined ? parsed.showRecurringTasks.week : true,
             month: parsed.showRecurringTasks.month !== undefined ? parsed.showRecurringTasks.month : true,
+          });
+        }
+        if (parsed.showCompletedTasksCalendar) {
+          setShowCompletedTasksCalendar({
+            day: parsed.showCompletedTasksCalendar.day !== undefined ? parsed.showCompletedTasksCalendar.day : true,
+            week: parsed.showCompletedTasksCalendar.week !== undefined ? parsed.showCompletedTasksCalendar.week : true,
+            month:
+              parsed.showCompletedTasksCalendar.month !== undefined ? parsed.showCompletedTasksCalendar.month : true,
           });
         }
         // backlogWidth is now initialized from localStorage in useState, but update if it exists
@@ -281,13 +313,23 @@ export default function DailyTasksApp() {
         backlogWidth,
         showCompletedTasks,
         showRecurringTasks,
+        showCompletedTasksCalendar,
       };
       localStorage.setItem("juda-view-preferences", JSON.stringify(preferences));
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Error saving view preferences:", error);
     }
-  }, [showDashboard, showCalendar, calendarView, backlogOpen, backlogWidth, showCompletedTasks, showRecurringTasks]);
+  }, [
+    showDashboard,
+    showCalendar,
+    calendarView,
+    backlogOpen,
+    backlogWidth,
+    showCompletedTasks,
+    showRecurringTasks,
+    showCompletedTasksCalendar,
+  ]);
   const { isOpen: settingsOpen, onOpen: openSettings, onClose: closeSettings } = useDisclosure();
 
   // Resize handlers for backlog drawer
@@ -1456,30 +1498,56 @@ export default function DailyTasksApp() {
                       <Box mb={3} pb={3} borderBottomWidth="1px" borderColor={borderColor}>
                         <Flex align="center" justify="space-between" mb={2}>
                           <Heading size="md">Calendar</Heading>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setShowRecurringTasks(prev => ({
-                                ...prev,
-                                [calendarView]: !prev[calendarView],
-                              }));
-                            }}
-                            leftIcon={
-                              <Box as="span" color="currentColor">
-                                {showRecurringTasks[calendarView] ? (
-                                  <Repeat size={16} stroke="currentColor" />
-                                ) : (
-                                  <X size={16} stroke="currentColor" />
-                                )}
-                              </Box>
-                            }
-                            fontSize="sm"
-                            color={mutedText}
-                            _hover={{ color: textColor }}
-                          >
-                            {showRecurringTasks[calendarView] ? "Hide Recurring" : "Show Recurring"}
-                          </Button>
+                          <HStack spacing={2}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setShowCompletedTasksCalendar(prev => ({
+                                  ...prev,
+                                  [calendarView]: !prev[calendarView],
+                                }));
+                              }}
+                              leftIcon={
+                                <Box as="span" color="currentColor">
+                                  {showCompletedTasksCalendar[calendarView] ? (
+                                    <Eye size={16} stroke="currentColor" />
+                                  ) : (
+                                    <EyeOff size={16} stroke="currentColor" />
+                                  )}
+                                </Box>
+                              }
+                              fontSize="sm"
+                              color={mutedText}
+                              _hover={{ color: textColor }}
+                            >
+                              {showCompletedTasksCalendar[calendarView] ? "Hide Completed" : "Show Completed"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setShowRecurringTasks(prev => ({
+                                  ...prev,
+                                  [calendarView]: !prev[calendarView],
+                                }));
+                              }}
+                              leftIcon={
+                                <Box as="span" color="currentColor">
+                                  {showRecurringTasks[calendarView] ? (
+                                    <Repeat size={16} stroke="currentColor" />
+                                  ) : (
+                                    <X size={16} stroke="currentColor" />
+                                  )}
+                                </Box>
+                              }
+                              fontSize="sm"
+                              color={mutedText}
+                              _hover={{ color: textColor }}
+                            >
+                              {showRecurringTasks[calendarView] ? "Hide Recurring" : "Show Recurring"}
+                            </Button>
+                          </HStack>
                         </Flex>
                         {/* Calendar Controls */}
                         <Flex align="center" gap={2} px={2}>
@@ -1531,9 +1599,15 @@ export default function DailyTasksApp() {
                           <CardBody p={0} h="full">
                             {(() => {
                               // Filter tasks based on recurring preference for current view
-                              const filteredTasks = showRecurringTasks[calendarView]
+                              let filteredTasks = showRecurringTasks[calendarView]
                                 ? tasks
                                 : tasks.filter(task => !task.recurrence || task.recurrence.type === "none");
+
+                              // Filter tasks based on completed preference for current view
+                              // For day view, filter here. For week/month views, filter per day in components
+                              if (!showCompletedTasksCalendar[calendarView] && calendarView === "day" && selectedDate) {
+                                filteredTasks = filteredTasks.filter(task => !isCompletedOnDate(task.id, selectedDate));
+                              }
 
                               return (
                                 <>
@@ -1551,6 +1625,7 @@ export default function DailyTasksApp() {
                                       createDroppableId={createDroppableId}
                                       createDraggableId={createDraggableId}
                                       isCompletedOnDate={isCompletedOnDate}
+                                      showCompleted={showCompletedTasksCalendar.day}
                                     />
                                   )}
                                   {calendarView === "week" && selectedDate && (
@@ -1571,6 +1646,7 @@ export default function DailyTasksApp() {
                                       createDroppableId={createDroppableId}
                                       createDraggableId={createDraggableId}
                                       isCompletedOnDate={isCompletedOnDate}
+                                      showCompleted={showCompletedTasksCalendar.week}
                                     />
                                   )}
                                   {calendarView === "month" && selectedDate && (
@@ -1581,6 +1657,8 @@ export default function DailyTasksApp() {
                                         setSelectedDate(d);
                                         setCalendarView("day");
                                       }}
+                                      isCompletedOnDate={isCompletedOnDate}
+                                      showCompleted={showCompletedTasksCalendar.month}
                                     />
                                   )}
                                 </>
