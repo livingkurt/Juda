@@ -11,6 +11,7 @@ export const BacklogDrawer = ({
   backlogTasks,
   sections,
   onEditTask,
+  onUpdateTaskTitle,
   onDeleteTask,
   onDuplicateTask,
   onAddTask,
@@ -103,6 +104,7 @@ export const BacklogDrawer = ({
                     key={task.id}
                     task={task}
                     onEditTask={onEditTask}
+                    onUpdateTaskTitle={onUpdateTaskTitle}
                     onDeleteTask={onDeleteTask}
                     onDuplicateTask={onDuplicateTask}
                     getSectionName={getSectionName}

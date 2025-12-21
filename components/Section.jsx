@@ -14,9 +14,11 @@ export const Section = ({
   onToggleSubtask,
   onToggleExpand,
   onEditTask,
+  onUpdateTaskTitle,
   onDeleteTask,
   onDuplicateTask,
   onAddTask,
+  onCreateTaskInline,
   onEditSection,
   onDeleteSection,
   onAddSection,
@@ -45,9 +47,11 @@ export const Section = ({
             onToggleSubtask={onToggleSubtask}
             onToggleExpand={onToggleExpand}
             onEditTask={onEditTask}
+            onUpdateTaskTitle={onUpdateTaskTitle}
             onDeleteTask={onDeleteTask}
             onDuplicateTask={onDuplicateTask}
             onAddTask={onAddTask}
+            onCreateTaskInline={onCreateTaskInline}
             onEditSection={onEditSection}
             onDeleteSection={onDeleteSection}
             hoveredDroppable={hoveredDroppable}

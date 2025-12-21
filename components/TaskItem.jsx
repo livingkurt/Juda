@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack } from "@chakra-ui/react";
+import { useState, useRef, useEffect } from "react";
+import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack, Input } from "@chakra-ui/react";
 import { useColorModeValue } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -13,6 +14,7 @@ export const TaskItem = ({
   onToggleSubtask,
   onToggleExpand,
   onEdit,
+  onUpdateTitle,
   onDelete,
   onDuplicate,
   draggableId,
@@ -24,6 +26,52 @@ export const TaskItem = ({
   const mutedText = useColorModeValue("gray.500", "gray.400");
   const subtaskText = useColorModeValue("gray.700", "gray.200");
   const gripColor = useColorModeValue("gray.400", "gray.500");
+
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(task.title);
+  const titleInputRef = useRef(null);
+
+  useEffect(() => {
+    setEditedTitle(task.title);
+  }, [task.title]);
+
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  const handleTitleClick = e => {
+    e.stopPropagation();
+    if (!isEditingTitle) {
+      setIsEditingTitle(true);
+    }
+  };
+
+  const handleTitleBlur = async () => {
+    if (editedTitle.trim() && editedTitle !== task.title && onUpdateTitle) {
+      await onUpdateTitle(task.id, editedTitle);
+    } else if (!editedTitle.trim()) {
+      setEditedTitle(task.title);
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleKeyDown = async e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (editedTitle.trim() && editedTitle !== task.title && onUpdateTitle) {
+        await onUpdateTitle(task.id, editedTitle);
+      }
+      setIsEditingTitle(false);
+      titleInputRef.current?.blur();
+    } else if (e.key === "Escape") {
+      setEditedTitle(task.title);
+      setIsEditingTitle(false);
+      titleInputRef.current?.blur();
+    }
+  };
 
   const allSubtasksComplete = task.subtasks && task.subtasks.length > 0 && task.subtasks.every(st => st.completed);
 
@@ -100,14 +148,41 @@ export const TaskItem = ({
 
           {/* Task content */}
           <Box flex={1} minW={0}>
-            <Text
-              fontWeight="medium"
-              textDecoration={task.completed || allSubtasksComplete ? "line-through" : "none"}
-              opacity={task.completed || allSubtasksComplete ? 0.5 : 1}
-              color={textColor}
-            >
-              {task.title}
-            </Text>
+            {isEditingTitle ? (
+              <Input
+                ref={titleInputRef}
+                value={editedTitle}
+                onChange={e => setEditedTitle(e.target.value)}
+                onBlur={handleTitleBlur}
+                onKeyDown={handleTitleKeyDown}
+                onClick={e => e.stopPropagation()}
+                variant="unstyled"
+                fontWeight="medium"
+                fontSize="md"
+                color={textColor}
+                px={1}
+                py={0}
+                minH="auto"
+                h="auto"
+                _focus={{
+                  outline: "none",
+                }}
+              />
+            ) : (
+              <Text
+                fontWeight="medium"
+                textDecoration={task.completed || allSubtasksComplete ? "line-through" : "none"}
+                opacity={task.completed || allSubtasksComplete ? 0.5 : 1}
+                color={textColor}
+                cursor="text"
+                onClick={handleTitleClick}
+                _hover={{
+                  opacity: task.completed || allSubtasksComplete ? 0.7 : 1,
+                }}
+              >
+                {task.title}
+              </Text>
+            )}
             {task.subtasks && task.subtasks.length > 0 && (
               <Text as="span" ml={2} fontSize="xs" color={mutedText}>
                 ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})

@@ -320,6 +320,11 @@ export default function DailyTasksApp() {
     openTaskDialog();
   };
 
+  const handleUpdateTaskTitle = async (taskId, newTitle) => {
+    if (!newTitle.trim()) return;
+    await updateTask(taskId, { title: newTitle.trim() });
+  };
+
   const handleDeleteTask = async taskId => {
     await deleteTask(taskId);
   };
@@ -350,6 +355,37 @@ export default function DailyTasksApp() {
     setDefaultDate(formatLocalDate(new Date()));
     setEditingTask(null);
     openTaskDialog();
+  };
+
+  const handleCreateTaskInline = async (sectionId, title) => {
+    if (!title.trim()) return;
+
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      await createTask({
+        title: title.trim(),
+        sectionId,
+        time: null,
+        duration: 30,
+        color: "#3b82f6",
+        recurrence: {
+          type: "none",
+          startDate: today.toISOString(),
+        },
+        subtasks: [],
+        order: 999,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to create task",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
   const handleAddTaskToBacklog = () => {
@@ -1026,6 +1062,7 @@ export default function DailyTasksApp() {
                     sections={sections}
                     onDeleteTask={handleDeleteTask}
                     onEditTask={handleEditTask}
+                    onUpdateTaskTitle={handleUpdateTaskTitle}
                     onDuplicateTask={handleDuplicateTask}
                     onAddTask={handleAddTaskToBacklog}
                     createDraggableId={createDraggableId}
@@ -1080,9 +1117,11 @@ export default function DailyTasksApp() {
                         onToggleSubtask={handleToggleSubtask}
                         onToggleExpand={handleToggleExpand}
                         onEditTask={handleEditTask}
+                        onUpdateTaskTitle={handleUpdateTaskTitle}
                         onDeleteTask={handleDeleteTask}
                         onDuplicateTask={handleDuplicateTask}
                         onAddTask={handleAddTask}
+                        onCreateTaskInline={handleCreateTaskInline}
                         onEditSection={handleEditSection}
                         onDeleteSection={handleDeleteSection}
                         onAddSection={handleAddSection}

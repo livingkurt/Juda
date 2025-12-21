@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef } from "react";
 import {
   Box,
   Card,
@@ -15,6 +16,7 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  Input,
   useColorModeValue,
 } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
@@ -31,9 +33,11 @@ export const SectionCard = ({
   onToggleSubtask,
   onToggleExpand,
   onEditTask,
+  onUpdateTaskTitle,
   onDeleteTask,
   onDuplicateTask,
   onAddTask,
+  onCreateTaskInline,
   onEditSection,
   onDeleteSection,
   hoveredDroppable,
@@ -45,6 +49,10 @@ export const SectionCard = ({
   const textColor = useColorModeValue("gray.900", "gray.100");
   const mutedText = useColorModeValue("gray.500", "gray.400");
   const dropHighlight = useColorModeValue("blue.50", "blue.900");
+
+  const [inlineInputValue, setInlineInputValue] = useState("");
+  const [isInlineInputActive, setIsInlineInputActive] = useState(false);
+  const inlineInputRef = useRef(null);
 
   const IconComponent = SECTION_ICONS.find(i => i.value === section.icon)?.Icon || Sun;
   const completedCount = tasks.filter(
@@ -88,6 +96,36 @@ export const SectionCard = ({
     ...task,
     draggableId: createDraggableId.todaySection(task.id, section.id),
   }));
+
+  const handleInlineInputClick = () => {
+    setIsInlineInputActive(true);
+    setTimeout(() => {
+      inlineInputRef.current?.focus();
+    }, 0);
+  };
+
+  const handleInlineInputBlur = async () => {
+    if (inlineInputValue.trim() && onCreateTaskInline) {
+      await onCreateTaskInline(section.id, inlineInputValue);
+      setInlineInputValue("");
+    }
+    setIsInlineInputActive(false);
+  };
+
+  const handleInlineInputKeyDown = async e => {
+    if (e.key === "Enter" && inlineInputValue.trim()) {
+      e.preventDefault();
+      if (onCreateTaskInline) {
+        await onCreateTaskInline(section.id, inlineInputValue);
+        setInlineInputValue("");
+        setIsInlineInputActive(false);
+      }
+    } else if (e.key === "Escape") {
+      setInlineInputValue("");
+      setIsInlineInputActive(false);
+      inlineInputRef.current?.blur();
+    }
+  };
 
   return (
     <Card
@@ -169,9 +207,36 @@ export const SectionCard = ({
           borderStyle="dashed"
         >
           {tasksWithIds.length === 0 ? (
-            <Text fontSize="sm" textAlign="center" py={8} color={mutedText}>
-              {isOver ? "Drop here" : "No tasks"}
-            </Text>
+            <VStack align="stretch" spacing={2}>
+              <Text fontSize="sm" textAlign="center" py={8} color={mutedText}>
+                {isOver ? "Drop here" : "No tasks"}
+              </Text>
+              <Input
+                ref={inlineInputRef}
+                value={inlineInputValue}
+                onChange={e => setInlineInputValue(e.target.value)}
+                onBlur={handleInlineInputBlur}
+                onKeyDown={handleInlineInputKeyDown}
+                onClick={handleInlineInputClick}
+                placeholder="New task..."
+                size="sm"
+                variant="unstyled"
+                bg="transparent"
+                borderWidth="0px"
+                px={2}
+                py={1}
+                fontSize="sm"
+                color={isInlineInputActive ? textColor : mutedText}
+                _focus={{
+                  outline: "none",
+                  color: textColor,
+                }}
+                _placeholder={{ color: mutedText }}
+                _hover={{
+                  color: textColor,
+                }}
+              />
+            </VStack>
           ) : (
             <SortableContext items={tasksWithIds.map(t => t.draggableId)} strategy={verticalListSortingStrategy}>
               <VStack align="stretch" spacing={3} py={2}>
@@ -184,12 +249,38 @@ export const SectionCard = ({
                     onToggleSubtask={onToggleSubtask}
                     onToggleExpand={onToggleExpand}
                     onEdit={onEditTask}
+                    onUpdateTitle={onUpdateTaskTitle}
                     onDelete={onDeleteTask}
                     onDuplicate={onDuplicateTask}
                     hoveredDroppable={hoveredDroppable}
                     draggableId={task.draggableId}
                   />
                 ))}
+                <Input
+                  ref={inlineInputRef}
+                  value={inlineInputValue}
+                  onChange={e => setInlineInputValue(e.target.value)}
+                  onBlur={handleInlineInputBlur}
+                  onKeyDown={handleInlineInputKeyDown}
+                  onClick={handleInlineInputClick}
+                  placeholder="New task..."
+                  size="sm"
+                  variant="unstyled"
+                  bg="transparent"
+                  borderWidth="0px"
+                  px={2}
+                  py={1}
+                  fontSize="sm"
+                  color={isInlineInputActive ? textColor : mutedText}
+                  _focus={{
+                    outline: "none",
+                    color: textColor,
+                  }}
+                  _placeholder={{ color: mutedText }}
+                  _hover={{
+                    color: textColor,
+                  }}
+                />
               </VStack>
             </SortableContext>
           )}
