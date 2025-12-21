@@ -39,7 +39,19 @@ import {
   KeyboardSensor,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
-import { ChevronLeft, ChevronRight, Settings, Calendar, LayoutDashboard, List, Sun, Sunset, Moon } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Settings,
+  Calendar,
+  LayoutDashboard,
+  List,
+  Sun,
+  Sunset,
+  Moon,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { Section } from "@/components/Section";
 import { TaskDialog } from "@/components/TaskDialog";
 import { SectionDialog } from "@/components/SectionDialog";
@@ -97,6 +109,24 @@ export default function DailyTasksApp() {
   const [showDashboard, setShowDashboard] = useState(true);
   const [showCalendar, setShowCalendar] = useState(true);
   const [backlogOpen, setBacklogOpen] = useState(true);
+  // Initialize showCompletedTasks from localStorage if available, otherwise default to true
+  const [showCompletedTasks, setShowCompletedTasks] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("juda-view-preferences");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.showCompletedTasks !== undefined) {
+            return parsed.showCompletedTasks;
+          }
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Error loading show completed tasks preference:", error);
+      }
+    }
+    return true; // Default to showing completed tasks (like Reminders)
+  });
   // Initialize backlogWidth from localStorage if available, otherwise default to 500
   const [backlogWidth, setBacklogWidth] = useState(() => {
     if (typeof window !== "undefined") {
@@ -133,6 +163,9 @@ export default function DailyTasksApp() {
   const [activeTask, setActiveTask] = useState(null);
   // Track if preferences have been loaded to avoid saving before load completes
   const preferencesLoadedRef = useRef(false);
+  // Track recently completed tasks that should remain visible for a delay
+  const [recentlyCompletedTasks, setRecentlyCompletedTasks] = useState(new Set());
+  const recentlyCompletedTimeoutsRef = useRef({});
 
   // Load view preferences from localStorage after mount (client-side only)
   useEffect(() => {
@@ -159,6 +192,7 @@ export default function DailyTasksApp() {
         if (parsed.showCalendar !== undefined) setShowCalendar(parsed.showCalendar);
         if (parsed.calendarView) setCalendarView(parsed.calendarView);
         if (parsed.backlogOpen !== undefined) setBacklogOpen(parsed.backlogOpen);
+        if (parsed.showCompletedTasks !== undefined) setShowCompletedTasks(parsed.showCompletedTasks);
         // backlogWidth is now initialized from localStorage in useState, but update if it exists
         if (parsed.backlogWidth !== undefined) setBacklogWidth(parsed.backlogWidth);
       }
@@ -174,6 +208,29 @@ export default function DailyTasksApp() {
   useEffect(() => {
     fetchCompletions();
   }, [fetchCompletions]);
+
+  // Cleanup timeouts when component unmounts or when showCompletedTasks changes
+  useEffect(() => {
+    return () => {
+      // Clear all pending timeouts on unmount
+      Object.values(recentlyCompletedTimeoutsRef.current).forEach(timeout => {
+        clearTimeout(timeout);
+      });
+      recentlyCompletedTimeoutsRef.current = {};
+    };
+  }, []);
+
+  // Clear recently completed tasks when showCompletedTasks is turned on
+  useEffect(() => {
+    if (showCompletedTasks) {
+      setRecentlyCompletedTasks(new Set());
+      // Clear all pending timeouts
+      Object.values(recentlyCompletedTimeoutsRef.current).forEach(timeout => {
+        clearTimeout(timeout);
+      });
+      recentlyCompletedTimeoutsRef.current = {};
+    }
+  }, [showCompletedTasks]);
 
   const { isOpen: taskDialogOpen, onOpen: openTaskDialog, onClose: closeTaskDialog } = useDisclosure();
   const { isOpen: sectionDialogOpen, onOpen: openSectionDialog, onClose: closeSectionDialog } = useDisclosure();
@@ -191,13 +248,14 @@ export default function DailyTasksApp() {
         calendarView,
         backlogOpen,
         backlogWidth,
+        showCompletedTasks,
       };
       localStorage.setItem("juda-view-preferences", JSON.stringify(preferences));
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Error saving view preferences:", error);
     }
-  }, [showDashboard, showCalendar, calendarView, backlogOpen, backlogWidth]);
+  }, [showDashboard, showCalendar, calendarView, backlogOpen, backlogWidth, showCompletedTasks]);
   const { isOpen: settingsOpen, onOpen: openSettings, onClose: closeSettings } = useDisclosure();
 
   // Resize handlers for backlog drawer
@@ -259,14 +317,28 @@ export default function DailyTasksApp() {
     [tasks, viewDate, isCompletedOnDate]
   );
 
-  // Group today's tasks by section
+  // Group today's tasks by section, optionally filtering out completed tasks
   const tasksBySection = useMemo(() => {
     const grouped = {};
     sections.forEach(s => {
-      grouped[s.id] = todaysTasks.filter(t => t.sectionId === s.id).sort((a, b) => (a.order || 0) - (b.order || 0));
+      let sectionTasks = todaysTasks.filter(t => t.sectionId === s.id);
+      // Filter out completed tasks if showCompletedTasks is false
+      // But keep recently completed tasks visible for a delay period
+      if (!showCompletedTasks) {
+        sectionTasks = sectionTasks.filter(t => {
+          const isCompleted =
+            t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
+          // Keep task visible if it's recently completed (within delay period)
+          if (isCompleted && recentlyCompletedTasks.has(t.id)) {
+            return true;
+          }
+          return !isCompleted;
+        });
+      }
+      grouped[s.id] = sectionTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
     });
     return grouped;
-  }, [todaysTasks, sections]);
+  }, [todaysTasks, sections, showCompletedTasks, recentlyCompletedTasks]);
 
   // Tasks for backlog: no recurrence AND no time, or recurrence doesn't match today
   // Exclude tasks with future dates/times
@@ -339,9 +411,60 @@ export default function DailyTasksApp() {
       if (isCompletedOnTargetDate) {
         // Task is completed on the target date, remove completion record
         await deleteCompletion(taskId, targetDate.toISOString());
+
+        // If hiding completed tasks, remove from recently completed set immediately when unchecked
+        if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
+          setRecentlyCompletedTasks(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(taskId);
+            return newSet;
+          });
+          // Clear any pending timeout
+          if (recentlyCompletedTimeoutsRef.current[taskId]) {
+            clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
+            delete recentlyCompletedTimeoutsRef.current[taskId];
+          }
+        }
       } else {
         // Task is not completed on the target date, create completion record
-        await createCompletion(taskId, targetDate.toISOString());
+        // Add to recently completed set BEFORE creating completion to prevent flash
+        if (!showCompletedTasks) {
+          setRecentlyCompletedTasks(prev => new Set(prev).add(taskId));
+
+          // Clear any existing timeout for this task
+          if (recentlyCompletedTimeoutsRef.current[taskId]) {
+            clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
+          }
+
+          // Set timeout to remove from recently completed after 2 seconds
+          recentlyCompletedTimeoutsRef.current[taskId] = setTimeout(() => {
+            setRecentlyCompletedTasks(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(taskId);
+              return newSet;
+            });
+            delete recentlyCompletedTimeoutsRef.current[taskId];
+          }, 2000);
+        }
+
+        // Create completion record after adding to recently completed set
+        try {
+          await createCompletion(taskId, targetDate.toISOString());
+        } catch (completionError) {
+          // If completion creation fails, remove from recently completed set
+          if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
+            setRecentlyCompletedTasks(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(taskId);
+              return newSet;
+            });
+            if (recentlyCompletedTimeoutsRef.current[taskId]) {
+              clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
+              delete recentlyCompletedTimeoutsRef.current[taskId];
+            }
+          }
+          throw completionError;
+        }
       }
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -1205,7 +1328,9 @@ export default function DailyTasksApp() {
                       minW={0}
                       maxW={!backlogOpen && !showCalendar ? "1250px" : "none"}
                       w={!backlogOpen && !showCalendar ? "full" : "auto"}
-                      overflowY="auto"
+                      display="flex"
+                      flexDirection="column"
+                      overflow="hidden"
                     >
                       {isLoading && sections.length === 0 ? (
                         <Box>
@@ -1215,35 +1340,78 @@ export default function DailyTasksApp() {
                         </Box>
                       ) : (
                         <>
-                          {todayViewDate && (
-                            <DateNavigation
-                              selectedDate={todayViewDate}
-                              onDateChange={handleTodayViewDateChange}
-                              onPrevious={() => navigateTodayView(-1)}
-                              onNext={() => navigateTodayView(1)}
-                              onToday={handleTodayViewToday}
+                          {/* Today View Header - Sticky */}
+                          <Box
+                            position="sticky"
+                            top={0}
+                            zIndex={10}
+                            bg={bgColor}
+                            mb={4}
+                            pb={4}
+                            borderBottomWidth="1px"
+                            borderColor={borderColor}
+                            flexShrink={0}
+                          >
+                            <Flex align="center" justify="space-between" mb={2}>
+                              <Heading size="md">Today</Heading>
+                              <Flex align="center" gap={2}>
+                                <Badge colorScheme="blue">
+                                  {todaysTasks.length} task{todaysTasks.length !== 1 ? "s" : ""}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setShowCompletedTasks(!showCompletedTasks)}
+                                  leftIcon={
+                                    <Box as="span" color="currentColor">
+                                      {showCompletedTasks ? (
+                                        <Eye size={16} stroke="currentColor" />
+                                      ) : (
+                                        <EyeOff size={16} stroke="currentColor" />
+                                      )}
+                                    </Box>
+                                  }
+                                  fontSize="sm"
+                                  color={mutedText}
+                                  _hover={{ color: textColor }}
+                                >
+                                  {showCompletedTasks ? "Hide Completed" : "Show Completed"}
+                                </Button>
+                              </Flex>
+                            </Flex>
+                            {todayViewDate && (
+                              <DateNavigation
+                                selectedDate={todayViewDate}
+                                onDateChange={handleTodayViewDateChange}
+                                onPrevious={() => navigateTodayView(-1)}
+                                onNext={() => navigateTodayView(1)}
+                                onToday={handleTodayViewToday}
+                              />
+                            )}
+                          </Box>
+                          {/* Scrollable Sections Container */}
+                          <Box flex={1} overflowY="auto" minH={0}>
+                            <Section
+                              sections={sortedSections}
+                              tasksBySection={tasksBySection}
+                              onToggleTask={handleToggleTask}
+                              onToggleSubtask={handleToggleSubtask}
+                              onToggleExpand={handleToggleExpand}
+                              onEditTask={handleEditTask}
+                              onUpdateTaskTitle={handleUpdateTaskTitle}
+                              onDeleteTask={handleDeleteTask}
+                              onDuplicateTask={handleDuplicateTask}
+                              onAddTask={handleAddTask}
+                              onCreateTaskInline={handleCreateTaskInline}
+                              onEditSection={handleEditSection}
+                              onDeleteSection={handleDeleteSection}
+                              onAddSection={handleAddSection}
+                              onToggleSectionExpand={handleToggleSectionExpand}
+                              createDroppableId={createDroppableId}
+                              createDraggableId={createDraggableId}
+                              viewDate={viewDate}
                             />
-                          )}
-                          <Section
-                            sections={sortedSections}
-                            tasksBySection={tasksBySection}
-                            onToggleTask={handleToggleTask}
-                            onToggleSubtask={handleToggleSubtask}
-                            onToggleExpand={handleToggleExpand}
-                            onEditTask={handleEditTask}
-                            onUpdateTaskTitle={handleUpdateTaskTitle}
-                            onDeleteTask={handleDeleteTask}
-                            onDuplicateTask={handleDuplicateTask}
-                            onAddTask={handleAddTask}
-                            onCreateTaskInline={handleCreateTaskInline}
-                            onEditSection={handleEditSection}
-                            onDeleteSection={handleDeleteSection}
-                            onAddSection={handleAddSection}
-                            onToggleSectionExpand={handleToggleSectionExpand}
-                            createDroppableId={createDroppableId}
-                            createDraggableId={createDraggableId}
-                            viewDate={viewDate}
-                          />
+                          </Box>
                         </>
                       )}
                     </Box>
@@ -1252,48 +1420,54 @@ export default function DailyTasksApp() {
                   {/* Calendar View */}
                   {showCalendar && (
                     <Box flex={1} minW={0} display="flex" flexDirection="column">
-                      {/* Calendar Controls */}
-                      <Flex align="center" gap={2} mb={3} px={2}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0);
-                            setSelectedDate(today);
-                          }}
-                        >
-                          Today
-                        </Button>
-                        <IconButton
-                          icon={
-                            <Box as="span" color="currentColor">
-                              <ChevronLeft size={18} stroke="currentColor" />
-                            </Box>
-                          }
-                          onClick={() => navigateCalendar(-1)}
-                          variant="ghost"
-                          aria-label="Previous"
-                        />
-                        <IconButton
-                          icon={
-                            <Box as="span" color="currentColor">
-                              <ChevronRight size={18} stroke="currentColor" />
-                            </Box>
-                          }
-                          onClick={() => navigateCalendar(1)}
-                          variant="ghost"
-                          aria-label="Next"
-                        />
-                        <Text fontSize="sm" fontWeight="medium" minW="120px">
-                          {getCalendarTitle()}
-                        </Text>
-                        <Select value={calendarView} onChange={e => setCalendarView(e.target.value)} w={24}>
-                          <option value="day">Day</option>
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                        </Select>
-                      </Flex>
+                      {/* Calendar Header */}
+                      <Box mb={3} pb={3} borderBottomWidth="1px" borderColor={borderColor}>
+                        <Flex align="center" justify="space-between" mb={2}>
+                          <Heading size="md">Calendar</Heading>
+                        </Flex>
+                        {/* Calendar Controls */}
+                        <Flex align="center" gap={2} px={2}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              setSelectedDate(today);
+                            }}
+                          >
+                            Today
+                          </Button>
+                          <IconButton
+                            icon={
+                              <Box as="span" color="currentColor">
+                                <ChevronLeft size={18} stroke="currentColor" />
+                              </Box>
+                            }
+                            onClick={() => navigateCalendar(-1)}
+                            variant="ghost"
+                            aria-label="Previous"
+                          />
+                          <IconButton
+                            icon={
+                              <Box as="span" color="currentColor">
+                                <ChevronRight size={18} stroke="currentColor" />
+                              </Box>
+                            }
+                            onClick={() => navigateCalendar(1)}
+                            variant="ghost"
+                            aria-label="Next"
+                          />
+                          <Text fontSize="sm" fontWeight="medium" minW="120px">
+                            {getCalendarTitle()}
+                          </Text>
+                          <Select value={calendarView} onChange={e => setCalendarView(e.target.value)} w={24}>
+                            <option value="day">Day</option>
+                            <option value="week">Week</option>
+                            <option value="month">Month</option>
+                          </Select>
+                        </Flex>
+                      </Box>
                       {isLoading && !selectedDate ? (
                         <CalendarSkeleton />
                       ) : (
