@@ -418,7 +418,7 @@ export default function DailyTasksApp() {
         title: title.trim(),
         sectionId,
         time: null,
-        duration: 30,
+        duration: 0,
         color: "#3b82f6",
         recurrence: {
           type: "none",

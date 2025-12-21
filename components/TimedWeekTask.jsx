@@ -25,6 +25,8 @@ export const TimedWeekTask = ({
     pointerEvents: isDragging && !internalDrag.taskId ? "none" : "auto",
   };
 
+  const isNoDuration = task.duration === 0;
+
   return (
     <Box
       ref={setNodeRef}
@@ -39,7 +41,10 @@ export const TimedWeekTask = ({
       overflow="hidden"
       cursor="grab"
       _hover={{ shadow: "md" }}
-      bg={task.color || "#3b82f6"}
+      bg={isNoDuration ? "gray.600" : task.color || "#3b82f6"}
+      borderWidth={isNoDuration ? "2px" : "0"}
+      borderColor={isNoDuration ? task.color || "#3b82f6" : "transparent"}
+      minH={isNoDuration ? "24px" : undefined}
       style={style}
       boxShadow={internalDrag.taskId === task.id ? "xl" : "none"}
       zIndex={internalDrag.taskId === task.id ? 50 : "auto"}

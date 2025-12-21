@@ -32,7 +32,7 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
   const [sectionId, setSectionId] = useState("");
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
-  const [duration, setDuration] = useState(30);
+  const [duration, setDuration] = useState(0);
   const [recurrenceType, setRecurrenceType] = useState("none");
   const [selectedDays, setSelectedDays] = useState([]);
   const [subtasks, setSubtasks] = useState([]);
@@ -53,7 +53,7 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
       } else {
         setDate("");
       }
-      setDuration(task.duration || 30);
+      setDuration(task.duration ?? 0);
       setRecurrenceType(task.recurrence?.type || "none");
       setSelectedDays(task.recurrence?.days || []);
       setSubtasks(task.subtasks || []);
@@ -63,7 +63,7 @@ export const TaskDialog = ({ isOpen, onClose, task, sections, onSave, defaultSec
       setSectionId(defaultSectionId || sections[0]?.id || "");
       setTime(defaultTime || "");
       setDate(defaultDate || (defaultTime ? formatLocalDate(new Date()) : ""));
-      setDuration(30);
+      setDuration(defaultTime ? 30 : 0);
       setRecurrenceType("none");
       setSelectedDays([]);
       setSubtasks([]);

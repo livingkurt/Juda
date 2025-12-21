@@ -47,11 +47,12 @@ export const CalendarDayView = ({
   const getTaskStyle = task => {
     const isDragging = internalDrag.taskId === task.id;
     const minutes = isDragging && internalDrag.type === "move" ? internalDrag.currentMinutes : timeToMinutes(task.time);
-    const duration = isDragging && internalDrag.type === "resize" ? internalDrag.currentDuration : task.duration || 30;
+    const duration = isDragging && internalDrag.type === "resize" ? internalDrag.currentDuration : (task.duration ?? 30);
+    const isNoDuration = duration === 0;
     return {
       top: `${(minutes / 60) * HOUR_HEIGHT}px`,
-      height: `${Math.max((duration / 60) * HOUR_HEIGHT, 24)}px`,
-      backgroundColor: task.color || "#3b82f6",
+      height: `${isNoDuration ? 24 : Math.max((duration / 60) * HOUR_HEIGHT, 24)}px`,
+      // Don't set backgroundColor here - let Chakra UI bg prop handle it for proper theming
     };
   };
 
@@ -59,14 +60,15 @@ export const CalendarDayView = ({
   const handleInternalDragStart = (e, task, type) => {
     e.preventDefault();
     e.stopPropagation();
+    const taskDuration = task.duration ?? 30;
     setInternalDrag({
       taskId: task.id,
       type,
       startY: e.clientY,
       startMinutes: timeToMinutes(task.time),
-      startDuration: task.duration || 30,
+      startDuration: taskDuration,
       currentMinutes: timeToMinutes(task.time),
-      currentDuration: task.duration || 30,
+      currentDuration: taskDuration,
       hasMoved: false,
     });
   };
@@ -86,6 +88,7 @@ export const CalendarDayView = ({
         }));
       } else {
         const newDuration = snapToIncrement(internalDrag.startDuration + (deltaY / HOUR_HEIGHT) * 60, 15);
+        // When resizing, minimum is 15 minutes (converts "No duration" tasks to timed)
         setInternalDrag(prev => ({
           ...prev,
           currentDuration: Math.max(15, newDuration),
