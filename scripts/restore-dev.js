@@ -39,7 +39,7 @@ loadEnvFile();
 
 // Get database URL from environment (dev database)
 // Prefer DEV_DATABASE_URL if set, otherwise fall back to DATABASE_URL
-const devUrl = process.env.DATABASE_URL;
+const devUrl = process.env.PRODUCTION_DATABASE_URL;
 
 if (!devUrl) {
   // eslint-disable-next-line no-console
