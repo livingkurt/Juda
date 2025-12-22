@@ -217,74 +217,21 @@ export const TaskDialog = ({
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={({ open }) => !open && onClose()} size="md">
-      <Dialog.Backdrop />
-      <Dialog.Content bg={bgColor} maxH="90vh" overflowY="auto">
-        <Dialog.Header>{task ? "Edit Task" : "New Task"}</Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          <form onSubmit={handleFormSubmit}>
-            <VStack spacing={4} py={4}>
-              <Box w="full">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Task Name
-                </Text>
-                <Input
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && title.trim()) {
-                      e.preventDefault();
-                      handleSave();
-                    }
-                  }}
-                />
-              </Box>
-              <Box w="full">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Color
-                </Text>
-                <HStack spacing={2} mt={2} flexWrap="wrap">
-                  {colors.map(c => (
-                    <Button
-                      key={c}
-                      w={8}
-                      h={8}
-                      borderRadius="full"
-                      bg={c}
-                      onClick={() => setColor(c)}
-                      borderWidth={color === c ? "3px" : "0px"}
-                      borderColor="blue.400"
-                      _hover={{ transform: "scale(1.1)" }}
-                      aria-label={`Select color ${c}`}
-                    />
-                  ))}
-                </HStack>
-              </Box>
-              <Box w="full">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Section
-                </Text>
-                <NativeSelect.Root value={sectionId} onValueChange={({ value }) => setSectionId(value)}>
-                  <NativeSelect.Field>
-                    {sections.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </NativeSelect.Field>
-                  <NativeSelect.Indicator />
-                </NativeSelect.Root>
-              </Box>
-              <SimpleGrid columns={2} spacing={4} w="full">
-                <Box>
+      <Dialog.Backdrop bg="blackAlpha.600" />
+      <Dialog.Positioner>
+        <Dialog.Content bg={bgColor} maxH="90vh" overflowY="auto">
+          <Dialog.Header>{task ? "Edit Task" : "New Task"}</Dialog.Header>
+          <Dialog.CloseTrigger />
+          <Dialog.Body>
+            <form onSubmit={handleFormSubmit}>
+              <VStack spacing={4} py={4}>
+                <Box w="full">
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
-                    Date
+                    Task Name
                   </Text>
                   <Input
-                    type="date"
-                    value={date}
-                    onChange={e => setDate(e.target.value)}
-                    placeholder="Optional"
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
                     onKeyDown={e => {
                       if (e.key === "Enter" && title.trim()) {
                         e.preventDefault();
@@ -293,418 +240,469 @@ export const TaskDialog = ({
                     }}
                   />
                 </Box>
-                <Box>
+                <Box w="full">
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
-                    Time
+                    Color
                   </Text>
-                  <Input
-                    type="time"
-                    value={time}
-                    onChange={e => setTime(e.target.value)}
-                    placeholder="Optional"
-                    onKeyDown={e => {
-                      if (e.key === "Enter" && title.trim()) {
-                        e.preventDefault();
-                        handleSave();
-                      }
-                    }}
-                  />
-                </Box>
-              </SimpleGrid>
-              <Box w="full">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Duration
-                </Text>
-                <NativeSelect.Root
-                  value={duration.toString()}
-                  onValueChange={({ value }) => setDuration(parseInt(value))}
-                >
-                  <NativeSelect.Field>
-                    {DURATION_OPTIONS.map(d => (
-                      <option key={d.value} value={d.value.toString()}>
-                        {d.label}
-                      </option>
-                    ))}
-                  </NativeSelect.Field>
-                  <NativeSelect.Indicator />
-                </NativeSelect.Root>
-              </Box>
-              <Box w="full">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Recurrence
-                </Text>
-                <NativeSelect.Root value={recurrenceType} onValueChange={({ value }) => setRecurrenceType(value)}>
-                  <NativeSelect.Field>
-                    <option value="none">None (One-time task)</option>
-                    <option value="daily">Every day</option>
-                    <option value="weekly">Specific days</option>
-                  </NativeSelect.Field>
-                  <NativeSelect.Indicator />
-                </NativeSelect.Root>
-              </Box>
-              {/* Tags */}
-              <Box w="full">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Tags
-                </Text>
-                <HStack spacing={2} flexWrap="wrap" align="center" mt={2}>
-                  {/* Tags */}
-                  {tags
-                    .filter(t => selectedTagIds.includes(t.id))
-                    .map(tag => (
-                      <Tag.Root
-                        key={tag.id}
-                        size="sm"
+                  <HStack spacing={2} mt={2} flexWrap="wrap">
+                    {colors.map(c => (
+                      <Button
+                        key={c}
+                        w={8}
+                        h={8}
                         borderRadius="full"
-                        variant="solid"
-                        bg={tag.color}
-                        color="white"
-                        fontSize="xs"
-                      >
-                        <Tag.Label>{tag.name}</Tag.Label>
-                      </Tag.Root>
-                    ))}
-                  {/* Add Tag button */}
-                  <TagSelector
-                    tags={tags}
-                    selectedTagIds={selectedTagIds}
-                    onTagsChange={setSelectedTagIds}
-                    onCreateTag={onCreateTag}
-                    onDeleteTag={onDeleteTag}
-                    inline
-                  />
-                </HStack>
-              </Box>
-              {recurrenceType === "weekly" && (
-                <HStack spacing={1} w="full">
-                  {DAYS_OF_WEEK.map(day => (
-                    <Button
-                      key={day.value}
-                      w={9}
-                      h={9}
-                      borderRadius="full"
-                      fontSize="sm"
-                      fontWeight="medium"
-                      onClick={() =>
-                        setSelectedDays(prev =>
-                          prev.includes(day.value) ? prev.filter(d => d !== day.value) : [...prev, day.value]
-                        )
-                      }
-                      colorPalette={selectedDays.includes(day.value) ? "blue" : "gray"}
-                      variant={selectedDays.includes(day.value) ? "solid" : "outline"}
-                    >
-                      {day.short}
-                    </Button>
-                  ))}
-                </HStack>
-              )}
-              <Box w="full">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Subtasks
-                </Text>
-                <Tabs.Root
-                  value={subtaskTabIndex.toString()}
-                  onValueChange={({ value }) => setSubtaskTabIndex(parseInt(value))}
-                  variant="enclosed"
-                  size="sm"
-                >
-                  <Tabs.List>
-                    <Tabs.Trigger value="0">Manage ({subtasks.length})</Tabs.Trigger>
-                    <Tabs.Trigger value="1">Add Existing</Tabs.Trigger>
-                  </Tabs.List>
-                  <Tabs.Content value="0" px={0} py={3}>
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragStart={handleDragStart}
-                      onDragEnd={handleDragEnd}
-                      onDragCancel={handleDragCancel}
-                    >
-                      <SortableContext
-                        items={subtasks.map(st => `subtask-${st.id}`)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        <VStack align="stretch" spacing={2}>
-                          {subtasks.map(st => (
-                            <TaskItem
-                              key={st.id}
-                              task={st}
-                              variant="subtask"
-                              containerId="task-dialog-subtasks"
-                              draggableId={`subtask-${st.id}`}
-                              onEdit={() => {
-                                setEditingSubtask(st);
-                                setSubtaskTitle(st.title);
-                                setSubtaskTime(st.time || "");
-                                setSubtaskDuration(st.duration || 30);
-                                setSubtaskColor(st.color || "#3b82f6");
-                              }}
-                              onDelete={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
-                            />
-                          ))}
-                        </VStack>
-                      </SortableContext>
-                      <DragOverlay>
-                        {activeSubtask ? (
-                          <TaskItem
-                            task={activeSubtask}
-                            variant="subtask"
-                            containerId="task-dialog-subtasks"
-                            draggableId={`subtask-${activeSubtask.id}`}
-                          />
-                        ) : null}
-                      </DragOverlay>
-                    </DndContext>
-                    <Box borderTopWidth="1px" borderColor={useColorModeValue("gray.200", "gray.600")} my={2} />
-                    <HStack spacing={2}>
-                      <Input
-                        value={newSubtask}
-                        onChange={e => setNewSubtask(e.target.value)}
-                        placeholder="Create new subtask"
-                        size="sm"
-                        onKeyDown={e => {
-                          if (e.key === "Enter" && newSubtask.trim()) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setSubtasks([
-                              ...subtasks,
-                              {
-                                id: Date.now().toString(),
-                                title: newSubtask.trim(),
-                                completed: false,
-                                time: null,
-                                duration: 30,
-                                color: "#3b82f6",
-                                order: subtasks.length,
-                              },
-                            ]);
-                            setNewSubtask("");
-                          }
-                        }}
+                        bg={c}
+                        onClick={() => setColor(c)}
+                        borderWidth={color === c ? "3px" : "0px"}
+                        borderColor="blue.400"
+                        _hover={{ transform: "scale(1.1)" }}
+                        aria-label={`Select color ${c}`}
                       />
-                      <IconButton
-                        onClick={() => {
-                          if (newSubtask.trim()) {
-                            setSubtasks([
-                              ...subtasks,
-                              {
-                                id: Date.now().toString(),
-                                title: newSubtask.trim(),
-                                completed: false,
-                                time: null,
-                                duration: 30,
-                                color: "#3b82f6",
-                                order: subtasks.length,
-                              },
-                            ]);
-                            setNewSubtask("");
-                          }
-                        }}
-                        size="sm"
-                        variant="outline"
-                        aria-label="Add subtask"
-                      >
-                        <Box as="span" color="currentColor">
-                          <Plus size={16} stroke="currentColor" />
-                        </Box>
-                      </IconButton>
-                    </HStack>
-                  </Tabs.Content>
-
-                  {/* Add Existing Task Tab */}
-                  <Tabs.Content value="1" px={0} py={3}>
-                    <VStack align="stretch" spacing={3}>
-                      <HStack spacing={2}>
-                        <Box as="span" color="gray.500">
-                          <Search size={16} />
-                        </Box>
-                        <Input
-                          value={searchQuery}
-                          onChange={e => setSearchQuery(e.target.value)}
-                          placeholder="Search for tasks to add as subtasks..."
-                          size="sm"
-                        />
-                      </HStack>
-                      {searchQuery.trim() && (
-                        <VStack align="stretch" spacing={2} maxH="200px" overflowY="auto">
-                          {filteredTasks.length > 0 ? (
-                            filteredTasks.map(t => (
-                              <Box
-                                key={t.id}
-                                cursor="pointer"
-                                _hover={{ opacity: 0.8 }}
-                                onClick={() => addExistingTaskAsSubtask(t)}
-                                position="relative"
-                              >
-                                <TaskItem
-                                  task={t}
-                                  variant="subtask"
-                                  containerId="task-dialog-search"
-                                  draggableId={`dialog-search-${t.id}`}
-                                />
-                                <Box
-                                  position="absolute"
-                                  right={2}
-                                  top="50%"
-                                  transform="translateY(-50%)"
-                                  bg={searchResultBg}
-                                  borderRadius="md"
-                                  p={1}
-                                >
-                                  <IconButton
-                                    size="xs"
-                                    variant="ghost"
-                                    aria-label="Add as subtask"
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      addExistingTaskAsSubtask(t);
-                                    }}
-                                  >
-                                    <Box as="span" color="currentColor">
-                                      <Plus size={14} stroke="currentColor" />
-                                    </Box>
-                                  </IconButton>
-                                </Box>
-                              </Box>
-                            ))
-                          ) : (
-                            <Text fontSize="sm" color="gray.500" textAlign="center" py={4}>
-                              No tasks found
-                            </Text>
-                          )}
-                        </VStack>
-                      )}
-                      {!searchQuery.trim() && (
-                        <Text fontSize="sm" color="gray.500" textAlign="center" py={4}>
-                          Type to search for existing tasks
-                        </Text>
-                      )}
-                    </VStack>
-                  </Tabs.Content>
-                </Tabs.Root>
-              </Box>
-              {/* Subtask Edit Modal */}
-              <Dialog.Root
-                open={editingSubtask !== null}
-                onOpenChange={({ open }) => !open && setEditingSubtask(null)}
-                size="sm"
-              >
-                <Dialog.Backdrop />
-                <Dialog.Content bg={bgColor}>
-                  <Dialog.Header>Edit Subtask</Dialog.Header>
-                  <Dialog.CloseTrigger />
-                  <Dialog.Body>
-                    <VStack spacing={4} py={4}>
-                      <Box w="full">
-                        <Text fontSize="sm" fontWeight="medium" mb={1}>
-                          Title
-                        </Text>
-                        <Input
-                          value={subtaskTitle}
-                          onChange={e => setSubtaskTitle(e.target.value)}
-                          placeholder="Subtask title"
-                        />
-                      </Box>
-                      <Box w="full">
-                        <Text fontSize="sm" fontWeight="medium" mb={1}>
-                          Color
-                        </Text>
-                        <HStack spacing={2} mt={2} flexWrap="wrap">
-                          {colors.map(c => (
-                            <Button
-                              key={c}
-                              w={6}
-                              h={6}
-                              borderRadius="full"
-                              bg={c}
-                              onClick={() => setSubtaskColor(c)}
-                              borderWidth={subtaskColor === c ? "3px" : "0px"}
-                              borderColor="blue.400"
-                              _hover={{ transform: "scale(1.1)" }}
-                              aria-label={`Select color ${c}`}
-                            />
-                          ))}
-                        </HStack>
-                      </Box>
-                      <SimpleGrid columns={2} spacing={4} w="full">
-                        <Box>
-                          <Text fontSize="sm" fontWeight="medium" mb={1}>
-                            Time
-                          </Text>
-                          <Input
-                            type="time"
-                            value={subtaskTime}
-                            onChange={e => setSubtaskTime(e.target.value)}
-                            placeholder="Optional"
-                          />
-                        </Box>
-                        <Box>
-                          <Text fontSize="sm" fontWeight="medium" mb={1}>
-                            Duration
-                          </Text>
-                          <NativeSelect.Root
-                            value={subtaskDuration.toString()}
-                            onValueChange={({ value }) => setSubtaskDuration(parseInt(value))}
-                          >
-                            <NativeSelect.Field>
-                              {DURATION_OPTIONS.map(d => (
-                                <option key={d.value} value={d.value.toString()}>
-                                  {d.label}
-                                </option>
-                              ))}
-                            </NativeSelect.Field>
-                            <NativeSelect.Indicator />
-                          </NativeSelect.Root>
-                        </Box>
-                      </SimpleGrid>
-                    </VStack>
-                  </Dialog.Body>
-                  <Dialog.Footer>
-                    <Button variant="outline" mr={3} onClick={() => setEditingSubtask(null)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        if (subtaskTitle.trim() && editingSubtask) {
-                          setSubtasks(
-                            subtasks.map(st =>
-                              st.id === editingSubtask.id
-                                ? {
-                                    ...st,
-                                    title: subtaskTitle.trim(),
-                                    time: subtaskTime || null,
-                                    duration: subtaskDuration,
-                                    color: subtaskColor,
-                                  }
-                                : st
-                            )
-                          );
-                          setEditingSubtask(null);
-                          setSubtaskTitle("");
-                          setSubtaskTime("");
-                          setSubtaskDuration(30);
-                          setSubtaskColor("#3b82f6");
+                    ))}
+                  </HStack>
+                </Box>
+                <Box w="full">
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Section
+                  </Text>
+                  <NativeSelect.Root value={sectionId}>
+                    <NativeSelect.Field onChange={e => setSectionId(e.target.value)}>
+                      {sections.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </NativeSelect.Field>
+                    <NativeSelect.Indicator />
+                  </NativeSelect.Root>
+                </Box>
+                <SimpleGrid columns={2} spacing={4} w="full">
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Date
+                    </Text>
+                    <Input
+                      type="date"
+                      value={date}
+                      onChange={e => setDate(e.target.value)}
+                      placeholder="Optional"
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && title.trim()) {
+                          e.preventDefault();
+                          handleSave();
                         }
                       }}
-                      isDisabled={!subtaskTitle.trim()}
-                    >
-                      Save
-                    </Button>
-                  </Dialog.Footer>
-                </Dialog.Content>
-              </Dialog.Root>
-            </VStack>
-          </form>
-        </Dialog.Body>
-        <Dialog.Footer>
-          <Button variant="outline" mr={3} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} isDisabled={!title.trim()}>
-            Save
-          </Button>
-        </Dialog.Footer>
-      </Dialog.Content>
+                    />
+                  </Box>
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Time
+                    </Text>
+                    <Input
+                      type="time"
+                      value={time}
+                      onChange={e => setTime(e.target.value)}
+                      placeholder="Optional"
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && title.trim()) {
+                          e.preventDefault();
+                          handleSave();
+                        }
+                      }}
+                    />
+                  </Box>
+                </SimpleGrid>
+                <Box w="full">
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Duration
+                  </Text>
+                  <NativeSelect.Root value={duration.toString()}>
+                    <NativeSelect.Field onChange={e => setDuration(parseInt(e.target.value))}>
+                      {DURATION_OPTIONS.map(d => (
+                        <option key={d.value} value={d.value.toString()}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </NativeSelect.Field>
+                    <NativeSelect.Indicator />
+                  </NativeSelect.Root>
+                </Box>
+                <Box w="full">
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Recurrence
+                  </Text>
+                  <NativeSelect.Root value={recurrenceType}>
+                    <NativeSelect.Field onChange={e => setRecurrenceType(e.target.value)}>
+                      <option value="none">None (One-time task)</option>
+                      <option value="daily">Every day</option>
+                      <option value="weekly">Specific days</option>
+                    </NativeSelect.Field>
+                    <NativeSelect.Indicator />
+                  </NativeSelect.Root>
+                </Box>
+                {/* Tags */}
+                <Box w="full">
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Tags
+                  </Text>
+                  <HStack spacing={2} flexWrap="wrap" align="center" mt={2}>
+                    {/* Tags */}
+                    {tags
+                      .filter(t => selectedTagIds.includes(t.id))
+                      .map(tag => (
+                        <Tag.Root
+                          key={tag.id}
+                          size="sm"
+                          borderRadius="full"
+                          variant="solid"
+                          bg={tag.color}
+                          color="white"
+                          fontSize="xs"
+                        >
+                          <Tag.Label>{tag.name}</Tag.Label>
+                        </Tag.Root>
+                      ))}
+                    {/* Add Tag button */}
+                    <TagSelector
+                      tags={tags}
+                      selectedTagIds={selectedTagIds}
+                      onTagsChange={setSelectedTagIds}
+                      onCreateTag={onCreateTag}
+                      onDeleteTag={onDeleteTag}
+                      inline
+                    />
+                  </HStack>
+                </Box>
+                {recurrenceType === "weekly" && (
+                  <HStack spacing={1} w="full">
+                    {DAYS_OF_WEEK.map(day => (
+                      <Button
+                        key={day.value}
+                        w={9}
+                        h={9}
+                        borderRadius="full"
+                        fontSize="sm"
+                        fontWeight="medium"
+                        onClick={() =>
+                          setSelectedDays(prev =>
+                            prev.includes(day.value) ? prev.filter(d => d !== day.value) : [...prev, day.value]
+                          )
+                        }
+                        colorPalette={selectedDays.includes(day.value) ? "blue" : "gray"}
+                        variant={selectedDays.includes(day.value) ? "solid" : "outline"}
+                      >
+                        {day.short}
+                      </Button>
+                    ))}
+                  </HStack>
+                )}
+                <Box w="full">
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Subtasks
+                  </Text>
+                  <Tabs.Root
+                    value={subtaskTabIndex.toString()}
+                    onValueChange={({ value }) => setSubtaskTabIndex(parseInt(value))}
+                    variant="enclosed"
+                    size="sm"
+                  >
+                    <Tabs.List>
+                      <Tabs.Trigger value="0">Manage ({subtasks.length})</Tabs.Trigger>
+                      <Tabs.Trigger value="1">Add Existing</Tabs.Trigger>
+                    </Tabs.List>
+                    <Tabs.Content value="0" px={0} py={3}>
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        onDragCancel={handleDragCancel}
+                      >
+                        <SortableContext
+                          items={subtasks.map(st => `subtask-${st.id}`)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <VStack align="stretch" spacing={2}>
+                            {subtasks.map(st => (
+                              <TaskItem
+                                key={st.id}
+                                task={st}
+                                variant="subtask"
+                                containerId="task-dialog-subtasks"
+                                draggableId={`subtask-${st.id}`}
+                                onEdit={() => {
+                                  setEditingSubtask(st);
+                                  setSubtaskTitle(st.title);
+                                  setSubtaskTime(st.time || "");
+                                  setSubtaskDuration(st.duration || 30);
+                                  setSubtaskColor(st.color || "#3b82f6");
+                                }}
+                                onDelete={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
+                              />
+                            ))}
+                          </VStack>
+                        </SortableContext>
+                        <DragOverlay>
+                          {activeSubtask ? (
+                            <TaskItem
+                              task={activeSubtask}
+                              variant="subtask"
+                              containerId="task-dialog-subtasks"
+                              draggableId={`subtask-${activeSubtask.id}`}
+                            />
+                          ) : null}
+                        </DragOverlay>
+                      </DndContext>
+                      <Box borderTopWidth="1px" borderColor={useColorModeValue("gray.200", "gray.600")} my={2} />
+                      <HStack spacing={2}>
+                        <Input
+                          value={newSubtask}
+                          onChange={e => setNewSubtask(e.target.value)}
+                          placeholder="Create new subtask"
+                          size="sm"
+                          onKeyDown={e => {
+                            if (e.key === "Enter" && newSubtask.trim()) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSubtasks([
+                                ...subtasks,
+                                {
+                                  id: Date.now().toString(),
+                                  title: newSubtask.trim(),
+                                  completed: false,
+                                  time: null,
+                                  duration: 30,
+                                  color: "#3b82f6",
+                                  order: subtasks.length,
+                                },
+                              ]);
+                              setNewSubtask("");
+                            }
+                          }}
+                        />
+                        <IconButton
+                          onClick={() => {
+                            if (newSubtask.trim()) {
+                              setSubtasks([
+                                ...subtasks,
+                                {
+                                  id: Date.now().toString(),
+                                  title: newSubtask.trim(),
+                                  completed: false,
+                                  time: null,
+                                  duration: 30,
+                                  color: "#3b82f6",
+                                  order: subtasks.length,
+                                },
+                              ]);
+                              setNewSubtask("");
+                            }
+                          }}
+                          size="sm"
+                          variant="outline"
+                          aria-label="Add subtask"
+                        >
+                          <Box as="span" color="currentColor">
+                            <Plus size={16} stroke="currentColor" />
+                          </Box>
+                        </IconButton>
+                      </HStack>
+                    </Tabs.Content>
+
+                    {/* Add Existing Task Tab */}
+                    <Tabs.Content value="1" px={0} py={3}>
+                      <VStack align="stretch" spacing={3}>
+                        <HStack spacing={2}>
+                          <Box as="span" color="gray.500">
+                            <Search size={16} />
+                          </Box>
+                          <Input
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Search for tasks to add as subtasks..."
+                            size="sm"
+                          />
+                        </HStack>
+                        {searchQuery.trim() && (
+                          <VStack align="stretch" spacing={2} maxH="200px" overflowY="auto">
+                            {filteredTasks.length > 0 ? (
+                              filteredTasks.map(t => (
+                                <Box
+                                  key={t.id}
+                                  cursor="pointer"
+                                  _hover={{ opacity: 0.8 }}
+                                  onClick={() => addExistingTaskAsSubtask(t)}
+                                  position="relative"
+                                >
+                                  <TaskItem
+                                    task={t}
+                                    variant="subtask"
+                                    containerId="task-dialog-search"
+                                    draggableId={`dialog-search-${t.id}`}
+                                  />
+                                  <Box
+                                    position="absolute"
+                                    right={2}
+                                    top="50%"
+                                    transform="translateY(-50%)"
+                                    bg={searchResultBg}
+                                    borderRadius="md"
+                                    p={1}
+                                  >
+                                    <IconButton
+                                      size="xs"
+                                      variant="ghost"
+                                      aria-label="Add as subtask"
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        addExistingTaskAsSubtask(t);
+                                      }}
+                                    >
+                                      <Box as="span" color="currentColor">
+                                        <Plus size={14} stroke="currentColor" />
+                                      </Box>
+                                    </IconButton>
+                                  </Box>
+                                </Box>
+                              ))
+                            ) : (
+                              <Text fontSize="sm" color="gray.500" textAlign="center" py={4}>
+                                No tasks found
+                              </Text>
+                            )}
+                          </VStack>
+                        )}
+                        {!searchQuery.trim() && (
+                          <Text fontSize="sm" color="gray.500" textAlign="center" py={4}>
+                            Type to search for existing tasks
+                          </Text>
+                        )}
+                      </VStack>
+                    </Tabs.Content>
+                  </Tabs.Root>
+                </Box>
+                {/* Subtask Edit Modal */}
+                <Dialog.Root
+                  open={editingSubtask !== null}
+                  onOpenChange={({ open }) => !open && setEditingSubtask(null)}
+                  size="sm"
+                >
+                  <Dialog.Backdrop bg="blackAlpha.600" />
+                  <Dialog.Positioner>
+                    <Dialog.Content bg={bgColor}>
+                      <Dialog.Header>Edit Subtask</Dialog.Header>
+                      <Dialog.CloseTrigger />
+                      <Dialog.Body>
+                        <VStack spacing={4} py={4}>
+                          <Box w="full">
+                            <Text fontSize="sm" fontWeight="medium" mb={1}>
+                              Title
+                            </Text>
+                            <Input
+                              value={subtaskTitle}
+                              onChange={e => setSubtaskTitle(e.target.value)}
+                              placeholder="Subtask title"
+                            />
+                          </Box>
+                          <Box w="full">
+                            <Text fontSize="sm" fontWeight="medium" mb={1}>
+                              Color
+                            </Text>
+                            <HStack spacing={2} mt={2} flexWrap="wrap">
+                              {colors.map(c => (
+                                <Button
+                                  key={c}
+                                  w={6}
+                                  h={6}
+                                  borderRadius="full"
+                                  bg={c}
+                                  onClick={() => setSubtaskColor(c)}
+                                  borderWidth={subtaskColor === c ? "3px" : "0px"}
+                                  borderColor="blue.400"
+                                  _hover={{ transform: "scale(1.1)" }}
+                                  aria-label={`Select color ${c}`}
+                                />
+                              ))}
+                            </HStack>
+                          </Box>
+                          <SimpleGrid columns={2} spacing={4} w="full">
+                            <Box>
+                              <Text fontSize="sm" fontWeight="medium" mb={1}>
+                                Time
+                              </Text>
+                              <Input
+                                type="time"
+                                value={subtaskTime}
+                                onChange={e => setSubtaskTime(e.target.value)}
+                                placeholder="Optional"
+                              />
+                            </Box>
+                            <Box>
+                              <Text fontSize="sm" fontWeight="medium" mb={1}>
+                                Duration
+                              </Text>
+                              <NativeSelect.Root value={subtaskDuration.toString()}>
+                                <NativeSelect.Field onChange={e => setSubtaskDuration(parseInt(e.target.value))}>
+                                  {DURATION_OPTIONS.map(d => (
+                                    <option key={d.value} value={d.value.toString()}>
+                                      {d.label}
+                                    </option>
+                                  ))}
+                                </NativeSelect.Field>
+                                <NativeSelect.Indicator />
+                              </NativeSelect.Root>
+                            </Box>
+                          </SimpleGrid>
+                        </VStack>
+                      </Dialog.Body>
+                      <Dialog.Footer>
+                        <Button variant="outline" mr={3} onClick={() => setEditingSubtask(null)}>
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            if (subtaskTitle.trim() && editingSubtask) {
+                              setSubtasks(
+                                subtasks.map(st =>
+                                  st.id === editingSubtask.id
+                                    ? {
+                                        ...st,
+                                        title: subtaskTitle.trim(),
+                                        time: subtaskTime || null,
+                                        duration: subtaskDuration,
+                                        color: subtaskColor,
+                                      }
+                                    : st
+                                )
+                              );
+                              setEditingSubtask(null);
+                              setSubtaskTitle("");
+                              setSubtaskTime("");
+                              setSubtaskDuration(30);
+                              setSubtaskColor("#3b82f6");
+                            }
+                          }}
+                          isDisabled={!subtaskTitle.trim()}
+                        >
+                          Save
+                        </Button>
+                      </Dialog.Footer>
+                    </Dialog.Content>
+                  </Dialog.Positioner>
+                </Dialog.Root>
+              </VStack>
+            </form>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button variant="outline" mr={3} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} isDisabled={!title.trim()}>
+              Save
+            </Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
     </Dialog.Root>
   );
 };

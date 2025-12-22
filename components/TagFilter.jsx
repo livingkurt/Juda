@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Box, HStack, Tag, Menu, Button, Input, Text, useDisclosure } from "@chakra-ui/react";
+import { Box, HStack, Tag, Menu, Button, Input, Text } from "@chakra-ui/react";
 import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { Tag as TagIcon, Plus, X } from "lucide-react";
 
@@ -14,7 +14,9 @@ export const TagFilter = ({
   compact = false,
 }) => {
   const [newTagName, setNewTagName] = useState("");
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [isOpen, setIsOpen] = useState(false);
+  const onOpen = () => setIsOpen(true);
+  const onClose = () => setIsOpen(false);
   const inputRef = useRef(null);
 
   const bgColor = useColorModeValue("white", "gray.800");

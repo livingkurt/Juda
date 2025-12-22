@@ -14,7 +14,6 @@ import {
   Heading,
   Badge,
   Tabs,
-  useDisclosure,
   createListCollection,
 } from "@chakra-ui/react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -277,8 +276,14 @@ export default function DailyTasksApp() {
     }
   }, [showCompletedTasks]);
 
-  const { isOpen: taskDialogOpen, onOpen: openTaskDialog, onClose: closeTaskDialog } = useDisclosure();
-  const { isOpen: sectionDialogOpen, onOpen: openSectionDialog, onClose: closeSectionDialog } = useDisclosure();
+  // Dialog state management (replacing useDisclosure from Chakra v2)
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+  const openTaskDialog = () => setTaskDialogOpen(true);
+  const closeTaskDialog = () => setTaskDialogOpen(false);
+
+  const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
+  const openSectionDialog = () => setSectionDialogOpen(true);
+  const closeSectionDialog = () => setSectionDialogOpen(false);
 
   // Resize handlers for backlog drawer
   const resizeStartRef = useRef(null);

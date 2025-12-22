@@ -1,20 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import {
-  Box,
-  HStack,
-  VStack,
-  Tag,
-  Menu,
-  Button,
-  Input,
-  Text,
-  IconButton,
-  useDisclosure,
-  Wrap,
-  WrapItem,
-} from "@chakra-ui/react";
+import { Box, HStack, VStack, Tag, Menu, Button, Input, Text, IconButton, Wrap, WrapItem } from "@chakra-ui/react";
 import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { Tag as TagIcon, Plus, Trash2 } from "lucide-react";
 
@@ -28,7 +15,9 @@ export const TagSelector = ({
 }) => {
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState("#6366f1");
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [isOpen, setIsOpen] = useState(false);
+  const onOpen = () => setIsOpen(true);
+  const onClose = () => setIsOpen(false);
   const inputRef = useRef(null);
 
   const bgColor = useColorModeValue("white", "gray.800");
