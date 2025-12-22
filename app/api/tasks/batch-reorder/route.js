@@ -37,14 +37,18 @@ export async function PUT(request) {
     }
 
     // Use a transaction to update all tasks atomically
+    // Note: Drizzle doesn't support bulk updates with different values per row,
+    // so we use Promise.all to run updates in parallel within the transaction
     await db.transaction(async tx => {
       const now = new Date();
-      for (const update of updates) {
-        await tx
-          .update(tasks)
-          .set({ order: update.order, updatedAt: now })
-          .where(and(eq(tasks.id, update.id), eq(tasks.userId, userId)));
-      }
+      await Promise.all(
+        updates.map(update =>
+          tx
+            .update(tasks)
+            .set({ order: update.order, updatedAt: now })
+            .where(and(eq(tasks.id, update.id), eq(tasks.userId, userId)))
+        )
+      );
     });
 
     // Return success

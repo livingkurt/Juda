@@ -120,15 +120,19 @@ export async function DELETE(request) {
     }
 
     // Use transaction to delete all assignments atomically
+    // Note: We use Promise.all to delete in parallel since Drizzle doesn't support
+    // complex OR conditions for bulk deletes with different taskId+tagId pairs
     let deletedCount = 0;
     await db.transaction(async tx => {
-      for (const { taskId, tagId } of assignments) {
-        const result = await tx
-          .delete(taskTags)
-          .where(and(eq(taskTags.taskId, taskId), eq(taskTags.tagId, tagId)))
-          .returning();
-        deletedCount += result.length;
-      }
+      const results = await Promise.all(
+        assignments.map(({ taskId, tagId }) =>
+          tx
+            .delete(taskTags)
+            .where(and(eq(taskTags.taskId, taskId), eq(taskTags.tagId, tagId)))
+            .returning()
+        )
+      );
+      deletedCount = results.reduce((sum, result) => sum + result.length, 0);
     });
 
     return NextResponse.json({ success: true, deletedCount });

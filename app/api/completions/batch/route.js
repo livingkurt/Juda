@@ -47,21 +47,34 @@ export async function POST(request) {
 
     // Use transaction to insert all completions atomically
     const createdCompletions = await db.transaction(async tx => {
-      const results = [];
-      for (const value of values) {
-        // Check if completion already exists
-        const existing = await tx.query.taskCompletions.findFirst({
-          where: and(eq(taskCompletions.taskId, value.taskId), eq(taskCompletions.date, value.date)),
-        });
+      // Check which completions already exist in a single query
+      const existingCompletions = await tx.query.taskCompletions.findMany({
+        where: and(
+          inArray(
+            taskCompletions.taskId,
+            values.map(v => v.taskId)
+          ),
+          inArray(
+            taskCompletions.date,
+            values.map(v => v.date)
+          )
+        ),
+      });
 
-        if (!existing) {
-          const [completion] = await tx.insert(taskCompletions).values(value).returning();
-          results.push(completion);
-        } else {
-          results.push(existing);
-        }
+      // Create a Set of existing completion keys for fast lookup
+      const existingKeys = new Set(existingCompletions.map(c => `${c.taskId}|${new Date(c.date).toISOString()}`));
+
+      // Filter out values that already exist
+      const newValues = values.filter(v => !existingKeys.has(`${v.taskId}|${v.date.toISOString()}`));
+
+      // Bulk insert new completions
+      let newCompletions = [];
+      if (newValues.length > 0) {
+        newCompletions = await tx.insert(taskCompletions).values(newValues).returning();
       }
-      return results;
+
+      // Return both existing and newly created completions
+      return [...existingCompletions, ...newCompletions];
     });
 
     return NextResponse.json(
@@ -106,31 +119,29 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "One or more tasks not found" }, { status: 404 });
     }
 
+    // Normalize all dates first
+    const normalizedCompletions = completionsToDelete.map(({ taskId, date }) => {
+      const completionDate = new Date(date);
+      const utcDate = new Date(
+        Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
+      );
+      return { taskId, date: utcDate };
+    });
+
     // Use transaction to delete all completions atomically
+    // Note: We use Promise.all to delete in parallel since Drizzle doesn't support
+    // complex OR conditions for bulk deletes with different taskId+date pairs
     let deletedCount = 0;
     await db.transaction(async tx => {
-      for (const { taskId, date } of completionsToDelete) {
-        // Normalize date
-        const completionDate = new Date(date);
-        const utcDate = new Date(
-          Date.UTC(
-            completionDate.getUTCFullYear(),
-            completionDate.getUTCMonth(),
-            completionDate.getUTCDate(),
-            0,
-            0,
-            0,
-            0
-          )
-        );
-
-        const result = await tx
-          .delete(taskCompletions)
-          .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)))
-          .returning();
-
-        deletedCount += result.length;
-      }
+      const results = await Promise.all(
+        normalizedCompletions.map(({ taskId, date }) =>
+          tx
+            .delete(taskCompletions)
+            .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, date)))
+            .returning()
+        )
+      );
+      deletedCount = results.reduce((sum, result) => sum + result.length, 0);
     });
 
     return NextResponse.json({ success: true, deletedCount });

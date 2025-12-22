@@ -52,12 +52,11 @@ export async function POST(request) {
 
     // Use transaction to create/update all tasks atomically
     await db.transaction(async tx => {
-      // Create new tasks
-      for (const taskData of tasksToCreate) {
-        const { id, ...taskFields } = taskData; // Remove temporary id if present
-        const [task] = await tx
-          .insert(tasks)
-          .values({
+      // Bulk create new tasks
+      if (tasksToCreate.length > 0) {
+        const valuesToInsert = tasksToCreate.map(taskData => {
+          const { id: _id, ...taskFields } = taskData; // Remove temporary id if present
+          return {
             userId,
             title: taskFields.title,
             sectionId: taskFields.sectionId,
@@ -67,33 +66,40 @@ export async function POST(request) {
             color: taskFields.color ?? "#3b82f6",
             recurrence: taskFields.recurrence || null,
             order: taskFields.order ?? 0,
-          })
-          .returning();
-        createdTasks.push(task);
+          };
+        });
+        const created = await tx.insert(tasks).values(valuesToInsert).returning();
+        createdTasks.push(...created);
       }
 
-      // Update existing tasks
-      for (const taskData of tasksToUpdate) {
-        const { id, ...taskFields } = taskData;
-        const updateData = {};
-        if (taskFields.title !== undefined) updateData.title = taskFields.title;
-        if (taskFields.sectionId !== undefined) updateData.sectionId = taskFields.sectionId;
-        if (taskFields.parentId !== undefined) updateData.parentId = taskFields.parentId;
-        if (taskFields.time !== undefined) updateData.time = taskFields.time;
-        if (taskFields.duration !== undefined) updateData.duration = taskFields.duration;
-        if (taskFields.color !== undefined) updateData.color = taskFields.color;
-        if (taskFields.recurrence !== undefined) updateData.recurrence = taskFields.recurrence;
-        if (taskFields.order !== undefined) updateData.order = taskFields.order;
+      // Update existing tasks in parallel
+      if (tasksToUpdate.length > 0) {
+        const updatePromises = tasksToUpdate.map(async taskData => {
+          const { id, ...taskFields } = taskData;
+          const updateData = {};
+          if (taskFields.title !== undefined) updateData.title = taskFields.title;
+          if (taskFields.sectionId !== undefined) updateData.sectionId = taskFields.sectionId;
+          if (taskFields.parentId !== undefined) updateData.parentId = taskFields.parentId;
+          if (taskFields.time !== undefined) updateData.time = taskFields.time;
+          if (taskFields.duration !== undefined) updateData.duration = taskFields.duration;
+          if (taskFields.color !== undefined) updateData.color = taskFields.color;
+          if (taskFields.recurrence !== undefined) updateData.recurrence = taskFields.recurrence;
+          if (taskFields.order !== undefined) updateData.order = taskFields.order;
 
-        if (Object.keys(updateData).length > 0) {
-          updateData.updatedAt = new Date();
-          const [task] = await tx
-            .update(tasks)
-            .set(updateData)
-            .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
-            .returning();
-          updatedTasks.push(task);
-        }
+          if (Object.keys(updateData).length > 0) {
+            updateData.updatedAt = new Date();
+            const [task] = await tx
+              .update(tasks)
+              .set(updateData)
+              .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+              .returning();
+            return task;
+          }
+          return null;
+        });
+
+        const updated = await Promise.all(updatePromises);
+        updatedTasks.push(...updated.filter(Boolean));
       }
     });
 
