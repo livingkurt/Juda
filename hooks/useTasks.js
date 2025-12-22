@@ -452,6 +452,42 @@ export const useTasks = () => {
     }
   };
 
+  const batchReorderTasks = async updates => {
+    const previousTasks = [...tasks];
+
+    // Optimistically update task orders
+    setTasks(prev => {
+      const updatesMap = new Map(updates.map(u => [u.id, u.order]));
+      return prev.map(task => {
+        if (updatesMap.has(task.id)) {
+          return { ...task, order: updatesMap.get(task.id) };
+        }
+        return task;
+      });
+    });
+
+    try {
+      const response = await authFetch("/api/tasks/batch-reorder", {
+        method: "PUT",
+        body: JSON.stringify({ updates }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || `Failed to batch reorder tasks (${response.status})`;
+        throw new Error(errorMessage);
+      }
+
+      // Success - state is already updated optimistically
+      return await response.json();
+    } catch (err) {
+      // Rollback on error
+      setTasks(previousTasks);
+      setError(err.message);
+      throw err;
+    }
+  };
+
   return {
     tasks,
     loading,
@@ -464,6 +500,7 @@ export const useTasks = () => {
     combineAsSubtask,
     promoteSubtask,
     saveTask,
+    batchReorderTasks,
     refetch: fetchTasks,
   };
 };

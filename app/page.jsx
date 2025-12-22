@@ -121,6 +121,7 @@ export default function DailyTasksApp() {
     reorderTask,
     duplicateTask,
     saveTask,
+    batchReorderTasks,
     loading: tasksLoading,
   } = useTasks();
   const {
@@ -1179,10 +1180,10 @@ export default function DailyTasksApp() {
         // Use arrayMove to reorder
         const reordered = arrayMove(sortedBacklogTasks, oldIndex, newIndex);
 
-        // Update order for all affected tasks
+        // Update order for all affected tasks using batch API
         try {
-          // Update each task's order
-          await Promise.all(reordered.map((t, idx) => updateTask(t.id, { order: idx })));
+          const updates = reordered.map((t, idx) => ({ id: t.id, order: idx }));
+          await batchReorderTasks(updates);
         } catch (err) {
           toast({
             title: "Error",
