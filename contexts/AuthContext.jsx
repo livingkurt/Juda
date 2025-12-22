@@ -5,10 +5,13 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [accessToken, setAccessToken] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false);
+  // Use a unified state object to prevent race conditions and flashes
+  const [authState, setAuthState] = useState({
+    user: null,
+    accessToken: null,
+    loading: true,
+    initialized: false,
+  });
 
   // Ref to track if refresh is in progress
   const refreshingRef = useRef(false);
@@ -28,19 +31,28 @@ export function AuthProvider({ children }) {
       });
 
       if (!response.ok) {
-        setUser(null);
-        setAccessToken(null);
+        setAuthState(prev => ({
+          ...prev,
+          user: null,
+          accessToken: null,
+        }));
         return null;
       }
 
       const data = await response.json();
-      setUser(data.user);
-      setAccessToken(data.accessToken);
+      setAuthState(prev => ({
+        ...prev,
+        user: data.user,
+        accessToken: data.accessToken,
+      }));
       return data.accessToken;
     } catch (error) {
       console.error("Failed to refresh token:", error);
-      setUser(null);
-      setAccessToken(null);
+      setAuthState(prev => ({
+        ...prev,
+        user: null,
+        accessToken: null,
+      }));
       return null;
     } finally {
       refreshingRef.current = false;
@@ -50,18 +62,46 @@ export function AuthProvider({ children }) {
   // Initialize auth state on mount
   useEffect(() => {
     const initAuth = async () => {
-      setLoading(true);
-      await refreshAccessToken();
-      setInitialized(true);
-      setLoading(false);
+      try {
+        const response = await fetch("/api/auth/refresh", {
+          method: "POST",
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // SET EVERYTHING AT ONCE
+          setAuthState({
+            user: data.user,
+            accessToken: data.accessToken,
+            loading: false,
+            initialized: true,
+          });
+        } else {
+          setAuthState({
+            user: null,
+            accessToken: null,
+            loading: false,
+            initialized: true,
+          });
+        }
+      } catch (error) {
+        console.error("Auth init error:", error);
+        setAuthState({
+          user: null,
+          accessToken: null,
+          loading: false,
+          initialized: true,
+        });
+      }
     };
 
     initAuth();
-  }, [refreshAccessToken]);
+  }, []);
 
   // Set up automatic token refresh (every 13 minutes to refresh before 15min expiry)
   useEffect(() => {
-    if (!accessToken) {
+    if (!authState.accessToken) {
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
         refreshIntervalRef.current = null;
@@ -82,7 +122,7 @@ export function AuthProvider({ children }) {
         clearInterval(refreshIntervalRef.current);
       }
     };
-  }, [accessToken, refreshAccessToken]);
+  }, [authState.accessToken, refreshAccessToken]);
 
   // Helper function to migrate localStorage to DB
   const migrateLocalStoragePreferences = useCallback(async token => {
@@ -108,7 +148,6 @@ export function AuthProvider({ children }) {
 
         // Clear localStorage after migration
         localStorage.removeItem("juda-view-preferences");
-        // Note: Keep chakra-ui-color-mode for initial page load performance
       }
     } catch (error) {
       console.error("Error migrating preferences:", error);
@@ -131,8 +170,12 @@ export function AuthProvider({ children }) {
       }
 
       const data = await response.json();
-      setUser(data.user);
-      setAccessToken(data.accessToken);
+      setAuthState({
+        user: data.user,
+        accessToken: data.accessToken,
+        loading: false,
+        initialized: true,
+      });
 
       // Migrate localStorage preferences to database
       await migrateLocalStoragePreferences(data.accessToken);
@@ -158,8 +201,12 @@ export function AuthProvider({ children }) {
       }
 
       const data = await response.json();
-      setUser(data.user);
-      setAccessToken(data.accessToken);
+      setAuthState({
+        user: data.user,
+        accessToken: data.accessToken,
+        loading: false,
+        initialized: true,
+      });
 
       // Migrate localStorage preferences to database
       await migrateLocalStoragePreferences(data.accessToken);
@@ -179,25 +226,26 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      setUser(null);
-      setAccessToken(null);
+      setAuthState({
+        user: null,
+        accessToken: null,
+        loading: false,
+        initialized: true,
+      });
     }
   }, []);
 
   // Get current access token (with auto-refresh if needed)
   const getAccessToken = useCallback(async () => {
-    if (accessToken) {
-      return accessToken;
+    if (authState.accessToken) {
+      return authState.accessToken;
     }
     return refreshAccessToken();
-  }, [accessToken, refreshAccessToken]);
+  }, [authState.accessToken, refreshAccessToken]);
 
   const value = {
-    user,
-    accessToken,
-    loading,
-    initialized,
-    isAuthenticated: Boolean(user),
+    ...authState,
+    isAuthenticated: Boolean(authState.user),
     login,
     register,
     logout,

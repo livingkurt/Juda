@@ -10,6 +10,7 @@ export function usePreferences() {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const authFetch = useAuthFetch();
+  const { isAuthenticated, initialized: authInitialized } = useAuth();
 
   // Debounce timer ref for saving
   const saveTimerRef = useRef(null);
@@ -35,10 +36,16 @@ export function usePreferences() {
     }
   }, [authFetch]);
 
-  // Load preferences on mount and when auth state changes
+  // Only fetch preferences AFTER auth is initialized and user is authenticated
   useEffect(() => {
-    fetchPreferences();
-  }, [fetchPreferences]);
+    if (authInitialized && isAuthenticated) {
+      fetchPreferences();
+    } else if (authInitialized && !isAuthenticated) {
+      // Auth is initialized but user is not authenticated - mark as initialized with defaults
+      setLoading(false);
+      setInitialized(true);
+    }
+  }, [authInitialized, isAuthenticated, fetchPreferences]);
 
   // Save preferences to server (debounced)
   const savePreferences = useCallback(

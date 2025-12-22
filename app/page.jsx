@@ -18,7 +18,6 @@ import {
   Tabs,
   TabList,
   Tab,
-  Spinner,
   useDisclosure,
 } from "@chakra-ui/react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -82,7 +81,7 @@ import { TagFilter } from "@/components/TagFilter";
 export { createDroppableId, createDraggableId, extractTaskId };
 
 export default function DailyTasksApp() {
-  const { isAuthenticated, loading: authLoading, logout } = useAuth();
+  const { isAuthenticated, loading: authLoading, initialized: authInitialized, logout } = useAuth();
   const { colorMode, toggleColorMode } = useColorModeSync();
   const toast = useToast();
   const bgColor = useColorModeValue("gray.50", "gray.900");
@@ -1521,29 +1520,22 @@ export default function DailyTasksApp() {
     await handleDragEnd(result);
   };
 
-  // Show loading while checking auth
-  if (authLoading) {
-    return (
-      <Flex h="100vh" align="center" justify="center">
-        <Spinner size="xl" />
-      </Flex>
-    );
+  // Show loading while:
+  // 1. Auth is not yet initialized (still checking if user has valid session)
+  // 2. Auth is loading
+  // This ensures we never show the login form while auth check is in progress
+  if (!authInitialized || authLoading) {
+    return <PageSkeleton showBacklog={false} showDashboard={false} showCalendar={false} />;
   }
 
-  // Show auth page if not authenticated
+  // Now auth is fully initialized - show auth page if not authenticated
   if (!isAuthenticated) {
     return <AuthPage />;
   }
 
-  // Show skeleton on initial load
+  // User is authenticated - show loading while data/preferences load
   if (isLoading && tasks.length === 0 && sections.length === 0) {
-    return (
-      <PageSkeleton
-        showBacklog={backlogOpen || false}
-        showDashboard={showDashboard || false}
-        showCalendar={showCalendar || false}
-      />
-    );
+    return <PageSkeleton showBacklog={false} showDashboard={false} showCalendar={false} />;
   }
 
   return (
