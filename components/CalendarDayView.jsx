@@ -290,6 +290,7 @@ export const CalendarDayView = ({
                 createDraggableId={createDraggableId}
                 date={date}
                 isCompletedOnDate={isCompletedOnDate}
+                getOutcomeOnDate={getOutcomeOnDate}
               />
             ))}
             {isOverUntimed && untimedTasks.length === 0 && (
@@ -358,6 +359,7 @@ export const CalendarDayView = ({
               internalDrag={internalDrag}
               handleInternalDragStart={handleInternalDragStart}
               isCompletedOnDate={isCompletedOnDate}
+              getOutcomeOnDate={getOutcomeOnDate}
             />
           ))}
         </Box>

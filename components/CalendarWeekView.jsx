@@ -288,6 +288,7 @@ export const CalendarWeekView = ({
               hourTextColor={hourTextColor}
               hoverBg={hoverBg}
               isCompletedOnDate={isCompletedOnDate}
+              getOutcomeOnDate={getOutcomeOnDate}
             />
           );
         })}
@@ -340,6 +341,7 @@ export const CalendarWeekView = ({
                   borderColor={borderColor}
                   dropHighlight={dropHighlight}
                   isCompletedOnDate={isCompletedOnDate}
+                  getOutcomeOnDate={getOutcomeOnDate}
                   hourHeight={HOUR_HEIGHT}
                 />
               );
