@@ -151,13 +151,18 @@ export const BacklogDrawer = ({
             <Text fontSize="xs" fontWeight="semibold" color={mutedText} mb={2} ml={2} textTransform="uppercase">
               Unscheduled Tasks
             </Text>
-            <SortableContext items={tasksWithIds.map(t => t.draggableId)} strategy={verticalListSortingStrategy}>
+            <SortableContext
+              id="backlog"
+              items={tasksWithIds.map(t => t.draggableId)}
+              strategy={verticalListSortingStrategy}
+            >
               <VStack align="stretch" spacing={2} px={2}>
                 {tasksWithIds.map(task => (
                   <TaskItem
                     key={task.id}
                     task={task}
                     variant="backlog"
+                    containerId="backlog"
                     onEditTask={onEditTask}
                     onUpdateTaskTitle={onUpdateTaskTitle}
                     onDeleteTask={onDeleteTask}

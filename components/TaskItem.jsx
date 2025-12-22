@@ -30,6 +30,7 @@ import { createDroppableId } from "@/lib/dragHelpers";
 export const TaskItem = ({
   task,
   variant = "today", // "today", "backlog", or "subtask"
+  containerId, // Container ID for sortable context
   onToggle,
   onToggleSubtask,
   onToggleExpand,
@@ -118,23 +119,12 @@ export const TaskItem = ({
 
   const allSubtasksComplete = task.subtasks && task.subtasks.length > 0 && task.subtasks.every(st => st.completed);
 
-  // Extract containerId from draggableId
-  let containerId = null;
-  if (draggableId) {
-    if (draggableId.includes("-today-section-")) {
-      // Extract section ID - it's everything after "-today-section-"
-      const match = draggableId.match(/-today-section-(.+)$/);
-      if (match) containerId = `today-section|${match[1]}`;
-    } else if (draggableId.includes("-backlog") || draggableId.includes("backlog")) {
-      containerId = "backlog";
-    }
-  }
-
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: draggableId,
     data: {
       type: "TASK",
       containerId: containerId,
+      taskId: task.id,
     },
   });
 
@@ -142,6 +132,7 @@ export const TaskItem = ({
   const taskDropId = createDroppableId.taskTarget(task.id);
   const { isOver, setNodeRef: setDropRef } = useDroppable({
     id: taskDropId,
+    disabled: isDragging, // Disable drop target when this item is being dragged
     data: {
       type: "TASK_TARGET",
       taskId: task.id,
@@ -196,12 +187,12 @@ export const TaskItem = ({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  // Visual feedback for drop target
+  // Visual feedback for drop target - only show when not dragging this item
   const dropTargetStyle = {
-    borderColor: isOver ? "blue.400" : task.color,
-    borderWidth: isOver ? "2px" : "2px",
-    borderStyle: isOver ? "dashed" : "solid",
-    transform: isOver ? "scale(1.02)" : "scale(1)",
+    borderColor: isOver && !isDragging ? "blue.400" : task.color,
+    borderWidth: isOver && !isDragging ? "2px" : "2px",
+    borderStyle: isOver && !isDragging ? "dashed" : "solid",
+    transform: isOver && !isDragging ? "scale(1.02)" : "scale(1)",
     transition: "all 0.2s ease",
   };
 
@@ -423,6 +414,7 @@ export const TaskItem = ({
         {task.expanded && task.subtasks && task.subtasks.length > 0 && onToggleSubtask && (
           <Box pl={16} pr={3} pb={3}>
             <SortableContext
+              id={createDroppableId.subtaskContainer(task.id)}
               items={task.subtasks.map(st => createDroppableId.subtask(task.id, st.id))}
               strategy={verticalListSortingStrategy}
             >
@@ -432,6 +424,7 @@ export const TaskItem = ({
                     key={subtask.id}
                     task={subtask}
                     variant="subtask"
+                    containerId={createDroppableId.subtaskContainer(task.id)}
                     parentTaskId={task.id}
                     draggableId={createDroppableId.subtask(task.id, subtask.id)}
                     onToggle={onToggleSubtask}

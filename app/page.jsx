@@ -28,6 +28,7 @@ import {
   DndContext,
   DragOverlay,
   pointerWithin,
+  closestCenter,
   useSensor,
   useSensors,
   PointerSensor,
@@ -79,6 +80,24 @@ import { TagFilter } from "@/components/TagFilter";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
+
+// Custom collision detection that prioritizes sortable reordering
+const customCollisionDetection = args => {
+  const activeData = args.active?.data?.current;
+  const isSortable = activeData?.type === "TASK" || activeData?.type === "SUBTASK" || activeData?.type === "SECTION";
+
+  // For sortable items, use closestCenter for smooth list reordering
+  if (isSortable) {
+    const closestCollisions = closestCenter(args);
+    if (closestCollisions.length > 0) {
+      return closestCollisions;
+    }
+  }
+
+  // Fall back to pointerWithin for cross-container drops and non-sortable items
+  const pointerCollisions = pointerWithin(args);
+  return pointerCollisions.length > 0 ? pointerCollisions : [];
+};
 
 export default function DailyTasksApp() {
   const { isAuthenticated, loading: authLoading, initialized: authInitialized, logout } = useAuth();
@@ -362,6 +381,7 @@ export default function DailyTasksApp() {
         if (hasFutureDateTime(task)) return false;
         return true;
       })
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
       .map(task => ({
         ...task,
         // Add completion status from records for display
@@ -862,7 +882,7 @@ export default function DailyTasksApp() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 3, // 3px movement required to start drag (very responsive)
+        distance: 8, // Slightly higher for more intentional drags
       },
     }),
     useSensor(KeyboardSensor, {
@@ -1370,6 +1390,36 @@ export default function DailyTasksApp() {
         return;
       }
 
+      // Handle backlog task reordering
+      if (type === "TASK" && sourceContainerId === "backlog") {
+        const taskId = extractTaskId(draggableId);
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        // Get all backlog tasks sorted by order
+        const sortedBacklogTasks = backlogTasks
+          .map(t => tasks.find(fullTask => fullTask.id === t.id))
+          .filter(Boolean)
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        // Use arrayMove to reorder
+        const reordered = arrayMove(sortedBacklogTasks, oldIndex, newIndex);
+
+        // Update order for all affected tasks
+        try {
+          // Update each task's order
+          await Promise.all(reordered.map((t, idx) => updateTask(t.id, { order: idx })));
+        } catch (err) {
+          toast({
+            title: "Error",
+            description: "Failed to reorder backlog tasks",
+            status: "error",
+            duration: 3000,
+          });
+        }
+        return;
+      }
+
       // Handle subtask reordering within the same parent task
       if (type === "SUBTASK" && sourceContainerId.startsWith("subtask|")) {
         const [, parentTaskId] = sourceContainerId.split("|");
@@ -1702,7 +1752,7 @@ export default function DailyTasksApp() {
       {/* Main content with DndContext */}
       <DndContext
         sensors={sensors}
-        collisionDetection={pointerWithin}
+        collisionDetection={customCollisionDetection}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEndNew}

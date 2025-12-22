@@ -37,7 +37,7 @@ export const Section = ({
   });
 
   return (
-    <SortableContext items={sections.map(s => `section-${s.id}`)} strategy={verticalListSortingStrategy}>
+    <SortableContext id="sections" items={sections.map(s => `section-${s.id}`)} strategy={verticalListSortingStrategy}>
       <Box ref={setNodeRef} bg={isOver ? dropHighlight : "transparent"} borderRadius="md">
         {sections.map((section, index) => (
           <SectionCard

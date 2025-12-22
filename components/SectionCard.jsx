@@ -256,7 +256,7 @@ export const SectionCard = ({
                 />
               </VStack>
             ) : (
-              <SortableContext items={tasksWithIds.map(t => t.draggableId)} strategy={verticalListSortingStrategy}>
+              <SortableContext id={droppableId} items={tasksWithIds.map(t => t.draggableId)} strategy={verticalListSortingStrategy}>
                 <VStack align="stretch" spacing={3} py={2}>
                   {tasksWithIds.map((task, index) => (
                     <TaskItem
@@ -264,6 +264,7 @@ export const SectionCard = ({
                       task={task}
                       variant="today"
                       index={index}
+                      containerId={droppableId}
                       onToggle={onToggleTask}
                       onToggleSubtask={onToggleSubtask}
                       onToggleExpand={onToggleExpand}
