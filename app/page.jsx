@@ -323,6 +323,13 @@ export default function DailyTasksApp() {
           ...task,
           // Override completed field with the selected date's completion record status
           completed: isCompletedOnDate(task.id, viewDate),
+          // Also update subtasks with completion status
+          subtasks: task.subtasks
+            ? task.subtasks.map(subtask => ({
+                ...subtask,
+                completed: isCompletedOnDate(subtask.id, viewDate),
+              }))
+            : undefined,
         })),
     [tasks, viewDate, isCompletedOnDate]
   );
@@ -385,6 +392,13 @@ export default function DailyTasksApp() {
         ...task,
         // Add completion status from records for display
         completed: isCompletedOnDate(task.id, today),
+        // Also update subtasks with completion status
+        subtasks: task.subtasks
+          ? task.subtasks.map(subtask => ({
+              ...subtask,
+              completed: isCompletedOnDate(subtask.id, today),
+            }))
+          : undefined,
       }));
   }, [tasks, today, isCompletedOnDate]);
 
@@ -441,6 +455,15 @@ export default function DailyTasksApp() {
         // Task is completed on the target date, remove completion record
         await deleteCompletion(taskId, targetDate.toISOString());
 
+        // Also uncheck all subtasks sequentially to avoid race conditions
+        if (task.subtasks && task.subtasks.length > 0) {
+          for (const subtask of task.subtasks) {
+            if (isCompletedOnDate(subtask.id, targetDate)) {
+              await deleteCompletion(subtask.id, targetDate.toISOString());
+            }
+          }
+        }
+
         // If hiding completed tasks, remove from recently completed set immediately when unchecked
         if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
           setRecentlyCompletedTasks(prev => {
@@ -479,6 +502,15 @@ export default function DailyTasksApp() {
         // Create completion record after adding to recently completed set
         try {
           await createCompletion(taskId, targetDate.toISOString());
+
+          // Also check all subtasks sequentially to avoid race conditions
+          if (task.subtasks && task.subtasks.length > 0) {
+            for (const subtask of task.subtasks) {
+              if (!isCompletedOnDate(subtask.id, targetDate)) {
+                await createCompletion(subtask.id, targetDate.toISOString());
+              }
+            }
+          }
         } catch (completionError) {
           // If completion creation fails, remove from recently completed set
           if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
@@ -502,8 +534,51 @@ export default function DailyTasksApp() {
   };
 
   const handleToggleSubtask = async (taskId, subtaskId) => {
-    // Subtasks are now full tasks, just toggle the subtask directly
-    await handleToggleTask(subtaskId);
+    // Subtasks are now full tasks, toggle the subtask directly without parent logic
+    const subtask =
+      tasks.find(t => t.id === subtaskId) || tasks.flatMap(t => t.subtasks || []).find(st => st.id === subtaskId);
+    if (!subtask) return;
+
+    // Check if subtask has no recurrence (appears in backlog)
+    const hasNoRecurrence = !subtask.recurrence;
+
+    // Determine which date to use: viewDate for Today View, today for backlog
+    const targetDate = hasNoRecurrence ? today : viewDate;
+    const isCompletedOnTargetDate = isCompletedOnDate(subtaskId, targetDate);
+
+    try {
+      // Get current time when checking
+      const now = new Date();
+      const currentTime = minutesToTime(now.getHours() * 60 + now.getMinutes());
+
+      // If subtask has no recurrence and is being checked, set it to show on calendar with current time
+      if (hasNoRecurrence && !isCompletedOnTargetDate) {
+        const todayDateStr = formatLocalDate(today);
+        await updateTask(subtaskId, {
+          recurrence: {
+            type: "none",
+            startDate: `${todayDateStr}T00:00:00.000Z`,
+          },
+          time: currentTime,
+        });
+      }
+      // If subtask is in Today View and doesn't have a time, set it to current time when checking
+      else if (!hasNoRecurrence && !subtask.time && !isCompletedOnTargetDate) {
+        await updateTask(subtaskId, {
+          time: currentTime,
+        });
+      }
+
+      // Update completion record for subtask only (no parent logic)
+      if (isCompletedOnTargetDate) {
+        await deleteCompletion(subtaskId, targetDate.toISOString());
+      } else {
+        await createCompletion(subtaskId, targetDate.toISOString());
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Error toggling subtask completion:", error);
+    }
   };
 
   const handleToggleExpand = async taskId => {

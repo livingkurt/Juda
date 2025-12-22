@@ -114,6 +114,8 @@ export const TaskItem = ({
   };
 
   const allSubtasksComplete = task.subtasks && task.subtasks.length > 0 && task.subtasks.every(st => st.completed);
+  // For subtasks, just check their own completion status. For parent tasks, check if all subtasks are complete too.
+  const isChecked = isSubtask ? task.completed : task.completed || allSubtasksComplete;
 
   // Enable drag-and-drop for dialog subtasks, but disable for subtasks in the main view
   const isDialogSubtask = containerId === "task-dialog-subtasks";
@@ -187,7 +189,7 @@ export const TaskItem = ({
 
           {/* Checkbox - show for today, backlog, and subtask variants */}
           <Checkbox
-            isChecked={task.completed || allSubtasksComplete}
+            isChecked={isChecked}
             size="lg"
             onChange={() => (isSubtask ? onToggle?.(parentTaskId, task.id) : onToggle?.(task.id))}
             onClick={e => e.stopPropagation()}
@@ -225,15 +227,15 @@ export const TaskItem = ({
               ) : (
                 <Text
                   fontWeight="medium"
-                  textDecoration={task.completed || allSubtasksComplete ? "line-through" : "none"}
-                  opacity={task.completed || allSubtasksComplete ? 0.5 : 1}
+                  textDecoration={isChecked ? "line-through" : "none"}
+                  opacity={isChecked ? 0.5 : 1}
                   color={textColor}
                   cursor="text"
                   onClick={handleTitleClick}
                   onMouseDown={e => e.stopPropagation()}
                   onPointerDown={e => e.stopPropagation()}
                   _hover={{
-                    opacity: task.completed || allSubtasksComplete ? 0.7 : 1,
+                    opacity: isChecked ? 0.7 : 1,
                   }}
                 >
                   {task.title}
