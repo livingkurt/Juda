@@ -120,8 +120,6 @@ export default function DailyTasksApp() {
     deleteTask,
     reorderTask,
     duplicateTask,
-    combineAsSubtask,
-    promoteSubtask,
     saveTask,
     loading: tasksLoading,
   } = useTasks();
@@ -1103,205 +1101,7 @@ export default function DailyTasksApp() {
       }
     }
 
-    // Check if we're dragging a subtask (type is SUBTASK or draggableId starts with subtask|)
-    const isSubtaskDrag = type === "SUBTASK" || draggableId.startsWith("subtask|");
-
-    // If dragging a subtask to a non-task target (section, backlog, calendar), promote it
-    if (isSubtaskDrag && (!overDroppable?.type || overDroppable?.type !== "TASK_TARGET")) {
-      const subtaskId = extractTaskId(draggableId);
-
-      // Find the subtask to get its current data
-      const findTask = (taskList, id) => {
-        for (const task of taskList) {
-          if (task.id === id) return task;
-          if (task.subtasks && task.subtasks.length > 0) {
-            const found = findTask(task.subtasks, id);
-            if (found) return found;
-          }
-        }
-        return null;
-      };
-      const subtask = findTask(tasks, subtaskId);
-
-      if (!subtask) {
-        toast({
-          title: "Subtask not found",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-        return;
-      }
-
-      // Parse destination to determine what updates to make
-      const destParsed = parseDroppableId(destContainerId);
-      let additionalUpdates = {};
-
-      // Get the calculated drop time (if dropping on timed calendar area)
-      const calculatedTime = dropTimeRef.current || "09:00";
-      dropTimeRef.current = null;
-
-      // DESTINATION: Backlog - clear date, time, and recurrence
-      if (destParsed.type === "backlog") {
-        additionalUpdates = {
-          time: null,
-          recurrence: null,
-        };
-      }
-      // DESTINATION: Today section - set date to viewDate, clear time
-      else if (destParsed.type === "today-section") {
-        const targetDate = viewDate || today;
-        const targetDateStr = formatLocalDate(targetDate);
-
-        // Preserve existing recurrence if it exists
-        let recurrenceUpdate;
-        if (subtask.recurrence && subtask.recurrence.type && subtask.recurrence.type !== "none") {
-          recurrenceUpdate = subtask.recurrence;
-        } else {
-          recurrenceUpdate = {
-            type: "none",
-            startDate: `${targetDateStr}T00:00:00.000Z`,
-          };
-        }
-
-        additionalUpdates = {
-          sectionId: destParsed.sectionId,
-          time: null,
-          recurrence: recurrenceUpdate,
-        };
-      }
-      // DESTINATION: Calendar (timed area) - set date and time
-      else if (destParsed.type === "calendar" && !destParsed.isUntimed) {
-        let dropDateStr;
-        if (destParsed.dateStr) {
-          dropDateStr = destParsed.dateStr.split("T")[0];
-        } else {
-          const fallbackDate = selectedDate || new Date();
-          dropDateStr = formatLocalDate(fallbackDate);
-        }
-
-        let recurrenceUpdate;
-        if (subtask.recurrence && subtask.recurrence.type && subtask.recurrence.type !== "none") {
-          recurrenceUpdate = subtask.recurrence;
-        } else {
-          recurrenceUpdate = {
-            type: "none",
-            startDate: `${dropDateStr}T00:00:00.000Z`,
-          };
-        }
-
-        additionalUpdates = {
-          time: calculatedTime,
-          recurrence: recurrenceUpdate,
-        };
-      }
-      // DESTINATION: Calendar (untimed area) - set date, clear time
-      else if (destParsed.type === "calendar" && destParsed.isUntimed) {
-        let dropDateStr;
-        if (destParsed.dateStr) {
-          dropDateStr = destParsed.dateStr.split("T")[0];
-        } else {
-          const fallbackDate = selectedDate || new Date();
-          dropDateStr = formatLocalDate(fallbackDate);
-        }
-
-        let recurrenceUpdate;
-        if (subtask.recurrence && subtask.recurrence.type && subtask.recurrence.type !== "none") {
-          recurrenceUpdate = subtask.recurrence;
-        } else {
-          recurrenceUpdate = {
-            type: "none",
-            startDate: `${dropDateStr}T00:00:00.000Z`,
-          };
-        }
-
-        additionalUpdates = {
-          time: null,
-          recurrence: recurrenceUpdate,
-        };
-      }
-
-      try {
-        await promoteSubtask(subtaskId, additionalUpdates);
-        toast({
-          title: "Subtask promoted",
-          description: "Subtask is now a regular task",
-          status: "success",
-          duration: 2000,
-          isClosable: true,
-        });
-        return;
-      } catch (error) {
-        toast({
-          title: "Failed to promote subtask",
-          description: error.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-        return;
-      }
-    }
-
-    if (overDroppable?.type === "TASK_TARGET" && overDroppable?.taskId) {
-      // Dropping a task onto another task - combine as subtask
-      if (type === "TASK") {
-        const sourceTaskId = extractTaskId(draggableId);
-        const targetTaskId = overDroppable.taskId;
-
-        // Don't allow dropping task on itself
-        if (sourceTaskId !== targetTaskId) {
-          try {
-            await combineAsSubtask(sourceTaskId, targetTaskId);
-            toast({
-              title: "Task combined",
-              description: "Task has been added as a subtask",
-              status: "success",
-              duration: 2000,
-              isClosable: true,
-            });
-          } catch (error) {
-            toast({
-              title: "Failed to combine tasks",
-              description: error.message,
-              status: "error",
-              duration: 3000,
-              isClosable: true,
-            });
-          }
-        }
-        return;
-      }
-    }
-
-    // Check if dropping on a subtask - treat as dropping on parent task
-    if (over.id && over.id.startsWith("subtask|")) {
-      const [, parentTaskId] = over.id.split("|");
-      if (type === "TASK") {
-        const sourceTaskId = extractTaskId(draggableId);
-        if (sourceTaskId !== parentTaskId) {
-          try {
-            await combineAsSubtask(sourceTaskId, parentTaskId);
-            toast({
-              title: "Task combined",
-              description: "Task has been added as a subtask",
-              status: "success",
-              duration: 2000,
-              isClosable: true,
-            });
-          } catch (error) {
-            toast({
-              title: "Failed to combine tasks",
-              description: error.message,
-              status: "error",
-              duration: 3000,
-              isClosable: true,
-            });
-          }
-        }
-        return;
-      }
-    }
+    // Subtask dragging is disabled - subtasks can only be managed in the task dialog
 
     // Check if over is a droppable (not a sortable item)
     // Priority: droppable data > task draggableId pattern > section card > droppable ID pattern
@@ -1322,34 +1122,8 @@ export default function DailyTasksApp() {
       // Dropping on a section card itself - extract section ID
       const sectionId = over.id.replace("section-", "");
       destContainerId = `today-section|${sectionId}`;
-    } else if (over.id && over.id.startsWith("task|")) {
-      // Dropping on a task drop target (fallback check)
-      const targetTaskId = over.id.split("|")[1];
-      if (type === "TASK") {
-        const sourceTaskId = extractTaskId(draggableId);
-        if (sourceTaskId !== targetTaskId) {
-          try {
-            await combineAsSubtask(sourceTaskId, targetTaskId);
-            toast({
-              title: "Task combined",
-              description: "Task has been added as a subtask",
-              status: "success",
-              duration: 2000,
-              isClosable: true,
-            });
-          } catch (error) {
-            toast({
-              title: "Failed to combine tasks",
-              description: error.message,
-              status: "error",
-              duration: 3000,
-              isClosable: true,
-            });
-          }
-        }
-        return;
-      }
     }
+    // Task combining is now handled in the task dialog, not via drag-and-drop
 
     // Final fallback: if destContainerId still isn't set and over.id matches droppable patterns
     if (!destContainerId && over.id) {
@@ -1420,24 +1194,7 @@ export default function DailyTasksApp() {
         return;
       }
 
-      // Handle subtask reordering within the same parent task
-      if (type === "SUBTASK" && sourceContainerId.startsWith("subtask|")) {
-        const [, parentTaskId] = sourceContainerId.split("|");
-        const parentTask = tasks.find(t => t.id === parentTaskId);
-        if (!parentTask) return;
-
-        const subtaskId = active.data.current?.subtaskId;
-        if (!subtaskId) return;
-
-        const currentSubtasks = parentTask.subtasks || [];
-        const reorderedSubtasks = arrayMove(currentSubtasks, oldIndex, newIndex).map((st, idx) => ({
-          ...st,
-          order: idx,
-        }));
-
-        await updateTask(parentTaskId, { subtasks: reorderedSubtasks });
-        return;
-      }
+      // Subtask reordering is now handled in the task dialog, not via drag-and-drop
     }
 
     // Handle cross-container moves (backlog ↔ sections ↔ calendar)
@@ -2248,6 +2005,7 @@ export default function DailyTasksApp() {
         tags={tags}
         onCreateTag={createTag}
         onDeleteTag={deleteTag}
+        allTasks={tasks}
       />
       <SectionDialog
         isOpen={sectionDialogOpen}

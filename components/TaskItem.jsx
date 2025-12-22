@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Box,
   Checkbox,
@@ -20,12 +20,9 @@ import {
 } from "@chakra-ui/react";
 import { useColorModeValue } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
-import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ChevronDown, ChevronRight, Clock, Edit2, Trash2, Copy, AlertCircle, MoreVertical } from "lucide-react";
 import { formatTime, isOverdue } from "@/lib/utils";
-import { createDroppableId } from "@/lib/dragHelpers";
 
 export const TaskItem = ({
   task,
@@ -73,7 +70,6 @@ export const TaskItem = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(task.title);
   const titleInputRef = useRef(null);
-  const hoverTimeoutRef = useRef(null);
 
   useEffect(() => {
     setEditedTitle(task.title);
@@ -119,8 +115,13 @@ export const TaskItem = ({
 
   const allSubtasksComplete = task.subtasks && task.subtasks.length > 0 && task.subtasks.every(st => st.completed);
 
+  // Enable drag-and-drop for dialog subtasks, but disable for subtasks in the main view
+  const isDialogSubtask = containerId === "task-dialog-subtasks";
+  const isDragDisabled = isSubtask && !isDialogSubtask;
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: draggableId,
+    disabled: isDragDisabled,
     data: {
       type: "TASK",
       containerId: containerId,
@@ -128,86 +129,31 @@ export const TaskItem = ({
     },
   });
 
-  // Make task a drop target for combining tasks
-  const taskDropId = createDroppableId.taskTarget(task.id);
-  const { isOver, setNodeRef: setDropRef } = useDroppable({
-    id: taskDropId,
-    disabled: isDragging, // Disable drop target when this item is being dragged
-    data: {
-      type: "TASK_TARGET",
-      taskId: task.id,
-    },
-  });
-
-  // Hover-to-expand: Auto-expand when dragging over for 800ms
-  const handleDragOver = useCallback(() => {
-    if (!isOver || !task.subtasks || task.subtasks.length === 0) return;
-
-    // Clear any existing timeout
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-
-    // Set new timeout to expand after 800ms
-    hoverTimeoutRef.current = setTimeout(() => {
-      if (!task.expanded && onToggleExpand) {
-        onToggleExpand(task.id);
-      }
-    }, 800);
-  }, [isOver, task.subtasks, task.expanded, task.id, onToggleExpand]);
-
-  useEffect(() => {
-    if (isOver) {
-      handleDragOver();
-    } else {
-      // Clear timeout when no longer hovering
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-        hoverTimeoutRef.current = null;
-      }
-    }
-
-    // Cleanup on unmount
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-      }
-    };
-  }, [isOver, handleDragOver]);
-
-  // Combine refs for sortable and droppable
-  const combinedRef = node => {
-    setNodeRef(node);
-    setDropRef(node);
-  };
-
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: transition || "transform 200ms ease",
     opacity: isDragging ? 0.5 : 1,
   };
 
-  // Visual feedback for drop target - only show when not dragging this item
-  const dropTargetStyle = {
-    borderColor: isOver && !isDragging ? "blue.400" : task.color,
-    borderWidth: isOver && !isDragging ? "2px" : "2px",
-    borderStyle: isOver && !isDragging ? "dashed" : "solid",
-    transform: isOver && !isDragging ? "scale(1.02)" : "scale(1)",
-    transition: "all 0.2s ease",
+  // Simple border style without drop target feedback
+  const borderStyle = {
+    borderColor: task.color,
+    borderWidth: "2px",
+    borderStyle: "solid",
   };
 
   return (
-    <Box ref={combinedRef} style={style}>
-      <Box borderRadius="lg" bg={bgColor} transition="box-shadow 0.2s, border-color 0.2s" {...dropTargetStyle}>
+    <Box ref={setNodeRef} style={style}>
+      <Box borderRadius="lg" bg={bgColor} transition="box-shadow 0.2s, border-color 0.2s" {...borderStyle}>
         <Flex
           align="center"
           gap={2}
           p={3}
           _hover={{ bg: hoverBg }}
-          _active={{ cursor: "grabbing" }}
-          {...attributes}
-          {...listeners}
-          cursor="grab"
+          _active={{ cursor: isDragDisabled ? "default" : "grabbing" }}
+          {...(isDragDisabled ? {} : attributes)}
+          {...(isDragDisabled ? {} : listeners)}
+          cursor={isDragDisabled ? "default" : "grab"}
         >
           {/* Expand button for subtasks */}
           {task.subtasks && task.subtasks.length > 0 ? (
@@ -413,31 +359,25 @@ export const TaskItem = ({
         {/* Expanded subtasks */}
         {task.expanded && task.subtasks && task.subtasks.length > 0 && onToggleSubtask && (
           <Box pl={16} pr={3} pb={3}>
-            <SortableContext
-              id={createDroppableId.subtaskContainer(task.id)}
-              items={task.subtasks.map(st => createDroppableId.subtask(task.id, st.id))}
-              strategy={verticalListSortingStrategy}
-            >
-              <VStack align="stretch" spacing={2}>
-                {task.subtasks.map(subtask => (
-                  <TaskItem
-                    key={subtask.id}
-                    task={subtask}
-                    variant="subtask"
-                    containerId={createDroppableId.subtaskContainer(task.id)}
-                    parentTaskId={task.id}
-                    draggableId={createDroppableId.subtask(task.id, subtask.id)}
-                    onToggle={onToggleSubtask}
-                    onEdit={handleEdit ? () => handleEdit(subtask) : undefined}
-                    onDuplicate={handleDuplicate}
-                    onDelete={handleDelete ? async (parentId, subtaskId) => handleDelete(subtaskId) : undefined}
-                    textColor={textColor}
-                    mutedText={mutedText}
-                    gripColor={gripColor}
-                  />
-                ))}
-              </VStack>
-            </SortableContext>
+            <VStack align="stretch" spacing={2}>
+              {task.subtasks.map(subtask => (
+                <TaskItem
+                  key={subtask.id}
+                  task={subtask}
+                  variant="subtask"
+                  containerId={`subtask-${task.id}`}
+                  parentTaskId={task.id}
+                  draggableId={`subtask-${task.id}-${subtask.id}`}
+                  onToggle={onToggleSubtask}
+                  onEdit={handleEdit ? () => handleEdit(subtask) : undefined}
+                  onDuplicate={handleDuplicate}
+                  onDelete={handleDelete ? async (parentId, subtaskId) => handleDelete(subtaskId) : undefined}
+                  textColor={textColor}
+                  mutedText={mutedText}
+                  gripColor={gripColor}
+                />
+              ))}
+            </VStack>
           </Box>
         )}
       </Box>

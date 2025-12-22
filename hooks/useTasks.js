@@ -71,7 +71,7 @@ export const useTasks = () => {
 
   const saveTask = useCallback(
     async taskData => {
-      const { tagIds, ...taskFields } = taskData;
+      const { tagIds, subtasks: subtasksData, ...taskFields } = taskData;
 
       try {
         let savedTask;
@@ -92,6 +92,48 @@ export const useTasks = () => {
           });
           if (!response.ok) throw new Error("Failed to create task");
           savedTask = await response.json();
+        }
+
+        // Handle subtasks if provided
+        if (subtasksData !== undefined) {
+          // Get existing subtasks for this task
+          const existingSubtasks = tasks.find(t => t.id === savedTask.id)?.subtasks || [];
+          const existingSubtaskIds = existingSubtasks.map(st => st.id);
+          const newSubtaskIds = subtasksData.map(st => st.id);
+
+          // Delete removed subtasks
+          const subtasksToDelete = existingSubtaskIds.filter(id => !newSubtaskIds.includes(id));
+          for (const subtaskId of subtasksToDelete) {
+            await authFetch(`/api/tasks?id=${subtaskId}`, {
+              method: "DELETE",
+            });
+          }
+
+          // Create or update subtasks
+          for (const subtask of subtasksData) {
+            const subtaskPayload = {
+              ...subtask,
+              parentId: savedTask.id,
+              sectionId: savedTask.sectionId, // Subtasks inherit parent's section
+            };
+
+            if (subtask.id && existingSubtaskIds.includes(subtask.id)) {
+              // Update existing subtask
+              await authFetch("/api/tasks", {
+                method: "PUT",
+                body: JSON.stringify(subtaskPayload),
+              });
+            } else {
+              // Create new subtask (remove id if it's a temporary one)
+              const { id, ...newSubtaskData } = subtaskPayload;
+              // Only include id if it looks like a real database ID (starts with 'c')
+              const createPayload = id && id.startsWith("c") ? subtaskPayload : newSubtaskData;
+              await authFetch("/api/tasks", {
+                method: "POST",
+                body: JSON.stringify(createPayload),
+              });
+            }
+          }
         }
 
         // Handle tag assignments if tagIds provided
@@ -119,7 +161,7 @@ export const useTasks = () => {
           }
         }
 
-        // Refetch to get updated task with tags
+        // Refetch to get updated task with tags and subtasks
         await fetchTasks();
         return savedTask;
       } catch (err) {
@@ -127,7 +169,7 @@ export const useTasks = () => {
         throw err;
       }
     },
-    [fetchTasks, authFetch]
+    [fetchTasks, authFetch, tasks]
   );
 
   const updateTask = async (id, taskData) => {

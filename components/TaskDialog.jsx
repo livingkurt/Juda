@@ -18,16 +18,23 @@ import {
   HStack,
   SimpleGrid,
   Text,
-  Flex,
   IconButton,
   useColorModeValue,
-  Badge,
   Tag,
+  Divider,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
 } from "@chakra-ui/react";
-import { Plus, Trash2, Edit2 } from "lucide-react";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { Plus, Search } from "lucide-react";
 import { DAYS_OF_WEEK, DURATION_OPTIONS } from "@/lib/constants";
 import { formatLocalDate } from "@/lib/utils";
 import { TagSelector } from "./TagSelector";
+import { TaskItem } from "./TaskItem";
 
 export const TaskDialog = ({
   isOpen,
@@ -41,9 +48,10 @@ export const TaskDialog = ({
   tags = [],
   onCreateTag,
   onDeleteTag,
+  allTasks = [], // All tasks for search functionality
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
-  const subtaskBgColor = useColorModeValue("gray.50", "gray.700");
+  const searchResultBg = useColorModeValue("gray.100", "gray.600");
   const [title, setTitle] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [time, setTime] = useState("");
@@ -60,6 +68,18 @@ export const TaskDialog = ({
   const [subtaskColor, setSubtaskColor] = useState("#3b82f6");
   const [color, setColor] = useState("#3b82f6");
   const [selectedTagIds, setSelectedTagIds] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [subtaskTabIndex, setSubtaskTabIndex] = useState(0);
+  const [activeSubtaskId, setActiveSubtaskId] = useState(null);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required before drag starts
+      },
+    })
+  );
 
   const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6"];
 
@@ -78,7 +98,11 @@ export const TaskDialog = ({
       setDuration(task.duration ?? 0);
       setRecurrenceType(task.recurrence?.type || "none");
       setSelectedDays(task.recurrence?.days || []);
-      setSubtasks(task.subtasks || []);
+      // Sort subtasks by order and ensure order field is set
+      const sortedSubtasks = (task.subtasks || [])
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .map((st, idx) => ({ ...st, order: idx }));
+      setSubtasks(sortedSubtasks);
       setColor(task.color || "#3b82f6");
       setSelectedTagIds(task.tags?.map(t => t.id) || []);
     } else {
@@ -114,6 +138,13 @@ export const TaskDialog = ({
         ...(date && { startDate: `${date}T00:00:00.000Z` }),
       };
     }
+
+    // Ensure all subtasks have proper order field set
+    const orderedSubtasks = subtasks.map((st, idx) => ({
+      ...st,
+      order: idx,
+    }));
+
     onSave({
       id: task?.id,
       title,
@@ -121,7 +152,7 @@ export const TaskDialog = ({
       time: time || null,
       duration,
       recurrence,
-      subtasks,
+      subtasks: orderedSubtasks,
       // Note: Task completion is tracked via TaskCompletion records, not a field on Task
       expanded: task?.expanded || false,
       color,
@@ -134,6 +165,66 @@ export const TaskDialog = ({
   const handleFormSubmit = e => {
     e.preventDefault();
     handleSave();
+  };
+
+  // Handle drag and drop for subtasks
+  const handleDragStart = event => {
+    setActiveSubtaskId(event.active.id);
+  };
+
+  const handleDragEnd = event => {
+    const { active, over } = event;
+    setActiveSubtaskId(null);
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = subtasks.findIndex(st => `subtask-${st.id}` === active.id);
+    const newIndex = subtasks.findIndex(st => `subtask-${st.id}` === over.id);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const reorderedSubtasks = arrayMove(subtasks, oldIndex, newIndex);
+      setSubtasks(reorderedSubtasks.map((st, idx) => ({ ...st, order: idx })));
+    }
+  };
+
+  const handleDragCancel = () => {
+    setActiveSubtaskId(null);
+  };
+
+  // Get the active subtask for drag overlay
+  const activeSubtask = activeSubtaskId ? subtasks.find(st => `subtask-${st.id}` === activeSubtaskId) : null;
+
+  // Search and add existing task as subtask
+  const filteredTasks = allTasks.filter(t => {
+    // Exclude current task and its subtasks
+    if (task && t.id === task.id) return false;
+    if (subtasks.some(st => st.id === t.id)) return false;
+    // Filter by search query
+    if (searchQuery.trim()) {
+      return t.title.toLowerCase().includes(searchQuery.toLowerCase());
+    }
+    return false;
+  });
+
+  const addExistingTaskAsSubtask = existingTask => {
+    // Add the task as a subtask (it will be converted when saved)
+    setSubtasks([
+      ...subtasks,
+      {
+        id: existingTask.id,
+        title: existingTask.title,
+        completed: false,
+        time: existingTask.time,
+        duration: existingTask.duration || 30,
+        color: existingTask.color || "#3b82f6",
+        order: subtasks.length,
+        isExisting: true, // Flag to indicate this is an existing task
+      },
+    ]);
+    setSearchQuery("");
+    setSubtaskTabIndex(0); // Switch back to subtasks list
   };
 
   return (
@@ -293,108 +384,186 @@ export const TaskDialog = ({
               )}
               <Box w="full">
                 <FormLabel>Subtasks</FormLabel>
-                <VStack align="stretch" spacing={2} mt={2}>
-                  {subtasks.map(st => (
-                    <Flex key={st.id} align="center" gap={2} p={2} borderRadius="md" bg={subtaskBgColor}>
-                      <Box w={2} h={2} borderRadius="full" bg={st.color || "#3b82f6"} flexShrink={0} />
-                      <Text flex={1} fontSize="sm">
-                        {st.title}
-                      </Text>
-                      {st.time && (
-                        <Badge size="sm" colorScheme="blue" fontSize="2xs">
-                          {st.time}
-                        </Badge>
-                      )}
-                      {st.duration && st.duration > 0 && (
-                        <Badge size="sm" colorScheme="gray" fontSize="2xs">
-                          {st.duration}m
-                        </Badge>
-                      )}
-                      <IconButton
-                        icon={
-                          <Box as="span" color="currentColor">
-                            <Edit2 size={12} stroke="currentColor" />
+                <Tabs index={subtaskTabIndex} onChange={setSubtaskTabIndex} variant="enclosed" size="sm">
+                  <TabList>
+                    <Tab>Manage ({subtasks.length})</Tab>
+                    <Tab>Add Existing</Tab>
+                  </TabList>
+                  <TabPanels>
+                    {/* Manage Subtasks Tab */}
+                    <TabPanel px={0} py={3}>
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        onDragCancel={handleDragCancel}
+                      >
+                        <SortableContext
+                          items={subtasks.map(st => `subtask-${st.id}`)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <VStack align="stretch" spacing={2}>
+                            {subtasks.map(st => (
+                              <TaskItem
+                                key={st.id}
+                                task={st}
+                                variant="subtask"
+                                containerId="task-dialog-subtasks"
+                                draggableId={`subtask-${st.id}`}
+                                onEdit={() => {
+                                  setEditingSubtask(st);
+                                  setSubtaskTitle(st.title);
+                                  setSubtaskTime(st.time || "");
+                                  setSubtaskDuration(st.duration || 30);
+                                  setSubtaskColor(st.color || "#3b82f6");
+                                }}
+                                onDelete={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
+                              />
+                            ))}
+                          </VStack>
+                        </SortableContext>
+                        <DragOverlay>
+                          {activeSubtask ? (
+                            <TaskItem
+                              task={activeSubtask}
+                              variant="subtask"
+                              containerId="task-dialog-subtasks"
+                              draggableId={`subtask-${activeSubtask.id}`}
+                            />
+                          ) : null}
+                        </DragOverlay>
+                      </DndContext>
+                      <Divider my={2} />
+                      <HStack spacing={2}>
+                        <Input
+                          value={newSubtask}
+                          onChange={e => setNewSubtask(e.target.value)}
+                          placeholder="Create new subtask"
+                          size="sm"
+                          onKeyDown={e => {
+                            if (e.key === "Enter" && newSubtask.trim()) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSubtasks([
+                                ...subtasks,
+                                {
+                                  id: Date.now().toString(),
+                                  title: newSubtask.trim(),
+                                  completed: false,
+                                  time: null,
+                                  duration: 30,
+                                  color: "#3b82f6",
+                                  order: subtasks.length,
+                                },
+                              ]);
+                              setNewSubtask("");
+                            }
+                          }}
+                        />
+                        <IconButton
+                          icon={
+                            <Box as="span" color="currentColor">
+                              <Plus size={16} stroke="currentColor" />
+                            </Box>
+                          }
+                          onClick={() => {
+                            if (newSubtask.trim()) {
+                              setSubtasks([
+                                ...subtasks,
+                                {
+                                  id: Date.now().toString(),
+                                  title: newSubtask.trim(),
+                                  completed: false,
+                                  time: null,
+                                  duration: 30,
+                                  color: "#3b82f6",
+                                  order: subtasks.length,
+                                },
+                              ]);
+                              setNewSubtask("");
+                            }
+                          }}
+                          size="sm"
+                          variant="outline"
+                          aria-label="Add subtask"
+                        />
+                      </HStack>
+                    </TabPanel>
+
+                    {/* Add Existing Task Tab */}
+                    <TabPanel px={0} py={3}>
+                      <VStack align="stretch" spacing={3}>
+                        <HStack spacing={2}>
+                          <Box as="span" color="gray.500">
+                            <Search size={16} />
                           </Box>
-                        }
-                        onClick={() => {
-                          setEditingSubtask(st);
-                          setSubtaskTitle(st.title);
-                          setSubtaskTime(st.time || "");
-                          setSubtaskDuration(st.duration || 30);
-                          setSubtaskColor(st.color || "#3b82f6");
-                        }}
-                        size="xs"
-                        variant="ghost"
-                        aria-label="Edit subtask"
-                      />
-                      <IconButton
-                        icon={
-                          <Box as="span" color="currentColor">
-                            <Trash2 size={14} stroke="currentColor" />
-                          </Box>
-                        }
-                        onClick={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
-                        size="xs"
-                        variant="ghost"
-                        colorScheme="red"
-                        aria-label="Delete subtask"
-                      />
-                    </Flex>
-                  ))}
-                  <HStack spacing={2}>
-                    <Input
-                      value={newSubtask}
-                      onChange={e => setNewSubtask(e.target.value)}
-                      placeholder="Add subtask (quick)"
-                      onKeyDown={e => {
-                        if (e.key === "Enter" && newSubtask.trim()) {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setSubtasks([
-                            ...subtasks,
-                            {
-                              id: Date.now().toString(),
-                              title: newSubtask.trim(),
-                              completed: false,
-                              time: null,
-                              duration: 30,
-                              color: "#3b82f6",
-                              order: subtasks.length,
-                            },
-                          ]);
-                          setNewSubtask("");
-                        }
-                      }}
-                    />
-                    <IconButton
-                      icon={
-                        <Box as="span" color="currentColor">
-                          <Plus size={16} stroke="currentColor" />
-                        </Box>
-                      }
-                      onClick={() => {
-                        if (newSubtask.trim()) {
-                          setSubtasks([
-                            ...subtasks,
-                            {
-                              id: Date.now().toString(),
-                              title: newSubtask.trim(),
-                              completed: false,
-                              time: null,
-                              duration: 30,
-                              color: "#3b82f6",
-                              order: subtasks.length,
-                            },
-                          ]);
-                          setNewSubtask("");
-                        }
-                      }}
-                      size="sm"
-                      variant="outline"
-                      aria-label="Add subtask"
-                    />
-                  </HStack>
-                </VStack>
+                          <Input
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Search for tasks to add as subtasks..."
+                            size="sm"
+                          />
+                        </HStack>
+                        {searchQuery.trim() && (
+                          <VStack align="stretch" spacing={2} maxH="200px" overflowY="auto">
+                            {filteredTasks.length > 0 ? (
+                              filteredTasks.map(t => (
+                                <Box
+                                  key={t.id}
+                                  cursor="pointer"
+                                  _hover={{ opacity: 0.8 }}
+                                  onClick={() => addExistingTaskAsSubtask(t)}
+                                  position="relative"
+                                >
+                                  <TaskItem
+                                    task={t}
+                                    variant="subtask"
+                                    containerId="task-dialog-search"
+                                    draggableId={`dialog-search-${t.id}`}
+                                  />
+                                  <Box
+                                    position="absolute"
+                                    right={2}
+                                    top="50%"
+                                    transform="translateY(-50%)"
+                                    bg={searchResultBg}
+                                    borderRadius="md"
+                                    p={1}
+                                  >
+                                    <IconButton
+                                      icon={
+                                        <Box as="span" color="currentColor">
+                                          <Plus size={14} stroke="currentColor" />
+                                        </Box>
+                                      }
+                                      size="xs"
+                                      variant="ghost"
+                                      aria-label="Add as subtask"
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        addExistingTaskAsSubtask(t);
+                                      }}
+                                    />
+                                  </Box>
+                                </Box>
+                              ))
+                            ) : (
+                              <Text fontSize="sm" color="gray.500" textAlign="center" py={4}>
+                                No tasks found
+                              </Text>
+                            )}
+                          </VStack>
+                        )}
+                        {!searchQuery.trim() && (
+                          <Text fontSize="sm" color="gray.500" textAlign="center" py={4}>
+                            Type to search for existing tasks
+                          </Text>
+                        )}
+                      </VStack>
+                    </TabPanel>
+                  </TabPanels>
+                </Tabs>
               </Box>
               {/* Subtask Edit Modal */}
               <Modal isOpen={editingSubtask !== null} onClose={() => setEditingSubtask(null)} size="sm">
