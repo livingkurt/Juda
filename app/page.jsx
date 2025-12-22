@@ -420,6 +420,64 @@ export default function DailyTasksApp() {
   }).length;
   const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
+  // Helper function to collect subtask completions to delete
+  const collectSubtaskCompletionsToDelete = (task, targetDate) => {
+    const completionsToDelete = [{ taskId: task.id, date: targetDate.toISOString() }];
+    if (!task.subtasks || task.subtasks.length === 0) {
+      return completionsToDelete;
+    }
+
+    for (const subtask of task.subtasks) {
+      if (isCompletedOnDate(subtask.id, targetDate)) {
+        completionsToDelete.push({ taskId: subtask.id, date: targetDate.toISOString() });
+      }
+    }
+    return completionsToDelete;
+  };
+
+  // Helper function to collect subtask completions to create
+  const collectSubtaskCompletionsToCreate = (task, targetDate) => {
+    const completionsToCreate = [{ taskId: task.id, date: targetDate.toISOString() }];
+    if (!task.subtasks || task.subtasks.length === 0) {
+      return completionsToCreate;
+    }
+
+    for (const subtask of task.subtasks) {
+      if (!isCompletedOnDate(subtask.id, targetDate)) {
+        completionsToCreate.push({ taskId: subtask.id, date: targetDate.toISOString() });
+      }
+    }
+    return completionsToCreate;
+  };
+
+  // Helper function to remove task from recently completed set
+  const removeFromRecentlyCompleted = taskId => {
+    setRecentlyCompletedTasks(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(taskId);
+      return newSet;
+    });
+    if (recentlyCompletedTimeoutsRef.current[taskId]) {
+      clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
+      delete recentlyCompletedTimeoutsRef.current[taskId];
+    }
+  };
+
+  // Helper function to add task to recently completed set with timeout
+  const addToRecentlyCompleted = taskId => {
+    setRecentlyCompletedTasks(prev => new Set(prev).add(taskId));
+
+    // Clear any existing timeout for this task
+    if (recentlyCompletedTimeoutsRef.current[taskId]) {
+      clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
+    }
+
+    // Set timeout to remove from recently completed after 2 seconds
+    recentlyCompletedTimeoutsRef.current[taskId] = setTimeout(() => {
+      removeFromRecentlyCompleted(taskId);
+    }, 2000);
+  };
+
   // Task handlers
   const handleToggleTask = async taskId => {
     const task = tasks.find(t => t.id === taskId);
@@ -460,80 +518,28 @@ export default function DailyTasksApp() {
       // Update completion record
       if (isCompletedOnTargetDate) {
         // Task is completed on the target date, remove completion record
-        // Collect all completions to delete (task + subtasks) and delete in batch
-        const completionsToDelete = [{ taskId, date: targetDate.toISOString() }];
-
-        if (task.subtasks && task.subtasks.length > 0) {
-          for (const subtask of task.subtasks) {
-            if (isCompletedOnDate(subtask.id, targetDate)) {
-              completionsToDelete.push({ taskId: subtask.id, date: targetDate.toISOString() });
-            }
-          }
-        }
-
+        const completionsToDelete = collectSubtaskCompletionsToDelete(task, targetDate);
         await batchDeleteCompletions(completionsToDelete);
 
         // If hiding completed tasks, remove from recently completed set immediately when unchecked
         if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
-          setRecentlyCompletedTasks(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(taskId);
-            return newSet;
-          });
-          // Clear any pending timeout
-          if (recentlyCompletedTimeoutsRef.current[taskId]) {
-            clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
-            delete recentlyCompletedTimeoutsRef.current[taskId];
-          }
+          removeFromRecentlyCompleted(taskId);
         }
       } else {
         // Task is not completed on the target date, create completion record
         // Add to recently completed set BEFORE creating completion to prevent flash
         if (!showCompletedTasks) {
-          setRecentlyCompletedTasks(prev => new Set(prev).add(taskId));
-
-          // Clear any existing timeout for this task
-          if (recentlyCompletedTimeoutsRef.current[taskId]) {
-            clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
-          }
-
-          // Set timeout to remove from recently completed after 2 seconds
-          recentlyCompletedTimeoutsRef.current[taskId] = setTimeout(() => {
-            setRecentlyCompletedTasks(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(taskId);
-              return newSet;
-            });
-            delete recentlyCompletedTimeoutsRef.current[taskId];
-          }, 2000);
+          addToRecentlyCompleted(taskId);
         }
 
         // Create completion record after adding to recently completed set
-        // Collect all completions to create (task + subtasks) and create in batch
         try {
-          const completionsToCreate = [{ taskId, date: targetDate.toISOString() }];
-
-          if (task.subtasks && task.subtasks.length > 0) {
-            for (const subtask of task.subtasks) {
-              if (!isCompletedOnDate(subtask.id, targetDate)) {
-                completionsToCreate.push({ taskId: subtask.id, date: targetDate.toISOString() });
-              }
-            }
-          }
-
+          const completionsToCreate = collectSubtaskCompletionsToCreate(task, targetDate);
           await batchCreateCompletions(completionsToCreate);
         } catch (completionError) {
           // If completion creation fails, remove from recently completed set
           if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
-            setRecentlyCompletedTasks(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(taskId);
-              return newSet;
-            });
-            if (recentlyCompletedTimeoutsRef.current[taskId]) {
-              clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
-              delete recentlyCompletedTimeoutsRef.current[taskId];
-            }
+            removeFromRecentlyCompleted(taskId);
           }
           throw completionError;
         }
