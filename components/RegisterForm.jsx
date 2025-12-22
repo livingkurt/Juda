@@ -120,7 +120,7 @@ export function RegisterForm({ onSwitchToLogin }) {
           />
         </Box>
 
-        <Button type="submit" colorScheme="blue" w="full" isLoading={loading}>
+        <Button type="submit" colorPalette="blue" w="full" isLoading={loading}>
           Create Account
         </Button>
 

@@ -327,7 +327,7 @@ export const DashboardView = () => {
                             </Table.Cell>
                             <Table.Cell color={textColor}>{task?.title || "Unknown Task"}</Table.Cell>
                             <Table.Cell>
-                              <Badge colorScheme="blue">{task?.section?.name || "N/A"}</Badge>
+                              <Badge colorPalette="blue">{task?.section?.name || "N/A"}</Badge>
                             </Table.Cell>
                             <Table.Cell color={textColor}>
                               {new Date(completion.createdAt).toLocaleString("en-US", {
@@ -391,7 +391,7 @@ export const DashboardView = () => {
                   <Table.Row key={stat.taskId} _hover={{ bg: tableRowHover }}>
                     <Table.Cell color={textColor}>{stat.taskTitle}</Table.Cell>
                     <Table.Cell isNumeric>
-                      <Badge colorScheme="green">{stat.count}</Badge>
+                      <Badge colorPalette="green">{stat.count}</Badge>
                     </Table.Cell>
                     <Table.Cell color={textColor}>
                       {stat.lastCompleted

@@ -117,7 +117,7 @@ export const TagSelector = ({
                     />
                   ))}
                 </HStack>
-                <Button size="sm" colorScheme="blue" onClick={handleCreateTag} isDisabled={!newTagName.trim()}>
+                <Button size="sm" colorPalette="blue" onClick={handleCreateTag} isDisabled={!newTagName.trim()}>
                   <Plus size={16} />
                   Create Tag
                 </Button>
@@ -141,7 +141,7 @@ export const TagSelector = ({
                       <IconButton
                         size="xs"
                         variant="ghost"
-                        colorScheme="red"
+                        colorPalette="red"
                         onClick={e => {
                           e.stopPropagation();
                           onDeleteTag(tag.id);
@@ -222,7 +222,7 @@ export const TagSelector = ({
                     />
                   ))}
                 </HStack>
-                <Button size="sm" colorScheme="blue" onClick={handleCreateTag} isDisabled={!newTagName.trim()}>
+                <Button size="sm" colorPalette="blue" onClick={handleCreateTag} isDisabled={!newTagName.trim()}>
                   <Plus size={16} />
                   Create Tag
                 </Button>
@@ -246,7 +246,7 @@ export const TagSelector = ({
                       <IconButton
                         size="xs"
                         variant="ghost"
-                        colorScheme="red"
+                        colorPalette="red"
                         onClick={e => {
                           e.stopPropagation();
                           onDeleteTag(tag.id);

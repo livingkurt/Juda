@@ -239,7 +239,7 @@ export const TaskItem = ({
             {(isBacklog || isToday) && (
               <HStack spacing={2} mt={1} align="center" flexWrap="wrap">
                 {isOverdue(task, viewDate, task.completed) && (
-                  <Badge size="sm" colorScheme="red" fontSize="2xs">
+                  <Badge size="sm" colorPalette="red" fontSize="2xs">
                     <HStack spacing={1} align="center">
                       <Box as="span" color="currentColor">
                         <AlertCircle size={10} stroke="currentColor" />
@@ -254,7 +254,7 @@ export const TaskItem = ({
                   </Text>
                 )}
                 {task.recurrence && task.recurrence.type !== "none" && (
-                  <Badge size="sm" colorScheme="purple" fontSize="2xs">
+                  <Badge size="sm" colorPalette="purple" fontSize="2xs">
                     {task.recurrence.type === "daily"
                       ? "Daily"
                       : task.recurrence.type === "weekly"
@@ -263,7 +263,7 @@ export const TaskItem = ({
                   </Badge>
                 )}
                 {!task.time && (
-                  <Badge size="sm" colorScheme="orange" fontSize="2xs">
+                  <Badge size="sm" colorPalette="orange" fontSize="2xs">
                     No time
                   </Badge>
                 )}

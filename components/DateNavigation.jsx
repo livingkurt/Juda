@@ -94,12 +94,12 @@ export const DateNavigation = ({ selectedDate, onDateChange, onPrevious, onNext,
             {formatDateDisplay(selectedDate)}
           </Text>
           {isPast && (
-            <Badge colorScheme="orange" fontSize="xs">
+            <Badge colorPalette="orange" fontSize="xs">
               Past Date
             </Badge>
           )}
           {isFuture && (
-            <Badge colorScheme="blue" fontSize="xs">
+            <Badge colorPalette="blue" fontSize="xs">
               Future Date
             </Badge>
           )}

@@ -38,7 +38,7 @@ export const SectionDialog = ({ isOpen, onClose, section, onSave }) => {
                   <IconButton
                     key={value}
                     onClick={() => setIcon(value)}
-                    colorScheme={icon === value ? "orange" : "gray"}
+                    colorPalette={icon === value ? "orange" : "gray"}
                     variant={icon === value ? "solid" : "outline"}
                     aria-label={`Select ${value} icon`}
                   >

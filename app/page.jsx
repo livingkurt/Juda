@@ -1497,7 +1497,7 @@ export default function DailyTasksApp() {
                   )}
                 </Box>
               </IconButton>
-              <IconButton onClick={logout} variant="ghost" colorScheme="red" aria-label="Logout">
+              <IconButton onClick={logout} variant="ghost" colorPalette="red" aria-label="Logout">
                 <Box as="span" color="currentColor">
                   <LogOut size={20} stroke="currentColor" />
                 </Box>
@@ -1524,7 +1524,7 @@ export default function DailyTasksApp() {
                     <Button
                       size="sm"
                       variant={backlogOpen ? "solid" : "outline"}
-                      colorScheme={backlogOpen ? "blue" : "gray"}
+                      colorPalette={backlogOpen ? "blue" : "gray"}
                       onClick={() => setBacklogOpen(!backlogOpen)}
                     >
                       <Box as="span" color="currentColor">
@@ -1554,7 +1554,7 @@ export default function DailyTasksApp() {
                   <Button
                     size="sm"
                     variant={showDashboard ? "solid" : "outline"}
-                    colorScheme={showDashboard ? "blue" : "gray"}
+                    colorPalette={showDashboard ? "blue" : "gray"}
                     onClick={() => setShowDashboard(!showDashboard)}
                   >
                     <Box as="span" color="currentColor">
@@ -1565,7 +1565,7 @@ export default function DailyTasksApp() {
                   <Button
                     size="sm"
                     variant={showCalendar ? "solid" : "outline"}
-                    colorScheme={showCalendar ? "blue" : "gray"}
+                    colorPalette={showCalendar ? "blue" : "gray"}
                     onClick={() => setShowCalendar(!showCalendar)}
                   >
                     <Box as="span" color="currentColor">
@@ -1725,7 +1725,7 @@ export default function DailyTasksApp() {
                             <Flex align="center" justify="space-between" mb={2}>
                               <Heading size="md">Today</Heading>
                               <Flex align="center" gap={2}>
-                                <Badge colorScheme="blue">
+                                <Badge colorPalette="blue">
                                   {filteredTodaysTasks.length} task{filteredTodaysTasks.length !== 1 ? "s" : ""}
                                   {todaySearchTerm &&
                                     filteredTodaysTasks.length !== todaysTasks.length &&

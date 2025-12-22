@@ -89,7 +89,7 @@ export const BacklogDrawer = ({
               onClick={onAddTask}
               size="sm"
               variant="ghost"
-              colorScheme="blue"
+              colorPalette="blue"
               aria-label="Add task to backlog"
             >
               <Box as="span" color="currentColor">
@@ -103,7 +103,7 @@ export const BacklogDrawer = ({
             </IconButton>
           </HStack>
         </Flex>
-        <Badge colorScheme="blue" mb={2}>
+        <Badge colorPalette="blue" mb={2}>
           {filteredTasks.length} task{filteredTasks.length !== 1 ? "s" : ""}
           {(searchTerm || selectedTagIds.length > 0) &&
             filteredTasks.length !== backlogTasks.length &&

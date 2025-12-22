@@ -390,7 +390,7 @@ export const TaskDialog = ({
                           prev.includes(day.value) ? prev.filter(d => d !== day.value) : [...prev, day.value]
                         )
                       }
-                      colorScheme={selectedDays.includes(day.value) ? "blue" : "gray"}
+                      colorPalette={selectedDays.includes(day.value) ? "blue" : "gray"}
                       variant={selectedDays.includes(day.value) ? "solid" : "outline"}
                     >
                       {day.short}

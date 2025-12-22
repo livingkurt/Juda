@@ -84,11 +84,11 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
           />
         </Box>
 
-        <Button type="submit" colorScheme="blue" w="full" isLoading={loading}>
+        <Button type="submit" colorPalette="blue" w="full" isLoading={loading}>
           Sign In
         </Button>
 
-        <Button variant="link" onClick={onForgotPassword} size="sm" colorScheme="blue">
+        <Button variant="link" onClick={onForgotPassword} size="sm" colorPalette="blue">
           Forgot Password?
         </Button>
 

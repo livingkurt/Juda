@@ -136,7 +136,7 @@ export function ForgotPasswordForm({ onBackToLogin }) {
           />
         </Box>
 
-        <Button type="submit" colorScheme="blue" w="full" isLoading={loading} isDisabled={success}>
+        <Button type="submit" colorPalette="blue" w="full" isLoading={loading} isDisabled={success}>
           Update Password
         </Button>
 
