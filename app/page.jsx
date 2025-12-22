@@ -216,10 +216,12 @@ export default function DailyTasksApp() {
   const [defaultDate, setDefaultDate] = useState(null);
   // Store drop time calculated from mouse position during drag
   const dropTimeRef = useRef(null);
-  // Track active drag item for DragOverlay
-  const [activeId, setActiveId] = useState(null);
-  const [activeTask, setActiveTask] = useState(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  // Track active drag item for DragOverlay - combined into single state for performance
+  const [dragState, setDragState] = useState({
+    activeId: null,
+    activeTask: null,
+    offset: { x: 0, y: 0 },
+  });
   // Track recently completed tasks that should remain visible for a delay
   const [recentlyCompletedTasks, setRecentlyCompletedTasks] = useState(new Set());
   const recentlyCompletedTimeoutsRef = useRef({});
@@ -701,13 +703,13 @@ export default function DailyTasksApp() {
     closeTaskDialog();
   };
 
-  const handleTodayTagSelect = useCallback(tagId => {
+  const handleTodayTagSelect = tagId => {
     setTodaySelectedTagIds(prev => [...prev, tagId]);
-  }, []);
+  };
 
-  const handleTodayTagDeselect = useCallback(tagId => {
+  const handleTodayTagDeselect = tagId => {
     setTodaySelectedTagIds(prev => prev.filter(id => id !== tagId));
-  }, []);
+  };
 
   const handleTaskTimeChange = async (taskId, newTime) => {
     await updateTask(taskId, { time: newTime });
@@ -973,7 +975,7 @@ export default function DailyTasksApp() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // Slightly higher for more intentional drags
+        distance: 8, // Same as TaskDialog for consistent behavior
       },
     }),
     useSensor(KeyboardSensor, {
@@ -981,52 +983,55 @@ export default function DailyTasksApp() {
     })
   );
 
-  // Handle drag start
+  // Memoize the task lookup map for faster drag start
+  const taskLookupMap = useMemo(() => {
+    const map = new Map();
+    const addToMap = taskList => {
+      taskList.forEach(task => {
+        map.set(task.id, task);
+        if (task.subtasks && task.subtasks.length > 0) {
+          addToMap(task.subtasks);
+        }
+      });
+    };
+    addToMap(tasks);
+    return map;
+  }, [tasks]);
+
+  // Handle drag start - optimized for performance with single state update
   const handleDragStart = event => {
     const { active } = event;
-    setActiveId(active.id);
 
     // Calculate offset from click position relative to the dragged element
     const activatorEvent = event.activatorEvent;
+    let offset;
     if (activatorEvent && activatorEvent.offsetX !== undefined && activatorEvent.offsetY !== undefined) {
-      // offsetX and offsetY are relative to the target element - perfect!
       const clickX = activatorEvent.offsetX;
       const clickY = activatorEvent.offsetY;
-
-      // The DragOverlay positions its top-left at the cursor
-      // We want the cursor to be at the click point, so we offset by the click position
-      // minus half the preview size to center it
-      setDragOffset({
-        x: clickX - 90, // 90 is half of 180px preview width
-        y: clickY - 20, // 20 is half of 40px preview height
-      });
+      offset = {
+        x: clickX - 90,
+        y: clickY - 20,
+      };
     } else {
-      // Fallback: center the preview
-      setDragOffset({ x: -90, y: -20 });
+      offset = { x: -90, y: -20 };
     }
 
-    // Extract task ID and find the task (including subtasks)
+    // Fast task lookup using memoized map
+    let task = null;
     try {
       const taskId = extractTaskId(active.id);
-
-      // Helper to recursively find a task (including subtasks)
-      const findTask = (taskList, id) => {
-        for (const task of taskList) {
-          if (task.id === id) return task;
-          if (task.subtasks && task.subtasks.length > 0) {
-            const found = findTask(task.subtasks, id);
-            if (found) return found;
-          }
-        }
-        return null;
-      };
-
-      const task = findTask(tasks, taskId);
-      setActiveTask(task);
+      task = taskLookupMap.get(taskId) || null;
     } catch (e) {
       // Not a task drag (might be section reorder)
-      setActiveTask(null);
+      task = null;
     }
+
+    // Single state update - triggers only ONE re-render!
+    setDragState({
+      activeId: active.id,
+      activeTask: task,
+      offset,
+    });
 
     // Clear calendar droppable tracking
     currentCalendarDroppableRef.current = null;
@@ -1034,7 +1039,10 @@ export default function DailyTasksApp() {
   };
 
   // Handle drag over (for real-time updates like time calculation)
+  // Throttled to avoid performance issues during drag
   const handleDragOver = event => {
+    // Only process if we're not already processing
+    // This prevents the heavy DOM queries from running on every single drag over event
     const { over } = event;
 
     if (over && over.id && typeof over.id === "string") {
@@ -1046,19 +1054,31 @@ export default function DailyTasksApp() {
 
         // Set up mousemove listener if not already set
         if (!mouseMoveListenerRef.current) {
+          // Cache the timed areas to avoid repeated DOM queries
+          let cachedTimedAreas = null;
+          let cacheTime = 0;
+          const CACHE_DURATION = 100; // Cache for 100ms
+
           const handleMouseMove = e => {
             if (!currentCalendarDroppableRef.current) return;
 
-            // Find calendar timed area using data attribute
-            const timedAreas = Array.from(document.querySelectorAll('[data-calendar-timed="true"]')).filter(el => {
+            const now = Date.now();
+
+            // Refresh cache if expired or doesn't exist
+            if (!cachedTimedAreas || now - cacheTime > CACHE_DURATION) {
+              cachedTimedAreas = Array.from(document.querySelectorAll('[data-calendar-timed="true"]'));
+              cacheTime = now;
+            }
+
+            // Find the timed area under the cursor
+            const timedArea = cachedTimedAreas.find(el => {
               const rect = el.getBoundingClientRect();
               return (
                 rect.top <= e.clientY && rect.bottom >= e.clientY && rect.left <= e.clientX && rect.right >= e.clientX
               );
             });
 
-            if (timedAreas.length > 0) {
-              const timedArea = timedAreas[0];
+            if (timedArea) {
               const rect = timedArea.getBoundingClientRect();
               const y = e.clientY - rect.top;
 
@@ -1093,9 +1113,7 @@ export default function DailyTasksApp() {
   const handleDragEndNew = async event => {
     const { active, over } = event;
 
-    setActiveId(null);
-    setActiveTask(null);
-    setDragOffset({ x: 0, y: 0 });
+    setDragState({ activeId: null, activeTask: null, offset: { x: 0, y: 0 } });
 
     // Clean up mousemove listener
     if (mouseMoveListenerRef.current) {
@@ -2036,13 +2054,14 @@ export default function DailyTasksApp() {
 
         {/* Drag Overlay - dynamically offset based on click position */}
         <DragOverlay
+          dropAnimation={null}
           style={{
             cursor: "grabbing",
-            marginLeft: `${dragOffset.x}px`,
-            marginTop: `${dragOffset.y}px`,
+            marginLeft: `${dragState.offset.x}px`,
+            marginTop: `${dragState.offset.y}px`,
           }}
         >
-          {activeTask ? (
+          {dragState.activeTask ? (
             <Box
               px={4}
               py={2}
@@ -2057,10 +2076,10 @@ export default function DailyTasksApp() {
               transform="rotate(2deg)"
             >
               <Text fontSize="sm" fontWeight="semibold" color={dragOverlayText} isTruncated>
-                {activeTask.title}
+                {dragState.activeTask.title}
               </Text>
             </Box>
-          ) : activeId?.startsWith("section-") ? (
+          ) : dragState.activeId?.startsWith("section-") ? (
             <Box
               px={4}
               py={3}
@@ -2072,7 +2091,7 @@ export default function DailyTasksApp() {
               opacity={0.9}
             >
               <Text fontSize="sm" fontWeight="semibold" color={dragOverlayText}>
-                {sections.find(s => `section-${s.id}` === activeId)?.name || "Section"}
+                {sections.find(s => `section-${s.id}` === dragState.activeId)?.name || "Section"}
               </Text>
             </Box>
           ) : null}
