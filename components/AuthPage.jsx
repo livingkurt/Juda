@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Flex, useColorModeValue } from "@chakra-ui/react";
+import { Flex } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { LoginForm } from "./LoginForm";
 import { RegisterForm } from "./RegisterForm";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";

@@ -1,31 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import {
-  Box,
-  Heading,
-  Text,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  TableContainer,
-  Select,
-  HStack,
-  VStack,
-  useColorModeValue,
-  Card,
-  CardBody,
-  CardHeader,
-  Badge,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-} from "@chakra-ui/react";
+import { Box, Heading, Text, Table, NativeSelect, HStack, VStack, Card, Badge, Tabs } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useCompletions } from "@/hooks/useCompletions";
 import { useTasks } from "@/hooks/useTasks";
 import {
@@ -200,241 +177,244 @@ export const DashboardView = () => {
         </Box>
 
         {/* Filters */}
-        <Card bg={cardBg} borderColor={borderColor}>
-          <CardBody>
+        <Card.Root bg={cardBg} borderColor={borderColor}>
+          <Card.Body>
             <HStack spacing={4}>
               <Box>
                 <Text fontSize="sm" mb={1} color={mutedText}>
                   Date Range
                 </Text>
-                <Select
+                <NativeSelect.Root
                   value={dateRange}
-                  onChange={e => setDateRange(e.target.value)}
+                  onValueChange={({ value }) => setDateRange(value)}
                   w="150px"
                   bg={bgColor}
                   borderColor={borderColor}
                 >
-                  <option value="7">Last 7 days</option>
-                  <option value="30">Last 30 days</option>
-                  <option value="90">Last 90 days</option>
-                  <option value="365">Last year</option>
-                </Select>
+                  <NativeSelect.Field>
+                    <option value="7">Last 7 days</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="365">Last year</option>
+                  </NativeSelect.Field>
+                  <NativeSelect.Indicator />
+                </NativeSelect.Root>
               </Box>
               <Box>
                 <Text fontSize="sm" mb={1} color={mutedText}>
                   Task Filter
                 </Text>
-                <Select
+                <NativeSelect.Root
                   value={selectedTask}
-                  onChange={e => setSelectedTask(e.target.value)}
+                  onValueChange={({ value }) => setSelectedTask(value)}
                   w="200px"
                   bg={bgColor}
                   borderColor={borderColor}
                 >
-                  <option value="all">All Tasks</option>
-                  {tasks.map(task => (
-                    <option key={task.id} value={task.id}>
-                      {task.title}
-                    </option>
-                  ))}
-                </Select>
+                  <NativeSelect.Field>
+                    <option value="all">All Tasks</option>
+                    {tasks.map(task => (
+                      <option key={task.id} value={task.id}>
+                        {task.title}
+                      </option>
+                    ))}
+                  </NativeSelect.Field>
+                  <NativeSelect.Indicator />
+                </NativeSelect.Root>
               </Box>
             </HStack>
-          </CardBody>
-        </Card>
+          </Card.Body>
+        </Card.Root>
 
         {/* Charts */}
-        <Tabs>
-          <TabList>
-            <Tab>Line Chart</Tab>
-            <Tab>Bar Chart</Tab>
-            <Tab>Table View</Tab>
-          </TabList>
+        <Tabs.Root defaultValue="0">
+          <Tabs.List>
+            <Tabs.Trigger value="0">Line Chart</Tabs.Trigger>
+            <Tabs.Trigger value="1">Bar Chart</Tabs.Trigger>
+            <Tabs.Trigger value="2">Table View</Tabs.Trigger>
+          </Tabs.List>
 
-          <TabPanels>
-            {/* Line Chart */}
-            <TabPanel px={0}>
-              <Card bg={cardBg} borderColor={borderColor}>
-                <CardHeader>
-                  <Heading size="md" color={textColor}>
-                    Daily Completions Over Time
-                  </Heading>
-                </CardHeader>
-                <CardBody>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
-                      <XAxis dataKey="formattedDate" angle={-45} textAnchor="end" height={100} stroke={mutedText} />
-                      <YAxis stroke={mutedText} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: cardBg,
-                          borderColor: borderColor,
-                          color: textColor,
-                        }}
-                      />
-                      <Legend />
-                      <Line type="monotone" dataKey="completions" stroke="#3b82f6" strokeWidth={2} name="Completions" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardBody>
-              </Card>
-            </TabPanel>
+          {/* Line Chart */}
+          <Tabs.Content value="0" px={0}>
+            <Card.Root bg={cardBg} borderColor={borderColor}>
+              <Card.Header>
+                <Heading size="md" color={textColor}>
+                  Daily Completions Over Time
+                </Heading>
+              </Card.Header>
+              <Card.Body>
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
+                    <XAxis dataKey="formattedDate" angle={-45} textAnchor="end" height={100} stroke={mutedText} />
+                    <YAxis stroke={mutedText} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: cardBg,
+                        borderColor: borderColor,
+                        color: textColor,
+                      }}
+                    />
+                    <Legend />
+                    <Line type="monotone" dataKey="completions" stroke="#3b82f6" strokeWidth={2} name="Completions" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Card.Body>
+            </Card.Root>
+          </Tabs.Content>
 
-            {/* Bar Chart */}
-            <TabPanel px={0}>
-              <Card bg={cardBg} borderColor={borderColor}>
-                <CardHeader>
-                  <Heading size="md" color={textColor}>
-                    Daily Completion Totals
-                  </Heading>
-                </CardHeader>
-                <CardBody>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={dailyTotals}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
-                      <XAxis dataKey="formattedDate" angle={-45} textAnchor="end" height={100} stroke={mutedText} />
-                      <YAxis stroke={mutedText} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: cardBg,
-                          borderColor: borderColor,
-                          color: textColor,
-                        }}
-                      />
-                      <Legend />
-                      <Bar dataKey="total" fill="#3b82f6" name="Completions" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardBody>
-              </Card>
-            </TabPanel>
+          {/* Bar Chart */}
+          <Tabs.Content value="1" px={0}>
+            <Card.Root bg={cardBg} borderColor={borderColor}>
+              <Card.Header>
+                <Heading size="md" color={textColor}>
+                  Daily Completion Totals
+                </Heading>
+              </Card.Header>
+              <Card.Body>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={dailyTotals}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
+                    <XAxis dataKey="formattedDate" angle={-45} textAnchor="end" height={100} stroke={mutedText} />
+                    <YAxis stroke={mutedText} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: cardBg,
+                        borderColor: borderColor,
+                        color: textColor,
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="total" fill="#3b82f6" name="Completions" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card.Body>
+            </Card.Root>
+          </Tabs.Content>
 
-            {/* Table View */}
-            <TabPanel px={0}>
-              <Card bg={cardBg} borderColor={borderColor}>
-                <CardHeader>
-                  <Heading size="md" color={textColor}>
-                    Completion History Table
-                  </Heading>
-                </CardHeader>
-                <CardBody>
-                  <TableContainer>
-                    <Table variant="simple" bg={tableBg}>
-                      <Thead bg={tableHeaderBg}>
-                        <Tr>
-                          <Th color={textColor}>Date</Th>
-                          <Th color={textColor}>Task</Th>
-                          <Th color={textColor}>Section</Th>
-                          <Th color={textColor}>Completed At</Th>
-                          <Th color={textColor}>Status</Th>
-                        </Tr>
-                      </Thead>
-                      <Tbody>
-                        {completions
-                          .sort((a, b) => new Date(b.date) - new Date(a.date))
-                          .map(completion => {
-                            const task = tasks.find(t => t.id === completion.taskId);
-                            return (
-                              <Tr key={completion.id} _hover={{ bg: tableRowHover }}>
-                                <Td color={textColor}>
-                                  {new Date(completion.date).toLocaleDateString("en-US", {
-                                    year: "numeric",
-                                    month: "short",
-                                    day: "numeric",
-                                  })}
-                                </Td>
-                                <Td color={textColor}>{task?.title || "Unknown Task"}</Td>
-                                <Td>
-                                  <Badge colorScheme="blue">{task?.section?.name || "N/A"}</Badge>
-                                </Td>
-                                <Td color={textColor}>
-                                  {new Date(completion.createdAt).toLocaleString("en-US", {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  })}
-                                </Td>
-                                <Td>
-                                  <Select
-                                    value="checked"
-                                    onChange={e => handleStatusChange(completion, e.target.value)}
-                                    size="sm"
-                                    bg={bgColor}
-                                    borderColor={borderColor}
-                                    w="120px"
-                                  >
-                                    <option value="checked">Checked</option>
-                                    <option value="unchecked">Unchecked</option>
-                                  </Select>
-                                </Td>
-                              </Tr>
-                            );
-                          })}
-                        {completions.length === 0 && (
-                          <Tr>
-                            <Td colSpan={5} textAlign="center" py={8}>
-                              <Text color={mutedText}>No completions found for the selected period</Text>
-                            </Td>
-                          </Tr>
-                        )}
-                      </Tbody>
-                    </Table>
-                  </TableContainer>
-                </CardBody>
-              </Card>
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
+          {/* Table View */}
+          <Tabs.Content value="2" px={0}>
+            <Card.Root bg={cardBg} borderColor={borderColor}>
+              <Card.Header>
+                <Heading size="md" color={textColor}>
+                  Completion History Table
+                </Heading>
+              </Card.Header>
+              <Card.Body>
+                <Table.Root variant="simple" bg={tableBg}>
+                  <Table.Header bg={tableHeaderBg}>
+                    <Table.Row>
+                      <Table.ColumnHeader color={textColor}>Date</Table.ColumnHeader>
+                      <Table.ColumnHeader color={textColor}>Task</Table.ColumnHeader>
+                      <Table.ColumnHeader color={textColor}>Section</Table.ColumnHeader>
+                      <Table.ColumnHeader color={textColor}>Completed At</Table.ColumnHeader>
+                      <Table.ColumnHeader color={textColor}>Status</Table.ColumnHeader>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {completions
+                      .sort((a, b) => new Date(b.date) - new Date(a.date))
+                      .map(completion => {
+                        const task = tasks.find(t => t.id === completion.taskId);
+                        return (
+                          <Table.Row key={completion.id} _hover={{ bg: tableRowHover }}>
+                            <Table.Cell color={textColor}>
+                              {new Date(completion.date).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </Table.Cell>
+                            <Table.Cell color={textColor}>{task?.title || "Unknown Task"}</Table.Cell>
+                            <Table.Cell>
+                              <Badge colorScheme="blue">{task?.section?.name || "N/A"}</Badge>
+                            </Table.Cell>
+                            <Table.Cell color={textColor}>
+                              {new Date(completion.createdAt).toLocaleString("en-US", {
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}
+                            </Table.Cell>
+                            <Table.Cell>
+                              <NativeSelect.Root
+                                value="checked"
+                                onValueChange={({ value }) => handleStatusChange(completion, value)}
+                                size="sm"
+                                bg={bgColor}
+                                borderColor={borderColor}
+                                w="120px"
+                              >
+                                <NativeSelect.Field>
+                                  <option value="checked">Checked</option>
+                                  <option value="unchecked">Unchecked</option>
+                                </NativeSelect.Field>
+                                <NativeSelect.Indicator />
+                              </NativeSelect.Root>
+                            </Table.Cell>
+                          </Table.Row>
+                        );
+                      })}
+                    {completions.length === 0 && (
+                      <Table.Row>
+                        <Table.Cell colSpan={5} textAlign="center" py={8}>
+                          <Text color={mutedText}>No completions found for the selected period</Text>
+                        </Table.Cell>
+                      </Table.Row>
+                    )}
+                  </Table.Body>
+                </Table.Root>
+              </Card.Body>
+            </Card.Root>
+          </Tabs.Content>
+        </Tabs.Root>
 
         {/* Task Statistics */}
-        <Card bg={cardBg} borderColor={borderColor}>
-          <CardHeader>
+        <Card.Root bg={cardBg} borderColor={borderColor}>
+          <Card.Header>
             <Heading size="md" color={textColor}>
               Task Completion Statistics
             </Heading>
-          </CardHeader>
-          <CardBody>
-            <TableContainer>
-              <Table variant="simple" size="sm" bg={tableBg}>
-                <Thead bg={tableHeaderBg}>
-                  <Tr>
-                    <Th color={textColor}>Task</Th>
-                    <Th isNumeric color={textColor}>
-                      Completions
-                    </Th>
-                    <Th color={textColor}>Last Completed</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {taskStats.map(stat => (
-                    <Tr key={stat.taskId} _hover={{ bg: tableRowHover }}>
-                      <Td color={textColor}>{stat.taskTitle}</Td>
-                      <Td isNumeric>
-                        <Badge colorScheme="green">{stat.count}</Badge>
-                      </Td>
-                      <Td color={textColor}>
-                        {stat.lastCompleted
-                          ? stat.lastCompleted.toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })
-                          : "Never"}
-                      </Td>
-                    </Tr>
-                  ))}
-                  {taskStats.length === 0 && (
-                    <Tr>
-                      <Td colSpan={3} textAlign="center" py={8}>
-                        <Text color={mutedText}>No statistics available</Text>
-                      </Td>
-                    </Tr>
-                  )}
-                </Tbody>
-              </Table>
-            </TableContainer>
-          </CardBody>
-        </Card>
+          </Card.Header>
+          <Card.Body>
+            <Table.Root variant="simple" size="sm" bg={tableBg}>
+              <Table.Header bg={tableHeaderBg}>
+                <Table.Row>
+                  <Table.ColumnHeader color={textColor}>Task</Table.ColumnHeader>
+                  <Table.ColumnHeader isNumeric color={textColor}>
+                    Completions
+                  </Table.ColumnHeader>
+                  <Table.ColumnHeader color={textColor}>Last Completed</Table.ColumnHeader>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {taskStats.map(stat => (
+                  <Table.Row key={stat.taskId} _hover={{ bg: tableRowHover }}>
+                    <Table.Cell color={textColor}>{stat.taskTitle}</Table.Cell>
+                    <Table.Cell isNumeric>
+                      <Badge colorScheme="green">{stat.count}</Badge>
+                    </Table.Cell>
+                    <Table.Cell color={textColor}>
+                      {stat.lastCompleted
+                        ? stat.lastCompleted.toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : "Never"}
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+                {taskStats.length === 0 && (
+                  <Table.Row>
+                    <Table.Cell colSpan={3} textAlign="center" py={8}>
+                      <Text color={mutedText}>No statistics available</Text>
+                    </Table.Cell>
+                  </Table.Row>
+                )}
+              </Table.Body>
+            </Table.Root>
+          </Card.Body>
+        </Card.Root>
       </VStack>
     </Box>
   );

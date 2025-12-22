@@ -57,21 +57,19 @@ const productionUrl = cleanDatabaseUrl(process.env.PRODUCTION_DATABASE_URL);
 const localUrl = cleanDatabaseUrl(process.env.DATABASE_URL);
 
 if (!productionUrl) {
-  // eslint-disable-next-line no-console
   console.error("❌ Error: PRODUCTION_DATABASE_URL not found in .env file");
-  // eslint-disable-next-line no-console
+
   console.error("   Add it to your .env file:");
-  // eslint-disable-next-line no-console
+
   console.error('   PRODUCTION_DATABASE_URL="your-production-database-url"');
-  // eslint-disable-next-line no-console
+
   console.error("   Get it from Vercel: Settings → Environment Variables → DATABASE_URL");
   process.exit(1);
 }
 
 if (!localUrl) {
-  // eslint-disable-next-line no-console
   console.error("❌ Error: DATABASE_URL not found in .env file");
-  // eslint-disable-next-line no-console
+
   console.error("   Make sure your .env file has DATABASE_URL set for your local database");
   process.exit(1);
 }
@@ -181,7 +179,6 @@ async function dumpProduction() {
 
     return dump;
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("❌ Error dumping production database:", error.message);
     throw error;
   }
@@ -280,7 +277,6 @@ async function restoreToLocal(dump) {
     // eslint-disable-next-line no-console
     console.log("\n✅ Local database restored successfully!");
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("❌ Error restoring to local database:", error.message);
     throw error;
   }
@@ -299,7 +295,6 @@ async function main() {
       console.log('💡 Tip: Use "npm run db:restore" to automatically restore to local database');
     }
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("\n❌ Failed:", error.message);
     process.exit(1);
   } finally {

@@ -5,23 +5,22 @@ import {
   Box,
   Button,
   Select,
+  Portal,
   HStack,
   Text,
   Flex,
   IconButton,
-  useColorModeValue,
-  useToast,
   Card,
-  CardBody,
   Heading,
   Badge,
   Tabs,
-  TabList,
-  Tab,
   useDisclosure,
+  createListCollection,
 } from "@chakra-ui/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePreferencesContext } from "@/contexts/PreferencesContext";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
+import { useToast } from "@/hooks/useToast";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { AuthPage } from "@/components/AuthPage";
 import {
@@ -81,6 +80,14 @@ import { TagFilter } from "@/components/TagFilter";
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
 
+const calendarViewCollection = createListCollection({
+  items: [
+    { label: "Day", value: "day" },
+    { label: "Week", value: "week" },
+    { label: "Month", value: "month" },
+  ],
+});
+
 // Custom collision detection that prioritizes sortable reordering
 const customCollisionDetection = args => {
   const activeData = args.active?.data?.current;
@@ -102,7 +109,7 @@ const customCollisionDetection = args => {
 export default function DailyTasksApp() {
   const { isAuthenticated, loading: authLoading, initialized: authInitialized, logout } = useAuth();
   const { colorMode, toggleColorMode } = useColorModeSync();
-  const toast = useToast();
+  const { toast } = useToast();
   const bgColor = useColorModeValue("gray.50", "gray.900");
   const headerBg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -547,7 +554,6 @@ export default function DailyTasksApp() {
         }
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("Error toggling task completion:", error);
     }
   };
@@ -595,7 +601,6 @@ export default function DailyTasksApp() {
         await createCompletion(subtaskId, targetDate.toISOString());
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("Error toggling subtask completion:", error);
     }
   };
@@ -1172,7 +1177,6 @@ export default function DailyTasksApp() {
 
       // Log if we had to fall back to draggableId extraction
       if (activeSortable?.containerId && !isValidContainerId) {
-        // eslint-disable-next-line no-console
         console.warn("Invalid containerId from sortable, extracted from draggableId:", {
           originalContainerId: activeSortable.containerId,
           extractedContainerId: sourceContainerId,
@@ -1481,41 +1485,34 @@ export default function DailyTasksApp() {
             </Flex>
             <HStack spacing={2}>
               <IconButton
-                icon={
-                  <Box as="span" color="currentColor">
-                    {colorMode === "dark" ? (
-                      <Sun size={20} stroke="currentColor" />
-                    ) : (
-                      <Moon size={20} stroke="currentColor" />
-                    )}
-                  </Box>
-                }
                 onClick={toggleColorMode}
                 variant="ghost"
                 aria-label={colorMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              />
-              <IconButton
-                icon={
-                  <Box as="span" color="currentColor">
-                    <LogOut size={20} stroke="currentColor" />
-                  </Box>
-                }
-                onClick={logout}
-                variant="ghost"
-                colorScheme="red"
-                aria-label="Logout"
-              />
+              >
+                <Box as="span" color="currentColor">
+                  {colorMode === "dark" ? (
+                    <Sun size={20} stroke="currentColor" />
+                  ) : (
+                    <Moon size={20} stroke="currentColor" />
+                  )}
+                </Box>
+              </IconButton>
+              <IconButton onClick={logout} variant="ghost" colorScheme="red" aria-label="Logout">
+                <Box as="span" color="currentColor">
+                  <LogOut size={20} stroke="currentColor" />
+                </Box>
+              </IconButton>
             </HStack>
           </Flex>
 
           {/* Main Tabs */}
           <Box mt={4}>
-            <Tabs index={mainTabIndex} onChange={setMainTabIndex}>
-              <TabList>
-                <Tab>Tasks</Tab>
-                <Tab>History</Tab>
-              </TabList>
-            </Tabs>
+            <Tabs.Root value={mainTabIndex.toString()} onValueChange={({ value }) => setMainTabIndex(parseInt(value))}>
+              <Tabs.List>
+                <Tabs.Trigger value="0">Tasks</Tabs.Trigger>
+                <Tabs.Trigger value="1">History</Tabs.Trigger>
+              </Tabs.List>
+            </Tabs.Root>
           </Box>
 
           {/* View toggles and calendar nav - only show in Tasks tab */}
@@ -1529,12 +1526,10 @@ export default function DailyTasksApp() {
                       variant={backlogOpen ? "solid" : "outline"}
                       colorScheme={backlogOpen ? "blue" : "gray"}
                       onClick={() => setBacklogOpen(!backlogOpen)}
-                      leftIcon={
-                        <Box as="span" color="currentColor">
-                          <List size={16} stroke="currentColor" />
-                        </Box>
-                      }
                     >
+                      <Box as="span" color="currentColor">
+                        <List size={16} stroke="currentColor" />
+                      </Box>
                       Backlog
                     </Button>
                     {backlogTasks.length > 0 && (
@@ -1561,12 +1556,10 @@ export default function DailyTasksApp() {
                     variant={showDashboard ? "solid" : "outline"}
                     colorScheme={showDashboard ? "blue" : "gray"}
                     onClick={() => setShowDashboard(!showDashboard)}
-                    leftIcon={
-                      <Box as="span" color="currentColor">
-                        <LayoutDashboard size={16} stroke="currentColor" />
-                      </Box>
-                    }
                   >
+                    <Box as="span" color="currentColor">
+                      <LayoutDashboard size={16} stroke="currentColor" />
+                    </Box>
                     Today
                   </Button>
                   <Button
@@ -1574,12 +1567,10 @@ export default function DailyTasksApp() {
                     variant={showCalendar ? "solid" : "outline"}
                     colorScheme={showCalendar ? "blue" : "gray"}
                     onClick={() => setShowCalendar(!showCalendar)}
-                    leftIcon={
-                      <Box as="span" color="currentColor">
-                        <Calendar size={16} stroke="currentColor" />
-                      </Box>
-                    }
                   >
+                    <Box as="span" color="currentColor">
+                      <Calendar size={16} stroke="currentColor" />
+                    </Box>
                     Calendar
                   </Button>
                 </HStack>
@@ -1605,9 +1596,11 @@ export default function DailyTasksApp() {
                   <Box h={2} bg={progressBarBg} borderRadius="full" overflow="hidden">
                     <Box
                       h="full"
-                      bgGradient="linear(to-r, blue.500, green.500)"
-                      transition="all"
-                      style={{ width: `${progressPercent}%` }}
+                      bgGradient="to-r"
+                      gradientFrom="blue.500"
+                      gradientTo="green.500"
+                      transition="width 0.3s ease-in-out"
+                      width={`${progressPercent}%`}
                     />
                   </Box>
                 </Box>
@@ -1742,19 +1735,17 @@ export default function DailyTasksApp() {
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => setShowCompletedTasks(!showCompletedTasks)}
-                                  leftIcon={
-                                    <Box as="span" color="currentColor">
-                                      {showCompletedTasks ? (
-                                        <Eye size={16} stroke="currentColor" />
-                                      ) : (
-                                        <EyeOff size={16} stroke="currentColor" />
-                                      )}
-                                    </Box>
-                                  }
                                   fontSize="sm"
                                   color={mutedText}
                                   _hover={{ color: textColor }}
                                 >
+                                  <Box as="span" color="currentColor">
+                                    {showCompletedTasks ? (
+                                      <Eye size={16} stroke="currentColor" />
+                                    ) : (
+                                      <EyeOff size={16} stroke="currentColor" />
+                                    )}
+                                  </Box>
                                   {showCompletedTasks ? "Hide Completed" : "Show Completed"}
                                 </Button>
                               </Flex>
@@ -1823,11 +1814,6 @@ export default function DailyTasksApp() {
                               <IconButton
                                 size="sm"
                                 variant="ghost"
-                                icon={
-                                  <Box as="span" color="currentColor">
-                                    <ZoomOut size={16} stroke="currentColor" />
-                                  </Box>
-                                }
                                 onClick={() => {
                                   setCalendarZoom(prev => ({
                                     ...prev,
@@ -1839,18 +1825,17 @@ export default function DailyTasksApp() {
                                 color={mutedText}
                                 _hover={{ color: textColor }}
                                 isDisabled={calendarZoom[calendarView] <= 0.25}
-                              />
+                              >
+                                <Box as="span" color="currentColor">
+                                  <ZoomOut size={16} stroke="currentColor" />
+                                </Box>
+                              </IconButton>
                               <Text fontSize="xs" color={mutedText} minW="40px" textAlign="center">
                                 {Math.round(calendarZoom[calendarView] * 100)}%
                               </Text>
                               <IconButton
                                 size="sm"
                                 variant="ghost"
-                                icon={
-                                  <Box as="span" color="currentColor">
-                                    <ZoomIn size={16} stroke="currentColor" />
-                                  </Box>
-                                }
                                 onClick={() => {
                                   setCalendarZoom(prev => ({
                                     ...prev,
@@ -1862,7 +1847,11 @@ export default function DailyTasksApp() {
                                 color={mutedText}
                                 _hover={{ color: textColor }}
                                 isDisabled={calendarZoom[calendarView] >= 3.0}
-                              />
+                              >
+                                <Box as="span" color="currentColor">
+                                  <ZoomIn size={16} stroke="currentColor" />
+                                </Box>
+                              </IconButton>
                             </HStack>
                             <Button
                               size="sm"
@@ -1873,19 +1862,17 @@ export default function DailyTasksApp() {
                                   [calendarView]: !prev[calendarView],
                                 }));
                               }}
-                              leftIcon={
-                                <Box as="span" color="currentColor">
-                                  {showCompletedTasksCalendar[calendarView] ? (
-                                    <Eye size={16} stroke="currentColor" />
-                                  ) : (
-                                    <EyeOff size={16} stroke="currentColor" />
-                                  )}
-                                </Box>
-                              }
                               fontSize="sm"
                               color={mutedText}
                               _hover={{ color: textColor }}
                             >
+                              <Box as="span" color="currentColor">
+                                {showCompletedTasksCalendar[calendarView] ? (
+                                  <Eye size={16} stroke="currentColor" />
+                                ) : (
+                                  <EyeOff size={16} stroke="currentColor" />
+                                )}
+                              </Box>
                               {showCompletedTasksCalendar[calendarView] ? "Hide Completed" : "Show Completed"}
                             </Button>
                             <Button
@@ -1897,19 +1884,17 @@ export default function DailyTasksApp() {
                                   [calendarView]: !prev[calendarView],
                                 }));
                               }}
-                              leftIcon={
-                                <Box as="span" color="currentColor">
-                                  {showRecurringTasks[calendarView] ? (
-                                    <Repeat size={16} stroke="currentColor" />
-                                  ) : (
-                                    <X size={16} stroke="currentColor" />
-                                  )}
-                                </Box>
-                              }
                               fontSize="sm"
                               color={mutedText}
                               _hover={{ color: textColor }}
                             >
+                              <Box as="span" color="currentColor">
+                                {showRecurringTasks[calendarView] ? (
+                                  <Repeat size={16} stroke="currentColor" />
+                                ) : (
+                                  <X size={16} stroke="currentColor" />
+                                )}
+                              </Box>
                               {showRecurringTasks[calendarView] ? "Hide Recurring" : "Show Recurring"}
                             </Button>
                           </HStack>
@@ -1927,41 +1912,55 @@ export default function DailyTasksApp() {
                           >
                             Today
                           </Button>
-                          <IconButton
-                            icon={
-                              <Box as="span" color="currentColor">
-                                <ChevronLeft size={18} stroke="currentColor" />
-                              </Box>
-                            }
-                            onClick={() => navigateCalendar(-1)}
-                            variant="ghost"
-                            aria-label="Previous"
-                          />
-                          <IconButton
-                            icon={
-                              <Box as="span" color="currentColor">
-                                <ChevronRight size={18} stroke="currentColor" />
-                              </Box>
-                            }
-                            onClick={() => navigateCalendar(1)}
-                            variant="ghost"
-                            aria-label="Next"
-                          />
+                          <IconButton onClick={() => navigateCalendar(-1)} variant="ghost" aria-label="Previous">
+                            <Box as="span" color="currentColor">
+                              <ChevronLeft size={18} stroke="currentColor" />
+                            </Box>
+                          </IconButton>
+                          <IconButton onClick={() => navigateCalendar(1)} variant="ghost" aria-label="Next">
+                            <Box as="span" color="currentColor">
+                              <ChevronRight size={18} stroke="currentColor" />
+                            </Box>
+                          </IconButton>
                           <Text fontSize="sm" fontWeight="medium" minW="120px">
                             {getCalendarTitle()}
                           </Text>
-                          <Select value={calendarView} onChange={e => setCalendarView(e.target.value)} w={24}>
-                            <option value="day">Day</option>
-                            <option value="week">Week</option>
-                            <option value="month">Month</option>
-                          </Select>
+                          <Select.Root
+                            collection={calendarViewCollection}
+                            value={[calendarView]}
+                            onValueChange={({ value }) => setCalendarView(value[0])}
+                            size="sm"
+                            w={24}
+                          >
+                            <Select.HiddenSelect />
+                            <Select.Control>
+                              <Select.Trigger>
+                                <Select.ValueText placeholder="View" />
+                              </Select.Trigger>
+                              <Select.IndicatorGroup>
+                                <Select.Indicator />
+                              </Select.IndicatorGroup>
+                            </Select.Control>
+                            <Portal>
+                              <Select.Positioner>
+                                <Select.Content>
+                                  {calendarViewCollection.items.map(item => (
+                                    <Select.Item item={item} key={item.value}>
+                                      {item.label}
+                                      <Select.ItemIndicator />
+                                    </Select.Item>
+                                  ))}
+                                </Select.Content>
+                              </Select.Positioner>
+                            </Portal>
+                          </Select.Root>
                         </Flex>
                       </Box>
                       {isLoading && !selectedDate ? (
                         <CalendarSkeleton />
                       ) : (
-                        <Card flex={1} overflow="hidden" bg={bgColor} borderColor={borderColor} minH="600px">
-                          <CardBody p={0} h="full">
+                        <Card.Root flex={1} overflow="hidden" bg={bgColor} borderColor={borderColor} minH="600px">
+                          <Card.Body p={0} h="full">
                             {(() => {
                               // Filter tasks based on recurring preference for current view
                               let filteredTasks = showRecurringTasks[calendarView]
@@ -2038,8 +2037,8 @@ export default function DailyTasksApp() {
                                 </>
                               );
                             })()}
-                          </CardBody>
-                        </Card>
+                          </Card.Body>
+                        </Card.Root>
                       )}
                     </Box>
                   )}

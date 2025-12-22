@@ -1,18 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Box,
-  Button,
-  FormControl,
-  FormLabel,
-  Input,
-  VStack,
-  Text,
-  Alert,
-  AlertIcon,
-  useColorModeValue,
-} from "@chakra-ui/react";
+import { Box, Button, Input, VStack, Text, Alert } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 
 export function ForgotPasswordForm({ onBackToLogin }) {
   const [email, setEmail] = useState("");
@@ -87,43 +77,64 @@ export function ForgotPasswordForm({ onBackToLogin }) {
         </Text>
 
         {success && (
-          <Alert status="success" borderRadius="md">
-            <AlertIcon />
-            Password updated successfully! Redirecting to login...
-          </Alert>
+          <Alert.Root status="success" borderRadius="md">
+            <Alert.Title>Password updated successfully! Redirecting to login...</Alert.Title>
+          </Alert.Root>
         )}
 
         {error && (
-          <Alert status="error" borderRadius="md">
-            <AlertIcon />
-            {error}
-          </Alert>
+          <Alert.Root status="error" borderRadius="md">
+            <Alert.Title>{error}</Alert.Title>
+          </Alert.Root>
         )}
 
-        <FormControl isRequired>
-          <FormLabel>Email</FormLabel>
-          <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" />
-        </FormControl>
+        <Box w="full">
+          <Text fontSize="sm" fontWeight="medium" mb={1}>
+            Email{" "}
+            <Text as="span" color="red.500">
+              *
+            </Text>
+          </Text>
+          <Input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+          />
+        </Box>
 
-        <FormControl isRequired>
-          <FormLabel>New Password</FormLabel>
+        <Box w="full">
+          <Text fontSize="sm" fontWeight="medium" mb={1}>
+            New Password{" "}
+            <Text as="span" color="red.500">
+              *
+            </Text>
+          </Text>
           <Input
             type="password"
             value={newPassword}
             onChange={e => setNewPassword(e.target.value)}
             placeholder="••••••••"
+            required
           />
-        </FormControl>
+        </Box>
 
-        <FormControl isRequired>
-          <FormLabel>Confirm New Password</FormLabel>
+        <Box w="full">
+          <Text fontSize="sm" fontWeight="medium" mb={1}>
+            Confirm New Password{" "}
+            <Text as="span" color="red.500">
+              *
+            </Text>
+          </Text>
           <Input
             type="password"
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
             placeholder="••••••••"
+            required
           />
-        </FormControl>
+        </Box>
 
         <Button type="submit" colorScheme="blue" w="full" isLoading={loading} isDisabled={success}>
           Update Password
@@ -136,4 +147,3 @@ export function ForgotPasswordForm({ onBackToLogin }) {
     </Box>
   );
 }
-

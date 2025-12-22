@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Box, Text, Flex, VStack, HStack, useColorModeValue } from "@chakra-ui/react";
+import { Box, Text, Flex, VStack, HStack } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useDroppable } from "@dnd-kit/core";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate, calculateTaskPositions } from "@/lib/utils";
 import { HOUR_HEIGHT_DAY, DRAG_THRESHOLD } from "@/lib/calendarConstants";

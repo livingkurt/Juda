@@ -131,12 +131,8 @@
           "name": "TaskCompletion_taskId_Task_id_fk",
           "tableFrom": "TaskCompletion",
           "tableTo": "Task",
-          "columnsFrom": [
-            "taskId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["taskId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -146,10 +142,7 @@
         "TaskCompletion_taskId_date_unique": {
           "name": "TaskCompletion_taskId_date_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "taskId",
-            "date"
-          ]
+          "columns": ["taskId", "date"]
         }
       },
       "policies": {},
@@ -246,12 +239,8 @@
           "name": "Task_sectionId_Section_id_fk",
           "tableFrom": "Task",
           "tableTo": "Section",
-          "columnsFrom": [
-            "sectionId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sectionId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

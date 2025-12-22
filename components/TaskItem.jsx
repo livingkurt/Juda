@@ -1,24 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import {
-  Box,
-  Checkbox,
-  Text,
-  Flex,
-  HStack,
-  IconButton,
-  VStack,
-  Input,
-  Badge,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Portal,
-  Tag,
-} from "@chakra-ui/react";
-import { useColorModeValue } from "@chakra-ui/react";
+import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack, Input, Badge, Menu, Tag } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ChevronDown, ChevronRight, Clock, Edit2, Trash2, Copy, AlertCircle, MoreVertical } from "lucide-react";
@@ -161,15 +145,6 @@ export const TaskItem = ({
           {task.subtasks && task.subtasks.length > 0 ? (
             onToggleExpand ? (
               <IconButton
-                icon={
-                  <Box as="span" color="currentColor">
-                    {task.expanded ? (
-                      <ChevronDown size={16} stroke="currentColor" />
-                    ) : (
-                      <ChevronRight size={16} stroke="currentColor" />
-                    )}
-                  </Box>
-                }
                 onClick={e => {
                   e.stopPropagation();
                   onToggleExpand(task.id);
@@ -179,7 +154,15 @@ export const TaskItem = ({
                 size="sm"
                 variant="ghost"
                 aria-label="Toggle expand"
-              />
+              >
+                <Box as="span" color="currentColor">
+                  {task.expanded ? (
+                    <ChevronDown size={16} stroke="currentColor" />
+                  ) : (
+                    <ChevronRight size={16} stroke="currentColor" />
+                  )}
+                </Box>
+              </IconButton>
             ) : (
               <Box w={6} />
             )
@@ -188,14 +171,19 @@ export const TaskItem = ({
           )}
 
           {/* Checkbox - show for today, backlog, and subtask variants */}
-          <Checkbox
-            isChecked={isChecked}
+          <Checkbox.Root
+            checked={isChecked}
             size="lg"
-            onChange={() => (isSubtask ? onToggle?.(parentTaskId, task.id) : onToggle?.(task.id))}
+            onCheckedChange={() => (isSubtask ? onToggle?.(parentTaskId, task.id) : onToggle?.(task.id))}
             onClick={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
             onPointerDown={e => e.stopPropagation()}
-          />
+          >
+            <Checkbox.HiddenInput />
+            <Checkbox.Control>
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+          </Checkbox.Root>
           {/* Color indicator */}
           {/* <Box w={3} h={3} borderRadius="full" bg={task.color || "#3b82f6"} flexShrink={0} /> */}
 
@@ -283,9 +271,9 @@ export const TaskItem = ({
                 {task.tags && task.tags.length > 0 && (
                   <>
                     {task.tags.map(tag => (
-                      <Tag key={tag.id} size="sm" borderRadius="full" bg={tag.color} color="white" fontSize="2xs">
-                        {tag.name}
-                      </Tag>
+                      <Tag.Root key={tag.id} size="sm" borderRadius="full" bg={tag.color} color="white" fontSize="2xs">
+                        <Tag.Label>{tag.name}</Tag.Label>
+                      </Tag.Root>
                     ))}
                   </>
                 )}
@@ -306,56 +294,62 @@ export const TaskItem = ({
           )}
 
           {/* Action menu */}
-          <Menu>
-            <MenuButton
-              as={IconButton}
-              icon={
+          <Menu.Root>
+            <Menu.Trigger asChild>
+              <IconButton
+                onClick={e => e.stopPropagation()}
+                onMouseDown={e => e.stopPropagation()}
+                onPointerDown={e => e.stopPropagation()}
+                size={"sm"}
+                variant="ghost"
+                aria-label="Task actions"
+              >
                 <Box as="span" color="currentColor">
                   <MoreVertical size={16} stroke="currentColor" />
                 </Box>
-              }
-              onClick={e => e.stopPropagation()}
-              onMouseDown={e => e.stopPropagation()}
-              onPointerDown={e => e.stopPropagation()}
-              size={"sm"}
-              variant="ghost"
-              aria-label="Task actions"
-            />
-            <Portal>
-              <MenuList onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-                <MenuItem
-                  icon={<Edit2 size={16} />}
+              </IconButton>
+            </Menu.Trigger>
+            <Menu.Positioner>
+              <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+                <Menu.Item
                   onClick={e => {
                     e.stopPropagation();
                     handleEdit(task);
                   }}
                 >
-                  Edit
-                </MenuItem>
+                  <HStack>
+                    <Edit2 size={16} />
+                    <Text>Edit</Text>
+                  </HStack>
+                </Menu.Item>
                 {handleDuplicate && (
-                  <MenuItem
-                    icon={<Copy size={16} />}
+                  <Menu.Item
                     onClick={e => {
                       e.stopPropagation();
                       handleDuplicate(task.id);
                     }}
                   >
-                    Duplicate
-                  </MenuItem>
+                    <HStack>
+                      <Copy size={16} />
+                      <Text>Duplicate</Text>
+                    </HStack>
+                  </Menu.Item>
                 )}
-                <MenuItem
-                  icon={<Trash2 size={16} />}
+                <Menu.Item
                   color="red.500"
                   onClick={e => {
                     e.stopPropagation();
                     isSubtask ? handleDelete(parentTaskId, task.id) : handleDelete(task.id);
                   }}
                 >
-                  Delete
-                </MenuItem>
-              </MenuList>
-            </Portal>
-          </Menu>
+                  <HStack>
+                    <Trash2 size={16} />
+                    <Text>Delete</Text>
+                  </HStack>
+                </Menu.Item>
+              </Menu.Content>
+            </Menu.Positioner>
+          </Menu.Root>
         </Flex>
 
         {/* Expanded subtasks */}

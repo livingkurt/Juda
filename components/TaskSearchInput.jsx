@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Input, InputGroup, InputLeftElement, Box } from "@chakra-ui/react";
+import { Input, InputGroup, Box } from "@chakra-ui/react";
 import { Search } from "lucide-react";
-import { useColorModeValue } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 
 export const TaskSearchInput = ({ onSearchChange, placeholder = "Search tasks..." }) => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -29,12 +29,13 @@ export const TaskSearchInput = ({ onSearchChange, placeholder = "Search tasks...
   }, [debouncedSearch, onSearchChange]);
 
   return (
-    <InputGroup>
-      <InputLeftElement pointerEvents="none">
-        <Box as="span" color={mutedText}>
+    <InputGroup
+      startElement={
+        <Box as="span" color={mutedText} pointerEvents="none">
           <Search size={16} stroke="currentColor" />
         </Box>
-      </InputLeftElement>
+      }
+    >
       <Input
         placeholder={placeholder}
         value={searchTerm}

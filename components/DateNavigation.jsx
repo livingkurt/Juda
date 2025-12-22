@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Button, IconButton, Text, Flex, Input, useColorModeValue, Badge } from "@chakra-ui/react";
+import { Box, Button, IconButton, Text, Flex, Input, Badge } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export const DateNavigation = ({ selectedDate, onDateChange, onPrevious, onNext, onToday }) => {
@@ -63,28 +64,16 @@ export const DateNavigation = ({ selectedDate, onDateChange, onPrevious, onNext,
         <Button variant="outline" size="sm" onClick={onToday}>
           Today
         </Button>
-        <IconButton
-          icon={
-            <Box as="span" color="currentColor">
-              <ChevronLeft size={18} stroke="currentColor" />
-            </Box>
-          }
-          onClick={onPrevious}
-          variant="ghost"
-          aria-label="Previous day"
-          size="sm"
-        />
-        <IconButton
-          icon={
-            <Box as="span" color="currentColor">
-              <ChevronRight size={18} stroke="currentColor" />
-            </Box>
-          }
-          onClick={onNext}
-          variant="ghost"
-          aria-label="Next day"
-          size="sm"
-        />
+        <IconButton onClick={onPrevious} variant="ghost" aria-label="Previous day" size="sm">
+          <Box as="span" color="currentColor">
+            <ChevronLeft size={18} stroke="currentColor" />
+          </Box>
+        </IconButton>
+        <IconButton onClick={onNext} variant="ghost" aria-label="Next day" size="sm">
+          <Box as="span" color="currentColor">
+            <ChevronRight size={18} stroke="currentColor" />
+          </Box>
+        </IconButton>
         <Box position="relative" flex={1} minW="200px">
           <Input
             type="date"

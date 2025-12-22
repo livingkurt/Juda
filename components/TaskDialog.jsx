@@ -5,29 +5,17 @@ import {
   Box,
   Button,
   Input,
-  FormLabel,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  Select,
+  Dialog,
+  NativeSelect,
   VStack,
   HStack,
   SimpleGrid,
   Text,
   IconButton,
-  useColorModeValue,
   Tag,
-  Divider,
   Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
 } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { Plus, Search } from "lucide-react";
@@ -228,16 +216,18 @@ export const TaskDialog = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="md">
-      <ModalOverlay />
-      <ModalContent bg={bgColor} maxH="90vh" overflowY="auto">
-        <ModalHeader>{task ? "Edit Task" : "New Task"}</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
+    <Dialog.Root open={isOpen} onOpenChange={({ open }) => !open && onClose()} size="md">
+      <Dialog.Backdrop />
+      <Dialog.Content bg={bgColor} maxH="90vh" overflowY="auto">
+        <Dialog.Header>{task ? "Edit Task" : "New Task"}</Dialog.Header>
+        <Dialog.CloseTrigger />
+        <Dialog.Body>
           <form onSubmit={handleFormSubmit}>
             <VStack spacing={4} py={4}>
               <Box w="full">
-                <FormLabel>Task Name</FormLabel>
+                <Text fontSize="sm" fontWeight="medium" mb={1}>
+                  Task Name
+                </Text>
                 <Input
                   value={title}
                   onChange={e => setTitle(e.target.value)}
@@ -250,7 +240,9 @@ export const TaskDialog = ({
                 />
               </Box>
               <Box w="full">
-                <FormLabel>Color</FormLabel>
+                <Text fontSize="sm" fontWeight="medium" mb={1}>
+                  Color
+                </Text>
                 <HStack spacing={2} mt={2} flexWrap="wrap">
                   {colors.map(c => (
                     <Button
@@ -269,18 +261,25 @@ export const TaskDialog = ({
                 </HStack>
               </Box>
               <Box w="full">
-                <FormLabel>Section</FormLabel>
-                <Select value={sectionId} onChange={e => setSectionId(e.target.value)}>
-                  {sections.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </Select>
+                <Text fontSize="sm" fontWeight="medium" mb={1}>
+                  Section
+                </Text>
+                <NativeSelect.Root value={sectionId} onValueChange={({ value }) => setSectionId(value)}>
+                  <NativeSelect.Field>
+                    {sections.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </NativeSelect.Field>
+                  <NativeSelect.Indicator />
+                </NativeSelect.Root>
               </Box>
               <SimpleGrid columns={2} spacing={4} w="full">
                 <Box>
-                  <FormLabel>Date</FormLabel>
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Date
+                  </Text>
                   <Input
                     type="date"
                     value={date}
@@ -295,7 +294,9 @@ export const TaskDialog = ({
                   />
                 </Box>
                 <Box>
-                  <FormLabel>Time</FormLabel>
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Time
+                  </Text>
                   <Input
                     type="time"
                     value={time}
@@ -311,32 +312,47 @@ export const TaskDialog = ({
                 </Box>
               </SimpleGrid>
               <Box w="full">
-                <FormLabel>Duration</FormLabel>
-                <Select value={duration.toString()} onChange={e => setDuration(parseInt(e.target.value))}>
-                  {DURATION_OPTIONS.map(d => (
-                    <option key={d.value} value={d.value.toString()}>
-                      {d.label}
-                    </option>
-                  ))}
-                </Select>
+                <Text fontSize="sm" fontWeight="medium" mb={1}>
+                  Duration
+                </Text>
+                <NativeSelect.Root
+                  value={duration.toString()}
+                  onValueChange={({ value }) => setDuration(parseInt(value))}
+                >
+                  <NativeSelect.Field>
+                    {DURATION_OPTIONS.map(d => (
+                      <option key={d.value} value={d.value.toString()}>
+                        {d.label}
+                      </option>
+                    ))}
+                  </NativeSelect.Field>
+                  <NativeSelect.Indicator />
+                </NativeSelect.Root>
               </Box>
               <Box w="full">
-                <FormLabel>Recurrence</FormLabel>
-                <Select value={recurrenceType} onChange={e => setRecurrenceType(e.target.value)}>
-                  <option value="none">None (One-time task)</option>
-                  <option value="daily">Every day</option>
-                  <option value="weekly">Specific days</option>
-                </Select>
+                <Text fontSize="sm" fontWeight="medium" mb={1}>
+                  Recurrence
+                </Text>
+                <NativeSelect.Root value={recurrenceType} onValueChange={({ value }) => setRecurrenceType(value)}>
+                  <NativeSelect.Field>
+                    <option value="none">None (One-time task)</option>
+                    <option value="daily">Every day</option>
+                    <option value="weekly">Specific days</option>
+                  </NativeSelect.Field>
+                  <NativeSelect.Indicator />
+                </NativeSelect.Root>
               </Box>
               {/* Tags */}
               <Box w="full">
-                <FormLabel>Tags</FormLabel>
+                <Text fontSize="sm" fontWeight="medium" mb={1}>
+                  Tags
+                </Text>
                 <HStack spacing={2} flexWrap="wrap" align="center" mt={2}>
                   {/* Tags */}
                   {tags
                     .filter(t => selectedTagIds.includes(t.id))
                     .map(tag => (
-                      <Tag
+                      <Tag.Root
                         key={tag.id}
                         size="sm"
                         borderRadius="full"
@@ -345,8 +361,8 @@ export const TaskDialog = ({
                         color="white"
                         fontSize="xs"
                       >
-                        {tag.name}
-                      </Tag>
+                        <Tag.Label>{tag.name}</Tag.Label>
+                      </Tag.Root>
                     ))}
                   {/* Add Tag button */}
                   <TagSelector
@@ -383,198 +399,206 @@ export const TaskDialog = ({
                 </HStack>
               )}
               <Box w="full">
-                <FormLabel>Subtasks</FormLabel>
-                <Tabs index={subtaskTabIndex} onChange={setSubtaskTabIndex} variant="enclosed" size="sm">
-                  <TabList>
-                    <Tab>Manage ({subtasks.length})</Tab>
-                    <Tab>Add Existing</Tab>
-                  </TabList>
-                  <TabPanels>
-                    {/* Manage Subtasks Tab */}
-                    <TabPanel px={0} py={3}>
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragStart={handleDragStart}
-                        onDragEnd={handleDragEnd}
-                        onDragCancel={handleDragCancel}
+                <Text fontSize="sm" fontWeight="medium" mb={1}>
+                  Subtasks
+                </Text>
+                <Tabs.Root
+                  value={subtaskTabIndex.toString()}
+                  onValueChange={({ value }) => setSubtaskTabIndex(parseInt(value))}
+                  variant="enclosed"
+                  size="sm"
+                >
+                  <Tabs.List>
+                    <Tabs.Trigger value="0">Manage ({subtasks.length})</Tabs.Trigger>
+                    <Tabs.Trigger value="1">Add Existing</Tabs.Trigger>
+                  </Tabs.List>
+                  <Tabs.Content value="0" px={0} py={3}>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                      onDragCancel={handleDragCancel}
+                    >
+                      <SortableContext
+                        items={subtasks.map(st => `subtask-${st.id}`)}
+                        strategy={verticalListSortingStrategy}
                       >
-                        <SortableContext
-                          items={subtasks.map(st => `subtask-${st.id}`)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          <VStack align="stretch" spacing={2}>
-                            {subtasks.map(st => (
-                              <TaskItem
-                                key={st.id}
-                                task={st}
-                                variant="subtask"
-                                containerId="task-dialog-subtasks"
-                                draggableId={`subtask-${st.id}`}
-                                onEdit={() => {
-                                  setEditingSubtask(st);
-                                  setSubtaskTitle(st.title);
-                                  setSubtaskTime(st.time || "");
-                                  setSubtaskDuration(st.duration || 30);
-                                  setSubtaskColor(st.color || "#3b82f6");
-                                }}
-                                onDelete={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
-                              />
-                            ))}
-                          </VStack>
-                        </SortableContext>
-                        <DragOverlay>
-                          {activeSubtask ? (
+                        <VStack align="stretch" spacing={2}>
+                          {subtasks.map(st => (
                             <TaskItem
-                              task={activeSubtask}
+                              key={st.id}
+                              task={st}
                               variant="subtask"
                               containerId="task-dialog-subtasks"
-                              draggableId={`subtask-${activeSubtask.id}`}
+                              draggableId={`subtask-${st.id}`}
+                              onEdit={() => {
+                                setEditingSubtask(st);
+                                setSubtaskTitle(st.title);
+                                setSubtaskTime(st.time || "");
+                                setSubtaskDuration(st.duration || 30);
+                                setSubtaskColor(st.color || "#3b82f6");
+                              }}
+                              onDelete={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
                             />
-                          ) : null}
-                        </DragOverlay>
-                      </DndContext>
-                      <Divider my={2} />
-                      <HStack spacing={2}>
-                        <Input
-                          value={newSubtask}
-                          onChange={e => setNewSubtask(e.target.value)}
-                          placeholder="Create new subtask"
-                          size="sm"
-                          onKeyDown={e => {
-                            if (e.key === "Enter" && newSubtask.trim()) {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setSubtasks([
-                                ...subtasks,
-                                {
-                                  id: Date.now().toString(),
-                                  title: newSubtask.trim(),
-                                  completed: false,
-                                  time: null,
-                                  duration: 30,
-                                  color: "#3b82f6",
-                                  order: subtasks.length,
-                                },
-                              ]);
-                              setNewSubtask("");
-                            }
-                          }}
-                        />
-                        <IconButton
-                          icon={
-                            <Box as="span" color="currentColor">
-                              <Plus size={16} stroke="currentColor" />
-                            </Box>
+                          ))}
+                        </VStack>
+                      </SortableContext>
+                      <DragOverlay>
+                        {activeSubtask ? (
+                          <TaskItem
+                            task={activeSubtask}
+                            variant="subtask"
+                            containerId="task-dialog-subtasks"
+                            draggableId={`subtask-${activeSubtask.id}`}
+                          />
+                        ) : null}
+                      </DragOverlay>
+                    </DndContext>
+                    <Box borderTopWidth="1px" borderColor={useColorModeValue("gray.200", "gray.600")} my={2} />
+                    <HStack spacing={2}>
+                      <Input
+                        value={newSubtask}
+                        onChange={e => setNewSubtask(e.target.value)}
+                        placeholder="Create new subtask"
+                        size="sm"
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && newSubtask.trim()) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSubtasks([
+                              ...subtasks,
+                              {
+                                id: Date.now().toString(),
+                                title: newSubtask.trim(),
+                                completed: false,
+                                time: null,
+                                duration: 30,
+                                color: "#3b82f6",
+                                order: subtasks.length,
+                              },
+                            ]);
+                            setNewSubtask("");
                           }
-                          onClick={() => {
-                            if (newSubtask.trim()) {
-                              setSubtasks([
-                                ...subtasks,
-                                {
-                                  id: Date.now().toString(),
-                                  title: newSubtask.trim(),
-                                  completed: false,
-                                  time: null,
-                                  duration: 30,
-                                  color: "#3b82f6",
-                                  order: subtasks.length,
-                                },
-                              ]);
-                              setNewSubtask("");
-                            }
-                          }}
+                        }}
+                      />
+                      <IconButton
+                        onClick={() => {
+                          if (newSubtask.trim()) {
+                            setSubtasks([
+                              ...subtasks,
+                              {
+                                id: Date.now().toString(),
+                                title: newSubtask.trim(),
+                                completed: false,
+                                time: null,
+                                duration: 30,
+                                color: "#3b82f6",
+                                order: subtasks.length,
+                              },
+                            ]);
+                            setNewSubtask("");
+                          }
+                        }}
+                        size="sm"
+                        variant="outline"
+                        aria-label="Add subtask"
+                      >
+                        <Box as="span" color="currentColor">
+                          <Plus size={16} stroke="currentColor" />
+                        </Box>
+                      </IconButton>
+                    </HStack>
+                  </Tabs.Content>
+
+                  {/* Add Existing Task Tab */}
+                  <Tabs.Content value="1" px={0} py={3}>
+                    <VStack align="stretch" spacing={3}>
+                      <HStack spacing={2}>
+                        <Box as="span" color="gray.500">
+                          <Search size={16} />
+                        </Box>
+                        <Input
+                          value={searchQuery}
+                          onChange={e => setSearchQuery(e.target.value)}
+                          placeholder="Search for tasks to add as subtasks..."
                           size="sm"
-                          variant="outline"
-                          aria-label="Add subtask"
                         />
                       </HStack>
-                    </TabPanel>
-
-                    {/* Add Existing Task Tab */}
-                    <TabPanel px={0} py={3}>
-                      <VStack align="stretch" spacing={3}>
-                        <HStack spacing={2}>
-                          <Box as="span" color="gray.500">
-                            <Search size={16} />
-                          </Box>
-                          <Input
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            placeholder="Search for tasks to add as subtasks..."
-                            size="sm"
-                          />
-                        </HStack>
-                        {searchQuery.trim() && (
-                          <VStack align="stretch" spacing={2} maxH="200px" overflowY="auto">
-                            {filteredTasks.length > 0 ? (
-                              filteredTasks.map(t => (
+                      {searchQuery.trim() && (
+                        <VStack align="stretch" spacing={2} maxH="200px" overflowY="auto">
+                          {filteredTasks.length > 0 ? (
+                            filteredTasks.map(t => (
+                              <Box
+                                key={t.id}
+                                cursor="pointer"
+                                _hover={{ opacity: 0.8 }}
+                                onClick={() => addExistingTaskAsSubtask(t)}
+                                position="relative"
+                              >
+                                <TaskItem
+                                  task={t}
+                                  variant="subtask"
+                                  containerId="task-dialog-search"
+                                  draggableId={`dialog-search-${t.id}`}
+                                />
                                 <Box
-                                  key={t.id}
-                                  cursor="pointer"
-                                  _hover={{ opacity: 0.8 }}
-                                  onClick={() => addExistingTaskAsSubtask(t)}
-                                  position="relative"
+                                  position="absolute"
+                                  right={2}
+                                  top="50%"
+                                  transform="translateY(-50%)"
+                                  bg={searchResultBg}
+                                  borderRadius="md"
+                                  p={1}
                                 >
-                                  <TaskItem
-                                    task={t}
-                                    variant="subtask"
-                                    containerId="task-dialog-search"
-                                    draggableId={`dialog-search-${t.id}`}
-                                  />
-                                  <Box
-                                    position="absolute"
-                                    right={2}
-                                    top="50%"
-                                    transform="translateY(-50%)"
-                                    bg={searchResultBg}
-                                    borderRadius="md"
-                                    p={1}
+                                  <IconButton
+                                    size="xs"
+                                    variant="ghost"
+                                    aria-label="Add as subtask"
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      addExistingTaskAsSubtask(t);
+                                    }}
                                   >
-                                    <IconButton
-                                      icon={
-                                        <Box as="span" color="currentColor">
-                                          <Plus size={14} stroke="currentColor" />
-                                        </Box>
-                                      }
-                                      size="xs"
-                                      variant="ghost"
-                                      aria-label="Add as subtask"
-                                      onClick={e => {
-                                        e.stopPropagation();
-                                        addExistingTaskAsSubtask(t);
-                                      }}
-                                    />
-                                  </Box>
+                                    <Box as="span" color="currentColor">
+                                      <Plus size={14} stroke="currentColor" />
+                                    </Box>
+                                  </IconButton>
                                 </Box>
-                              ))
-                            ) : (
-                              <Text fontSize="sm" color="gray.500" textAlign="center" py={4}>
-                                No tasks found
-                              </Text>
-                            )}
-                          </VStack>
-                        )}
-                        {!searchQuery.trim() && (
-                          <Text fontSize="sm" color="gray.500" textAlign="center" py={4}>
-                            Type to search for existing tasks
-                          </Text>
-                        )}
-                      </VStack>
-                    </TabPanel>
-                  </TabPanels>
-                </Tabs>
+                              </Box>
+                            ))
+                          ) : (
+                            <Text fontSize="sm" color="gray.500" textAlign="center" py={4}>
+                              No tasks found
+                            </Text>
+                          )}
+                        </VStack>
+                      )}
+                      {!searchQuery.trim() && (
+                        <Text fontSize="sm" color="gray.500" textAlign="center" py={4}>
+                          Type to search for existing tasks
+                        </Text>
+                      )}
+                    </VStack>
+                  </Tabs.Content>
+                </Tabs.Root>
               </Box>
               {/* Subtask Edit Modal */}
-              <Modal isOpen={editingSubtask !== null} onClose={() => setEditingSubtask(null)} size="sm">
-                <ModalOverlay />
-                <ModalContent bg={bgColor}>
-                  <ModalHeader>Edit Subtask</ModalHeader>
-                  <ModalCloseButton />
-                  <ModalBody>
+              <Dialog.Root
+                open={editingSubtask !== null}
+                onOpenChange={({ open }) => !open && setEditingSubtask(null)}
+                size="sm"
+              >
+                <Dialog.Backdrop />
+                <Dialog.Content bg={bgColor}>
+                  <Dialog.Header>Edit Subtask</Dialog.Header>
+                  <Dialog.CloseTrigger />
+                  <Dialog.Body>
                     <VStack spacing={4} py={4}>
                       <Box w="full">
-                        <FormLabel>Title</FormLabel>
+                        <Text fontSize="sm" fontWeight="medium" mb={1}>
+                          Title
+                        </Text>
                         <Input
                           value={subtaskTitle}
                           onChange={e => setSubtaskTitle(e.target.value)}
@@ -582,7 +606,9 @@ export const TaskDialog = ({
                         />
                       </Box>
                       <Box w="full">
-                        <FormLabel>Color</FormLabel>
+                        <Text fontSize="sm" fontWeight="medium" mb={1}>
+                          Color
+                        </Text>
                         <HStack spacing={2} mt={2} flexWrap="wrap">
                           {colors.map(c => (
                             <Button
@@ -602,7 +628,9 @@ export const TaskDialog = ({
                       </Box>
                       <SimpleGrid columns={2} spacing={4} w="full">
                         <Box>
-                          <FormLabel>Time</FormLabel>
+                          <Text fontSize="sm" fontWeight="medium" mb={1}>
+                            Time
+                          </Text>
                           <Input
                             type="time"
                             value={subtaskTime}
@@ -611,22 +639,27 @@ export const TaskDialog = ({
                           />
                         </Box>
                         <Box>
-                          <FormLabel>Duration</FormLabel>
-                          <Select
+                          <Text fontSize="sm" fontWeight="medium" mb={1}>
+                            Duration
+                          </Text>
+                          <NativeSelect.Root
                             value={subtaskDuration.toString()}
-                            onChange={e => setSubtaskDuration(parseInt(e.target.value))}
+                            onValueChange={({ value }) => setSubtaskDuration(parseInt(value))}
                           >
-                            {DURATION_OPTIONS.map(d => (
-                              <option key={d.value} value={d.value.toString()}>
-                                {d.label}
-                              </option>
-                            ))}
-                          </Select>
+                            <NativeSelect.Field>
+                              {DURATION_OPTIONS.map(d => (
+                                <option key={d.value} value={d.value.toString()}>
+                                  {d.label}
+                                </option>
+                              ))}
+                            </NativeSelect.Field>
+                            <NativeSelect.Indicator />
+                          </NativeSelect.Root>
                         </Box>
                       </SimpleGrid>
                     </VStack>
-                  </ModalBody>
-                  <ModalFooter>
+                  </Dialog.Body>
+                  <Dialog.Footer>
                     <Button variant="outline" mr={3} onClick={() => setEditingSubtask(null)}>
                       Cancel
                     </Button>
@@ -657,21 +690,21 @@ export const TaskDialog = ({
                     >
                       Save
                     </Button>
-                  </ModalFooter>
-                </ModalContent>
-              </Modal>
+                  </Dialog.Footer>
+                </Dialog.Content>
+              </Dialog.Root>
             </VStack>
           </form>
-        </ModalBody>
-        <ModalFooter>
+        </Dialog.Body>
+        <Dialog.Footer>
           <Button variant="outline" mr={3} onClick={onClose}>
             Cancel
           </Button>
           <Button onClick={handleSave} isDisabled={!title.trim()}>
             Save
           </Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+        </Dialog.Footer>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 };

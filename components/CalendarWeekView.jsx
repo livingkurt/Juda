@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Box, Flex, HStack, useColorModeValue } from "@chakra-ui/react";
+import { Box, Flex, HStack } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate } from "@/lib/utils";
 import { HOUR_HEIGHT_WEEK, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { DayHeaderColumn } from "./DayHeaderColumn";

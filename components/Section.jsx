@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Button, useColorModeValue } from "@chakra-ui/react";
+import { Box, Button } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";

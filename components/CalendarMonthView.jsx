@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { Box, Flex, SimpleGrid, HStack, useColorModeValue } from "@chakra-ui/react";
+import { Box, Flex, SimpleGrid, HStack } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { shouldShowOnDate } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 import { TaskSearchInput } from "./TaskSearchInput";

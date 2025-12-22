@@ -1,24 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
-import {
-  Box,
-  Card,
-  CardHeader,
-  CardBody,
-  Heading,
-  Text,
-  Flex,
-  HStack,
-  VStack,
-  IconButton,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Input,
-  useColorModeValue,
-} from "@chakra-ui/react";
+import { Box, Card, Heading, Text, Flex, HStack, VStack, IconButton, Menu, Input } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useDroppable } from "@dnd-kit/core";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -130,7 +114,7 @@ export const SectionCard = ({
   };
 
   return (
-    <Card
+    <Card.Root
       ref={setSectionNodeRef}
       style={sectionStyle}
       mb={4}
@@ -140,7 +124,7 @@ export const SectionCard = ({
       opacity={sectionIsDragging ? 0.5 : 1}
       transition="border-color 0.2s, border-width 0.2s"
     >
-      <CardHeader pb={2}>
+      <Card.Header pb={2}>
         <Flex align="center" justify="space-between">
           <Flex align="center" gap={2}>
             <Box
@@ -164,55 +148,46 @@ export const SectionCard = ({
           </Flex>
           <HStack spacing={1}>
             <IconButton
-              icon={
-                <Box as="span" color="currentColor">
-                  {section.expanded !== false ? (
-                    <ChevronUp size={16} stroke="currentColor" />
-                  ) : (
-                    <ChevronDown size={16} stroke="currentColor" />
-                  )}
-                </Box>
-              }
               onClick={() => onToggleSectionExpand && onToggleSectionExpand(section.id)}
               size="sm"
               variant="ghost"
               aria-label={section.expanded !== false ? "Collapse section" : "Expand section"}
-            />
-            <IconButton
-              icon={
-                <Box as="span" color="currentColor">
-                  <Plus size={16} stroke="currentColor" />
-                </Box>
-              }
-              onClick={() => onAddTask(section.id)}
-              size="sm"
-              variant="ghost"
-              aria-label="Add task"
-            />
-            <Menu>
-              <MenuButton
-                as={IconButton}
-                icon={
+            >
+              <Box as="span" color="currentColor">
+                {section.expanded !== false ? (
+                  <ChevronUp size={16} stroke="currentColor" />
+                ) : (
+                  <ChevronDown size={16} stroke="currentColor" />
+                )}
+              </Box>
+            </IconButton>
+            <IconButton onClick={() => onAddTask(section.id)} size="sm" variant="ghost" aria-label="Add task">
+              <Box as="span" color="currentColor">
+                <Plus size={16} stroke="currentColor" />
+              </Box>
+            </IconButton>
+            <Menu.Root>
+              <Menu.Trigger asChild>
+                <IconButton size="sm" variant="ghost" aria-label="Section menu">
                   <Box as="span" color="currentColor">
                     <MoreVertical size={16} stroke="currentColor" />
                   </Box>
-                }
-                size="sm"
-                variant="ghost"
-                aria-label="Section menu"
-              />
-              <MenuList>
-                <MenuItem onClick={() => onEditSection(section)}>Edit</MenuItem>
-                <MenuItem onClick={() => onDeleteSection(section.id)} color="red.500">
-                  Delete
-                </MenuItem>
-              </MenuList>
-            </Menu>
+                </IconButton>
+              </Menu.Trigger>
+              <Menu.Positioner>
+                <Menu.Content>
+                  <Menu.Item onClick={() => onEditSection(section)}>Edit</Menu.Item>
+                  <Menu.Item onClick={() => onDeleteSection(section.id)} color="red.500">
+                    Delete
+                  </Menu.Item>
+                </Menu.Content>
+              </Menu.Positioner>
+            </Menu.Root>
           </HStack>
         </Flex>
-      </CardHeader>
+      </Card.Header>
       {section.expanded !== false && (
-        <CardBody pt={2}>
+        <Card.Body pt={2}>
           <Box
             ref={setDropNodeRef}
             bg={isOver ? dropHighlight : "transparent"}
@@ -310,8 +285,8 @@ export const SectionCard = ({
               </SortableContext>
             )}
           </Box>
-        </CardBody>
+        </Card.Body>
       )}
-    </Card>
+    </Card.Root>
   );
 };

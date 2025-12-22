@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { Box, VStack, HStack, Flex, Text, IconButton, Badge, useColorModeValue, Heading } from "@chakra-ui/react";
+import { Box, VStack, HStack, Flex, Text, IconButton, Badge, Heading } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus, X } from "lucide-react";
@@ -85,28 +86,21 @@ export const BacklogDrawer = ({
           <Heading size="md">Backlog</Heading>
           <HStack spacing={2}>
             <IconButton
-              icon={
-                <Box as="span" color="currentColor">
-                  <Plus size={18} stroke="currentColor" />
-                </Box>
-              }
               onClick={onAddTask}
               size="sm"
               variant="ghost"
               colorScheme="blue"
               aria-label="Add task to backlog"
-            />
-            <IconButton
-              icon={
-                <Box as="span" color="currentColor">
-                  <X size={18} stroke="currentColor" />
-                </Box>
-              }
-              onClick={onClose}
-              size="sm"
-              variant="ghost"
-              aria-label="Close backlog"
-            />
+            >
+              <Box as="span" color="currentColor">
+                <Plus size={18} stroke="currentColor" />
+              </Box>
+            </IconButton>
+            <IconButton onClick={onClose} size="sm" variant="ghost" aria-label="Close backlog">
+              <Box as="span" color="currentColor">
+                <X size={18} stroke="currentColor" />
+              </Box>
+            </IconButton>
           </HStack>
         </Flex>
         <Badge colorScheme="blue" mb={2}>

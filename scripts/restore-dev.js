@@ -57,11 +57,10 @@ loadEnvFile();
 const devUrl = cleanDatabaseUrl(process.env.DEV_DATABASE_URL || process.env.DATABASE_URL);
 
 if (!devUrl) {
-  // eslint-disable-next-line no-console
   console.error("❌ Error: DATABASE_URL or DEV_DATABASE_URL not found in .env file");
-  // eslint-disable-next-line no-console
+
   console.error("   Make sure your .env file has DATABASE_URL set for your dev database");
-  // eslint-disable-next-line no-console
+
   console.error("   Or set DEV_DATABASE_URL to explicitly use a dev database");
   process.exit(1);
 }
@@ -78,9 +77,8 @@ const devDb = drizzle(devClient);
 function findMostRecentDump() {
   const dumpDir = path.join(process.cwd(), "dumps");
   if (!fs.existsSync(dumpDir)) {
-    // eslint-disable-next-line no-console
     console.error("❌ Error: dumps directory not found");
-    // eslint-disable-next-line no-console
+
     console.error("   Run 'npm run db:dump' first to create a dump");
     process.exit(1);
   }
@@ -89,9 +87,8 @@ function findMostRecentDump() {
   const dumpFiles = files.filter(file => file.startsWith("production-dump-") && file.endsWith(".json"));
 
   if (dumpFiles.length === 0) {
-    // eslint-disable-next-line no-console
     console.error("❌ Error: No dump files found in dumps/ directory");
-    // eslint-disable-next-line no-console
+
     console.error("   Run 'npm run db:dump' first to create a dump");
     process.exit(1);
   }
@@ -110,7 +107,6 @@ function loadDump(dumpPath) {
     const dump = JSON.parse(dumpContent);
     return dump;
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error(`❌ Error loading dump file: ${error.message}`);
     throw error;
   }
@@ -227,19 +223,17 @@ async function restoreToDev(dump) {
     const completionMatch = finalCompletionCountResult.count === (dump.taskCompletions?.length || 0);
 
     if (!sectionMatch || !taskMatch || !completionMatch) {
-      // eslint-disable-next-line no-console
       console.warn("\n⚠️  Warning: Record counts don't match!");
-      // eslint-disable-next-line no-console
+
       console.warn(
         `   Expected: ${dump.sections?.length || 0} sections, ${dump.tasks?.length || 0} tasks, ${dump.taskCompletions?.length || 0} completions`
       );
-      // eslint-disable-next-line no-console
+
       console.warn(
         `   Actual: ${finalSectionCountResult.count} sections, ${finalTaskCountResult.count} tasks, ${finalCompletionCountResult.count} completions`
       );
     }
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("❌ Error restoring to dev database:", error.message);
     throw error;
   }
@@ -266,7 +260,6 @@ async function main() {
     // Restore to dev
     await restoreToDev(dump);
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("\n❌ Failed:", error.message);
     process.exit(1);
   } finally {

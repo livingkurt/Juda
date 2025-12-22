@@ -1,19 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Box,
-  Button,
-  FormControl,
-  FormLabel,
-  Input,
-  VStack,
-  Text,
-  Alert,
-  AlertIcon,
-  Link,
-  useColorModeValue,
-} from "@chakra-ui/react";
+import { Box, Button, Input, VStack, Text, Alert, Link } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
@@ -58,21 +47,42 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
         </Text>
 
         {error && (
-          <Alert status="error" borderRadius="md">
-            <AlertIcon />
-            {error}
-          </Alert>
+          <Alert.Root status="error" borderRadius="md">
+            <Alert.Title>{error}</Alert.Title>
+          </Alert.Root>
         )}
 
-        <FormControl isRequired>
-          <FormLabel>Email</FormLabel>
-          <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" />
-        </FormControl>
+        <Box w="full">
+          <Text fontSize="sm" fontWeight="medium" mb={1}>
+            Email{" "}
+            <Text as="span" color="red.500">
+              *
+            </Text>
+          </Text>
+          <Input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+          />
+        </Box>
 
-        <FormControl isRequired>
-          <FormLabel>Password</FormLabel>
-          <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
-        </FormControl>
+        <Box w="full">
+          <Text fontSize="sm" fontWeight="medium" mb={1}>
+            Password{" "}
+            <Text as="span" color="red.500">
+              *
+            </Text>
+          </Text>
+          <Input
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="••••••••"
+            required
+          />
+        </Box>
 
         <Button type="submit" colorScheme="blue" w="full" isLoading={loading}>
           Sign In

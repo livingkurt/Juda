@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Spinner, Flex, useColorModeValue } from "@chakra-ui/react";
+import { Box, Spinner, Flex } from "@chakra-ui/react";
+import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { keyframes } from "@emotion/react";
 
 // Pulse animation for loading dots
@@ -32,30 +33,9 @@ export const LoadingDots = ({ ...props }) => {
 
   return (
     <Flex align="center" justify="center" gap={2} {...props}>
-      <Box
-        w={2}
-        h={2}
-        borderRadius="full"
-        bg={color}
-        animation={pulseAnimation}
-        style={{ animationDelay: "0s" }}
-      />
-      <Box
-        w={2}
-        h={2}
-        borderRadius="full"
-        bg={color}
-        animation={pulseAnimation}
-        style={{ animationDelay: "0.2s" }}
-      />
-      <Box
-        w={2}
-        h={2}
-        borderRadius="full"
-        bg={color}
-        animation={pulseAnimation}
-        style={{ animationDelay: "0.4s" }}
-      />
+      <Box w={2} h={2} borderRadius="full" bg={color} animation={pulseAnimation} style={{ animationDelay: "0s" }} />
+      <Box w={2} h={2} borderRadius="full" bg={color} animation={pulseAnimation} style={{ animationDelay: "0.2s" }} />
+      <Box w={2} h={2} borderRadius="full" bg={color} animation={pulseAnimation} style={{ animationDelay: "0.4s" }} />
     </Flex>
   );
 };
