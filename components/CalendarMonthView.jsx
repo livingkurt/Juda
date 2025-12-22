@@ -13,6 +13,7 @@ export const CalendarMonthView = ({
   tasks,
   onDayClick,
   isCompletedOnDate,
+  getOutcomeOnDate,
   showCompleted = true,
   zoom = 1.0,
   tags = [],
@@ -108,9 +109,14 @@ export const CalendarMonthView = ({
               const isCurrentMonth = day.getMonth() === month;
               const isToday = day.toDateString() === today.toDateString();
               let dayTasks = filteredTasks.filter(t => shouldShowOnDate(t, day));
-              // Filter out completed tasks if showCompleted is false
+              // Filter out completed/skipped tasks if showCompleted is false
               if (!showCompleted) {
-                dayTasks = dayTasks.filter(task => !isCompletedOnDate(task.id, day));
+                dayTasks = dayTasks.filter(task => {
+                  const isCompleted = isCompletedOnDate(task.id, day);
+                  const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
+                  const hasOutcome = outcome !== null && outcome !== undefined;
+                  return !isCompleted && !hasOutcome;
+                });
               }
               dayTasks = dayTasks.slice(0, 3);
               return (

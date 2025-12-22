@@ -69,15 +69,14 @@ export const CalendarSkeleton = () => {
 
 // Full page loading (replaces PageSkeleton)
 export const PageSkeleton = ({ showBacklog = true, showDashboard = true, showCalendar = true }) => {
-  const bgColor = useColorModeValue("gray.50", "gray.900");
-  const textColor = useColorModeValue("gray.600", "gray.400");
-
+  // Use fixed dark mode values to prevent hydration mismatch
+  // Default to dark mode since that's the app default
   return (
-    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg={bgColor}>
+    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg="gray.900" suppressHydrationWarning>
       {/* Main content */}
       <Flex as="main" flex={1} align="center" justify="center" direction="column" gap={4}>
         <LoadingSpinner size="xl" />
-        <Box color={textColor} fontSize="sm" fontWeight="medium">
+        <Box color="gray.400" fontSize="sm" fontWeight="medium">
           Loading...
         </Box>
       </Flex>

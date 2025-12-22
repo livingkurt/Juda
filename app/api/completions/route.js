@@ -57,10 +57,15 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { taskId, date } = body;
+    const { taskId, date, outcome = "completed" } = body;
 
     if (!taskId) {
       return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
+    }
+
+    // Validate outcome
+    if (!["completed", "skipped"].includes(outcome)) {
+      return NextResponse.json({ error: "Invalid outcome value" }, { status: 400 });
     }
 
     // Verify task belongs to user
@@ -84,7 +89,13 @@ export async function POST(request) {
     });
 
     if (existing) {
-      return NextResponse.json(existing);
+      // Update existing record with new outcome
+      const [updated] = await db
+        .update(taskCompletions)
+        .set({ outcome })
+        .where(eq(taskCompletions.id, existing.id))
+        .returning();
+      return NextResponse.json(updated);
     }
 
     const [completion] = await db
@@ -92,6 +103,7 @@ export async function POST(request) {
       .values({
         taskId,
         date: utcDate,
+        outcome,
       })
       .returning();
 
@@ -144,5 +156,53 @@ export async function DELETE(request) {
   } catch (error) {
     console.error("Error deleting completion:", error);
     return NextResponse.json({ error: "Failed to delete completion" }, { status: 500 });
+  }
+}
+
+// PATCH - Update a completion record's outcome
+export async function PATCH(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
+  try {
+    const body = await request.json();
+    const { taskId, date, outcome } = body;
+
+    if (!taskId || !date || !outcome) {
+      return NextResponse.json({ error: "Task ID, date, and outcome are required" }, { status: 400 });
+    }
+
+    if (!["completed", "skipped"].includes(outcome)) {
+      return NextResponse.json({ error: "Invalid outcome value" }, { status: 400 });
+    }
+
+    // Verify task belongs to user
+    const task = await db.query.tasks.findFirst({
+      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+    });
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    const completionDate = new Date(date);
+    const utcDate = new Date(
+      Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
+    );
+
+    const [updated] = await db
+      .update(taskCompletions)
+      .set({ outcome })
+      .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)))
+      .returning();
+
+    if (!updated) {
+      return NextResponse.json({ error: "Record not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("Error updating completion:", error);
+    return NextResponse.json({ error: "Failed to update completion" }, { status: 500 });
   }
 }

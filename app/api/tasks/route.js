@@ -80,7 +80,7 @@ export async function PUT(request) {
 
   try {
     const body = await request.json();
-    const { id, title, sectionId, parentId, time, duration, color, recurrence, expanded, order } = body;
+    const { id, title, sectionId, parentId, time, duration, color, recurrence, expanded, order, status } = body;
 
     // Validate required fields
     if (!id) {
@@ -119,6 +119,12 @@ export async function PUT(request) {
     if (recurrence !== undefined) updateData.recurrence = recurrence;
     if (expanded !== undefined) updateData.expanded = expanded;
     if (order !== undefined) updateData.order = order;
+    if (status !== undefined) {
+      if (!["todo", "in_progress", "complete"].includes(status)) {
+        return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
+      }
+      updateData.status = status;
+    }
 
     // Ensure we have at least one field to update
     if (Object.keys(updateData).length === 0) {

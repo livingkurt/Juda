@@ -24,6 +24,7 @@ export const CalendarDayView = ({
   createDroppableId,
   createDraggableId,
   isCompletedOnDate,
+  getOutcomeOnDate,
   showCompleted = true,
   zoom = 1.0,
   tags = [],
@@ -46,10 +47,20 @@ export const CalendarDayView = ({
     let dayTasks = tasks.filter(t => t.time && shouldShowOnDate(t, date));
     let untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, date));
 
-    // Filter out completed tasks if showCompleted is false
+    // Filter out completed/skipped tasks if showCompleted is false
     if (!showCompleted) {
-      dayTasks = dayTasks.filter(task => !isCompletedOnDate(task.id, date));
-      untimedTasks = untimedTasks.filter(task => !isCompletedOnDate(task.id, date));
+      dayTasks = dayTasks.filter(task => {
+        const isCompleted = isCompletedOnDate(task.id, date);
+        const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, date) : null;
+        const hasOutcome = outcome !== null && outcome !== undefined;
+        return !isCompleted && !hasOutcome;
+      });
+      untimedTasks = untimedTasks.filter(task => {
+        const isCompleted = isCompletedOnDate(task.id, date);
+        const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, date) : null;
+        const hasOutcome = outcome !== null && outcome !== undefined;
+        return !isCompleted && !hasOutcome;
+      });
     }
 
     // Filter by search term
@@ -66,7 +77,7 @@ export const CalendarDayView = ({
     }
 
     return { dayTasks, untimedTasks };
-  }, [tasks, date, showCompleted, isCompletedOnDate, searchTerm, selectedTagIds]);
+  }, [tasks, date, showCompleted, isCompletedOnDate, getOutcomeOnDate, searchTerm, selectedTagIds]);
 
   const handleTagSelect = useCallback(tagId => {
     setSelectedTagIds(prev => [...prev, tagId]);

@@ -5,7 +5,19 @@ import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack, Input, Badge, Me
 import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, ChevronRight, Clock, Edit2, Trash2, Copy, AlertCircle, MoreVertical } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Edit2,
+  Trash2,
+  Copy,
+  AlertCircle,
+  MoreVertical,
+  Check,
+  SkipForward,
+  Circle,
+} from "lucide-react";
 import { formatTime, isOverdue } from "@/lib/utils";
 
 export const TaskItem = ({
@@ -30,6 +42,9 @@ export const TaskItem = ({
   gripColor: gripColorProp, // Optional override
   viewDate, // Date being viewed (for overdue calculation)
   parentTaskId, // For subtask variant
+  onOutcomeChange, // Handler for outcome changes
+  getOutcomeOnDate, // Function to get outcome for a task on a date
+  hasRecordOnDate, // Function to check if task has any record on a date
 }) => {
   // Normalize prop names - support both naming conventions
   const handleEdit = onEdit || onEditTask;
@@ -101,6 +116,56 @@ export const TaskItem = ({
   // For subtasks, just check their own completion status. For parent tasks, check if all subtasks are complete too.
   const isChecked = isSubtask ? task.completed : task.completed || allSubtasksComplete;
 
+  // Get outcome for today view tasks, subtasks, and backlog items
+  const outcome =
+    (isToday || isSubtask || isBacklog) && getOutcomeOnDate && viewDate ? getOutcomeOnDate(task.id, viewDate) : null;
+
+  // Check if task has any outcome (completed or skipped) - should show strikethrough
+  const hasAnyOutcome = outcome !== null;
+  const shouldShowStrikethrough = isChecked || hasAnyOutcome;
+
+  const taskIsOverdue =
+    (isToday || isSubtask || isBacklog) && hasRecordOnDate && viewDate
+      ? isOverdue(task, viewDate, hasRecordOnDate(task.id, viewDate))
+      : false;
+
+  // State for outcome menu
+  const [outcomeMenuOpen, setOutcomeMenuOpen] = useState(false);
+
+  // Check if task is recurring (has recurrence and type is not "none")
+  const isRecurring = task.recurrence && task.recurrence.type !== "none";
+
+  // Check if we should show menu: only for recurring tasks that are overdue OR have outcome set (skipped)
+  // Works for today view tasks, subtasks, and backlog items
+  const shouldShowMenu =
+    (isToday || isSubtask || isBacklog) && onOutcomeChange && isRecurring && (taskIsOverdue || outcome !== null);
+
+  // Track previous outcome to detect actual changes (not initial render)
+  const previousOutcomeRef = useRef(outcome);
+  const menuJustOpenedRef = useRef(false);
+
+  // Close menu when outcome changes, but not when menu first opens
+  useEffect(() => {
+    // If menu just opened, don't close it
+    if (menuJustOpenedRef.current) {
+      menuJustOpenedRef.current = false;
+      return;
+    }
+
+    // Only close if outcome actually changed from a previous value
+    if (outcomeMenuOpen && previousOutcomeRef.current !== null && previousOutcomeRef.current !== outcome) {
+      const timer = setTimeout(() => {
+        setOutcomeMenuOpen(false);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+
+    // Update ref
+    if (outcome !== null || previousOutcomeRef.current !== null) {
+      previousOutcomeRef.current = outcome;
+    }
+  }, [outcome, outcomeMenuOpen]);
+
   // Enable drag-and-drop for dialog subtasks, but disable for subtasks in the main view
   const isDialogSubtask = containerId === "task-dialog-subtasks";
   const isDragDisabled = isSubtask && !isDialogSubtask;
@@ -170,20 +235,125 @@ export const TaskItem = ({
             <Box />
           )}
 
-          {/* Checkbox - show for today, backlog, and subtask variants */}
-          <Checkbox.Root
-            checked={isChecked}
-            size="lg"
-            onCheckedChange={() => (isSubtask ? onToggle?.(parentTaskId, task.id) : onToggle?.(task.id))}
-            onClick={e => e.stopPropagation()}
-            onMouseDown={e => e.stopPropagation()}
-            onPointerDown={e => e.stopPropagation()}
-          >
-            <Checkbox.HiddenInput />
-            <Checkbox.Control>
-              <Checkbox.Indicator />
-            </Checkbox.Control>
-          </Checkbox.Root>
+          {/* Checkbox with outcome states */}
+          <Box position="relative">
+            <Menu.Root
+              open={outcomeMenuOpen}
+              onOpenChange={({ open }) => setOutcomeMenuOpen(open)}
+              isLazy
+              placement="right-start"
+              closeOnSelect
+            >
+              <Menu.Trigger asChild>
+                <Box as="span" display="inline-block">
+                  <Checkbox.Root
+                    checked={outcome === "completed" || (outcome === null && isChecked)}
+                    size="lg"
+                    onCheckedChange={() => {
+                      // If overdue OR has outcome set, prevent default toggle
+                      if (shouldShowMenu) {
+                        // Don't toggle, menu will be opened by onClick handler
+                        return;
+                      }
+                      // Normal toggle behavior
+                      if (isSubtask) {
+                        onToggle?.(parentTaskId, task.id);
+                      } else {
+                        onToggle?.(task.id);
+                      }
+                    }}
+                    onClick={e => {
+                      e.stopPropagation();
+                      // If overdue OR has outcome set, open menu instead of toggling
+                      if (shouldShowMenu) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        menuJustOpenedRef.current = true;
+                        setOutcomeMenuOpen(true);
+                      }
+                    }}
+                    onMouseDown={e => {
+                      e.stopPropagation();
+                      // Prevent default checkbox behavior when we want to show menu
+                      if (shouldShowMenu) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }
+                    }}
+                    onPointerDown={e => e.stopPropagation()}
+                  >
+                    <Checkbox.HiddenInput />
+                    <Checkbox.Control bg={outcome === "skipped" ? "white" : undefined}>
+                      {outcome === "completed" ? (
+                        <Checkbox.Indicator>
+                          <Check size={16} />
+                        </Checkbox.Indicator>
+                      ) : outcome === "skipped" ? (
+                        <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
+                          <Box as="span" color="gray.700">
+                            <SkipForward size={16} stroke="currentColor" />
+                          </Box>
+                        </Box>
+                      ) : (
+                        <Checkbox.Indicator />
+                      )}
+                    </Checkbox.Control>
+                  </Checkbox.Root>
+                </Box>
+              </Menu.Trigger>
+              {shouldShowMenu && (
+                <Menu.Positioner>
+                  <Menu.Content onClick={e => e.stopPropagation()}>
+                    {/* Only show Uncheck if task has an outcome */}
+                    {outcome !== null && (
+                      <>
+                        <Menu.Item
+                          onClick={e => {
+                            e.stopPropagation();
+                            onOutcomeChange(task.id, viewDate, null);
+                          }}
+                        >
+                          <HStack>
+                            <Circle size={16} />
+                            <Text>Uncheck</Text>
+                          </HStack>
+                        </Menu.Item>
+                        <Menu.Separator />
+                      </>
+                    )}
+                    {/* Only show Completed if not already completed */}
+                    {outcome !== "completed" && (
+                      <Menu.Item
+                        onClick={e => {
+                          e.stopPropagation();
+                          onOutcomeChange(task.id, viewDate, "completed");
+                        }}
+                      >
+                        <HStack>
+                          <Check size={16} />
+                          <Text>Completed</Text>
+                        </HStack>
+                      </Menu.Item>
+                    )}
+                    {/* Only show Skipped if not already skipped */}
+                    {outcome !== "skipped" && (
+                      <Menu.Item
+                        onClick={e => {
+                          e.stopPropagation();
+                          onOutcomeChange(task.id, viewDate, "skipped");
+                        }}
+                      >
+                        <HStack>
+                          <SkipForward size={16} />
+                          <Text>Skipped</Text>
+                        </HStack>
+                      </Menu.Item>
+                    )}
+                  </Menu.Content>
+                </Menu.Positioner>
+              )}
+            </Menu.Root>
+          </Box>
           {/* Color indicator */}
           {/* <Box w={3} h={3} borderRadius="full" bg={task.color || "#3b82f6"} flexShrink={0} /> */}
 
@@ -215,15 +385,15 @@ export const TaskItem = ({
               ) : (
                 <Text
                   fontWeight="medium"
-                  textDecoration={isChecked ? "line-through" : "none"}
-                  opacity={isChecked ? 0.5 : 1}
+                  textDecoration={shouldShowStrikethrough ? "line-through" : "none"}
+                  opacity={shouldShowStrikethrough ? 0.5 : 1}
                   color={textColor}
                   cursor="text"
                   onClick={handleTitleClick}
                   onMouseDown={e => e.stopPropagation()}
                   onPointerDown={e => e.stopPropagation()}
                   _hover={{
-                    opacity: isChecked ? 0.7 : 1,
+                    opacity: shouldShowStrikethrough ? 0.7 : 1,
                   }}
                 >
                   {task.title}
@@ -238,7 +408,7 @@ export const TaskItem = ({
             {/* Badges - show for backlog and today variants */}
             {(isBacklog || isToday) && (
               <HStack spacing={2} mt={1} align="center" flexWrap="wrap">
-                {isOverdue(task, viewDate, task.completed) && (
+                {isOverdue(task, viewDate, hasRecordOnDate ? hasRecordOnDate(task.id, viewDate) : task.completed) && (
                   <Badge size="sm" colorPalette="red" fontSize="2xs">
                     <HStack spacing={1} align="center">
                       <Box as="span" color="currentColor">
@@ -322,6 +492,20 @@ export const TaskItem = ({
                     <Text>Edit</Text>
                   </HStack>
                 </Menu.Item>
+                {/* Skip option for recurring tasks in today view */}
+                {isToday && !taskIsOverdue && onOutcomeChange && isRecurring && (
+                  <Menu.Item
+                    onClick={e => {
+                      e.stopPropagation();
+                      onOutcomeChange(task.id, viewDate, "skipped");
+                    }}
+                  >
+                    <HStack>
+                      <SkipForward size={16} />
+                      <Text>Skip</Text>
+                    </HStack>
+                  </Menu.Item>
+                )}
                 {handleDuplicate && (
                   <Menu.Item
                     onClick={e => {
@@ -371,6 +555,10 @@ export const TaskItem = ({
                   textColor={textColor}
                   mutedText={mutedText}
                   gripColor={gripColor}
+                  viewDate={viewDate}
+                  onOutcomeChange={onOutcomeChange}
+                  getOutcomeOnDate={getOutcomeOnDate}
+                  hasRecordOnDate={hasRecordOnDate}
                 />
               ))}
             </VStack>

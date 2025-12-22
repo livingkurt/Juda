@@ -46,7 +46,12 @@ export const useCompletions = () => {
     [authFetch, isAuthenticated]
   );
 
-  const createCompletion = async (taskId, date) => {
+  const createCompletion = async (taskId, date, outcome = "completed") => {
+    // Validate outcome
+    if (!["completed", "skipped"].includes(outcome)) {
+      throw new Error("Invalid outcome value");
+    }
+
     // Normalize date for consistent comparison - use UTC to avoid timezone issues
     const completionDate = date ? new Date(date) : new Date();
     const utcDate = new Date(
@@ -58,21 +63,46 @@ export const useCompletions = () => {
       id: `temp-${Date.now()}`,
       taskId,
       date: utcDate.toISOString(),
+      outcome,
       createdAt: new Date().toISOString(),
     };
 
     const previousCompletions = [...completions];
-    setCompletions(prev => [...prev, optimisticCompletion]);
+
+    // Check if record exists - update it, otherwise add new
+    const existingIndex = completions.findIndex(c => {
+      const cDate = new Date(c.date);
+      const cUtcDate = new Date(Date.UTC(cDate.getUTCFullYear(), cDate.getUTCMonth(), cDate.getUTCDate(), 0, 0, 0, 0));
+      return c.taskId === taskId && cUtcDate.getTime() === utcDate.getTime();
+    });
+
+    if (existingIndex >= 0) {
+      setCompletions(prev => prev.map((c, i) => (i === existingIndex ? { ...c, outcome } : c)));
+    } else {
+      setCompletions(prev => [...prev, optimisticCompletion]);
+    }
 
     try {
       const response = await authFetch("/api/completions", {
         method: "POST",
-        body: JSON.stringify({ taskId, date: utcDate.toISOString() }),
+        body: JSON.stringify({ taskId, date: utcDate.toISOString(), outcome }),
       });
       if (!response.ok) throw new Error("Failed to create completion");
       const newCompletion = await response.json();
-      // Replace optimistic with real completion
-      setCompletions(prev => prev.map(c => (c.id === optimisticCompletion.id ? newCompletion : c)));
+
+      // Replace optimistic/existing with real completion
+      setCompletions(prev => {
+        const filtered = prev.filter(c => {
+          if (c.id === optimisticCompletion.id) return false;
+          const cDate = new Date(c.date);
+          const cUtcDate = new Date(
+            Date.UTC(cDate.getUTCFullYear(), cDate.getUTCMonth(), cDate.getUTCDate(), 0, 0, 0, 0)
+          );
+          return !(c.taskId === taskId && cUtcDate.getTime() === utcDate.getTime());
+        });
+        return [...filtered, newCompletion];
+      });
+
       return newCompletion;
     } catch (err) {
       // Rollback on error
@@ -224,8 +254,36 @@ export const useCompletions = () => {
     }
   };
 
-  // Check if a task is completed on a specific date
+  // Check if a task is completed on a specific date (only counts 'completed' outcome)
   const isCompletedOnDate = useCallback(
+    (taskId, date) => {
+      const checkDate = new Date(date);
+      const utcCheckDate = new Date(
+        Date.UTC(checkDate.getUTCFullYear(), checkDate.getUTCMonth(), checkDate.getUTCDate(), 0, 0, 0, 0)
+      );
+      return completions.some(c => {
+        const completionDate = new Date(c.date);
+        const utcCompletionDate = new Date(
+          Date.UTC(
+            completionDate.getUTCFullYear(),
+            completionDate.getUTCMonth(),
+            completionDate.getUTCDate(),
+            0,
+            0,
+            0,
+            0
+          )
+        );
+        return (
+          c.taskId === taskId && utcCompletionDate.getTime() === utcCheckDate.getTime() && c.outcome === "completed"
+        );
+      });
+    },
+    [completions]
+  );
+
+  // Check if a task has any record on a specific date (regardless of outcome)
+  const hasRecordOnDate = useCallback(
     (taskId, date) => {
       const checkDate = new Date(date);
       const utcCheckDate = new Date(
@@ -250,6 +308,33 @@ export const useCompletions = () => {
     [completions]
   );
 
+  // Get the outcome for a task on a specific date
+  const getOutcomeOnDate = useCallback(
+    (taskId, date) => {
+      const checkDate = new Date(date);
+      const utcCheckDate = new Date(
+        Date.UTC(checkDate.getUTCFullYear(), checkDate.getUTCMonth(), checkDate.getUTCDate(), 0, 0, 0, 0)
+      );
+      const record = completions.find(c => {
+        const completionDate = new Date(c.date);
+        const utcCompletionDate = new Date(
+          Date.UTC(
+            completionDate.getUTCFullYear(),
+            completionDate.getUTCMonth(),
+            completionDate.getUTCDate(),
+            0,
+            0,
+            0,
+            0
+          )
+        );
+        return c.taskId === taskId && utcCompletionDate.getTime() === utcCheckDate.getTime();
+      });
+      return record?.outcome || null;
+    },
+    [completions]
+  );
+
   return {
     completions,
     loading,
@@ -260,6 +345,8 @@ export const useCompletions = () => {
     batchCreateCompletions,
     batchDeleteCompletions,
     isCompletedOnDate,
+    hasRecordOnDate,
+    getOutcomeOnDate,
     refetch: fetchCompletions,
   };
 };

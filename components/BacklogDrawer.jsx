@@ -26,6 +26,9 @@ export const BacklogDrawer = ({
   viewDate,
   tags = [],
   onCreateTag,
+  onOutcomeChange,
+  getOutcomeOnDate,
+  hasRecordOnDate,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -170,6 +173,9 @@ export const BacklogDrawer = ({
                     gripColor={gripColor}
                     draggableId={task.draggableId}
                     viewDate={viewDate}
+                    onOutcomeChange={onOutcomeChange}
+                    getOutcomeOnDate={getOutcomeOnDate}
+                    hasRecordOnDate={hasRecordOnDate}
                   />
                 ))}
               </VStack>

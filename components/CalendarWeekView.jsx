@@ -24,6 +24,7 @@ export const CalendarWeekView = ({
   createDroppableId,
   createDraggableId,
   isCompletedOnDate,
+  getOutcomeOnDate,
   showCompleted = true,
   zoom = 1.0,
   tags = [],
@@ -98,21 +99,31 @@ export const CalendarWeekView = ({
     day => {
       let dayTasks = filteredTasks.filter(t => t.time && shouldShowOnDate(t, day));
       if (!showCompleted) {
-        dayTasks = dayTasks.filter(task => !isCompletedOnDate(task.id, day));
+        dayTasks = dayTasks.filter(task => {
+          const isCompleted = isCompletedOnDate(task.id, day);
+          const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
+          const hasOutcome = outcome !== null && outcome !== undefined;
+          return !isCompleted && !hasOutcome;
+        });
       }
       return dayTasks;
     },
-    [filteredTasks, showCompleted, isCompletedOnDate]
+    [filteredTasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]
   );
   const getUntimedTasksForDay = useCallback(
     day => {
       let untimedTasks = filteredTasks.filter(t => !t.time && shouldShowOnDate(t, day));
       if (!showCompleted) {
-        untimedTasks = untimedTasks.filter(task => !isCompletedOnDate(task.id, day));
+        untimedTasks = untimedTasks.filter(task => {
+          const isCompleted = isCompletedOnDate(task.id, day);
+          const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
+          const hasOutcome = outcome !== null && outcome !== undefined;
+          return !isCompleted && !hasOutcome;
+        });
       }
       return untimedTasks;
     },
-    [filteredTasks, showCompleted, isCompletedOnDate]
+    [filteredTasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]
   );
 
   const getTaskStyle = task => {

@@ -64,6 +64,13 @@
       "when": 1766357753514,
       "tag": "0008_create_user_and_assign_data",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1766435497918,
+      "tag": "0009_add_task_status_and_outcome",
+      "breakpoints": true
     }
   ]
 }

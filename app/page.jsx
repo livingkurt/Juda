@@ -144,6 +144,8 @@ export default function DailyTasksApp() {
     batchCreateCompletions,
     batchDeleteCompletions,
     isCompletedOnDate,
+    hasRecordOnDate,
+    getOutcomeOnDate,
     fetchCompletions,
   } = useCompletions();
   const { tags, createTag, deleteTag } = useTags();
@@ -344,15 +346,20 @@ export default function DailyTasksApp() {
           ...task,
           // Override completed field with the selected date's completion record status
           completed: isCompletedOnDate(task.id, viewDate),
+          // Add outcome and hasRecord for outcome menu
+          outcome: getOutcomeOnDate(task.id, viewDate),
+          hasRecord: hasRecordOnDate(task.id, viewDate),
           // Also update subtasks with completion status
           subtasks: task.subtasks
             ? task.subtasks.map(subtask => ({
                 ...subtask,
                 completed: isCompletedOnDate(subtask.id, viewDate),
+                outcome: getOutcomeOnDate(subtask.id, viewDate),
+                hasRecord: hasRecordOnDate(subtask.id, viewDate),
               }))
             : undefined,
         })),
-    [tasks, viewDate, isCompletedOnDate]
+    [tasks, viewDate, isCompletedOnDate, getOutcomeOnDate, hasRecordOnDate]
   );
 
   // Filter today's tasks by search term and tags
@@ -378,17 +385,20 @@ export default function DailyTasksApp() {
     const grouped = {};
     sections.forEach(s => {
       let sectionTasks = filteredTodaysTasks.filter(t => t.sectionId === s.id);
-      // Filter out completed tasks if showCompletedTasks is false
+      // Filter out completed/skipped tasks if showCompletedTasks is false
       // But keep recently completed tasks visible for a delay period
       if (!showCompletedTasks) {
         sectionTasks = sectionTasks.filter(t => {
           const isCompleted =
             t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
+          // Check if task has any outcome (completed or skipped)
+          const hasOutcome = t.outcome !== null && t.outcome !== undefined;
           // Keep task visible if it's recently completed (within delay period)
           if (isCompleted && recentlyCompletedTasks.has(t.id)) {
             return true;
           }
-          return !isCompleted;
+          // Hide if completed or has any outcome (skipped)
+          return !isCompleted && !hasOutcome;
         });
       }
       grouped[s.id] = sectionTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -614,6 +624,43 @@ export default function DailyTasksApp() {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
     await updateTask(taskId, { expanded: !task.expanded });
+  };
+
+  const handleOutcomeChange = async (taskId, date, outcome) => {
+    try {
+      const dateObj = date instanceof Date ? date : new Date(date);
+      if (outcome === null) {
+        // Remove record
+        await deleteCompletion(taskId, dateObj.toISOString());
+        // If hiding completed tasks, remove from recently completed set immediately when unchecked
+        if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
+          removeFromRecentlyCompleted(taskId);
+        }
+      } else {
+        // If marking as completed and hiding completed tasks, add to recently completed set
+        if (outcome === "completed" && !showCompletedTasks) {
+          addToRecentlyCompleted(taskId);
+        }
+        // Create or update record with outcome
+        try {
+          await createCompletion(taskId, dateObj.toISOString(), outcome);
+        } catch (completionError) {
+          // If completion creation fails, remove from recently completed set
+          if (outcome === "completed" && !showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
+            removeFromRecentlyCompleted(taskId);
+          }
+          throw completionError;
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to update task",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
   const handleEditTask = task => {
@@ -1660,6 +1707,9 @@ export default function DailyTasksApp() {
                       viewDate={today}
                       tags={tags}
                       onCreateTag={createTag}
+                      onOutcomeChange={handleOutcomeChange}
+                      getOutcomeOnDate={getOutcomeOnDate}
+                      hasRecordOnDate={hasRecordOnDate}
                     />
                   )}
                   {/* Resize handle */}
@@ -1800,6 +1850,9 @@ export default function DailyTasksApp() {
                               createDroppableId={createDroppableId}
                               createDraggableId={createDraggableId}
                               viewDate={viewDate}
+                              onOutcomeChange={handleOutcomeChange}
+                              getOutcomeOnDate={getOutcomeOnDate}
+                              hasRecordOnDate={hasRecordOnDate}
                             />
                           </Box>
                         </>
@@ -1975,7 +2028,12 @@ export default function DailyTasksApp() {
                               // Filter tasks based on completed preference for current view
                               // For day view, filter here. For week/month views, filter per day in components
                               if (!showCompletedTasksCalendar[calendarView] && calendarView === "day" && selectedDate) {
-                                filteredTasks = filteredTasks.filter(task => !isCompletedOnDate(task.id, selectedDate));
+                                filteredTasks = filteredTasks.filter(task => {
+                                  const isCompleted = isCompletedOnDate(task.id, selectedDate);
+                                  const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, selectedDate) : null;
+                                  const hasOutcome = outcome !== null && outcome !== undefined;
+                                  return !isCompleted && !hasOutcome;
+                                });
                               }
 
                               return (
@@ -1994,6 +2052,7 @@ export default function DailyTasksApp() {
                                       createDroppableId={createDroppableId}
                                       createDraggableId={createDraggableId}
                                       isCompletedOnDate={isCompletedOnDate}
+                                      getOutcomeOnDate={getOutcomeOnDate}
                                       showCompleted={showCompletedTasksCalendar.day}
                                       zoom={calendarZoom.day}
                                       tags={tags}
@@ -2020,6 +2079,7 @@ export default function DailyTasksApp() {
                                       tags={tags}
                                       onCreateTag={createTag}
                                       isCompletedOnDate={isCompletedOnDate}
+                                      getOutcomeOnDate={getOutcomeOnDate}
                                       showCompleted={showCompletedTasksCalendar.week}
                                       zoom={calendarZoom.week}
                                     />
@@ -2033,6 +2093,7 @@ export default function DailyTasksApp() {
                                         setCalendarView("day");
                                       }}
                                       isCompletedOnDate={isCompletedOnDate}
+                                      getOutcomeOnDate={getOutcomeOnDate}
                                       showCompleted={showCompletedTasksCalendar.month}
                                       zoom={calendarZoom.month}
                                       tags={tags}

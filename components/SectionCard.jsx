@@ -29,6 +29,9 @@ export const SectionCard = ({
   droppableId,
   createDraggableId,
   viewDate,
+  onOutcomeChange,
+  getOutcomeOnDate,
+  hasRecordOnDate,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -254,6 +257,9 @@ export const SectionCard = ({
                       hoveredDroppable={hoveredDroppable}
                       draggableId={task.draggableId}
                       viewDate={viewDate}
+                      onOutcomeChange={onOutcomeChange}
+                      getOutcomeOnDate={getOutcomeOnDate}
+                      hasRecordOnDate={hasRecordOnDate}
                     />
                   ))}
                   <Input

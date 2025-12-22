@@ -462,12 +462,20 @@ export const useTasks = () => {
     }
   };
 
+  const updateTaskStatus = async (taskId, status) => {
+    if (!["todo", "in_progress", "complete"].includes(status)) {
+      throw new Error("Invalid status value");
+    }
+    return updateTask(taskId, { status });
+  };
+
   return {
     tasks,
     loading,
     error,
     createTask,
     updateTask,
+    updateTaskStatus,
     deleteTask,
     reorderTask,
     duplicateTask,
