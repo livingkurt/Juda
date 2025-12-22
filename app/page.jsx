@@ -132,7 +132,14 @@ export default function DailyTasksApp() {
     reorderSections,
     loading: sectionsLoading,
   } = useSections();
-  const { createCompletion, deleteCompletion, isCompletedOnDate, fetchCompletions } = useCompletions();
+  const {
+    createCompletion,
+    deleteCompletion,
+    batchCreateCompletions,
+    batchDeleteCompletions,
+    isCompletedOnDate,
+    fetchCompletions,
+  } = useCompletions();
   const { tags, createTag, deleteTag } = useTags();
 
   // Get preferences from context
@@ -453,16 +460,18 @@ export default function DailyTasksApp() {
       // Update completion record
       if (isCompletedOnTargetDate) {
         // Task is completed on the target date, remove completion record
-        await deleteCompletion(taskId, targetDate.toISOString());
+        // Collect all completions to delete (task + subtasks) and delete in batch
+        const completionsToDelete = [{ taskId, date: targetDate.toISOString() }];
 
-        // Also uncheck all subtasks sequentially to avoid race conditions
         if (task.subtasks && task.subtasks.length > 0) {
           for (const subtask of task.subtasks) {
             if (isCompletedOnDate(subtask.id, targetDate)) {
-              await deleteCompletion(subtask.id, targetDate.toISOString());
+              completionsToDelete.push({ taskId: subtask.id, date: targetDate.toISOString() });
             }
           }
         }
+
+        await batchDeleteCompletions(completionsToDelete);
 
         // If hiding completed tasks, remove from recently completed set immediately when unchecked
         if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
@@ -500,17 +509,19 @@ export default function DailyTasksApp() {
         }
 
         // Create completion record after adding to recently completed set
+        // Collect all completions to create (task + subtasks) and create in batch
         try {
-          await createCompletion(taskId, targetDate.toISOString());
+          const completionsToCreate = [{ taskId, date: targetDate.toISOString() }];
 
-          // Also check all subtasks sequentially to avoid race conditions
           if (task.subtasks && task.subtasks.length > 0) {
             for (const subtask of task.subtasks) {
               if (!isCompletedOnDate(subtask.id, targetDate)) {
-                await createCompletion(subtask.id, targetDate.toISOString());
+                completionsToCreate.push({ taskId: subtask.id, date: targetDate.toISOString() });
               }
             }
           }
+
+          await batchCreateCompletions(completionsToCreate);
         } catch (completionError) {
           // If completion creation fails, remove from recently completed set
           if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {

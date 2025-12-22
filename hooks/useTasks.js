@@ -94,71 +94,45 @@ export const useTasks = () => {
           savedTask = await response.json();
         }
 
-        // Handle subtasks if provided
+        // Handle subtasks if provided - use batch operations
         if (subtasksData !== undefined) {
           // Get existing subtasks for this task
           const existingSubtasks = tasks.find(t => t.id === savedTask.id)?.subtasks || [];
           const existingSubtaskIds = existingSubtasks.map(st => st.id);
           const newSubtaskIds = subtasksData.map(st => st.id);
 
-          // Delete removed subtasks
+          // Delete removed subtasks in batch
           const subtasksToDelete = existingSubtaskIds.filter(id => !newSubtaskIds.includes(id));
-          for (const subtaskId of subtasksToDelete) {
-            await authFetch(`/api/tasks?id=${subtaskId}`, {
+          if (subtasksToDelete.length > 0) {
+            await authFetch("/api/tasks/batch-save", {
               method: "DELETE",
+              body: JSON.stringify({ taskIds: subtasksToDelete }),
             });
           }
 
-          // Create or update subtasks
-          for (const subtask of subtasksData) {
-            const subtaskPayload = {
-              ...subtask,
-              parentId: savedTask.id,
-              sectionId: savedTask.sectionId, // Subtasks inherit parent's section
-            };
+          // Prepare subtasks for batch create/update
+          const subtasksToSave = subtasksData.map(subtask => ({
+            ...subtask,
+            parentId: savedTask.id,
+            sectionId: savedTask.sectionId, // Subtasks inherit parent's section
+          }));
 
-            if (subtask.id && existingSubtaskIds.includes(subtask.id)) {
-              // Update existing subtask
-              await authFetch("/api/tasks", {
-                method: "PUT",
-                body: JSON.stringify(subtaskPayload),
-              });
-            } else {
-              // Create new subtask (remove id if it's a temporary one)
-              const { id, ...newSubtaskData } = subtaskPayload;
-              // Only include id if it looks like a real database ID (starts with 'c')
-              const createPayload = id && id.startsWith("c") ? subtaskPayload : newSubtaskData;
-              await authFetch("/api/tasks", {
-                method: "POST",
-                body: JSON.stringify(createPayload),
-              });
-            }
+          // Batch create/update subtasks
+          if (subtasksToSave.length > 0) {
+            await authFetch("/api/tasks/batch-save", {
+              method: "POST",
+              body: JSON.stringify({ tasks: subtasksToSave }),
+            });
           }
         }
 
-        // Handle tag assignments if tagIds provided
+        // Handle tag assignments if tagIds provided - use batch operation
         if (tagIds !== undefined) {
-          const currentTagIds = savedTask.tags?.map(t => t.id) || [];
-
-          // Tags to add
-          const tagsToAdd = tagIds.filter(id => !currentTagIds.includes(id));
-          // Tags to remove
-          const tagsToRemove = currentTagIds.filter(id => !tagIds.includes(id));
-
-          // Add new tags
-          for (const tagId of tagsToAdd) {
-            await authFetch("/api/task-tags", {
-              method: "POST",
-              body: JSON.stringify({ taskId: savedTask.id, tagId }),
-            });
-          }
-
-          // Remove old tags
-          for (const tagId of tagsToRemove) {
-            await authFetch(`/api/task-tags?taskId=${savedTask.id}&tagId=${tagId}`, {
-              method: "DELETE",
-            });
-          }
+          // Use batch endpoint to update all tags at once
+          await authFetch("/api/task-tags/batch", {
+            method: "POST",
+            body: JSON.stringify({ taskId: savedTask.id, tagIds }),
+          });
         }
 
         // Refetch to get updated task with tags and subtasks
