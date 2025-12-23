@@ -17,6 +17,7 @@ import {
 import { useCompletions } from "@/hooks/useCompletions";
 import { useTasks } from "@/hooks/useTasks";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
+import { shouldShowOnDate } from "@/lib/utils";
 import {
   LineChart,
   Line,
@@ -110,6 +111,37 @@ export const DashboardView = () => {
     []
   );
 
+  const outcomeCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { label: "Not Done", value: "not_done" },
+          { label: "Completed", value: "completed" },
+          { label: "Skipped", value: "skipped" },
+        ],
+      }),
+    []
+  );
+
+  // Filter recurring tasks (exclude null recurrence and type "none")
+  const recurringTasks = useMemo(() => {
+    return tasks.filter(task => task.recurrence && task.recurrence.type !== "none");
+  }, [tasks]);
+
+  // Generate date range for recurring tasks table (last 30 days, today at top)
+  const tableDates = useMemo(() => {
+    const dates = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    // Start with today (i=0) and go backwards
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      dates.push(date);
+    }
+    return dates;
+  }, []);
+
   // Resolved colors for Recharts (must be strings)
   const resolvedBorderColor = useMemo(() => resolveColor(borderColor, colorMode), [colorMode]);
   const resolvedMutedText = useMemo(() => resolveColor(mutedText, colorMode), [colorMode]);
@@ -167,6 +199,29 @@ export const DashboardView = () => {
       }
     } catch (error) {
       console.error("Error updating completion status:", error);
+    }
+  };
+
+  // Handle outcome change for recurring tasks table
+  const handleRecurringOutcomeChange = async (taskId, date, newOutcome) => {
+    try {
+      const dateStr = date.toISOString();
+
+      if (newOutcome === "not_done") {
+        // Delete any existing completion
+        await deleteCompletion(taskId, dateStr);
+      } else {
+        // Create or update completion with the selected outcome
+        await createCompletion(taskId, dateStr, { outcome: newOutcome });
+      }
+
+      // Refetch completions
+      await fetchCompletions({
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      });
+    } catch (error) {
+      console.error("Error updating recurring task outcome:", error);
     }
   };
 
@@ -311,6 +366,7 @@ export const DashboardView = () => {
             <Tabs.Trigger value="0">Line Chart</Tabs.Trigger>
             <Tabs.Trigger value="1">Bar Chart</Tabs.Trigger>
             <Tabs.Trigger value="2">Table View</Tabs.Trigger>
+            <Tabs.Trigger value="3">Recurring Tasks</Tabs.Trigger>
           </Tabs.List>
 
           {/* Line Chart */}
@@ -458,6 +514,113 @@ export const DashboardView = () => {
                     )}
                   </Table.Body>
                 </Table.Root>
+              </Card.Body>
+            </Card.Root>
+          </Tabs.Content>
+
+          {/* Recurring Tasks Table */}
+          <Tabs.Content value="3" px={0}>
+            <Card.Root bg={cardBg} borderColor={borderColor}>
+              <Card.Header>
+                <Heading size="md" color={textColor}>
+                  Recurring Tasks Completion Matrix
+                </Heading>
+                <Text fontSize="sm" color={mutedText} mt={1}>
+                  Edit completion status for recurring tasks. Grey cells indicate tasks that don&apos;t recur on that
+                  day.
+                </Text>
+              </Card.Header>
+              <Card.Body>
+                <Box overflowX="auto" w="full">
+                  <Table.Root variant="simple" bg={tableBg} size="sm">
+                    <Table.Header bg={tableHeaderBg}>
+                      <Table.Row>
+                        <Table.ColumnHeader color={textColor} position="sticky" left={0} bg={tableHeaderBg} zIndex={2}>
+                          Date
+                        </Table.ColumnHeader>
+                        {recurringTasks.map(task => (
+                          <Table.ColumnHeader key={task.id} color={textColor} minW="150px">
+                            {task.title}
+                          </Table.ColumnHeader>
+                        ))}
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      {tableDates.map(date => {
+                        const dateStr = date.toISOString();
+                        const formattedDate = date.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          weekday: "short",
+                        });
+                        return (
+                          <Table.Row key={dateStr} _hover={{ bg: tableRowHover }}>
+                            <Table.Cell
+                              color={textColor}
+                              position="sticky"
+                              left={0}
+                              bg={tableBg}
+                              zIndex={1}
+                              fontWeight="medium"
+                            >
+                              {formattedDate}
+                            </Table.Cell>
+                            {recurringTasks.map(task => {
+                              const shouldShow = shouldShowOnDate(task, date);
+                              const completion = completions.find(c => {
+                                const cDate = new Date(c.date);
+                                return c.taskId === task.id && cDate.toDateString() === date.toDateString();
+                              });
+                              const currentOutcome = completion?.outcome || "not_done";
+
+                              return (
+                                <Table.Cell
+                                  key={`${task.id}-${dateStr}`}
+                                  bg={shouldShow ? tableBg : { _light: "gray.200", _dark: "gray.700" }}
+                                  opacity={shouldShow ? 1 : 0.4}
+                                >
+                                  {shouldShow ? (
+                                    <Select.Root
+                                      collection={outcomeCollection}
+                                      value={[currentOutcome]}
+                                      onValueChange={({ value }) =>
+                                        handleRecurringOutcomeChange(task.id, date, value[0])
+                                      }
+                                      size="sm"
+                                      w="110px"
+                                    >
+                                      <Select.Trigger bg={bgColor} borderColor={borderColor}>
+                                        <Select.ValueText />
+                                      </Select.Trigger>
+                                      <Select.Content>
+                                        {outcomeCollection.items.map(item => (
+                                          <Select.Item key={item.value} item={item}>
+                                            {item.label}
+                                          </Select.Item>
+                                        ))}
+                                      </Select.Content>
+                                    </Select.Root>
+                                  ) : (
+                                    <Text color={mutedText} fontSize="xs" fontStyle="italic">
+                                      N/A
+                                    </Text>
+                                  )}
+                                </Table.Cell>
+                              );
+                            })}
+                          </Table.Row>
+                        );
+                      })}
+                      {recurringTasks.length === 0 && (
+                        <Table.Row>
+                          <Table.Cell colSpan={recurringTasks.length + 1} textAlign="center" py={8}>
+                            <Text color={mutedText}>No recurring tasks found</Text>
+                          </Table.Cell>
+                        </Table.Row>
+                      )}
+                    </Table.Body>
+                  </Table.Root>
+                </Box>
               </Card.Body>
             </Card.Root>
           </Tabs.Content>
