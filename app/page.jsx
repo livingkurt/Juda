@@ -147,6 +147,7 @@ export default function DailyTasksApp() {
     hasRecordOnDate,
     getOutcomeOnDate,
     getCompletionForDate,
+    hasAnyCompletion,
     fetchCompletions,
   } = useCompletions();
   const { tags, createTag, deleteTag } = useTags();
@@ -407,20 +408,41 @@ export default function DailyTasksApp() {
     return grouped;
   }, [filteredTodaysTasks, sections, showCompletedTasks, recentlyCompletedTasks]);
 
-  // Tasks for backlog: no recurrence AND no time, or recurrence doesn't match today
-  // Exclude tasks with future dates/times
-  // Exclude tasks that have any outcome (completed or skipped) on today
+  // Tasks for backlog: tasks without recurrence that don't show on any date
+  // Excludes:
+  // - Tasks that show on today's date (shouldShowOnDate)
+  // - Tasks with future dates/times
+  // - One-time tasks (type: "none") that have been completed on ANY date
+  // - Tasks completed/skipped on today (always hidden, but with delay for visual feedback)
   // Note: Backlog is always relative to today, not the selected date in Today View
   const backlogTasks = useMemo(() => {
     return tasks
       .filter(task => {
-        // Don't use task.completed field - use completion records instead
+        // If task shows on today's calendar/today view, don't show in backlog
         if (shouldShowOnDate(task, today)) return false;
         // Exclude tasks with future date/time
         if (hasFutureDateTime(task)) return false;
-        // Exclude tasks that have any outcome (completed or skipped) on today
+
+        // For one-time tasks (type: "none"), if they've been completed on ANY date,
+        // they should stay on that date's calendar view, not reappear in backlog
+        if (task.recurrence?.type === "none" && hasAnyCompletion(task.id)) {
+          // Keep task visible if it's recently completed (within delay period)
+          if (recentlyCompletedTasks.has(task.id)) {
+            return true;
+          }
+          return false;
+        }
+
+        // For tasks without recurrence (null), check if completed today
+        // These are true backlog items that haven't been scheduled yet
         const outcome = getOutcomeOnDate(task.id, today);
-        if (outcome !== null) return false;
+        if (outcome !== null) {
+          // Keep task visible if it's recently completed (within delay period)
+          if (recentlyCompletedTasks.has(task.id)) {
+            return true;
+          }
+          return false;
+        }
         return true;
       })
       .sort((a, b) => (a.order || 0) - (b.order || 0))
@@ -436,7 +458,7 @@ export default function DailyTasksApp() {
             }))
           : undefined,
       }));
-  }, [tasks, today, isCompletedOnDate, getOutcomeOnDate]);
+  }, [tasks, today, isCompletedOnDate, getOutcomeOnDate, hasAnyCompletion, recentlyCompletedTasks]);
 
   // Progress calculation - check completion records for the selected date
   const totalTasks = filteredTodaysTasks.length;

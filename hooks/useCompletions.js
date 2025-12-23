@@ -430,6 +430,15 @@ export const useCompletions = () => {
     [completions]
   );
 
+  // Check if a task has ANY completion record (regardless of date)
+  // Used for one-time tasks to determine if they should stay hidden from backlog
+  const hasAnyCompletion = useCallback(
+    taskId => {
+      return completions.some(c => c.taskId === taskId);
+    },
+    [completions]
+  );
+
   return {
     completions,
     loading,
@@ -444,6 +453,7 @@ export const useCompletions = () => {
     hasRecordOnDate,
     getOutcomeOnDate,
     getCompletionForDate,
+    hasAnyCompletion,
     refetch: fetchCompletions,
   };
 };
