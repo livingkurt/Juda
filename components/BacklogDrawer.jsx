@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import { Box, VStack, HStack, Flex, Text, IconButton, Badge, Heading } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -9,7 +9,7 @@ import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
 
-export const BacklogDrawer = ({
+const BacklogDrawerComponent = ({
   onClose,
   backlogTasks,
   onEditTask,
@@ -193,3 +193,51 @@ export const BacklogDrawer = ({
     </Box>
   );
 };
+
+BacklogDrawerComponent.displayName = "BacklogDrawer";
+
+// Custom comparison function to prevent rerenders when backlogTasks contents haven't changed
+const areBacklogTasksEqual = (prevProps, nextProps) => {
+  // Compare backlogTasks by IDs and length
+  if (prevProps.backlogTasks.length !== nextProps.backlogTasks.length) {
+    return false;
+  }
+
+  const prevIds = prevProps.backlogTasks
+    .map(t => t.id)
+    .sort()
+    .join(",");
+  const nextIds = nextProps.backlogTasks
+    .map(t => t.id)
+    .sort()
+    .join(",");
+
+  if (prevIds !== nextIds) {
+    return false;
+  }
+
+  // Compare other props that might affect rendering
+  return (
+    prevProps.viewDate?.getTime() === nextProps.viewDate?.getTime() &&
+    prevProps.tags.length === nextProps.tags.length &&
+    prevProps.onClose === nextProps.onClose &&
+    prevProps.onEditTask === nextProps.onEditTask &&
+    prevProps.onUpdateTaskTitle === nextProps.onUpdateTaskTitle &&
+    prevProps.onDeleteTask === nextProps.onDeleteTask &&
+    prevProps.onDuplicateTask === nextProps.onDuplicateTask &&
+    prevProps.onAddTask === nextProps.onAddTask &&
+    prevProps.onToggleExpand === nextProps.onToggleExpand &&
+    prevProps.onToggleSubtask === nextProps.onToggleSubtask &&
+    prevProps.onToggleTask === nextProps.onToggleTask &&
+    prevProps.createDraggableId === nextProps.createDraggableId &&
+    prevProps.onCreateTag === nextProps.onCreateTag &&
+    prevProps.onOutcomeChange === nextProps.onOutcomeChange &&
+    prevProps.getOutcomeOnDate === nextProps.getOutcomeOnDate &&
+    prevProps.hasRecordOnDate === nextProps.hasRecordOnDate &&
+    prevProps.onCompleteWithNote === nextProps.onCompleteWithNote &&
+    prevProps.onSkipTask === nextProps.onSkipTask &&
+    prevProps.getCompletionForDate === nextProps.getCompletionForDate
+  );
+};
+
+export const BacklogDrawer = memo(BacklogDrawerComponent, areBacklogTasksEqual);

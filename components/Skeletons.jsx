@@ -69,12 +69,15 @@ export const CalendarSkeleton = () => {
 
 // Full page loading (replaces PageSkeleton)
 export const PageSkeleton = () => {
+  const bgColor = { _light: "gray.50", _dark: "gray.900" };
+  const textColor = { _light: "gray.600", _dark: "gray.400" };
+
   return (
-    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg="gray.900">
+    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg={bgColor}>
       {/* Main content */}
       <Flex as="main" flex={1} align="center" justify="center" direction="column" gap={4}>
-        <LoadingSpinner size="xl" color="blue.300" />
-        <Box color="gray.400" fontSize="sm" fontWeight="medium">
+        <LoadingSpinner size="xl" />
+        <Box color={textColor} fontSize="sm" fontWeight="medium">
           Loading...
         </Box>
       </Flex>

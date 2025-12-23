@@ -11,43 +11,50 @@ export const useTasks = () => {
   const authFetch = useAuthFetch();
   const { isAuthenticated } = useAuth();
 
-  const fetchTasks = useCallback(async () => {
-    if (!isAuthenticated) {
-      setTasks([]);
-      setLoading(false);
-      return;
-    }
+  const fetchTasks = useCallback(
+    async (skipLoading = false) => {
+      if (!isAuthenticated) {
+        setTasks([]);
+        setLoading(false);
+        return;
+      }
 
-    try {
-      setLoading(true);
-      const response = await authFetch("/api/tasks");
-      if (!response.ok) throw new Error("Failed to fetch tasks");
-      const data = await response.json();
-
-      // Organize tasks with subtasks
-      const tasksMap = new Map(data.map(t => [t.id, { ...t, subtasks: [] }]));
-      const rootTasks = [];
-
-      data.forEach(task => {
-        const taskWithSubtasks = tasksMap.get(task.id);
-        if (task.parentId && tasksMap.has(task.parentId)) {
-          // This is a subtask - add it to its parent
-          tasksMap.get(task.parentId).subtasks.push(taskWithSubtasks);
-        } else {
-          // This is a root task
-          rootTasks.push(taskWithSubtasks);
+      try {
+        if (!skipLoading) {
+          setLoading(true);
         }
-      });
+        const response = await authFetch("/api/tasks");
+        if (!response.ok) throw new Error("Failed to fetch tasks");
+        const data = await response.json();
 
-      setTasks(rootTasks);
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-      console.error("Error fetching tasks:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [authFetch, isAuthenticated]);
+        // Organize tasks with subtasks
+        const tasksMap = new Map(data.map(t => [t.id, { ...t, subtasks: [] }]));
+        const rootTasks = [];
+
+        data.forEach(task => {
+          const taskWithSubtasks = tasksMap.get(task.id);
+          if (task.parentId && tasksMap.has(task.parentId)) {
+            // This is a subtask - add it to its parent
+            tasksMap.get(task.parentId).subtasks.push(taskWithSubtasks);
+          } else {
+            // This is a root task
+            rootTasks.push(taskWithSubtasks);
+          }
+        });
+
+        setTasks(rootTasks);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+        console.error("Error fetching tasks:", err);
+      } finally {
+        if (!skipLoading) {
+          setLoading(false);
+        }
+      }
+    },
+    [authFetch, isAuthenticated]
+  );
 
   useEffect(() => {
     fetchTasks();
@@ -72,26 +79,64 @@ export const useTasks = () => {
   const saveTask = useCallback(
     async taskData => {
       const { tagIds, subtasks: subtasksData, ...taskFields } = taskData;
+      const previousTasks = JSON.parse(JSON.stringify(tasks));
+      const needsRefetch = subtasksData !== undefined || tagIds !== undefined;
 
       try {
         let savedTask;
 
         if (taskData.id) {
-          // Update existing task
+          // Update existing task - optimistically update
           const response = await authFetch("/api/tasks", {
             method: "PUT",
             body: JSON.stringify(taskFields),
           });
           if (!response.ok) throw new Error("Failed to update task");
           savedTask = await response.json();
+
+          // Optimistically update the task in state, preserving existing subtasks and tags
+          setTasks(prev => {
+            const updateTaskInTree = (taskList, taskId, updates) => {
+              return taskList.map(t => {
+                if (t.id === taskId) {
+                  const currentTask = t;
+                  return {
+                    ...currentTask,
+                    ...updates,
+                    // Preserve subtasks and tags from current state if not in updates
+                    subtasks: Array.isArray(updates.subtasks)
+                      ? updates.subtasks
+                      : Array.isArray(currentTask.subtasks)
+                        ? currentTask.subtasks
+                        : [],
+                    tags: Array.isArray(updates.tags)
+                      ? updates.tags
+                      : Array.isArray(currentTask.tags)
+                        ? currentTask.tags
+                        : Array.isArray(savedTask.tags)
+                          ? savedTask.tags
+                          : [],
+                  };
+                }
+                if (t.subtasks && t.subtasks.length > 0) {
+                  return { ...t, subtasks: updateTaskInTree(t.subtasks, taskId, updates) };
+                }
+                return t;
+              });
+            };
+            return updateTaskInTree(prev, taskData.id, savedTask);
+          });
         } else {
-          // Create new task
+          // Create new task - optimistically add
           const response = await authFetch("/api/tasks", {
             method: "POST",
             body: JSON.stringify(taskFields),
           });
           if (!response.ok) throw new Error("Failed to create task");
           savedTask = await response.json();
+
+          // Optimistically add the new task to state
+          setTasks(prev => [...prev, { ...savedTask, subtasks: [], tags: [] }]);
         }
 
         // Handle subtasks if provided - use batch operations
@@ -124,6 +169,22 @@ export const useTasks = () => {
               body: JSON.stringify({ tasks: subtasksToSave }),
             });
           }
+
+          // Optimistically update subtasks in state
+          setTasks(prev => {
+            const updateTaskInTree = (taskList, taskId, newSubtasks) => {
+              return taskList.map(t => {
+                if (t.id === taskId) {
+                  return { ...t, subtasks: newSubtasks };
+                }
+                if (t.subtasks && t.subtasks.length > 0) {
+                  return { ...t, subtasks: updateTaskInTree(t.subtasks, taskId, newSubtasks) };
+                }
+                return t;
+              });
+            };
+            return updateTaskInTree(prev, savedTask.id, subtasksData);
+          });
         }
 
         // Handle tag assignments if tagIds provided - use batch operation
@@ -133,12 +194,22 @@ export const useTasks = () => {
             method: "POST",
             body: JSON.stringify({ taskId: savedTask.id, tagIds }),
           });
+
+          // Optimistically update tags in state (we'll need to fetch tags separately)
+          // For now, we'll refetch only if tags were changed
         }
 
-        // Refetch to get updated task with tags and subtasks
-        await fetchTasks();
+        // Only refetch if we need updated relationships (tags/subtasks)
+        // This prevents unnecessary rerenders when just updating task fields
+        // Skip loading state to avoid showing spinner during background refetch
+        if (needsRefetch) {
+          await fetchTasks(true);
+        }
+
         return savedTask;
       } catch (err) {
+        // Rollback on error
+        setTasks(previousTasks);
         console.error("Error saving task:", err);
         throw err;
       }
@@ -268,8 +339,8 @@ export const useTasks = () => {
         const errorMessage = errorData.error || `Failed to reorder task (${response.status})`;
         throw new Error(errorMessage);
       }
-      // Refresh to get correct order from server
-      await fetchTasks();
+      // Refresh to get correct order from server (skip loading since we already optimistically updated)
+      await fetchTasks(true);
     } catch (err) {
       setTasks(previousTasks);
       setError(err.message);
@@ -406,8 +477,8 @@ export const useTasks = () => {
         }),
       });
 
-      // Refresh to get server state
-      await fetchTasks();
+      // Refresh to get server state (skip loading to avoid spinner flash)
+      await fetchTasks(true);
     } catch (err) {
       // Rollback on error
       setTasks(previousTasks);
@@ -434,8 +505,8 @@ export const useTasks = () => {
         throw new Error("Failed to promote subtask");
       }
 
-      // Refresh to get server state
-      await fetchTasks();
+      // Refresh to get server state (skip loading to avoid spinner flash)
+      await fetchTasks(true);
     } catch (err) {
       // Rollback on error
       setTasks(previousTasks);
