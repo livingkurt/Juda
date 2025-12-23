@@ -94,11 +94,7 @@ export const useCompletions = () => {
     });
 
     if (existingIndex >= 0) {
-      setCompletions(prev =>
-        prev.map((c, i) =>
-          i === existingIndex ? { ...c, outcome, note, skipped } : c
-        )
-      );
+      setCompletions(prev => prev.map((c, i) => (i === existingIndex ? { ...c, outcome, note, skipped } : c)));
     } else {
       setCompletions(prev => [...prev, optimisticCompletion]);
     }
@@ -248,21 +244,30 @@ export const useCompletions = () => {
       return;
     }
 
+    // Generate a unique batch ID for this operation
+    const batchId = `batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     // Normalize dates and create optimistic completions
-    const optimisticCompletions = completionsToCreate.map(({ taskId, date }) => {
+    const optimisticCompletions = completionsToCreate.map(({ taskId, date }, index) => {
       const completionDate = date ? new Date(date) : new Date();
       const utcDate = new Date(
         Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
       );
       return {
-        id: `temp-${Date.now()}-${Math.random()}`,
+        id: `temp-${batchId}-${index}`,
         taskId,
         date: utcDate.toISOString(),
+        outcome: "completed",
         createdAt: new Date().toISOString(),
       };
     });
 
     const previousCompletions = [...completions];
+
+    // Create a set of optimistic IDs for fast lookup during replacement
+    const optimisticIds = new Set(optimisticCompletions.map(c => c.id));
+
+    // Add all optimistic completions in a single state update
     setCompletions(prev => [...prev, ...optimisticCompletions]);
 
     try {
@@ -289,12 +294,13 @@ export const useCompletions = () => {
       if (!response.ok) throw new Error("Failed to create completions");
       const result = await response.json();
 
-      // Replace optimistic completions with real ones
+      // Replace ONLY the optimistic completions from this batch with real ones
+      // This prevents removing optimistic completions from other concurrent operations
       setCompletions(prev => {
-        // Remove all optimistic completions
-        const withoutOptimistic = prev.filter(c => !c.id.startsWith("temp-"));
+        // Remove only the optimistic completions from THIS batch
+        const withoutThisBatch = prev.filter(c => !optimisticIds.has(c.id));
         // Add real completions
-        return [...withoutOptimistic, ...result.completions];
+        return [...withoutThisBatch, ...result.completions];
       });
 
       return result.completions;
@@ -321,7 +327,10 @@ export const useCompletions = () => {
       return { taskId, date: utcDate.toISOString() };
     });
 
-    // Optimistic delete
+    // Create a set of keys for fast lookup during filtering
+    const deleteKeys = new Set(normalizedToDelete.map(d => `${d.taskId}|${d.date}`));
+
+    // Optimistic delete - single state update
     const previousCompletions = [...completions];
     setCompletions(prev =>
       prev.filter(c => {
@@ -330,7 +339,8 @@ export const useCompletions = () => {
           Date.UTC(cDate.getUTCFullYear(), cDate.getUTCMonth(), cDate.getUTCDate(), 0, 0, 0, 0)
         );
         const cDateStr = cUtcDate.toISOString();
-        return !normalizedToDelete.some(d => d.taskId === c.taskId && d.date === cDateStr);
+        const key = `${c.taskId}|${cDateStr}`;
+        return !deleteKeys.has(key);
       })
     );
 
