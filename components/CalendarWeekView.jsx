@@ -53,6 +53,7 @@ export const CalendarWeekView = ({
   today.setHours(0, 0, 0, 0);
 
   const containerRef = useRef(null);
+  const headerRef = useRef(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState([]);
 
@@ -246,6 +247,32 @@ export const CalendarWeekView = ({
     }
   };
 
+  // Sync horizontal scroll between header and main container
+  useEffect(() => {
+    const container = containerRef.current;
+    const header = headerRef.current;
+    if (!container || !header) return;
+
+    const handleScroll = () => {
+      // Sync header horizontal scroll with container
+      header.scrollLeft = container.scrollLeft;
+    };
+
+    // Prevent header from being scrolled directly (only sync from container)
+    const handleHeaderScroll = (e) => {
+      e.preventDefault();
+      header.scrollLeft = container.scrollLeft;
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    header.addEventListener("scroll", handleHeaderScroll);
+
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      header.removeEventListener("scroll", handleHeaderScroll);
+    };
+  }, []);
+
   return (
     <Flex direction="column" h="full" w="100%" maxW="100%" overflow="hidden">
       {/* Search input */}
@@ -264,34 +291,45 @@ export const CalendarWeekView = ({
           />
         </HStack>
       </Box>
-      {/* Week header */}
-      <Box w="100%" maxW="100%" overflowX="auto" flexShrink={0} sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}>
-        <Flex borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} position={{ base: "relative", md: "sticky" }} top={{ base: "auto", md: 0 }} zIndex={{ base: "auto", md: 10 }} minW="fit-content">
+      {/* Week header - syncs horizontal scroll with main container */}
+      <Box ref={headerRef} w="100%" maxW="100%" overflowX="auto" flexShrink={0} sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }} style={{ pointerEvents: "none" }}>
+        <Flex
+          borderBottomWidth="1px"
+          borderColor={borderColor}
+          bg={bgColor}
+          position={{ base: "relative", md: "sticky" }}
+          top={{ base: "auto", md: 0 }}
+          minW="fit-content"
+          zIndex={{ base: "auto", md: 10 }}
+          style={{ pointerEvents: "auto" }}
+        >
+          {/* Spacer to match hour labels width */}
           <Box w={12} flexShrink={0} />
-          {weekDays.map((day, i) => {
-          const untimedTasksForDay = getUntimedTasksForDay(day);
-          const isToday = day.toDateString() === today.toDateString();
 
-          return (
-            <DayHeaderColumn
-              key={i}
-              day={day}
-              dayIndex={i}
-              untimedTasks={untimedTasksForDay}
-              isToday={isToday}
-              onTaskClick={onTaskClick}
-              onDayClick={onDayClick}
-              createDroppableId={createDroppableId}
-              createDraggableId={createDraggableId}
-              borderColor={borderColor}
-              dropHighlight={dropHighlight}
-              hourTextColor={hourTextColor}
-              hoverBg={hoverBg}
-              isCompletedOnDate={isCompletedOnDate}
-              getOutcomeOnDate={getOutcomeOnDate}
-            />
-          );
-        })}
+            {weekDays.map((day, i) => {
+            const untimedTasksForDay = getUntimedTasksForDay(day);
+            const isToday = day.toDateString() === today.toDateString();
+
+            return (
+              <DayHeaderColumn
+                key={i}
+                day={day}
+                dayIndex={i}
+                untimedTasks={untimedTasksForDay}
+                isToday={isToday}
+                onTaskClick={onTaskClick}
+                onDayClick={onDayClick}
+                createDroppableId={createDroppableId}
+                createDraggableId={createDraggableId}
+                borderColor={borderColor}
+                dropHighlight={dropHighlight}
+                hourTextColor={hourTextColor}
+                hoverBg={hoverBg}
+                isCompletedOnDate={isCompletedOnDate}
+                getOutcomeOnDate={getOutcomeOnDate}
+              />
+            );
+          })}
         </Flex>
       </Box>
 

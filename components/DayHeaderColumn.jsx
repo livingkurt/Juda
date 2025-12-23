@@ -33,7 +33,7 @@ export const DayHeaderColumn = ({
       flex={1}
       flexShrink={0}
       flexGrow={1}
-      minW={{ base: "60px", md: 0 }}
+      minW={0}
       borderLeftWidth={dayIndex === 0 ? "0" : "1px"}
       borderColor={borderColor}
     >
