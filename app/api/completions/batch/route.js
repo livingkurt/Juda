@@ -42,7 +42,7 @@ export async function POST(request) {
       const utcDate = new Date(
         Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
       );
-      return { taskId, date: utcDate };
+      return { taskId, date: utcDate, outcome: "completed" };
     });
 
     // Use transaction to insert all completions atomically

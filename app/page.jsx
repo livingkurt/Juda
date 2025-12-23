@@ -408,6 +408,7 @@ export default function DailyTasksApp() {
 
   // Tasks for backlog: no recurrence AND no time, or recurrence doesn't match today
   // Exclude tasks with future dates/times
+  // Exclude tasks that have any outcome (completed or skipped) on today
   // Note: Backlog is always relative to today, not the selected date in Today View
   const backlogTasks = useMemo(() => {
     return tasks
@@ -416,6 +417,9 @@ export default function DailyTasksApp() {
         if (shouldShowOnDate(task, today)) return false;
         // Exclude tasks with future date/time
         if (hasFutureDateTime(task)) return false;
+        // Exclude tasks that have any outcome (completed or skipped) on today
+        const outcome = getOutcomeOnDate(task.id, today);
+        if (outcome !== null) return false;
         return true;
       })
       .sort((a, b) => (a.order || 0) - (b.order || 0))
@@ -431,7 +435,7 @@ export default function DailyTasksApp() {
             }))
           : undefined,
       }));
-  }, [tasks, today, isCompletedOnDate]);
+  }, [tasks, today, isCompletedOnDate, getOutcomeOnDate]);
 
   // Progress calculation - check completion records for the selected date
   const totalTasks = filteredTodaysTasks.length;
