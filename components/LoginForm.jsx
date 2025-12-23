@@ -64,6 +64,11 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="you@example.com"
+            borderColor={borderColor}
+            _focus={{
+              borderColor: "blue.400",
+              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+            }}
             required
           />
         </Box>
@@ -80,6 +85,11 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
             value={password}
             onChange={e => setPassword(e.target.value)}
             placeholder="••••••••"
+            borderColor={borderColor}
+            _focus={{
+              borderColor: "blue.400",
+              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+            }}
             required
           />
         </Box>

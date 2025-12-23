@@ -100,6 +100,11 @@ export function ForgotPasswordForm({ onBackToLogin }) {
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="you@example.com"
+            borderColor={borderColor}
+            _focus={{
+              borderColor: "blue.400",
+              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+            }}
             required
           />
         </Box>
@@ -116,6 +121,11 @@ export function ForgotPasswordForm({ onBackToLogin }) {
             value={newPassword}
             onChange={e => setNewPassword(e.target.value)}
             placeholder="••••••••"
+            borderColor={borderColor}
+            _focus={{
+              borderColor: "blue.400",
+              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+            }}
             required
           />
         </Box>
@@ -132,6 +142,11 @@ export function ForgotPasswordForm({ onBackToLogin }) {
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
             placeholder="••••••••"
+            borderColor={borderColor}
+            _focus={{
+              borderColor: "blue.400",
+              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+            }}
             required
           />
         </Box>

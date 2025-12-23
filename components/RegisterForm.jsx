@@ -69,7 +69,17 @@ export function RegisterForm({ onSwitchToLogin }) {
           <Text fontSize="sm" fontWeight="medium" mb={1}>
             Name (optional)
           </Text>
-          <Input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" />
+          <Input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Your name"
+            borderColor={borderColor}
+            _focus={{
+              borderColor: "blue.400",
+              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+            }}
+          />
         </Box>
 
         <Box w="full">
@@ -84,6 +94,11 @@ export function RegisterForm({ onSwitchToLogin }) {
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="you@example.com"
+            borderColor={borderColor}
+            _focus={{
+              borderColor: "blue.400",
+              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+            }}
             required
           />
         </Box>
@@ -100,6 +115,11 @@ export function RegisterForm({ onSwitchToLogin }) {
             value={password}
             onChange={e => setPassword(e.target.value)}
             placeholder="••••••••"
+            borderColor={borderColor}
+            _focus={{
+              borderColor: "blue.400",
+              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+            }}
             required
           />
         </Box>
@@ -116,6 +136,11 @@ export function RegisterForm({ onSwitchToLogin }) {
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
             placeholder="••••••••"
+            borderColor={borderColor}
+            _focus={{
+              borderColor: "blue.400",
+              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+            }}
             required
           />
         </Box>

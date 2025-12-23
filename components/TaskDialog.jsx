@@ -6,7 +6,7 @@ import {
   Button,
   Input,
   Dialog,
-  NativeSelect,
+  Select,
   VStack,
   HStack,
   SimpleGrid,
@@ -40,6 +40,7 @@ export const TaskDialog = ({
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const searchResultBg = useColorModeValue("gray.100", "gray.600");
+  const borderColor = useColorModeValue("gray.200", "gray.600");
   const [title, setTitle] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [time, setTime] = useState("");
@@ -236,6 +237,11 @@ export const TaskDialog = ({
                   <Input
                     value={title}
                     onChange={e => setTitle(e.target.value)}
+                    borderColor={borderColor}
+                    _focus={{
+                      borderColor: "blue.400",
+                      boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                    }}
                     onKeyDown={e => {
                       if (e.key === "Enter" && title.trim()) {
                         e.preventDefault();
@@ -269,16 +275,18 @@ export const TaskDialog = ({
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
                     Section
                   </Text>
-                  <NativeSelect.Root value={sectionId}>
-                    <NativeSelect.Field onChange={e => setSectionId(e.target.value)}>
+                  <Select.Root value={sectionId} onValueChange={({ value }) => setSectionId(value)}>
+                    <Select.Trigger borderWidth="1px" borderColor={borderColor} _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)" }}>
+                      <Select.ValueText />
+                    </Select.Trigger>
+                    <Select.Content>
                       {sections.map(s => (
-                        <option key={s.id} value={s.id}>
+                        <Select.Item key={s.id} item={s.id}>
                           {s.name}
-                        </option>
+                        </Select.Item>
                       ))}
-                    </NativeSelect.Field>
-                    <NativeSelect.Indicator />
-                  </NativeSelect.Root>
+                    </Select.Content>
+                  </Select.Root>
                 </Box>
                 <SimpleGrid columns={2} spacing={4} w="full">
                   <Box>
@@ -290,6 +298,11 @@ export const TaskDialog = ({
                       value={date}
                       onChange={e => setDate(e.target.value)}
                       placeholder="Optional"
+                      borderColor={borderColor}
+                      _focus={{
+                        borderColor: "blue.400",
+                        boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                      }}
                       onKeyDown={e => {
                         if (e.key === "Enter" && title.trim()) {
                           e.preventDefault();
@@ -307,6 +320,11 @@ export const TaskDialog = ({
                       value={time}
                       onChange={e => setTime(e.target.value)}
                       placeholder="Optional"
+                      borderColor={borderColor}
+                      _focus={{
+                        borderColor: "blue.400",
+                        boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                      }}
                       onKeyDown={e => {
                         if (e.key === "Enter" && title.trim()) {
                           e.preventDefault();
@@ -320,48 +338,65 @@ export const TaskDialog = ({
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
                     Duration
                   </Text>
-                  <NativeSelect.Root value={duration.toString()}>
-                    <NativeSelect.Field onChange={e => setDuration(parseInt(e.target.value))}>
+                  <Select.Root value={duration.toString()} onValueChange={({ value }) => setDuration(parseInt(value))}>
+                    <Select.Trigger borderWidth="1px" borderColor={borderColor} _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)" }}>
+                      <Select.ValueText />
+                    </Select.Trigger>
+                    <Select.Content>
                       {DURATION_OPTIONS.map(d => (
-                        <option key={d.value} value={d.value.toString()}>
+                        <Select.Item key={d.value} item={d.value.toString()}>
                           {d.label}
-                        </option>
+                        </Select.Item>
                       ))}
-                    </NativeSelect.Field>
-                    <NativeSelect.Indicator />
-                  </NativeSelect.Root>
+                    </Select.Content>
+                  </Select.Root>
                 </Box>
                 <Box w="full">
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
                     Completion Type
                   </Text>
-                  <NativeSelect.Root value={completionType}>
-                    <NativeSelect.Field onChange={e => setCompletionType(e.target.value)}>
-                      <option value="checkbox">Checkbox</option>
-                      <option value="text">Text Input</option>
-                    </NativeSelect.Field>
-                    <NativeSelect.Indicator />
-                  </NativeSelect.Root>
+                  <Select.Root value={completionType} onValueChange={({ value }) => setCompletionType(value)}>
+                    <Select.Trigger borderWidth="1px" borderColor={borderColor} _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)" }}>
+                      <Select.ValueText />
+                    </Select.Trigger>
+                    <Select.Content>
+                      <Select.Item item="checkbox">Checkbox</Select.Item>
+                      <Select.Item item="text">Text Input</Select.Item>
+                    </Select.Content>
+                  </Select.Root>
                 </Box>
                 <Box w="full">
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
                     Recurrence
                   </Text>
-                  <NativeSelect.Root value={recurrenceType}>
-                    <NativeSelect.Field onChange={e => setRecurrenceType(e.target.value)}>
-                      <option value="none">None (One-time task)</option>
-                      <option value="daily">Every day</option>
-                      <option value="weekly">Specific days</option>
-                    </NativeSelect.Field>
-                    <NativeSelect.Indicator />
-                  </NativeSelect.Root>
+                  <Select.Root value={recurrenceType} onValueChange={({ value }) => setRecurrenceType(value)}>
+                    <Select.Trigger borderWidth="1px" borderColor={borderColor} _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)" }}>
+                      <Select.ValueText />
+                    </Select.Trigger>
+                    <Select.Content>
+                      <Select.Item item="none">None (One-time task)</Select.Item>
+                      <Select.Item item="daily">Every day</Select.Item>
+                      <Select.Item item="weekly">Specific days</Select.Item>
+                    </Select.Content>
+                  </Select.Root>
                 </Box>
                 {/* Tags */}
                 <Box w="full">
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
                     Tags
                   </Text>
-                  <HStack spacing={2} flexWrap="wrap" align="center" mt={2}>
+                  <Box
+                    borderWidth="1px"
+                    borderColor={borderColor}
+                    borderRadius="md"
+                    p={3}
+                    minH="48px"
+                  >
+                    <HStack
+                      spacing={2}
+                      flexWrap="wrap"
+                      align="center"
+                    >
                     {/* Tags */}
                     {tags
                       .filter(t => selectedTagIds.includes(t.id))
@@ -378,16 +413,17 @@ export const TaskDialog = ({
                           <Tag.Label>{tag.name}</Tag.Label>
                         </Tag.Root>
                       ))}
-                    {/* Add Tag button */}
-                    <TagSelector
-                      tags={tags}
-                      selectedTagIds={selectedTagIds}
-                      onTagsChange={setSelectedTagIds}
-                      onCreateTag={onCreateTag}
-                      onDeleteTag={onDeleteTag}
-                      inline
-                    />
-                  </HStack>
+                      {/* Add Tag button */}
+                      <TagSelector
+                        tags={tags}
+                        selectedTagIds={selectedTagIds}
+                        onTagsChange={setSelectedTagIds}
+                        onCreateTag={onCreateTag}
+                        onDeleteTag={onDeleteTag}
+                        inline
+                      />
+                    </HStack>
+                  </Box>
                 </Box>
                 {recurrenceType === "weekly" && (
                   <HStack spacing={1} w="full">
@@ -476,6 +512,11 @@ export const TaskDialog = ({
                           onChange={e => setNewSubtask(e.target.value)}
                           placeholder="Create new subtask"
                           size="sm"
+                          borderColor={borderColor}
+                          _focus={{
+                            borderColor: "blue.400",
+                            boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                          }}
                           onKeyDown={e => {
                             if (e.key === "Enter" && newSubtask.trim()) {
                               e.preventDefault();
@@ -537,6 +578,11 @@ export const TaskDialog = ({
                             onChange={e => setSearchQuery(e.target.value)}
                             placeholder="Search for tasks to add as subtasks..."
                             size="sm"
+                            borderColor={borderColor}
+                            _focus={{
+                              borderColor: "blue.400",
+                              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                            }}
                           />
                         </HStack>
                         {searchQuery.trim() && (
@@ -618,6 +664,11 @@ export const TaskDialog = ({
                               value={subtaskTitle}
                               onChange={e => setSubtaskTitle(e.target.value)}
                               placeholder="Subtask title"
+                              borderColor={borderColor}
+                              _focus={{
+                                borderColor: "blue.400",
+                                boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                              }}
                             />
                           </Box>
                           <Box w="full">
@@ -651,22 +702,29 @@ export const TaskDialog = ({
                                 value={subtaskTime}
                                 onChange={e => setSubtaskTime(e.target.value)}
                                 placeholder="Optional"
+                                borderColor={borderColor}
+                                _focus={{
+                                  borderColor: "blue.400",
+                                  boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                                }}
                               />
                             </Box>
                             <Box>
                               <Text fontSize="sm" fontWeight="medium" mb={1}>
                                 Duration
                               </Text>
-                              <NativeSelect.Root value={subtaskDuration.toString()}>
-                                <NativeSelect.Field onChange={e => setSubtaskDuration(parseInt(e.target.value))}>
+                              <Select.Root value={subtaskDuration.toString()} onValueChange={({ value }) => setSubtaskDuration(parseInt(value))}>
+                                <Select.Trigger borderWidth="1px" borderColor={borderColor} _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)" }}>
+                                  <Select.ValueText />
+                                </Select.Trigger>
+                                <Select.Content>
                                   {DURATION_OPTIONS.map(d => (
-                                    <option key={d.value} value={d.value.toString()}>
+                                    <Select.Item key={d.value} item={d.value.toString()}>
                                       {d.label}
-                                    </option>
+                                    </Select.Item>
                                   ))}
-                                </NativeSelect.Field>
-                                <NativeSelect.Indicator />
-                              </NativeSelect.Root>
+                                </Select.Content>
+                              </Select.Root>
                             </Box>
                           </SimpleGrid>
                         </VStack>
