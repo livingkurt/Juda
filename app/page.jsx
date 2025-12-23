@@ -413,6 +413,7 @@ export default function DailyTasksApp() {
   // - Tasks that show on today's date (shouldShowOnDate)
   // - Tasks with future dates/times
   // - One-time tasks (type: "none") that have been completed on ANY date
+  // - Recurring tasks (daily, weekly, monthly, interval) - these only show on their scheduled dates
   // - Tasks completed/skipped on today (always hidden, but with delay for visual feedback)
   // Note: Backlog is always relative to today, not the selected date in Today View
   const backlogTasks = useMemo(() => {
@@ -430,6 +431,12 @@ export default function DailyTasksApp() {
           if (recentlyCompletedTasks.has(task.id)) {
             return true;
           }
+          return false;
+        }
+
+        // For recurring tasks (daily, weekly, monthly, interval), they should NEVER appear in backlog
+        // Recurring tasks only show on their scheduled dates, not in backlog
+        if (task.recurrence?.type && task.recurrence.type !== "none") {
           return false;
         }
 
