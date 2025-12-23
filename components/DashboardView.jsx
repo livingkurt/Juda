@@ -16,6 +16,7 @@ import {
 } from "@chakra-ui/react";
 import { useCompletions } from "@/hooks/useCompletions";
 import { useTasks } from "@/hooks/useTasks";
+import { useColorModeSync } from "@/hooks/useColorModeSync";
 import {
   LineChart,
   Line,
@@ -29,6 +30,40 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+// Helper function to resolve Chakra color mode objects to hex strings for Recharts
+const resolveColor = (colorObj, colorMode) => {
+  if (typeof colorObj === "string") return colorObj;
+  if (!colorObj || typeof colorObj !== "object") return "#000000";
+
+  // Color mapping based on Chakra v2 theme values
+  const colorMap = {
+    white: "#FFFFFF",
+    "gray.50": "#F7FAFC",
+    "gray.100": "#EDF2F7",
+    "gray.200": "#E2E8F0",
+    "gray.300": "#CBD5E0",
+    "gray.400": "#A0AEC0",
+    "gray.500": "#718096",
+    "gray.600": "#4A5568",
+    "gray.700": "#2D3748",
+    "gray.800": "#1A202C",
+    "gray.900": "#171923",
+  };
+
+  const colorValue = colorMode === "dark" ? colorObj._dark : colorObj._light;
+  return colorMap[colorValue] || colorValue || "#000000";
+};
+
+// Color constants for Chakra UI components (used with _light/_dark syntax)
+const bgColor = { _light: "white", _dark: "gray.800" };
+const borderColor = { _light: "gray.200", _dark: "gray.600" };
+const textColor = { _light: "gray.900", _dark: "gray.100" };
+const mutedText = { _light: "gray.500", _dark: "gray.400" };
+const cardBg = { _light: "white", _dark: "gray.800" };
+const tableBg = { _light: "white", _dark: "gray.800" };
+const tableHeaderBg = { _light: "gray.50", _dark: "gray.700" };
+const tableRowHover = { _light: "gray.50", _dark: "gray.700" };
+
 export const DashboardView = () => {
   const {
     completions,
@@ -38,6 +73,7 @@ export const DashboardView = () => {
     loading: completionsLoading,
   } = useCompletions();
   const { tasks, loading: tasksLoading } = useTasks();
+  const { colorMode } = useColorModeSync();
   const [dateRange, setDateRange] = useState("30"); // days
   const [selectedTask, setSelectedTask] = useState("all");
 
@@ -63,14 +99,22 @@ export const DashboardView = () => {
     [tasks]
   );
 
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
-  const textColor = { _light: "gray.900", _dark: "gray.100" };
-  const mutedText = { _light: "gray.500", _dark: "gray.400" };
-  const cardBg = { _light: "white", _dark: "gray.800" };
-  const tableBg = { _light: "white", _dark: "gray.800" };
-  const tableHeaderBg = { _light: "gray.50", _dark: "gray.700" };
-  const tableRowHover = { _light: "gray.50", _dark: "gray.700" };
+  const statusCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { label: "Checked", value: "checked" },
+          { label: "Unchecked", value: "unchecked" },
+        ],
+      }),
+    []
+  );
+
+  // Resolved colors for Recharts (must be strings)
+  const resolvedBorderColor = useMemo(() => resolveColor(borderColor, colorMode), [colorMode]);
+  const resolvedMutedText = useMemo(() => resolveColor(mutedText, colorMode), [colorMode]);
+  const resolvedCardBg = useMemo(() => resolveColor(cardBg, colorMode), [colorMode]);
+  const resolvedTextColor = useMemo(() => resolveColor(textColor, colorMode), [colorMode]);
 
   const loading = completionsLoading || tasksLoading;
 
@@ -280,14 +324,20 @@ export const DashboardView = () => {
               <Card.Body>
                 <ResponsiveContainer width="100%" height={400}>
                   <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
-                    <XAxis dataKey="formattedDate" angle={-45} textAnchor="end" height={100} stroke={mutedText} />
-                    <YAxis stroke={mutedText} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={resolvedBorderColor} />
+                    <XAxis
+                      dataKey="formattedDate"
+                      angle={-45}
+                      textAnchor="end"
+                      height={100}
+                      stroke={resolvedMutedText}
+                    />
+                    <YAxis stroke={resolvedMutedText} />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: cardBg,
-                        borderColor: borderColor,
-                        color: textColor,
+                        backgroundColor: resolvedCardBg,
+                        borderColor: resolvedBorderColor,
+                        color: resolvedTextColor,
                       }}
                     />
                     <Legend />
@@ -309,14 +359,20 @@ export const DashboardView = () => {
               <Card.Body>
                 <ResponsiveContainer width="100%" height={400}>
                   <BarChart data={dailyTotals}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
-                    <XAxis dataKey="formattedDate" angle={-45} textAnchor="end" height={100} stroke={mutedText} />
-                    <YAxis stroke={mutedText} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={resolvedBorderColor} />
+                    <XAxis
+                      dataKey="formattedDate"
+                      angle={-45}
+                      textAnchor="end"
+                      height={100}
+                      stroke={resolvedMutedText}
+                    />
+                    <YAxis stroke={resolvedMutedText} />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: cardBg,
-                        borderColor: borderColor,
-                        color: textColor,
+                        backgroundColor: resolvedCardBg,
+                        borderColor: resolvedBorderColor,
+                        color: resolvedTextColor,
                       }}
                     />
                     <Legend />
@@ -372,8 +428,9 @@ export const DashboardView = () => {
                             </Table.Cell>
                             <Table.Cell>
                               <Select.Root
-                                value="checked"
-                                onValueChange={({ value }) => handleStatusChange(completion, value)}
+                                collection={statusCollection}
+                                value={["checked"]}
+                                onValueChange={({ value }) => handleStatusChange(completion, value[0])}
                                 size="sm"
                                 w="120px"
                               >
@@ -381,8 +438,11 @@ export const DashboardView = () => {
                                   <Select.ValueText />
                                 </Select.Trigger>
                                 <Select.Content>
-                                  <Select.Item item="checked">Checked</Select.Item>
-                                  <Select.Item item="unchecked">Unchecked</Select.Item>
+                                  {statusCollection.items.map(item => (
+                                    <Select.Item key={item.value} item={item}>
+                                      {item.label}
+                                    </Select.Item>
+                                  ))}
                                 </Select.Content>
                               </Select.Root>
                             </Table.Cell>

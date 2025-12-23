@@ -268,19 +268,47 @@ const system = createSystem(defaultConfig, {
       minHeight: "40px !important",
       maxHeight: "40px !important",
     },
-    // Select.Trigger border styling
-    "[data-part='trigger']": {
+    // Select.Trigger border styling (exclude tabs)
+    "[data-part='trigger']:not([data-scope='tabs'])": {
       borderWidth: "1px !important",
       borderColor: {
         _light: "var(--chakra-colors-gray-200) !important",
         _dark: "var(--chakra-colors-gray-600) !important",
       },
     },
-    "[data-part='trigger']:focus, [data-part='trigger']:focus-visible": {
-      borderColor: "var(--chakra-colors-blue-400) !important",
-      boxShadow: "0 0 0 1px var(--chakra-colors-blue-400) !important",
-      outline: "none",
+    "[data-part='trigger']:not([data-scope='tabs']):focus, [data-part='trigger']:not([data-scope='tabs']):focus-visible":
+      {
+        borderColor: "var(--chakra-colors-blue-400) !important",
+        boxShadow: "0 0 0 1px var(--chakra-colors-blue-400) !important",
+        outline: "none",
+      },
+    // Remove borders from Tabs components
+    "[data-part='list'][data-scope='tabs']": {
+      borderWidth: "0 !important",
+      borderColor: "transparent !important",
     },
+    "[data-part='trigger'][data-scope='tabs']": {
+      borderWidth: "0 !important",
+      borderColor: "transparent !important",
+      _focus: {
+        borderWidth: "0 !important",
+        borderColor: "transparent !important",
+        boxShadow: "none !important",
+        outline: "none !important",
+      },
+      _focusVisible: {
+        borderWidth: "0 !important",
+        borderColor: "transparent !important",
+        boxShadow: "none !important",
+        outline: "none !important",
+      },
+    },
+    // Ensure consistent underline thickness for active tabs
+    "[data-part='trigger'][data-scope='tabs'][data-state='active'], [data-part='trigger'][data-scope='tabs'][aria-selected='true']":
+      {
+        borderBottomWidth: "2px !important",
+        borderBottomStyle: "solid !important",
+      },
   },
 });
 

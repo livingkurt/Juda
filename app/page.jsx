@@ -1642,7 +1642,11 @@ export default function DailyTasksApp() {
 
           {/* Main Tabs */}
           <Box mt={4}>
-            <Tabs.Root value={mainTabIndex.toString()} onValueChange={({ value }) => setMainTabIndex(parseInt(value))}>
+            <Tabs.Root
+              value={mainTabIndex.toString()}
+              onValueChange={({ value }) => setMainTabIndex(parseInt(value))}
+              variant="line"
+            >
               <Tabs.List>
                 <Tabs.Trigger value="0">Tasks</Tabs.Trigger>
                 <Tabs.Trigger value="1">History</Tabs.Trigger>

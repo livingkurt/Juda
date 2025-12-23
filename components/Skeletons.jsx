@@ -70,11 +70,11 @@ export const CalendarSkeleton = () => {
 // Full page loading (replaces PageSkeleton)
 export const PageSkeleton = () => {
   return (
-    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg="gray.900" suppressHydrationWarning>
+    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg="gray.900">
       {/* Main content */}
-      <Flex as="main" flex={1} align="center" justify="center" direction="column" gap={4} suppressHydrationWarning>
+      <Flex as="main" flex={1} align="center" justify="center" direction="column" gap={4}>
         <LoadingSpinner size="xl" color="blue.300" />
-        <Box color="gray.400" fontSize="sm" fontWeight="medium" suppressHydrationWarning>
+        <Box color="gray.400" fontSize="sm" fontWeight="medium">
           Loading...
         </Box>
       </Flex>

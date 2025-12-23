@@ -505,7 +505,7 @@ export const TaskDialog = ({
                   <Tabs.Root
                     value={subtaskTabIndex.toString()}
                     onValueChange={({ value }) => setSubtaskTabIndex(parseInt(value))}
-                    variant="enclosed"
+                    variant="line"
                     size="sm"
                   >
                     <Tabs.List>
