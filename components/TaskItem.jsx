@@ -1,7 +1,20 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack, Input, Badge, Menu, Tag } from "@chakra-ui/react";
+import {
+  Box,
+  Checkbox,
+  Text,
+  Flex,
+  HStack,
+  IconButton,
+  VStack,
+  Input,
+  Badge,
+  Menu,
+  Tag,
+  Portal,
+} from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -349,55 +362,57 @@ export const TaskItem = ({
                   </Box>
                 </Menu.Trigger>
                 {shouldShowMenu && (
-                  <Menu.Positioner>
-                    <Menu.Content onClick={e => e.stopPropagation()}>
-                      {/* Only show Uncheck if task has an outcome */}
-                      {outcome !== null && (
-                        <>
+                  <Portal>
+                    <Menu.Positioner>
+                      <Menu.Content onClick={e => e.stopPropagation()}>
+                        {/* Only show Uncheck if task has an outcome */}
+                        {outcome !== null && (
+                          <>
+                            <Menu.Item
+                              onClick={e => {
+                                e.stopPropagation();
+                                onOutcomeChange(task.id, viewDate, null);
+                              }}
+                            >
+                              <HStack>
+                                <Circle size={16} />
+                                <Text>Uncheck</Text>
+                              </HStack>
+                            </Menu.Item>
+                            <Menu.Separator />
+                          </>
+                        )}
+                        {/* Only show Completed if not already completed */}
+                        {outcome !== "completed" && (
                           <Menu.Item
                             onClick={e => {
                               e.stopPropagation();
-                              onOutcomeChange(task.id, viewDate, null);
+                              onOutcomeChange(task.id, viewDate, "completed");
                             }}
                           >
                             <HStack>
-                              <Circle size={16} />
-                              <Text>Uncheck</Text>
+                              <Check size={16} />
+                              <Text>Completed</Text>
                             </HStack>
                           </Menu.Item>
-                          <Menu.Separator />
-                        </>
-                      )}
-                      {/* Only show Completed if not already completed */}
-                      {outcome !== "completed" && (
-                        <Menu.Item
-                          onClick={e => {
-                            e.stopPropagation();
-                            onOutcomeChange(task.id, viewDate, "completed");
-                          }}
-                        >
-                          <HStack>
-                            <Check size={16} />
-                            <Text>Completed</Text>
-                          </HStack>
-                        </Menu.Item>
-                      )}
-                      {/* Only show Skipped if not already skipped */}
-                      {outcome !== "skipped" && (
-                        <Menu.Item
-                          onClick={e => {
-                            e.stopPropagation();
-                            onOutcomeChange(task.id, viewDate, "skipped");
-                          }}
-                        >
-                          <HStack>
-                            <SkipForward size={16} />
-                            <Text>Skipped</Text>
-                          </HStack>
-                        </Menu.Item>
-                      )}
-                    </Menu.Content>
-                  </Menu.Positioner>
+                        )}
+                        {/* Only show Skipped if not already skipped */}
+                        {outcome !== "skipped" && (
+                          <Menu.Item
+                            onClick={e => {
+                              e.stopPropagation();
+                              onOutcomeChange(task.id, viewDate, "skipped");
+                            }}
+                          >
+                            <HStack>
+                              <SkipForward size={16} />
+                              <Text>Skipped</Text>
+                            </HStack>
+                          </Menu.Item>
+                        )}
+                      </Menu.Content>
+                    </Menu.Positioner>
+                  </Portal>
                 )}
               </Menu.Root>
             )}
@@ -584,60 +599,62 @@ export const TaskItem = ({
                 </Box>
               </IconButton>
             </Menu.Trigger>
-            <Menu.Positioner>
-              <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-                <Menu.Item
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleEdit(task);
-                  }}
-                >
-                  <HStack>
-                    <Edit2 size={16} />
-                    <Text>Edit</Text>
-                  </HStack>
-                </Menu.Item>
-                {/* Skip option for recurring tasks in today view */}
-                {isToday && !taskIsOverdue && onOutcomeChange && isRecurring && (
+            <Portal>
+              <Menu.Positioner>
+                <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
                   <Menu.Item
                     onClick={e => {
                       e.stopPropagation();
-                      onOutcomeChange(task.id, viewDate, "skipped");
+                      handleEdit(task);
                     }}
                   >
                     <HStack>
-                      <SkipForward size={16} />
-                      <Text>Skip</Text>
+                      <Edit2 size={16} />
+                      <Text>Edit</Text>
                     </HStack>
                   </Menu.Item>
-                )}
-                {handleDuplicate && (
+                  {/* Skip option for recurring tasks in today view */}
+                  {isToday && !taskIsOverdue && onOutcomeChange && isRecurring && (
+                    <Menu.Item
+                      onClick={e => {
+                        e.stopPropagation();
+                        onOutcomeChange(task.id, viewDate, "skipped");
+                      }}
+                    >
+                      <HStack>
+                        <SkipForward size={16} />
+                        <Text>Skip</Text>
+                      </HStack>
+                    </Menu.Item>
+                  )}
+                  {handleDuplicate && (
+                    <Menu.Item
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleDuplicate(task.id);
+                      }}
+                    >
+                      <HStack>
+                        <Copy size={16} />
+                        <Text>Duplicate</Text>
+                      </HStack>
+                    </Menu.Item>
+                  )}
                   <Menu.Item
+                    color="red.500"
                     onClick={e => {
                       e.stopPropagation();
-                      handleDuplicate(task.id);
+                      isSubtask ? handleDelete(parentTaskId, task.id) : handleDelete(task.id);
                     }}
                   >
                     <HStack>
-                      <Copy size={16} />
-                      <Text>Duplicate</Text>
+                      <Trash2 size={16} />
+                      <Text>Delete</Text>
                     </HStack>
                   </Menu.Item>
-                )}
-                <Menu.Item
-                  color="red.500"
-                  onClick={e => {
-                    e.stopPropagation();
-                    isSubtask ? handleDelete(parentTaskId, task.id) : handleDelete(task.id);
-                  }}
-                >
-                  <HStack>
-                    <Trash2 size={16} />
-                    <Text>Delete</Text>
-                  </HStack>
-                </Menu.Item>
-              </Menu.Content>
-            </Menu.Positioner>
+                </Menu.Content>
+              </Menu.Positioner>
+            </Portal>
           </Menu.Root>
         </Flex>
 
