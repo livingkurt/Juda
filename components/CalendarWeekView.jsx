@@ -259,7 +259,7 @@ export const CalendarWeekView = ({
     };
 
     // Prevent header from being scrolled directly (only sync from container)
-    const handleHeaderScroll = (e) => {
+    const handleHeaderScroll = e => {
       e.preventDefault();
       header.scrollLeft = container.scrollLeft;
     };
@@ -276,7 +276,16 @@ export const CalendarWeekView = ({
   return (
     <Flex direction="column" h="full" w="100%" maxW="100%" overflow="hidden">
       {/* Search input */}
-      <Box px={{ base: 2, md: 4 }} py={2} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} flexShrink={0} w="100%" maxW="100%">
+      <Box
+        px={{ base: 2, md: 4 }}
+        py={2}
+        borderBottomWidth="1px"
+        borderColor={borderColor}
+        bg={bgColor}
+        flexShrink={0}
+        w="100%"
+        maxW="100%"
+      >
         <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
           <Box flex={1} minW={0}>
             <TaskSearchInput onSearchChange={setSearchTerm} />
@@ -292,7 +301,15 @@ export const CalendarWeekView = ({
         </HStack>
       </Box>
       {/* Week header - syncs horizontal scroll with main container */}
-      <Box ref={headerRef} w="100%" maxW="100%" overflowX="auto" flexShrink={0} sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }} style={{ pointerEvents: "none" }}>
+      <Box
+        ref={headerRef}
+        w="100%"
+        maxW="100%"
+        overflowX="auto"
+        flexShrink={0}
+        sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}
+        style={{ pointerEvents: "none" }}
+      >
         <Flex
           borderBottomWidth="1px"
           borderColor={borderColor}
@@ -306,7 +323,7 @@ export const CalendarWeekView = ({
           {/* Spacer to match hour labels width */}
           <Box w={12} flexShrink={0} />
 
-            {weekDays.map((day, i) => {
+          {weekDays.map((day, i) => {
             const untimedTasksForDay = getUntimedTasksForDay(day);
             const isToday = day.toDateString() === today.toDateString();
 
@@ -334,7 +351,16 @@ export const CalendarWeekView = ({
       </Box>
 
       {/* Time grid */}
-      <Box ref={containerRef} flex={1} overflowY="auto" w="100%" maxW="100%" overflowX="auto" minW={0} sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}>
+      <Box
+        ref={containerRef}
+        flex={1}
+        overflowY="auto"
+        w="100%"
+        maxW="100%"
+        overflowX="auto"
+        minW={0}
+        sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}
+      >
         <Box position="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
           {/* Hour labels */}
           {hours.map(hour => (

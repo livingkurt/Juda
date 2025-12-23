@@ -2140,7 +2140,7 @@ export default function DailyTasksApp() {
             </>
           ) : (
             /* ========== DESKTOP LAYOUT (existing code) ========== */
-            <Box display="flex" flex={1}>
+            <Box display="flex" flex={1} h="100%" minH={0} overflow="hidden">
               {/* Backlog Sidebar - only show on Tasks tab */}
               {mainTabIndex === 0 && (
                 <Box
@@ -2216,11 +2216,13 @@ export default function DailyTasksApp() {
               {/* Main Content Area */}
               <Box
                 flex={1}
-                overflow={{ base: "visible", md: "hidden" }}
+                overflow="hidden"
                 display={{ base: backlogOpen ? "none" : "flex", md: "flex" }}
                 flexDirection="column"
+                h="100%"
+                minH={0}
               >
-                <Box flex={1} overflowY={{ base: "visible", md: "auto" }}>
+                <Box flex={1} overflowY="auto" minH={0} h="100%">
                   {mainTabIndex === 0 ? (
                     /* Tasks Tab Content */
                     <Box
@@ -2244,6 +2246,7 @@ export default function DailyTasksApp() {
                           display="flex"
                           flexDirection="column"
                           overflow="hidden"
+                          h="full"
                         >
                           {isLoading && sections.length === 0 ? (
                             <Box>
@@ -2255,9 +2258,9 @@ export default function DailyTasksApp() {
                             <>
                               {/* Today View Header - Sticky */}
                               <Box
-                                position={{ base: "relative", md: "sticky" }}
-                                top={{ base: "auto", md: 0 }}
-                                zIndex={{ base: "auto", md: 10 }}
+                                position="sticky"
+                                top={0}
+                                zIndex={10}
                                 bg={bgColor}
                                 mb={4}
                                 pb={4}
@@ -2366,6 +2369,7 @@ export default function DailyTasksApp() {
                           display="flex"
                           flexDirection="column"
                           overflow="hidden"
+                          h="full"
                         >
                           {/* Calendar Header */}
                           <Box
