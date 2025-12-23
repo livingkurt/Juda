@@ -78,6 +78,13 @@
       "when": 1766458121194,
       "tag": "0010_add_completion_type_and_note",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1766521395553,
+      "tag": "0011_add_notes_system",
+      "breakpoints": true
     }
   ]
 }

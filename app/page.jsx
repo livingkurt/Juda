@@ -48,6 +48,9 @@ import {
   ZoomIn,
   ZoomOut,
   LogOut,
+  StickyNote,
+  CheckSquare,
+  Clock,
 } from "lucide-react";
 import { Section } from "@/components/Section";
 import { TaskDialog } from "@/components/TaskDialog";
@@ -74,6 +77,7 @@ import { PageSkeleton, SectionSkeleton, BacklogSkeleton, CalendarSkeleton } from
 import { DateNavigation } from "@/components/DateNavigation";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
 import { TagFilter } from "@/components/TagFilter";
+import { NotesView } from "@/components/NotesView";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
@@ -221,7 +225,7 @@ export default function DailyTasksApp() {
   }, []);
 
   // Initialize state with default values (same on server and client)
-  const [mainTabIndex, setMainTabIndex] = useState(0); // 0 = Tasks, 1 = History
+  const [mainTabIndex, setMainTabIndex] = useState(0); // 0 = Tasks, 1 = Notes, 2 = History
   const [isResizing, setIsResizing] = useState(false);
   // Mobile-specific state: which view is currently active
   // "backlog" | "today" | "calendar"
@@ -360,7 +364,11 @@ export default function DailyTasksApp() {
   const todaysTasks = useMemo(
     () =>
       tasks
-        .filter(task => shouldShowOnDate(task, viewDate))
+        .filter(task => {
+          // Exclude notes from today's tasks
+          if (task.completionType === "note") return false;
+          return shouldShowOnDate(task, viewDate);
+        })
         .map(task => ({
           ...task,
           // Override completed field with the selected date's completion record status
@@ -457,6 +465,9 @@ export default function DailyTasksApp() {
           return false;
         }
 
+        // Exclude notes from backlog
+        if (task.completionType === "note") return false;
+
         // For tasks without recurrence (null), check if completed today
         // These are true backlog items that haven't been scheduled yet
         const outcome = getOutcomeOnDate(task.id, today);
@@ -483,6 +494,11 @@ export default function DailyTasksApp() {
           : undefined,
       }));
   }, [tasks, today, isCompletedOnDate, getOutcomeOnDate, hasAnyCompletion, recentlyCompletedTasks]);
+
+  // Filter tasks that are notes (completionType === "note")
+  const noteTasks = useMemo(() => {
+    return tasks.filter(task => task.completionType === "note");
+  }, [tasks]);
 
   // Progress calculation - check completion records for the selected date
   const totalTasks = filteredTodaysTasks.length;
@@ -1674,8 +1690,29 @@ export default function DailyTasksApp() {
               variant="line"
             >
               <Tabs.List>
-                <Tabs.Trigger value="0">Tasks</Tabs.Trigger>
-                <Tabs.Trigger value="1">History</Tabs.Trigger>
+                <Tabs.Trigger value="0">
+                  <HStack spacing={2}>
+                    <CheckSquare size={16} />
+                    <Text>Tasks</Text>
+                  </HStack>
+                </Tabs.Trigger>
+                <Tabs.Trigger value="1">
+                  <HStack spacing={2}>
+                    <StickyNote size={16} />
+                    <Text>Notes</Text>
+                    {noteTasks.length > 0 && (
+                      <Badge colorScheme="purple" borderRadius="full" fontSize="xs">
+                        {noteTasks.length}
+                      </Badge>
+                    )}
+                  </HStack>
+                </Tabs.Trigger>
+                <Tabs.Trigger value="2">
+                  <HStack spacing={2}>
+                    <Clock size={16} />
+                    <Text>History</Text>
+                  </HStack>
+                </Tabs.Trigger>
               </Tabs.List>
             </Tabs.Root>
           </Box>
@@ -2223,8 +2260,37 @@ export default function DailyTasksApp() {
                 minH={0}
               >
                 <Box flex={1} overflowY="auto" minH={0} h="100%">
-                  {mainTabIndex === 0 ? (
-                    /* Tasks Tab Content */
+                  {mainTabIndex === 1 ? (
+                    /* Notes Tab Content */
+                    <Box h="100%">
+                      <NotesView
+                        notes={noteTasks}
+                        onCreateNote={() => {
+                          // Create a new note task
+                          createTask({
+                            title: "Untitled Note",
+                            sectionId: sections[0]?.id,
+                            completionType: "note",
+                            content: "",
+                          });
+                        }}
+                        onEditNote={task => {
+                          setEditingTask(task);
+                          openTaskDialog();
+                        }}
+                        onDeleteNote={taskId => {
+                          deleteTask(taskId);
+                        }}
+                        onUpdateNote={async (taskId, updates) => {
+                          await updateTask(taskId, updates);
+                        }}
+                      />
+                    </Box>
+                  ) : mainTabIndex === 2 ? (
+                    /* History Tab Content */
+                    <DashboardView />
+                  ) : (
+                    /* Tasks Tab Content (mainTabIndex === 0) */
                     <Box
                       w="full"
                       px={{ base: 2, md: 4 }}
@@ -2642,9 +2708,6 @@ export default function DailyTasksApp() {
                         </Box>
                       )}
                     </Box>
-                  ) : (
-                    /* History Tab Content */
-                    <DashboardView />
                   )}
                 </Box>
               </Box>

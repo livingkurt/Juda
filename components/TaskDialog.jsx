@@ -91,6 +91,7 @@ export const TaskDialog = ({
         items: [
           { label: "Checkbox", value: "checkbox" },
           { label: "Text Input", value: "text" },
+          { label: "Note", value: "note" },
         ],
       }),
     []
@@ -426,6 +427,11 @@ export const TaskDialog = ({
                       ))}
                     </Select.Content>
                   </Select.Root>
+                  {completionType === "note" && (
+                    <Text fontSize="xs" color="gray.500" mt={1}>
+                      Notes appear in the Notes tab, not in Backlog/Today/Calendar
+                    </Text>
+                  )}
                 </Box>
                 <Box w="full">
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
