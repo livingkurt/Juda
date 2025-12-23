@@ -48,6 +48,7 @@ export const TaskDialog = ({
   const [duration, setDuration] = useState(0);
   const [recurrenceType, setRecurrenceType] = useState("none");
   const [selectedDays, setSelectedDays] = useState([]);
+  const [endDate, setEndDate] = useState("");
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtask, setNewSubtask] = useState("");
   const [editingSubtask, setEditingSubtask] = useState(null);
@@ -122,6 +123,12 @@ export const TaskDialog = ({
       setDuration(task.duration ?? 0);
       setRecurrenceType(task.recurrence?.type || "none");
       setSelectedDays(task.recurrence?.days || []);
+      if (task.recurrence?.endDate) {
+        const isoEndDate = task.recurrence.endDate.split("T")[0];
+        setEndDate(isoEndDate);
+      } else {
+        setEndDate("");
+      }
       // Sort subtasks by order and ensure order field is set
       // Ensure subtasks is always an array
       const taskSubtasks = Array.isArray(task.subtasks) ? task.subtasks : [];
@@ -142,6 +149,7 @@ export const TaskDialog = ({
       setDuration(defaultTime ? 30 : 0);
       setRecurrenceType("none");
       setSelectedDays([]);
+      setEndDate("");
       setSubtasks([]);
       setColor("#3b82f6");
       setSelectedTagIds([]);
@@ -166,6 +174,7 @@ export const TaskDialog = ({
         type: recurrenceType,
         ...(recurrenceType === "weekly" && { days: selectedDays }),
         ...(date && { startDate: `${date}T00:00:00.000Z` }),
+        ...(endDate && { endDate: `${endDate}T00:00:00.000Z` }),
       };
     }
 
@@ -497,6 +506,37 @@ export const TaskDialog = ({
                       </Button>
                     ))}
                   </HStack>
+                )}
+                {/* End Date - only show for recurring tasks */}
+                {recurrenceType !== "none" && (
+                  <Box w="full">
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      End Date (Optional)
+                    </Text>
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={e => setEndDate(e.target.value)}
+                      placeholder="No end date"
+                      min={date || undefined}
+                      borderColor={borderColor}
+                      _focus={{
+                        borderColor: "blue.400",
+                        boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && title.trim()) {
+                          e.preventDefault();
+                          handleSave();
+                        }
+                      }}
+                    />
+                    {endDate && (
+                      <Button size="xs" variant="ghost" mt={1} onClick={() => setEndDate("")}>
+                        Clear end date
+                      </Button>
+                    )}
+                  </Box>
                 )}
                 <Box w="full">
                   <Text fontSize="sm" fontWeight="medium" mb={1}>

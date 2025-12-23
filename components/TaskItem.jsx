@@ -510,7 +510,17 @@ export const TaskItem = ({
                       ? "Daily"
                       : task.recurrence.type === "weekly"
                         ? "Weekly"
-                        : "Recurring"}
+                        : task.recurrence.type === "monthly"
+                          ? "Monthly"
+                          : task.recurrence.type === "interval"
+                            ? `Every ${task.recurrence.interval} days`
+                            : "Recurring"}
+                  </Badge>
+                )}
+                {task.recurrence?.endDate && (
+                  <Badge size="sm" colorPalette="orange" fontSize="2xs">
+                    Ends{" "}
+                    {new Date(task.recurrence.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </Badge>
                 )}
                 {!task.time && !isBacklog && (
