@@ -15,7 +15,6 @@ import {
   Tag,
   Tabs,
 } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { Plus, Search } from "lucide-react";
@@ -38,9 +37,9 @@ export const TaskDialog = ({
   onDeleteTag,
   allTasks = [], // All tasks for search functionality
 }) => {
-  const bgColor = useColorModeValue("white", "gray.800");
-  const searchResultBg = useColorModeValue("gray.100", "gray.600");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
+  const bgColor = { _light: "white", _dark: "gray.800" };
+  const searchResultBg = { _light: "gray.100", _dark: "gray.600" };
+  const borderColor = { _light: "gray.200", _dark: "gray.600" };
   const [title, setTitle] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [time, setTime] = useState("");
@@ -495,7 +494,7 @@ export const TaskDialog = ({
                           ) : null}
                         </DragOverlay>
                       </DndContext>
-                      <Box borderTopWidth="1px" borderColor={useColorModeValue("gray.200", "gray.600")} my={2} />
+                      <Box borderTopWidth="1px" borderColor={{ _light: "gray.200", _dark: "gray.600" }} my={2} />
                       <HStack spacing={2}>
                         <Input
                           value={newSubtask}

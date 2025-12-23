@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Box, Text, Flex, VStack, HStack } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useDroppable } from "@dnd-kit/core";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate, calculateTaskPositions } from "@/lib/utils";
 import { HOUR_HEIGHT_DAY, DRAG_THRESHOLD } from "@/lib/calendarConstants";
@@ -31,11 +30,11 @@ export const CalendarDayView = ({
   onCreateTag,
 }) => {
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.700");
-  const dropHighlight = useColorModeValue("blue.50", "blue.900");
-  const hourTextColor = useColorModeValue("gray.400", "gray.500");
-  const hourBorderColor = useColorModeValue("gray.100", "gray.700");
+  const bgColor = { _light: "white", _dark: "gray.800" };
+  const borderColor = { _light: "gray.200", _dark: "gray.700" };
+  const dropHighlight = { _light: "blue.50", _dark: "blue.900" };
+  const hourTextColor = { _light: "gray.400", _dark: "gray.500" };
+  const hourBorderColor = { _light: "gray.100", _dark: "gray.700" };
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState([]);

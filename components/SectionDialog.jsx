@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { Box, Button, Input, Text, Dialog, VStack, HStack, IconButton } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { SECTION_ICONS } from "@/lib/constants";
 
 export const SectionDialog = ({ isOpen, onClose, section, onSave }) => {
-  const bgColor = useColorModeValue("white", "gray.800");
+  const bgColor = { _light: "white", _dark: "gray.800" };
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("sun");
 

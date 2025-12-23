@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Box, Heading, Text, Table, Select, HStack, VStack, Card, Badge, Tabs } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useCompletions } from "@/hooks/useCompletions";
 import { useTasks } from "@/hooks/useTasks";
 import {
@@ -30,14 +29,14 @@ export const DashboardView = () => {
   const [dateRange, setDateRange] = useState("30"); // days
   const [selectedTask, setSelectedTask] = useState("all");
 
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
-  const textColor = useColorModeValue("gray.900", "gray.100");
-  const mutedText = useColorModeValue("gray.500", "gray.400");
-  const cardBg = useColorModeValue("white", "gray.800");
-  const tableBg = useColorModeValue("white", "gray.800");
-  const tableHeaderBg = useColorModeValue("gray.50", "gray.700");
-  const tableRowHover = useColorModeValue("gray.50", "gray.700");
+  const bgColor = { _light: "white", _dark: "gray.800" };
+  const borderColor = { _light: "gray.200", _dark: "gray.600" };
+  const textColor = { _light: "gray.900", _dark: "gray.100" };
+  const mutedText = { _light: "gray.500", _dark: "gray.400" };
+  const cardBg = { _light: "white", _dark: "gray.800" };
+  const tableBg = { _light: "white", _dark: "gray.800" };
+  const tableHeaderBg = { _light: "gray.50", _dark: "gray.700" };
+  const tableRowHover = { _light: "gray.50", _dark: "gray.700" };
 
   const loading = completionsLoading || tasksLoading;
 

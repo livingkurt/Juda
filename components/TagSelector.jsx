@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Box, HStack, VStack, Tag, Menu, Button, Input, Text, IconButton, Wrap, WrapItem } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { Tag as TagIcon, Plus, Trash2 } from "lucide-react";
 
 export const TagSelector = ({
@@ -20,10 +19,10 @@ export const TagSelector = ({
   const onClose = () => setIsOpen(false);
   const inputRef = useRef(null);
 
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
-  const hoverBg = useColorModeValue("gray.100", "gray.700");
-  const mutedText = useColorModeValue("gray.500", "gray.400");
+  const bgColor = { _light: "white", _dark: "gray.800" };
+  const borderColor = { _light: "gray.200", _dark: "gray.600" };
+  const hoverBg = { _light: "gray.100", _dark: "gray.700" };
+  const mutedText = { _light: "gray.500", _dark: "gray.400" };
 
   const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6"];
 

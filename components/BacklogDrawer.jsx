@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { Box, VStack, HStack, Flex, Text, IconButton, Badge, Heading } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus, X } from "lucide-react";
@@ -13,7 +12,6 @@ import { TagFilter } from "./TagFilter";
 export const BacklogDrawer = ({
   onClose,
   backlogTasks,
-  sections,
   onEditTask,
   onUpdateTaskTitle,
   onDeleteTask,
@@ -33,12 +31,12 @@ export const BacklogDrawer = ({
   onSkipTask,
   getCompletionForDate,
 }) => {
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
-  const textColor = useColorModeValue("gray.900", "gray.100");
-  const mutedText = useColorModeValue("gray.500", "gray.400");
-  const dropHighlight = useColorModeValue("blue.50", "blue.900");
-  const gripColor = useColorModeValue("gray.400", "gray.500");
+  const bgColor = { _light: "white", _dark: "gray.800" };
+  const borderColor = { _light: "gray.200", _dark: "gray.600" };
+  const textColor = { _light: "gray.900", _dark: "gray.100" };
+  const mutedText = { _light: "gray.500", _dark: "gray.400" };
+  const dropHighlight = { _light: "blue.50", _dark: "blue.900" };
+  const gripColor = { _light: "gray.400", _dark: "gray.500" };
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState([]);

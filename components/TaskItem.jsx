@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack, Input, Badge, Menu, Tag } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -45,7 +44,6 @@ export const TaskItem = ({
   getOutcomeOnDate, // Function to get outcome for a task on a date
   hasRecordOnDate, // Function to check if task has any record on a date
   onCompleteWithNote, // (taskId, note) => void - for text completion
-  onSkipTask: _onSkipTask, // (taskId) => void - for skipping text tasks (unused, kept for API compatibility)
   getCompletionForDate, // (taskId, date) => completion object
 }) => {
   // Normalize prop names - support both naming conventions
@@ -58,11 +56,11 @@ export const TaskItem = ({
   const isToday = variant === "today";
   const isSubtask = variant === "subtask";
 
-  const bgColor = useColorModeValue("white", "gray.800");
-  const hoverBg = useColorModeValue("gray.50", "gray.700");
-  const textColorDefault = useColorModeValue("gray.900", "gray.100");
-  const mutedTextDefault = useColorModeValue("gray.500", "gray.400");
-  const gripColorDefault = useColorModeValue("gray.400", "gray.500");
+  const bgColor = { _light: "white", _dark: "gray.800" };
+  const hoverBg = { _light: "gray.50", _dark: "gray.700" };
+  const textColorDefault = { _light: "gray.900", _dark: "gray.100" };
+  const mutedTextDefault = { _light: "gray.500", _dark: "gray.400" };
+  const gripColorDefault = { _light: "gray.400", _dark: "gray.500" };
 
   const textColor = textColorProp || textColorDefault;
   const mutedText = mutedTextProp || mutedTextDefault;

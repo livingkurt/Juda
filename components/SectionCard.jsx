@@ -2,7 +2,6 @@
 
 import { useState, useRef } from "react";
 import { Box, Card, Heading, Text, Flex, HStack, VStack, IconButton, Menu, Input } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useDroppable } from "@dnd-kit/core";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -36,11 +35,11 @@ export const SectionCard = ({
   onSkipTask,
   getCompletionForDate,
 }) => {
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
-  const textColor = useColorModeValue("gray.900", "gray.100");
-  const mutedText = useColorModeValue("gray.500", "gray.400");
-  const dropHighlight = useColorModeValue("blue.50", "blue.900");
+  const bgColor = { _light: "white", _dark: "gray.800" };
+  const borderColor = { _light: "gray.200", _dark: "gray.600" };
+  const textColor = { _light: "gray.900", _dark: "gray.100" };
+  const mutedText = { _light: "gray.500", _dark: "gray.400" };
+  const dropHighlight = { _light: "blue.50", _dark: "blue.900" };
 
   const [inlineInputValue, setInlineInputValue] = useState("");
   const [isInlineInputActive, setIsInlineInputActive] = useState(false);

@@ -3,16 +3,15 @@
 import { useState, useEffect } from "react";
 import { Input, InputGroup, Box } from "@chakra-ui/react";
 import { Search } from "lucide-react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 
 export const TaskSearchInput = ({ onSearchChange, placeholder = "Search tasks..." }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  const borderColor = useColorModeValue("gray.200", "gray.600");
-  const bgColor = useColorModeValue("white", "gray.800");
-  const textColor = useColorModeValue("gray.900", "gray.100");
-  const mutedText = useColorModeValue("gray.500", "gray.400");
+  const borderColor = { _light: "gray.200", _dark: "gray.600" };
+  const bgColor = { _light: "white", _dark: "gray.800" };
+  const textColor = { _light: "gray.900", _dark: "gray.100" };
+  const mutedText = { _light: "gray.500", _dark: "gray.400" };
 
   // Debounce search term
   useEffect(() => {

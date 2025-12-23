@@ -150,7 +150,7 @@ When migrating from Chakra v2 to v3:
 2. **Set both class and colorScheme** when changing color mode
 3. **Use `_light` and `_dark` keys** instead of color mode functions
 4. **Add ColorModeScript** to prevent flash of unstyled content
-5. **Keep using `useColorModeValue` hook** - it still works with the custom implementation
+5. **Use Chakra v3's native `_light`/`_dark` syntax** - Replace `useColorModeValue` with direct object syntax: `{ _light: "value", _dark: "value" }`
 6. **Test both light and dark modes** - The color values changed, so visual comparison is essential
 
 ## Files Modified

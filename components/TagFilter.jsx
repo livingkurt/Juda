@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Box, HStack, Tag, Menu, Button, Input, Text } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { Tag as TagIcon, Plus, X } from "lucide-react";
 
 export const TagFilter = ({
@@ -19,10 +18,10 @@ export const TagFilter = ({
   const onClose = () => setIsOpen(false);
   const inputRef = useRef(null);
 
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
-  const hoverBg = useColorModeValue("gray.100", "gray.700");
-  const mutedText = useColorModeValue("gray.500", "gray.400");
+  const bgColor = { _light: "white", _dark: "gray.800" };
+  const borderColor = { _light: "gray.200", _dark: "gray.600" };
+  const hoverBg = { _light: "gray.100", _dark: "gray.700" };
+  const mutedText = { _light: "gray.500", _dark: "gray.400" };
 
   // Focus input when menu opens
   useEffect(() => {

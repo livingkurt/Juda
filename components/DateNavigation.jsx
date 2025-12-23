@@ -1,16 +1,15 @@
 "use client";
 
 import { Box, Button, IconButton, Text, Flex, Input, Badge } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export const DateNavigation = ({ selectedDate, onDateChange, onPrevious, onNext, onToday }) => {
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
-  const textColor = useColorModeValue("gray.900", "gray.100");
-  const warningBg = useColorModeValue("orange.50", "orange.900");
-  const warningBorder = useColorModeValue("orange.200", "orange.700");
-  const warningText = useColorModeValue("orange.800", "orange.200");
+  const bgColor = { _light: "white", _dark: "gray.800" };
+  const borderColor = { _light: "gray.200", _dark: "gray.600" };
+  const textColor = { _light: "gray.900", _dark: "gray.100" };
+  const warningBg = { _light: "orange.50", _dark: "orange.900" };
+  const warningBorder = { _light: "orange.200", _dark: "orange.700" };
+  const warningText = { _light: "orange.800", _dark: "orange.200" };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

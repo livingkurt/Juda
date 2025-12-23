@@ -1,12 +1,11 @@
 "use client";
 
 import { Menu, MenuItem, IconButton, HStack, Text } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { Check, X, SkipForward, Circle } from "lucide-react";
 
 export const TaskOutcomeMenu = ({ taskId, date, currentOutcome, onSelectOutcome, size = "sm" }) => {
-  const menuBg = useColorModeValue("white", "gray.700");
-  const hoverBg = useColorModeValue("gray.100", "gray.600");
+  const menuBg = { _light: "white", _dark: "gray.700" };
+  const hoverBg = { _light: "gray.100", _dark: "gray.600" };
 
   // Determine current icon and color
   const getButtonProps = () => {

@@ -18,7 +18,6 @@ import {
 } from "@chakra-ui/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePreferencesContext } from "@/contexts/PreferencesContext";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useToast } from "@/hooks/useToast";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { AuthPage } from "@/components/AuthPage";
@@ -109,15 +108,15 @@ export default function DailyTasksApp() {
   const { isAuthenticated, loading: authLoading, initialized: authInitialized, logout } = useAuth();
   const { colorMode, toggleColorMode } = useColorModeSync();
   const { toast } = useToast();
-  const bgColor = useColorModeValue("gray.50", "gray.900");
-  const headerBg = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
-  const textColor = useColorModeValue("gray.900", "gray.100");
-  const mutedText = useColorModeValue("gray.500", "gray.400");
-  const progressBarBg = useColorModeValue("gray.200", "gray.700");
-  const dragOverlayBg = useColorModeValue("blue.100", "blue.800");
-  const dragOverlayBorder = useColorModeValue("blue.400", "blue.500");
-  const dragOverlayText = useColorModeValue("blue.900", "blue.100");
+  const bgColor = { _light: "gray.50", _dark: "gray.900" };
+  const headerBg = { _light: "white", _dark: "gray.800" };
+  const borderColor = { _light: "gray.200", _dark: "gray.600" };
+  const textColor = { _light: "gray.900", _dark: "gray.100" };
+  const mutedText = { _light: "gray.500", _dark: "gray.400" };
+  const progressBarBg = { _light: "gray.200", _dark: "gray.700" };
+  const dragOverlayBg = { _light: "blue.100", _dark: "blue.800" };
+  const dragOverlayBorder = { _light: "blue.400", _dark: "blue.500" };
+  const dragOverlayText = { _light: "blue.900", _dark: "blue.100" };
 
   const {
     tasks,

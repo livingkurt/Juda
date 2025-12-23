@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Box, Button, Input, VStack, Text, Alert, Link } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function RegisterForm({ onSwitchToLogin }) {
@@ -14,8 +13,8 @@ export function RegisterForm({ onSwitchToLogin }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
+  const bgColor = { _light: "white", _dark: "gray.800" };
+  const borderColor = { _light: "gray.200", _dark: "gray.600" };
 
   const handleSubmit = async e => {
     e.preventDefault();

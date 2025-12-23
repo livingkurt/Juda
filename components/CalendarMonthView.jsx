@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { Box, Flex, SimpleGrid, HStack } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { shouldShowOnDate } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 import { TaskSearchInput } from "./TaskSearchInput";
@@ -21,13 +20,13 @@ export const CalendarMonthView = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState([]);
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.700");
-  const hoverBg = useColorModeValue("gray.50", "gray.700");
-  const textColor = useColorModeValue("gray.900", "gray.200");
-  const mutedText = useColorModeValue("gray.400", "gray.600");
-  const dayHeaderColor = useColorModeValue("gray.500", "gray.400");
-  const nonCurrentMonthBg = useColorModeValue("gray.50", "gray.850");
+  const bgColor = { _light: "white", _dark: "gray.800" };
+  const borderColor = { _light: "gray.200", _dark: "gray.700" };
+  const hoverBg = { _light: "gray.50", _dark: "gray.700" };
+  const textColor = { _light: "gray.900", _dark: "gray.200" };
+  const mutedText = { _light: "gray.400", _dark: "gray.600" };
+  const dayHeaderColor = { _light: "gray.500", _dark: "gray.400" };
+  const nonCurrentMonthBg = { _light: "gray.50", _dark: "gray.850" };
 
   // Filter tasks by search term and tags
   const filteredTasks = useMemo(() => {

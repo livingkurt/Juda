@@ -1,7 +1,6 @@
 "use client";
 
 import { Box, Button } from "@chakra-ui/react";
-import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
@@ -35,7 +34,7 @@ export const Section = ({
   onSkipTask,
   getCompletionForDate,
 }) => {
-  const dropHighlight = useColorModeValue("gray.50", "gray.800");
+  const dropHighlight = { _light: "gray.50", _dark: "gray.800" };
 
   // Use droppable for section reordering
   const { setNodeRef, isOver } = useDroppable({
