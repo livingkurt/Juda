@@ -73,11 +73,11 @@ export const PageSkeleton = () => {
   const textColor = { _light: "gray.600", _dark: "gray.400" };
 
   return (
-    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg={bgColor}>
+    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg={bgColor} suppressHydrationWarning>
       {/* Main content */}
       <Flex as="main" flex={1} align="center" justify="center" direction="column" gap={4}>
         <LoadingSpinner size="xl" />
-        <Box color={textColor} fontSize="sm" fontWeight="medium">
+        <Box color={textColor} fontSize="sm" fontWeight="medium" suppressHydrationWarning>
           Loading...
         </Box>
       </Flex>
