@@ -44,7 +44,7 @@ export const Section = ({
 
   return (
     <SortableContext id="sections" items={sections.map(s => `section-${s.id}`)} strategy={verticalListSortingStrategy}>
-      <Box ref={setNodeRef} bg={isOver ? dropHighlight : "transparent"} borderRadius="md">
+      <Box ref={setNodeRef} bg={isOver ? dropHighlight : "transparent"} borderRadius="md" w="100%" maxW="100%">
         {sections.map((section, index) => (
           <SectionCard
             key={section.id}

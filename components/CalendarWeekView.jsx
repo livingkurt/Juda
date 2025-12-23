@@ -247,11 +247,11 @@ export const CalendarWeekView = ({
   };
 
   return (
-    <Flex direction="column" h="full">
+    <Flex direction="column" h="full" w="100%" maxW="100%" overflow="hidden">
       {/* Search input */}
-      <Box px={4} py={2} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} flexShrink={0}>
-        <HStack spacing={4} align="center">
-          <Box flex={1}>
+      <Box px={{ base: 2, md: 4 }} py={2} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} flexShrink={0} w="100%" maxW="100%">
+        <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
+          <Box flex={1} minW={0}>
             <TaskSearchInput onSearchChange={setSearchTerm} />
           </Box>
           <TagFilter
@@ -265,9 +265,10 @@ export const CalendarWeekView = ({
         </HStack>
       </Box>
       {/* Week header */}
-      <Flex borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} position="sticky" top={0} zIndex={10}>
-        <Box w={12} flexShrink={0} />
-        {weekDays.map((day, i) => {
+      <Box w="100%" maxW="100%" overflowX="auto" flexShrink={0} sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}>
+        <Flex borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} position={{ base: "relative", md: "sticky" }} top={{ base: "auto", md: 0 }} zIndex={{ base: "auto", md: 10 }} minW="fit-content">
+          <Box w={12} flexShrink={0} />
+          {weekDays.map((day, i) => {
           const untimedTasksForDay = getUntimedTasksForDay(day);
           const isToday = day.toDateString() === today.toDateString();
 
@@ -291,10 +292,11 @@ export const CalendarWeekView = ({
             />
           );
         })}
-      </Flex>
+        </Flex>
+      </Box>
 
       {/* Time grid */}
-      <Box ref={containerRef} flex={1} overflowY="auto">
+      <Box ref={containerRef} flex={1} overflowY="auto" w="100%" maxW="100%" overflowX="auto" minW={0} sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}>
         <Box position="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
           {/* Hour labels */}
           {hours.map(hour => (
@@ -319,7 +321,7 @@ export const CalendarWeekView = ({
           ))}
 
           {/* Day columns */}
-          <Flex position="absolute" left={12} right={0} top={0} bottom={0}>
+          <Flex position="absolute" left={12} right={0} top={0} bottom={0} minW="fit-content">
             {weekDays.map((day, i) => {
               const dayTasks = getTasksForDay(day);
 

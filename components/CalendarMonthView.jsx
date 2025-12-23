@@ -77,11 +77,20 @@ export const CalendarMonthView = ({
   today.setHours(0, 0, 0, 0);
 
   return (
-    <Flex direction="column" h="full">
+    <Flex direction="column" h="full" w="100%" maxW="100%" overflow="hidden">
       {/* Search input */}
-      <Box px={4} py={2} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} flexShrink={0}>
-        <HStack spacing={4} align="center">
-          <Box flex={1}>
+      <Box
+        px={{ base: 2, md: 4 }}
+        py={2}
+        borderBottomWidth="1px"
+        borderColor={borderColor}
+        bg={bgColor}
+        flexShrink={0}
+        w="100%"
+        maxW="100%"
+      >
+        <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
+          <Box flex={1} minW={0}>
             <TaskSearchInput onSearchChange={setSearchTerm} />
           </Box>
           <TagFilter
@@ -94,7 +103,7 @@ export const CalendarMonthView = ({
           />
         </HStack>
       </Box>
-      <SimpleGrid columns={7} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor}>
+      <SimpleGrid columns={7} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} w="100%" maxW="100%">
         {DAYS_OF_WEEK.map(day => (
           <Box key={day.value} textAlign="center" py={2} fontSize="sm" fontWeight="medium" color={dayHeaderColor}>
             {day.label}

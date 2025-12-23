@@ -128,10 +128,13 @@ export const SectionCard = ({
       borderWidth={isDropTarget || isOver ? "2px" : "1px"}
       opacity={sectionIsDragging ? 0.5 : 1}
       transition="border-color 0.2s, border-width 0.2s"
+      w="100%"
+      maxW="100%"
+      overflow="hidden"
     >
-      <Card.Header pb={2}>
-        <Flex align="center" justify="space-between">
-          <Flex align="center" gap={2}>
+      <Card.Header pb={2} w="100%" maxW="100%" overflow="hidden">
+        <Flex align="center" justify="space-between" w="100%" maxW="100%" gap={2}>
+          <Flex align="center" gap={2} minW={0} flex={1}>
             <Box
               {...sectionAttributes}
               {...sectionListeners}
@@ -144,14 +147,14 @@ export const SectionCard = ({
             <Box as="span" color="orange.500">
               <IconComponent size={20} stroke="currentColor" />
             </Box>
-            <Heading size="md" color={textColor}>
+            <Heading size="md" color={textColor} noOfLines={1}>
               {section.name}
             </Heading>
-            <Text fontSize="sm" color={mutedText}>
+            <Text fontSize="sm" color={mutedText} flexShrink={0}>
               ({completedCount}/{tasks.length})
             </Text>
           </Flex>
-          <HStack spacing={1}>
+          <HStack spacing={1} flexShrink={0}>
             <IconButton
               onClick={() => onToggleSectionExpand && onToggleSectionExpand(section.id)}
               size="sm"

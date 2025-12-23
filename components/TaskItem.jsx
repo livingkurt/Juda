@@ -221,8 +221,16 @@ export const TaskItem = ({
   };
 
   return (
-    <Box ref={setNodeRef} style={style}>
-      <Box borderRadius="lg" bg={bgColor} transition="box-shadow 0.2s, border-color 0.2s" {...borderStyle}>
+    <Box ref={setNodeRef} style={style} w="100%" maxW="100%">
+      <Box
+        borderRadius="lg"
+        bg={bgColor}
+        transition="box-shadow 0.2s, border-color 0.2s"
+        {...borderStyle}
+        w="100%"
+        maxW="100%"
+        overflow="hidden"
+      >
         <Flex
           align="center"
           gap={2}
@@ -232,6 +240,9 @@ export const TaskItem = ({
           {...(isDragDisabled ? {} : attributes)}
           {...(isDragDisabled ? {} : listeners)}
           cursor={isDragDisabled ? "default" : "grab"}
+          w="100%"
+          maxW="100%"
+          overflow="hidden"
         >
           {/* Expand button for subtasks */}
           {task.subtasks && task.subtasks.length > 0 ? (
@@ -395,8 +406,8 @@ export const TaskItem = ({
           {/* <Box w={3} h={3} borderRadius="full" bg={task.color || "#3b82f6"} flexShrink={0} /> */}
 
           {/* Task content */}
-          <Box flex={1} minW={0}>
-            <Flex align="center" gap={0}>
+          <Box flex={1} minW={0} overflow="hidden">
+            <Flex align="center" gap={0} w="100%" maxW="100%">
               {isEditingTitle ? (
                 <Input
                   ref={titleInputRef}
@@ -418,6 +429,7 @@ export const TaskItem = ({
                   _focus={{
                     outline: "none",
                   }}
+                  w="100%"
                 />
               ) : (
                 <Text
@@ -432,6 +444,8 @@ export const TaskItem = ({
                   _hover={{
                     opacity: shouldShowStrikethrough ? 0.7 : 1,
                   }}
+                  noOfLines={2}
+                  wordBreak="break-word"
                 >
                   {task.title}
                 </Text>
@@ -544,11 +558,11 @@ export const TaskItem = ({
 
           {/* Time display */}
           {task.time && (
-            <HStack spacing={1}>
+            <HStack spacing={1} flexShrink={0}>
               <Box as="span" color={mutedText}>
                 <Clock size={14} stroke="currentColor" />
               </Box>
-              <Text fontSize="sm" color={mutedText}>
+              <Text fontSize="sm" color={mutedText} whiteSpace="nowrap">
                 {formatTime(task.time)}
               </Text>
             </HStack>

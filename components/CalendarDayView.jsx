@@ -239,18 +239,27 @@ export const CalendarDayView = ({
   });
 
   return (
-    <Flex direction="column" h="full">
+    <Flex direction="column" h="full" w="100%" maxW="100%" overflow="hidden">
       {/* Day header */}
-      <Box textAlign="center" py={3} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} flexShrink={0}>
+      <Box
+        textAlign="center"
+        py={3}
+        borderBottomWidth="1px"
+        borderColor={borderColor}
+        bg={bgColor}
+        flexShrink={0}
+        w="100%"
+        maxW="100%"
+      >
         <Text fontSize="2xl" fontWeight="bold">
           {date.getDate()}
         </Text>
         <Text fontSize="sm" color={hourTextColor} mb={3}>
           {date.toLocaleDateString("en-US", { weekday: "long", month: "long" })}
         </Text>
-        <Box px={4} py={2}>
-          <HStack spacing={4} align="center">
-            <Box flex={1}>
+        <Box px={{ base: 2, md: 4 }} py={2} w="100%" maxW="100%">
+          <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
+            <Box flex={1} minW={0}>
               <TaskSearchInput onSearchChange={setSearchTerm} />
             </Box>
             <TagFilter
@@ -268,13 +277,15 @@ export const CalendarDayView = ({
       {/* Untimed tasks area */}
       <Box
         ref={setUntimedRef}
-        px={4}
+        px={{ base: 2, md: 4 }}
         py={2}
         borderBottomWidth="1px"
         borderColor={borderColor}
         bg={isOverUntimed ? dropHighlight : bgColor}
         minH={untimedTasks.length > 0 || isOverUntimed ? "auto" : "0"}
         transition="background-color 0.2s"
+        w="100%"
+        maxW="100%"
       >
         {(untimedTasks.length > 0 || isOverUntimed) && (
           <VStack align="stretch" spacing={2}>
@@ -302,7 +313,15 @@ export const CalendarDayView = ({
       </Box>
 
       {/* Timed calendar grid */}
-      <Box ref={containerRef} flex={1} overflowY="auto" position="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
+      <Box
+        ref={containerRef}
+        flex={1}
+        overflowY="auto"
+        position="relative"
+        style={{ height: `${24 * HOUR_HEIGHT}px` }}
+        w="100%"
+        maxW="100%"
+      >
         {/* Hour lines */}
         {hours.map(hour => (
           <Box

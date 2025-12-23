@@ -52,14 +52,17 @@ export const DateNavigation = ({ selectedDate, onDateChange, onPrevious, onNext,
   return (
     <Box
       mb={4}
-      p={4}
+      p={{ base: 2, md: 4 }}
       borderRadius="lg"
       bg={isToday ? bgColor : warningBg}
       borderWidth="1px"
       borderColor={isToday ? borderColor : warningBorder}
       transition="all 0.2s"
+      w="100%"
+      maxW="100%"
+      overflow="hidden"
     >
-      <Flex align="center" gap={2} flexWrap="wrap">
+      <Flex align="center" gap={2} flexWrap="wrap" w="100%" maxW="100%">
         <Button variant="outline" size="sm" onClick={onToday}>
           Today
         </Button>
@@ -73,7 +76,7 @@ export const DateNavigation = ({ selectedDate, onDateChange, onPrevious, onNext,
             <ChevronRight size={18} stroke="currentColor" />
           </Box>
         </IconButton>
-        <Box position="relative" flex={1} minW="200px">
+        <Box position="relative" flex={1} minW={{ base: 0, md: "200px" }}>
           <Input
             type="date"
             value={formatDateInput(selectedDate)}
@@ -88,7 +91,7 @@ export const DateNavigation = ({ selectedDate, onDateChange, onPrevious, onNext,
             }}
           />
         </Box>
-        <Flex align="center" gap={2} minW="120px">
+        <Flex align="center" gap={2} minW={{ base: 0, md: "120px" }} flexShrink={{ base: 1, md: 0 }}>
           <Text fontSize="sm" fontWeight="medium" color={isToday ? textColor : warningText}>
             {formatDateDisplay(selectedDate)}
           </Text>

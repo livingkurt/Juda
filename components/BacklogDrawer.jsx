@@ -79,12 +79,14 @@ export const BacklogDrawer = ({
   }));
 
   return (
-    <Box h="100%" display="flex" flexDirection="column" bg={bgColor}>
+    <Box h="100%" display="flex" flexDirection="column" bg={bgColor} w="100%" maxW="100%" overflow="hidden">
       {/* Header */}
-      <Box p={4} borderBottomWidth="1px" borderColor={borderColor} flexShrink={0}>
-        <Flex align="center" justify="space-between" mb={2}>
-          <Heading size="md">Backlog</Heading>
-          <HStack spacing={2}>
+      <Box p={{ base: 3, md: 4 }} borderBottomWidth="1px" borderColor={borderColor} flexShrink={0} w="100%" maxW="100%">
+        <Flex align="center" justify="space-between" mb={2} gap={2}>
+          <Heading size="md" flexShrink={0}>
+            Backlog
+          </Heading>
+          <HStack spacing={2} flexShrink={0}>
             <IconButton
               onClick={onAddTask}
               size="sm"
@@ -109,8 +111,8 @@ export const BacklogDrawer = ({
             filteredTasks.length !== backlogTasks.length &&
             ` of ${backlogTasks.length}`}
         </Badge>
-        <HStack spacing={4} align="center">
-          <Box flex={1}>
+        <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
+          <Box flex={1} minW={0}>
             <TaskSearchInput onSearchChange={setSearchTerm} />
           </Box>
           <TagFilter
@@ -130,14 +132,16 @@ export const BacklogDrawer = ({
         flex={1}
         minH={0}
         overflowY="auto"
-        p={tasksWithIds.length === 0 ? 4 : 2}
+        p={tasksWithIds.length === 0 ? { base: 3, md: 4 } : { base: 2, md: 2 }}
         bg={isOver ? dropHighlight : "transparent"}
         borderRadius="md"
         transition="background-color 0.2s, padding 0.2s"
         borderWidth={isOver ? "2px" : "0px"}
         borderColor={isOver ? "blue.400" : "transparent"}
         borderStyle="dashed"
-        mx={isOver ? 2 : 0}
+        mx={isOver ? { base: 1, md: 2 } : 0}
+        w="100%"
+        maxW="100%"
       >
         {/* Unscheduled Tasks */}
         {tasksWithIds.length > 0 ? (
@@ -150,7 +154,7 @@ export const BacklogDrawer = ({
               items={tasksWithIds.map(t => t.draggableId)}
               strategy={verticalListSortingStrategy}
             >
-              <VStack align="stretch" spacing={2} px={2}>
+              <VStack align="stretch" spacing={2} px={{ base: 1, md: 2 }} w="100%" maxW="100%">
                 {tasksWithIds.map(task => (
                   <TaskItem
                     key={task.id}

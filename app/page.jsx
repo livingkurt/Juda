@@ -1596,9 +1596,17 @@ export default function DailyTasksApp() {
   }
 
   return (
-    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg={bgColor} color={textColor}>
+    <Box
+      h={{ base: "auto", md: "100vh" }}
+      minH="100vh"
+      display="flex"
+      flexDirection="column"
+      overflow={{ base: "auto", md: "hidden" }}
+      bg={bgColor}
+      color={textColor}
+    >
       {/* Header */}
-      <Box as="header" bg={headerBg} borderBottomWidth="1px" borderColor={borderColor} flexShrink={0}>
+      <Box as="header" bg={headerBg} borderBottomWidth="1px" borderColor={borderColor} flexShrink={{ base: 1, md: 0 }}>
         <Box w="full" px={4} py={4}>
           <Flex align="center" justify="space-between">
             <Flex align="center" gap={3}>
@@ -1757,15 +1765,22 @@ export default function DailyTasksApp() {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEndNew}
       >
-        <Box as="main" flex={1} overflow="hidden" display="flex">
+        <Box as="main" flex={1} overflow={{ base: "visible", md: "hidden" }} display="flex">
           {/* Backlog Sidebar - only show on Tasks tab */}
           {mainTabIndex === 0 && (
             <Box
-              w={backlogOpen ? `${backlogWidth}px` : "0"}
+              w={
+                backlogOpen
+                  ? {
+                      base: "100vw",
+                      md: `${backlogWidth}px`,
+                    }
+                  : "0"
+              }
               h="100%"
               transition={isResizing ? "none" : "width 0.3s"}
               overflow="hidden"
-              borderRightWidth={backlogOpen ? "1px" : "0"}
+              borderRightWidth={backlogOpen ? { base: "0", md: "1px" } : "0"}
               borderColor={borderColor}
               bg={bgColor}
               flexShrink={0}
@@ -1802,7 +1817,7 @@ export default function DailyTasksApp() {
                       getCompletionForDate={getCompletionForDate}
                     />
                   )}
-                  {/* Resize handle */}
+                  {/* Resize handle - hidden on mobile */}
                   <Box
                     position="absolute"
                     right={0}
@@ -1816,6 +1831,7 @@ export default function DailyTasksApp() {
                     onMouseDown={handleResizeStart}
                     zIndex={10}
                     sx={{ userSelect: "none" }}
+                    display={{ base: "none", md: "block" }}
                   />
                 </>
               )}
@@ -1823,26 +1839,33 @@ export default function DailyTasksApp() {
           )}
 
           {/* Main Content Area */}
-          <Box flex={1} overflow="hidden" display="flex" flexDirection="column">
-            <Box flex={1} overflowY="auto">
+          <Box
+            flex={1}
+            overflow={{ base: "visible", md: "hidden" }}
+            display={{ base: backlogOpen ? "none" : "flex", md: "flex" }}
+            flexDirection="column"
+          >
+            <Box flex={1} overflowY={{ base: "visible", md: "auto" }}>
               {mainTabIndex === 0 ? (
                 /* Tasks Tab Content */
                 <Box
                   w="full"
-                  px={4}
-                  py={6}
+                  px={{ base: 2, md: 4 }}
+                  py={{ base: 3, md: 6 }}
                   display="flex"
-                  gap={6}
+                  gap={{ base: 2, md: 6 }}
                   h="full"
                   justifyContent={!backlogOpen && !showCalendar && showDashboard ? "center" : "flex-start"}
+                  maxW="100%"
+                  overflow="hidden"
                 >
                   {/* Dashboard View */}
                   {showDashboard && (
                     <Box
-                      flex={!backlogOpen && !showCalendar ? "0 1 auto" : 1}
+                      flex={{ base: "none", md: !backlogOpen && !showCalendar ? "0 1 auto" : 1 }}
                       minW={0}
-                      maxW={!backlogOpen && !showCalendar ? "1250px" : "none"}
-                      w={!backlogOpen && !showCalendar ? "full" : "auto"}
+                      maxW="100%"
+                      w="100%"
                       display="flex"
                       flexDirection="column"
                       overflow="hidden"
@@ -1857,19 +1880,24 @@ export default function DailyTasksApp() {
                         <>
                           {/* Today View Header - Sticky */}
                           <Box
-                            position="sticky"
-                            top={0}
-                            zIndex={10}
+                            position={{ base: "relative", md: "sticky" }}
+                            top={{ base: "auto", md: 0 }}
+                            zIndex={{ base: "auto", md: 10 }}
                             bg={bgColor}
                             mb={4}
                             pb={4}
                             borderBottomWidth="1px"
                             borderColor={borderColor}
                             flexShrink={0}
+                            w="100%"
+                            maxW="100%"
+                            overflow="hidden"
                           >
-                            <Flex align="center" justify="space-between" mb={2}>
-                              <Heading size="md">Today</Heading>
-                              <Flex align="center" gap={2}>
+                            <Flex align="center" justify="space-between" mb={2} w="100%" maxW="100%" gap={2}>
+                              <Heading size="md" flexShrink={0}>
+                                Today
+                              </Heading>
+                              <Flex align="center" gap={2} flexShrink={0}>
                                 <Badge colorPalette="blue">
                                   {filteredTodaysTasks.length} task{filteredTodaysTasks.length !== 1 ? "s" : ""}
                                   {todaySearchTerm &&
@@ -1904,9 +1932,9 @@ export default function DailyTasksApp() {
                                 onToday={handleTodayViewToday}
                               />
                             )}
-                            <Box mt={3}>
-                              <HStack spacing={4} align="center">
-                                <Box flex={1}>
+                            <Box mt={3} w="100%" maxW="100%">
+                              <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
+                                <Box flex={1} minW={0}>
                                   <TaskSearchInput onSearchChange={setTodaySearchTerm} />
                                 </Box>
                                 <TagFilter
@@ -1920,7 +1948,7 @@ export default function DailyTasksApp() {
                             </Box>
                           </Box>
                           {/* Scrollable Sections Container */}
-                          <Box flex={1} overflowY="auto" minH={0}>
+                          <Box flex={1} overflowY="auto" minH={0} w="100%" maxW="100%">
                             <Section
                               sections={sortedSections}
                               tasksBySection={tasksBySection}
@@ -1955,12 +1983,32 @@ export default function DailyTasksApp() {
 
                   {/* Calendar View */}
                   {showCalendar && (
-                    <Box flex={1} minW={0} display="flex" flexDirection="column">
+                    <Box
+                      flex={1}
+                      minW={0}
+                      w={{ base: "100%", md: "auto" }}
+                      maxW="100%"
+                      display="flex"
+                      flexDirection="column"
+                      overflow="hidden"
+                    >
                       {/* Calendar Header */}
-                      <Box mb={3} pb={3} borderBottomWidth="1px" borderColor={borderColor}>
-                        <Flex align="center" justify="space-between" mb={2}>
-                          <Heading size="md">Calendar</Heading>
-                          <HStack spacing={2}>
+                      <Box
+                        mb={3}
+                        pb={3}
+                        borderBottomWidth="1px"
+                        borderColor={borderColor}
+                        px={{ base: 1, md: 0 }}
+                        w="100%"
+                        maxW="100%"
+                        overflow="hidden"
+                        flexShrink={0}
+                      >
+                        <Flex align="center" justify="space-between" mb={2} w="100%" maxW="100%" gap={2}>
+                          <Heading size="md" flexShrink={0}>
+                            Calendar
+                          </Heading>
+                          <HStack spacing={2} flexShrink={0}>
                             <HStack spacing={1}>
                               <IconButton
                                 size="sm"
@@ -2051,7 +2099,7 @@ export default function DailyTasksApp() {
                           </HStack>
                         </Flex>
                         {/* Calendar Controls */}
-                        <Flex align="center" gap={2} px={2}>
+                        <Flex align="center" gap={2} px={2} w="100%" maxW="100%" overflowX="auto">
                           <Button
                             variant="outline"
                             size="sm"
@@ -2110,8 +2158,17 @@ export default function DailyTasksApp() {
                       {isLoading && !selectedDate ? (
                         <CalendarSkeleton />
                       ) : (
-                        <Card.Root flex={1} overflow="hidden" bg={bgColor} borderColor={borderColor} minH="600px">
-                          <Card.Body p={0} h="full">
+                        <Card.Root
+                          flex={1}
+                          overflow="hidden"
+                          bg={bgColor}
+                          borderColor={borderColor}
+                          minH="600px"
+                          w="100%"
+                          maxW="100%"
+                          minW={0}
+                        >
+                          <Card.Body p={0} h="full" w="100%" maxW="100%" minW={0} overflow="hidden">
                             {(() => {
                               // Filter tasks based on recurring preference for current view
                               let filteredTasks = showRecurringTasks[calendarView]

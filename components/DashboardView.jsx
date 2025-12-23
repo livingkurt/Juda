@@ -299,7 +299,7 @@ export const DashboardView = () => {
   }
 
   return (
-    <Box p={6} overflowY="auto" w="full" h="full" minH="100%">
+    <Box p={{ base: 3, md: 6 }} overflowY="auto" w="full" h="full" minH="100%" maxW="100%">
       <VStack align="stretch" spacing={6} w="full">
         <Box>
           <Heading size="lg" mb={2} color={textColor}>
@@ -535,7 +535,13 @@ export const DashboardView = () => {
                   <Table.Root variant="simple" bg={tableBg} size="sm">
                     <Table.Header bg={tableHeaderBg}>
                       <Table.Row>
-                        <Table.ColumnHeader color={textColor} position="sticky" left={0} bg={tableHeaderBg} zIndex={2}>
+                        <Table.ColumnHeader
+                          color={textColor}
+                          position={{ base: "relative", md: "sticky" }}
+                          left={{ base: "auto", md: 0 }}
+                          bg={tableHeaderBg}
+                          zIndex={{ base: "auto", md: 2 }}
+                        >
                           Date
                         </Table.ColumnHeader>
                         {recurringTasks.map(task => (
@@ -557,10 +563,10 @@ export const DashboardView = () => {
                           <Table.Row key={dateStr} _hover={{ bg: tableRowHover }}>
                             <Table.Cell
                               color={textColor}
-                              position="sticky"
-                              left={0}
+                              position={{ base: "relative", md: "sticky" }}
+                              left={{ base: "auto", md: 0 }}
                               bg={tableBg}
-                              zIndex={1}
+                              zIndex={{ base: "auto", md: 1 }}
                               fontWeight="medium"
                             >
                               {formattedDate}
