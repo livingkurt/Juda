@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Box, Heading, Text, Table, NativeSelect, HStack, VStack, Card, Badge, Tabs } from "@chakra-ui/react";
+import { Box, Heading, Text, Table, Select, HStack, VStack, Card, Badge, Tabs } from "@chakra-ui/react";
 import { useColorModeValue } from "@/hooks/useColorModeValue";
 import { useCompletions } from "@/hooks/useCompletions";
 import { useTasks } from "@/hooks/useTasks";
@@ -184,43 +184,35 @@ export const DashboardView = () => {
                 <Text fontSize="sm" mb={1} color={mutedText}>
                   Date Range
                 </Text>
-                <NativeSelect.Root
-                  value={dateRange}
-                  onValueChange={({ value }) => setDateRange(value)}
-                  w="150px"
-                  bg={bgColor}
-                  borderColor={borderColor}
-                >
-                  <NativeSelect.Field>
-                    <option value="7">Last 7 days</option>
-                    <option value="30">Last 30 days</option>
-                    <option value="90">Last 90 days</option>
-                    <option value="365">Last year</option>
-                  </NativeSelect.Field>
-                  <NativeSelect.Indicator />
-                </NativeSelect.Root>
+                <Select.Root value={dateRange} onValueChange={({ value }) => setDateRange(value)} w="150px">
+                  <Select.Trigger bg={bgColor} borderColor={borderColor}>
+                    <Select.ValueText />
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item item="7">Last 7 days</Select.Item>
+                    <Select.Item item="30">Last 30 days</Select.Item>
+                    <Select.Item item="90">Last 90 days</Select.Item>
+                    <Select.Item item="365">Last year</Select.Item>
+                  </Select.Content>
+                </Select.Root>
               </Box>
               <Box>
                 <Text fontSize="sm" mb={1} color={mutedText}>
                   Task Filter
                 </Text>
-                <NativeSelect.Root
-                  value={selectedTask}
-                  onValueChange={({ value }) => setSelectedTask(value)}
-                  w="200px"
-                  bg={bgColor}
-                  borderColor={borderColor}
-                >
-                  <NativeSelect.Field>
-                    <option value="all">All Tasks</option>
+                <Select.Root value={selectedTask} onValueChange={({ value }) => setSelectedTask(value)} w="200px">
+                  <Select.Trigger bg={bgColor} borderColor={borderColor}>
+                    <Select.ValueText />
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item item="all">All Tasks</Select.Item>
                     {tasks.map(task => (
-                      <option key={task.id} value={task.id}>
+                      <Select.Item key={task.id} item={task.id}>
                         {task.title}
-                      </option>
+                      </Select.Item>
                     ))}
-                  </NativeSelect.Field>
-                  <NativeSelect.Indicator />
-                </NativeSelect.Root>
+                  </Select.Content>
+                </Select.Root>
               </Box>
             </HStack>
           </Card.Body>
@@ -336,20 +328,20 @@ export const DashboardView = () => {
                               })}
                             </Table.Cell>
                             <Table.Cell>
-                              <NativeSelect.Root
+                              <Select.Root
                                 value="checked"
                                 onValueChange={({ value }) => handleStatusChange(completion, value)}
                                 size="sm"
-                                bg={bgColor}
-                                borderColor={borderColor}
                                 w="120px"
                               >
-                                <NativeSelect.Field>
-                                  <option value="checked">Checked</option>
-                                  <option value="unchecked">Unchecked</option>
-                                </NativeSelect.Field>
-                                <NativeSelect.Indicator />
-                              </NativeSelect.Root>
+                                <Select.Trigger bg={bgColor} borderColor={borderColor}>
+                                  <Select.ValueText />
+                                </Select.Trigger>
+                                <Select.Content>
+                                  <Select.Item item="checked">Checked</Select.Item>
+                                  <Select.Item item="unchecked">Unchecked</Select.Item>
+                                </Select.Content>
+                              </Select.Root>
                             </Table.Cell>
                           </Table.Row>
                         );

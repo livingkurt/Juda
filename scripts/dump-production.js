@@ -13,7 +13,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { sections, tasks, taskCompletions, tags, taskTags } from "../lib/schema.js";
-import { asc } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";

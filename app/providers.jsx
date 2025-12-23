@@ -235,6 +235,24 @@ const system = createSystem(defaultConfig, {
         },
       },
     },
+    slotRecipes: {
+      input: {
+        slots: ["root", "field", "addon"],
+        base: {
+          field: {
+            borderWidth: "1px",
+            borderStyle: "solid",
+            borderColor: { _light: "gray.200", _dark: "gray.600" },
+            borderRadius: "md",
+            _focus: {
+              borderColor: "blue.400",
+              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+              outline: "none",
+            },
+          },
+        },
+      },
+    },
   },
   globalCss: {
     "html, body": {
@@ -249,6 +267,19 @@ const system = createSystem(defaultConfig, {
       maxWidth: "180px !important",
       minHeight: "40px !important",
       maxHeight: "40px !important",
+    },
+    // Select.Trigger border styling
+    "[data-part='trigger']": {
+      borderWidth: "1px !important",
+      borderColor: {
+        _light: "var(--chakra-colors-gray-200) !important",
+        _dark: "var(--chakra-colors-gray-600) !important",
+      },
+    },
+    "[data-part='trigger']:focus, [data-part='trigger']:focus-visible": {
+      borderColor: "var(--chakra-colors-blue-400) !important",
+      boxShadow: "0 0 0 1px var(--chakra-colors-blue-400) !important",
+      outline: "none",
     },
   },
 });

@@ -276,7 +276,7 @@ export const TaskDialog = ({
                     Section
                   </Text>
                   <Select.Root value={sectionId} onValueChange={({ value }) => setSectionId(value)}>
-                    <Select.Trigger borderWidth="1px" borderColor={borderColor} _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)" }}>
+                    <Select.Trigger>
                       <Select.ValueText />
                     </Select.Trigger>
                     <Select.Content>
@@ -339,7 +339,7 @@ export const TaskDialog = ({
                     Duration
                   </Text>
                   <Select.Root value={duration.toString()} onValueChange={({ value }) => setDuration(parseInt(value))}>
-                    <Select.Trigger borderWidth="1px" borderColor={borderColor} _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)" }}>
+                    <Select.Trigger>
                       <Select.ValueText />
                     </Select.Trigger>
                     <Select.Content>
@@ -356,7 +356,7 @@ export const TaskDialog = ({
                     Completion Type
                   </Text>
                   <Select.Root value={completionType} onValueChange={({ value }) => setCompletionType(value)}>
-                    <Select.Trigger borderWidth="1px" borderColor={borderColor} _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)" }}>
+                    <Select.Trigger>
                       <Select.ValueText />
                     </Select.Trigger>
                     <Select.Content>
@@ -370,7 +370,7 @@ export const TaskDialog = ({
                     Recurrence
                   </Text>
                   <Select.Root value={recurrenceType} onValueChange={({ value }) => setRecurrenceType(value)}>
-                    <Select.Trigger borderWidth="1px" borderColor={borderColor} _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)" }}>
+                    <Select.Trigger>
                       <Select.ValueText />
                     </Select.Trigger>
                     <Select.Content>
@@ -385,34 +385,24 @@ export const TaskDialog = ({
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
                     Tags
                   </Text>
-                  <Box
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                    borderRadius="md"
-                    p={3}
-                    minH="48px"
-                  >
-                    <HStack
-                      spacing={2}
-                      flexWrap="wrap"
-                      align="center"
-                    >
-                    {/* Tags */}
-                    {tags
-                      .filter(t => selectedTagIds.includes(t.id))
-                      .map(tag => (
-                        <Tag.Root
-                          key={tag.id}
-                          size="sm"
-                          borderRadius="full"
-                          variant="solid"
-                          bg={tag.color}
-                          color="white"
-                          fontSize="xs"
-                        >
-                          <Tag.Label>{tag.name}</Tag.Label>
-                        </Tag.Root>
-                      ))}
+                  <Box borderWidth="1px" borderColor={borderColor} borderRadius="md" p={3} minH="48px">
+                    <HStack spacing={2} flexWrap="wrap" align="center">
+                      {/* Tags */}
+                      {tags
+                        .filter(t => selectedTagIds.includes(t.id))
+                        .map(tag => (
+                          <Tag.Root
+                            key={tag.id}
+                            size="sm"
+                            borderRadius="full"
+                            variant="solid"
+                            bg={tag.color}
+                            color="white"
+                            fontSize="xs"
+                          >
+                            <Tag.Label>{tag.name}</Tag.Label>
+                          </Tag.Root>
+                        ))}
                       {/* Add Tag button */}
                       <TagSelector
                         tags={tags}
@@ -512,11 +502,6 @@ export const TaskDialog = ({
                           onChange={e => setNewSubtask(e.target.value)}
                           placeholder="Create new subtask"
                           size="sm"
-                          borderColor={borderColor}
-                          _focus={{
-                            borderColor: "blue.400",
-                            boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                          }}
                           onKeyDown={e => {
                             if (e.key === "Enter" && newSubtask.trim()) {
                               e.preventDefault();
@@ -578,11 +563,6 @@ export const TaskDialog = ({
                             onChange={e => setSearchQuery(e.target.value)}
                             placeholder="Search for tasks to add as subtasks..."
                             size="sm"
-                            borderColor={borderColor}
-                            _focus={{
-                              borderColor: "blue.400",
-                              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                            }}
                           />
                         </HStack>
                         {searchQuery.trim() && (
@@ -664,11 +644,6 @@ export const TaskDialog = ({
                               value={subtaskTitle}
                               onChange={e => setSubtaskTitle(e.target.value)}
                               placeholder="Subtask title"
-                              borderColor={borderColor}
-                              _focus={{
-                                borderColor: "blue.400",
-                                boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                              }}
                             />
                           </Box>
                           <Box w="full">
@@ -702,19 +677,17 @@ export const TaskDialog = ({
                                 value={subtaskTime}
                                 onChange={e => setSubtaskTime(e.target.value)}
                                 placeholder="Optional"
-                                borderColor={borderColor}
-                                _focus={{
-                                  borderColor: "blue.400",
-                                  boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                                }}
                               />
                             </Box>
                             <Box>
                               <Text fontSize="sm" fontWeight="medium" mb={1}>
                                 Duration
                               </Text>
-                              <Select.Root value={subtaskDuration.toString()} onValueChange={({ value }) => setSubtaskDuration(parseInt(value))}>
-                                <Select.Trigger borderWidth="1px" borderColor={borderColor} _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)" }}>
+                              <Select.Root
+                                value={subtaskDuration.toString()}
+                                onValueChange={({ value }) => setSubtaskDuration(parseInt(value))}
+                              >
+                                <Select.Trigger>
                                   <Select.ValueText />
                                 </Select.Trigger>
                                 <Select.Content>
