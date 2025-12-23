@@ -74,9 +74,9 @@ export const PageSkeleton = ({ showBacklog = true, showDashboard = true, showCal
   return (
     <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg="gray.900" suppressHydrationWarning>
       {/* Main content */}
-      <Flex as="main" flex={1} align="center" justify="center" direction="column" gap={4}>
+      <Flex as="main" flex={1} align="center" justify="center" direction="column" gap={4} suppressHydrationWarning>
         <LoadingSpinner size="xl" />
-        <Box color="gray.400" fontSize="sm" fontWeight="medium">
+        <Box color="gray.400" fontSize="sm" fontWeight="medium" suppressHydrationWarning>
           Loading...
         </Box>
       </Flex>

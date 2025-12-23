@@ -46,7 +46,22 @@ export const useCompletions = () => {
     [authFetch, isAuthenticated]
   );
 
-  const createCompletion = async (taskId, date, outcome = "completed") => {
+  const createCompletion = async (taskId, date, options = {}) => {
+    // Support both old signature (outcome as third param) and new signature (options object)
+    let outcome = "completed";
+    let note = null;
+    let skipped = false;
+
+    if (typeof options === "string") {
+      // Old signature: createCompletion(taskId, date, outcome)
+      outcome = options;
+    } else {
+      // New signature: createCompletion(taskId, date, { outcome, note, skipped })
+      outcome = options.outcome || "completed";
+      note = options.note || null;
+      skipped = options.skipped || false;
+    }
+
     // Validate outcome
     if (!["completed", "skipped"].includes(outcome)) {
       throw new Error("Invalid outcome value");
@@ -64,6 +79,8 @@ export const useCompletions = () => {
       taskId,
       date: utcDate.toISOString(),
       outcome,
+      note,
+      skipped,
       createdAt: new Date().toISOString(),
     };
 
@@ -77,7 +94,11 @@ export const useCompletions = () => {
     });
 
     if (existingIndex >= 0) {
-      setCompletions(prev => prev.map((c, i) => (i === existingIndex ? { ...c, outcome } : c)));
+      setCompletions(prev =>
+        prev.map((c, i) =>
+          i === existingIndex ? { ...c, outcome, note, skipped } : c
+        )
+      );
     } else {
       setCompletions(prev => [...prev, optimisticCompletion]);
     }
@@ -85,7 +106,7 @@ export const useCompletions = () => {
     try {
       const response = await authFetch("/api/completions", {
         method: "POST",
-        body: JSON.stringify({ taskId, date: utcDate.toISOString(), outcome }),
+        body: JSON.stringify({ taskId, date: utcDate.toISOString(), outcome, note, skipped }),
       });
       if (!response.ok) throw new Error("Failed to create completion");
       const newCompletion = await response.json();
@@ -111,6 +132,80 @@ export const useCompletions = () => {
       throw err;
     }
   };
+
+  const updateCompletionNote = async (taskId, date, note) => {
+    // Normalize date for consistent comparison - use UTC to avoid timezone issues
+    const completionDate = date ? new Date(date) : new Date();
+    const utcDate = new Date(
+      Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
+    );
+
+    // Optimistic update
+    const previousCompletions = [...completions];
+    const existingIndex = completions.findIndex(c => {
+      const cDate = new Date(c.date);
+      const cUtcDate = new Date(Date.UTC(cDate.getUTCFullYear(), cDate.getUTCMonth(), cDate.getUTCDate(), 0, 0, 0, 0));
+      return c.taskId === taskId && cUtcDate.getTime() === utcDate.getTime();
+    });
+
+    if (existingIndex >= 0) {
+      setCompletions(prev => prev.map((c, i) => (i === existingIndex ? { ...c, note } : c)));
+    }
+
+    try {
+      const response = await authFetch("/api/completions", {
+        method: "PUT",
+        body: JSON.stringify({ taskId, date: utcDate.toISOString(), note }),
+      });
+      if (!response.ok) throw new Error("Failed to update completion note");
+      const updatedCompletion = await response.json();
+
+      // Replace optimistic with real completion
+      setCompletions(prev => {
+        const filtered = prev.filter(c => {
+          const cDate = new Date(c.date);
+          const cUtcDate = new Date(
+            Date.UTC(cDate.getUTCFullYear(), cDate.getUTCMonth(), cDate.getUTCDate(), 0, 0, 0, 0)
+          );
+          return !(c.taskId === taskId && cUtcDate.getTime() === utcDate.getTime());
+        });
+        return [...filtered, updatedCompletion];
+      });
+
+      return updatedCompletion;
+    } catch (err) {
+      // Rollback on error
+      setCompletions(previousCompletions);
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // Get the full completion object for a task on a specific date
+  const getCompletionForDate = useCallback(
+    (taskId, date) => {
+      const checkDate = new Date(date);
+      const utcCheckDate = new Date(
+        Date.UTC(checkDate.getUTCFullYear(), checkDate.getUTCMonth(), checkDate.getUTCDate(), 0, 0, 0, 0)
+      );
+      return completions.find(c => {
+        const completionDate = new Date(c.date);
+        const utcCompletionDate = new Date(
+          Date.UTC(
+            completionDate.getUTCFullYear(),
+            completionDate.getUTCMonth(),
+            completionDate.getUTCDate(),
+            0,
+            0,
+            0,
+            0
+          )
+        );
+        return c.taskId === taskId && utcCompletionDate.getTime() === utcCheckDate.getTime();
+      });
+    },
+    [completions]
+  );
 
   const deleteCompletion = async (taskId, date) => {
     // Normalize date for consistent comparison - use UTC to avoid timezone issues
@@ -342,11 +437,13 @@ export const useCompletions = () => {
     fetchCompletions,
     createCompletion,
     deleteCompletion,
+    updateCompletionNote,
     batchCreateCompletions,
     batchDeleteCompletions,
     isCompletedOnDate,
     hasRecordOnDate,
     getOutcomeOnDate,
+    getCompletionForDate,
     refetch: fetchCompletions,
   };
 };

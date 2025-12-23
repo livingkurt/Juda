@@ -146,6 +146,7 @@ export default function DailyTasksApp() {
     isCompletedOnDate,
     hasRecordOnDate,
     getOutcomeOnDate,
+    getCompletionForDate,
     fetchCompletions,
   } = useCompletions();
   const { tags, createTag, deleteTag } = useTags();
@@ -633,12 +634,19 @@ export default function DailyTasksApp() {
   const handleOutcomeChange = async (taskId, date, outcome) => {
     try {
       const dateObj = date instanceof Date ? date : new Date(date);
+      const task = tasks.find(t => t.id === taskId);
+
       if (outcome === null) {
         // Remove record
         await deleteCompletion(taskId, dateObj.toISOString());
         // If hiding completed tasks, remove from recently completed set immediately when unchecked
         if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
           removeFromRecentlyCompleted(taskId);
+        }
+
+        // If task has subtasks, also uncheck them
+        if (task?.subtasks && task.subtasks.length > 0) {
+          await Promise.all(task.subtasks.map(subtask => deleteCompletion(subtask.id, dateObj.toISOString())));
         }
       } else {
         // If marking as completed and hiding completed tasks, add to recently completed set
@@ -647,7 +655,14 @@ export default function DailyTasksApp() {
         }
         // Create or update record with outcome
         try {
-          await createCompletion(taskId, dateObj.toISOString(), outcome);
+          await createCompletion(taskId, dateObj.toISOString(), { outcome });
+
+          // If task has subtasks, also mark them with the same outcome
+          if (task?.subtasks && task.subtasks.length > 0) {
+            await Promise.all(
+              task.subtasks.map(subtask => createCompletion(subtask.id, dateObj.toISOString(), { outcome }))
+            );
+          }
         } catch (completionError) {
           // If completion creation fails, remove from recently completed set
           if (outcome === "completed" && !showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
@@ -659,6 +674,42 @@ export default function DailyTasksApp() {
     } catch (error) {
       toast({
         title: "Failed to update task",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleCompleteWithNote = async (taskId, note) => {
+    try {
+      const targetDate = todayViewDate || today;
+      await createCompletion(taskId, targetDate.toISOString(), { note, outcome: "completed" });
+      // If hiding completed tasks, add to recently completed set
+      if (!showCompletedTasks) {
+        addToRecentlyCompleted(taskId);
+      }
+    } catch (error) {
+      console.error("Error completing task with note:", error);
+      toast({
+        title: "Failed to complete task",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleSkipTask = async taskId => {
+    try {
+      const targetDate = todayViewDate || today;
+      await createCompletion(taskId, targetDate.toISOString(), { skipped: true, outcome: "skipped" });
+    } catch (error) {
+      console.error("Error skipping task:", error);
+      toast({
+        title: "Failed to skip task",
         description: error.message,
         status: "error",
         duration: 3000,
@@ -1714,6 +1765,9 @@ export default function DailyTasksApp() {
                       onOutcomeChange={handleOutcomeChange}
                       getOutcomeOnDate={getOutcomeOnDate}
                       hasRecordOnDate={hasRecordOnDate}
+                      onCompleteWithNote={handleCompleteWithNote}
+                      onSkipTask={handleSkipTask}
+                      getCompletionForDate={getCompletionForDate}
                     />
                   )}
                   {/* Resize handle */}
@@ -1853,10 +1907,13 @@ export default function DailyTasksApp() {
                               onToggleSectionExpand={handleToggleSectionExpand}
                               createDroppableId={createDroppableId}
                               createDraggableId={createDraggableId}
-                              viewDate={viewDate}
+                              viewDate={todayViewDate || today}
                               onOutcomeChange={handleOutcomeChange}
                               getOutcomeOnDate={getOutcomeOnDate}
                               hasRecordOnDate={hasRecordOnDate}
+                              onCompleteWithNote={handleCompleteWithNote}
+                              onSkipTask={handleSkipTask}
+                              getCompletionForDate={getCompletionForDate}
                             />
                           </Box>
                         </>

@@ -59,6 +59,7 @@ export const TaskDialog = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [subtaskTabIndex, setSubtaskTabIndex] = useState(0);
   const [activeSubtaskId, setActiveSubtaskId] = useState(null);
+  const [completionType, setCompletionType] = useState("checkbox");
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -93,6 +94,7 @@ export const TaskDialog = ({
       setSubtasks(sortedSubtasks);
       setColor(task.color || "#3b82f6");
       setSelectedTagIds(task.tags?.map(t => t.id) || []);
+      setCompletionType(task.completionType || "checkbox");
     } else {
       setTitle("");
       setSectionId(defaultSectionId || sections[0]?.id || "");
@@ -104,6 +106,7 @@ export const TaskDialog = ({
       setSubtasks([]);
       setColor("#3b82f6");
       setSelectedTagIds([]);
+      setCompletionType("checkbox");
     }
   }, [task, isOpen, sections, defaultSectionId, defaultTime, defaultDate]);
 
@@ -146,6 +149,7 @@ export const TaskDialog = ({
       color,
       order: task?.order ?? 999,
       tagIds: selectedTagIds,
+      completionType,
     });
     onClose();
   };
@@ -323,6 +327,18 @@ export const TaskDialog = ({
                           {d.label}
                         </option>
                       ))}
+                    </NativeSelect.Field>
+                    <NativeSelect.Indicator />
+                  </NativeSelect.Root>
+                </Box>
+                <Box w="full">
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Completion Type
+                  </Text>
+                  <NativeSelect.Root value={completionType}>
+                    <NativeSelect.Field onChange={e => setCompletionType(e.target.value)}>
+                      <option value="checkbox">Checkbox</option>
+                      <option value="text">Text Input</option>
                     </NativeSelect.Field>
                     <NativeSelect.Indicator />
                   </NativeSelect.Root>

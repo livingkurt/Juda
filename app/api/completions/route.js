@@ -57,7 +57,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { taskId, date, outcome = "completed" } = body;
+    const { taskId, date, outcome = "completed", note, skipped = false } = body;
 
     if (!taskId) {
       return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
@@ -89,21 +89,27 @@ export async function POST(request) {
     });
 
     if (existing) {
-      // Update existing record with new outcome
+      // Update existing record with new outcome, note, and skipped
+      const updateData = { outcome };
+      if (note !== undefined) updateData.note = note || null;
+      if (skipped !== undefined) updateData.skipped = skipped;
       const [updated] = await db
         .update(taskCompletions)
-        .set({ outcome })
+        .set(updateData)
         .where(eq(taskCompletions.id, existing.id))
         .returning();
       return NextResponse.json(updated);
     }
 
+    // Create new completion
     const [completion] = await db
       .insert(taskCompletions)
       .values({
         taskId,
         date: utcDate,
         outcome,
+        note: note || null,
+        skipped: skipped || false,
       })
       .returning();
 
@@ -156,6 +162,70 @@ export async function DELETE(request) {
   } catch (error) {
     console.error("Error deleting completion:", error);
     return NextResponse.json({ error: "Failed to delete completion" }, { status: 500 });
+  }
+}
+
+// PUT - Update a completion record (including note)
+export async function PUT(request) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) return unauthorizedResponse();
+
+  try {
+    const body = await request.json();
+    const { taskId, date, note, skipped } = body;
+
+    if (!taskId || !date) {
+      return NextResponse.json({ error: "Task ID and date are required" }, { status: 400 });
+    }
+
+    // Verify task belongs to user
+    const task = await db.query.tasks.findFirst({
+      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+    });
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    const completionDate = new Date(date);
+    const utcDate = new Date(
+      Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
+    );
+
+    // Find existing completion
+    const existing = await db.query.taskCompletions.findFirst({
+      where: and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)),
+    });
+
+    const updateData = {};
+    if (note !== undefined) updateData.note = note;
+    if (skipped !== undefined) updateData.skipped = skipped;
+
+    if (existing) {
+      // Update existing record
+      const [updated] = await db
+        .update(taskCompletions)
+        .set(updateData)
+        .where(eq(taskCompletions.id, existing.id))
+        .returning();
+      return NextResponse.json(updated);
+    } else {
+      // Create new record if doesn't exist
+      const [created] = await db
+        .insert(taskCompletions)
+        .values({
+          taskId,
+          date: utcDate,
+          outcome: "completed",
+          note: note || null,
+          skipped: skipped || false,
+        })
+        .returning();
+      return NextResponse.json(created, { status: 201 });
+    }
+  } catch (error) {
+    console.error("Error updating completion:", error);
+    return NextResponse.json({ error: "Failed to update completion" }, { status: 500 });
   }
 }
 

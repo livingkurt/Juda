@@ -29,6 +29,9 @@ export const BacklogDrawer = ({
   onOutcomeChange,
   getOutcomeOnDate,
   hasRecordOnDate,
+  onCompleteWithNote,
+  onSkipTask,
+  getCompletionForDate,
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -176,6 +179,9 @@ export const BacklogDrawer = ({
                     onOutcomeChange={onOutcomeChange}
                     getOutcomeOnDate={getOutcomeOnDate}
                     hasRecordOnDate={hasRecordOnDate}
+                    onCompleteWithNote={onCompleteWithNote}
+                    onSkipTask={onSkipTask}
+                    getCompletionForDate={getCompletionForDate}
                   />
                 ))}
               </VStack>

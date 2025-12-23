@@ -45,6 +45,9 @@ export const TaskItem = ({
   onOutcomeChange, // Handler for outcome changes
   getOutcomeOnDate, // Function to get outcome for a task on a date
   hasRecordOnDate, // Function to check if task has any record on a date
+  onCompleteWithNote, // (taskId, note) => void - for text completion
+  onSkipTask: _onSkipTask, // (taskId) => void - for skipping text tasks (unused, kept for API compatibility)
+  getCompletionForDate, // (taskId, date) => completion object
 }) => {
   // Normalize prop names - support both naming conventions
   const handleEdit = onEdit || onEditTask;
@@ -69,6 +72,8 @@ export const TaskItem = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(task.title);
   const titleInputRef = useRef(null);
+  const [noteInput, setNoteInput] = useState("");
+  const noteInputRef = useRef(null);
 
   useEffect(() => {
     setEditedTitle(task.title);
@@ -115,6 +120,31 @@ export const TaskItem = ({
   const allSubtasksComplete = task.subtasks && task.subtasks.length > 0 && task.subtasks.every(st => st.completed);
   // For subtasks, just check their own completion status. For parent tasks, check if all subtasks are complete too.
   const isChecked = isSubtask ? task.completed : task.completed || allSubtasksComplete;
+
+  // Get existing completion data for text-type tasks
+  const existingCompletion = getCompletionForDate?.(task.id, viewDate);
+  const isTextTask = task.completionType === "text";
+  const isSkipped = existingCompletion?.skipped || false;
+  const savedNote = existingCompletion?.note || "";
+  // For text tasks, completion status comes from the completion record, not task.completed
+  const isTextTaskCompleted =
+    isTextTask &&
+    (existingCompletion?.outcome === "completed" ||
+      (existingCompletion && !existingCompletion.skipped && existingCompletion.note));
+
+  // Initialize noteInput from saved note - update whenever savedNote or existingCompletion changes
+  useEffect(() => {
+    if (isTextTask && viewDate) {
+      const currentNote = existingCompletion?.note || "";
+      // Only update if different to avoid unnecessary re-renders
+      if (currentNote !== noteInput) {
+        setNoteInput(currentNote);
+      }
+    } else if (!isTextTask) {
+      setNoteInput("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTextTask, existingCompletion?.note, viewDate]);
 
   // Get outcome for today view tasks, subtasks, and backlog items
   const outcome =
@@ -237,122 +267,132 @@ export const TaskItem = ({
 
           {/* Checkbox with outcome states */}
           <Box position="relative">
-            <Menu.Root
-              open={outcomeMenuOpen}
-              onOpenChange={({ open }) => setOutcomeMenuOpen(open)}
-              isLazy
-              placement="right-start"
-              closeOnSelect
-            >
-              <Menu.Trigger asChild>
-                <Box as="span" display="inline-block">
-                  <Checkbox.Root
-                    checked={outcome === "completed" || (outcome === null && isChecked)}
-                    size="lg"
-                    onCheckedChange={() => {
-                      // If overdue OR has outcome set, prevent default toggle
-                      if (shouldShowMenu) {
-                        // Don't toggle, menu will be opened by onClick handler
-                        return;
+            {/* Checkbox for all tasks (including text-type and subtasks) */}
+            {(isToday || isBacklog || isSubtask) && (
+              <Menu.Root
+                open={outcomeMenuOpen}
+                onOpenChange={({ open }) => setOutcomeMenuOpen(open)}
+                isLazy
+                placement="right-start"
+                closeOnSelect
+              >
+                <Menu.Trigger asChild>
+                  <Box as="span" display="inline-block">
+                    <Checkbox.Root
+                      checked={
+                        isTextTask ? isTextTaskCompleted : outcome === "completed" || (outcome === null && isChecked)
                       }
-                      // Normal toggle behavior
-                      if (isSubtask) {
-                        onToggle?.(parentTaskId, task.id);
-                      } else {
-                        onToggle?.(task.id);
-                      }
-                    }}
-                    onClick={e => {
-                      e.stopPropagation();
-                      // If overdue OR has outcome set, open menu instead of toggling
-                      if (shouldShowMenu) {
-                        e.preventDefault();
+                      size="lg"
+                      onCheckedChange={() => {
+                        // For text tasks, complete when checkbox is checked
+                        if (isTextTask && !isTextTaskCompleted && noteInput.trim()) {
+                          onCompleteWithNote?.(task.id, noteInput.trim());
+                          return;
+                        }
+                        // If overdue OR has outcome set, prevent default toggle
+                        if (shouldShowMenu) {
+                          // Don't toggle, menu will be opened by onClick handler
+                          return;
+                        }
+                        // Normal toggle behavior
+                        if (isSubtask) {
+                          onToggle?.(parentTaskId, task.id);
+                        } else {
+                          onToggle?.(task.id);
+                        }
+                      }}
+                      onClick={e => {
                         e.stopPropagation();
-                        menuJustOpenedRef.current = true;
-                        setOutcomeMenuOpen(true);
-                      }
-                    }}
-                    onMouseDown={e => {
-                      e.stopPropagation();
-                      // Prevent default checkbox behavior when we want to show menu
-                      if (shouldShowMenu) {
-                        e.preventDefault();
+                        // If overdue OR has outcome set, open menu instead of toggling
+                        if (shouldShowMenu) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          menuJustOpenedRef.current = true;
+                          setOutcomeMenuOpen(true);
+                        }
+                      }}
+                      onMouseDown={e => {
                         e.stopPropagation();
-                      }
-                    }}
-                    onPointerDown={e => e.stopPropagation()}
-                  >
-                    <Checkbox.HiddenInput />
-                    <Checkbox.Control bg={outcome === "skipped" ? "white" : undefined}>
-                      {outcome === "completed" ? (
-                        <Checkbox.Indicator>
-                          <Check size={16} />
-                        </Checkbox.Indicator>
-                      ) : outcome === "skipped" ? (
-                        <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
-                          <Box as="span" color="gray.700">
-                            <SkipForward size={16} stroke="currentColor" />
+                        // Prevent default checkbox behavior when we want to show menu
+                        if (shouldShowMenu) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }
+                      }}
+                      onPointerDown={e => e.stopPropagation()}
+                    >
+                      <Checkbox.HiddenInput />
+                      <Checkbox.Control bg={outcome === "skipped" ? "white" : undefined}>
+                        {outcome === "completed" || isTextTaskCompleted ? (
+                          <Checkbox.Indicator>
+                            <Check size={16} />
+                          </Checkbox.Indicator>
+                        ) : outcome === "skipped" ? (
+                          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
+                            <Box as="span" color="gray.700">
+                              <SkipForward size={16} stroke="currentColor" />
+                            </Box>
                           </Box>
-                        </Box>
-                      ) : (
-                        <Checkbox.Indicator />
+                        ) : (
+                          <Checkbox.Indicator />
+                        )}
+                      </Checkbox.Control>
+                    </Checkbox.Root>
+                  </Box>
+                </Menu.Trigger>
+                {shouldShowMenu && (
+                  <Menu.Positioner>
+                    <Menu.Content onClick={e => e.stopPropagation()}>
+                      {/* Only show Uncheck if task has an outcome */}
+                      {outcome !== null && (
+                        <>
+                          <Menu.Item
+                            onClick={e => {
+                              e.stopPropagation();
+                              onOutcomeChange(task.id, viewDate, null);
+                            }}
+                          >
+                            <HStack>
+                              <Circle size={16} />
+                              <Text>Uncheck</Text>
+                            </HStack>
+                          </Menu.Item>
+                          <Menu.Separator />
+                        </>
                       )}
-                    </Checkbox.Control>
-                  </Checkbox.Root>
-                </Box>
-              </Menu.Trigger>
-              {shouldShowMenu && (
-                <Menu.Positioner>
-                  <Menu.Content onClick={e => e.stopPropagation()}>
-                    {/* Only show Uncheck if task has an outcome */}
-                    {outcome !== null && (
-                      <>
+                      {/* Only show Completed if not already completed */}
+                      {outcome !== "completed" && (
                         <Menu.Item
                           onClick={e => {
                             e.stopPropagation();
-                            onOutcomeChange(task.id, viewDate, null);
+                            onOutcomeChange(task.id, viewDate, "completed");
                           }}
                         >
                           <HStack>
-                            <Circle size={16} />
-                            <Text>Uncheck</Text>
+                            <Check size={16} />
+                            <Text>Completed</Text>
                           </HStack>
                         </Menu.Item>
-                        <Menu.Separator />
-                      </>
-                    )}
-                    {/* Only show Completed if not already completed */}
-                    {outcome !== "completed" && (
-                      <Menu.Item
-                        onClick={e => {
-                          e.stopPropagation();
-                          onOutcomeChange(task.id, viewDate, "completed");
-                        }}
-                      >
-                        <HStack>
-                          <Check size={16} />
-                          <Text>Completed</Text>
-                        </HStack>
-                      </Menu.Item>
-                    )}
-                    {/* Only show Skipped if not already skipped */}
-                    {outcome !== "skipped" && (
-                      <Menu.Item
-                        onClick={e => {
-                          e.stopPropagation();
-                          onOutcomeChange(task.id, viewDate, "skipped");
-                        }}
-                      >
-                        <HStack>
-                          <SkipForward size={16} />
-                          <Text>Skipped</Text>
-                        </HStack>
-                      </Menu.Item>
-                    )}
-                  </Menu.Content>
-                </Menu.Positioner>
-              )}
-            </Menu.Root>
+                      )}
+                      {/* Only show Skipped if not already skipped */}
+                      {outcome !== "skipped" && (
+                        <Menu.Item
+                          onClick={e => {
+                            e.stopPropagation();
+                            onOutcomeChange(task.id, viewDate, "skipped");
+                          }}
+                        >
+                          <HStack>
+                            <SkipForward size={16} />
+                            <Text>Skipped</Text>
+                          </HStack>
+                        </Menu.Item>
+                      )}
+                    </Menu.Content>
+                  </Menu.Positioner>
+                )}
+              </Menu.Root>
+            )}
           </Box>
           {/* Color indicator */}
           {/* <Box w={3} h={3} borderRadius="full" bg={task.color || "#3b82f6"} flexShrink={0} /> */}
@@ -405,6 +445,55 @@ export const TaskItem = ({
                 </Text>
               )}
             </Flex>
+            {/* Text Input for text-type tasks */}
+            {isTextTask && (isToday || isBacklog) && (
+              <Box w="full" mt={2}>
+                <Input
+                  ref={noteInputRef}
+                  value={noteInput}
+                  onChange={e => setNoteInput(e.target.value)}
+                  placeholder="Enter response to complete..."
+                  size="sm"
+                  variant="filled"
+                  disabled={isSkipped}
+                  onClick={e => e.stopPropagation()}
+                  onMouseDown={e => e.stopPropagation()}
+                  onBlur={() => {
+                    // Save on blur if note has content
+                    if (noteInput.trim() && noteInput.trim() !== savedNote) {
+                      onCompleteWithNote?.(task.id, noteInput.trim());
+                    } else if (!noteInput.trim() && savedNote) {
+                      // If cleared, reset to saved note
+                      setNoteInput(savedNote);
+                    }
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (noteInput.trim()) {
+                        onCompleteWithNote?.(task.id, noteInput.trim());
+                        noteInputRef.current?.blur();
+                      }
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      // Reset to saved note if editing was cancelled
+                      setNoteInput(savedNote);
+                      noteInputRef.current?.blur();
+                    }
+                    e.stopPropagation();
+                  }}
+                  bg={isSkipped ? "gray.100" : undefined}
+                  _dark={{
+                    bg: isSkipped ? "gray.700" : undefined,
+                  }}
+                />
+                {isSkipped && (
+                  <Text fontSize="xs" color="gray.500" mt={1}>
+                    Skipped
+                  </Text>
+                )}
+              </Box>
+            )}
             {/* Badges - show for backlog and today variants */}
             {(isBacklog || isToday) && (
               <HStack spacing={2} mt={1} align="center" flexWrap="wrap">

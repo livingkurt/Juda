@@ -31,6 +31,9 @@ export const Section = ({
   onOutcomeChange,
   getOutcomeOnDate,
   hasRecordOnDate,
+  onCompleteWithNote,
+  onSkipTask,
+  getCompletionForDate,
 }) => {
   const dropHighlight = useColorModeValue("gray.50", "gray.800");
 
@@ -68,6 +71,9 @@ export const Section = ({
             onOutcomeChange={onOutcomeChange}
             getOutcomeOnDate={getOutcomeOnDate}
             hasRecordOnDate={hasRecordOnDate}
+            onCompleteWithNote={onCompleteWithNote}
+            onSkipTask={onSkipTask}
+            getCompletionForDate={getCompletionForDate}
           />
         ))}
         <Button variant="outline" onClick={onAddSection} w="full" py={6} borderStyle="dashed" mt={4}>

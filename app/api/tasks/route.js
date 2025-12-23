@@ -41,7 +41,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { title, sectionId, parentId, time, duration, color, recurrence, order } = body;
+    const { title, sectionId, parentId, time, duration, color, recurrence, order, completionType } = body;
 
     // Verify the section belongs to this user
     const section = await db.query.sections.findFirst({
@@ -64,6 +64,7 @@ export async function POST(request) {
         color: color ?? "#3b82f6",
         recurrence: recurrence || null,
         order: order ?? 0,
+        completionType: completionType || "checkbox",
       })
       .returning();
 
@@ -80,7 +81,7 @@ export async function PUT(request) {
 
   try {
     const body = await request.json();
-    const { id, title, sectionId, parentId, time, duration, color, recurrence, expanded, order, status } = body;
+    const { id, title, sectionId, parentId, time, duration, color, recurrence, expanded, order, status, completionType } = body;
 
     // Validate required fields
     if (!id) {
@@ -124,6 +125,12 @@ export async function PUT(request) {
         return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
       }
       updateData.status = status;
+    }
+    if (completionType !== undefined) {
+      if (!["checkbox", "text"].includes(completionType)) {
+        return NextResponse.json({ error: "Invalid completionType value" }, { status: 400 });
+      }
+      updateData.completionType = completionType;
     }
 
     // Ensure we have at least one field to update
