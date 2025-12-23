@@ -208,9 +208,27 @@ export default function DailyTasksApp() {
 
   const isLoading = tasksLoading || sectionsLoading || !prefsInitialized;
 
+  // Detect mobile vs desktop - use client-side only to avoid SSR issues
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   // Initialize state with default values (same on server and client)
   const [mainTabIndex, setMainTabIndex] = useState(0); // 0 = Tasks, 1 = History
   const [isResizing, setIsResizing] = useState(false);
+  // Mobile-specific state: which view is currently active
+  // "backlog" | "today" | "calendar"
+  const [mobileActiveView, setMobileActiveView] = useState("today");
+
+  // Determine if we should show mobile layout
+  const showMobileLayout = isMobile && mainTabIndex === 0;
   // Initialize selectedDate to null, then set it in useEffect to avoid hydration mismatch
   const [selectedDate, setSelectedDate] = useState(null);
   // Initialize todayViewDate to null, then set it in useEffect to avoid hydration mismatch
@@ -1662,8 +1680,8 @@ export default function DailyTasksApp() {
             </Tabs.Root>
           </Box>
 
-          {/* View toggles and calendar nav - only show in Tasks tab */}
-          {mainTabIndex === 0 && (
+          {/* View toggles and calendar nav - only show in Tasks tab, hide on mobile */}
+          {mainTabIndex === 0 && !isMobile && (
             <Box mt={4}>
               <Flex align="center" justify="space-between" mb={3}>
                 <HStack spacing={2}>
@@ -1765,50 +1783,194 @@ export default function DailyTasksApp() {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEndNew}
       >
-        <Box as="main" flex={1} overflow={{ base: "visible", md: "hidden" }} display="flex">
-          {/* Backlog Sidebar - only show on Tasks tab */}
-          {mainTabIndex === 0 && (
-            <Box
-              w={
-                backlogOpen
-                  ? {
-                      base: "100vw",
-                      md: `${backlogWidth}px`,
-                    }
-                  : "0"
-              }
-              h="100%"
-              transition={isResizing ? "none" : "width 0.3s"}
-              overflow="hidden"
-              borderRightWidth={backlogOpen ? { base: "0", md: "1px" } : "0"}
-              borderColor={borderColor}
-              bg={bgColor}
-              flexShrink={0}
-              display="flex"
-              flexDirection="column"
-              position="relative"
-            >
-              {backlogOpen && (
-                <>
-                  {isLoading ? (
-                    <BacklogSkeleton />
-                  ) : (
-                    <BacklogDrawer
-                      onClose={() => setBacklogOpen(false)}
-                      backlogTasks={backlogTasks}
-                      sections={sections}
-                      onDeleteTask={handleDeleteTask}
+        <Box as="main" flex={1} overflow={{ base: "visible", md: "hidden" }} display="flex" flexDirection="column">
+          {showMobileLayout ? (
+            /* ========== MOBILE LAYOUT ========== */
+            <>
+              {/* Mobile Tab Bar - Fixed at top, below header */}
+              <Box display="flex" borderBottomWidth="1px" borderColor={borderColor} bg={headerBg} flexShrink={0}>
+                <Button
+                  flex={1}
+                  variant="ghost"
+                  borderRadius={0}
+                  borderBottomWidth={mobileActiveView === "backlog" ? "2px" : "0"}
+                  borderBottomColor="blue.500"
+                  color={mobileActiveView === "backlog" ? "blue.500" : textColor}
+                  onClick={() => setMobileActiveView("backlog")}
+                  py={3}
+                  position="relative"
+                >
+                  <HStack spacing={2}>
+                    <List size={18} />
+                    <Text>Backlog</Text>
+                    {backlogTasks.length > 0 && (
+                      <Badge colorPalette="red" borderRadius="full" fontSize="xs">
+                        {backlogTasks.length}
+                      </Badge>
+                    )}
+                  </HStack>
+                </Button>
+                <Button
+                  flex={1}
+                  variant="ghost"
+                  borderRadius={0}
+                  borderBottomWidth={mobileActiveView === "today" ? "2px" : "0"}
+                  borderBottomColor="blue.500"
+                  color={mobileActiveView === "today" ? "blue.500" : textColor}
+                  onClick={() => setMobileActiveView("today")}
+                  py={3}
+                >
+                  <HStack spacing={2}>
+                    <LayoutDashboard size={18} />
+                    <Text>Today</Text>
+                  </HStack>
+                </Button>
+                <Button
+                  flex={1}
+                  variant="ghost"
+                  borderRadius={0}
+                  borderBottomWidth={mobileActiveView === "calendar" ? "2px" : "0"}
+                  borderBottomColor="blue.500"
+                  color={mobileActiveView === "calendar" ? "blue.500" : textColor}
+                  onClick={() => setMobileActiveView("calendar")}
+                  py={3}
+                >
+                  <HStack spacing={2}>
+                    <Calendar size={18} />
+                    <Text>Calendar</Text>
+                  </HStack>
+                </Button>
+              </Box>
+
+              {/* Mobile Content Area - Full screen for active view */}
+              <Box flex={1} overflow="hidden">
+                {mobileActiveView === "backlog" && (
+                  <Box h="100%" overflow="auto">
+                    {isLoading ? (
+                      <BacklogSkeleton />
+                    ) : (
+                      <BacklogDrawer
+                        onClose={() => setMobileActiveView("today")}
+                        backlogTasks={backlogTasks}
+                        sections={sections}
+                        onDeleteTask={handleDeleteTask}
+                        onEditTask={handleEditTask}
+                        onUpdateTaskTitle={handleUpdateTaskTitle}
+                        onDuplicateTask={handleDuplicateTask}
+                        onAddTask={handleAddTaskToBacklog}
+                        onToggleExpand={handleToggleExpand}
+                        onToggleSubtask={handleToggleSubtask}
+                        onToggleTask={handleToggleTask}
+                        createDraggableId={createDraggableId}
+                        viewDate={today}
+                        tags={tags}
+                        onCreateTag={createTag}
+                        onOutcomeChange={handleOutcomeChange}
+                        getOutcomeOnDate={getOutcomeOnDate}
+                        hasRecordOnDate={hasRecordOnDate}
+                        onCompleteWithNote={handleCompleteWithNote}
+                        onSkipTask={handleSkipTask}
+                        getCompletionForDate={getCompletionForDate}
+                      />
+                    )}
+                  </Box>
+                )}
+
+                {mobileActiveView === "today" && (
+                  <Box h="100%" overflow="auto" px={4} py={4}>
+                    {/* Mobile Today View - Progress bar */}
+                    <Box mb={4}>
+                      <Flex justify="space-between" fontSize="sm" color={mutedText} mb={1}>
+                        <Text>
+                          {viewDate && viewDate.toDateString() === today.toDateString()
+                            ? "Today's Progress"
+                            : `${viewDate?.toLocaleDateString("en-US", {
+                                weekday: "long",
+                                month: "long",
+                                day: "numeric",
+                              })} Progress`}
+                        </Text>
+                        <Text>
+                          {completedTasks}/{totalTasks} ({progressPercent}%)
+                        </Text>
+                      </Flex>
+                      <Box h={2} bg={progressBarBg} borderRadius="full" overflow="hidden">
+                        <Box
+                          h="full"
+                          bgGradient="to-r"
+                          gradientFrom="blue.500"
+                          gradientTo="green.500"
+                          transition="width 0.3s ease-in-out"
+                          width={`${progressPercent}%`}
+                        />
+                      </Box>
+                    </Box>
+
+                    {/* Today View Header */}
+                    <Flex align="center" justify="space-between" mb={4}>
+                      <Heading size="md">Today</Heading>
+                      <HStack spacing={2}>
+                        <Badge colorPalette="blue">
+                          {filteredTodaysTasks.length} task{filteredTodaysTasks.length !== 1 ? "s" : ""}
+                        </Badge>
+                        <IconButton
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setShowCompletedTasks(!showCompletedTasks)}
+                          aria-label={showCompletedTasks ? "Hide Completed" : "Show Completed"}
+                        >
+                          {showCompletedTasks ? <Eye size={16} /> : <EyeOff size={16} />}
+                        </IconButton>
+                      </HStack>
+                    </Flex>
+
+                    {/* Date Navigation for Today View */}
+                    {todayViewDate && (
+                      <DateNavigation
+                        selectedDate={todayViewDate}
+                        onDateChange={handleTodayViewDateChange}
+                        onPrevious={() => navigateTodayView(-1)}
+                        onNext={() => navigateTodayView(1)}
+                        onToday={handleTodayViewToday}
+                      />
+                    )}
+
+                    {/* Search */}
+                    <Box my={4}>
+                      <HStack spacing={2} align="center" w="100%">
+                        <Box flex={1} minW={0}>
+                          <TaskSearchInput onSearchChange={setTodaySearchTerm} />
+                        </Box>
+                        <TagFilter
+                          tags={tags}
+                          selectedTagIds={todaySelectedTagIds}
+                          onTagSelect={handleTodayTagSelect}
+                          onTagDeselect={handleTodayTagDeselect}
+                          onCreateTag={createTag}
+                        />
+                      </HStack>
+                    </Box>
+
+                    {/* Sections */}
+                    <Section
+                      sections={sortedSections}
+                      tasksBySection={tasksBySection}
+                      onToggleTask={handleToggleTask}
+                      onToggleSubtask={handleToggleSubtask}
+                      onToggleExpand={handleToggleExpand}
                       onEditTask={handleEditTask}
                       onUpdateTaskTitle={handleUpdateTaskTitle}
+                      onDeleteTask={handleDeleteTask}
                       onDuplicateTask={handleDuplicateTask}
-                      onAddTask={handleAddTaskToBacklog}
-                      onToggleExpand={handleToggleExpand}
-                      onToggleSubtask={handleToggleSubtask}
-                      onToggleTask={handleToggleTask}
+                      onAddTask={handleAddTask}
+                      onCreateTaskInline={handleCreateTaskInline}
+                      onEditSection={handleEditSection}
+                      onDeleteSection={handleDeleteSection}
+                      onAddSection={handleAddSection}
+                      onToggleSectionExpand={handleToggleSectionExpand}
+                      createDroppableId={createDroppableId}
                       createDraggableId={createDraggableId}
-                      viewDate={today}
-                      tags={tags}
-                      onCreateTag={createTag}
+                      viewDate={viewDate}
                       onOutcomeChange={handleOutcomeChange}
                       getOutcomeOnDate={getOutcomeOnDate}
                       hasRecordOnDate={hasRecordOnDate}
@@ -1816,290 +1978,15 @@ export default function DailyTasksApp() {
                       onSkipTask={handleSkipTask}
                       getCompletionForDate={getCompletionForDate}
                     />
-                  )}
-                  {/* Resize handle - hidden on mobile */}
-                  <Box
-                    position="absolute"
-                    right={0}
-                    top={0}
-                    bottom={0}
-                    w="4px"
-                    cursor="col-resize"
-                    bg={isResizing ? "blue.400" : "transparent"}
-                    _hover={{ bg: "blue.300" }}
-                    transition="background-color 0.2s"
-                    onMouseDown={handleResizeStart}
-                    zIndex={10}
-                    sx={{ userSelect: "none" }}
-                    display={{ base: "none", md: "block" }}
-                  />
-                </>
-              )}
-            </Box>
-          )}
+                  </Box>
+                )}
 
-          {/* Main Content Area */}
-          <Box
-            flex={1}
-            overflow={{ base: "visible", md: "hidden" }}
-            display={{ base: backlogOpen ? "none" : "flex", md: "flex" }}
-            flexDirection="column"
-          >
-            <Box flex={1} overflowY={{ base: "visible", md: "auto" }}>
-              {mainTabIndex === 0 ? (
-                /* Tasks Tab Content */
-                <Box
-                  w="full"
-                  px={{ base: 2, md: 4 }}
-                  py={{ base: 3, md: 6 }}
-                  display="flex"
-                  gap={{ base: 2, md: 6 }}
-                  h="full"
-                  justifyContent={!backlogOpen && !showCalendar && showDashboard ? "center" : "flex-start"}
-                  maxW="100%"
-                  overflow="hidden"
-                >
-                  {/* Dashboard View */}
-                  {showDashboard && (
-                    <Box
-                      flex={{ base: "none", md: !backlogOpen && !showCalendar ? "0 1 auto" : 1 }}
-                      minW={0}
-                      maxW="100%"
-                      w="100%"
-                      display="flex"
-                      flexDirection="column"
-                      overflow="hidden"
-                    >
-                      {isLoading && sections.length === 0 ? (
-                        <Box>
-                          <SectionSkeleton />
-                          <SectionSkeleton />
-                          <SectionSkeleton />
-                        </Box>
-                      ) : (
-                        <>
-                          {/* Today View Header - Sticky */}
-                          <Box
-                            position={{ base: "relative", md: "sticky" }}
-                            top={{ base: "auto", md: 0 }}
-                            zIndex={{ base: "auto", md: 10 }}
-                            bg={bgColor}
-                            mb={4}
-                            pb={4}
-                            borderBottomWidth="1px"
-                            borderColor={borderColor}
-                            flexShrink={0}
-                            w="100%"
-                            maxW="100%"
-                            overflow="hidden"
-                          >
-                            <Flex align="center" justify="space-between" mb={2} w="100%" maxW="100%" gap={2}>
-                              <Heading size="md" flexShrink={0}>
-                                Today
-                              </Heading>
-                              <Flex align="center" gap={2} flexShrink={0}>
-                                <Badge colorPalette="blue">
-                                  {filteredTodaysTasks.length} task{filteredTodaysTasks.length !== 1 ? "s" : ""}
-                                  {todaySearchTerm &&
-                                    filteredTodaysTasks.length !== todaysTasks.length &&
-                                    ` of ${todaysTasks.length}`}
-                                </Badge>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setShowCompletedTasks(!showCompletedTasks)}
-                                  fontSize="sm"
-                                  color={mutedText}
-                                  _hover={{ color: textColor }}
-                                >
-                                  <Box as="span" color="currentColor">
-                                    {showCompletedTasks ? (
-                                      <Eye size={16} stroke="currentColor" />
-                                    ) : (
-                                      <EyeOff size={16} stroke="currentColor" />
-                                    )}
-                                  </Box>
-                                  {showCompletedTasks ? "Hide Completed" : "Show Completed"}
-                                </Button>
-                              </Flex>
-                            </Flex>
-                            {todayViewDate && (
-                              <DateNavigation
-                                selectedDate={todayViewDate}
-                                onDateChange={handleTodayViewDateChange}
-                                onPrevious={() => navigateTodayView(-1)}
-                                onNext={() => navigateTodayView(1)}
-                                onToday={handleTodayViewToday}
-                              />
-                            )}
-                            <Box mt={3} w="100%" maxW="100%">
-                              <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
-                                <Box flex={1} minW={0}>
-                                  <TaskSearchInput onSearchChange={setTodaySearchTerm} />
-                                </Box>
-                                <TagFilter
-                                  tags={tags}
-                                  selectedTagIds={todaySelectedTagIds}
-                                  onTagSelect={handleTodayTagSelect}
-                                  onTagDeselect={handleTodayTagDeselect}
-                                  onCreateTag={createTag}
-                                />
-                              </HStack>
-                            </Box>
-                          </Box>
-                          {/* Scrollable Sections Container */}
-                          <Box flex={1} overflowY="auto" minH={0} w="100%" maxW="100%">
-                            <Section
-                              sections={sortedSections}
-                              tasksBySection={tasksBySection}
-                              onToggleTask={handleToggleTask}
-                              onToggleSubtask={handleToggleSubtask}
-                              onToggleExpand={handleToggleExpand}
-                              onEditTask={handleEditTask}
-                              onUpdateTaskTitle={handleUpdateTaskTitle}
-                              onDeleteTask={handleDeleteTask}
-                              onDuplicateTask={handleDuplicateTask}
-                              onAddTask={handleAddTask}
-                              onCreateTaskInline={handleCreateTaskInline}
-                              onEditSection={handleEditSection}
-                              onDeleteSection={handleDeleteSection}
-                              onAddSection={handleAddSection}
-                              onToggleSectionExpand={handleToggleSectionExpand}
-                              createDroppableId={createDroppableId}
-                              createDraggableId={createDraggableId}
-                              viewDate={todayViewDate || today}
-                              onOutcomeChange={handleOutcomeChange}
-                              getOutcomeOnDate={getOutcomeOnDate}
-                              hasRecordOnDate={hasRecordOnDate}
-                              onCompleteWithNote={handleCompleteWithNote}
-                              onSkipTask={handleSkipTask}
-                              getCompletionForDate={getCompletionForDate}
-                            />
-                          </Box>
-                        </>
-                      )}
-                    </Box>
-                  )}
-
-                  {/* Calendar View */}
-                  {showCalendar && (
-                    <Box
-                      flex={1}
-                      minW={0}
-                      w={{ base: "100%", md: "auto" }}
-                      maxW="100%"
-                      display="flex"
-                      flexDirection="column"
-                      overflow="hidden"
-                    >
-                      {/* Calendar Header */}
-                      <Box
-                        mb={3}
-                        pb={3}
-                        borderBottomWidth="1px"
-                        borderColor={borderColor}
-                        px={{ base: 1, md: 0 }}
-                        w="100%"
-                        maxW="100%"
-                        overflow="hidden"
-                        flexShrink={0}
-                      >
-                        <Flex align="center" justify="space-between" mb={2} w="100%" maxW="100%" gap={2}>
-                          <Heading size="md" flexShrink={0}>
-                            Calendar
-                          </Heading>
-                          <HStack spacing={2} flexShrink={0}>
-                            <HStack spacing={1}>
-                              <IconButton
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setCalendarZoom(prev => ({
-                                    ...prev,
-                                    [calendarView]: Math.max(0.25, prev[calendarView] - 0.25),
-                                  }));
-                                }}
-                                aria-label="Zoom Out"
-                                fontSize="sm"
-                                color={mutedText}
-                                _hover={{ color: textColor }}
-                                isDisabled={calendarZoom[calendarView] <= 0.25}
-                              >
-                                <Box as="span" color="currentColor">
-                                  <ZoomOut size={16} stroke="currentColor" />
-                                </Box>
-                              </IconButton>
-                              <Text fontSize="xs" color={mutedText} minW="40px" textAlign="center">
-                                {Math.round(calendarZoom[calendarView] * 100)}%
-                              </Text>
-                              <IconButton
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setCalendarZoom(prev => ({
-                                    ...prev,
-                                    [calendarView]: Math.min(3.0, prev[calendarView] + 0.25),
-                                  }));
-                                }}
-                                aria-label="Zoom In"
-                                fontSize="sm"
-                                color={mutedText}
-                                _hover={{ color: textColor }}
-                                isDisabled={calendarZoom[calendarView] >= 3.0}
-                              >
-                                <Box as="span" color="currentColor">
-                                  <ZoomIn size={16} stroke="currentColor" />
-                                </Box>
-                              </IconButton>
-                            </HStack>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setShowCompletedTasksCalendar(prev => ({
-                                  ...prev,
-                                  [calendarView]: !prev[calendarView],
-                                }));
-                              }}
-                              fontSize="sm"
-                              color={mutedText}
-                              _hover={{ color: textColor }}
-                            >
-                              <Box as="span" color="currentColor">
-                                {showCompletedTasksCalendar[calendarView] ? (
-                                  <Eye size={16} stroke="currentColor" />
-                                ) : (
-                                  <EyeOff size={16} stroke="currentColor" />
-                                )}
-                              </Box>
-                              {showCompletedTasksCalendar[calendarView] ? "Hide Completed" : "Show Completed"}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setShowRecurringTasks(prev => ({
-                                  ...prev,
-                                  [calendarView]: !prev[calendarView],
-                                }));
-                              }}
-                              fontSize="sm"
-                              color={mutedText}
-                              _hover={{ color: textColor }}
-                            >
-                              <Box as="span" color="currentColor">
-                                {showRecurringTasks[calendarView] ? (
-                                  <Repeat size={16} stroke="currentColor" />
-                                ) : (
-                                  <X size={16} stroke="currentColor" />
-                                )}
-                              </Box>
-                              {showRecurringTasks[calendarView] ? "Hide Recurring" : "Show Recurring"}
-                            </Button>
-                          </HStack>
-                        </Flex>
-                        {/* Calendar Controls */}
-                        <Flex align="center" gap={2} px={2} w="100%" maxW="100%" overflowX="auto">
+                {mobileActiveView === "calendar" && (
+                  <Box h="100%" overflow="hidden" display="flex" flexDirection="column">
+                    {/* Mobile Calendar Controls */}
+                    <Box p={2} borderBottomWidth="1px" borderColor={borderColor} bg={headerBg}>
+                      <Flex align="center" justify="space-between" mb={2} flexWrap="wrap" gap={2}>
+                        <HStack spacing={1}>
                           <Button
                             variant="outline"
                             size="sm"
@@ -2111,160 +1998,654 @@ export default function DailyTasksApp() {
                           >
                             Today
                           </Button>
-                          <IconButton onClick={() => navigateCalendar(-1)} variant="ghost" aria-label="Previous">
-                            <Box as="span" color="currentColor">
-                              <ChevronLeft size={18} stroke="currentColor" />
-                            </Box>
-                          </IconButton>
-                          <IconButton onClick={() => navigateCalendar(1)} variant="ghost" aria-label="Next">
-                            <Box as="span" color="currentColor">
-                              <ChevronRight size={18} stroke="currentColor" />
-                            </Box>
-                          </IconButton>
-                          <Text fontSize="sm" fontWeight="medium" minW="120px">
-                            {getCalendarTitle()}
-                          </Text>
-                          <Select.Root
-                            collection={calendarViewCollection}
-                            value={[calendarView]}
-                            onValueChange={({ value }) => setCalendarView(value[0])}
+                          <IconButton
+                            icon={<ChevronLeft size={18} />}
+                            onClick={() => navigateCalendar(-1)}
+                            variant="ghost"
                             size="sm"
-                            w={24}
-                          >
-                            <Select.HiddenSelect />
-                            <Select.Control>
-                              <Select.Trigger>
-                                <Select.ValueText placeholder="View" />
-                              </Select.Trigger>
-                              <Select.IndicatorGroup>
-                                <Select.Indicator />
-                              </Select.IndicatorGroup>
-                            </Select.Control>
-                            <Portal>
-                              <Select.Positioner>
-                                <Select.Content>
-                                  {calendarViewCollection.items.map(item => (
-                                    <Select.Item item={item} key={item.value}>
-                                      {item.label}
-                                      <Select.ItemIndicator />
-                                    </Select.Item>
-                                  ))}
-                                </Select.Content>
-                              </Select.Positioner>
-                            </Portal>
-                          </Select.Root>
-                        </Flex>
-                      </Box>
-                      {isLoading && !selectedDate ? (
-                        <CalendarSkeleton />
-                      ) : (
-                        <Card.Root
-                          flex={1}
-                          overflow="hidden"
-                          bg={bgColor}
-                          borderColor={borderColor}
-                          minH="600px"
-                          w="100%"
-                          maxW="100%"
-                          minW={0}
+                            aria-label="Previous"
+                          />
+                          <IconButton
+                            icon={<ChevronRight size={18} />}
+                            onClick={() => navigateCalendar(1)}
+                            variant="ghost"
+                            size="sm"
+                            aria-label="Next"
+                          />
+                        </HStack>
+                        <Text fontSize="sm" fontWeight="medium" flex={1} textAlign="center">
+                          {getCalendarTitle()}
+                        </Text>
+                        <Select.Root
+                          collection={calendarViewCollection}
+                          value={[calendarView]}
+                          onValueChange={({ value }) => setCalendarView(value[0])}
+                          size="sm"
+                          w={20}
                         >
-                          <Card.Body p={0} h="full" w="100%" maxW="100%" minW={0} overflow="hidden">
-                            {(() => {
-                              // Filter tasks based on recurring preference for current view
-                              let filteredTasks = showRecurringTasks[calendarView]
-                                ? tasks
-                                : tasks.filter(task => !task.recurrence || task.recurrence.type === "none");
-
-                              // Filter tasks based on completed preference for current view
-                              // For day view, filter here. For week/month views, filter per day in components
-                              if (!showCompletedTasksCalendar[calendarView] && calendarView === "day" && selectedDate) {
-                                filteredTasks = filteredTasks.filter(task => {
-                                  const isCompleted = isCompletedOnDate(task.id, selectedDate);
-                                  const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, selectedDate) : null;
-                                  const hasOutcome = outcome !== null && outcome !== undefined;
-                                  return !isCompleted && !hasOutcome;
-                                });
-                              }
-
-                              return (
-                                <>
-                                  {calendarView === "day" && selectedDate && (
-                                    <CalendarDayView
-                                      date={selectedDate}
-                                      tasks={filteredTasks}
-                                      onTaskClick={handleEditTask}
-                                      onTaskTimeChange={handleTaskTimeChange}
-                                      onTaskDurationChange={handleTaskDurationChange}
-                                      onCreateTask={handleCreateTaskFromCalendar}
-                                      onDropTimeChange={time => {
-                                        dropTimeRef.current = time;
-                                      }}
-                                      createDroppableId={createDroppableId}
-                                      createDraggableId={createDraggableId}
-                                      isCompletedOnDate={isCompletedOnDate}
-                                      getOutcomeOnDate={getOutcomeOnDate}
-                                      showCompleted={showCompletedTasksCalendar.day}
-                                      zoom={calendarZoom.day}
-                                      tags={tags}
-                                      onCreateTag={createTag}
-                                    />
-                                  )}
-                                  {calendarView === "week" && selectedDate && (
-                                    <CalendarWeekView
-                                      date={selectedDate}
-                                      tasks={filteredTasks}
-                                      onTaskClick={handleEditTask}
-                                      onDayClick={d => {
-                                        setSelectedDate(d);
-                                        setCalendarView("day");
-                                      }}
-                                      onTaskTimeChange={handleTaskTimeChange}
-                                      onTaskDurationChange={handleTaskDurationChange}
-                                      onCreateTask={handleCreateTaskFromCalendar}
-                                      onDropTimeChange={time => {
-                                        dropTimeRef.current = time;
-                                      }}
-                                      createDroppableId={createDroppableId}
-                                      createDraggableId={createDraggableId}
-                                      tags={tags}
-                                      onCreateTag={createTag}
-                                      isCompletedOnDate={isCompletedOnDate}
-                                      getOutcomeOnDate={getOutcomeOnDate}
-                                      showCompleted={showCompletedTasksCalendar.week}
-                                      zoom={calendarZoom.week}
-                                    />
-                                  )}
-                                  {calendarView === "month" && selectedDate && (
-                                    <CalendarMonthView
-                                      date={selectedDate}
-                                      tasks={filteredTasks}
-                                      onDayClick={d => {
-                                        setSelectedDate(d);
-                                        setCalendarView("day");
-                                      }}
-                                      isCompletedOnDate={isCompletedOnDate}
-                                      getOutcomeOnDate={getOutcomeOnDate}
-                                      showCompleted={showCompletedTasksCalendar.month}
-                                      zoom={calendarZoom.month}
-                                      tags={tags}
-                                      onCreateTag={createTag}
-                                    />
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </Card.Body>
-                        </Card.Root>
-                      )}
+                          <Select.HiddenSelect />
+                          <Select.Control>
+                            <Select.Trigger>
+                              <Select.ValueText placeholder="View" />
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                              <Select.Indicator />
+                            </Select.IndicatorGroup>
+                          </Select.Control>
+                          <Portal>
+                            <Select.Positioner>
+                              <Select.Content>
+                                {calendarViewCollection.items.map(item => (
+                                  <Select.Item item={item} key={item.value}>
+                                    {item.label}
+                                    <Select.ItemIndicator />
+                                  </Select.Item>
+                                ))}
+                              </Select.Content>
+                            </Select.Positioner>
+                          </Portal>
+                        </Select.Root>
+                      </Flex>
                     </Box>
+
+                    {/* Calendar View */}
+                    <Box flex={1} overflow="auto">
+                      {(() => {
+                        // Filter tasks based on recurring preference for current view
+                        let filteredTasks = showRecurringTasks[calendarView]
+                          ? tasks
+                          : tasks.filter(task => !task.recurrence || task.recurrence.type === "none");
+
+                        // Filter tasks based on completed preference for current view
+                        if (!showCompletedTasksCalendar[calendarView] && calendarView === "day" && selectedDate) {
+                          filteredTasks = filteredTasks.filter(task => {
+                            const isCompleted = isCompletedOnDate(task.id, selectedDate);
+                            const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, selectedDate) : null;
+                            const hasOutcome = outcome !== null && outcome !== undefined;
+                            return !isCompleted && !hasOutcome;
+                          });
+                        }
+
+                        return (
+                          <>
+                            {calendarView === "day" && selectedDate && (
+                              <CalendarDayView
+                                date={selectedDate}
+                                tasks={filteredTasks}
+                                onTaskClick={handleEditTask}
+                                onTaskTimeChange={handleTaskTimeChange}
+                                onTaskDurationChange={handleTaskDurationChange}
+                                onCreateTask={handleCreateTaskFromCalendar}
+                                onDropTimeChange={time => {
+                                  dropTimeRef.current = time;
+                                }}
+                                createDroppableId={createDroppableId}
+                                createDraggableId={createDraggableId}
+                                isCompletedOnDate={isCompletedOnDate}
+                                getOutcomeOnDate={getOutcomeOnDate}
+                                showCompleted={showCompletedTasksCalendar.day}
+                                zoom={calendarZoom.day}
+                                tags={tags}
+                                onCreateTag={createTag}
+                              />
+                            )}
+                            {calendarView === "week" && selectedDate && (
+                              <CalendarWeekView
+                                date={selectedDate}
+                                tasks={filteredTasks}
+                                onTaskClick={handleEditTask}
+                                onDayClick={d => {
+                                  setSelectedDate(d);
+                                  setCalendarView("day");
+                                }}
+                                onTaskTimeChange={handleTaskTimeChange}
+                                onTaskDurationChange={handleTaskDurationChange}
+                                onCreateTask={handleCreateTaskFromCalendar}
+                                onDropTimeChange={time => {
+                                  dropTimeRef.current = time;
+                                }}
+                                createDroppableId={createDroppableId}
+                                createDraggableId={createDraggableId}
+                                tags={tags}
+                                onCreateTag={createTag}
+                                isCompletedOnDate={isCompletedOnDate}
+                                getOutcomeOnDate={getOutcomeOnDate}
+                                showCompleted={showCompletedTasksCalendar.week}
+                                zoom={calendarZoom.week}
+                              />
+                            )}
+                            {calendarView === "month" && selectedDate && (
+                              <CalendarMonthView
+                                date={selectedDate}
+                                tasks={filteredTasks}
+                                onDayClick={d => {
+                                  setSelectedDate(d);
+                                  setCalendarView("day");
+                                }}
+                                isCompletedOnDate={isCompletedOnDate}
+                                getOutcomeOnDate={getOutcomeOnDate}
+                                showCompleted={showCompletedTasksCalendar.month}
+                                zoom={calendarZoom.month}
+                                tags={tags}
+                                onCreateTag={createTag}
+                              />
+                            )}
+                          </>
+                        );
+                      })()}
+                    </Box>
+                  </Box>
+                )}
+              </Box>
+            </>
+          ) : (
+            /* ========== DESKTOP LAYOUT (existing code) ========== */
+            <Box display="flex" flex={1}>
+              {/* Backlog Sidebar - only show on Tasks tab */}
+              {mainTabIndex === 0 && (
+                <Box
+                  w={
+                    backlogOpen
+                      ? {
+                          base: "100vw",
+                          md: `${backlogWidth}px`,
+                        }
+                      : "0"
+                  }
+                  h="100%"
+                  transition={isResizing ? "none" : "width 0.3s"}
+                  overflow="hidden"
+                  borderRightWidth={backlogOpen ? { base: "0", md: "1px" } : "0"}
+                  borderColor={borderColor}
+                  bg={bgColor}
+                  flexShrink={0}
+                  display="flex"
+                  flexDirection="column"
+                  position="relative"
+                >
+                  {backlogOpen && (
+                    <>
+                      {isLoading ? (
+                        <BacklogSkeleton />
+                      ) : (
+                        <BacklogDrawer
+                          onClose={() => setBacklogOpen(false)}
+                          backlogTasks={backlogTasks}
+                          sections={sections}
+                          onDeleteTask={handleDeleteTask}
+                          onEditTask={handleEditTask}
+                          onUpdateTaskTitle={handleUpdateTaskTitle}
+                          onDuplicateTask={handleDuplicateTask}
+                          onAddTask={handleAddTaskToBacklog}
+                          onToggleExpand={handleToggleExpand}
+                          onToggleSubtask={handleToggleSubtask}
+                          onToggleTask={handleToggleTask}
+                          createDraggableId={createDraggableId}
+                          viewDate={today}
+                          tags={tags}
+                          onCreateTag={createTag}
+                          onOutcomeChange={handleOutcomeChange}
+                          getOutcomeOnDate={getOutcomeOnDate}
+                          hasRecordOnDate={hasRecordOnDate}
+                          onCompleteWithNote={handleCompleteWithNote}
+                          onSkipTask={handleSkipTask}
+                          getCompletionForDate={getCompletionForDate}
+                        />
+                      )}
+                      {/* Resize handle - hidden on mobile */}
+                      <Box
+                        position="absolute"
+                        right={0}
+                        top={0}
+                        bottom={0}
+                        w="4px"
+                        cursor="col-resize"
+                        bg={isResizing ? "blue.400" : "transparent"}
+                        _hover={{ bg: "blue.300" }}
+                        transition="background-color 0.2s"
+                        onMouseDown={handleResizeStart}
+                        zIndex={10}
+                        sx={{ userSelect: "none" }}
+                        display={{ base: "none", md: "block" }}
+                      />
+                    </>
                   )}
                 </Box>
-              ) : (
-                /* History Tab Content */
-                <DashboardView />
               )}
+
+              {/* Main Content Area */}
+              <Box
+                flex={1}
+                overflow={{ base: "visible", md: "hidden" }}
+                display={{ base: backlogOpen ? "none" : "flex", md: "flex" }}
+                flexDirection="column"
+              >
+                <Box flex={1} overflowY={{ base: "visible", md: "auto" }}>
+                  {mainTabIndex === 0 ? (
+                    /* Tasks Tab Content */
+                    <Box
+                      w="full"
+                      px={{ base: 2, md: 4 }}
+                      py={{ base: 3, md: 6 }}
+                      display="flex"
+                      gap={{ base: 2, md: 6 }}
+                      h="full"
+                      justifyContent={!backlogOpen && !showCalendar && showDashboard ? "center" : "flex-start"}
+                      maxW="100%"
+                      overflow="hidden"
+                    >
+                      {/* Dashboard View */}
+                      {showDashboard && (
+                        <Box
+                          flex={{ base: "none", md: !backlogOpen && !showCalendar ? "0 1 auto" : 1 }}
+                          minW={0}
+                          maxW="100%"
+                          w="100%"
+                          display="flex"
+                          flexDirection="column"
+                          overflow="hidden"
+                        >
+                          {isLoading && sections.length === 0 ? (
+                            <Box>
+                              <SectionSkeleton />
+                              <SectionSkeleton />
+                              <SectionSkeleton />
+                            </Box>
+                          ) : (
+                            <>
+                              {/* Today View Header - Sticky */}
+                              <Box
+                                position={{ base: "relative", md: "sticky" }}
+                                top={{ base: "auto", md: 0 }}
+                                zIndex={{ base: "auto", md: 10 }}
+                                bg={bgColor}
+                                mb={4}
+                                pb={4}
+                                borderBottomWidth="1px"
+                                borderColor={borderColor}
+                                flexShrink={0}
+                                w="100%"
+                                maxW="100%"
+                                overflow="hidden"
+                              >
+                                <Flex align="center" justify="space-between" mb={2} w="100%" maxW="100%" gap={2}>
+                                  <Heading size="md" flexShrink={0}>
+                                    Today
+                                  </Heading>
+                                  <Flex align="center" gap={2} flexShrink={0}>
+                                    <Badge colorPalette="blue">
+                                      {filteredTodaysTasks.length} task{filteredTodaysTasks.length !== 1 ? "s" : ""}
+                                      {todaySearchTerm &&
+                                        filteredTodaysTasks.length !== todaysTasks.length &&
+                                        ` of ${todaysTasks.length}`}
+                                    </Badge>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setShowCompletedTasks(!showCompletedTasks)}
+                                      fontSize="sm"
+                                      color={mutedText}
+                                      _hover={{ color: textColor }}
+                                    >
+                                      <Box as="span" color="currentColor">
+                                        {showCompletedTasks ? (
+                                          <Eye size={16} stroke="currentColor" />
+                                        ) : (
+                                          <EyeOff size={16} stroke="currentColor" />
+                                        )}
+                                      </Box>
+                                      {showCompletedTasks ? "Hide Completed" : "Show Completed"}
+                                    </Button>
+                                  </Flex>
+                                </Flex>
+                                {todayViewDate && (
+                                  <DateNavigation
+                                    selectedDate={todayViewDate}
+                                    onDateChange={handleTodayViewDateChange}
+                                    onPrevious={() => navigateTodayView(-1)}
+                                    onNext={() => navigateTodayView(1)}
+                                    onToday={handleTodayViewToday}
+                                  />
+                                )}
+                                <Box mt={3} w="100%" maxW="100%">
+                                  <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
+                                    <Box flex={1} minW={0}>
+                                      <TaskSearchInput onSearchChange={setTodaySearchTerm} />
+                                    </Box>
+                                    <TagFilter
+                                      tags={tags}
+                                      selectedTagIds={todaySelectedTagIds}
+                                      onTagSelect={handleTodayTagSelect}
+                                      onTagDeselect={handleTodayTagDeselect}
+                                      onCreateTag={createTag}
+                                    />
+                                  </HStack>
+                                </Box>
+                              </Box>
+                              {/* Scrollable Sections Container */}
+                              <Box flex={1} overflowY="auto" minH={0} w="100%" maxW="100%">
+                                <Section
+                                  sections={sortedSections}
+                                  tasksBySection={tasksBySection}
+                                  onToggleTask={handleToggleTask}
+                                  onToggleSubtask={handleToggleSubtask}
+                                  onToggleExpand={handleToggleExpand}
+                                  onEditTask={handleEditTask}
+                                  onUpdateTaskTitle={handleUpdateTaskTitle}
+                                  onDeleteTask={handleDeleteTask}
+                                  onDuplicateTask={handleDuplicateTask}
+                                  onAddTask={handleAddTask}
+                                  onCreateTaskInline={handleCreateTaskInline}
+                                  onEditSection={handleEditSection}
+                                  onDeleteSection={handleDeleteSection}
+                                  onAddSection={handleAddSection}
+                                  onToggleSectionExpand={handleToggleSectionExpand}
+                                  createDroppableId={createDroppableId}
+                                  createDraggableId={createDraggableId}
+                                  viewDate={todayViewDate || today}
+                                  onOutcomeChange={handleOutcomeChange}
+                                  getOutcomeOnDate={getOutcomeOnDate}
+                                  hasRecordOnDate={hasRecordOnDate}
+                                  onCompleteWithNote={handleCompleteWithNote}
+                                  onSkipTask={handleSkipTask}
+                                  getCompletionForDate={getCompletionForDate}
+                                />
+                              </Box>
+                            </>
+                          )}
+                        </Box>
+                      )}
+
+                      {/* Calendar View */}
+                      {showCalendar && (
+                        <Box
+                          flex={1}
+                          minW={0}
+                          w={{ base: "100%", md: "auto" }}
+                          maxW="100%"
+                          display="flex"
+                          flexDirection="column"
+                          overflow="hidden"
+                        >
+                          {/* Calendar Header */}
+                          <Box
+                            mb={3}
+                            pb={3}
+                            borderBottomWidth="1px"
+                            borderColor={borderColor}
+                            px={{ base: 1, md: 0 }}
+                            w="100%"
+                            maxW="100%"
+                            overflow="hidden"
+                            flexShrink={0}
+                          >
+                            <Flex align="center" justify="space-between" mb={2} w="100%" maxW="100%" gap={2}>
+                              <Heading size="md" flexShrink={0}>
+                                Calendar
+                              </Heading>
+                              <HStack spacing={2} flexShrink={0}>
+                                <HStack spacing={1}>
+                                  <IconButton
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setCalendarZoom(prev => ({
+                                        ...prev,
+                                        [calendarView]: Math.max(0.25, prev[calendarView] - 0.25),
+                                      }));
+                                    }}
+                                    aria-label="Zoom Out"
+                                    fontSize="sm"
+                                    color={mutedText}
+                                    _hover={{ color: textColor }}
+                                    isDisabled={calendarZoom[calendarView] <= 0.25}
+                                  >
+                                    <Box as="span" color="currentColor">
+                                      <ZoomOut size={16} stroke="currentColor" />
+                                    </Box>
+                                  </IconButton>
+                                  <Text fontSize="xs" color={mutedText} minW="40px" textAlign="center">
+                                    {Math.round(calendarZoom[calendarView] * 100)}%
+                                  </Text>
+                                  <IconButton
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setCalendarZoom(prev => ({
+                                        ...prev,
+                                        [calendarView]: Math.min(3.0, prev[calendarView] + 0.25),
+                                      }));
+                                    }}
+                                    aria-label="Zoom In"
+                                    fontSize="sm"
+                                    color={mutedText}
+                                    _hover={{ color: textColor }}
+                                    isDisabled={calendarZoom[calendarView] >= 3.0}
+                                  >
+                                    <Box as="span" color="currentColor">
+                                      <ZoomIn size={16} stroke="currentColor" />
+                                    </Box>
+                                  </IconButton>
+                                </HStack>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setShowCompletedTasksCalendar(prev => ({
+                                      ...prev,
+                                      [calendarView]: !prev[calendarView],
+                                    }));
+                                  }}
+                                  fontSize="sm"
+                                  color={mutedText}
+                                  _hover={{ color: textColor }}
+                                >
+                                  <Box as="span" color="currentColor">
+                                    {showCompletedTasksCalendar[calendarView] ? (
+                                      <Eye size={16} stroke="currentColor" />
+                                    ) : (
+                                      <EyeOff size={16} stroke="currentColor" />
+                                    )}
+                                  </Box>
+                                  {showCompletedTasksCalendar[calendarView] ? "Hide Completed" : "Show Completed"}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setShowRecurringTasks(prev => ({
+                                      ...prev,
+                                      [calendarView]: !prev[calendarView],
+                                    }));
+                                  }}
+                                  fontSize="sm"
+                                  color={mutedText}
+                                  _hover={{ color: textColor }}
+                                >
+                                  <Box as="span" color="currentColor">
+                                    {showRecurringTasks[calendarView] ? (
+                                      <Repeat size={16} stroke="currentColor" />
+                                    ) : (
+                                      <X size={16} stroke="currentColor" />
+                                    )}
+                                  </Box>
+                                  {showRecurringTasks[calendarView] ? "Hide Recurring" : "Show Recurring"}
+                                </Button>
+                              </HStack>
+                            </Flex>
+                            {/* Calendar Controls */}
+                            <Flex align="center" gap={2} px={2} w="100%" maxW="100%" overflowX="auto">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const today = new Date();
+                                  today.setHours(0, 0, 0, 0);
+                                  setSelectedDate(today);
+                                }}
+                              >
+                                Today
+                              </Button>
+                              <IconButton onClick={() => navigateCalendar(-1)} variant="ghost" aria-label="Previous">
+                                <Box as="span" color="currentColor">
+                                  <ChevronLeft size={18} stroke="currentColor" />
+                                </Box>
+                              </IconButton>
+                              <IconButton onClick={() => navigateCalendar(1)} variant="ghost" aria-label="Next">
+                                <Box as="span" color="currentColor">
+                                  <ChevronRight size={18} stroke="currentColor" />
+                                </Box>
+                              </IconButton>
+                              <Text fontSize="sm" fontWeight="medium" minW="120px">
+                                {getCalendarTitle()}
+                              </Text>
+                              <Select.Root
+                                collection={calendarViewCollection}
+                                value={[calendarView]}
+                                onValueChange={({ value }) => setCalendarView(value[0])}
+                                size="sm"
+                                w={24}
+                              >
+                                <Select.HiddenSelect />
+                                <Select.Control>
+                                  <Select.Trigger>
+                                    <Select.ValueText placeholder="View" />
+                                  </Select.Trigger>
+                                  <Select.IndicatorGroup>
+                                    <Select.Indicator />
+                                  </Select.IndicatorGroup>
+                                </Select.Control>
+                                <Portal>
+                                  <Select.Positioner>
+                                    <Select.Content>
+                                      {calendarViewCollection.items.map(item => (
+                                        <Select.Item item={item} key={item.value}>
+                                          {item.label}
+                                          <Select.ItemIndicator />
+                                        </Select.Item>
+                                      ))}
+                                    </Select.Content>
+                                  </Select.Positioner>
+                                </Portal>
+                              </Select.Root>
+                            </Flex>
+                          </Box>
+                          {isLoading && !selectedDate ? (
+                            <CalendarSkeleton />
+                          ) : (
+                            <Card.Root
+                              flex={1}
+                              overflow="hidden"
+                              bg={bgColor}
+                              borderColor={borderColor}
+                              minH="600px"
+                              w="100%"
+                              maxW="100%"
+                              minW={0}
+                            >
+                              <Card.Body p={0} h="full" w="100%" maxW="100%" minW={0} overflow="hidden">
+                                {(() => {
+                                  // Filter tasks based on recurring preference for current view
+                                  let filteredTasks = showRecurringTasks[calendarView]
+                                    ? tasks
+                                    : tasks.filter(task => !task.recurrence || task.recurrence.type === "none");
+
+                                  // Filter tasks based on completed preference for current view
+                                  // For day view, filter here. For week/month views, filter per day in components
+                                  if (
+                                    !showCompletedTasksCalendar[calendarView] &&
+                                    calendarView === "day" &&
+                                    selectedDate
+                                  ) {
+                                    filteredTasks = filteredTasks.filter(task => {
+                                      const isCompleted = isCompletedOnDate(task.id, selectedDate);
+                                      const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, selectedDate) : null;
+                                      const hasOutcome = outcome !== null && outcome !== undefined;
+                                      return !isCompleted && !hasOutcome;
+                                    });
+                                  }
+
+                                  return (
+                                    <>
+                                      {calendarView === "day" && selectedDate && (
+                                        <CalendarDayView
+                                          date={selectedDate}
+                                          tasks={filteredTasks}
+                                          onTaskClick={handleEditTask}
+                                          onTaskTimeChange={handleTaskTimeChange}
+                                          onTaskDurationChange={handleTaskDurationChange}
+                                          onCreateTask={handleCreateTaskFromCalendar}
+                                          onDropTimeChange={time => {
+                                            dropTimeRef.current = time;
+                                          }}
+                                          createDroppableId={createDroppableId}
+                                          createDraggableId={createDraggableId}
+                                          isCompletedOnDate={isCompletedOnDate}
+                                          getOutcomeOnDate={getOutcomeOnDate}
+                                          showCompleted={showCompletedTasksCalendar.day}
+                                          zoom={calendarZoom.day}
+                                          tags={tags}
+                                          onCreateTag={createTag}
+                                        />
+                                      )}
+                                      {calendarView === "week" && selectedDate && (
+                                        <CalendarWeekView
+                                          date={selectedDate}
+                                          tasks={filteredTasks}
+                                          onTaskClick={handleEditTask}
+                                          onDayClick={d => {
+                                            setSelectedDate(d);
+                                            setCalendarView("day");
+                                          }}
+                                          onTaskTimeChange={handleTaskTimeChange}
+                                          onTaskDurationChange={handleTaskDurationChange}
+                                          onCreateTask={handleCreateTaskFromCalendar}
+                                          onDropTimeChange={time => {
+                                            dropTimeRef.current = time;
+                                          }}
+                                          createDroppableId={createDroppableId}
+                                          createDraggableId={createDraggableId}
+                                          tags={tags}
+                                          onCreateTag={createTag}
+                                          isCompletedOnDate={isCompletedOnDate}
+                                          getOutcomeOnDate={getOutcomeOnDate}
+                                          showCompleted={showCompletedTasksCalendar.week}
+                                          zoom={calendarZoom.week}
+                                        />
+                                      )}
+                                      {calendarView === "month" && selectedDate && (
+                                        <CalendarMonthView
+                                          date={selectedDate}
+                                          tasks={filteredTasks}
+                                          onDayClick={d => {
+                                            setSelectedDate(d);
+                                            setCalendarView("day");
+                                          }}
+                                          isCompletedOnDate={isCompletedOnDate}
+                                          getOutcomeOnDate={getOutcomeOnDate}
+                                          showCompleted={showCompletedTasksCalendar.month}
+                                          zoom={calendarZoom.month}
+                                          tags={tags}
+                                          onCreateTag={createTag}
+                                        />
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </Card.Body>
+                            </Card.Root>
+                          )}
+                        </Box>
+                      )}
+                    </Box>
+                  ) : (
+                    /* History Tab Content */
+                    <DashboardView />
+                  )}
+                </Box>
+              </Box>
             </Box>
-          </Box>
+          )}
         </Box>
 
         {/* Drag Overlay - dynamically offset based on click position */}
