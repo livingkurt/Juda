@@ -36,7 +36,6 @@ export const TaskItem = ({
   onDuplicate,
   onDuplicateTask, // Alternative prop name for backlog variant
   draggableId,
-  getSectionName, // For backlog variant to show section name
   textColor: textColorProp, // Optional override
   mutedText: mutedTextProp, // Optional override
   gripColor: gripColorProp, // Optional override
@@ -507,11 +506,6 @@ export const TaskItem = ({
                     </HStack>
                   </Badge>
                 )}
-                {isBacklog && getSectionName && task.sectionId && (
-                  <Text fontSize="xs" color={mutedText}>
-                    {getSectionName(task.sectionId)}
-                  </Text>
-                )}
                 {task.recurrence && task.recurrence.type !== "none" && (
                   <Badge size="sm" colorPalette="purple" fontSize="2xs">
                     {task.recurrence.type === "daily"
@@ -521,7 +515,7 @@ export const TaskItem = ({
                         : "Recurring"}
                   </Badge>
                 )}
-                {!task.time && (
+                {!task.time && !isBacklog && (
                   <Badge size="sm" colorPalette="orange" fontSize="2xs">
                     No time
                   </Badge>

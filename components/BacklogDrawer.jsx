@@ -43,10 +43,6 @@ export const BacklogDrawer = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState([]);
 
-  const getSectionName = sectionId => {
-    return sections.find(s => s.id === sectionId)?.name || "Unknown";
-  };
-
   // Filter tasks by search term and tags
   const filteredTasks = useMemo(() => {
     let result = backlogTasks;
@@ -170,7 +166,6 @@ export const BacklogDrawer = ({
                     onToggleExpand={onToggleExpand}
                     onToggleSubtask={onToggleSubtask}
                     onToggle={onToggleTask}
-                    getSectionName={getSectionName}
                     textColor={textColor}
                     mutedText={mutedText}
                     gripColor={gripColor}
