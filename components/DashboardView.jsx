@@ -1,7 +1,19 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Box, Heading, Text, Table, Select, HStack, VStack, Card, Badge, Tabs } from "@chakra-ui/react";
+import {
+  Box,
+  Heading,
+  Text,
+  Table,
+  Select,
+  HStack,
+  VStack,
+  Card,
+  Badge,
+  Tabs,
+  createListCollection,
+} from "@chakra-ui/react";
 import { useCompletions } from "@/hooks/useCompletions";
 import { useTasks } from "@/hooks/useTasks";
 import {
@@ -28,6 +40,28 @@ export const DashboardView = () => {
   const { tasks, loading: tasksLoading } = useTasks();
   const [dateRange, setDateRange] = useState("30"); // days
   const [selectedTask, setSelectedTask] = useState("all");
+
+  // Create collections for selects
+  const dateRangeCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { label: "Last 7 days", value: "7" },
+          { label: "Last 30 days", value: "30" },
+          { label: "Last 90 days", value: "90" },
+          { label: "Last year", value: "365" },
+        ],
+      }),
+    []
+  );
+
+  const taskFilterCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [{ label: "All Tasks", value: "all" }, ...tasks.map(task => ({ label: task.title, value: task.id }))],
+      }),
+    [tasks]
+  );
 
   const bgColor = { _light: "white", _dark: "gray.800" };
   const borderColor = { _light: "gray.200", _dark: "gray.600" };
@@ -183,15 +217,21 @@ export const DashboardView = () => {
                 <Text fontSize="sm" mb={1} color={mutedText}>
                   Date Range
                 </Text>
-                <Select.Root value={dateRange} onValueChange={({ value }) => setDateRange(value)} w="150px">
+                <Select.Root
+                  collection={dateRangeCollection}
+                  value={[dateRange]}
+                  onValueChange={({ value }) => setDateRange(value[0])}
+                  w="150px"
+                >
                   <Select.Trigger bg={bgColor} borderColor={borderColor}>
-                    <Select.ValueText />
+                    <Select.ValueText placeholder="Select range" />
                   </Select.Trigger>
                   <Select.Content>
-                    <Select.Item item="7">Last 7 days</Select.Item>
-                    <Select.Item item="30">Last 30 days</Select.Item>
-                    <Select.Item item="90">Last 90 days</Select.Item>
-                    <Select.Item item="365">Last year</Select.Item>
+                    {dateRangeCollection.items.map(item => (
+                      <Select.Item key={item.value} item={item}>
+                        {item.label}
+                      </Select.Item>
+                    ))}
                   </Select.Content>
                 </Select.Root>
               </Box>
@@ -199,15 +239,19 @@ export const DashboardView = () => {
                 <Text fontSize="sm" mb={1} color={mutedText}>
                   Task Filter
                 </Text>
-                <Select.Root value={selectedTask} onValueChange={({ value }) => setSelectedTask(value)} w="200px">
+                <Select.Root
+                  collection={taskFilterCollection}
+                  value={[selectedTask]}
+                  onValueChange={({ value }) => setSelectedTask(value[0])}
+                  w="200px"
+                >
                   <Select.Trigger bg={bgColor} borderColor={borderColor}>
-                    <Select.ValueText />
+                    <Select.ValueText placeholder="Select task" />
                   </Select.Trigger>
                   <Select.Content>
-                    <Select.Item item="all">All Tasks</Select.Item>
-                    {tasks.map(task => (
-                      <Select.Item key={task.id} item={task.id}>
-                        {task.title}
+                    {taskFilterCollection.items.map(item => (
+                      <Select.Item key={item.value} item={item}>
+                        {item.label}
                       </Select.Item>
                     ))}
                   </Select.Content>

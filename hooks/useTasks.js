@@ -177,16 +177,34 @@ export const useTasks = () => {
         throw new Error(errorMessage);
       }
       const updatedTask = await response.json();
-      // Update with server response, preserving subtasks array
-      setTasks(prev =>
-        updateTaskInTree(prev, id, {
+      // Update with server response, preserving subtasks and tags arrays
+      setTasks(prev => {
+        // Find the task in the current state to preserve its relations
+        const findTaskInTree = (taskList, taskId) => {
+          for (const t of taskList) {
+            if (t.id === taskId) return t;
+            if (t.subtasks && t.subtasks.length > 0) {
+              const found = findTaskInTree(t.subtasks, taskId);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+
+        const currentTask = findTaskInTree(prev, id);
+
+        return updateTaskInTree(prev, id, {
           ...updatedTask,
-          subtasks:
-            prev.find(t => t.id === id)?.subtasks ||
-            prev.flatMap(t => t.subtasks || []).find(st => st.id === id)?.subtasks ||
-            [],
-        })
-      );
+          // Preserve subtasks from current state if they exist
+          subtasks: Array.isArray(currentTask?.subtasks) ? currentTask.subtasks : [],
+          // Preserve tags from current state if they exist (server response includes tags)
+          tags: Array.isArray(updatedTask.tags)
+            ? updatedTask.tags
+            : Array.isArray(currentTask?.tags)
+              ? currentTask.tags
+              : [],
+        });
+      });
       return updatedTask;
     } catch (err) {
       // Rollback on error

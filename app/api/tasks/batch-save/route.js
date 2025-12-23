@@ -18,8 +18,19 @@ export async function POST(request) {
     }
 
     // Separate tasks into creates and updates
-    const tasksToCreate = tasksToSave.filter(t => !t.id || !t.id.startsWith("c"));
-    const tasksToUpdate = tasksToSave.filter(t => t.id && t.id.startsWith("c"));
+    // Check which tasks already exist in the database
+    const taskIds = tasksToSave.map(t => t.id).filter(Boolean);
+    const existingTasks =
+      taskIds.length > 0
+        ? await db.query.tasks.findMany({
+            where: and(inArray(tasks.id, taskIds), eq(tasks.userId, userId)),
+          })
+        : [];
+    const existingTaskIds = new Set(existingTasks.map(t => t.id));
+
+    // Tasks with IDs that exist in DB should be updated, others should be created
+    const tasksToUpdate = tasksToSave.filter(t => t.id && existingTaskIds.has(t.id));
+    const tasksToCreate = tasksToSave.filter(t => !t.id || !existingTaskIds.has(t.id));
 
     // Extract unique section IDs for validation
     const sectionIds = [...new Set(tasksToSave.map(t => t.sectionId).filter(Boolean))];
@@ -35,17 +46,7 @@ export async function POST(request) {
       }
     }
 
-    // For updates, verify all tasks belong to user
-    if (tasksToUpdate.length > 0) {
-      const taskIds = tasksToUpdate.map(t => t.id);
-      const userTasks = await db.query.tasks.findMany({
-        where: and(inArray(tasks.id, taskIds), eq(tasks.userId, userId)),
-      });
-
-      if (userTasks.length !== taskIds.length) {
-        return NextResponse.json({ error: "One or more tasks not found" }, { status: 404 });
-      }
-    }
+    // Tasks to update are already verified above (they're in existingTasks)
 
     const createdTasks = [];
     const updatedTasks = [];

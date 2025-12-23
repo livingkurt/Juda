@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Button,
@@ -14,6 +14,7 @@ import {
   IconButton,
   Tag,
   Tabs,
+  createListCollection,
 } from "@chakra-ui/react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
@@ -27,7 +28,7 @@ export const TaskDialog = ({
   isOpen,
   onClose,
   task,
-  sections,
+  sections = [],
   onSave,
   defaultSectionId,
   defaultTime,
@@ -72,6 +73,40 @@ export const TaskDialog = ({
 
   const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6"];
 
+  // Create collections for selects
+  const sectionCollection = useMemo(
+    () => createListCollection({ items: sections.map(s => ({ label: s.name, value: s.id })) }),
+    [sections]
+  );
+
+  const durationCollection = useMemo(
+    () => createListCollection({ items: DURATION_OPTIONS.map(d => ({ label: d.label, value: d.value.toString() })) }),
+    []
+  );
+
+  const completionTypeCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { label: "Checkbox", value: "checkbox" },
+          { label: "Text Input", value: "text" },
+        ],
+      }),
+    []
+  );
+
+  const recurrenceCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { label: "None (One-time task)", value: "none" },
+          { label: "Every day", value: "daily" },
+          { label: "Specific days", value: "weekly" },
+        ],
+      }),
+    []
+  );
+
   useEffect(() => {
     if (task) {
       setTitle(task.title || "");
@@ -88,12 +123,16 @@ export const TaskDialog = ({
       setRecurrenceType(task.recurrence?.type || "none");
       setSelectedDays(task.recurrence?.days || []);
       // Sort subtasks by order and ensure order field is set
-      const sortedSubtasks = (task.subtasks || [])
+      // Ensure subtasks is always an array
+      const taskSubtasks = Array.isArray(task.subtasks) ? task.subtasks : [];
+      const sortedSubtasks = taskSubtasks
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         .map((st, idx) => ({ ...st, order: idx }));
       setSubtasks(sortedSubtasks);
       setColor(task.color || "#3b82f6");
-      setSelectedTagIds(task.tags?.map(t => t.id) || []);
+      // Ensure tags is always an array before mapping
+      const taskTags = Array.isArray(task.tags) ? task.tags : [];
+      setSelectedTagIds(taskTags.map(t => t.id));
       setCompletionType(task.completionType || "checkbox");
     } else {
       setTitle("");
@@ -274,14 +313,18 @@ export const TaskDialog = ({
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
                     Section
                   </Text>
-                  <Select.Root value={sectionId} onValueChange={({ value }) => setSectionId(value)}>
+                  <Select.Root
+                    collection={sectionCollection}
+                    value={[sectionId]}
+                    onValueChange={({ value }) => setSectionId(value[0])}
+                  >
                     <Select.Trigger>
-                      <Select.ValueText />
+                      <Select.ValueText placeholder="Select section" />
                     </Select.Trigger>
                     <Select.Content>
-                      {sections.map(s => (
-                        <Select.Item key={s.id} item={s.id}>
-                          {s.name}
+                      {sectionCollection.items.map(item => (
+                        <Select.Item key={item.value} item={item}>
+                          {item.label}
                         </Select.Item>
                       ))}
                     </Select.Content>
@@ -337,14 +380,18 @@ export const TaskDialog = ({
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
                     Duration
                   </Text>
-                  <Select.Root value={duration.toString()} onValueChange={({ value }) => setDuration(parseInt(value))}>
+                  <Select.Root
+                    collection={durationCollection}
+                    value={[duration.toString()]}
+                    onValueChange={({ value }) => setDuration(parseInt(value[0]))}
+                  >
                     <Select.Trigger>
-                      <Select.ValueText />
+                      <Select.ValueText placeholder="Select duration" />
                     </Select.Trigger>
                     <Select.Content>
-                      {DURATION_OPTIONS.map(d => (
-                        <Select.Item key={d.value} item={d.value.toString()}>
-                          {d.label}
+                      {durationCollection.items.map(item => (
+                        <Select.Item key={item.value} item={item}>
+                          {item.label}
                         </Select.Item>
                       ))}
                     </Select.Content>
@@ -354,13 +401,20 @@ export const TaskDialog = ({
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
                     Completion Type
                   </Text>
-                  <Select.Root value={completionType} onValueChange={({ value }) => setCompletionType(value)}>
+                  <Select.Root
+                    collection={completionTypeCollection}
+                    value={[completionType]}
+                    onValueChange={({ value }) => setCompletionType(value[0])}
+                  >
                     <Select.Trigger>
-                      <Select.ValueText />
+                      <Select.ValueText placeholder="Select completion type" />
                     </Select.Trigger>
                     <Select.Content>
-                      <Select.Item item="checkbox">Checkbox</Select.Item>
-                      <Select.Item item="text">Text Input</Select.Item>
+                      {completionTypeCollection.items.map(item => (
+                        <Select.Item key={item.value} item={item}>
+                          {item.label}
+                        </Select.Item>
+                      ))}
                     </Select.Content>
                   </Select.Root>
                 </Box>
@@ -368,14 +422,20 @@ export const TaskDialog = ({
                   <Text fontSize="sm" fontWeight="medium" mb={1}>
                     Recurrence
                   </Text>
-                  <Select.Root value={recurrenceType} onValueChange={({ value }) => setRecurrenceType(value)}>
+                  <Select.Root
+                    collection={recurrenceCollection}
+                    value={[recurrenceType]}
+                    onValueChange={({ value }) => setRecurrenceType(value[0])}
+                  >
                     <Select.Trigger>
-                      <Select.ValueText />
+                      <Select.ValueText placeholder="Select recurrence" />
                     </Select.Trigger>
                     <Select.Content>
-                      <Select.Item item="none">None (One-time task)</Select.Item>
-                      <Select.Item item="daily">Every day</Select.Item>
-                      <Select.Item item="weekly">Specific days</Select.Item>
+                      {recurrenceCollection.items.map(item => (
+                        <Select.Item key={item.value} item={item}>
+                          {item.label}
+                        </Select.Item>
+                      ))}
                     </Select.Content>
                   </Select.Root>
                 </Box>
@@ -387,21 +447,22 @@ export const TaskDialog = ({
                   <Box borderWidth="1px" borderColor={borderColor} borderRadius="md" p={3} minH="48px">
                     <HStack spacing={2} flexWrap="wrap" align="center">
                       {/* Tags */}
-                      {tags
-                        .filter(t => selectedTagIds.includes(t.id))
-                        .map(tag => (
-                          <Tag.Root
-                            key={tag.id}
-                            size="sm"
-                            borderRadius="full"
-                            variant="solid"
-                            bg={tag.color}
-                            color="white"
-                            fontSize="xs"
-                          >
-                            <Tag.Label>{tag.name}</Tag.Label>
-                          </Tag.Root>
-                        ))}
+                      {Array.isArray(tags) &&
+                        tags
+                          .filter(t => selectedTagIds.includes(t.id))
+                          .map(tag => (
+                            <Tag.Root
+                              key={tag.id}
+                              size="sm"
+                              borderRadius="full"
+                              variant="solid"
+                              bg={tag.color}
+                              color="white"
+                              fontSize="xs"
+                            >
+                              <Tag.Label>{tag.name}</Tag.Label>
+                            </Tag.Root>
+                          ))}
                       {/* Add Tag button */}
                       <TagSelector
                         tags={tags}
@@ -683,16 +744,17 @@ export const TaskDialog = ({
                                 Duration
                               </Text>
                               <Select.Root
-                                value={subtaskDuration.toString()}
-                                onValueChange={({ value }) => setSubtaskDuration(parseInt(value))}
+                                collection={durationCollection}
+                                value={[subtaskDuration.toString()]}
+                                onValueChange={({ value }) => setSubtaskDuration(parseInt(value[0]))}
                               >
                                 <Select.Trigger>
-                                  <Select.ValueText />
+                                  <Select.ValueText placeholder="Select duration" />
                                 </Select.Trigger>
                                 <Select.Content>
-                                  {DURATION_OPTIONS.map(d => (
-                                    <Select.Item key={d.value} item={d.value.toString()}>
-                                      {d.label}
+                                  {durationCollection.items.map(item => (
+                                    <Select.Item key={item.value} item={item}>
+                                      {item.label}
                                     </Select.Item>
                                   ))}
                                 </Select.Content>
