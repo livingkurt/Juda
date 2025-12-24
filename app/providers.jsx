@@ -259,6 +259,120 @@ const system = createSystem(defaultConfig, {
       bg: { _light: "gray.50", _dark: "gray.900" },
       color: { _light: "gray.900", _dark: "gray.100" },
     },
+    /* TipTap/ProseMirror Editor Styles - Must be global to override resets */
+    ".ProseMirror": {
+      outline: "none !important",
+      border: "none !important",
+      boxShadow: "none !important",
+      "&:focus, &:focus-visible": {
+        outline: "none !important",
+        border: "none !important",
+        boxShadow: "none !important",
+      },
+    },
+    /* Headings in ProseMirror - Notion style */
+    ".ProseMirror h1": {
+      fontSize: "1.875em !important",
+      fontWeight: "700 !important",
+      lineHeight: "1.3 !important",
+      marginTop: "2em",
+      marginBottom: "0.5em",
+      "&:first-of-type": {
+        marginTop: 0,
+      },
+    },
+    ".ProseMirror h2": {
+      fontSize: "1.5em !important",
+      fontWeight: "600 !important",
+      lineHeight: "1.35 !important",
+      marginTop: "1.75em",
+      marginBottom: "0.5em",
+    },
+    ".ProseMirror h3": {
+      fontSize: "1.25em !important",
+      fontWeight: "600 !important",
+      lineHeight: "1.4 !important",
+      marginTop: "1.5em",
+      marginBottom: "0.5em",
+    },
+    /* Paragraphs in ProseMirror */
+    ".ProseMirror p": {
+      marginBottom: "0.75em",
+      marginTop: 0,
+    },
+    /* Bullet Lists in ProseMirror */
+    ".ProseMirror ul:not([data-type='taskList'])": {
+      listStyle: "disc outside !important",
+      paddingLeft: "1.5em !important",
+      marginBottom: "0.75em",
+      marginLeft: "0.5em",
+    },
+    ".ProseMirror ul:not([data-type='taskList']) li": {
+      display: "list-item !important",
+      listStyleType: "disc !important",
+    },
+    ".ProseMirror ul:not([data-type='taskList']) li p": {
+      marginBottom: "0.25em",
+      display: "inline",
+    },
+    /* Nested bullet lists */
+    ".ProseMirror ul:not([data-type='taskList']) ul": {
+      listStyleType: "circle !important",
+    },
+    ".ProseMirror ul:not([data-type='taskList']) ul ul": {
+      listStyleType: "square !important",
+    },
+    /* Ordered Lists in ProseMirror */
+    ".ProseMirror ol": {
+      listStyle: "decimal outside !important",
+      paddingLeft: "1.5em !important",
+      marginBottom: "0.75em",
+      marginLeft: "0.5em",
+    },
+    ".ProseMirror ol li": {
+      display: "list-item !important",
+      listStyleType: "decimal !important",
+    },
+    ".ProseMirror ol li p": {
+      marginBottom: "0.25em",
+      display: "inline",
+    },
+    /* Nested ordered lists */
+    ".ProseMirror ol ol": {
+      listStyleType: "lower-alpha !important",
+    },
+    ".ProseMirror ol ol ol": {
+      listStyleType: "lower-roman !important",
+    },
+    /* Task lists in ProseMirror */
+    ".ProseMirror ul[data-type='taskList']": {
+      listStyle: "none !important",
+      paddingLeft: "0 !important",
+      marginLeft: "0 !important",
+    },
+    ".ProseMirror ul[data-type='taskList'] li": {
+      display: "flex !important",
+      listStyleType: "none !important",
+      alignItems: "flex-start",
+      marginBottom: "0.5em",
+    },
+    ".ProseMirror ul[data-type='taskList'] li > label": {
+      marginRight: "0.5em",
+      marginTop: "0.15em",
+      cursor: "pointer",
+    },
+    ".ProseMirror ul[data-type='taskList'] li > label input[type='checkbox']": {
+      width: "16px",
+      height: "16px",
+      cursor: "pointer",
+    },
+    ".ProseMirror ul[data-type='taskList'] li > div": {
+      flex: 1,
+    },
+    ".ProseMirror ul[data-type='taskList'] li[data-checked='true'] > div": {
+      textDecoration: "line-through",
+      opacity: 0.6,
+    },
     // Force fixed dimensions for drag previews
     "[data-drag-preview='true']": {
       width: "180px !important",

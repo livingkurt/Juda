@@ -249,13 +249,38 @@ export const RichTextEditor = ({
         py={6}
         bg={{ base: "white", _dark: "gray.800" }}
         css={{
+          /* Remove focus outline from editor wrapper */
+          "&:focus-within": {
+            outline: "none",
+          },
+          "& > div": {
+            outline: "none",
+          },
+          "& .tiptap": {
+            outline: "none",
+          },
+
           /* Notion-style editor styling */
           ".ProseMirror": {
             outline: "none",
+            border: "none",
+            boxShadow: "none",
             minHeight: "100%",
             fontSize: "16px",
             lineHeight: "1.8",
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+
+            "&:focus": {
+              outline: "none",
+              border: "none",
+              boxShadow: "none",
+            },
+
+            "&:focus-visible": {
+              outline: "none",
+              border: "none",
+              boxShadow: "none",
+            },
 
             /* Placeholder */
             "& p.is-editor-empty:first-of-type::before": {
@@ -299,48 +324,7 @@ export const RichTextEditor = ({
               marginBottom: "0.5em",
             },
 
-            /* Lists */
-            "& ul, & ol": {
-              paddingLeft: "1.5em",
-              marginBottom: "0.75em",
-              "& li": {
-                marginBottom: "0.25em",
-                "& p": {
-                  marginBottom: "0.25em",
-                },
-              },
-            },
-
-            /* Task lists - Checkbox style */
-            "& ul[data-type='taskList']": {
-              listStyle: "none",
-              paddingLeft: 0,
-              "& li": {
-                display: "flex",
-                alignItems: "flex-start",
-                marginBottom: "0.5em",
-                "& > label": {
-                  marginRight: "0.5em",
-                  marginTop: "0.15em",
-                  cursor: "pointer",
-                  "& input[type='checkbox']": {
-                    width: "16px",
-                    height: "16px",
-                    cursor: "pointer",
-                  },
-                },
-                "& > div": {
-                  flex: 1,
-                  "& p": {
-                    marginBottom: 0,
-                  },
-                },
-              },
-              "& li[data-checked='true'] > div": {
-                textDecoration: "line-through",
-                opacity: 0.6,
-              },
-            },
+            /* Lists styled via globalCss in providers.jsx */
 
             /* Blockquotes - Notion style */
             "& blockquote": {
