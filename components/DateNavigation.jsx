@@ -68,12 +68,12 @@ export const DateNavigation = ({ selectedDate, onDateChange, onPrevious, onNext,
         </Button>
         <IconButton onClick={onPrevious} variant="ghost" aria-label="Previous day" size="sm">
           <Box as="span" color="currentColor">
-            <ChevronLeft size={18} stroke="currentColor" />
+            <ChevronLeft size={14} stroke="currentColor" />
           </Box>
         </IconButton>
         <IconButton onClick={onNext} variant="ghost" aria-label="Next day" size="sm">
           <Box as="span" color="currentColor">
-            <ChevronRight size={18} stroke="currentColor" />
+            <ChevronRight size={14} stroke="currentColor" />
           </Box>
         </IconButton>
         <Box position="relative" flex={1} minW={{ base: 0, md: "200px" }}>

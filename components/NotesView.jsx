@@ -25,6 +25,7 @@ import {
   FileText,
   PanelLeftClose,
   PanelLeft,
+  ArrowLeft,
 } from "lucide-react";
 import { useFolders } from "@/hooks/useFolders";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
@@ -56,6 +57,26 @@ export const NotesView = ({
   const [isNoteListResizing, setIsNoteListResizing] = useState(false);
   const sidebarResizeStartRef = useRef(null);
   const noteListResizeStartRef = useRef(null);
+
+  // Mobile navigation state: "folders" | "notes" | "editor"
+  const [mobileView, setMobileView] = useState("folders");
+  // Initialize mobile state immediately if in browser, otherwise false for SSR
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth < 768;
+    }
+    return false;
+  });
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Handle sidebar resize start
   const handleSidebarResizeStart = e => {
@@ -221,6 +242,7 @@ export const NotesView = ({
           onClick={() => {
             setSelectedFolderId(folder.id);
             setSelectedSmartFolderId(null);
+            if (isMobile) setMobileView("notes");
           }}
         >
           {hasChildren ? (
@@ -252,6 +274,241 @@ export const NotesView = ({
     );
   };
 
+  // Mobile layout - show one panel at a time
+  if (isMobile) {
+    return (
+      <Flex h="100%" overflow="hidden" flexDirection="column">
+        {/* Mobile: Folders View */}
+        {mobileView === "folders" && (
+          <Box h="100%" display="flex" flexDirection="column" overflow="hidden">
+            {/* Header */}
+            <Flex
+              p={3}
+              align="center"
+              justify="space-between"
+              borderBottomWidth="1px"
+              borderColor={{ base: "gray.200", _dark: "gray.600" }}
+              bg={{ base: "gray.50", _dark: "gray.900" }}
+            >
+              <Heading size="sm">Notes</Heading>
+              <HStack spacing={1}>
+                <IconButton
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    const name = window.prompt("Folder name:");
+                    if (name?.trim()) createFolder({ name: name.trim() });
+                  }}
+                  aria-label="New Folder"
+                >
+                  <FolderPlus size={16} />
+                </IconButton>
+                <IconButton size="sm" variant="ghost" colorScheme="blue" onClick={onCreateNote} aria-label="New Note">
+                  <Plus size={16} />
+                </IconButton>
+              </HStack>
+            </Flex>
+
+            {/* Folder List */}
+            <Box flex={1} overflowY="auto" p={2} bg={{ base: "white", _dark: "gray.800" }}>
+              {/* All Notes */}
+              <Flex
+                align="center"
+                px={2}
+                py={1.5}
+                cursor="pointer"
+                bg={!selectedFolderId && !selectedSmartFolderId ? "blue.50" : "transparent"}
+                _dark={{ bg: !selectedFolderId && !selectedSmartFolderId ? "blue.900" : "transparent" }}
+                _hover={{
+                  bg: !selectedFolderId && !selectedSmartFolderId ? "blue.50" : "gray.100",
+                  _dark: { bg: !selectedFolderId && !selectedSmartFolderId ? "blue.900" : "gray.700" },
+                }}
+                borderRadius="md"
+                onClick={() => {
+                  setSelectedFolderId(null);
+                  setSelectedSmartFolderId(null);
+                  setMobileView("notes");
+                }}
+              >
+                <Box w={6} />
+                <Box as={FileText} size={16} mr={2} color={{ base: "gray.500", _dark: "gray.400" }} />
+                <Text
+                  flex={1}
+                  fontSize="sm"
+                  fontWeight={!selectedFolderId && !selectedSmartFolderId ? "medium" : "normal"}
+                >
+                  All Notes
+                </Text>
+                <ChevronRight size={16} color="gray" />
+              </Flex>
+
+              <Separator my={2} />
+
+              {/* Smart Folders */}
+              <Text fontSize="xs" fontWeight="bold" color={{ base: "gray.500", _dark: "gray.400" }} px={2} mb={1}>
+                SMART FOLDERS
+              </Text>
+              {smartFolders.map(sf => {
+                const isSelected = selectedSmartFolderId === sf.id;
+                return (
+                  <Flex
+                    key={sf.id}
+                    align="center"
+                    px={2}
+                    py={1.5}
+                    cursor="pointer"
+                    bg={isSelected ? "blue.50" : "transparent"}
+                    _dark={{ bg: isSelected ? "blue.900" : "transparent" }}
+                    _hover={{
+                      bg: isSelected ? "blue.50" : "gray.100",
+                      _dark: { bg: isSelected ? "blue.900" : "gray.700" },
+                    }}
+                    borderRadius="md"
+                    onClick={() => {
+                      setSelectedSmartFolderId(sf.id);
+                      setSelectedFolderId(null);
+                      setMobileView("notes");
+                    }}
+                  >
+                    <Box w={6} />
+                    <Box as={Zap} size={16} color={sf.color} mr={2} />
+                    <Text flex={1} fontSize="sm" fontWeight={isSelected ? "medium" : "normal"}>
+                      {sf.name}
+                    </Text>
+                    <ChevronRight size={16} color="gray" />
+                  </Flex>
+                );
+              })}
+
+              <Separator my={2} />
+
+              {/* Regular Folders */}
+              <Text fontSize="xs" fontWeight="bold" color={{ base: "gray.500", _dark: "gray.400" }} px={2} mb={1}>
+                FOLDERS
+              </Text>
+              {folderTree.map(folder => renderFolder(folder))}
+            </Box>
+          </Box>
+        )}
+
+        {/* Mobile: Notes List View */}
+        {mobileView === "notes" && (
+          <Box h="100%" display="flex" flexDirection="column" overflow="hidden">
+            {/* Header with back button */}
+            <Flex
+              p={3}
+              align="center"
+              gap={2}
+              borderBottomWidth="1px"
+              borderColor={{ base: "gray.200", _dark: "gray.600" }}
+              bg={{ base: "gray.50", _dark: "gray.900" }}
+            >
+              <IconButton size="sm" variant="ghost" onClick={() => setMobileView("folders")} aria-label="Back">
+                <ArrowLeft size={20} />
+              </IconButton>
+              <Heading size="sm" flex={1}>
+                {selectedSmartFolderId
+                  ? smartFolders.find(sf => sf.id === selectedSmartFolderId)?.name
+                  : selectedFolderId
+                    ? folders.find(f => f.id === selectedFolderId)?.name
+                    : "All Notes"}
+              </Heading>
+              <IconButton size="sm" variant="ghost" colorScheme="blue" onClick={onCreateNote} aria-label="New Note">
+                <Plus size={20} />
+              </IconButton>
+            </Flex>
+
+            {/* Search */}
+            <Box p={3} borderBottomWidth="1px" borderColor={{ base: "gray.200", _dark: "gray.600" }}>
+              <HStack>
+                <Box as={Search} size={16} color={{ base: "gray.500", _dark: "gray.400" }} />
+                <Input
+                  placeholder="Search notes..."
+                  size="sm"
+                  variant="unstyled"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </HStack>
+            </Box>
+
+            {/* Note List */}
+            <VStack flex={1} overflowY="auto" spacing={0} align="stretch" bg={{ base: "white", _dark: "gray.800" }}>
+              {filteredNotes.map(note => (
+                <Box
+                  key={note.id}
+                  p={3}
+                  cursor="pointer"
+                  bg={selectedNoteId === note.id ? "blue.50" : "transparent"}
+                  _dark={{ bg: selectedNoteId === note.id ? "blue.900" : "transparent" }}
+                  _hover={{
+                    bg: selectedNoteId === note.id ? "blue.50" : "gray.100",
+                    _dark: { bg: selectedNoteId === note.id ? "blue.900" : "gray.700" },
+                  }}
+                  borderBottomWidth="1px"
+                  borderColor={{ base: "gray.200", _dark: "gray.600" }}
+                  onClick={() => {
+                    setSelectedNoteId(note.id);
+                    setMobileView("editor");
+                  }}
+                >
+                  <Text fontWeight="medium" fontSize="sm" noOfLines={1}>
+                    {note.title || "Untitled"}
+                  </Text>
+                  <Text fontSize="xs" color={{ base: "gray.500", _dark: "gray.400" }} noOfLines={2} mt={1}>
+                    {(note.content || "").replace(/<[^>]*>/g, "").slice(0, 100) || "No content"}
+                  </Text>
+                  <Text fontSize="2xs" color={{ base: "gray.500", _dark: "gray.400" }} mt={1}>
+                    {new Date(note.updatedAt).toLocaleDateString()}
+                  </Text>
+                </Box>
+              ))}
+              {filteredNotes.length === 0 && (
+                <Box p={4} textAlign="center">
+                  <Text color={{ base: "gray.500", _dark: "gray.400" }}>No notes found</Text>
+                </Box>
+              )}
+            </VStack>
+          </Box>
+        )}
+
+        {/* Mobile: Editor View */}
+        {mobileView === "editor" && selectedNote && (
+          <Box h="100%" display="flex" flexDirection="column" overflow="hidden">
+            {/* Header with back button */}
+            <Flex
+              p={2}
+              align="center"
+              gap={2}
+              borderBottomWidth="1px"
+              borderColor={{ base: "gray.200", _dark: "gray.600" }}
+              bg={{ base: "gray.50", _dark: "gray.900" }}
+            >
+              <IconButton size="sm" variant="ghost" onClick={() => setMobileView("notes")} aria-label="Back">
+                <ArrowLeft size={20} />
+              </IconButton>
+            </Flex>
+
+            {/* Editor */}
+            <Box flex={1} overflow="hidden">
+              <NoteEditor
+                note={selectedNote}
+                folders={folders}
+                allTags={allTags}
+                onUpdate={onUpdateNote}
+                onDelete={onDeleteNote}
+                onConvertToTask={note => {
+                  onUpdateNote(note.id, { completionType: "checkbox" });
+                }}
+              />
+            </Box>
+          </Box>
+        )}
+      </Flex>
+    );
+  }
+
+  // Desktop layout - show all panels side by side
   return (
     <Flex h="100%" overflow="hidden">
       {/* Sidebar - Folders */}
@@ -313,6 +570,7 @@ export const NotesView = ({
             onClick={() => {
               setSelectedFolderId(null);
               setSelectedSmartFolderId(null);
+              if (isMobile) setMobileView("notes");
             }}
           >
             <Box w={6} />
@@ -352,6 +610,7 @@ export const NotesView = ({
                 onClick={() => {
                   setSelectedSmartFolderId(sf.id);
                   setSelectedFolderId(null);
+                  if (isMobile) setMobileView("notes");
                 }}
               >
                 <Box w={6} />
@@ -466,7 +725,10 @@ export const NotesView = ({
               }}
               borderBottomWidth="1px"
               borderColor={{ base: "gray.200", _dark: "gray.600" }}
-              onClick={() => setSelectedNoteId(note.id)}
+              onClick={() => {
+                setSelectedNoteId(note.id);
+                if (isMobile) setMobileView("editor");
+              }}
             >
               <Text fontWeight="medium" fontSize="sm" noOfLines={1}>
                 {note.title || "Untitled"}

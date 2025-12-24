@@ -122,7 +122,7 @@ export const SectionCard = ({
     <Card.Root
       ref={setSectionNodeRef}
       style={sectionStyle}
-      mb={4}
+      mb={{ base: 2, md: 4 }}
       bg={bgColor}
       borderColor={isDropTarget || isOver ? "blue.400" : borderColor}
       borderWidth={isDropTarget || isOver ? "2px" : "1px"}
@@ -132,62 +132,84 @@ export const SectionCard = ({
       maxW="100%"
       overflow="hidden"
     >
-      <Card.Header pb={2} w="100%" maxW="100%" overflow="hidden">
-        <Flex align="center" justify="space-between" w="100%" maxW="100%" gap={2}>
-          <Flex align="center" gap={2} minW={0} flex={1}>
+      <Card.Header
+        pb={{ base: 1, md: 2 }}
+        pt={{ base: 2, md: 3 }}
+        px={{ base: 2, md: 4 }}
+        w="100%"
+        maxW="100%"
+        overflow="hidden"
+      >
+        <Flex align="center" justify="space-between" w="100%" maxW="100%" gap={{ base: 1, md: 2 }}>
+          <Flex align="center" gap={{ base: 1, md: 2 }} minW={0} flex={1}>
             <Box
               {...sectionAttributes}
               {...sectionListeners}
               cursor="grab"
               _active={{ cursor: "grabbing" }}
               color={mutedText}
+              display={{ base: "none", md: "block" }}
             >
-              <GripVertical size={18} stroke="currentColor" />
+              <GripVertical size={14} stroke="currentColor" />
             </Box>
             <Box as="span" color="orange.500">
-              <IconComponent size={20} stroke="currentColor" />
+              <IconComponent size={14} stroke="currentColor" />
             </Box>
-            <Heading size="md" color={textColor} noOfLines={1}>
+            <Heading size={{ base: "sm", md: "md" }} color={textColor} noOfLines={1}>
               {section.name}
             </Heading>
-            <Text fontSize="sm" color={mutedText} flexShrink={0}>
+            <Text fontSize={{ base: "xs", md: "sm" }} color={mutedText} flexShrink={0}>
               ({completedCount}/{tasks.length})
             </Text>
           </Flex>
-          <HStack spacing={1} flexShrink={0}>
+          <HStack spacing={{ base: 0, md: 1 }} flexShrink={0}>
             <IconButton
               onClick={() => onToggleSectionExpand && onToggleSectionExpand(section.id)}
-              size="sm"
+              size={{ base: "xs", md: "sm" }}
               variant="ghost"
               aria-label={section.expanded !== false ? "Collapse section" : "Expand section"}
+              minW={{ base: "24px", md: "32px" }}
+              h={{ base: "24px", md: "32px" }}
+              p={{ base: 0, md: 1 }}
             >
               <Box as="span" color="currentColor">
                 {section.expanded !== false ? (
-                  <ChevronUp size={16} stroke="currentColor" />
+                  <ChevronUp size={14} stroke="currentColor" />
                 ) : (
-                  <ChevronDown size={16} stroke="currentColor" />
+                  <ChevronDown size={14} stroke="currentColor" />
                 )}
               </Box>
             </IconButton>
-            <IconButton onClick={() => onAddTask(section.id)} size="sm" variant="ghost" aria-label="Add task">
+            <IconButton
+              onClick={() => onAddTask(section.id)}
+              size={{ base: "xs", md: "sm" }}
+              variant="ghost"
+              aria-label="Add task"
+              minW={{ base: "24px", md: "32px" }}
+              h={{ base: "24px", md: "32px" }}
+              p={{ base: 0, md: 1 }}
+            >
               <Box as="span" color="currentColor">
-                <Plus size={16} stroke="currentColor" />
+                <Plus size={14} stroke="currentColor" />
               </Box>
             </IconButton>
             <Menu.Root>
               <Menu.Trigger asChild>
                 <IconButton
-                  size="sm"
+                  size={{ base: "xs", md: "sm" }}
                   variant="ghost"
                   aria-label="Section menu"
                   border="none"
                   outline="none"
+                  minW={{ base: "24px", md: "32px" }}
+                  h={{ base: "24px", md: "32px" }}
+                  p={{ base: 0, md: 1 }}
                   _hover={{ border: "none", outline: "none" }}
                   _focus={{ border: "none", outline: "none", boxShadow: "none" }}
                   _active={{ border: "none", outline: "none" }}
                 >
                   <Box as="span" color="currentColor">
-                    <MoreVertical size={16} stroke="currentColor" />
+                    <MoreVertical size={14} stroke="currentColor" />
                   </Box>
                 </IconButton>
               </Menu.Trigger>
@@ -204,21 +226,21 @@ export const SectionCard = ({
         </Flex>
       </Card.Header>
       {section.expanded !== false && (
-        <Card.Body pt={2}>
+        <Card.Body pt={{ base: 1, md: 2 }} pb={{ base: 2, md: 3 }} px={{ base: 2, md: 4 }}>
           <Box
             ref={setDropNodeRef}
             bg={isOver ? dropHighlight : "transparent"}
             borderRadius="md"
-            minH={tasksWithIds.length === 0 ? "120px" : "60px"}
-            p={tasksWithIds.length === 0 ? 4 : 2}
+            minH={tasksWithIds.length === 0 ? { base: "80px", md: "120px" } : { base: "40px", md: "60px" }}
+            p={tasksWithIds.length === 0 ? { base: 2, md: 4 } : { base: 1, md: 2 }}
             transition="background-color 0.2s, padding 0.2s, min-height 0.2s"
             borderWidth={isOver ? "2px" : "0px"}
             borderColor={isOver ? "blue.400" : "transparent"}
             borderStyle="dashed"
           >
             {tasksWithIds.length === 0 ? (
-              <VStack align="stretch" spacing={2}>
-                <Text fontSize="sm" textAlign="center" py={8} color={mutedText}>
+              <VStack align="stretch" spacing={{ base: 1, md: 2 }}>
+                <Text fontSize={{ base: "xs", md: "sm" }} textAlign="center" py={{ base: 4, md: 8 }} color={mutedText}>
                   {isOver ? "Drop here" : "No tasks"}
                 </Text>
                 <Input
@@ -253,7 +275,7 @@ export const SectionCard = ({
                 items={tasksWithIds.map(t => t.draggableId)}
                 strategy={verticalListSortingStrategy}
               >
-                <VStack align="stretch" spacing={3} py={2}>
+                <VStack align="stretch" spacing={{ base: 2, md: 3 }} py={{ base: 1, md: 2 }}>
                   {tasksWithIds.map((task, index) => (
                     <TaskItem
                       key={task.id}

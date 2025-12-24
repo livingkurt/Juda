@@ -8,6 +8,9 @@ import { PreferencesProvider } from "@/contexts/PreferencesContext";
 const system = createSystem(defaultConfig, {
   theme: {
     tokens: {
+      fontSizes: {
+        "3xs": { value: "0.625rem" }, // 10px - extra small for mobile badges
+      },
       colors: {
         // Override gray palette to match v2's blue-gray tones for dark mode
         gray: {
@@ -258,6 +261,10 @@ const system = createSystem(defaultConfig, {
     "html, body": {
       bg: { _light: "gray.50", _dark: "gray.900" },
       color: { _light: "gray.900", _dark: "gray.100" },
+      // Mobile viewport optimization
+      "@media (max-width: 768px)": {
+        fontSize: "14px", // Reduce base font size on mobile
+      },
     },
     /* TipTap/ProseMirror Editor Styles - Must be global to override resets */
     ".ProseMirror": {

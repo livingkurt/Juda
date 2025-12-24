@@ -75,9 +75,17 @@ export const Section = ({
             getCompletionForDate={getCompletionForDate}
           />
         ))}
-        <Button variant="outline" onClick={onAddSection} w="full" py={6} borderStyle="dashed" mt={4}>
-          <Box as="span" display="inline-flex" alignItems="center" mr={2}>
-            <Plus size={20} stroke="currentColor" />
+        <Button
+          variant="outline"
+          onClick={onAddSection}
+          w="full"
+          py={{ base: 4, md: 6 }}
+          borderStyle="dashed"
+          mt={{ base: 2, md: 4 }}
+          fontSize={{ base: "sm", md: "md" }}
+        >
+          <Box as="span" display="inline-flex" alignItems="center" mr={{ base: 1, md: 2 }}>
+            <Plus size={16} stroke="currentColor" />
           </Box>
           Add Section
         </Button>

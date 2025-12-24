@@ -95,12 +95,12 @@ const BacklogDrawerComponent = ({
               aria-label="Add task to backlog"
             >
               <Box as="span" color="currentColor">
-                <Plus size={18} stroke="currentColor" />
+                <Plus size={16} stroke="currentColor" />
               </Box>
             </IconButton>
             <IconButton onClick={onClose} size="sm" variant="ghost" aria-label="Close backlog">
               <Box as="span" color="currentColor">
-                <X size={18} stroke="currentColor" />
+                <X size={16} stroke="currentColor" />
               </Box>
             </IconButton>
           </HStack>

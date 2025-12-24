@@ -651,7 +651,7 @@ export const TaskDialog = ({
                           aria-label="Add subtask"
                         >
                           <Box as="span" color="currentColor">
-                            <Plus size={16} stroke="currentColor" />
+                            <Plus size={14} stroke="currentColor" />
                           </Box>
                         </IconButton>
                       </HStack>
@@ -662,7 +662,7 @@ export const TaskDialog = ({
                       <VStack align="stretch" spacing={3}>
                         <HStack spacing={2}>
                           <Box as="span" color="gray.500">
-                            <Search size={16} />
+                            <Search size={14} />
                           </Box>
                           <Input
                             value={searchQuery}

@@ -246,8 +246,8 @@ export const TaskItem = ({
       >
         <Flex
           align="center"
-          gap={2}
-          p={3}
+          gap={{ base: 1.5, md: 2 }}
+          p={{ base: 2, md: 3 }}
           _hover={{ bg: hoverBg }}
           _active={{ cursor: isDragDisabled ? "default" : "grabbing" }}
           {...(isDragDisabled ? {} : attributes)}
@@ -267,15 +267,18 @@ export const TaskItem = ({
                 }}
                 onMouseDown={e => e.stopPropagation()}
                 onPointerDown={e => e.stopPropagation()}
-                size="sm"
+                size={{ base: "xs", md: "sm" }}
                 variant="ghost"
                 aria-label="Toggle expand"
+                minW={{ base: "24px", md: "32px" }}
+                h={{ base: "24px", md: "32px" }}
+                p={{ base: 0, md: 1 }}
               >
                 <Box as="span" color="currentColor">
                   {task.expanded ? (
-                    <ChevronDown size={16} stroke="currentColor" />
+                    <ChevronDown size={14} stroke="currentColor" />
                   ) : (
-                    <ChevronRight size={16} stroke="currentColor" />
+                    <ChevronRight size={14} stroke="currentColor" />
                   )}
                 </Box>
               </IconButton>
@@ -303,7 +306,7 @@ export const TaskItem = ({
                       checked={
                         isTextTask ? isTextTaskCompleted : outcome === "completed" || (outcome === null && isChecked)
                       }
-                      size="lg"
+                      size={{ base: "md", md: "lg" }}
                       onCheckedChange={() => {
                         // For text tasks, complete when checkbox is checked
                         if (isTextTask && !isTextTaskCompleted && noteInput.trim()) {
@@ -351,7 +354,7 @@ export const TaskItem = ({
                         ) : outcome === "skipped" ? (
                           <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
                             <Box as="span" color="gray.700">
-                              <SkipForward size={16} stroke="currentColor" />
+                              <SkipForward size={14} stroke="currentColor" />
                             </Box>
                           </Box>
                         ) : (
@@ -375,7 +378,7 @@ export const TaskItem = ({
                               }}
                             >
                               <HStack>
-                                <Circle size={16} />
+                                <Circle size={14} />
                                 <Text>Uncheck</Text>
                               </HStack>
                             </Menu.Item>
@@ -391,7 +394,7 @@ export const TaskItem = ({
                             }}
                           >
                             <HStack>
-                              <Check size={16} />
+                              <Check size={14} />
                               <Text>Completed</Text>
                             </HStack>
                           </Menu.Item>
@@ -405,7 +408,7 @@ export const TaskItem = ({
                             }}
                           >
                             <HStack>
-                              <SkipForward size={16} />
+                              <SkipForward size={14} />
                               <Text>Skipped</Text>
                             </HStack>
                           </Menu.Item>
@@ -449,6 +452,7 @@ export const TaskItem = ({
               ) : (
                 <Text
                   fontWeight="medium"
+                  fontSize={{ base: "sm", md: "md" }}
                   textDecoration={shouldShowStrikethrough ? "line-through" : "none"}
                   opacity={shouldShowStrikethrough ? 0.5 : 1}
                   color={textColor}
@@ -466,7 +470,13 @@ export const TaskItem = ({
                 </Text>
               )}
               {task.subtasks && task.subtasks.length > 0 && (
-                <Text as="span" ml={2} fontSize="xs" color={mutedText} flexShrink={0}>
+                <Text
+                  as="span"
+                  ml={{ base: 1, md: 2 }}
+                  fontSize={{ base: "2xs", md: "xs" }}
+                  color={mutedText}
+                  flexShrink={0}
+                >
                   ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})
                 </Text>
               )}
@@ -522,10 +532,16 @@ export const TaskItem = ({
             )}
             {/* Badges - show for backlog and today variants */}
             {(isBacklog || isToday) && (
-              <HStack spacing={2} mt={1} align="center" flexWrap="wrap">
+              <HStack spacing={{ base: 1, md: 2 }} mt={{ base: 0.5, md: 1 }} align="center" flexWrap="wrap">
                 {isOverdue(task, viewDate, hasRecordOnDate ? hasRecordOnDate(task.id, viewDate) : task.completed) && (
-                  <Badge size="sm" colorPalette="red" fontSize="2xs">
-                    <HStack spacing={1} align="center">
+                  <Badge
+                    size={{ base: "xs", md: "sm" }}
+                    colorPalette="red"
+                    fontSize={{ base: "3xs", md: "2xs" }}
+                    py={{ base: 0, md: 1 }}
+                    px={{ base: 1, md: 2 }}
+                  >
+                    <HStack spacing={{ base: 0.5, md: 1 }} align="center">
                       <Box as="span" color="currentColor">
                         <AlertCircle size={10} stroke="currentColor" />
                       </Box>
@@ -534,7 +550,13 @@ export const TaskItem = ({
                   </Badge>
                 )}
                 {task.recurrence && task.recurrence.type !== "none" && (
-                  <Badge size="sm" colorPalette="purple" fontSize="2xs">
+                  <Badge
+                    size={{ base: "xs", md: "sm" }}
+                    colorPalette="purple"
+                    fontSize={{ base: "3xs", md: "2xs" }}
+                    py={{ base: 0, md: 1 }}
+                    px={{ base: 1, md: 2 }}
+                  >
                     {task.recurrence.type === "daily"
                       ? "Daily"
                       : task.recurrence.type === "weekly"
@@ -547,13 +569,25 @@ export const TaskItem = ({
                   </Badge>
                 )}
                 {task.recurrence?.endDate && (
-                  <Badge size="sm" colorPalette="orange" fontSize="2xs">
+                  <Badge
+                    size={{ base: "xs", md: "sm" }}
+                    colorPalette="orange"
+                    fontSize={{ base: "3xs", md: "2xs" }}
+                    py={{ base: 0, md: 1 }}
+                    px={{ base: 1, md: 2 }}
+                  >
                     Ends{" "}
                     {new Date(task.recurrence.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </Badge>
                 )}
                 {!task.time && !isBacklog && (
-                  <Badge size="sm" colorPalette="orange" fontSize="2xs">
+                  <Badge
+                    size={{ base: "xs", md: "sm" }}
+                    colorPalette="orange"
+                    fontSize={{ base: "3xs", md: "2xs" }}
+                    py={{ base: 0, md: 1 }}
+                    px={{ base: 1, md: 2 }}
+                  >
                     No time
                   </Badge>
                 )}
@@ -561,7 +595,16 @@ export const TaskItem = ({
                 {task.tags && task.tags.length > 0 && (
                   <>
                     {task.tags.map(tag => (
-                      <Tag.Root key={tag.id} size="sm" borderRadius="full" bg={tag.color} color="white" fontSize="2xs">
+                      <Tag.Root
+                        key={tag.id}
+                        size={{ base: "xs", md: "sm" }}
+                        borderRadius="full"
+                        bg={tag.color}
+                        color="white"
+                        fontSize={{ base: "3xs", md: "2xs" }}
+                        py={{ base: 0, md: 1 }}
+                        px={{ base: 1.5, md: 2 }}
+                      >
                         <Tag.Label>{tag.name}</Tag.Label>
                       </Tag.Root>
                     ))}
@@ -573,11 +616,11 @@ export const TaskItem = ({
 
           {/* Time display */}
           {task.time && (
-            <HStack spacing={1} flexShrink={0}>
+            <HStack spacing={{ base: 0.5, md: 1 }} flexShrink={0}>
               <Box as="span" color={mutedText}>
-                <Clock size={14} stroke="currentColor" />
+                <Clock size={12} stroke="currentColor" />
               </Box>
-              <Text fontSize="sm" color={mutedText} whiteSpace="nowrap">
+              <Text fontSize={{ base: "xs", md: "sm" }} color={mutedText} whiteSpace="nowrap">
                 {formatTime(task.time)}
               </Text>
             </HStack>
@@ -590,17 +633,20 @@ export const TaskItem = ({
                 onClick={e => e.stopPropagation()}
                 onMouseDown={e => e.stopPropagation()}
                 onPointerDown={e => e.stopPropagation()}
-                size={"sm"}
+                size={{ base: "xs", md: "sm" }}
                 variant="ghost"
                 aria-label="Task actions"
                 border="none"
                 outline="none"
+                minW={{ base: "24px", md: "32px" }}
+                h={{ base: "24px", md: "32px" }}
+                p={{ base: 0, md: 1 }}
                 _hover={{ border: "none", outline: "none" }}
                 _focus={{ border: "none", outline: "none", boxShadow: "none" }}
                 _active={{ border: "none", outline: "none" }}
               >
                 <Box as="span" color="currentColor">
-                  <MoreVertical size={16} stroke="currentColor" />
+                  <MoreVertical size={14} stroke="currentColor" />
                 </Box>
               </IconButton>
             </Menu.Trigger>
@@ -614,7 +660,7 @@ export const TaskItem = ({
                     }}
                   >
                     <HStack>
-                      <Edit2 size={16} />
+                      <Edit2 size={14} />
                       <Text>Edit</Text>
                     </HStack>
                   </Menu.Item>
@@ -627,7 +673,7 @@ export const TaskItem = ({
                       }}
                     >
                       <HStack>
-                        <SkipForward size={16} />
+                        <SkipForward size={14} />
                         <Text>Skip</Text>
                       </HStack>
                     </Menu.Item>
@@ -640,7 +686,7 @@ export const TaskItem = ({
                       }}
                     >
                       <HStack>
-                        <Copy size={16} />
+                        <Copy size={14} />
                         <Text>Duplicate</Text>
                       </HStack>
                     </Menu.Item>
@@ -653,7 +699,7 @@ export const TaskItem = ({
                     }}
                   >
                     <HStack>
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                       <Text>Delete</Text>
                     </HStack>
                   </Menu.Item>
@@ -665,8 +711,8 @@ export const TaskItem = ({
 
         {/* Expanded subtasks */}
         {task.expanded && task.subtasks && task.subtasks.length > 0 && onToggleSubtask && (
-          <Box pl={16} pr={3} pb={3}>
-            <VStack align="stretch" spacing={2}>
+          <Box pl={{ base: 8, md: 16 }} pr={{ base: 2, md: 3 }} pb={{ base: 2, md: 3 }}>
+            <VStack align="stretch" spacing={{ base: 1.5, md: 2 }}>
               {task.subtasks.map(subtask => (
                 <TaskItem
                   key={subtask.id}

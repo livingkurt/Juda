@@ -31,7 +31,7 @@ export const TaskSearchInput = ({ onSearchChange, placeholder = "Search tasks...
     <InputGroup
       startElement={
         <Box as="span" color={mutedText} pointerEvents="none">
-          <Search size={16} stroke="currentColor" />
+          <Search size={14} stroke="currentColor" />
         </Box>
       }
     >

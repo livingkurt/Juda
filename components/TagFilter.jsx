@@ -83,7 +83,7 @@ export const TagFilter = ({
                   onKeyDown={handleKeyDown}
                 />
                 <Button size="sm" colorPalette="blue" onClick={handleCreateTag} isDisabled={!newTagName.trim()}>
-                  <Plus size={16} />
+                  <Plus size={14} />
                 </Button>
               </HStack>
             </Box>
