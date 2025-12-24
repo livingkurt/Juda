@@ -176,7 +176,16 @@ export const SectionCard = ({
             </IconButton>
             <Menu.Root>
               <Menu.Trigger asChild>
-                <IconButton size="sm" variant="ghost" aria-label="Section menu">
+                <IconButton
+                  size="sm"
+                  variant="ghost"
+                  aria-label="Section menu"
+                  border="none"
+                  outline="none"
+                  _hover={{ border: "none", outline: "none" }}
+                  _focus={{ border: "none", outline: "none", boxShadow: "none" }}
+                  _active={{ border: "none", outline: "none" }}
+                >
                   <Box as="span" color="currentColor">
                     <MoreVertical size={16} stroke="currentColor" />
                   </Box>

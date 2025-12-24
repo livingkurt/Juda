@@ -172,6 +172,10 @@ export default function DailyTasksApp() {
     showCompletedTasks,
     showRecurringTasks,
     showCompletedTasksCalendar,
+    notesSidebarOpen,
+    notesSidebarWidth,
+    notesListOpen,
+    notesListWidth,
   } = preferences;
 
   // Create setter functions that update preferences
@@ -181,6 +185,10 @@ export default function DailyTasksApp() {
   const setBacklogWidth = useCallback(value => updatePreference("backlogWidth", value), [updatePreference]);
   const setCalendarView = useCallback(value => updatePreference("calendarView", value), [updatePreference]);
   const setShowCompletedTasks = useCallback(value => updatePreference("showCompletedTasks", value), [updatePreference]);
+  const setNotesSidebarOpen = useCallback(value => updatePreference("notesSidebarOpen", value), [updatePreference]);
+  const setNotesSidebarWidth = useCallback(value => updatePreference("notesSidebarWidth", value), [updatePreference]);
+  const setNotesListOpen = useCallback(value => updatePreference("notesListOpen", value), [updatePreference]);
+  const setNotesListWidth = useCallback(value => updatePreference("notesListWidth", value), [updatePreference]);
 
   // For nested preferences
   const setCalendarZoom = updater => {
@@ -2274,16 +2282,20 @@ export default function DailyTasksApp() {
                             content: "",
                           });
                         }}
-                        onEditNote={task => {
-                          setEditingTask(task);
-                          openTaskDialog();
-                        }}
                         onDeleteNote={taskId => {
                           deleteTask(taskId);
                         }}
                         onUpdateNote={async (taskId, updates) => {
                           await updateTask(taskId, updates);
                         }}
+                        sidebarOpen={notesSidebarOpen}
+                        sidebarWidth={notesSidebarWidth}
+                        onSidebarToggle={() => setNotesSidebarOpen(!notesSidebarOpen)}
+                        onSidebarResize={setNotesSidebarWidth}
+                        noteListOpen={notesListOpen}
+                        noteListWidth={notesListWidth}
+                        onNoteListToggle={() => setNotesListOpen(!notesListOpen)}
+                        onNoteListResize={setNotesListWidth}
                       />
                     </Box>
                   ) : mainTabIndex === 2 ? (

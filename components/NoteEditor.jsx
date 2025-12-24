@@ -114,7 +114,16 @@ export const NoteEditor = ({ note, folders, allTags: _allTags, onUpdate, onDelet
           </Text>
           <Menu.Root>
             <Menu.Trigger asChild>
-              <IconButton variant="ghost" size="sm" aria-label="Note options">
+              <IconButton
+                variant="ghost"
+                size="sm"
+                aria-label="Note options"
+                border="none"
+                outline="none"
+                _hover={{ border: "none", outline: "none" }}
+                _focus={{ border: "none", outline: "none", boxShadow: "none" }}
+                _active={{ border: "none", outline: "none" }}
+              >
                 <MoreVertical size={16} />
               </IconButton>
             </Menu.Trigger>

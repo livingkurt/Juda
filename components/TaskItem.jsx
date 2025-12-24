@@ -593,6 +593,11 @@ export const TaskItem = ({
                 size={"sm"}
                 variant="ghost"
                 aria-label="Task actions"
+                border="none"
+                outline="none"
+                _hover={{ border: "none", outline: "none" }}
+                _focus={{ border: "none", outline: "none", boxShadow: "none" }}
+                _active={{ border: "none", outline: "none" }}
               >
                 <Box as="span" color="currentColor">
                   <MoreVertical size={16} stroke="currentColor" />

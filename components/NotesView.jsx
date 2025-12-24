@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   Box,
   Flex,
@@ -20,13 +20,11 @@ import {
   FolderPlus,
   Zap,
   Search,
-  MoreVertical,
-  Edit2,
-  Trash2,
   ChevronRight,
   ChevronDown,
   FileText,
-  Tag,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 import { useFolders } from "@/hooks/useFolders";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
@@ -35,18 +33,99 @@ import { NoteEditor } from "./NoteEditor";
 export const NotesView = ({
   notes, // Tasks with completionType === "note"
   onCreateNote,
-  onEditNote,
   onDeleteNote,
   onUpdateNote,
+  sidebarOpen = true,
+  sidebarWidth = 280,
+  onSidebarToggle,
+  onSidebarResize,
+  noteListOpen = true,
+  noteListWidth = 300,
+  onNoteListToggle,
+  onNoteListResize,
 }) => {
-  const { folders, createFolder, updateFolder, deleteFolder } = useFolders();
-  const { smartFolders, createSmartFolder, deleteSmartFolder, filterNotesBySmartFolder } = useSmartFolders();
+  const { folders, createFolder } = useFolders();
+  const { smartFolders, createSmartFolder, filterNotesBySmartFolder } = useSmartFolders();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState(null); // null = "All Notes"
   const [selectedSmartFolderId, setSelectedSmartFolderId] = useState(null);
   const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [expandedFolders, setExpandedFolders] = useState(new Set());
+  const [isSidebarResizing, setIsSidebarResizing] = useState(false);
+  const [isNoteListResizing, setIsNoteListResizing] = useState(false);
+  const sidebarResizeStartRef = useRef(null);
+  const noteListResizeStartRef = useRef(null);
+
+  // Handle sidebar resize start
+  const handleSidebarResizeStart = e => {
+    e.preventDefault();
+    setIsSidebarResizing(true);
+    sidebarResizeStartRef.current = {
+      startX: e.clientX,
+      startWidth: sidebarWidth,
+    };
+  };
+
+  // Handle sidebar resize
+  useEffect(() => {
+    if (!isSidebarResizing) return;
+
+    const handleMouseMove = e => {
+      if (!sidebarResizeStartRef.current || !onSidebarResize) return;
+      const deltaX = e.clientX - sidebarResizeStartRef.current.startX;
+      const newWidth = Math.max(200, Math.min(600, sidebarResizeStartRef.current.startWidth + deltaX));
+      onSidebarResize(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsSidebarResizing(false);
+      sidebarResizeStartRef.current = null;
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isSidebarResizing, sidebarWidth, onSidebarResize]);
+
+  // Handle note list resize start
+  const handleNoteListResizeStart = e => {
+    e.preventDefault();
+    setIsNoteListResizing(true);
+    noteListResizeStartRef.current = {
+      startX: e.clientX,
+      startWidth: noteListWidth,
+    };
+  };
+
+  // Handle note list resize
+  useEffect(() => {
+    if (!isNoteListResizing) return;
+
+    const handleMouseMove = e => {
+      if (!noteListResizeStartRef.current || !onNoteListResize) return;
+      const deltaX = e.clientX - noteListResizeStartRef.current.startX;
+      const newWidth = Math.max(250, Math.min(600, noteListResizeStartRef.current.startWidth + deltaX));
+      onNoteListResize(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsNoteListResizing(false);
+      noteListResizeStartRef.current = null;
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isNoteListResizing, noteListWidth, onNoteListResize]);
 
   // Get all unique tags from notes
   const allTags = useMemo(() => {
@@ -177,14 +256,17 @@ export const NotesView = ({
     <Flex h="100%" overflow="hidden">
       {/* Sidebar - Folders */}
       <Box
-        w="250px"
+        w={sidebarOpen ? `${sidebarWidth}px` : "0"}
         h="100%"
         bg={{ base: "gray.50", _dark: "gray.900" }}
-        borderRightWidth="1px"
+        borderRightWidth={sidebarOpen ? "1px" : "0"}
         borderColor={{ base: "gray.200", _dark: "gray.600" }}
         display="flex"
         flexDirection="column"
         flexShrink={0}
+        position="relative"
+        overflow="hidden"
+        transition={isSidebarResizing ? "none" : "width 0.3s ease-in-out, border-width 0.3s ease-in-out"}
       >
         {/* Sidebar Header */}
         <Flex
@@ -197,7 +279,6 @@ export const NotesView = ({
           <Heading size="sm">Notes</Heading>
           <HStack spacing={1}>
             <IconButton
-              icon={<FolderPlus size={16} />}
               size="sm"
               variant="ghost"
               onClick={() => {
@@ -205,15 +286,12 @@ export const NotesView = ({
                 if (name?.trim()) createFolder({ name: name.trim() });
               }}
               aria-label="New Folder"
-            />
-            <IconButton
-              icon={<Plus size={16} />}
-              size="sm"
-              variant="ghost"
-              colorScheme="blue"
-              onClick={onCreateNote}
-              aria-label="New Note"
-            />
+            >
+              <FolderPlus size={16} />
+            </IconButton>
+            <IconButton size="sm" variant="ghost" colorScheme="blue" onClick={onCreateNote} aria-label="New Note">
+              <Plus size={16} />
+            </IconButton>
           </HStack>
         </Flex>
 
@@ -290,11 +368,9 @@ export const NotesView = ({
           <Button
             size="xs"
             variant="ghost"
-            leftIcon={<Plus size={12} />}
             ml={6}
             mt={1}
             onClick={() => {
-              // Open smart folder creation dialog
               const name = window.prompt("Smart folder name:");
               if (name?.trim()) {
                 const tagsInput = window.prompt("Tags (comma-separated):");
@@ -307,7 +383,7 @@ export const NotesView = ({
               }
             }}
           >
-            New Smart Folder
+            <Plus size={12} /> New Smart Folder
           </Button>
 
           <Separator my={2} />
@@ -318,21 +394,52 @@ export const NotesView = ({
           </Text>
           {folderTree.map(folder => renderFolder(folder))}
         </Box>
+
+        {/* Resize Handle */}
+        {sidebarOpen && (
+          <Box
+            position="absolute"
+            right={0}
+            top={0}
+            bottom={0}
+            w="4px"
+            cursor="col-resize"
+            bg={isSidebarResizing ? "blue.400" : "transparent"}
+            _hover={{ bg: "blue.300" }}
+            transition="background-color 0.2s"
+            onMouseDown={handleSidebarResizeStart}
+            zIndex={10}
+            sx={{ userSelect: "none" }}
+          />
+        )}
       </Box>
 
       {/* Note List */}
       <Box
-        w="300px"
+        w={noteListOpen ? `${noteListWidth}px` : "0"}
         h="100%"
-        borderRightWidth="1px"
+        borderRightWidth={noteListOpen ? "1px" : "0"}
         borderColor={{ base: "gray.200", _dark: "gray.600" }}
         display="flex"
         flexDirection="column"
         flexShrink={0}
+        position="relative"
+        overflow="hidden"
+        transition={isNoteListResizing ? "none" : "width 0.3s ease-in-out, border-width 0.3s ease-in-out"}
       >
         {/* Search */}
         <Box p={3} borderBottomWidth="1px" borderColor={{ base: "gray.200", _dark: "gray.600" }}>
           <HStack>
+            {onSidebarToggle && (
+              <IconButton
+                size="sm"
+                variant="ghost"
+                onClick={onSidebarToggle}
+                aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              >
+                {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
+              </IconButton>
+            )}
             <Box as={Search} size={16} color={{ base: "gray.500", _dark: "gray.400" }} />
             <Input
               placeholder="Search notes..."
@@ -394,10 +501,41 @@ export const NotesView = ({
             </Box>
           )}
         </VStack>
+
+        {/* Resize Handle for Note List */}
+        {noteListOpen && (
+          <Box
+            position="absolute"
+            right={0}
+            top={0}
+            bottom={0}
+            w="4px"
+            cursor="col-resize"
+            bg={isNoteListResizing ? "blue.400" : "transparent"}
+            _hover={{ bg: "blue.300" }}
+            transition="background-color 0.2s"
+            onMouseDown={handleNoteListResizeStart}
+            zIndex={10}
+            sx={{ userSelect: "none" }}
+          />
+        )}
       </Box>
 
       {/* Note Editor */}
       <Box flex={1} h="100%" display="flex" flexDirection="column" bg={{ base: "white", _dark: "gray.800" }}>
+        {/* Toggle button for note list */}
+        {onNoteListToggle && (
+          <Box p={2} borderBottomWidth="1px" borderColor={{ base: "gray.200", _dark: "gray.600" }}>
+            <IconButton
+              size="sm"
+              variant="ghost"
+              onClick={onNoteListToggle}
+              aria-label={noteListOpen ? "Hide note list" : "Show note list"}
+            >
+              {noteListOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
+            </IconButton>
+          </Box>
+        )}
         {selectedNote ? (
           <NoteEditor
             note={selectedNote}
