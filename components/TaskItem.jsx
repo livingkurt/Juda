@@ -301,12 +301,23 @@ export const TaskItem = ({
                 closeOnSelect
               >
                 <Menu.Trigger asChild>
-                  <Box as="span" display="inline-block">
+                  <Box
+                    as="span"
+                    display="inline-block"
+                    border="none"
+                    outline="none"
+                    boxShadow="none"
+                    bg="transparent"
+                    p={0}
+                    m={0}
+                    _focus={{ border: "none", outline: "none", boxShadow: "none" }}
+                    _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
+                  >
                     <Checkbox.Root
                       checked={
                         isTextTask ? isTextTaskCompleted : outcome === "completed" || (outcome === null && isChecked)
                       }
-                      size={{ base: "md", md: "lg" }}
+                      size="md"
                       onCheckedChange={() => {
                         // For text tasks, complete when checkbox is checked
                         if (isTextTask && !isTextTaskCompleted && noteInput.trim()) {
@@ -346,20 +357,24 @@ export const TaskItem = ({
                       onPointerDown={e => e.stopPropagation()}
                     >
                       <Checkbox.HiddenInput />
-                      <Checkbox.Control bg={outcome === "skipped" ? "white" : undefined}>
+                      <Checkbox.Control
+                        bg={outcome === "skipped" ? "white" : undefined}
+                        boxShadow="none"
+                        outline="none"
+                        _focus={{ boxShadow: "none", outline: "none" }}
+                        _focusVisible={{ boxShadow: "none", outline: "none" }}
+                      >
                         {outcome === "completed" || isTextTaskCompleted ? (
                           <Checkbox.Indicator>
-                            <Check size={16} />
+                            <Check size={14} />
                           </Checkbox.Indicator>
                         ) : outcome === "skipped" ? (
                           <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
                             <Box as="span" color="gray.700">
-                              <SkipForward size={14} stroke="currentColor" />
+                              <SkipForward size={12} stroke="currentColor" />
                             </Box>
                           </Box>
-                        ) : (
-                          <Checkbox.Indicator />
-                        )}
+                        ) : null}
                       </Checkbox.Control>
                     </Checkbox.Root>
                   </Box>
