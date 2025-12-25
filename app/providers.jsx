@@ -266,6 +266,36 @@ const system = createSystem(defaultConfig, {
         fontSize: "14px", // Reduce base font size on mobile
       },
     },
+    /* Prevent mobile auto-zoom on form inputs */
+    /* Target Chakra UI Input components */
+    "[data-part='field']": {
+      "@media (max-width: 768px)": {
+        fontSize: "16px !important",
+      },
+    },
+    // Native HTML form elements
+    "input[type='text'], input[type='email'], input[type='password'], input[type='number'], input[type='tel'], input[type='url'], input[type='search'], input[type='date'], input[type='time'], input[type='datetime-local']":
+      {
+        "@media (max-width: 768px)": {
+          fontSize: "16px !important",
+        },
+      },
+    "textarea": {
+      "@media (max-width: 768px)": {
+        fontSize: "16px !important",
+      },
+    },
+    "select": {
+      "@media (max-width: 768px)": {
+        fontSize: "16px !important",
+      },
+    },
+    // ProseMirror contenteditable (for notes editor)
+    ".ProseMirror[contenteditable='true']": {
+      "@media (max-width: 768px)": {
+        fontSize: "16px !important",
+      },
+    },
     /* TipTap/ProseMirror Editor Styles - Must be global to override resets */
     ".ProseMirror": {
       outline: "none !important",
@@ -395,6 +425,9 @@ const system = createSystem(defaultConfig, {
       borderColor: {
         _light: "var(--chakra-colors-gray-200) !important",
         _dark: "var(--chakra-colors-gray-600) !important",
+      },
+      "@media (max-width: 768px)": {
+        fontSize: "16px !important",
       },
     },
     "[data-part='trigger']:not([data-scope='tabs']):focus, [data-part='trigger']:not([data-scope='tabs']):focus-visible":
