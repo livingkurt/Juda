@@ -31,6 +31,7 @@ import {
   Circle,
 } from "lucide-react";
 import { formatTime, isOverdue } from "@/lib/utils";
+import { DAYS_OF_WEEK } from "@/lib/constants";
 
 export const TaskItem = ({
   task,
@@ -174,6 +175,19 @@ export const TaskItem = ({
 
   // Check if task is recurring (has recurrence and type is not "none")
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
+
+  // Format weekly recurrence days into readable text
+  const formatWeeklyDays = days => {
+    if (!days || days.length === 0) return "Weekly";
+    const dayLabels = days
+      .sort((a, b) => a - b) // Sort by day number (0=Sun, 6=Sat)
+      .map(dayValue => {
+        const day = DAYS_OF_WEEK.find(d => d.value === dayValue);
+        return day ? day.label : "";
+      })
+      .filter(Boolean);
+    return dayLabels.join(", ");
+  };
 
   // Check if we should show menu: only for recurring tasks that are overdue OR have outcome set (skipped)
   // Works for today view tasks, subtasks, and backlog items
@@ -575,7 +589,7 @@ export const TaskItem = ({
                     {task.recurrence.type === "daily"
                       ? "Daily"
                       : task.recurrence.type === "weekly"
-                        ? "Weekly"
+                        ? formatWeeklyDays(task.recurrence.days)
                         : task.recurrence.type === "monthly"
                           ? "Monthly"
                           : task.recurrence.type === "interval"
