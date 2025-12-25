@@ -20,6 +20,10 @@ export const DayHeaderColumn = ({
   hoverBg,
   isCompletedOnDate,
   getOutcomeOnDate,
+  onEditTask,
+  onOutcomeChange,
+  onDuplicateTask,
+  onDeleteTask,
 }) => {
   const untimedDroppableId = createDroppableId.calendarWeekUntimed(day);
 
@@ -79,6 +83,10 @@ export const DayHeaderColumn = ({
               day={day}
               isCompletedOnDate={isCompletedOnDate}
               getOutcomeOnDate={getOutcomeOnDate}
+              onEditTask={onEditTask}
+              onOutcomeChange={onOutcomeChange}
+              onDuplicateTask={onDuplicateTask}
+              onDeleteTask={onDeleteTask}
             />
           ))}
         </VStack>

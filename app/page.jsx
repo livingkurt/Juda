@@ -2215,6 +2215,10 @@ export default function DailyTasksApp() {
                                     zoom={calendarZoom.day}
                                     tags={tags}
                                     onCreateTag={createTag}
+                                    onEditTask={handleEditTask}
+                                    onOutcomeChange={handleOutcomeChange}
+                                    onDuplicateTask={handleDuplicateTask}
+                                    onDeleteTask={handleDeleteTask}
                                   />
                                 )}
                                 {calendarView === "week" && selectedDate && (
@@ -2240,6 +2244,10 @@ export default function DailyTasksApp() {
                                     getOutcomeOnDate={getOutcomeOnDate}
                                     showCompleted={showCompletedTasksCalendar.week}
                                     zoom={calendarZoom.week}
+                                    onEditTask={handleEditTask}
+                                    onOutcomeChange={handleOutcomeChange}
+                                    onDuplicateTask={handleDuplicateTask}
+                                    onDeleteTask={handleDeleteTask}
                                   />
                                 )}
                                 {calendarView === "month" && selectedDate && (
@@ -2753,6 +2761,10 @@ export default function DailyTasksApp() {
                                           zoom={calendarZoom.day}
                                           tags={tags}
                                           onCreateTag={createTag}
+                                          onEditTask={handleEditTask}
+                                          onOutcomeChange={handleOutcomeChange}
+                                          onDuplicateTask={handleDuplicateTask}
+                                          onDeleteTask={handleDeleteTask}
                                         />
                                       )}
                                       {calendarView === "week" && selectedDate && (
@@ -2778,6 +2790,10 @@ export default function DailyTasksApp() {
                                           getOutcomeOnDate={getOutcomeOnDate}
                                           showCompleted={showCompletedTasksCalendar.week}
                                           zoom={calendarZoom.week}
+                                          onEditTask={handleEditTask}
+                                          onOutcomeChange={handleOutcomeChange}
+                                          onDuplicateTask={handleDuplicateTask}
+                                          onDeleteTask={handleDeleteTask}
                                         />
                                       )}
                                       {calendarView === "month" && selectedDate && (

@@ -28,6 +28,10 @@ export const CalendarDayView = ({
   zoom = 1.0,
   tags = [],
   onCreateTag,
+  onEditTask,
+  onOutcomeChange,
+  onDuplicateTask,
+  onDeleteTask,
 }) => {
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
   const bgColor = { _light: "white", _dark: "gray.800" };
@@ -301,6 +305,10 @@ export const CalendarDayView = ({
                 date={date}
                 isCompletedOnDate={isCompletedOnDate}
                 getOutcomeOnDate={getOutcomeOnDate}
+                onEditTask={onEditTask}
+                onOutcomeChange={onOutcomeChange}
+                onDuplicateTask={onDuplicateTask}
+                onDeleteTask={onDeleteTask}
               />
             ))}
             {isOverUntimed && untimedTasks.length === 0 && (
@@ -378,6 +386,10 @@ export const CalendarDayView = ({
               handleInternalDragStart={handleInternalDragStart}
               isCompletedOnDate={isCompletedOnDate}
               getOutcomeOnDate={getOutcomeOnDate}
+              onEditTask={onEditTask}
+              onOutcomeChange={onOutcomeChange}
+              onDuplicateTask={onDuplicateTask}
+              onDeleteTask={onDeleteTask}
             />
           ))}
         </Box>

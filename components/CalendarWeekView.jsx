@@ -28,6 +28,10 @@ export const CalendarWeekView = ({
   zoom = 1.0,
   tags = [],
   onCreateTag,
+  onEditTask,
+  onOutcomeChange,
+  onDuplicateTask,
+  onDeleteTask,
 }) => {
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
   const bgColor = { _light: "white", _dark: "gray.800" };
@@ -344,6 +348,10 @@ export const CalendarWeekView = ({
                 hoverBg={hoverBg}
                 isCompletedOnDate={isCompletedOnDate}
                 getOutcomeOnDate={getOutcomeOnDate}
+                onEditTask={onEditTask}
+                onOutcomeChange={onOutcomeChange}
+                onDuplicateTask={onDuplicateTask}
+                onDeleteTask={onDeleteTask}
               />
             );
           })}
@@ -408,6 +416,10 @@ export const CalendarWeekView = ({
                   isCompletedOnDate={isCompletedOnDate}
                   getOutcomeOnDate={getOutcomeOnDate}
                   hourHeight={HOUR_HEIGHT}
+                  onEditTask={onEditTask}
+                  onOutcomeChange={onOutcomeChange}
+                  onDuplicateTask={onDuplicateTask}
+                  onDeleteTask={onDeleteTask}
                 />
               );
             })}

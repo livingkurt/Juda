@@ -1,7 +1,9 @@
 "use client";
 
-import { Box, Text } from "@chakra-ui/react";
+import { useState } from "react";
+import { Box, Text, Menu, HStack, Portal } from "@chakra-ui/react";
 import { useDraggable } from "@dnd-kit/core";
+import { Edit2, SkipForward, Copy, Trash2, Check, Circle } from "lucide-react";
 
 export const TimedWeekTask = ({
   task,
@@ -13,7 +15,13 @@ export const TimedWeekTask = ({
   handleInternalDragStart,
   isCompletedOnDate,
   getOutcomeOnDate,
+  onEditTask,
+  onOutcomeChange,
+  onDuplicateTask,
+  onDeleteTask,
 }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: createDraggableId.calendarTimed(task.id, day),
     data: { task, type: "TASK" },
@@ -23,6 +31,7 @@ export const TimedWeekTask = ({
   const isCompleted = isCompletedOnDate ? isCompletedOnDate(task.id, day) : false;
   const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
   const isSkipped = outcome === "skipped";
+  const isRecurring = task.recurrence && task.recurrence.type !== "none";
 
   // Diagonal stripe pattern for skipped tasks
   const skippedPattern = isSkipped
@@ -71,23 +80,127 @@ export const TimedWeekTask = ({
       onClick={e => e.stopPropagation()}
     >
       {/* Task content */}
-      <Box
-        {...attributes}
-        {...listeners}
-        position="absolute"
-        inset={0}
-        px={1}
-        py={0.5}
-        cursor="grab"
-        onClick={e => {
-          e.stopPropagation();
-          onTaskClick(task);
-        }}
-      >
-        <Text isTruncated fontWeight="medium" textDecoration={isCompleted || isSkipped ? "line-through" : "none"}>
-          {task.title}
-        </Text>
-      </Box>
+      <Menu.Root open={menuOpen} onOpenChange={({ open }) => setMenuOpen(open)}>
+        <Menu.Trigger asChild>
+          <Box
+            {...attributes}
+            {...listeners}
+            position="absolute"
+            inset={0}
+            px={1}
+            py={0.5}
+            cursor="grab"
+            onClick={e => {
+              e.stopPropagation();
+              setMenuOpen(true);
+            }}
+          >
+            <Text isTruncated fontWeight="medium" textDecoration={isCompleted || isSkipped ? "line-through" : "none"}>
+              {task.title}
+            </Text>
+          </Box>
+        </Menu.Trigger>
+        <Portal>
+          <Menu.Positioner>
+            <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+              {onEditTask && (
+                <Menu.Item
+                  onClick={e => {
+                    e.stopPropagation();
+                    onEditTask(task);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <HStack>
+                    <Edit2 size={14} />
+                    <Text>Edit</Text>
+                  </HStack>
+                </Menu.Item>
+              )}
+              {/* Completion options for recurring tasks */}
+              {isRecurring && onOutcomeChange && (
+                <>
+                  {outcome !== null && (
+                    <>
+                      <Menu.Item
+                        onClick={e => {
+                          e.stopPropagation();
+                          onOutcomeChange(task.id, day, null);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <HStack>
+                          <Circle size={14} />
+                          <Text>Uncheck</Text>
+                        </HStack>
+                      </Menu.Item>
+                      <Menu.Separator />
+                    </>
+                  )}
+                  {outcome !== "completed" && (
+                    <Menu.Item
+                      onClick={e => {
+                        e.stopPropagation();
+                        onOutcomeChange(task.id, day, "completed");
+                        setMenuOpen(false);
+                      }}
+                    >
+                      <HStack>
+                        <Check size={14} />
+                        <Text>Complete</Text>
+                      </HStack>
+                    </Menu.Item>
+                  )}
+                  {outcome !== "skipped" && (
+                    <Menu.Item
+                      onClick={e => {
+                        e.stopPropagation();
+                        onOutcomeChange(task.id, day, "skipped");
+                        setMenuOpen(false);
+                      }}
+                    >
+                      <HStack>
+                        <SkipForward size={14} />
+                        <Text>Skip</Text>
+                      </HStack>
+                    </Menu.Item>
+                  )}
+                  <Menu.Separator />
+                </>
+              )}
+              {onDuplicateTask && (
+                <Menu.Item
+                  onClick={e => {
+                    e.stopPropagation();
+                    onDuplicateTask(task.id);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <HStack>
+                    <Copy size={14} />
+                    <Text>Duplicate</Text>
+                  </HStack>
+                </Menu.Item>
+              )}
+              {onDeleteTask && (
+                <Menu.Item
+                  color="red.500"
+                  onClick={e => {
+                    e.stopPropagation();
+                    onDeleteTask(task.id);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <HStack>
+                    <Trash2 size={14} />
+                    <Text>Delete</Text>
+                  </HStack>
+                </Menu.Item>
+              )}
+            </Menu.Content>
+          </Menu.Positioner>
+        </Portal>
+      </Menu.Root>
 
       {/* Resize handle */}
       <Box
