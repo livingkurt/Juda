@@ -3,20 +3,7 @@
 import { useState } from "react";
 import { Box, Menu, HStack, Text, SimpleGrid, Portal } from "@chakra-ui/react";
 import { Palette, ChevronRight } from "lucide-react";
-
-// Rainbow order: Red, Orange, Yellow, Green, Turquoise, Blue, Indigo, Violet, Pink, Teal
-const COLORS = [
-  "#ef4444", // Red
-  "#f97316", // Orange
-  "#eab308", // Yellow
-  "#10b981", // Green
-  "#06b6d4", // Cyan
-  "#3b82f6", // Blue
-  "#6366f1", // Indigo
-  "#8b5cf6", // Purple
-  "#a855f7", // Violet
-  "#ec4899", // Pink
-];
+import { TASK_COLORS } from "@/lib/constants";
 
 export const ColorSubmenu = ({ currentColor, onColorChange, onClose, onCloseParentMenu }) => {
   const [submenuOpen, setSubmenuOpen] = useState(false);
@@ -56,7 +43,7 @@ export const ColorSubmenu = ({ currentColor, onColorChange, onClose, onClosePare
         <Menu.Positioner placement="right-start">
           <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} minW="220px" p={2}>
             <SimpleGrid columns={5} gap={2}>
-              {COLORS.map(color => (
+              {TASK_COLORS.map(color => (
                 <Box
                   key={color}
                   w={8}

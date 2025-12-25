@@ -613,6 +613,9 @@ export default function DailyTasksApp() {
       const now = new Date();
       const currentTime = minutesToTime(now.getHours() * 60 + now.getMinutes());
 
+      // Check if task is truly recurring (has recurrence pattern, not just a one-time task)
+      const isRecurringTask = task.recurrence && task.recurrence.type && task.recurrence.type !== "none";
+
       // If task has no recurrence and is being checked, set it to show on calendar with current time
       if (hasNoRecurrence && !isCompletedOnTargetDate) {
         // Set recurrence to today's date and time to current time so it appears in calendar
@@ -625,9 +628,10 @@ export default function DailyTasksApp() {
           time: currentTime,
         });
       }
-      // If task is in Today View and doesn't have a time, set it to current time when checking
-      else if (!hasNoRecurrence && !task.time && !isCompletedOnTargetDate) {
-        // Task already has a date (from recurrence), just set the time
+      // If task is non-recurring (one-time task) and doesn't have a time, set it to current time when checking
+      // Skip this for recurring tasks to preserve their time-flexible nature
+      else if (!isRecurringTask && !task.time && !isCompletedOnTargetDate) {
+        // Task is non-recurring (one-time), assign current time for completion tracking
         await updateTask(taskId, {
           time: currentTime,
         });
@@ -685,6 +689,9 @@ export default function DailyTasksApp() {
       const now = new Date();
       const currentTime = minutesToTime(now.getHours() * 60 + now.getMinutes());
 
+      // Check if subtask is truly recurring (has recurrence pattern, not just a one-time task)
+      const isRecurringSubtask = subtask.recurrence && subtask.recurrence.type && subtask.recurrence.type !== "none";
+
       // If subtask has no recurrence and is being checked, set it to show on calendar with current time
       if (hasNoRecurrence && !isCompletedOnTargetDate) {
         const todayDateStr = formatLocalDate(today);
@@ -696,8 +703,10 @@ export default function DailyTasksApp() {
           time: currentTime,
         });
       }
-      // If subtask is in Today View and doesn't have a time, set it to current time when checking
-      else if (!hasNoRecurrence && !subtask.time && !isCompletedOnTargetDate) {
+      // If subtask is non-recurring (one-time task) and doesn't have a time, set it to current time when checking
+      // Skip this for recurring subtasks to preserve their time-flexible nature
+      else if (!isRecurringSubtask && !subtask.time && !isCompletedOnTargetDate) {
+        // Subtask is non-recurring (one-time), assign current time for completion tracking
         await updateTask(subtaskId, {
           time: currentTime,
         });

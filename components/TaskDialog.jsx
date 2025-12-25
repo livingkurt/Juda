@@ -19,7 +19,7 @@ import {
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { Plus, Search } from "lucide-react";
-import { DAYS_OF_WEEK, DURATION_OPTIONS } from "@/lib/constants";
+import { DAYS_OF_WEEK, DURATION_OPTIONS, TASK_COLORS } from "@/lib/constants";
 import { formatLocalDate } from "@/lib/utils";
 import { TagSelector } from "./TagSelector";
 import { TaskItem } from "./TaskItem";
@@ -71,20 +71,6 @@ export const TaskDialog = ({
       },
     })
   );
-
-  // Rainbow order: Red, Orange, Yellow, Green, Turquoise, Blue, Indigo, Violet, Pink, Teal
-  const colors = [
-    "#ef4444", // Red
-    "#f97316", // Orange
-    "#eab308", // Yellow
-    "#10b981", // Green
-    "#06b6d4", // Cyan
-    "#3b82f6", // Blue
-    "#6366f1", // Indigo
-    "#8b5cf6", // Purple
-    "#a855f7", // Violet
-    "#ec4899", // Pink
-  ];
 
   // Create collections for selects
   const sectionCollection = useMemo(
@@ -315,7 +301,7 @@ export const TaskDialog = ({
                     Color
                   </Text>
                   <HStack spacing={2} mt={2} flexWrap="wrap">
-                    {colors.map(c => (
+                    {TASK_COLORS.map(c => (
                       <Button
                         key={c}
                         w={8}
@@ -771,7 +757,7 @@ export const TaskDialog = ({
                               Color
                             </Text>
                             <HStack spacing={2} mt={2} flexWrap="wrap">
-                              {colors.map(c => (
+                              {TASK_COLORS.map(c => (
                                 <Button
                                   key={c}
                                   w={6}
