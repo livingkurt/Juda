@@ -357,6 +357,25 @@ export default function DailyTasksApp() {
     };
   }, [isResizing, backlogWidth, setBacklogWidth]);
 
+  // Keyboard shortcut: CMD+E (or CTRL+E) to open task dialog
+  useEffect(() => {
+    const handleKeyDown = e => {
+      // Check for CMD+E (Mac) or CTRL+E (Windows/Linux)
+      // Don't trigger if user is typing in an input/textarea/contenteditable
+      const target = e.target;
+      const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+      if ((e.metaKey || e.ctrlKey) && e.key === "e" && !isInput) {
+        e.preventDefault();
+        setTaskDialogOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   const today = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -871,6 +890,31 @@ export default function DailyTasksApp() {
     openTaskDialog();
   };
 
+  const handleCreateBacklogTaskInline = async title => {
+    if (!title.trim()) return;
+
+    try {
+      await createTask({
+        title: title.trim(),
+        sectionId: sections[0]?.id,
+        time: null,
+        duration: 0,
+        color: "#3b82f6",
+        recurrence: null, // Backlog items have no recurrence/date
+        subtasks: [],
+        order: 999,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to create task",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   const handleCreateTaskFromCalendar = (time, day) => {
     setDefaultTime(time);
     setDefaultDate(day ? formatLocalDate(day) : null);
@@ -1203,7 +1247,7 @@ export default function DailyTasksApp() {
     try {
       const taskId = extractTaskId(active.id);
       task = taskLookupMap.get(taskId) || null;
-    } catch (e) {
+    } catch {
       // Not a task drag (might be section reorder)
       task = null;
     }
@@ -1475,7 +1519,7 @@ export default function DailyTasksApp() {
         try {
           const updates = reordered.map((t, idx) => ({ id: t.id, order: idx }));
           await batchReorderTasks(updates);
-        } catch (err) {
+        } catch {
           toast({
             title: "Error",
             description: "Failed to reorder backlog tasks",
@@ -1983,6 +2027,7 @@ export default function DailyTasksApp() {
                             onUpdateTaskTitle={handleUpdateTaskTitle}
                             onDuplicateTask={handleDuplicateTask}
                             onAddTask={handleAddTaskToBacklog}
+                            onCreateBacklogTaskInline={handleCreateBacklogTaskInline}
                             onToggleExpand={handleToggleExpand}
                             onToggleSubtask={handleToggleSubtask}
                             onToggleTask={handleToggleTask}
@@ -2315,6 +2360,7 @@ export default function DailyTasksApp() {
                           onUpdateTaskTitle={handleUpdateTaskTitle}
                           onDuplicateTask={handleDuplicateTask}
                           onAddTask={handleAddTaskToBacklog}
+                          onCreateBacklogTaskInline={handleCreateBacklogTaskInline}
                           onToggleExpand={handleToggleExpand}
                           onToggleSubtask={handleToggleSubtask}
                           onToggleTask={handleToggleTask}

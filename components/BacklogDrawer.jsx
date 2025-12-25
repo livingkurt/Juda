@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useCallback, memo } from "react";
-import { Box, VStack, HStack, Flex, Text, IconButton, Badge, Heading } from "@chakra-ui/react";
+import { useState, useMemo, useCallback, memo, useRef } from "react";
+import { Box, VStack, HStack, Flex, Text, IconButton, Badge, Heading, Input } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus, X } from "lucide-react";
@@ -17,6 +17,7 @@ const BacklogDrawerComponent = ({
   onDeleteTask,
   onDuplicateTask,
   onAddTask,
+  onCreateBacklogTaskInline,
   onToggleExpand,
   onToggleSubtask,
   onToggleTask,
@@ -40,6 +41,10 @@ const BacklogDrawerComponent = ({
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState([]);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [inlineInputValue, setInlineInputValue] = useState("");
+  const [isInlineInputActive, setIsInlineInputActive] = useState(false);
+  const inlineInputRef = useRef(null);
 
   // Filter tasks by search term and tags
   const filteredTasks = useMemo(() => {
@@ -66,6 +71,36 @@ const BacklogDrawerComponent = ({
   const handleTagDeselect = useCallback(tagId => {
     setSelectedTagIds(prev => prev.filter(id => id !== tagId));
   }, []);
+
+  const handleInlineInputClick = () => {
+    setIsInlineInputActive(true);
+    setTimeout(() => {
+      inlineInputRef.current?.focus();
+    }, 0);
+  };
+
+  const handleInlineInputBlur = async () => {
+    if (inlineInputValue.trim() && onCreateBacklogTaskInline) {
+      await onCreateBacklogTaskInline(inlineInputValue);
+      setInlineInputValue("");
+    }
+    setIsInlineInputActive(false);
+  };
+
+  const handleInlineInputKeyDown = async e => {
+    if (e.key === "Enter" && inlineInputValue.trim()) {
+      e.preventDefault();
+      if (onCreateBacklogTaskInline) {
+        await onCreateBacklogTaskInline(inlineInputValue);
+        setInlineInputValue("");
+        setIsInlineInputActive(false);
+      }
+    } else if (e.key === "Escape") {
+      setInlineInputValue("");
+      setIsInlineInputActive(false);
+      inlineInputRef.current?.blur();
+    }
+  };
 
   // Use droppable hook for backlog area
   const { setNodeRef, isOver } = useDroppable({
@@ -124,6 +159,38 @@ const BacklogDrawerComponent = ({
             compact
           />
         </HStack>
+        {/* New Task Input */}
+        <Box mt={2} w="100%" maxW="100%">
+          <Input
+            placeholder="New Task..."
+            value={newTaskTitle}
+            onChange={e => setNewTaskTitle(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter" && newTaskTitle.trim() && onCreateBacklogTaskInline) {
+                e.preventDefault();
+                onCreateBacklogTaskInline(newTaskTitle.trim());
+                setNewTaskTitle("");
+              }
+            }}
+            bg={bgColor}
+            borderWidth="0"
+            borderColor="transparent"
+            color={textColor}
+            _placeholder={{ color: mutedText }}
+            _focus={{
+              borderWidth: "0",
+              borderColor: "transparent",
+              boxShadow: "none",
+              outline: "none",
+            }}
+            _focusVisible={{
+              borderWidth: "0",
+              borderColor: "transparent",
+              boxShadow: "none",
+              outline: "none",
+            }}
+          />
+        </Box>
       </Box>
 
       {/* Droppable area for tasks */}
@@ -181,13 +248,65 @@ const BacklogDrawerComponent = ({
                     getCompletionForDate={getCompletionForDate}
                   />
                 ))}
+                <Input
+                  ref={inlineInputRef}
+                  value={inlineInputValue}
+                  onChange={e => setInlineInputValue(e.target.value)}
+                  onBlur={handleInlineInputBlur}
+                  onKeyDown={handleInlineInputKeyDown}
+                  onClick={handleInlineInputClick}
+                  placeholder="New task..."
+                  size="sm"
+                  variant="unstyled"
+                  bg="transparent"
+                  borderWidth="0px"
+                  px={2}
+                  py={1}
+                  fontSize="sm"
+                  color={isInlineInputActive ? textColor : mutedText}
+                  _focus={{
+                    outline: "none",
+                    color: textColor,
+                  }}
+                  _placeholder={{ color: mutedText }}
+                  _hover={{
+                    color: textColor,
+                  }}
+                />
               </VStack>
             </SortableContext>
           </Box>
         ) : (
-          <Text fontSize="sm" color={mutedText} textAlign="center" py={8}>
-            {isOver ? "Drop here to add to backlog" : "No items in backlog"}
-          </Text>
+          <VStack align="stretch" spacing={2}>
+            <Text fontSize="sm" color={mutedText} textAlign="center" py={8}>
+              {isOver ? "Drop here to add to backlog" : "No items in backlog"}
+            </Text>
+            <Input
+              ref={inlineInputRef}
+              value={inlineInputValue}
+              onChange={e => setInlineInputValue(e.target.value)}
+              onBlur={handleInlineInputBlur}
+              onKeyDown={handleInlineInputKeyDown}
+              onClick={handleInlineInputClick}
+              placeholder="New task..."
+              size="sm"
+              variant="unstyled"
+              bg="transparent"
+              borderWidth="0px"
+              px={2}
+              py={1}
+              fontSize="sm"
+              color={isInlineInputActive ? textColor : mutedText}
+              _focus={{
+                outline: "none",
+                color: textColor,
+              }}
+              _placeholder={{ color: mutedText }}
+              _hover={{
+                color: textColor,
+              }}
+            />
+          </VStack>
         )}
       </Box>
     </Box>
@@ -226,6 +345,7 @@ const areBacklogTasksEqual = (prevProps, nextProps) => {
     prevProps.onDeleteTask === nextProps.onDeleteTask &&
     prevProps.onDuplicateTask === nextProps.onDuplicateTask &&
     prevProps.onAddTask === nextProps.onAddTask &&
+    prevProps.onCreateBacklogTaskInline === nextProps.onCreateBacklogTaskInline &&
     prevProps.onToggleExpand === nextProps.onToggleExpand &&
     prevProps.onToggleSubtask === nextProps.onToggleSubtask &&
     prevProps.onToggleTask === nextProps.onToggleTask &&
