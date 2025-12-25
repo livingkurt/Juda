@@ -325,73 +325,74 @@ export const CalendarDayView = ({
         ref={containerRef}
         flex={1}
         overflowY="auto"
-        position="relative"
-        style={{ height: `${24 * HOUR_HEIGHT}px` }}
         w="100%"
         maxW="100%"
+        minH={0}
       >
-        {/* Hour lines */}
-        {hours.map(hour => (
+        <Box position="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
+          {/* Hour lines */}
+          {hours.map(hour => (
+            <Box
+              key={hour}
+              position="absolute"
+              w="full"
+              borderTopWidth="1px"
+              borderColor={hourBorderColor}
+              display="flex"
+              style={{
+                top: `${hour * HOUR_HEIGHT}px`,
+                height: `${HOUR_HEIGHT}px`,
+              }}
+            >
+              <Box w={16} fontSize="xs" color={hourTextColor} pr={2} textAlign="right" pt={1}>
+                {hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
+              </Box>
+              <Box flex={1} borderLeftWidth="1px" borderColor={borderColor} />
+            </Box>
+          ))}
+
+          {/* Droppable timed area */}
           <Box
-            key={hour}
+            ref={setTimedRef}
             position="absolute"
-            w="full"
-            borderTopWidth="1px"
-            borderColor={hourBorderColor}
-            display="flex"
-            style={{
-              top: `${hour * HOUR_HEIGHT}px`,
-              height: `${HOUR_HEIGHT}px`,
+            left={16}
+            right={2}
+            top={0}
+            bottom={0}
+            bg={isOverTimed ? dropHighlight : "transparent"}
+            borderRadius="md"
+            transition="background-color 0.2s"
+            onClick={handleCalendarClick}
+            data-calendar-timed="true"
+            data-calendar-view="day"
+            data-hour-height={HOUR_HEIGHT}
+            key={`timed-area-${zoom}`}
+            onMouseMove={e => {
+              if (isOverTimed) {
+                handleDropTimeCalculation(e, e.currentTarget.getBoundingClientRect());
+              }
             }}
           >
-            <Box w={16} fontSize="xs" color={hourTextColor} pr={2} textAlign="right" pt={1}>
-              {hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
-            </Box>
-            <Box flex={1} borderLeftWidth="1px" borderColor={borderColor} />
+            {/* Render positioned tasks */}
+            {calculateTaskPositions(dayTasks).map(task => (
+              <TimedTask
+                key={task.id}
+                task={task}
+                onTaskClick={onTaskClick}
+                createDraggableId={createDraggableId}
+                date={date}
+                getTaskStyle={getTaskStyle}
+                internalDrag={internalDrag}
+                handleInternalDragStart={handleInternalDragStart}
+                isCompletedOnDate={isCompletedOnDate}
+                getOutcomeOnDate={getOutcomeOnDate}
+                onEditTask={onEditTask}
+                onOutcomeChange={onOutcomeChange}
+                onDuplicateTask={onDuplicateTask}
+                onDeleteTask={onDeleteTask}
+              />
+            ))}
           </Box>
-        ))}
-
-        {/* Droppable timed area */}
-        <Box
-          ref={setTimedRef}
-          position="absolute"
-          left={16}
-          right={2}
-          top={0}
-          bottom={0}
-          bg={isOverTimed ? dropHighlight : "transparent"}
-          borderRadius="md"
-          transition="background-color 0.2s"
-          onClick={handleCalendarClick}
-          data-calendar-timed="true"
-          data-calendar-view="day"
-          data-hour-height={HOUR_HEIGHT}
-          key={`timed-area-${zoom}`}
-          onMouseMove={e => {
-            if (isOverTimed) {
-              handleDropTimeCalculation(e, e.currentTarget.getBoundingClientRect());
-            }
-          }}
-        >
-          {/* Render positioned tasks */}
-          {calculateTaskPositions(dayTasks).map(task => (
-            <TimedTask
-              key={task.id}
-              task={task}
-              onTaskClick={onTaskClick}
-              createDraggableId={createDraggableId}
-              date={date}
-              getTaskStyle={getTaskStyle}
-              internalDrag={internalDrag}
-              handleInternalDragStart={handleInternalDragStart}
-              isCompletedOnDate={isCompletedOnDate}
-              getOutcomeOnDate={getOutcomeOnDate}
-              onEditTask={onEditTask}
-              onOutcomeChange={onOutcomeChange}
-              onDuplicateTask={onDuplicateTask}
-              onDeleteTask={onDeleteTask}
-            />
-          ))}
         </Box>
       </Box>
     </Flex>
