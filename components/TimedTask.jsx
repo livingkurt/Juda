@@ -67,7 +67,6 @@ export const TimedTask = ({
       mr={1}
       borderRadius="md"
       color="white"
-      fontSize="sm"
       overflow="hidden"
       cursor="grab"
       _hover={{ shadow: "lg" }}
@@ -98,11 +97,11 @@ export const TimedTask = ({
           >
             <Box display="flex" alignItems="center" justifyContent="space-between" h="100%">
               <Box flex={1} minW={0}>
-                <Text fontWeight="medium" isTruncated textDecoration={isCompleted || isSkipped ? "line-through" : "none"}>
+                <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" isTruncated textDecoration={isCompleted || isSkipped ? "line-through" : "none"}>
                   {task.title}
                 </Text>
                 {(task.duration || 30) >= 45 && (
-                  <Text fontSize="xs" opacity={0.8}>
+                  <Text fontSize={{ base: "2xs", md: "xs" }} opacity={0.8}>
                     {formatTime(task.time)}
                   </Text>
                 )}

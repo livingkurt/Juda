@@ -255,10 +255,10 @@ export const CalendarDayView = ({
         w="100%"
         maxW="100%"
       >
-        <Text fontSize="2xl" fontWeight="bold">
+        <Text fontSize={{ base: "xl", md: "2xl" }} fontWeight="bold">
           {date.getDate()}
         </Text>
-        <Text fontSize="sm" color={hourTextColor} mb={3}>
+        <Text fontSize={{ base: "xs", md: "sm" }} color={hourTextColor} mb={3}>
           {date.toLocaleDateString("en-US", { weekday: "long", month: "long" })}
         </Text>
         <Box px={{ base: 2, md: 4 }} py={2} w="100%" maxW="100%">
@@ -293,7 +293,7 @@ export const CalendarDayView = ({
       >
         {(untimedTasks.length > 0 || isOverUntimed) && (
           <VStack align="stretch" spacing={2}>
-            <Text fontSize="xs" color={hourTextColor} fontWeight="medium">
+            <Text fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} fontWeight="medium">
               All Day
             </Text>
             {untimedTasks.map(task => (
@@ -312,7 +312,7 @@ export const CalendarDayView = ({
               />
             ))}
             {isOverUntimed && untimedTasks.length === 0 && (
-              <Text fontSize="xs" color={hourTextColor} textAlign="center" py={2}>
+              <Text fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} textAlign="center" py={2}>
                 Drop here for all-day task
               </Text>
             )}
@@ -321,14 +321,7 @@ export const CalendarDayView = ({
       </Box>
 
       {/* Timed calendar grid */}
-      <Box
-        ref={containerRef}
-        flex={1}
-        overflowY="auto"
-        w="100%"
-        maxW="100%"
-        minH={0}
-      >
+      <Box ref={containerRef} flex={1} overflowY="auto" w="100%" maxW="100%" minH={0}>
         <Box position="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
           {/* Hour lines */}
           {hours.map(hour => (
@@ -344,7 +337,7 @@ export const CalendarDayView = ({
                 height: `${HOUR_HEIGHT}px`,
               }}
             >
-              <Box w={16} fontSize="xs" color={hourTextColor} pr={2} textAlign="right" pt={1}>
+              <Box w={16} fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} pr={2} textAlign="right" pt={1}>
                 {hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
               </Box>
               <Box flex={1} borderLeftWidth="1px" borderColor={borderColor} />

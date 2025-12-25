@@ -66,7 +66,6 @@ export const TimedWeekTask = ({
       mr={1}
       borderRadius="md"
       color="white"
-      fontSize="xs"
       overflow="hidden"
       cursor="grab"
       _hover={{ shadow: "md" }}
@@ -95,7 +94,7 @@ export const TimedWeekTask = ({
               setMenuOpen(true);
             }}
           >
-            <Text isTruncated fontWeight="medium" textDecoration={isCompleted || isSkipped ? "line-through" : "none"}>
+            <Text fontSize={{ base: "2xs", md: "xs" }} isTruncated fontWeight="medium" textDecoration={isCompleted || isSkipped ? "line-through" : "none"}>
               {task.title}
             </Text>
           </Box>

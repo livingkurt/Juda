@@ -105,7 +105,7 @@ export const CalendarMonthView = ({
       </Box>
       <SimpleGrid columns={7} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} w="100%" maxW="100%">
         {DAYS_OF_WEEK.map(day => (
-          <Box key={day.value} textAlign="center" py={2} fontSize="sm" fontWeight="medium" color={dayHeaderColor}>
+          <Box key={day.value} textAlign="center" py={2} fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" color={dayHeaderColor}>
             {day.label}
           </Box>
         ))}
@@ -141,7 +141,7 @@ export const CalendarMonthView = ({
                 >
                   <Box
                     as="span"
-                    fontSize={zoom >= 1.5 ? "md" : zoom >= 1.0 ? "sm" : "xs"}
+                    fontSize={{ base: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs", md: zoom >= 1.5 ? "md" : zoom >= 1.0 ? "sm" : "xs" }}
                     mb={1}
                     display="inline-block"
                     bg={isToday ? "blue.500" : "transparent"}
@@ -157,7 +157,7 @@ export const CalendarMonthView = ({
                   {dayTasks.map(task => (
                     <Box
                       key={task.id}
-                      fontSize={zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs"}
+                      fontSize={{ base: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs", md: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs" }}
                       px={1}
                       py={0.5}
                       borderRadius="md"

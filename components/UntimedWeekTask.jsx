@@ -71,7 +71,7 @@ export const UntimedWeekTask = ({
           }}
         >
           <Text
-            fontSize="2xs"
+            fontSize={{ base: "3xs", md: "2xs" }}
             fontWeight="medium"
             noOfLines={2}
             textDecoration={isCompleted || isSkipped ? "line-through" : "none"}
