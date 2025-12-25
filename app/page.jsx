@@ -843,6 +843,20 @@ export default function DailyTasksApp() {
     }
   };
 
+  const handleUpdateTaskColor = async (taskId, color) => {
+    try {
+      await updateTask(taskId, { color });
+    } catch (error) {
+      toast({
+        title: "Failed to update task color",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   const handleAddTask = sectionId => {
     setDefaultSectionId(sectionId);
     setDefaultTime(null);
@@ -2041,6 +2055,7 @@ export default function DailyTasksApp() {
                             onCompleteWithNote={handleCompleteWithNote}
                             onSkipTask={handleSkipTask}
                             getCompletionForDate={getCompletionForDate}
+                            onUpdateTaskColor={handleUpdateTaskColor}
                           />
                         )}
                       </Box>
@@ -2141,6 +2156,7 @@ export default function DailyTasksApp() {
                           onDeleteSection={handleDeleteSection}
                           onAddSection={handleAddSection}
                           onToggleSectionExpand={handleToggleSectionExpand}
+                          onUpdateTaskColor={handleUpdateTaskColor}
                           createDroppableId={createDroppableId}
                           createDraggableId={createDraggableId}
                           viewDate={viewDate}
@@ -2264,6 +2280,7 @@ export default function DailyTasksApp() {
                                     onOutcomeChange={handleOutcomeChange}
                                     onDuplicateTask={handleDuplicateTask}
                                     onDeleteTask={handleDeleteTask}
+                                    onUpdateTaskColor={handleUpdateTaskColor}
                                   />
                                 )}
                                 {calendarView === "week" && selectedDate && (
@@ -2293,6 +2310,7 @@ export default function DailyTasksApp() {
                                     onOutcomeChange={handleOutcomeChange}
                                     onDuplicateTask={handleDuplicateTask}
                                     onDeleteTask={handleDeleteTask}
+                                    onUpdateTaskColor={handleUpdateTaskColor}
                                   />
                                 )}
                                 {calendarView === "month" && selectedDate && (
@@ -2374,6 +2392,7 @@ export default function DailyTasksApp() {
                           onCompleteWithNote={handleCompleteWithNote}
                           onSkipTask={handleSkipTask}
                           getCompletionForDate={getCompletionForDate}
+                          onUpdateTaskColor={handleUpdateTaskColor}
                         />
                       )}
                       {/* Resize handle - hidden on mobile */}
@@ -2560,6 +2579,7 @@ export default function DailyTasksApp() {
                                   onDeleteSection={handleDeleteSection}
                                   onAddSection={handleAddSection}
                                   onToggleSectionExpand={handleToggleSectionExpand}
+                                  onUpdateTaskColor={handleUpdateTaskColor}
                                   createDroppableId={createDroppableId}
                                   createDraggableId={createDraggableId}
                                   viewDate={todayViewDate || today}
@@ -2811,6 +2831,7 @@ export default function DailyTasksApp() {
                                           onOutcomeChange={handleOutcomeChange}
                                           onDuplicateTask={handleDuplicateTask}
                                           onDeleteTask={handleDeleteTask}
+                                          onUpdateTaskColor={handleUpdateTaskColor}
                                         />
                                       )}
                                       {calendarView === "week" && selectedDate && (
@@ -2836,13 +2857,14 @@ export default function DailyTasksApp() {
                                           getOutcomeOnDate={getOutcomeOnDate}
                                           showCompleted={showCompletedTasksCalendar.week}
                                           zoom={calendarZoom.week}
-                                          onEditTask={handleEditTask}
-                                          onOutcomeChange={handleOutcomeChange}
-                                          onDuplicateTask={handleDuplicateTask}
-                                          onDeleteTask={handleDeleteTask}
-                                        />
-                                      )}
-                                      {calendarView === "month" && selectedDate && (
+                                    onEditTask={handleEditTask}
+                                    onOutcomeChange={handleOutcomeChange}
+                                    onDuplicateTask={handleDuplicateTask}
+                                    onDeleteTask={handleDeleteTask}
+                                    onUpdateTaskColor={handleUpdateTaskColor}
+                                  />
+                                )}
+                                {calendarView === "month" && selectedDate && (
                                         <CalendarMonthView
                                           date={selectedDate}
                                           tasks={filteredTasks}

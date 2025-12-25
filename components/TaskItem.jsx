@@ -30,6 +30,7 @@ import {
   SkipForward,
   Circle,
 } from "lucide-react";
+import { ColorSubmenu } from "./ColorSubmenu";
 import { formatTime, isOverdue } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 
@@ -59,6 +60,7 @@ export const TaskItem = ({
   hasRecordOnDate, // Function to check if task has any record on a date
   onCompleteWithNote, // (taskId, note) => void - for text completion
   getCompletionForDate, // (taskId, date) => completion object
+  onUpdateTaskColor, // (taskId, color) => void - for updating task color
 }) => {
   // Normalize prop names - support both naming conventions
   const handleEdit = onEdit || onEditTask;
@@ -85,6 +87,7 @@ export const TaskItem = ({
   const titleInputRef = useRef(null);
   const [noteInput, setNoteInput] = useState("");
   const noteInputRef = useRef(null);
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
 
   useEffect(() => {
     setEditedTitle(task.title);
@@ -656,7 +659,7 @@ export const TaskItem = ({
           )}
 
           {/* Action menu */}
-          <Menu.Root>
+          <Menu.Root open={actionMenuOpen} onOpenChange={({ open }) => setActionMenuOpen(open)}>
             <Menu.Trigger asChild>
               <IconButton
                 onClick={e => e.stopPropagation()}
@@ -686,25 +689,42 @@ export const TaskItem = ({
                     onClick={e => {
                       e.stopPropagation();
                       handleEdit(task);
+                      setActionMenuOpen(false);
                     }}
                   >
-                    <HStack>
-                      <Edit2 size={14} />
+                    <HStack gap={2}>
+                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                        <Edit2 size={14} />
+                      </Box>
                       <Text>Edit</Text>
                     </HStack>
                   </Menu.Item>
+                  {/* Color submenu */}
+                  {onUpdateTaskColor && (
+                    <ColorSubmenu
+                      currentColor={task.color || "#3b82f6"}
+                      onColorChange={color => {
+                        onUpdateTaskColor(task.id, color);
+                        setActionMenuOpen(false);
+                      }}
+                      onCloseParentMenu={() => setActionMenuOpen(false)}
+                    />
+                  )}
                   {/* Skip option for recurring tasks in today view */}
                   {isToday && !taskIsOverdue && onOutcomeChange && isRecurring && (
                     <Menu.Item
                       onClick={e => {
                         e.stopPropagation();
                         onOutcomeChange(task.id, viewDate, "skipped");
+                        setActionMenuOpen(false);
                       }}
                     >
-                      <HStack>
+                    <HStack gap={2}>
+                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
                         <SkipForward size={14} />
-                        <Text>Skip</Text>
-                      </HStack>
+                      </Box>
+                      <Text>Skip</Text>
+                    </HStack>
                     </Menu.Item>
                   )}
                   {handleDuplicate && (
@@ -712,12 +732,15 @@ export const TaskItem = ({
                       onClick={e => {
                         e.stopPropagation();
                         handleDuplicate(task.id);
+                        setActionMenuOpen(false);
                       }}
                     >
-                      <HStack>
+                    <HStack gap={2}>
+                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
                         <Copy size={14} />
-                        <Text>Duplicate</Text>
-                      </HStack>
+                      </Box>
+                      <Text>Duplicate</Text>
+                    </HStack>
                     </Menu.Item>
                   )}
                   <Menu.Item
@@ -725,10 +748,13 @@ export const TaskItem = ({
                     onClick={e => {
                       e.stopPropagation();
                       isSubtask ? handleDelete(parentTaskId, task.id) : handleDelete(task.id);
+                      setActionMenuOpen(false);
                     }}
                   >
-                    <HStack>
-                      <Trash2 size={14} />
+                    <HStack gap={2}>
+                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                        <Trash2 size={14} />
+                      </Box>
                       <Text>Delete</Text>
                     </HStack>
                   </Menu.Item>

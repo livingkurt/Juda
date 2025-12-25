@@ -26,6 +26,7 @@ export const TimedColumn = ({
   onOutcomeChange,
   onDuplicateTask,
   onDeleteTask,
+  onUpdateTaskColor,
 }) => {
   const timedDroppableId = createDroppableId.calendarWeek(day);
   const { setNodeRef, isOver } = useDroppable({
@@ -79,6 +80,7 @@ export const TimedColumn = ({
           onOutcomeChange={onOutcomeChange}
           onDuplicateTask={onDuplicateTask}
           onDeleteTask={onDeleteTask}
+          onUpdateTaskColor={onUpdateTaskColor}
         />
       ))}
     </Box>

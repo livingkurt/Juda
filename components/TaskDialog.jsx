@@ -72,7 +72,19 @@ export const TaskDialog = ({
     })
   );
 
-  const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6"];
+  // Rainbow order: Red, Orange, Yellow, Green, Turquoise, Blue, Indigo, Violet, Pink, Teal
+  const colors = [
+    "#ef4444", // Red
+    "#f97316", // Orange
+    "#eab308", // Yellow
+    "#10b981", // Green
+    "#06b6d4", // Cyan
+    "#3b82f6", // Blue
+    "#6366f1", // Indigo
+    "#8b5cf6", // Purple
+    "#a855f7", // Violet
+    "#ec4899", // Pink
+  ];
 
   // Create collections for selects
   const sectionCollection = useMemo(

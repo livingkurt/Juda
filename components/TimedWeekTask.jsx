@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Box, Text, Menu, HStack, Portal } from "@chakra-ui/react";
 import { useDraggable } from "@dnd-kit/core";
 import { Edit2, SkipForward, Copy, Trash2, Check, Circle } from "lucide-react";
+import { ColorSubmenu } from "./ColorSubmenu";
 
 export const TimedWeekTask = ({
   task,
@@ -19,6 +20,7 @@ export const TimedWeekTask = ({
   onOutcomeChange,
   onDuplicateTask,
   onDeleteTask,
+  onUpdateTaskColor,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -110,11 +112,25 @@ export const TimedWeekTask = ({
                     setMenuOpen(false);
                   }}
                 >
-                  <HStack>
-                    <Edit2 size={14} />
+                  <HStack gap={2}>
+                    <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                      <Edit2 size={14} />
+                    </Box>
                     <Text>Edit</Text>
                   </HStack>
                 </Menu.Item>
+              )}
+              {/* Color submenu */}
+              {onUpdateTaskColor && (
+                <ColorSubmenu
+                  currentColor={task.color || "#3b82f6"}
+                  onColorChange={color => {
+                    onUpdateTaskColor(task.id, color);
+                    setMenuOpen(false);
+                  }}
+                  onClose={() => setMenuOpen(false)}
+                  onCloseParentMenu={() => setMenuOpen(false)}
+                />
               )}
               {/* Completion options for recurring tasks */}
               {isRecurring && onOutcomeChange && (
@@ -128,8 +144,10 @@ export const TimedWeekTask = ({
                           setMenuOpen(false);
                         }}
                       >
-                        <HStack>
-                          <Circle size={14} />
+                        <HStack gap={2}>
+                          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                            <Circle size={14} />
+                          </Box>
                           <Text>Uncheck</Text>
                         </HStack>
                       </Menu.Item>
@@ -144,8 +162,10 @@ export const TimedWeekTask = ({
                         setMenuOpen(false);
                       }}
                     >
-                      <HStack>
-                        <Check size={14} />
+                      <HStack gap={2}>
+                        <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                          <Check size={14} />
+                        </Box>
                         <Text>Complete</Text>
                       </HStack>
                     </Menu.Item>
@@ -158,8 +178,10 @@ export const TimedWeekTask = ({
                         setMenuOpen(false);
                       }}
                     >
-                      <HStack>
-                        <SkipForward size={14} />
+                      <HStack gap={2}>
+                        <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                          <SkipForward size={14} />
+                        </Box>
                         <Text>Skip</Text>
                       </HStack>
                     </Menu.Item>
@@ -175,8 +197,10 @@ export const TimedWeekTask = ({
                     setMenuOpen(false);
                   }}
                 >
-                  <HStack>
-                    <Copy size={14} />
+                  <HStack gap={2}>
+                    <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                      <Copy size={14} />
+                    </Box>
                     <Text>Duplicate</Text>
                   </HStack>
                 </Menu.Item>
@@ -190,8 +214,10 @@ export const TimedWeekTask = ({
                     setMenuOpen(false);
                   }}
                 >
-                  <HStack>
-                    <Trash2 size={14} />
+                  <HStack gap={2}>
+                    <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                      <Trash2 size={14} />
+                    </Box>
                     <Text>Delete</Text>
                   </HStack>
                 </Menu.Item>

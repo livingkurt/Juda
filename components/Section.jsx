@@ -33,6 +33,7 @@ export const Section = ({
   onCompleteWithNote,
   onSkipTask,
   getCompletionForDate,
+  onUpdateTaskColor,
 }) => {
   const dropHighlight = { _light: "gray.50", _dark: "gray.800" };
 
@@ -73,6 +74,7 @@ export const Section = ({
             onCompleteWithNote={onCompleteWithNote}
             onSkipTask={onSkipTask}
             getCompletionForDate={getCompletionForDate}
+            onUpdateTaskColor={onUpdateTaskColor}
           />
         ))}
         <Button
