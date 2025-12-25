@@ -12,6 +12,10 @@ export const metadata = {
     maximumScale: 5,
     userScalable: true,
   },
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
 };
 
 export default function RootLayout({ children }) {

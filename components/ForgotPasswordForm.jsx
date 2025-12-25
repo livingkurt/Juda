@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Box, Button, Input, VStack, Text, Alert } from "@chakra-ui/react";
+import Image from "next/image";
 
 export function ForgotPasswordForm({ onBackToLogin }) {
   const [email, setEmail] = useState("");
@@ -71,6 +72,9 @@ export function ForgotPasswordForm({ onBackToLogin }) {
       maxW="400px"
     >
       <VStack spacing={4}>
+        <Box mb={2}>
+          <Image src="/icon.png" alt="Juda Logo" width={80} height={80} priority />
+        </Box>
         <Text fontSize="2xl" fontWeight="bold">
           Reset Password
         </Text>

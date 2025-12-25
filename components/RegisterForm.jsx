@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Box, Button, Input, VStack, Text, Alert, Link } from "@chakra-ui/react";
+import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function RegisterForm({ onSwitchToLogin }) {
@@ -54,6 +55,9 @@ export function RegisterForm({ onSwitchToLogin }) {
       maxW="400px"
     >
       <VStack spacing={4}>
+        <Box mb={2}>
+          <Image src="/icon.png" alt="Juda Logo" width={80} height={80} priority />
+        </Box>
         <Text fontSize="2xl" fontWeight="bold">
           Create Account
         </Text>
