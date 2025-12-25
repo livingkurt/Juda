@@ -66,7 +66,7 @@ export const TagFilter = ({
         <Menu.Trigger asChild>
           <Button size="xs" variant="ghost" onClick={onOpen} color={mutedText} _hover={{ bg: hoverBg }}>
             <TagIcon size={14} />
-            {compact ? "" : selectedTags.length === 0 ? "Filter by tag" : "Add"}
+            {compact ? "" : selectedTags.length === 0 ? "" : "Add"}
           </Button>
         </Menu.Trigger>
         <Menu.Positioner>
