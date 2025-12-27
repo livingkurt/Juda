@@ -80,7 +80,7 @@ export const CalendarMonthView = ({
     <Flex direction="column" h="full" w="100%" maxW="100%" overflow="hidden">
       {/* Search input */}
       <Box
-        px={{ base: 2, md: 4 }}
+        px={2}
         py={2}
         borderBottomWidth="1px"
         borderColor={borderColor}
@@ -89,7 +89,7 @@ export const CalendarMonthView = ({
         w="100%"
         maxW="100%"
       >
-        <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
+        <HStack spacing={2} align="center" w="100%" maxW="100%">
           <Box flex={1} minW={0}>
             <TaskSearchInput onSearchChange={setSearchTerm} />
           </Box>
@@ -105,7 +105,7 @@ export const CalendarMonthView = ({
       </Box>
       <SimpleGrid columns={7} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} w="100%" maxW="100%">
         {DAYS_OF_WEEK.map(day => (
-          <Box key={day.value} textAlign="center" py={2} fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" color={dayHeaderColor}>
+          <Box key={day.value} textAlign="center" py={2} fontSize="xs" fontWeight="medium" color={dayHeaderColor}>
             {day.label}
           </Box>
         ))}
@@ -141,7 +141,7 @@ export const CalendarMonthView = ({
                 >
                   <Box
                     as="span"
-                    fontSize={{ base: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs", md: zoom >= 1.5 ? "md" : zoom >= 1.0 ? "sm" : "xs" }}
+                    fontSize={zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs"}
                     mb={1}
                     display="inline-block"
                     bg={isToday ? "blue.500" : "transparent"}
@@ -157,7 +157,7 @@ export const CalendarMonthView = ({
                   {dayTasks.map(task => (
                     <Box
                       key={task.id}
-                      fontSize={{ base: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs", md: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs" }}
+                      fontSize={zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs"}
                       px={1}
                       py={0.5}
                       borderRadius="md"

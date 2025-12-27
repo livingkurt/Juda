@@ -263,7 +263,7 @@ export const TaskItem = ({
       >
         <Flex
           align="center"
-          gap={{ base: 1.5, md: 2 }}
+          gap={1.5}
           p={{ base: 2, md: 3 }}
           _hover={{ bg: hoverBg }}
           _active={{ cursor: isDragDisabled ? "default" : "grabbing" }}
@@ -484,7 +484,7 @@ export const TaskItem = ({
               ) : (
                 <Text
                   fontWeight="medium"
-                  fontSize={{ base: "sm", md: "md" }}
+                  fontSize="sm"
                   textDecoration={shouldShowStrikethrough ? "line-through" : "none"}
                   opacity={shouldShowStrikethrough ? 0.5 : 1}
                   color={textColor}
@@ -502,13 +502,7 @@ export const TaskItem = ({
                 </Text>
               )}
               {task.subtasks && task.subtasks.length > 0 && (
-                <Text
-                  as="span"
-                  ml={{ base: 1, md: 2 }}
-                  fontSize={{ base: "2xs", md: "xs" }}
-                  color={mutedText}
-                  flexShrink={0}
-                >
+                <Text as="span" ml={{ base: 1, md: 2 }} fontSize="2xs" color={mutedText} flexShrink={0}>
                   ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})
                 </Text>
               )}
@@ -564,16 +558,10 @@ export const TaskItem = ({
             )}
             {/* Badges - show for backlog and today variants */}
             {(isBacklog || isToday) && (
-              <HStack spacing={{ base: 1, md: 2 }} mt={{ base: 0.5, md: 1 }} align="center" flexWrap="wrap">
+              <HStack spacing={1} mt={0.5} align="center" flexWrap="wrap">
                 {isOverdue(task, viewDate, hasRecordOnDate ? hasRecordOnDate(task.id, viewDate) : task.completed) && (
-                  <Badge
-                    size={{ base: "xs", md: "sm" }}
-                    colorPalette="red"
-                    fontSize={{ base: "3xs", md: "2xs" }}
-                    py={{ base: 0, md: 1 }}
-                    px={{ base: 1, md: 2 }}
-                  >
-                    <HStack spacing={{ base: 0.5, md: 1 }} align="center">
+                  <Badge size={{ base: "xs", md: "sm" }} colorPalette="red" fontSize="3xs" py={0} px={1}>
+                    <HStack spacing={0.5} align="center">
                       <Box as="span" color="currentColor">
                         <AlertCircle size={10} stroke="currentColor" />
                       </Box>
@@ -582,13 +570,7 @@ export const TaskItem = ({
                   </Badge>
                 )}
                 {task.recurrence && task.recurrence.type !== "none" && (
-                  <Badge
-                    size={{ base: "xs", md: "sm" }}
-                    colorPalette="purple"
-                    fontSize={{ base: "3xs", md: "2xs" }}
-                    py={{ base: 0, md: 1 }}
-                    px={{ base: 1, md: 2 }}
-                  >
+                  <Badge size={{ base: "xs", md: "sm" }} colorPalette="purple" fontSize="3xs" py={0} px={1}>
                     {task.recurrence.type === "daily"
                       ? "Daily"
                       : task.recurrence.type === "weekly"
@@ -601,25 +583,13 @@ export const TaskItem = ({
                   </Badge>
                 )}
                 {task.recurrence?.endDate && (
-                  <Badge
-                    size={{ base: "xs", md: "sm" }}
-                    colorPalette="orange"
-                    fontSize={{ base: "3xs", md: "2xs" }}
-                    py={{ base: 0, md: 1 }}
-                    px={{ base: 1, md: 2 }}
-                  >
+                  <Badge size={{ base: "xs", md: "sm" }} colorPalette="orange" fontSize="3xs" py={0} px={1}>
                     Ends{" "}
                     {new Date(task.recurrence.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </Badge>
                 )}
                 {!task.time && !isBacklog && (
-                  <Badge
-                    size={{ base: "xs", md: "sm" }}
-                    colorPalette="orange"
-                    fontSize={{ base: "3xs", md: "2xs" }}
-                    py={{ base: 0, md: 1 }}
-                    px={{ base: 1, md: 2 }}
-                  >
+                  <Badge size={{ base: "xs", md: "sm" }} colorPalette="orange" fontSize="3xs" py={0} px={1}>
                     No time
                   </Badge>
                 )}
@@ -633,9 +603,9 @@ export const TaskItem = ({
                         borderRadius="full"
                         bg={tag.color}
                         color="white"
-                        fontSize={{ base: "3xs", md: "2xs" }}
-                        py={{ base: 0, md: 1 }}
-                        px={{ base: 1.5, md: 2 }}
+                        fontSize="3xs"
+                        py={0}
+                        px={1.5}
                       >
                         <Tag.Label>{tag.name}</Tag.Label>
                       </Tag.Root>
@@ -648,11 +618,11 @@ export const TaskItem = ({
 
           {/* Time display */}
           {task.time && (
-            <HStack spacing={{ base: 0.5, md: 1 }} flexShrink={0}>
+            <HStack spacing={0.5} flexShrink={0}>
               <Box as="span" color={mutedText}>
                 <Clock size={12} stroke="currentColor" />
               </Box>
-              <Text fontSize={{ base: "xs", md: "sm" }} color={mutedText} whiteSpace="nowrap">
+              <Text fontSize="xs" color={mutedText} whiteSpace="nowrap">
                 {formatTime(task.time)}
               </Text>
             </HStack>
@@ -693,7 +663,15 @@ export const TaskItem = ({
                     }}
                   >
                     <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                      <Box
+                        as="span"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        w="14px"
+                        h="14px"
+                        flexShrink={0}
+                      >
                         <Edit2 size={14} />
                       </Box>
                       <Text>Edit</Text>
@@ -719,12 +697,20 @@ export const TaskItem = ({
                         setActionMenuOpen(false);
                       }}
                     >
-                    <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-                        <SkipForward size={14} />
-                      </Box>
-                      <Text>Skip</Text>
-                    </HStack>
+                      <HStack gap={2}>
+                        <Box
+                          as="span"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          w="14px"
+                          h="14px"
+                          flexShrink={0}
+                        >
+                          <SkipForward size={14} />
+                        </Box>
+                        <Text>Skip</Text>
+                      </HStack>
                     </Menu.Item>
                   )}
                   {handleDuplicate && (
@@ -735,12 +721,20 @@ export const TaskItem = ({
                         setActionMenuOpen(false);
                       }}
                     >
-                    <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-                        <Copy size={14} />
-                      </Box>
-                      <Text>Duplicate</Text>
-                    </HStack>
+                      <HStack gap={2}>
+                        <Box
+                          as="span"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          w="14px"
+                          h="14px"
+                          flexShrink={0}
+                        >
+                          <Copy size={14} />
+                        </Box>
+                        <Text>Duplicate</Text>
+                      </HStack>
                     </Menu.Item>
                   )}
                   <Menu.Item
@@ -752,7 +746,15 @@ export const TaskItem = ({
                     }}
                   >
                     <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                      <Box
+                        as="span"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        w="14px"
+                        h="14px"
+                        flexShrink={0}
+                      >
                         <Trash2 size={14} />
                       </Box>
                       <Text>Delete</Text>
@@ -767,7 +769,7 @@ export const TaskItem = ({
         {/* Expanded subtasks */}
         {task.expanded && task.subtasks && task.subtasks.length > 0 && onToggleSubtask && (
           <Box pl={{ base: 8, md: 16 }} pr={{ base: 2, md: 3 }} pb={{ base: 2, md: 3 }}>
-            <VStack align="stretch" spacing={{ base: 1.5, md: 2 }}>
+            <VStack align="stretch" spacing={1.5}>
               {task.subtasks.map(subtask => (
                 <TaskItem
                   key={subtask.id}

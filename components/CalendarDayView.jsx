@@ -256,14 +256,14 @@ export const CalendarDayView = ({
         w="100%"
         maxW="100%"
       >
-        <Text fontSize={{ base: "xl", md: "2xl" }} fontWeight="bold">
+        <Text fontSize="xl" fontWeight="bold">
           {date.getDate()}
         </Text>
-        <Text fontSize={{ base: "xs", md: "sm" }} color={hourTextColor} mb={3}>
+        <Text fontSize="xs" color={hourTextColor} mb={3}>
           {date.toLocaleDateString("en-US", { weekday: "long", month: "long" })}
         </Text>
-        <Box px={{ base: 2, md: 4 }} py={2} w="100%" maxW="100%">
-          <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
+        <Box px={2} py={2} w="100%" maxW="100%">
+          <HStack spacing={2} align="center" w="100%" maxW="100%">
             <Box flex={1} minW={0}>
               <TaskSearchInput onSearchChange={setSearchTerm} />
             </Box>
@@ -282,7 +282,7 @@ export const CalendarDayView = ({
       {/* Untimed tasks area */}
       <Box
         ref={setUntimedRef}
-        px={{ base: 2, md: 4 }}
+        px={2}
         py={2}
         borderBottomWidth="1px"
         borderColor={borderColor}
@@ -294,7 +294,7 @@ export const CalendarDayView = ({
       >
         {(untimedTasks.length > 0 || isOverUntimed) && (
           <VStack align="stretch" spacing={2}>
-            <Text fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} fontWeight="medium">
+            <Text fontSize="2xs" color={hourTextColor} fontWeight="medium">
               All Day
             </Text>
             {untimedTasks.map(task => (
@@ -314,7 +314,7 @@ export const CalendarDayView = ({
               />
             ))}
             {isOverUntimed && untimedTasks.length === 0 && (
-              <Text fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} textAlign="center" py={2}>
+              <Text fontSize="2xs" color={hourTextColor} textAlign="center" py={2}>
                 Drop here for all-day task
               </Text>
             )}
@@ -339,7 +339,7 @@ export const CalendarDayView = ({
                 height: `${HOUR_HEIGHT}px`,
               }}
             >
-              <Box w={16} fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} pr={2} textAlign="right" pt={1}>
+              <Box w={16} fontSize="2xs" color={hourTextColor} pr={2} textAlign="right" pt={1}>
                 {hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
               </Box>
               <Box flex={1} borderLeftWidth="1px" borderColor={borderColor} />

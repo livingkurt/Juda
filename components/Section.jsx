@@ -81,10 +81,10 @@ export const Section = ({
           variant="outline"
           onClick={onAddSection}
           w="full"
-          py={{ base: 4, md: 6 }}
+          py={4}
           borderStyle="dashed"
           mt={{ base: 2, md: 4 }}
-          fontSize={{ base: "sm", md: "md" }}
+          fontSize="sm"
         >
           <Box as="span" display="inline-flex" alignItems="center" mr={{ base: 1, md: 2 }}>
             <Plus size={16} stroke="currentColor" />

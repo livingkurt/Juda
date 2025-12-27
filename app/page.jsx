@@ -1814,9 +1814,9 @@ export default function DailyTasksApp() {
     >
       {/* Header */}
       <Box as="header" bg={headerBg} borderBottomWidth="1px" borderColor={borderColor} flexShrink={{ base: 1, md: 0 }}>
-        <Box w="full" px={{ base: 3, md: 4 }} py={{ base: 2, md: 4 }}>
+        <Box w="full" px={3} py={2}>
           <Flex align="center" justify="space-between">
-            <Flex align="center" gap={{ base: 2, md: 3 }}>
+            <Flex align="center" gap={2}>
               <Box as="span" color="orange.500">
                 <GreetingIcon size={20} stroke="currentColor" />
               </Box>
@@ -1824,7 +1824,7 @@ export default function DailyTasksApp() {
                 <Heading as="h1" size={{ base: "md", md: "lg" }} fontWeight="semibold">
                   {greeting.text}
                 </Heading>
-                <Text fontSize={{ base: "xs", md: "sm" }} color={mutedText}>
+                <Text fontSize="xs" color={mutedText}>
                   {new Date().toLocaleDateString("en-US", {
                     weekday: "long",
                     month: "long",
@@ -1833,7 +1833,7 @@ export default function DailyTasksApp() {
                 </Text>
               </Box>
             </Flex>
-            <HStack spacing={{ base: 1, md: 2 }}>
+            <HStack spacing={1}>
               <IconButton
                 onClick={toggleColorMode}
                 variant="ghost"
@@ -1876,46 +1876,25 @@ export default function DailyTasksApp() {
               variant="line"
             >
               <Tabs.List>
-                <Tabs.Trigger
-                  value="0"
-                  fontSize={{ base: "sm", md: "md" }}
-                  py={{ base: 1.5, md: 2 }}
-                  px={{ base: 2, md: 3 }}
-                >
-                  <HStack spacing={{ base: 1, md: 2 }}>
+                <Tabs.Trigger value="0" fontSize="sm" py={1.5} px={2}>
+                  <HStack spacing={1}>
                     <CheckSquare size={14} />
                     <Text>Tasks</Text>
                   </HStack>
                 </Tabs.Trigger>
-                <Tabs.Trigger
-                  value="1"
-                  fontSize={{ base: "sm", md: "md" }}
-                  py={{ base: 1.5, md: 2 }}
-                  px={{ base: 2, md: 3 }}
-                >
-                  <HStack spacing={{ base: 1, md: 2 }}>
+                <Tabs.Trigger value="1" fontSize="sm" py={1.5} px={2}>
+                  <HStack spacing={1}>
                     <StickyNote size={14} />
                     <Text>Notes</Text>
                     {noteTasks.length > 0 && (
-                      <Badge
-                        colorScheme="purple"
-                        borderRadius="full"
-                        fontSize={{ base: "2xs", md: "xs" }}
-                        px={{ base: 1, md: 1.5 }}
-                        py={0}
-                      >
+                      <Badge colorScheme="purple" borderRadius="full" fontSize="2xs" px={1} py={0}>
                         {noteTasks.length}
                       </Badge>
                     )}
                   </HStack>
                 </Tabs.Trigger>
-                <Tabs.Trigger
-                  value="2"
-                  fontSize={{ base: "sm", md: "md" }}
-                  py={{ base: 1.5, md: 2 }}
-                  px={{ base: 2, md: 3 }}
-                >
-                  <HStack spacing={{ base: 1, md: 2 }}>
+                <Tabs.Trigger value="2" fontSize="sm" py={1.5} px={2}>
+                  <HStack spacing={1}>
                     <Clock size={14} />
                     <Text>History</Text>
                   </HStack>
@@ -2570,10 +2549,10 @@ export default function DailyTasksApp() {
                     /* Tasks Tab Content (mainTabIndex === 0) */
                     <Box
                       w="full"
-                      px={{ base: 2, md: 4 }}
-                      py={{ base: 3, md: 6 }}
+                      px={2}
+                      py={3}
                       display="flex"
-                      gap={{ base: 2, md: 6 }}
+                      gap={2}
                       h="full"
                       justifyContent={!backlogOpen && !showCalendar && showDashboard ? "center" : "flex-start"}
                       maxW="100%"
@@ -2654,7 +2633,7 @@ export default function DailyTasksApp() {
                                   />
                                 )}
                                 <Box mt={3} w="100%" maxW="100%">
-                                  <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
+                                  <HStack spacing={2} align="center" w="100%" maxW="100%">
                                     <Box flex={1} minW={0}>
                                       <TaskSearchInput onSearchChange={setTodaySearchTerm} />
                                     </Box>
@@ -2721,7 +2700,7 @@ export default function DailyTasksApp() {
                             pb={3}
                             borderBottomWidth="1px"
                             borderColor={borderColor}
-                            px={{ base: 1, md: 0 }}
+                            px={1}
                             w="100%"
                             maxW="100%"
                             overflow="hidden"

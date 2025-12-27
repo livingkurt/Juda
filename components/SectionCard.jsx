@@ -136,13 +136,13 @@ export const SectionCard = ({
       <Card.Header
         pb={{ base: 1, md: 2 }}
         pt={{ base: 2, md: 3 }}
-        px={{ base: 2, md: 4 }}
+        px={2}
         w="100%"
         maxW="100%"
         overflow="hidden"
       >
-        <Flex align="center" justify="space-between" w="100%" maxW="100%" gap={{ base: 1, md: 2 }}>
-          <Flex align="center" gap={{ base: 1, md: 2 }} minW={0} flex={1}>
+        <Flex align="center" justify="space-between" w="100%" maxW="100%" gap={1}>
+          <Flex align="center" gap={1} minW={0} flex={1}>
             <Box
               {...sectionAttributes}
               {...sectionListeners}
@@ -159,11 +159,11 @@ export const SectionCard = ({
             <Heading size={{ base: "sm", md: "md" }} color={textColor} noOfLines={1}>
               {section.name}
             </Heading>
-            <Text fontSize={{ base: "xs", md: "sm" }} color={mutedText} flexShrink={0}>
+            <Text fontSize="xs" color={mutedText} flexShrink={0}>
               ({completedCount}/{tasks.length})
             </Text>
           </Flex>
-          <HStack spacing={{ base: 0, md: 1 }} flexShrink={0}>
+          <HStack spacing={0} flexShrink={0}>
             <IconButton
               onClick={() => onToggleSectionExpand && onToggleSectionExpand(section.id)}
               size={{ base: "xs", md: "sm" }}
@@ -227,7 +227,7 @@ export const SectionCard = ({
         </Flex>
       </Card.Header>
       {section.expanded !== false && (
-        <Card.Body pt={{ base: 1, md: 2 }} pb={{ base: 2, md: 3 }} px={{ base: 2, md: 4 }}>
+        <Card.Body pt={{ base: 1, md: 2 }} pb={{ base: 2, md: 3 }} px={2}>
           <Box
             ref={setDropNodeRef}
             bg={isOver ? dropHighlight : "transparent"}
@@ -240,8 +240,8 @@ export const SectionCard = ({
             borderStyle="dashed"
           >
             {tasksWithIds.length === 0 ? (
-              <VStack align="stretch" spacing={{ base: 1, md: 2 }}>
-                <Text fontSize={{ base: "xs", md: "sm" }} textAlign="center" py={{ base: 4, md: 8 }} color={mutedText}>
+              <VStack align="stretch" spacing={1}>
+                <Text fontSize="xs" textAlign="center" py={4} color={mutedText}>
                   {isOver ? "Drop here" : "No tasks"}
                 </Text>
                 <Input
@@ -276,7 +276,7 @@ export const SectionCard = ({
                 items={tasksWithIds.map(t => t.draggableId)}
                 strategy={verticalListSortingStrategy}
               >
-                <VStack align="stretch" spacing={{ base: 2, md: 3 }} py={{ base: 1, md: 2 }}>
+                <VStack align="stretch" spacing={2} py={1}>
                   {tasksWithIds.map((task, index) => (
                     <TaskItem
                       key={task.id}

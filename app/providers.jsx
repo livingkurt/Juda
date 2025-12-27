@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { PreferencesProvider } from "@/contexts/PreferencesContext";
 
 // Create a custom system that matches Chakra v2 colors and styling
+// COMPACT MODE: All breakpoints set to 0 so responsive props always use "base" values
 const system = createSystem(defaultConfig, {
   theme: {
     tokens: {
@@ -281,8 +282,8 @@ const system = createSystem(defaultConfig, {
             borderStyle: "solid",
             borderColor: { _light: "gray.200", _dark: "gray.600" },
             borderRadius: "md",
-            // Use 16px on mobile to prevent iOS auto-zoom (scaled visually via MobileZoomFix)
-            fontSize: { base: "16px", md: "sm" }, // sm = 14px on desktop
+            // Use 16px on mobile to prevent iOS auto-zoom, 14px on desktop
+            fontSize: "14px", // Default to 14px
             px: "2.5", // Tighter padding
             py: "1.5",
             h: "auto", // Allow height to be determined by padding
@@ -316,32 +317,23 @@ const system = createSystem(defaultConfig, {
       "--chakra-space-10": "2rem",
       "--chakra-space-12": "2.4rem",
     },
-    /* Mobile font sizes - use 16px to prevent iOS auto-zoom */
-    /* Visual scaling to 14px is handled by MobileZoomFix component */
-    "@media (max-width: 768px)": {
-      // Chakra UI Input field
-      "[data-part='field']": {
+    /* Form inputs use 16px everywhere to prevent iOS Safari auto-zoom */
+    /* MobileZoomFix component also handles this */
+    "[data-part='field']": {
+      fontSize: "16px !important",
+    },
+    "input[type='text'], input[type='email'], input[type='password'], input[type='number'], input[type='tel'], input[type='url'], input[type='search'], input[type='date'], input[type='time'], input[type='datetime-local'], input:not([type])":
+      {
         fontSize: "16px !important",
       },
-      // Chakra UI Select trigger (excluding tabs)
-      "[data-part='trigger']:not([data-scope='tabs'])": {
-        fontSize: "16px !important",
-      },
-      // Native HTML form elements
-      "input[type='text'], input[type='email'], input[type='password'], input[type='number'], input[type='tel'], input[type='url'], input[type='search'], input[type='date'], input[type='time'], input[type='datetime-local'], input:not([type])":
-        {
-          fontSize: "16px !important",
-        },
-      "textarea": {
-        fontSize: "16px !important",
-      },
-      "select": {
-        fontSize: "16px !important",
-      },
-      // ProseMirror contenteditable (for notes editor)
-      ".ProseMirror[contenteditable='true']": {
-        fontSize: "16px !important",
-      },
+    "textarea": {
+      fontSize: "16px !important",
+    },
+    "select": {
+      fontSize: "16px !important",
+    },
+    ".ProseMirror[contenteditable='true']": {
+      fontSize: "16px !important",
     },
     /* TipTap/ProseMirror Editor Styles - Must be global to override resets */
     ".ProseMirror": {
@@ -473,9 +465,7 @@ const system = createSystem(defaultConfig, {
         _light: "var(--chakra-colors-gray-200) !important",
         _dark: "var(--chakra-colors-gray-600) !important",
       },
-      "@media (max-width: 768px)": {
-        fontSize: "16px !important",
-      },
+      fontSize: "16px !important", // Prevent iOS auto-zoom
     },
     "[data-part='trigger']:not([data-scope='tabs']):focus, [data-part='trigger']:not([data-scope='tabs']):focus-visible":
       {

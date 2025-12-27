@@ -73,7 +73,7 @@ export const UntimedTask = ({
           }}
         >
           <Text
-            fontSize={{ base: "xs", md: "sm" }}
+            fontSize="xs"
             fontWeight="medium"
             textDecoration={isCompleted || isSkipped ? "line-through" : "none"}
           >
