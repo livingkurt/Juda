@@ -1045,7 +1045,7 @@ export default function DailyTasksApp() {
           recurrence: null,
         };
       }
-      // DESTINATION: Today section - set date to the selected date in Today View, clear time, preserve recurrence
+      // DESTINATION: Today section - set date to the selected date in Today View, preserve time and recurrence
       else if (destParsed.type === "today-section") {
         // Don't set sectionId here - let the reordering logic below handle it
         // Use the selected date in Today View (todayViewDate), or fall back to today
@@ -1053,22 +1053,32 @@ export default function DailyTasksApp() {
         const targetDateStr = formatLocalDate(targetDate);
 
         // Preserve existing recurrence if it exists, otherwise set to none with today's date
+        // For recurring tasks, preserve everything. For one-time tasks, update date if different.
         let recurrenceUpdate;
-        if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
-          // Preserve the recurrence pattern (daily, weekly, etc.)
-          recurrenceUpdate = task.recurrence;
-        } else {
-          // No recurrence or type is "none" - set to none with the selected date
-          recurrenceUpdate = {
-            type: "none",
-            startDate: `${targetDateStr}T00:00:00.000Z`,
-          };
-        }
+        const currentDateStr = task.recurrence?.startDate?.split("T")[0];
+        const needsDateUpdate = currentDateStr !== targetDateStr;
 
-        updates = {
-          time: null,
-          recurrence: recurrenceUpdate,
-        };
+        if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
+          // Preserve the recurrence pattern (daily, weekly, etc.) - no updates needed
+          recurrenceUpdate = task.recurrence;
+          // No updates needed for recurring tasks
+          updates = {};
+        } else {
+          // One-time task or no recurrence - update date if different
+          if (needsDateUpdate || !task.recurrence) {
+            recurrenceUpdate = {
+              type: "none",
+              startDate: `${targetDateStr}T00:00:00.000Z`,
+            };
+            updates = {
+              recurrence: recurrenceUpdate,
+              // Preserve existing time - don't clear it
+            };
+          } else {
+            // Date is the same, no updates needed
+            updates = {};
+          }
+        }
       }
       // DESTINATION: Calendar (timed area) - set date and time, preserve recurrence
       else if (destParsed.type === "calendar" && !destParsed.isUntimed) {
@@ -1726,15 +1736,9 @@ export default function DailyTasksApp() {
         const targetDateStr = formatLocalDate(targetDate);
 
         // Preserve existing recurrence if it exists, otherwise set to none with today's date
-        let recurrenceUpdate;
-        if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
-          recurrenceUpdate = task.recurrence;
-        } else {
-          recurrenceUpdate = {
-            type: "none",
-            startDate: `${targetDateStr}T00:00:00.000Z`,
-          };
-        }
+        // For recurring tasks, preserve everything. For one-time tasks, update date if different.
+        const currentDateStr = task.recurrence?.startDate?.split("T")[0];
+        const needsDateUpdate = currentDateStr !== targetDateStr;
 
         // Reorder the task (this handles section change and order)
         // eslint-disable-next-line no-console
@@ -1748,11 +1752,21 @@ export default function DailyTasksApp() {
         });
         await reorderTask(taskId, sourceSectionId, targetSectionId, destIndex);
 
-        // Apply time/recurrence updates if needed (only if time should be cleared)
-        await updateTask(taskId, {
-          time: null,
-          recurrence: recurrenceUpdate,
-        });
+        // Apply recurrence updates only for one-time tasks when date changed
+        // Preserve existing time - don't clear it
+        if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
+          // Recurring task - no updates needed, preserve everything
+        } else if (needsDateUpdate || !task.recurrence) {
+          // One-time task - update date if different or initialize recurrence
+          const recurrenceUpdate = {
+            type: "none",
+            startDate: `${targetDateStr}T00:00:00.000Z`,
+          };
+          await updateTask(taskId, {
+            recurrence: recurrenceUpdate,
+          });
+        }
+        // If date is the same and recurrence exists, no updates needed
 
         return;
       }
