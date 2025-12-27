@@ -277,7 +277,7 @@ export const TaskDialog = ({
             <form onSubmit={handleFormSubmit}>
               <VStack spacing={4} py={4}>
                 <Box w="full">
-                  <Text fontSize="xs" fontWeight="medium" mb={1}>
+                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                     Task Name
                   </Text>
                   <Input
@@ -297,7 +297,7 @@ export const TaskDialog = ({
                   />
                 </Box>
                 <Box w="full">
-                  <Text fontSize="xs" fontWeight="medium" mb={1}>
+                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                     Color
                   </Text>
                   <HStack spacing={2} mt={2} flexWrap="wrap">
@@ -318,7 +318,7 @@ export const TaskDialog = ({
                   </HStack>
                 </Box>
                 <Box w="full">
-                  <Text fontSize="xs" fontWeight="medium" mb={1}>
+                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                     Section
                   </Text>
                   <Select.Root
@@ -340,7 +340,7 @@ export const TaskDialog = ({
                 </Box>
                 <SimpleGrid columns={2} spacing={4} w="full">
                   <Box>
-                    <Text fontSize="xs" fontWeight="medium" mb={1}>
+                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                       Date
                     </Text>
                     <Input
@@ -349,7 +349,7 @@ export const TaskDialog = ({
                       onChange={e => setDate(e.target.value)}
                       placeholder="Optional"
                       borderColor={borderColor}
-                      fontSize="sm"
+                      fontSize={{ base: "sm", md: "md" }}
                       _focus={{
                         borderColor: "blue.400",
                         boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
@@ -363,7 +363,7 @@ export const TaskDialog = ({
                     />
                   </Box>
                   <Box>
-                    <Text fontSize="xs" fontWeight="medium" mb={1}>
+                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                       Time
                     </Text>
                     <Input
@@ -372,7 +372,7 @@ export const TaskDialog = ({
                       onChange={e => setTime(e.target.value)}
                       placeholder="Optional"
                       borderColor={borderColor}
-                      fontSize="sm"
+                      fontSize={{ base: "sm", md: "md" }}
                       _focus={{
                         borderColor: "blue.400",
                         boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
@@ -387,7 +387,7 @@ export const TaskDialog = ({
                   </Box>
                 </SimpleGrid>
                 <Box w="full">
-                  <Text fontSize="xs" fontWeight="medium" mb={1}>
+                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                     Duration
                   </Text>
                   <Select.Root
@@ -408,7 +408,7 @@ export const TaskDialog = ({
                   </Select.Root>
                 </Box>
                 <Box w="full">
-                  <Text fontSize="xs" fontWeight="medium" mb={1}>
+                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                     Completion Type
                   </Text>
                   <Select.Root
@@ -434,7 +434,7 @@ export const TaskDialog = ({
                   )}
                 </Box>
                 <Box w="full">
-                  <Text fontSize="xs" fontWeight="medium" mb={1}>
+                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                     Recurrence
                   </Text>
                   <Select.Root
@@ -456,7 +456,7 @@ export const TaskDialog = ({
                 </Box>
                 {/* Tags */}
                 <Box w="full">
-                  <Text fontSize="xs" fontWeight="medium" mb={1}>
+                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                     Tags
                   </Text>
                   <Box borderWidth="1px" borderColor={borderColor} borderRadius="md" p={3} minH="48px">
@@ -498,7 +498,7 @@ export const TaskDialog = ({
                         w={9}
                         h={9}
                         borderRadius="full"
-                        fontSize="xs"
+                        fontSize={{ base: "xs", md: "sm" }}
                         fontWeight="medium"
                         onClick={() =>
                           setSelectedDays(prev =>
@@ -516,7 +516,7 @@ export const TaskDialog = ({
                 {/* End Date - only show for recurring tasks */}
                 {recurrenceType !== "none" && (
                   <Box w="full">
-                    <Text fontSize="xs" fontWeight="medium" mb={1}>
+                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                       End Date (Optional)
                     </Text>
                     <Input
@@ -545,7 +545,7 @@ export const TaskDialog = ({
                   </Box>
                 )}
                 <Box w="full">
-                  <Text fontSize="xs" fontWeight="medium" mb={1}>
+                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                     Subtasks
                   </Text>
                   <Tabs.Root
@@ -743,7 +743,7 @@ export const TaskDialog = ({
                       <Dialog.Body>
                         <VStack spacing={4} py={4}>
                           <Box w="full">
-                            <Text fontSize="xs" fontWeight="medium" mb={1}>
+                            <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                               Title
                             </Text>
                             <Input
@@ -753,7 +753,7 @@ export const TaskDialog = ({
                             />
                           </Box>
                           <Box w="full">
-                            <Text fontSize="xs" fontWeight="medium" mb={1}>
+                            <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                               Color
                             </Text>
                             <HStack spacing={2} mt={2} flexWrap="wrap">
@@ -775,7 +775,7 @@ export const TaskDialog = ({
                           </Box>
                           <SimpleGrid columns={2} spacing={4} w="full">
                             <Box>
-                              <Text fontSize="xs" fontWeight="medium" mb={1}>
+                              <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                                 Time
                               </Text>
                               <Input
@@ -786,7 +786,7 @@ export const TaskDialog = ({
                               />
                             </Box>
                             <Box>
-                              <Text fontSize="xs" fontWeight="medium" mb={1}>
+                              <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                                 Duration
                               </Text>
                               <Select.Root

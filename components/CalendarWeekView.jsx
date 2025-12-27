@@ -282,7 +282,7 @@ export const CalendarWeekView = ({
     <Flex direction="column" h="full" w="100%" maxW="100%" overflow="hidden">
       {/* Search input */}
       <Box
-        px={2}
+        px={{ base: 2, md: 4 }}
         py={2}
         borderBottomWidth="1px"
         borderColor={borderColor}
@@ -291,7 +291,7 @@ export const CalendarWeekView = ({
         w="100%"
         maxW="100%"
       >
-        <HStack spacing={2} align="center" w="100%" maxW="100%">
+        <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
           <Box flex={1} minW={0}>
             <TaskSearchInput onSearchChange={setSearchTerm} />
           </Box>
@@ -388,7 +388,7 @@ export const CalendarWeekView = ({
                 height: `${HOUR_HEIGHT}px`,
               }}
             >
-              <Box w={12} fontSize="2xs" color={hourTextColor} pr={1} textAlign="right" pt={1}>
+              <Box w={12} fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} pr={1} textAlign="right" pt={1}>
                 {hour === 0 ? "" : hour < 12 ? `${hour}a` : hour === 12 ? "12p" : `${hour - 12}p`}
               </Box>
             </Box>

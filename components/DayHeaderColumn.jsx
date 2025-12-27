@@ -44,12 +44,12 @@ export const DayHeaderColumn = ({
     >
       {/* Day header */}
       <Box textAlign="center" py={2} cursor="pointer" _hover={{ bg: hoverBg }} onClick={() => onDayClick(day)}>
-        <Text fontSize="2xs" color={hourTextColor}>
+        <Text fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor}>
           {DAYS_OF_WEEK[dayIndex].short}
         </Text>
         <Box
           as="span"
-          fontSize="md"
+          fontSize={{ base: "md", md: "lg" }}
           fontWeight="semibold"
           display="inline-block"
           bg={isToday ? "blue.500" : "transparent"}

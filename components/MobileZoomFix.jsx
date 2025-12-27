@@ -14,19 +14,14 @@ export function MobileZoomFix() {
     style.id = styleId;
     style.textContent = `
       @media (max-width: 768px) {
-        /* Prevent iOS Safari auto-zoom by using 16px font-size on inputs */
-        /* No transform scaling - just use 16px directly */
-
         /* Chakra UI Input field */
         [data-part='field'] {
-          font-size: 16px !important;
+          font-size: 14px !important;
         }
-
         /* Chakra UI Select trigger (excluding tabs) */
         [data-part='trigger']:not([data-scope='tabs']) {
-          font-size: 16px !important;
+          font-size: 14px !important;
         }
-
         /* Native HTML form elements */
         input[type='text'],
         input[type='email'],
@@ -41,12 +36,11 @@ export function MobileZoomFix() {
         input:not([type]),
         textarea,
         select {
-          font-size: 16px !important;
+          font-size: 14px !important;
         }
-
         /* ProseMirror contenteditable (for notes editor) */
         .ProseMirror[contenteditable='true'] {
-          font-size: 16px !important;
+          font-size: 14px !important;
         }
       }
     `;

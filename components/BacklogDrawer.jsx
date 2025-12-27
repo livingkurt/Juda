@@ -147,7 +147,7 @@ const BacklogDrawerComponent = ({
             filteredTasks.length !== backlogTasks.length &&
             ` of ${backlogTasks.length}`}
         </Badge>
-        <HStack spacing={2} align="center" w="100%" maxW="100%">
+        <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
           <Box flex={1} minW={0}>
             <TaskSearchInput onSearchChange={setSearchTerm} />
           </Box>
@@ -222,7 +222,7 @@ const BacklogDrawerComponent = ({
               items={tasksWithIds.map(t => t.draggableId)}
               strategy={verticalListSortingStrategy}
             >
-              <VStack align="stretch" spacing={2} px={1} w="100%" maxW="100%">
+              <VStack align="stretch" spacing={2} px={{ base: 1, md: 2 }} w="100%" maxW="100%">
                 {tasksWithIds.map(task => (
                   <TaskItem
                     key={task.id}

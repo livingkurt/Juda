@@ -96,7 +96,7 @@ export const TimedWeekTask = ({
               setMenuOpen(true);
             }}
           >
-            <Text fontSize="2xs" isTruncated fontWeight="medium" textDecoration={isCompleted || isSkipped ? "line-through" : "none"}>
+            <Text fontSize={{ base: "2xs", md: "xs" }} isTruncated fontWeight="medium" textDecoration={isCompleted || isSkipped ? "line-through" : "none"}>
               {task.title}
             </Text>
           </Box>

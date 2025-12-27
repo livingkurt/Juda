@@ -245,7 +245,7 @@ export const RichTextEditor = ({
       <Box
         flex={1}
         overflowY="auto"
-        px={6}
+        px={{ base: 6, md: 12 }}
         py={6}
         bg={{ base: "white", _dark: "gray.800" }}
         css={{

@@ -91,7 +91,7 @@ export const TagFilter = ({
             {availableTags.length > 0 && (
               <>
                 <Box borderTopWidth="1px" borderColor={borderColor} my={1} />
-                <Text px={3} py={1} fontSize="2xs" color={mutedText} fontWeight="semibold">
+                <Text px={3} py={1} fontSize={{ base: "2xs", md: "xs" }} color={mutedText} fontWeight="semibold">
                   Available Tags
                 </Text>
                 {availableTags.map(tag => (
@@ -112,13 +112,13 @@ export const TagFilter = ({
             )}
 
             {availableTags.length === 0 && tags.length > 0 && (
-              <Text px={3} py={2} fontSize="xs" color={mutedText}>
+              <Text px={3} py={2} fontSize={{ base: "xs", md: "sm" }} color={mutedText}>
                 All tags selected
               </Text>
             )}
 
             {tags.length === 0 && !newTagName && (
-              <Text px={3} py={2} fontSize="xs" color={mutedText}>
+              <Text px={3} py={2} fontSize={{ base: "xs", md: "sm" }} color={mutedText}>
                 No tags yet. Create one above!
               </Text>
             )}
