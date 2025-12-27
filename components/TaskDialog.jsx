@@ -281,6 +281,7 @@ export const TaskDialog = ({
                     Task Name
                   </Text>
                   <Input
+                    autoFocus
                     value={title}
                     onChange={e => setTitle(e.target.value)}
                     borderColor={borderColor}
