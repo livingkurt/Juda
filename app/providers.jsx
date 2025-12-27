@@ -9,7 +9,34 @@ const system = createSystem(defaultConfig, {
   theme: {
     tokens: {
       fontSizes: {
-        "3xs": { value: "0.625rem" }, // 10px - extra small for mobile badges
+        "3xs": { value: "0.5rem" }, // 8px - extra small
+        "2xs": { value: "0.625rem" }, // 10px
+        xs: { value: "0.75rem" }, // 12px
+        sm: { value: "0.875rem" }, // 14px
+        md: { value: "1rem" }, // 16px (but base is 14px so relative to that)
+        lg: { value: "1.125rem" }, // 18px
+        xl: { value: "1.25rem" }, // 20px
+        "2xl": { value: "1.5rem" }, // 24px
+        "3xl": { value: "1.875rem" }, // 30px
+        "4xl": { value: "2.25rem" }, // 36px
+      },
+      spacing: {
+        "0.5": { value: "0.1rem" }, // 1.4px (at 14px base)
+        "1": { value: "0.2rem" }, // 2.8px
+        "1.5": { value: "0.3rem" }, // 4.2px
+        "2": { value: "0.4rem" }, // 5.6px
+        "2.5": { value: "0.5rem" }, // 7px
+        "3": { value: "0.6rem" }, // 8.4px
+        "3.5": { value: "0.7rem" }, // 9.8px
+        "4": { value: "0.8rem" }, // 11.2px
+        "5": { value: "1rem" }, // 14px
+        "6": { value: "1.2rem" }, // 16.8px
+        "7": { value: "1.4rem" }, // 19.6px
+        "8": { value: "1.6rem" }, // 22.4px
+        "10": { value: "2rem" }, // 28px
+        "12": { value: "2.4rem" }, // 33.6px
+        "16": { value: "3.2rem" }, // 44.8px
+        "20": { value: "4rem" }, // 56px
       },
       colors: {
         // Override gray palette to match v2's blue-gray tones for dark mode
@@ -127,11 +154,12 @@ const system = createSystem(defaultConfig, {
           alignItems: "center",
           justifyContent: "center",
           fontWeight: "bold",
-          fontSize: "xs",
-          px: "2",
-          borderRadius: "md",
+          fontSize: "2xs", // Smaller badges
+          px: "1.5",
+          py: "0.5",
+          borderRadius: "sm",
           textTransform: "uppercase",
-          letterSpacing: "wider",
+          letterSpacing: "wide",
         },
         variants: {
           colorPalette: {
@@ -166,6 +194,9 @@ const system = createSystem(defaultConfig, {
           fontWeight: "semibold",
           borderRadius: "md",
           transition: "all 0.2s",
+          fontSize: "sm", // Smaller button text
+          px: "3", // Tighter horizontal padding
+          py: "1.5", // Tighter vertical padding
         },
         variants: {
           variant: {
@@ -205,6 +236,9 @@ const system = createSystem(defaultConfig, {
         base: {
           borderRadius: "md",
           transition: "all 0.2s",
+          minW: "auto", // Remove default min-width
+          h: "auto", // Remove default height
+          p: "1.5", // Smaller padding
         },
         variants: {
           variant: {
@@ -248,7 +282,11 @@ const system = createSystem(defaultConfig, {
             borderColor: { _light: "gray.200", _dark: "gray.600" },
             borderRadius: "md",
             // Use 16px on mobile to prevent iOS auto-zoom (scaled visually via MobileZoomFix)
-            fontSize: { base: "16px", md: "inherit" },
+            fontSize: { base: "16px", md: "sm" }, // sm = 14px on desktop
+            px: "2.5", // Tighter padding
+            py: "1.5",
+            h: "auto", // Allow height to be determined by padding
+            minH: "32px", // Smaller minimum height
             _focus: {
               borderColor: "blue.400",
               boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
@@ -263,10 +301,20 @@ const system = createSystem(defaultConfig, {
     "html, body": {
       bg: { _light: "gray.50", _dark: "gray.900" },
       color: { _light: "gray.900", _dark: "gray.100" },
-      // Mobile viewport optimization
-      "@media (max-width: 768px)": {
-        fontSize: "14px", // Reduce base font size on mobile
-      },
+      // Compact design - smaller base font size for both mobile and desktop
+      fontSize: "14px",
+    },
+    // Reduce default spacing for all Chakra components
+    "*": {
+      "--chakra-space-1": "0.2rem",
+      "--chakra-space-2": "0.4rem",
+      "--chakra-space-3": "0.6rem",
+      "--chakra-space-4": "0.8rem",
+      "--chakra-space-5": "1rem",
+      "--chakra-space-6": "1.2rem",
+      "--chakra-space-8": "1.6rem",
+      "--chakra-space-10": "2rem",
+      "--chakra-space-12": "2.4rem",
     },
     /* Mobile font sizes - use 16px to prevent iOS auto-zoom */
     /* Visual scaling to 14px is handled by MobileZoomFix component */
