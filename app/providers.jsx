@@ -247,8 +247,8 @@ const system = createSystem(defaultConfig, {
             borderStyle: "solid",
             borderColor: { _light: "gray.200", _dark: "gray.600" },
             borderRadius: "md",
-            // Use smaller font size on mobile to match overall design
-            fontSize: { base: "14px", md: "inherit" },
+            // Use 16px on mobile to prevent iOS auto-zoom (scaled visually via MobileZoomFix)
+            fontSize: { base: "16px", md: "inherit" },
             _focus: {
               borderColor: "blue.400",
               boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
@@ -268,31 +268,31 @@ const system = createSystem(defaultConfig, {
         fontSize: "14px", // Reduce base font size on mobile
       },
     },
-    /* Mobile font sizes for form inputs - use 14px to match overall mobile design */
-    /* Note: iOS Safari auto-zoom is prevented via viewport meta tag */
+    /* Mobile font sizes - use 16px to prevent iOS auto-zoom */
+    /* Visual scaling to 14px is handled by MobileZoomFix component */
     "@media (max-width: 768px)": {
       // Chakra UI Input field
       "[data-part='field']": {
-        fontSize: "14px !important",
+        fontSize: "16px !important",
       },
       // Chakra UI Select trigger (excluding tabs)
       "[data-part='trigger']:not([data-scope='tabs'])": {
-        fontSize: "14px !important",
+        fontSize: "16px !important",
       },
       // Native HTML form elements
       "input[type='text'], input[type='email'], input[type='password'], input[type='number'], input[type='tel'], input[type='url'], input[type='search'], input[type='date'], input[type='time'], input[type='datetime-local'], input:not([type])":
         {
-          fontSize: "14px !important",
+          fontSize: "16px !important",
         },
       "textarea": {
-        fontSize: "14px !important",
+        fontSize: "16px !important",
       },
       "select": {
-        fontSize: "14px !important",
+        fontSize: "16px !important",
       },
       // ProseMirror contenteditable (for notes editor)
       ".ProseMirror[contenteditable='true']": {
-        fontSize: "14px !important",
+        fontSize: "16px !important",
       },
     },
     /* TipTap/ProseMirror Editor Styles - Must be global to override resets */
