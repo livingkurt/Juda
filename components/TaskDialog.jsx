@@ -349,7 +349,7 @@ export const TaskDialog = ({
                       onChange={e => setDate(e.target.value)}
                       placeholder="Optional"
                       borderColor={borderColor}
-                      fontSize={{ base: "sm", md: "md" }}
+                      fontSize={{ base: "md", md: "md" }}
                       _focus={{
                         borderColor: "blue.400",
                         boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
@@ -372,7 +372,7 @@ export const TaskDialog = ({
                       onChange={e => setTime(e.target.value)}
                       placeholder="Optional"
                       borderColor={borderColor}
-                      fontSize={{ base: "sm", md: "md" }}
+                      fontSize={{ base: "md", md: "md" }}
                       _focus={{
                         borderColor: "blue.400",
                         boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
