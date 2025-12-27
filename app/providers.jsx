@@ -268,31 +268,30 @@ const system = createSystem(defaultConfig, {
         fontSize: "14px", // Reduce base font size on mobile
       },
     },
-    /* Mobile font sizes for form inputs - use 14px to match overall mobile design */
-    /* Note: iOS Safari auto-zoom is prevented via viewport meta tag */
+    /* Mobile font sizes for form inputs - use 16px to prevent auto-zoom on mobile browsers */
     "@media (max-width: 768px)": {
       // Chakra UI Input field
       "[data-part='field']": {
-        fontSize: "14px !important",
+        fontSize: "16px !important",
       },
       // Chakra UI Select trigger (excluding tabs)
       "[data-part='trigger']:not([data-scope='tabs'])": {
-        fontSize: "14px !important",
+        fontSize: "16px !important",
       },
       // Native HTML form elements
       "input[type='text'], input[type='email'], input[type='password'], input[type='number'], input[type='tel'], input[type='url'], input[type='search'], input[type='date'], input[type='time'], input[type='datetime-local'], input:not([type])":
         {
-          fontSize: "14px !important",
+          fontSize: "16px !important",
         },
       "textarea": {
-        fontSize: "14px !important",
+        fontSize: "16px !important",
       },
       "select": {
-        fontSize: "14px !important",
+        fontSize: "16px !important",
       },
       // ProseMirror contenteditable (for notes editor)
       ".ProseMirror[contenteditable='true']": {
-        fontSize: "14px !important",
+        fontSize: "16px !important",
       },
     },
     /* TipTap/ProseMirror Editor Styles - Must be global to override resets */
