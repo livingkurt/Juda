@@ -625,6 +625,36 @@ export default function DailyTasksApp() {
     const targetDate = hasNoRecurrence ? today : viewDate;
     const isCompletedOnTargetDate = isCompletedOnDate(taskId, targetDate);
 
+    // Check if we need to temporarily expand a section when checking from backlog
+    let wasSectionCollapsed = false;
+    let sectionWasManuallyCollapsed = false;
+    let sectionWasAutoCollapsed = false;
+
+    if (hasNoRecurrence && !isCompletedOnTargetDate && task.sectionId) {
+      const section = sections.find(s => s.id === task.sectionId);
+      if (section) {
+        sectionWasManuallyCollapsed = section.expanded === false;
+        sectionWasAutoCollapsed = autoCollapsedSections.has(section.id);
+        wasSectionCollapsed = sectionWasManuallyCollapsed || sectionWasAutoCollapsed;
+
+        // Temporarily expand the section if it's collapsed
+        if (wasSectionCollapsed) {
+          // Remove from auto-collapsed if it's there
+          if (sectionWasAutoCollapsed) {
+            setAutoCollapsedSections(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(section.id);
+              return newSet;
+            });
+          }
+          // Expand manually collapsed section
+          if (sectionWasManuallyCollapsed) {
+            await updateSection(section.id, { expanded: true });
+          }
+        }
+      }
+    }
+
     try {
       // Get current time when checking
       const now = new Date();
@@ -683,8 +713,45 @@ export default function DailyTasksApp() {
           throw completionError;
         }
       }
+
+      // If we temporarily expanded a section and hide completed is true, collapse it again
+      if (wasSectionCollapsed && !showCompletedTasks && task.sectionId) {
+        const sectionIdToCollapse = task.sectionId;
+        // Wait a bit for the UI to update, then collapse the section again
+        setTimeout(() => {
+          // Re-collapse manually collapsed section
+          if (sectionWasManuallyCollapsed) {
+            updateSection(sectionIdToCollapse, { expanded: false }).catch(err => {
+              console.error("Error collapsing section:", err);
+            });
+          }
+          // Re-add to auto-collapsed if it was auto-collapsed
+          // The checkAndAutoCollapseSection will handle this, but we can also do it here
+          // to ensure it happens immediately
+          if (sectionWasAutoCollapsed) {
+            // Check if section should be auto-collapsed (no visible tasks)
+            checkAndAutoCollapseSection(sectionIdToCollapse);
+          }
+        }, 100);
+      }
     } catch (error) {
       console.error("Error toggling task completion:", error);
+      // If there was an error and we expanded the section, try to restore its state
+      if (wasSectionCollapsed && task.sectionId) {
+        const sectionIdToRestore = task.sectionId;
+        if (sectionWasManuallyCollapsed) {
+          updateSection(sectionIdToRestore, { expanded: false }).catch(err => {
+            console.error("Error restoring section state:", err);
+          });
+        }
+        if (sectionWasAutoCollapsed) {
+          setAutoCollapsedSections(prev => {
+            const newSet = new Set(prev);
+            newSet.add(sectionIdToRestore);
+            return newSet;
+          });
+        }
+      }
     }
   };
 
