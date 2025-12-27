@@ -264,6 +264,10 @@ export default function DailyTasksApp() {
   // Track recently completed tasks that should remain visible for a delay
   const [recentlyCompletedTasks, setRecentlyCompletedTasks] = useState(new Set());
   const recentlyCompletedTimeoutsRef = useRef({});
+  // Track sections that are auto-collapsed (not manually collapsed by user)
+  const [autoCollapsedSections, setAutoCollapsedSections] = useState(new Set());
+  // Track sections that were manually expanded after being auto-collapsed (to prevent re-collapsing)
+  const [manuallyExpandedSections, setManuallyExpandedSections] = useState(new Set());
 
   // Set selectedDate and todayViewDate on mount to avoid hydration mismatch
   useEffect(() => {
@@ -306,6 +310,12 @@ export default function DailyTasksApp() {
         clearTimeout(timeout);
       });
       recentlyCompletedTimeoutsRef.current = {};
+      // Clear auto-collapsed sections when showing completed tasks
+      setAutoCollapsedSections(new Set());
+    } else {
+      // When hiding completed tasks, clear manually expanded sections
+      // so sections can auto-collapse again if they become empty
+      setManuallyExpandedSections(new Set());
     }
   }, [showCompletedTasks]);
 
@@ -582,7 +592,7 @@ export default function DailyTasksApp() {
   };
 
   // Helper function to add task to recently completed set with timeout
-  const addToRecentlyCompleted = taskId => {
+  const addToRecentlyCompleted = (taskId, sectionId) => {
     setRecentlyCompletedTasks(prev => new Set(prev).add(taskId));
 
     // Clear any existing timeout for this task
@@ -593,6 +603,13 @@ export default function DailyTasksApp() {
     // Set timeout to remove from recently completed after 2 seconds
     recentlyCompletedTimeoutsRef.current[taskId] = setTimeout(() => {
       removeFromRecentlyCompleted(taskId);
+
+      // After the delay, check if section should auto-collapse
+      if (sectionId) {
+        setTimeout(() => {
+          checkAndAutoCollapseSection(sectionId);
+        }, 50);
+      }
     }, 2000);
   };
 
@@ -651,7 +668,7 @@ export default function DailyTasksApp() {
         // Task is not completed on the target date, create completion record
         // Add to recently completed set BEFORE creating completion to prevent flash
         if (!showCompletedTasks) {
-          addToRecentlyCompleted(taskId);
+          addToRecentlyCompleted(taskId, task.sectionId);
         }
 
         // Create completion record after adding to recently completed set
@@ -749,7 +766,7 @@ export default function DailyTasksApp() {
       } else {
         // If marking as completed and hiding completed tasks, add to recently completed set
         if (outcome === "completed" && !showCompletedTasks) {
-          addToRecentlyCompleted(taskId);
+          addToRecentlyCompleted(taskId, task?.sectionId);
         }
         // Create or update record with outcome
         try {
@@ -769,6 +786,14 @@ export default function DailyTasksApp() {
           throw completionError;
         }
       }
+
+      // Check if section should auto-collapse after task completion/skip
+      // Use setTimeout to allow tasksBySection to update
+      setTimeout(() => {
+        if (task?.sectionId) {
+          checkAndAutoCollapseSection(task.sectionId);
+        }
+      }, 100);
     } catch (error) {
       toast({
         title: "Failed to update task",
@@ -782,11 +807,12 @@ export default function DailyTasksApp() {
 
   const handleCompleteWithNote = async (taskId, note) => {
     try {
+      const task = tasks.find(t => t.id === taskId);
       const targetDate = todayViewDate || today;
       await createCompletion(taskId, targetDate.toISOString(), { note, outcome: "completed" });
       // If hiding completed tasks, add to recently completed set
       if (!showCompletedTasks) {
-        addToRecentlyCompleted(taskId);
+        addToRecentlyCompleted(taskId, task?.sectionId);
       }
     } catch (error) {
       console.error("Error completing task with note:", error);
@@ -802,8 +828,14 @@ export default function DailyTasksApp() {
 
   const handleSkipTask = async taskId => {
     try {
+      const task = tasks.find(t => t.id === taskId);
       const targetDate = todayViewDate || today;
       await createCompletion(taskId, targetDate.toISOString(), { skipped: true, outcome: "skipped" });
+
+      // If hiding completed tasks, add to recently completed set (skipped tasks also get delay)
+      if (!showCompletedTasks) {
+        addToRecentlyCompleted(taskId, task?.sectionId);
+      }
     } catch (error) {
       console.error("Error skipping task:", error);
       toast({
@@ -1156,9 +1188,61 @@ export default function DailyTasksApp() {
     await deleteSection(sectionId);
   };
 
+  // Helper function to check if a section should be auto-collapsed after task completion/skip
+  // Using useRef to store the latest check function to avoid stale closures in setTimeout
+  const checkAndAutoCollapseSectionRef = useRef(null);
+
+  useEffect(() => {
+    checkAndAutoCollapseSectionRef.current = sectionId => {
+      // Only auto-collapse when hide completed is true
+      if (showCompletedTasks) return;
+
+      // Don't auto-collapse if user manually expanded it
+      if (manuallyExpandedSections.has(sectionId)) return;
+
+      // Get visible tasks for this section
+      const visibleTasks = tasksBySection[sectionId] || [];
+
+      // Auto-collapse if no visible tasks remain
+      if (visibleTasks.length === 0) {
+        setAutoCollapsedSections(prev => {
+          const newSet = new Set(prev);
+          newSet.add(sectionId);
+          return newSet;
+        });
+      }
+    };
+  }, [showCompletedTasks, tasksBySection, manuallyExpandedSections]);
+
+  const checkAndAutoCollapseSection = useCallback(sectionId => {
+    if (checkAndAutoCollapseSectionRef.current) {
+      checkAndAutoCollapseSectionRef.current(sectionId);
+    }
+  }, []);
+
   const handleToggleSectionExpand = async sectionId => {
     const section = sections.find(s => s.id === sectionId);
     if (!section) return;
+
+    const isCurrentlyCollapsed = section.expanded === false || autoCollapsedSections.has(section.id);
+    const willBeExpanded = !isCurrentlyCollapsed;
+
+    // If user is expanding a section that was auto-collapsed, mark it as manually expanded
+    if (willBeExpanded && autoCollapsedSections.has(section.id)) {
+      setManuallyExpandedSections(prev => {
+        const newSet = new Set(prev);
+        newSet.add(sectionId);
+        return newSet;
+      });
+      // Clear auto-collapse state
+      setAutoCollapsedSections(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(sectionId);
+        return newSet;
+      });
+    }
+
+    // Update manual expanded state
     await updateSection(sectionId, { expanded: !(section.expanded !== false) });
   };
 
@@ -1219,6 +1303,20 @@ export default function DailyTasksApp() {
   };
 
   const sortedSections = [...sections].sort((a, b) => a.order - b.order);
+
+  // Create computed sections with combined expanded state (manual + auto-collapse)
+  const computedSections = useMemo(() => {
+    return sortedSections.map(section => {
+      const isManuallyCollapsed = section.expanded === false;
+      const isAutoCollapsed = autoCollapsedSections.has(section.id);
+      // Section is collapsed if either manually collapsed OR auto-collapsed
+      const isCollapsed = isManuallyCollapsed || isAutoCollapsed;
+      return {
+        ...section,
+        expanded: !isCollapsed, // expanded is true when NOT collapsed
+      };
+    });
+  }, [sortedSections, autoCollapsedSections]);
 
   // Configure sensors for @dnd-kit
   const sensors = useSensors(
@@ -2150,7 +2248,7 @@ export default function DailyTasksApp() {
 
                         {/* Sections */}
                         <Section
-                          sections={sortedSections}
+                          sections={computedSections}
                           tasksBySection={tasksBySection}
                           onToggleTask={handleToggleTask}
                           onToggleSubtask={handleToggleSubtask}
@@ -2573,7 +2671,7 @@ export default function DailyTasksApp() {
                               {/* Scrollable Sections Container */}
                               <Box flex={1} overflowY="auto" minH={0} w="100%" maxW="100%">
                                 <Section
-                                  sections={sortedSections}
+                                  sections={computedSections}
                                   tasksBySection={tasksBySection}
                                   onToggleTask={handleToggleTask}
                                   onToggleSubtask={handleToggleSubtask}
@@ -2866,14 +2964,14 @@ export default function DailyTasksApp() {
                                           getOutcomeOnDate={getOutcomeOnDate}
                                           showCompleted={showCompletedTasksCalendar.week}
                                           zoom={calendarZoom.week}
-                                    onEditTask={handleEditTask}
-                                    onOutcomeChange={handleOutcomeChange}
-                                    onDuplicateTask={handleDuplicateTask}
-                                    onDeleteTask={handleDeleteTask}
-                                    onUpdateTaskColor={handleUpdateTaskColor}
-                                  />
-                                )}
-                                {calendarView === "month" && selectedDate && (
+                                          onEditTask={handleEditTask}
+                                          onOutcomeChange={handleOutcomeChange}
+                                          onDuplicateTask={handleDuplicateTask}
+                                          onDeleteTask={handleDeleteTask}
+                                          onUpdateTaskColor={handleUpdateTaskColor}
+                                        />
+                                      )}
+                                      {calendarView === "month" && selectedDate && (
                                         <CalendarMonthView
                                           date={selectedDate}
                                           tasks={filteredTasks}
