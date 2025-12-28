@@ -19,12 +19,17 @@ import { MoreVertical, Trash2, CheckSquare, Type, Folder, Plus, Tag as TagIcon }
 import { RichTextEditor } from "./RichTextEditor";
 
 export const NoteEditor = ({ note, folders, allTags: _allTags, onUpdate, onDelete, onConvertToTask }) => {
-  const [title, setTitle] = useState(note.title || "");
-  const [content, setContent] = useState(note.content || "");
-  const [tags, setTags] = useState([]);
-  const [folderId, setFolderId] = useState(note.folderId || "");
+  // Initialize state from note prop
+  const [title, setTitle] = useState(() => note.title || "");
+  const [content, setContent] = useState(() => note.content || "");
+  const [tags, setTags] = useState(() => {
+    const tagNames = (note.tags || []).map(tag => (typeof tag === "string" ? tag : tag.name));
+    return tagNames;
+  });
+  const [folderId, setFolderId] = useState(() => note.folderId || "");
   const [newTag, setNewTag] = useState("");
   const [showMetadata, setShowMetadata] = useState(false);
+  const [currentNoteId, setCurrentNoteId] = useState(note.id);
 
   // Create folder collection for Select
   const folderCollection = useMemo(
@@ -35,15 +40,15 @@ export const NoteEditor = ({ note, folders, allTags: _allTags, onUpdate, onDelet
     [folders]
   );
 
-  // Update local state when note changes
-  useEffect(() => {
+  // Update local state when note ID changes (switching to different note)
+  if (note.id !== currentNoteId) {
+    setCurrentNoteId(note.id);
     setTitle(note.title || "");
     setContent(note.content || "");
-    // Extract tag names from tag objects
     const tagNames = (note.tags || []).map(tag => (typeof tag === "string" ? tag : tag.name));
     setTags(tagNames);
     setFolderId(note.folderId || "");
-  }, [note.id, note.title, note.content, note.tags, note.folderId]);
+  }
 
   // Debounced save
   useEffect(() => {

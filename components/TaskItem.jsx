@@ -31,8 +31,7 @@ import {
   Circle,
 } from "lucide-react";
 import { ColorSubmenu } from "./ColorSubmenu";
-import { formatTime, isOverdue } from "@/lib/utils";
-import { DAYS_OF_WEEK } from "@/lib/constants";
+import { formatTime, isOverdue, getRecurrenceLabel } from "@/lib/utils";
 
 export const TaskItem = ({
   task,
@@ -178,19 +177,6 @@ export const TaskItem = ({
 
   // Check if task is recurring (has recurrence and type is not "none")
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
-
-  // Format weekly recurrence days into readable text
-  const formatWeeklyDays = days => {
-    if (!days || days.length === 0) return "Weekly";
-    const dayLabels = days
-      .sort((a, b) => a - b) // Sort by day number (0=Sun, 6=Sat)
-      .map(dayValue => {
-        const day = DAYS_OF_WEEK.find(d => d.value === dayValue);
-        return day ? day.label : "";
-      })
-      .filter(Boolean);
-    return dayLabels.join(", ");
-  };
 
   // Check if we should show menu: only for recurring tasks that are overdue OR have outcome set (skipped)
   // Works for today view tasks, subtasks, and backlog items
@@ -589,15 +575,7 @@ export const TaskItem = ({
                     py={{ base: 0, md: 1 }}
                     px={{ base: 1, md: 2 }}
                   >
-                    {task.recurrence.type === "daily"
-                      ? "Daily"
-                      : task.recurrence.type === "weekly"
-                        ? formatWeeklyDays(task.recurrence.days)
-                        : task.recurrence.type === "monthly"
-                          ? "Monthly"
-                          : task.recurrence.type === "interval"
-                            ? `Every ${task.recurrence.interval} days`
-                            : "Recurring"}
+                    {getRecurrenceLabel(task.recurrence) || "Recurring"}
                   </Badge>
                 )}
                 {task.recurrence?.endDate && (
@@ -693,7 +671,15 @@ export const TaskItem = ({
                     }}
                   >
                     <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                      <Box
+                        as="span"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        w="14px"
+                        h="14px"
+                        flexShrink={0}
+                      >
                         <Edit2 size={14} />
                       </Box>
                       <Text>Edit</Text>
@@ -719,12 +705,20 @@ export const TaskItem = ({
                         setActionMenuOpen(false);
                       }}
                     >
-                    <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-                        <SkipForward size={14} />
-                      </Box>
-                      <Text>Skip</Text>
-                    </HStack>
+                      <HStack gap={2}>
+                        <Box
+                          as="span"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          w="14px"
+                          h="14px"
+                          flexShrink={0}
+                        >
+                          <SkipForward size={14} />
+                        </Box>
+                        <Text>Skip</Text>
+                      </HStack>
                     </Menu.Item>
                   )}
                   {handleDuplicate && (
@@ -735,12 +729,20 @@ export const TaskItem = ({
                         setActionMenuOpen(false);
                       }}
                     >
-                    <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-                        <Copy size={14} />
-                      </Box>
-                      <Text>Duplicate</Text>
-                    </HStack>
+                      <HStack gap={2}>
+                        <Box
+                          as="span"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          w="14px"
+                          h="14px"
+                          flexShrink={0}
+                        >
+                          <Copy size={14} />
+                        </Box>
+                        <Text>Duplicate</Text>
+                      </HStack>
                     </Menu.Item>
                   )}
                   <Menu.Item
@@ -752,7 +754,15 @@ export const TaskItem = ({
                     }}
                   >
                     <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                      <Box
+                        as="span"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        w="14px"
+                        h="14px"
+                        flexShrink={0}
+                      >
                         <Trash2 size={14} />
                       </Box>
                       <Text>Delete</Text>

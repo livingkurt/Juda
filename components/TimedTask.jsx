@@ -9,7 +9,6 @@ import { ColorSubmenu } from "./ColorSubmenu";
 
 export const TimedTask = ({
   task,
-  onTaskClick,
   createDraggableId,
   date,
   getTaskStyle,
@@ -99,7 +98,12 @@ export const TimedTask = ({
           >
             <Box display="flex" alignItems="center" justifyContent="space-between" h="100%">
               <Box flex={1} minW={0}>
-                <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" isTruncated textDecoration={isCompleted || isSkipped ? "line-through" : "none"}>
+                <Text
+                  fontSize={{ base: "xs", md: "sm" }}
+                  fontWeight="medium"
+                  isTruncated
+                  textDecoration={isCompleted || isSkipped ? "line-through" : "none"}
+                >
                   {task.title}
                 </Text>
                 {(task.duration || 30) >= 45 && (
@@ -123,7 +127,15 @@ export const TimedTask = ({
                   }}
                 >
                   <HStack gap={2}>
-                    <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                    <Box
+                      as="span"
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      w="14px"
+                      h="14px"
+                      flexShrink={0}
+                    >
                       <Edit2 size={14} />
                     </Box>
                     <Text>Edit</Text>
@@ -155,7 +167,15 @@ export const TimedTask = ({
                         }}
                       >
                         <HStack gap={2}>
-                          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                          <Box
+                            as="span"
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                            w="14px"
+                            h="14px"
+                            flexShrink={0}
+                          >
                             <Circle size={14} />
                           </Box>
                           <Text>Uncheck</Text>
@@ -173,7 +193,15 @@ export const TimedTask = ({
                       }}
                     >
                       <HStack gap={2}>
-                        <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                        <Box
+                          as="span"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          w="14px"
+                          h="14px"
+                          flexShrink={0}
+                        >
                           <Check size={14} />
                         </Box>
                         <Text>Complete</Text>
@@ -189,7 +217,15 @@ export const TimedTask = ({
                       }}
                     >
                       <HStack gap={2}>
-                        <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                        <Box
+                          as="span"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          w="14px"
+                          h="14px"
+                          flexShrink={0}
+                        >
                           <SkipForward size={14} />
                         </Box>
                         <Text>Skip</Text>
@@ -208,7 +244,15 @@ export const TimedTask = ({
                   }}
                 >
                   <HStack gap={2}>
-                    <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                    <Box
+                      as="span"
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      w="14px"
+                      h="14px"
+                      flexShrink={0}
+                    >
                       <Copy size={14} />
                     </Box>
                     <Text>Duplicate</Text>
@@ -225,7 +269,15 @@ export const TimedTask = ({
                   }}
                 >
                   <HStack gap={2}>
-                    <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                    <Box
+                      as="span"
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      w="14px"
+                      h="14px"
+                      flexShrink={0}
+                    >
                       <Trash2 size={14} />
                     </Box>
                     <Text>Delete</Text>

@@ -1,21 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Box, Button, Input, Text, Dialog, VStack, HStack, IconButton } from "@chakra-ui/react";
 import { SECTION_ICONS } from "@/lib/constants";
 
-export const SectionDialog = ({ isOpen, onClose, section, onSave }) => {
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const [name, setName] = useState("");
-  const [icon, setIcon] = useState("sun");
-
-  useEffect(() => {
-    setName(section?.name || "");
-    setIcon(section?.icon || "sun");
-  }, [section, isOpen]);
+// Internal component that resets when key changes
+function SectionForm({ section, onSave, onClose, bgColor }) {
+  const [name, setName] = useState(section?.name || "");
+  const [icon, setIcon] = useState(section?.icon || "sun");
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={({ open }) => !open && onClose()}>
+    <Dialog.Root open={true} onOpenChange={({ open }) => !open && onClose()}>
       <Dialog.Backdrop />
       <Dialog.Content bg={bgColor}>
         <Dialog.Header>{section ? "Edit Section" : "New Section"}</Dialog.Header>
@@ -71,5 +66,16 @@ export const SectionDialog = ({ isOpen, onClose, section, onSave }) => {
         </Dialog.Footer>
       </Dialog.Content>
     </Dialog.Root>
+  );
+}
+
+export const SectionDialog = ({ isOpen, onClose, section, onSave }) => {
+  const bgColor = { _light: "white", _dark: "gray.800" };
+
+  if (!isOpen) return null;
+
+  // Use key to reset form state when section changes
+  return (
+    <SectionForm key={section?.id || "new"} section={section} onSave={onSave} onClose={onClose} bgColor={bgColor} />
   );
 };

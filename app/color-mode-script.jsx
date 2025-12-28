@@ -24,7 +24,7 @@ export function ColorModeScript() {
           document.documentElement.classList.add("dark");
           document.documentElement.style.colorScheme = "dark";
         }
-      } catch (e) {
+      } catch {
         // Fallback to dark mode
         document.documentElement.classList.add("dark");
         document.documentElement.style.colorScheme = "dark";

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Box, Button, Input, VStack, Text, Alert, Link } from "@chakra-ui/react";
 import Image from "next/image";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 
 export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
   const { login } = useAuth();

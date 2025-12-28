@@ -30,6 +30,21 @@ import {
   Redo,
 } from "lucide-react";
 import { useCallback, useEffect } from "react";
+import { promptUser } from "@/lib/prompt";
+
+// ToolbarButton component defined outside to avoid re-creation during render
+const ToolbarButton = ({ icon: Icon, isActive, onClick, label }) => (
+  <IconButton
+    size="xs"
+    variant={isActive ? "solid" : "ghost"}
+    colorScheme={isActive ? "blue" : "gray"}
+    onClick={onClick}
+    aria-label={label}
+    borderRadius="md"
+  >
+    <Icon size={14} />
+  </IconButton>
+);
 
 export const RichTextEditor = ({
   content,
@@ -79,7 +94,7 @@ export const RichTextEditor = ({
     if (!editor) return;
 
     const previousUrl = editor.getAttributes("link").href;
-    const url = window.prompt("URL", previousUrl);
+    const url = promptUser("URL", previousUrl);
 
     if (url === null) return;
 
@@ -92,19 +107,6 @@ export const RichTextEditor = ({
   }, [editor]);
 
   if (!editor) return null;
-
-  const ToolbarButton = ({ icon: Icon, isActive, onClick, label }) => (
-    <IconButton
-      size="xs"
-      variant={isActive ? "solid" : "ghost"}
-      colorScheme={isActive ? "blue" : "gray"}
-      onClick={onClick}
-      aria-label={label}
-      borderRadius="md"
-    >
-      <Icon size={14} />
-    </IconButton>
-  );
 
   return (
     <Box h="100%" display="flex" flexDirection="column">

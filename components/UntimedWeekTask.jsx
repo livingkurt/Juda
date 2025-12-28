@@ -8,7 +8,6 @@ import { ColorSubmenu } from "./ColorSubmenu";
 
 export const UntimedWeekTask = ({
   task,
-  onTaskClick,
   createDraggableId,
   day,
   isCompletedOnDate,
@@ -94,7 +93,15 @@ export const UntimedWeekTask = ({
                 }}
               >
                 <HStack gap={2}>
-                  <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                  <Box
+                    as="span"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    w="14px"
+                    h="14px"
+                    flexShrink={0}
+                  >
                     <Edit2 size={14} />
                   </Box>
                   <Text>Edit</Text>
@@ -126,7 +133,15 @@ export const UntimedWeekTask = ({
                       }}
                     >
                       <HStack gap={2}>
-                        <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                        <Box
+                          as="span"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          w="14px"
+                          h="14px"
+                          flexShrink={0}
+                        >
                           <Circle size={14} />
                         </Box>
                         <Text>Uncheck</Text>
@@ -144,7 +159,15 @@ export const UntimedWeekTask = ({
                     }}
                   >
                     <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                      <Box
+                        as="span"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        w="14px"
+                        h="14px"
+                        flexShrink={0}
+                      >
                         <Check size={14} />
                       </Box>
                       <Text>Complete</Text>
@@ -160,7 +183,15 @@ export const UntimedWeekTask = ({
                     }}
                   >
                     <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                      <Box
+                        as="span"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        w="14px"
+                        h="14px"
+                        flexShrink={0}
+                      >
                         <SkipForward size={14} />
                       </Box>
                       <Text>Skip</Text>
@@ -179,7 +210,15 @@ export const UntimedWeekTask = ({
                 }}
               >
                 <HStack gap={2}>
-                  <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                  <Box
+                    as="span"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    w="14px"
+                    h="14px"
+                    flexShrink={0}
+                  >
                     <Copy size={14} />
                   </Box>
                   <Text>Duplicate</Text>
@@ -196,7 +235,15 @@ export const UntimedWeekTask = ({
                 }}
               >
                 <HStack gap={2}>
-                  <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                  <Box
+                    as="span"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    w="14px"
+                    h="14px"
+                    flexShrink={0}
+                  >
                     <Trash2 size={14} />
                   </Box>
                   <Text>Delete</Text>

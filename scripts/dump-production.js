@@ -74,7 +74,6 @@ if (!localUrl) {
 }
 
 const productionClient = postgres(productionUrl);
-const productionDb = drizzle(productionClient);
 
 const localClient = postgres(localUrl);
 const localDb = drizzle(localClient);
@@ -137,7 +136,7 @@ async function dumpProduction() {
       allTags = await productionClient.unsafe(`SELECT ${tagFields} FROM "Tag" ORDER BY "name" ASC`);
 
       allTaskTags = await productionClient.unsafe(`SELECT "id", "taskId", "tagId", "createdAt" FROM "TaskTag"`);
-    } catch (error) {
+    } catch {
       // Tags table might not exist yet, that's okay
       // eslint-disable-next-line no-console
       console.log("   ⚠️  Tags table not found (skipping)");

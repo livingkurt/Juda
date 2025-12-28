@@ -30,6 +30,7 @@ import {
 import { useFolders } from "@/hooks/useFolders";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { NoteEditor } from "./NoteEditor";
+import { promptUser } from "@/lib/prompt";
 
 export const NotesView = ({
   notes, // Tasks with completionType === "note"
@@ -296,7 +297,7 @@ export const NotesView = ({
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    const name = window.prompt("Folder name:");
+                    const name = promptUser("Folder name:");
                     if (name?.trim()) createFolder({ name: name.trim() });
                   }}
                   aria-label="New Folder"
@@ -539,7 +540,7 @@ export const NotesView = ({
               size="sm"
               variant="ghost"
               onClick={() => {
-                const name = window.prompt("Folder name:");
+                const name = promptUser("Folder name:");
                 if (name?.trim()) createFolder({ name: name.trim() });
               }}
               aria-label="New Folder"
@@ -630,9 +631,9 @@ export const NotesView = ({
             ml={6}
             mt={1}
             onClick={() => {
-              const name = window.prompt("Smart folder name:");
+              const name = promptUser("Smart folder name:");
               if (name?.trim()) {
-                const tagsInput = window.prompt("Tags (comma-separated):");
+                const tagsInput = promptUser("Tags (comma-separated):");
                 const tags =
                   tagsInput
                     ?.split(",")

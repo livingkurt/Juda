@@ -1,8 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
-
-const AuthContext = createContext(null);
+import { useState, useEffect, useCallback, useRef } from "react";
+import { AuthContext } from "./AuthContextDefinition";
 
 export function AuthProvider({ children }) {
   // Use a unified state object to prevent race conditions and flashes
@@ -254,12 +253,4 @@ export function AuthProvider({ children }) {
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
 }

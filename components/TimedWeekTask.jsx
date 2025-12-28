@@ -8,7 +8,6 @@ import { ColorSubmenu } from "./ColorSubmenu";
 
 export const TimedWeekTask = ({
   task,
-  onTaskClick,
   createDraggableId,
   day,
   getTaskStyle,
@@ -96,7 +95,12 @@ export const TimedWeekTask = ({
               setMenuOpen(true);
             }}
           >
-            <Text fontSize={{ base: "2xs", md: "xs" }} isTruncated fontWeight="medium" textDecoration={isCompleted || isSkipped ? "line-through" : "none"}>
+            <Text
+              fontSize={{ base: "2xs", md: "xs" }}
+              isTruncated
+              fontWeight="medium"
+              textDecoration={isCompleted || isSkipped ? "line-through" : "none"}
+            >
               {task.title}
             </Text>
           </Box>
@@ -113,7 +117,15 @@ export const TimedWeekTask = ({
                   }}
                 >
                   <HStack gap={2}>
-                    <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                    <Box
+                      as="span"
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      w="14px"
+                      h="14px"
+                      flexShrink={0}
+                    >
                       <Edit2 size={14} />
                     </Box>
                     <Text>Edit</Text>
@@ -145,7 +157,15 @@ export const TimedWeekTask = ({
                         }}
                       >
                         <HStack gap={2}>
-                          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                          <Box
+                            as="span"
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                            w="14px"
+                            h="14px"
+                            flexShrink={0}
+                          >
                             <Circle size={14} />
                           </Box>
                           <Text>Uncheck</Text>
@@ -163,7 +183,15 @@ export const TimedWeekTask = ({
                       }}
                     >
                       <HStack gap={2}>
-                        <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                        <Box
+                          as="span"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          w="14px"
+                          h="14px"
+                          flexShrink={0}
+                        >
                           <Check size={14} />
                         </Box>
                         <Text>Complete</Text>
@@ -179,7 +207,15 @@ export const TimedWeekTask = ({
                       }}
                     >
                       <HStack gap={2}>
-                        <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                        <Box
+                          as="span"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          w="14px"
+                          h="14px"
+                          flexShrink={0}
+                        >
                           <SkipForward size={14} />
                         </Box>
                         <Text>Skip</Text>
@@ -198,7 +234,15 @@ export const TimedWeekTask = ({
                   }}
                 >
                   <HStack gap={2}>
-                    <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                    <Box
+                      as="span"
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      w="14px"
+                      h="14px"
+                      flexShrink={0}
+                    >
                       <Copy size={14} />
                     </Box>
                     <Text>Duplicate</Text>
@@ -215,7 +259,15 @@ export const TimedWeekTask = ({
                   }}
                 >
                   <HStack gap={2}>
-                    <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                    <Box
+                      as="span"
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      w="14px"
+                      h="14px"
+                      flexShrink={0}
+                    >
                       <Trash2 size={14} />
                     </Box>
                     <Text>Delete</Text>

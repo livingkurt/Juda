@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuthFetch } from "./useAuthFetch.js";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { DEFAULT_PREFERENCES, mergeWithDefaults } from "@/lib/defaultPreferences";
 
 export function usePreferences() {

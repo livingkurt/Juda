@@ -21,6 +21,7 @@ import { execSync } from "child_process";
 // Get migration name from command line args or generate one with timestamp
 const migrationName = process.argv[2] || `migration_${Date.now()}`;
 
+// eslint-disable-next-line no-console
 console.log(`\n🔄 Generating migration: ${migrationName}\n`);
 
 try {
@@ -33,12 +34,17 @@ try {
     env: process.env,
   });
 
+  // eslint-disable-next-line no-console
   console.log(`\n✅ Migration generated successfully!\n`);
+  // eslint-disable-next-line no-console
   console.log(`📝 Next steps:`);
+  // eslint-disable-next-line no-console
   console.log(`   1. Edit the generated SQL file in drizzle/ folder`);
+  // eslint-disable-next-line no-console
   console.log(`   2. Test locally: npm run db:migrate`);
+  // eslint-disable-next-line no-console
   console.log(`   3. Commit and push - migration runs automatically on deploy\n`);
-} catch (error) {
+} catch {
   console.error(`\n❌ Failed to generate migration`);
   process.exit(1);
 }

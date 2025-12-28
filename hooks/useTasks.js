@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuthFetch } from "./useAuthFetch.js";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 
 export const useTasks = () => {
   const [tasks, setTasks] = useState([]);

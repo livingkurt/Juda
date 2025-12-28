@@ -16,8 +16,8 @@ import {
   Tabs,
   createListCollection,
 } from "@chakra-ui/react";
-import { useAuth } from "@/contexts/AuthContext";
-import { usePreferencesContext } from "@/contexts/PreferencesContext";
+import { useAuth } from "@/hooks/useAuth";
+import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useToast } from "@/hooks/useToast";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { AuthPage } from "@/components/AuthPage";

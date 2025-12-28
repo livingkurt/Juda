@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 
 export function useAuthFetch() {
   const { getAccessToken, refreshAccessToken, logout } = useAuth();

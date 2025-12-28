@@ -1,43 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePreferencesContext } from "@/contexts/PreferencesContext";
+import { useLayoutEffect, useMemo } from "react";
+import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
 export function useColorModeSync() {
   const { preferences, updatePreference, initialized } = usePreferencesContext();
-  const [colorMode, setColorModeState] = useState(() => preferences?.colorMode || "dark");
 
-  // Sync color mode from preferences whenever preferences change
-  useEffect(() => {
+  // Derive color mode from preferences instead of storing in state
+  const colorMode = useMemo(() => {
+    return preferences?.colorMode || "dark";
+  }, [preferences?.colorMode]);
+
+  // Sync DOM with color mode whenever it changes
+  useLayoutEffect(() => {
     if (!initialized) return;
 
-    // Sync whenever preferences.colorMode changes and doesn't match current colorMode
-    if (preferences.colorMode && preferences.colorMode !== colorMode) {
-      setColorModeState(preferences.colorMode);
-      // Update document class and colorScheme for CSS-based theming (Chakra v3)
-      document.documentElement.classList.remove("light", "dark");
-      document.documentElement.classList.add(preferences.colorMode);
-      document.documentElement.style.colorScheme = preferences.colorMode;
-    }
-  }, [initialized, preferences.colorMode, colorMode]);
+    // Update document class and colorScheme for CSS-based theming (Chakra v3)
+    document.documentElement.classList.remove("light", "dark");
+    document.documentElement.classList.add(colorMode);
+    document.documentElement.style.colorScheme = colorMode;
+  }, [initialized, colorMode]);
 
   // Save color mode changes to preferences
+  // The DOM update will happen automatically via the useLayoutEffect above
   const toggleColorModeWithSync = () => {
     const newMode = colorMode === "dark" ? "light" : "dark";
-    setColorModeState(newMode);
-    document.documentElement.classList.remove("light", "dark");
-    document.documentElement.classList.add(newMode);
-    document.documentElement.style.colorScheme = newMode;
-
-    // Save to preferences (will be saved to DB if authenticated)
     updatePreference("colorMode", newMode);
   };
 
   const setColorMode = mode => {
-    setColorModeState(mode);
-    document.documentElement.classList.remove("light", "dark");
-    document.documentElement.classList.add(mode);
-    document.documentElement.style.colorScheme = mode;
     updatePreference("colorMode", mode);
   };
 
