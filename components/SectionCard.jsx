@@ -35,6 +35,10 @@ export const SectionCard = ({
   onSkipTask,
   getCompletionForDate,
   onUpdateTaskColor,
+  selectionMode,
+  selectedTaskIds,
+  onToggleSelection,
+  onShiftClick,
 }) => {
   const bgColor = { _light: "white", _dark: "gray.800" };
   const borderColor = { _light: "gray.200", _dark: "gray.600" };
@@ -301,6 +305,10 @@ export const SectionCard = ({
                       onSkipTask={onSkipTask}
                       getCompletionForDate={getCompletionForDate}
                       onUpdateTaskColor={onUpdateTaskColor}
+                      selectionMode={selectionMode}
+                      isSelected={selectedTaskIds?.has(task.id) || false}
+                      onToggleSelection={onToggleSelection}
+                      onShiftClick={onShiftClick}
                     />
                   ))}
                   <Input

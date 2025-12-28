@@ -56,6 +56,8 @@ import { Section } from "@/components/Section";
 import { TaskDialog } from "@/components/TaskDialog";
 import { SectionDialog } from "@/components/SectionDialog";
 import { BacklogDrawer } from "@/components/BacklogDrawer";
+import { SelectionActionBar } from "@/components/SelectionActionBar";
+import { BulkEditDialog } from "@/components/BulkEditDialog";
 import { useTasks } from "@/hooks/useTasks";
 import { useSections } from "@/hooks/useSections";
 import { useCompletions } from "@/hooks/useCompletions";
@@ -131,6 +133,8 @@ export default function DailyTasksApp() {
     duplicateTask,
     saveTask,
     batchReorderTasks,
+    bulkUpdateTasks,
+    bulkDeleteTasks,
     loading: tasksLoading,
   } = useTasks();
   const {
@@ -268,6 +272,10 @@ export default function DailyTasksApp() {
   const [autoCollapsedSections, setAutoCollapsedSections] = useState(new Set());
   // Track sections that were manually expanded after being auto-collapsed (to prevent re-collapsing)
   const [manuallyExpandedSections, setManuallyExpandedSections] = useState(new Set());
+  // Selection mode state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
+  const lastSelectedRef = useRef(null);
 
   // Set selectedDate and todayViewDate on mount to avoid hydration mismatch
   useEffect(() => {
@@ -327,6 +335,11 @@ export default function DailyTasksApp() {
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
   const openSectionDialog = () => setSectionDialogOpen(true);
   const closeSectionDialog = () => setSectionDialogOpen(false);
+
+  // Bulk edit dialog state
+  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
+  const openBulkEditDialog = () => setBulkEditDialogOpen(true);
+  const closeBulkEditDialog = () => setBulkEditDialogOpen(false);
 
   // Resize handlers for backlog drawer
   const resizeStartRef = useRef(null);
@@ -930,6 +943,158 @@ export default function DailyTasksApp() {
   const handleDeleteTask = async taskId => {
     await deleteTask(taskId);
   };
+
+  // Selection mode handlers
+  const toggleSelectionMode = () => {
+    setSelectionMode(prev => !prev);
+    if (selectionMode) {
+      // Exiting selection mode - clear selection
+      setSelectedTaskIds(new Set());
+      lastSelectedRef.current = null;
+    }
+  };
+
+  const toggleTaskSelection = taskId => {
+    setSelectedTaskIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+    lastSelectedRef.current = taskId;
+  };
+
+  const selectAllTasks = () => {
+    const allVisibleTaskIds = filteredTodaysTasks.map(t => t.id);
+    setSelectedTaskIds(new Set(allVisibleTaskIds));
+  };
+
+  const clearSelection = () => {
+    setSelectedTaskIds(new Set());
+    lastSelectedRef.current = null;
+  };
+
+  const selectTaskRange = (startId, endId) => {
+    // Get flat list of visible task IDs in order
+    const allTaskIds = filteredTodaysTasks.map(t => t.id);
+
+    const startIdx = allTaskIds.indexOf(startId);
+    const endIdx = allTaskIds.indexOf(endId);
+
+    if (startIdx === -1 || endIdx === -1) return;
+
+    const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+
+    const rangeIds = allTaskIds.slice(from, to + 1);
+    setSelectedTaskIds(prev => {
+      const newSet = new Set(prev);
+      rangeIds.forEach(id => newSet.add(id));
+      return newSet;
+    });
+  };
+
+  const handleShiftClick = taskId => {
+    // Auto-enable selection mode when using shift-click
+    if (!selectionMode) {
+      setSelectionMode(true);
+    }
+    if (lastSelectedRef.current) {
+      selectTaskRange(lastSelectedRef.current, taskId);
+    }
+    lastSelectedRef.current = taskId;
+  };
+
+  const handleToggleSelection = taskId => {
+    // Auto-enable selection mode when first task is selected
+    if (!selectionMode && selectedTaskIds.size === 0) {
+      setSelectionMode(true);
+    }
+    toggleTaskSelection(taskId);
+  };
+
+  // Get selected tasks data
+  const selectedTasks = useMemo(() => {
+    return filteredTodaysTasks.filter(t => selectedTaskIds.has(t.id));
+  }, [filteredTodaysTasks, selectedTaskIds]);
+
+  // Handle bulk save
+  const handleBulkSave = async (taskIds, updates) => {
+    try {
+      await bulkUpdateTasks(taskIds, updates);
+      toast({
+        title: `Updated ${taskIds.length} tasks`,
+        status: "success",
+        duration: 2000,
+      });
+      clearSelection();
+      setSelectionMode(false);
+    } catch (error) {
+      toast({
+        title: "Failed to update tasks",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+      });
+    }
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    const count = selectedTaskIds.size;
+    if (!confirm(`Delete ${count} tasks? This cannot be undone.`)) return;
+
+    try {
+      await bulkDeleteTasks(Array.from(selectedTaskIds));
+      toast({
+        title: `Deleted ${count} tasks`,
+        status: "success",
+        duration: 2000,
+      });
+      clearSelection();
+      setSelectionMode(false);
+    } catch (error) {
+      toast({
+        title: "Failed to delete tasks",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+      });
+    }
+  };
+
+  // Keyboard shortcuts for selection mode
+  useEffect(() => {
+    const handleKeyDown = e => {
+      // Escape - exit selection mode
+      if (e.key === "Escape" && selectionMode) {
+        clearSelection();
+        setSelectionMode(false);
+      }
+
+      // Ctrl/Cmd + A - select all (when in selection mode)
+      if ((e.ctrlKey || e.metaKey) && e.key === "a" && selectionMode) {
+        e.preventDefault();
+        selectAllTasks();
+      }
+
+      // Delete/Backspace - delete selected (when in selection mode)
+      if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        selectionMode &&
+        selectedTaskIds.size > 0 &&
+        !e.target.matches("input, textarea")
+      ) {
+        e.preventDefault();
+        handleBulkDelete();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectionMode, selectedTaskIds]);
 
   const handleDuplicateTask = async taskId => {
     try {
@@ -2063,6 +2228,15 @@ export default function DailyTasksApp() {
                     </Box>
                     Calendar
                   </Button>
+                  <IconButton
+                    icon={selectionMode ? <X size={18} /> : <CheckSquare size={18} />}
+                    onClick={toggleSelectionMode}
+                    variant={selectionMode ? "solid" : "outline"}
+                    colorPalette={selectionMode ? "blue" : "gray"}
+                    size="sm"
+                    aria-label={selectionMode ? "Exit selection mode" : "Enter selection mode"}
+                    title={selectionMode ? "Exit selection mode" : "Select multiple tasks"}
+                  />
                 </HStack>
               </Flex>
 
@@ -2354,6 +2528,10 @@ export default function DailyTasksApp() {
                           onCompleteWithNote={handleCompleteWithNote}
                           onSkipTask={handleSkipTask}
                           getCompletionForDate={getCompletionForDate}
+                          selectionMode={selectionMode}
+                          selectedTaskIds={selectedTaskIds}
+                          onToggleSelection={handleToggleSelection}
+                          onShiftClick={handleShiftClick}
                         />
                       </Box>
                     )}
@@ -3159,6 +3337,28 @@ export default function DailyTasksApp() {
         }}
         section={editingSection}
         onSave={handleSaveSection}
+      />
+
+      {/* Selection Action Bar */}
+      <SelectionActionBar
+        selectedCount={selectedTaskIds.size}
+        onEdit={openBulkEditDialog}
+        onDelete={handleBulkDelete}
+        onClearSelection={() => {
+          clearSelection();
+          setSelectionMode(false);
+        }}
+        onQuickColor={openBulkEditDialog}
+        isVisible={selectedTaskIds.size > 0}
+      />
+
+      {/* Bulk Edit Dialog */}
+      <BulkEditDialog
+        isOpen={bulkEditDialogOpen}
+        onClose={closeBulkEditDialog}
+        tasks={selectedTasks}
+        sections={sections}
+        onSave={handleBulkSave}
       />
     </Box>
   );

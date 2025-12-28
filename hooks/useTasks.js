@@ -558,6 +558,84 @@ export const useTasks = () => {
     return updateTask(taskId, { status });
   };
 
+  const bulkUpdateTasks = async (taskIds, updates) => {
+    const previousTasks = JSON.parse(JSON.stringify(tasks));
+
+    // Helper to recursively update tasks in the tree
+    const updateTasksInTree = (taskList, taskIdsToUpdate, updates) => {
+      return taskList.map(t => {
+        const updated = taskIdsToUpdate.includes(t.id) ? { ...t, ...updates } : t;
+        if (t.subtasks && t.subtasks.length > 0) {
+          return { ...updated, subtasks: updateTasksInTree(t.subtasks, taskIdsToUpdate, updates) };
+        }
+        return updated;
+      });
+    };
+
+    // Optimistic update
+    setTasks(prev => updateTasksInTree(prev, taskIds, updates));
+
+    try {
+      const response = await authFetch("/api/tasks/bulk", {
+        method: "PATCH",
+        body: JSON.stringify({ taskIds, updates }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to bulk update tasks");
+      }
+
+      // Refresh to get accurate server state
+      await fetchTasks(true);
+
+      return await response.json();
+    } catch (err) {
+      // Rollback on error
+      setTasks(previousTasks);
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  const bulkDeleteTasks = async taskIds => {
+    const previousTasks = JSON.parse(JSON.stringify(tasks));
+
+    // Helper to recursively remove tasks from the tree
+    const removeTasksFromTree = (taskList, taskIdsToRemove) => {
+      return taskList
+        .filter(t => !taskIdsToRemove.includes(t.id))
+        .map(t => {
+          if (t.subtasks && t.subtasks.length > 0) {
+            return { ...t, subtasks: removeTasksFromTree(t.subtasks, taskIdsToRemove) };
+          }
+          return t;
+        });
+    };
+
+    // Optimistic delete
+    setTasks(prev => removeTasksFromTree(prev, taskIds));
+
+    try {
+      const response = await authFetch("/api/tasks/bulk", {
+        method: "DELETE",
+        body: JSON.stringify({ taskIds }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to bulk delete tasks");
+      }
+
+      return await response.json();
+    } catch (err) {
+      // Rollback on error
+      setTasks(previousTasks);
+      setError(err.message);
+      throw err;
+    }
+  };
+
   return {
     tasks,
     loading,
@@ -572,6 +650,8 @@ export const useTasks = () => {
     promoteSubtask,
     saveTask,
     batchReorderTasks,
+    bulkUpdateTasks,
+    bulkDeleteTasks,
     refetch: fetchTasks,
   };
 };

@@ -34,6 +34,10 @@ export const Section = ({
   onSkipTask,
   getCompletionForDate,
   onUpdateTaskColor,
+  selectionMode,
+  selectedTaskIds,
+  onToggleSelection,
+  onShiftClick,
 }) => {
   const dropHighlight = { _light: "gray.50", _dark: "gray.800" };
 
@@ -75,6 +79,10 @@ export const Section = ({
             onSkipTask={onSkipTask}
             getCompletionForDate={getCompletionForDate}
             onUpdateTaskColor={onUpdateTaskColor}
+            selectionMode={selectionMode}
+            selectedTaskIds={selectedTaskIds}
+            onToggleSelection={onToggleSelection}
+            onShiftClick={onShiftClick}
           />
         ))}
         <Button

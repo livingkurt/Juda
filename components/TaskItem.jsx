@@ -61,6 +61,10 @@ export const TaskItem = ({
   onCompleteWithNote, // (taskId, note) => void - for text completion
   getCompletionForDate, // (taskId, date) => completion object
   onUpdateTaskColor, // (taskId, color) => void - for updating task color
+  selectionMode = false, // Whether selection mode is active
+  isSelected = false, // Whether this task is selected
+  onToggleSelection, // (taskId) => void - toggle selection
+  onShiftClick, // (taskId) => void - handle shift+click for range selection
 }) => {
   // Normalize prop names - support both naming conventions
   const handleEdit = onEdit || onEditTask;
@@ -74,6 +78,7 @@ export const TaskItem = ({
 
   const bgColor = { _light: "white", _dark: "gray.800" };
   const hoverBg = { _light: "gray.50", _dark: "gray.700" };
+  const selectedBg = { _light: "blue.50", _dark: "blue.900" };
   const textColorDefault = { _light: "gray.900", _dark: "gray.100" };
   const mutedTextDefault = { _light: "gray.500", _dark: "gray.400" };
   const gripColorDefault = { _light: "gray.400", _dark: "gray.500" };
@@ -245,16 +250,38 @@ export const TaskItem = ({
 
   // Simple border style without drop target feedback
   const borderStyle = {
-    borderColor: task.color,
-    borderWidth: "2px",
+    borderColor: isSelected ? "blue.400" : task.color,
+    borderWidth: isSelected ? "2px" : "2px",
     borderStyle: "solid",
+  };
+
+  // Handle selection click - support Cmd+Click and Shift+Click even when not in selection mode
+  const handleSelectionClick = e => {
+    // Cmd/Ctrl+Click or Shift+Click - toggle selection (auto-enable selection mode)
+    if (e.metaKey || e.ctrlKey || e.shiftKey) {
+      e.stopPropagation();
+      if (e.shiftKey && onShiftClick) {
+        onShiftClick(task.id);
+      } else if (onToggleSelection) {
+        onToggleSelection(task.id);
+      }
+      return;
+    }
+
+    // Regular click in selection mode
+    if (selectionMode) {
+      e.stopPropagation();
+      if (onToggleSelection) {
+        onToggleSelection(task.id);
+      }
+    }
   };
 
   return (
     <Box ref={setNodeRef} style={style} w="100%" maxW="100%">
       <Box
         borderRadius="lg"
-        bg={bgColor}
+        bg={isSelected ? selectedBg : bgColor}
         transition="box-shadow 0.2s, border-color 0.2s"
         {...borderStyle}
         w="100%"
@@ -265,15 +292,34 @@ export const TaskItem = ({
           align="center"
           gap={{ base: 1.5, md: 2 }}
           p={{ base: 2, md: 3 }}
-          _hover={{ bg: hoverBg }}
-          _active={{ cursor: isDragDisabled ? "default" : "grabbing" }}
-          {...(isDragDisabled ? {} : attributes)}
-          {...(isDragDisabled ? {} : listeners)}
-          cursor={isDragDisabled ? "default" : "grab"}
+          _hover={{ bg: selectionMode ? (isSelected ? selectedBg : hoverBg) : hoverBg }}
+          _active={{ cursor: isDragDisabled ? (selectionMode ? "pointer" : "default") : "grabbing" }}
+          {...(isDragDisabled || selectionMode ? {} : attributes)}
+          {...(isDragDisabled || selectionMode ? {} : listeners)}
+          cursor={isDragDisabled ? (selectionMode ? "pointer" : "default") : selectionMode ? "pointer" : "grab"}
+          onClick={handleSelectionClick}
           w="100%"
           maxW="100%"
           overflow="hidden"
         >
+          {/* Selection checkbox - show in selection mode */}
+          {selectionMode && (
+            <Checkbox.Root
+              checked={isSelected}
+              onCheckedChange={() => {
+                if (onToggleSelection) {
+                  onToggleSelection(task.id);
+                }
+              }}
+              onClick={e => e.stopPropagation()}
+              onMouseDown={e => e.stopPropagation()}
+              onPointerDown={e => e.stopPropagation()}
+              size="md"
+            >
+              <Checkbox.Control />
+            </Checkbox.Root>
+          )}
+
           {/* Expand button for subtasks */}
           {task.subtasks && task.subtasks.length > 0 ? (
             onToggleExpand ? (
@@ -693,7 +739,15 @@ export const TaskItem = ({
                     }}
                   >
                     <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                      <Box
+                        as="span"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        w="14px"
+                        h="14px"
+                        flexShrink={0}
+                      >
                         <Edit2 size={14} />
                       </Box>
                       <Text>Edit</Text>
@@ -719,12 +773,20 @@ export const TaskItem = ({
                         setActionMenuOpen(false);
                       }}
                     >
-                    <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-                        <SkipForward size={14} />
-                      </Box>
-                      <Text>Skip</Text>
-                    </HStack>
+                      <HStack gap={2}>
+                        <Box
+                          as="span"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          w="14px"
+                          h="14px"
+                          flexShrink={0}
+                        >
+                          <SkipForward size={14} />
+                        </Box>
+                        <Text>Skip</Text>
+                      </HStack>
                     </Menu.Item>
                   )}
                   {handleDuplicate && (
@@ -735,12 +797,20 @@ export const TaskItem = ({
                         setActionMenuOpen(false);
                       }}
                     >
-                    <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-                        <Copy size={14} />
-                      </Box>
-                      <Text>Duplicate</Text>
-                    </HStack>
+                      <HStack gap={2}>
+                        <Box
+                          as="span"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          w="14px"
+                          h="14px"
+                          flexShrink={0}
+                        >
+                          <Copy size={14} />
+                        </Box>
+                        <Text>Duplicate</Text>
+                      </HStack>
                     </Menu.Item>
                   )}
                   <Menu.Item
@@ -752,7 +822,15 @@ export const TaskItem = ({
                     }}
                   >
                     <HStack gap={2}>
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+                      <Box
+                        as="span"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        w="14px"
+                        h="14px"
+                        flexShrink={0}
+                      >
                         <Trash2 size={14} />
                       </Box>
                       <Text>Delete</Text>
