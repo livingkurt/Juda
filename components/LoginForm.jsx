@@ -43,7 +43,7 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
     >
       <VStack spacing={4}>
         <Box mb={2}>
-          <Image src="/icon.png" alt="Juda Logo" width={80} height={80} priority />
+          <Image src="/icon.png" alt="Juda Logo" width={80} height={80} priority style={{ borderRadius: "50%" }} />
         </Box>
         <Text fontSize="2xl" fontWeight="bold">
           Welcome Back
