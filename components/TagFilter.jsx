@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Box, HStack, Tag, Menu, Button, Input, Text } from "@chakra-ui/react";
 import { Tag as TagIcon, Plus, X } from "lucide-react";
+import { TagChip } from "./TagChip";
 
 export const TagFilter = ({
   tags = [],
@@ -55,10 +56,7 @@ export const TagFilter = ({
     <HStack spacing={2} flexWrap="wrap" align="center">
       {/* Selected tags as removable pills */}
       {selectedTags.map(tag => (
-        <Tag.Root key={tag.id} size="sm" borderRadius="full" variant="solid" bg={tag.color} color="white">
-          <Tag.Label>{tag.name}</Tag.Label>
-          <Tag.CloseTrigger onClick={() => onTagDeselect(tag.id)} />
-        </Tag.Root>
+        <TagChip key={tag.id} tag={tag} size="sm" showClose onClose={onTagDeselect} />
       ))}
 
       {/* Tag selector dropdown */}

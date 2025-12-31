@@ -1,20 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import {
-  Box,
-  Checkbox,
-  Text,
-  Flex,
-  HStack,
-  IconButton,
-  VStack,
-  Input,
-  Badge,
-  Menu,
-  Tag,
-  Portal,
-} from "@chakra-ui/react";
+import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack, Input, Badge, Menu, Portal } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -33,6 +20,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { formatTime, isOverdue, getRecurrenceLabel, getTaskDisplayColor } from "@/lib/utils";
+import { TagChip } from "./TagChip";
 
 export const TaskItem = ({
   task,
@@ -659,18 +647,7 @@ export const TaskItem = ({
                 {task.tags && task.tags.length > 0 && (
                   <>
                     {task.tags.map(tag => (
-                      <Tag.Root
-                        key={tag.id}
-                        size={{ base: "xs", md: "sm" }}
-                        borderRadius="full"
-                        bg={tag.color}
-                        color="white"
-                        fontSize={{ base: "3xs", md: "2xs" }}
-                        py={{ base: 0, md: 1 }}
-                        px={{ base: 1.5, md: 2 }}
-                      >
-                        <Tag.Label>{tag.name}</Tag.Label>
-                      </Tag.Root>
+                      <TagChip key={tag.id} tag={tag} size={{ base: "xs", md: "sm" }} />
                     ))}
                   </>
                 )}
@@ -688,6 +665,14 @@ export const TaskItem = ({
                 {/* Strip HTML tags for preview */}
                 {task.content.replace(/<[^>]*>/g, "").trim() || ""}
               </Text>
+            )}
+            {/* Tags for kanban variant */}
+            {variant === "kanban" && task.tags && task.tags.length > 0 && (
+              <HStack spacing={1.5} mt={1.5} align="center" flexWrap="wrap">
+                {task.tags.map(tag => (
+                  <TagChip key={tag.id} tag={tag} size="sm" />
+                ))}
+              </HStack>
             )}
           </Box>
 

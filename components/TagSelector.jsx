@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Box, HStack, VStack, Tag, Menu, Button, Input, Text, IconButton, Wrap, WrapItem } from "@chakra-ui/react";
 import { Tag as TagIcon, Plus, Trash2 } from "lucide-react";
 import { TASK_COLORS } from "@/lib/constants";
+import { TagChip } from "./TagChip";
 
 export const TagSelector = ({
   tags = [],
@@ -160,10 +161,7 @@ export const TagSelector = ({
       <Wrap spacing={2} mb={2}>
         {selectedTags.map(tag => (
           <WrapItem key={tag.id}>
-            <Tag.Root size="sm" borderRadius="full" variant="solid" bg={tag.color} color="white" fontSize="xs">
-              <Tag.Label>{tag.name}</Tag.Label>
-              <Tag.CloseTrigger onClick={() => handleRemoveTag(tag.id)} />
-            </Tag.Root>
+            <TagChip tag={tag} size="sm" showClose onClose={handleRemoveTag} />
           </WrapItem>
         ))}
       </Wrap>

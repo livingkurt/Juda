@@ -12,7 +12,6 @@ import {
   SimpleGrid,
   Text,
   IconButton,
-  Tag,
   Tabs,
   createListCollection,
 } from "@chakra-ui/react";
@@ -24,6 +23,7 @@ import { formatLocalDate } from "@/lib/utils";
 import { TagSelector } from "./TagSelector";
 import { TaskItem } from "./TaskItem";
 import { RichTextEditor } from "./RichTextEditor";
+import { TagChip } from "./TagChip";
 
 // Internal component that resets when key changes
 function TaskDialogForm({
@@ -850,19 +850,7 @@ function TaskDialogForm({
                       {Array.isArray(tags) &&
                         tags
                           .filter(t => selectedTagIds.includes(t.id))
-                          .map(tag => (
-                            <Tag.Root
-                              key={tag.id}
-                              size="sm"
-                              borderRadius="full"
-                              variant="solid"
-                              bg={tag.color}
-                              color="white"
-                              fontSize="xs"
-                            >
-                              <Tag.Label>{tag.name}</Tag.Label>
-                            </Tag.Root>
-                          ))}
+                          .map(tag => <TagChip key={tag.id} tag={tag} size="sm" />)}
                       {/* Add Tag button */}
                       <TagSelector
                         tags={tags}

@@ -1072,6 +1072,7 @@ export default function DailyTasksApp() {
     try {
       const taskDate = viewDate || new Date();
       taskDate.setHours(0, 0, 0, 0);
+      const now = new Date();
 
       await createTask({
         title: title.trim(),
@@ -1079,6 +1080,8 @@ export default function DailyTasksApp() {
         time: null,
         duration: 0,
         color: "#3b82f6",
+        status: "in_progress",
+        startedAt: now.toISOString(),
         recurrence: {
           type: "none",
           startDate: taskDate.toISOString(),
@@ -1116,6 +1119,34 @@ export default function DailyTasksApp() {
         duration: 0,
         color: "#3b82f6",
         recurrence: null, // Backlog items have no recurrence/date
+        subtasks: [],
+        order: 999,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to create task",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleCreateKanbanTaskInline = async (status, title) => {
+    if (!title.trim()) return;
+
+    try {
+      const now = new Date();
+      await createTask({
+        title: title.trim(),
+        sectionId: sections[0]?.id,
+        time: null,
+        duration: 0,
+        color: "#3b82f6",
+        status: status,
+        startedAt: status === "in_progress" ? now.toISOString() : null,
+        recurrence: null, // Kanban tasks are non-recurring
         subtasks: [],
         order: 999,
       });
@@ -2835,6 +2866,7 @@ export default function DailyTasksApp() {
                             setEditingTask({ status });
                             openTaskDialog();
                           }}
+                          onCreateTaskInline={handleCreateKanbanTaskInline}
                           createDraggableId={createDraggableId}
                           isCompletedOnDate={isCompletedOnDate}
                           getOutcomeOnDate={getOutcomeOnDate}
@@ -3447,6 +3479,7 @@ export default function DailyTasksApp() {
                                 setEditingTask({ status });
                                 openTaskDialog();
                               }}
+                              onCreateTaskInline={handleCreateKanbanTaskInline}
                               createDraggableId={createDraggableId}
                               isCompletedOnDate={isCompletedOnDate}
                               getOutcomeOnDate={getOutcomeOnDate}
@@ -3566,6 +3599,7 @@ export default function DailyTasksApp() {
         onCreateTag={createTag}
         onDeleteTag={deleteTag}
         selectedCount={selectedTaskIds.size}
+        selectedTasks={tasks.filter(t => selectedTaskIds.has(t.id))}
       />
     </Box>
   );

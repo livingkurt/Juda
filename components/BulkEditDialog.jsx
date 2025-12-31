@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Box,
   Button,
@@ -11,11 +11,11 @@ import {
   HStack,
   SimpleGrid,
   Text,
-  Tag,
   createListCollection,
 } from "@chakra-ui/react";
 import { DAYS_OF_WEEK, DURATION_OPTIONS } from "@/lib/constants";
 import { TagSelector } from "./TagSelector";
+import { TagChip } from "./TagChip";
 
 export const BulkEditDialog = ({
   isOpen,
@@ -26,24 +26,115 @@ export const BulkEditDialog = ({
   onCreateTag,
   onDeleteTag,
   selectedCount,
+  selectedTasks,
 }) => {
   const bgColor = { _light: "white", _dark: "gray.800" };
   const borderColor = { _light: "gray.200", _dark: "gray.600" };
   const placeholderColor = { _light: "gray.400", _dark: "gray.500" };
 
+  // Calculate common values across all selected tasks
+  const commonValues = useMemo(() => {
+    if (!selectedTasks || selectedTasks.length === 0) {
+      return {
+        sectionId: "",
+        time: "",
+        date: "",
+        duration: "",
+        recurrenceType: "",
+        selectedDays: [],
+        endDate: "",
+        tagIds: [],
+        status: "",
+      };
+    }
+
+    const first = selectedTasks[0];
+    const common = {
+      sectionId: selectedTasks.every(t => t.sectionId === first.sectionId) ? first.sectionId : "",
+      time: selectedTasks.every(t => t.time === first.time) ? first.time || "" : "",
+      duration: selectedTasks.every(t => t.duration === first.duration) ? first.duration.toString() : "",
+      status: selectedTasks.every(t => t.status === first.status) ? first.status || "" : "",
+    };
+
+    // Handle date from recurrence
+    if (first.recurrence?.startDate) {
+      const firstDate = first.recurrence.startDate.split("T")[0];
+      common.date = selectedTasks.every(t => t.recurrence?.startDate?.split("T")[0] === firstDate) ? firstDate : "";
+    } else {
+      common.date = "";
+    }
+
+    // Handle recurrence type
+    const firstRecType = first.recurrence?.type || "none";
+    common.recurrenceType = selectedTasks.every(t => (t.recurrence?.type || "none") === firstRecType)
+      ? firstRecType
+      : "";
+
+    // Handle weekly days
+    if (firstRecType === "weekly" && first.recurrence?.days) {
+      const firstDays = JSON.stringify(first.recurrence.days.sort());
+      common.selectedDays = selectedTasks.every(
+        t => t.recurrence?.type === "weekly" && JSON.stringify((t.recurrence.days || []).sort()) === firstDays
+      )
+        ? first.recurrence.days
+        : [];
+    } else {
+      common.selectedDays = [];
+    }
+
+    // Handle end date
+    if (first.recurrence?.endDate) {
+      const firstEndDate = first.recurrence.endDate.split("T")[0];
+      common.endDate = selectedTasks.every(t => t.recurrence?.endDate?.split("T")[0] === firstEndDate)
+        ? firstEndDate
+        : "";
+    } else {
+      common.endDate = "";
+    }
+
+    // Handle tags - find tags that ALL selected tasks have in common
+    const allTaskTags = selectedTasks.map(t => (t.tags || []).map(tag => tag.id));
+    if (allTaskTags.length > 0) {
+      const commonTagIds = allTaskTags[0].filter(tagId => allTaskTags.every(taskTagIds => taskTagIds.includes(tagId)));
+      common.tagIds = commonTagIds;
+    } else {
+      common.tagIds = [];
+    }
+
+    return common;
+  }, [selectedTasks]);
+
   // Track which fields have been focused/edited
   const [editedFields, setEditedFields] = useState(new Set());
 
-  // Field states - all start as empty/placeholder
-  const [sectionId, setSectionId] = useState("");
-  const [time, setTime] = useState("");
-  const [date, setDate] = useState("");
-  const [duration, setDuration] = useState("");
-  const [recurrenceType, setRecurrenceType] = useState("");
-  const [selectedDays, setSelectedDays] = useState([]);
-  const [endDate, setEndDate] = useState("");
-  const [selectedTagIds, setSelectedTagIds] = useState([]);
-  const [status, setStatus] = useState("");
+  // Field states - use common values directly (will update when commonValues changes)
+  const [sectionId, setSectionId] = useState(commonValues.sectionId);
+  const [time, setTime] = useState(commonValues.time);
+  const [date, setDate] = useState(commonValues.date);
+  const [duration, setDuration] = useState(commonValues.duration);
+  const [recurrenceType, setRecurrenceType] = useState(commonValues.recurrenceType);
+  const [selectedDays, setSelectedDays] = useState(commonValues.selectedDays);
+  const [endDate, setEndDate] = useState(commonValues.endDate);
+  const [selectedTagIds, setSelectedTagIds] = useState(commonValues.tagIds);
+  const [status, setStatus] = useState(commonValues.status);
+
+  // Reset to common values when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      // Reset all fields to common values
+      setSectionId(commonValues.sectionId);
+      setTime(commonValues.time);
+      setDate(commonValues.date);
+      setDuration(commonValues.duration);
+      setRecurrenceType(commonValues.recurrenceType);
+      setSelectedDays(commonValues.selectedDays);
+      setEndDate(commonValues.endDate);
+      setSelectedTagIds(commonValues.tagIds);
+      setStatus(commonValues.status);
+      setEditedFields(new Set());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Create collections for selects
   const sectionCollection = useMemo(
@@ -182,7 +273,8 @@ export const BulkEditDialog = ({
               <VStack spacing={4} py={4}>
                 <Box w="full">
                   <Text fontSize="sm" color="gray.500" mb={4}>
-                    Only fields you change will be updated. Fields showing "..." will remain unchanged.
+                    Fields show common values across all selected tasks. Only fields you change will be updated. Fields
+                    showing &quot;...&quot; have different values or are empty.
                   </Text>
                 </Box>
 
@@ -402,19 +494,7 @@ export const BulkEditDialog = ({
                       {Array.isArray(tags) &&
                         tags
                           .filter(t => selectedTagIds.includes(t.id))
-                          .map(tag => (
-                            <Tag.Root
-                              key={tag.id}
-                              size="sm"
-                              borderRadius="full"
-                              variant="solid"
-                              bg={tag.color}
-                              color="white"
-                              fontSize="xs"
-                            >
-                              <Tag.Label>{tag.name}</Tag.Label>
-                            </Tag.Root>
-                          ))}
+                          .map(tag => <TagChip key={tag.id} tag={tag} size="sm" />)}
                       {/* Add Tag button */}
                       <TagSelector
                         tags={tags}
@@ -430,7 +510,7 @@ export const BulkEditDialog = ({
                     </HStack>
                   </Box>
                   <Text fontSize="xs" color="gray.500" mt={1}>
-                    Tags will be added to selected tasks (existing tags will be preserved)
+                    Common tags are shown. Add more tags to apply them to all selected tasks.
                   </Text>
                 </Box>
               </VStack>

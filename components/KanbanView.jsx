@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, memo } from "react";
-import { Box, Flex, VStack, HStack, Text, IconButton, Badge } from "@chakra-ui/react";
+import { useState, useMemo, memo, useRef } from "react";
+import { Box, Flex, VStack, HStack, Text, IconButton, Badge, Input } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
@@ -17,6 +17,7 @@ const KanbanColumn = memo(function KanbanColumn({
   color,
   onTaskClick,
   onAddTask,
+  onCreateTaskInline,
   createDraggableId,
   isCompletedOnDate,
   getOutcomeOnDate,
@@ -41,6 +42,12 @@ const KanbanColumn = memo(function KanbanColumn({
   const columnBg = { _light: "white", _dark: "gray.800" };
   const borderColor = { _light: "gray.200", _dark: "gray.700" };
   const dropHighlight = { _light: "blue.50", _dark: "blue.900" };
+  const textColor = { _light: "gray.900", _dark: "gray.100" };
+  const mutedText = { _light: "gray.500", _dark: "gray.400" };
+
+  const [inlineInputValue, setInlineInputValue] = useState("");
+  const [isInlineInputActive, setIsInlineInputActive] = useState(false);
+  const inlineInputRef = useRef(null);
 
   // Filter out tasks that are no longer "recently completed" for the Done column
   const visibleTasks = useMemo(() => {
@@ -57,6 +64,36 @@ const KanbanColumn = memo(function KanbanColumn({
     [visibleTasks, id]
   );
 
+  const handleInlineInputClick = () => {
+    setIsInlineInputActive(true);
+    setTimeout(() => {
+      inlineInputRef.current?.focus();
+    }, 0);
+  };
+
+  const handleInlineInputBlur = async () => {
+    if (inlineInputValue.trim() && onCreateTaskInline) {
+      await onCreateTaskInline(id, inlineInputValue);
+      setInlineInputValue("");
+    }
+    setIsInlineInputActive(false);
+  };
+
+  const handleInlineInputKeyDown = async e => {
+    if (e.key === "Enter" && inlineInputValue.trim()) {
+      e.preventDefault();
+      if (onCreateTaskInline) {
+        await onCreateTaskInline(id, inlineInputValue);
+        setInlineInputValue("");
+        setIsInlineInputActive(false);
+      }
+    } else if (e.key === "Escape") {
+      setInlineInputValue("");
+      setIsInlineInputActive(false);
+      inlineInputRef.current?.blur();
+    }
+  };
+
   return (
     <Box flex={1} minW="280px" maxW="400px" bg={bgColor} borderRadius="lg" p={3}>
       {/* Column Header */}
@@ -71,12 +108,15 @@ const KanbanColumn = memo(function KanbanColumn({
           </Badge>
         </HStack>
         <IconButton
-          icon={<Plus size={16} />}
           size="xs"
           variant="ghost"
           onClick={() => onAddTask(id)}
           aria-label={`Add task to ${title}`}
-        />
+        >
+          <Box as="span" color="currentColor">
+            <Plus size={16} stroke="currentColor" />
+          </Box>
+        </IconButton>
       </Flex>
 
       {/* Column Content */}
@@ -133,9 +173,63 @@ const KanbanColumn = memo(function KanbanColumn({
               </Box>
             )}
             {visibleTasks.length === 0 && !isDraggingOver && (
-              <Text color="gray.500" fontSize="sm" textAlign="center" py={4}>
-                No tasks
-              </Text>
+              <VStack align="stretch" spacing={2}>
+                <Text color={mutedText} fontSize="sm" textAlign="center" py={4}>
+                  No tasks
+                </Text>
+                <Input
+                  ref={inlineInputRef}
+                  value={inlineInputValue}
+                  onChange={e => setInlineInputValue(e.target.value)}
+                  onBlur={handleInlineInputBlur}
+                  onKeyDown={handleInlineInputKeyDown}
+                  onClick={handleInlineInputClick}
+                  placeholder="New task..."
+                  size="sm"
+                  variant="unstyled"
+                  bg="transparent"
+                  borderWidth="0px"
+                  px={2}
+                  py={1}
+                  fontSize="sm"
+                  color={isInlineInputActive ? textColor : mutedText}
+                  _focus={{
+                    outline: "none",
+                    color: textColor,
+                  }}
+                  _placeholder={{ color: mutedText }}
+                  _hover={{
+                    color: textColor,
+                  }}
+                />
+              </VStack>
+            )}
+            {visibleTasks.length > 0 && (
+              <Input
+                ref={inlineInputRef}
+                value={inlineInputValue}
+                onChange={e => setInlineInputValue(e.target.value)}
+                onBlur={handleInlineInputBlur}
+                onKeyDown={handleInlineInputKeyDown}
+                onClick={handleInlineInputClick}
+                placeholder="New task..."
+                size="sm"
+                variant="unstyled"
+                bg="transparent"
+                borderWidth="0px"
+                px={2}
+                py={1}
+                fontSize="sm"
+                color={isInlineInputActive ? textColor : mutedText}
+                _focus={{
+                  outline: "none",
+                  color: textColor,
+                }}
+                _placeholder={{ color: mutedText }}
+                _hover={{
+                  color: textColor,
+                }}
+              />
             )}
           </VStack>
         </SortableContext>
@@ -149,6 +243,7 @@ export const KanbanView = memo(function KanbanView({
   tasks,
   onTaskClick,
   onCreateTask,
+  onCreateTaskInline,
   createDraggableId,
   isCompletedOnDate,
   getOutcomeOnDate,
@@ -258,6 +353,7 @@ export const KanbanView = memo(function KanbanView({
             tasks={tasksByStatus[column.id]}
             onTaskClick={onTaskClick}
             onAddTask={handleAddTask}
+            onCreateTaskInline={onCreateTaskInline}
             createDraggableId={createDraggableId}
             isCompletedOnDate={isCompletedOnDate}
             getOutcomeOnDate={getOutcomeOnDate}
