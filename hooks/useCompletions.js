@@ -50,16 +50,14 @@ export const useCompletions = () => {
     // Support both old signature (outcome as third param) and new signature (options object)
     let outcome = "completed";
     let note = null;
-    let skipped = false;
 
     if (typeof options === "string") {
       // Old signature: createCompletion(taskId, date, outcome)
       outcome = options;
     } else {
-      // New signature: createCompletion(taskId, date, { outcome, note, skipped })
+      // New signature: createCompletion(taskId, date, { outcome, note })
       outcome = options.outcome || "completed";
       note = options.note || null;
-      skipped = options.skipped || false;
     }
 
     // Validate outcome
@@ -80,7 +78,6 @@ export const useCompletions = () => {
       date: utcDate.toISOString(),
       outcome,
       note,
-      skipped,
       createdAt: new Date().toISOString(),
     };
 
@@ -94,7 +91,7 @@ export const useCompletions = () => {
     });
 
     if (existingIndex >= 0) {
-      setCompletions(prev => prev.map((c, i) => (i === existingIndex ? { ...c, outcome, note, skipped } : c)));
+      setCompletions(prev => prev.map((c, i) => (i === existingIndex ? { ...c, outcome, note } : c)));
     } else {
       setCompletions(prev => [...prev, optimisticCompletion]);
     }
@@ -102,7 +99,7 @@ export const useCompletions = () => {
     try {
       const response = await authFetch("/api/completions", {
         method: "POST",
-        body: JSON.stringify({ taskId, date: utcDate.toISOString(), outcome, note, skipped }),
+        body: JSON.stringify({ taskId, date: utcDate.toISOString(), outcome, note }),
       });
       if (!response.ok) throw new Error("Failed to create completion");
       const newCompletion = await response.json();

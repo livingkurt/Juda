@@ -57,7 +57,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { taskId, date, outcome = "completed", note, skipped = false } = body;
+    const { taskId, date, outcome = "completed", note } = body;
 
     if (!taskId) {
       return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
@@ -89,10 +89,9 @@ export async function POST(request) {
     });
 
     if (existing) {
-      // Update existing record with new outcome, note, and skipped
+      // Update existing record with new outcome and note
       const updateData = { outcome };
       if (note !== undefined) updateData.note = note || null;
-      if (skipped !== undefined) updateData.skipped = skipped;
       const [updated] = await db
         .update(taskCompletions)
         .set(updateData)
@@ -109,7 +108,6 @@ export async function POST(request) {
         date: utcDate,
         outcome,
         note: note || null,
-        skipped: skipped || false,
       })
       .returning();
 
@@ -172,7 +170,7 @@ export async function PUT(request) {
 
   try {
     const body = await request.json();
-    const { taskId, date, note, skipped } = body;
+    const { taskId, date, note } = body;
 
     if (!taskId || !date) {
       return NextResponse.json({ error: "Task ID and date are required" }, { status: 400 });
@@ -199,7 +197,6 @@ export async function PUT(request) {
 
     const updateData = {};
     if (note !== undefined) updateData.note = note;
-    if (skipped !== undefined) updateData.skipped = skipped;
 
     if (existing) {
       // Update existing record
@@ -218,7 +215,6 @@ export async function PUT(request) {
           date: utcDate,
           outcome: "completed",
           note: note || null,
-          skipped: skipped || false,
         })
         .returning();
       return NextResponse.json(created, { status: 201 });

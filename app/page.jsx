@@ -897,7 +897,7 @@ export default function DailyTasksApp() {
     try {
       const task = tasks.find(t => t.id === taskId);
       const targetDate = todayViewDate || today;
-      await createCompletion(taskId, targetDate.toISOString(), { skipped: true, outcome: "not_completed" });
+      await createCompletion(taskId, targetDate.toISOString(), { outcome: "not_completed" });
 
       // If hiding completed tasks, add to recently completed set (not completed tasks also get delay)
       if (!showCompletedTasks) {
