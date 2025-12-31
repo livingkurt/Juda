@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { Box, Flex, SimpleGrid, HStack } from "@chakra-ui/react";
-import { shouldShowOnDate } from "@/lib/utils";
+import { shouldShowOnDate, getTaskDisplayColor } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
@@ -188,9 +188,10 @@ export const CalendarMonthView = ({
                       py={0.5}
                       borderRadius="md"
                       isTruncated
-                      color="white"
+                      color={getTaskDisplayColor(task) ? "white" : undefined}
                       mb={0.5}
-                      bg={task.color || "#3b82f6"}
+                      bg={getTaskDisplayColor(task) || "gray.200"}
+                      _dark={{ bg: getTaskDisplayColor(task) || "gray.700" }}
                     >
                       {task.title}
                     </Box>

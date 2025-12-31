@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Box, HStack, VStack, Tag, Menu, Button, Input, Text, IconButton, Wrap, WrapItem } from "@chakra-ui/react";
 import { Tag as TagIcon, Plus, Trash2 } from "lucide-react";
+import { TASK_COLORS } from "@/lib/constants";
 
 export const TagSelector = ({
   tags = [],
@@ -13,7 +14,7 @@ export const TagSelector = ({
   inline = false,
 }) => {
   const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState("#6366f1");
+  const [newTagColor, setNewTagColor] = useState(TASK_COLORS[0]);
   const [isOpen, setIsOpen] = useState(false);
   const onOpen = () => setIsOpen(true);
   const onClose = () => setIsOpen(false);
@@ -23,8 +24,6 @@ export const TagSelector = ({
   const borderColor = { _light: "gray.200", _dark: "gray.600" };
   const hoverBg = { _light: "gray.100", _dark: "gray.700" };
   const mutedText = { _light: "gray.500", _dark: "gray.400" };
-
-  const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6"];
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -49,7 +48,7 @@ export const TagSelector = ({
       const newTag = await onCreateTag(newTagName.trim(), newTagColor);
       onTagsChange([...selectedTagIds, newTag.id]);
       setNewTagName("");
-      setNewTagColor("#6366f1");
+      setNewTagColor(TASK_COLORS[0]);
     } catch (err) {
       console.error("Failed to create tag:", err);
     }
@@ -89,7 +88,7 @@ export const TagSelector = ({
                   onKeyDown={handleKeyDown}
                 />
                 <HStack spacing={1} flexWrap="wrap">
-                  {colors.map(c => (
+                  {TASK_COLORS.map(c => (
                     <Button
                       key={c}
                       w={6}
@@ -194,7 +193,7 @@ export const TagSelector = ({
                   onKeyDown={handleKeyDown}
                 />
                 <HStack spacing={1} flexWrap="wrap">
-                  {colors.map(c => (
+                  {TASK_COLORS.map(c => (
                     <Button
                       key={c}
                       w={6}

@@ -33,7 +33,6 @@ export const CalendarDayView = ({
   onOutcomeChange,
   onDuplicateTask,
   onDeleteTask,
-  onUpdateTaskColor,
 }) => {
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
   const bgColor = { _light: "white", _dark: "gray.800" };
@@ -341,7 +340,6 @@ export const CalendarDayView = ({
                 onOutcomeChange={onOutcomeChange}
                 onDuplicateTask={onDuplicateTask}
                 onDeleteTask={onDeleteTask}
-                onUpdateTaskColor={onUpdateTaskColor}
               />
             ))}
             {isOverUntimed && untimedTasks.length === 0 && (
@@ -419,7 +417,6 @@ export const CalendarDayView = ({
                 onOutcomeChange={onOutcomeChange}
                 onDuplicateTask={onDuplicateTask}
                 onDeleteTask={onDeleteTask}
-                onUpdateTaskColor={onUpdateTaskColor}
               />
             ))}
           </Box>

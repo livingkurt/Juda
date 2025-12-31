@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { Box, Text, Menu, HStack, Portal } from "@chakra-ui/react";
 import { useDraggable } from "@dnd-kit/core";
-import { formatTime } from "@/lib/utils";
+import { formatTime, getTaskDisplayColor } from "@/lib/utils";
 import { Edit2, X, Copy, Trash2, Check, Circle } from "lucide-react";
-import { ColorSubmenu } from "./ColorSubmenu";
 
 export const TimedTask = ({
   task,
@@ -20,7 +19,6 @@ export const TimedTask = ({
   onOutcomeChange,
   onDuplicateTask,
   onDeleteTask,
-  onUpdateTaskColor,
 }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: createDraggableId.calendarTimed(task.id, date),
@@ -34,6 +32,9 @@ export const TimedTask = ({
   const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, date) : null;
   const isNotCompleted = outcome === "not_completed";
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
+
+  // Get task color from first tag, or use neutral gray if no tags
+  const taskColor = getTaskDisplayColor(task);
 
   // Diagonal stripe pattern for not completed tasks
   const notCompletedPattern = isNotCompleted
@@ -71,9 +72,11 @@ export const TimedTask = ({
       overflow="hidden"
       cursor="grab"
       _hover={{ shadow: "lg" }}
-      bg={isNoDuration ? "gray.600" : task.color || "#3b82f6"}
+      bg={isNoDuration ? "gray.600" : taskColor || "gray.200"}
+      _dark={{ bg: isNoDuration ? "gray.600" : taskColor || "gray.700" }}
       borderWidth={isNoDuration ? "2px" : "0"}
-      borderColor={isNoDuration ? task.color || "#3b82f6" : "transparent"}
+      borderColor={isNoDuration ? taskColor || "gray.300" : "transparent"}
+      _dark={{ borderColor: isNoDuration ? taskColor || "gray.600" : "transparent" }}
       minH={isNoDuration ? "24px" : undefined}
       style={style}
       boxShadow={internalDrag.taskId === task.id ? "xl" : "none"}
@@ -141,18 +144,6 @@ export const TimedTask = ({
                     <Text>Edit</Text>
                   </HStack>
                 </Menu.Item>
-              )}
-              {/* Color submenu */}
-              {onUpdateTaskColor && (
-                <ColorSubmenu
-                  currentColor={task.color || "#3b82f6"}
-                  onColorChange={color => {
-                    onUpdateTaskColor(task.id, color);
-                    setMenuOpen(false);
-                  }}
-                  onClose={() => setMenuOpen(false)}
-                  onCloseParentMenu={() => setMenuOpen(false)}
-                />
               )}
               {/* Completion options for recurring tasks */}
               {isRecurring && onOutcomeChange && (

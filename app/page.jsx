@@ -78,6 +78,8 @@ import { DateNavigation } from "@/components/DateNavigation";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
 import { TagFilter } from "@/components/TagFilter";
 import { NotesView } from "@/components/NotesView";
+import { TagEditor } from "@/components/TagEditor";
+import { Tag as TagIcon } from "lucide-react";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
@@ -153,7 +155,7 @@ export default function DailyTasksApp() {
     hasAnyCompletion,
     fetchCompletions,
   } = useCompletions();
-  const { tags, createTag, deleteTag } = useTags();
+  const { tags, createTag, updateTag, deleteTag } = useTags();
 
   // Get preferences from context
   const { preferences, initialized: prefsInitialized, updatePreference } = usePreferencesContext();
@@ -327,6 +329,8 @@ export default function DailyTasksApp() {
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
   const openSectionDialog = () => setSectionDialogOpen(true);
   const closeSectionDialog = () => setSectionDialogOpen(false);
+
+  const [tagEditorOpen, setTagEditorOpen] = useState(false);
 
   // Resize handlers for backlog drawer
   const resizeStartRef = useRef(null);
@@ -934,20 +938,6 @@ export default function DailyTasksApp() {
     } catch (error) {
       toast({
         title: "Failed to duplicate task",
-        description: error.message,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleUpdateTaskColor = async (taskId, color) => {
-    try {
-      await updateTask(taskId, { color });
-    } catch (error) {
-      toast({
-        title: "Failed to update task color",
         description: error.message,
         status: "error",
         duration: 3000,
@@ -1907,6 +1897,19 @@ export default function DailyTasksApp() {
             </Flex>
             <HStack spacing={{ base: 1, md: 2 }}>
               <IconButton
+                onClick={() => setTagEditorOpen(true)}
+                variant="ghost"
+                size={{ base: "xs", md: "md" }}
+                aria-label="Manage tags"
+                minW={{ base: "28px", md: "40px" }}
+                h={{ base: "28px", md: "40px" }}
+                p={{ base: 0, md: 2 }}
+              >
+                <Box as="span" color="currentColor">
+                  <TagIcon size={16} stroke="currentColor" />
+                </Box>
+              </IconButton>
+              <IconButton
                 onClick={toggleColorMode}
                 variant="ghost"
                 size={{ base: "xs", md: "md" }}
@@ -2234,7 +2237,6 @@ export default function DailyTasksApp() {
                             onCompleteWithNote={handleCompleteWithNote}
                             onSkipTask={handleNotCompletedTask}
                             getCompletionForDate={getCompletionForDate}
-                            onUpdateTaskColor={handleUpdateTaskColor}
                           />
                         )}
                       </Box>
@@ -2335,7 +2337,6 @@ export default function DailyTasksApp() {
                           onDeleteSection={handleDeleteSection}
                           onAddSection={handleAddSection}
                           onToggleSectionExpand={handleToggleSectionExpand}
-                          onUpdateTaskColor={handleUpdateTaskColor}
                           createDroppableId={createDroppableId}
                           createDraggableId={createDraggableId}
                           viewDate={viewDate}
@@ -2459,7 +2460,6 @@ export default function DailyTasksApp() {
                                     onOutcomeChange={handleOutcomeChange}
                                     onDuplicateTask={handleDuplicateTask}
                                     onDeleteTask={handleDeleteTask}
-                                    onUpdateTaskColor={handleUpdateTaskColor}
                                   />
                                 )}
                                 {calendarView === "week" && selectedDate && (
@@ -2489,7 +2489,6 @@ export default function DailyTasksApp() {
                                     onOutcomeChange={handleOutcomeChange}
                                     onDuplicateTask={handleDuplicateTask}
                                     onDeleteTask={handleDeleteTask}
-                                    onUpdateTaskColor={handleUpdateTaskColor}
                                   />
                                 )}
                                 {calendarView === "month" && selectedDate && (
@@ -2571,7 +2570,6 @@ export default function DailyTasksApp() {
                           onCompleteWithNote={handleCompleteWithNote}
                           onSkipTask={handleNotCompletedTask}
                           getCompletionForDate={getCompletionForDate}
-                          onUpdateTaskColor={handleUpdateTaskColor}
                         />
                       )}
                       {/* Resize handle - hidden on mobile */}
@@ -2758,7 +2756,6 @@ export default function DailyTasksApp() {
                                   onDeleteSection={handleDeleteSection}
                                   onAddSection={handleAddSection}
                                   onToggleSectionExpand={handleToggleSectionExpand}
-                                  onUpdateTaskColor={handleUpdateTaskColor}
                                   createDroppableId={createDroppableId}
                                   createDraggableId={createDraggableId}
                                   viewDate={todayViewDate || today}
@@ -3010,7 +3007,6 @@ export default function DailyTasksApp() {
                                           onOutcomeChange={handleOutcomeChange}
                                           onDuplicateTask={handleDuplicateTask}
                                           onDeleteTask={handleDeleteTask}
-                                          onUpdateTaskColor={handleUpdateTaskColor}
                                         />
                                       )}
                                       {calendarView === "week" && selectedDate && (
@@ -3040,7 +3036,6 @@ export default function DailyTasksApp() {
                                           onOutcomeChange={handleOutcomeChange}
                                           onDuplicateTask={handleDuplicateTask}
                                           onDeleteTask={handleDeleteTask}
-                                          onUpdateTaskColor={handleUpdateTaskColor}
                                         />
                                       )}
                                       {calendarView === "month" && selectedDate && (
@@ -3150,6 +3145,14 @@ export default function DailyTasksApp() {
         }}
         section={editingSection}
         onSave={handleSaveSection}
+      />
+      <TagEditor
+        isOpen={tagEditorOpen}
+        onClose={() => setTagEditorOpen(false)}
+        tags={tags}
+        onCreateTag={createTag}
+        onUpdateTag={updateTag}
+        onDeleteTag={deleteTag}
       />
     </Box>
   );

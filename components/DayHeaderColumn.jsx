@@ -24,7 +24,6 @@ export const DayHeaderColumn = ({
   onOutcomeChange,
   onDuplicateTask,
   onDeleteTask,
-  onUpdateTaskColor,
 }) => {
   const untimedDroppableId = createDroppableId.calendarWeekUntimed(day);
 
@@ -108,7 +107,6 @@ export const DayHeaderColumn = ({
               onOutcomeChange={onOutcomeChange}
               onDuplicateTask={onDuplicateTask}
               onDeleteTask={onDeleteTask}
-              onUpdateTaskColor={onUpdateTaskColor}
             />
           ))}
         </VStack>

@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { Box, Text, Menu, HStack, Portal } from "@chakra-ui/react";
 import { useDraggable } from "@dnd-kit/core";
+import { getTaskDisplayColor } from "@/lib/utils";
 import { Edit2, X, Copy, Trash2, Check, Circle } from "lucide-react";
-import { ColorSubmenu } from "./ColorSubmenu";
 
 export const UntimedWeekTask = ({
   task,
@@ -16,7 +16,6 @@ export const UntimedWeekTask = ({
   onOutcomeChange,
   onDuplicateTask,
   onDeleteTask,
-  onUpdateTaskColor,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -29,6 +28,9 @@ export const UntimedWeekTask = ({
   const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
   const isNotCompleted = outcome === "not_completed";
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
+
+  // Get task color from first tag, or use neutral gray if no tags
+  const taskColor = getTaskDisplayColor(task);
 
   // Diagonal stripe pattern for not completed tasks
   const notCompletedPattern = isNotCompleted
@@ -62,8 +64,10 @@ export const UntimedWeekTask = ({
           {...listeners}
           p={1}
           borderRadius="sm"
-          bg={task.color || "#3b82f6"}
-          color="white"
+          bg={taskColor || "gray.200"}
+          _dark={{ bg: taskColor || "gray.700" }}
+          color={taskColor ? "white" : undefined}
+          _dark={{ color: taskColor ? "white" : undefined }}
           cursor="grab"
           boxShadow="sm"
           onClick={e => {
@@ -107,18 +111,6 @@ export const UntimedWeekTask = ({
                   <Text>Edit</Text>
                 </HStack>
               </Menu.Item>
-            )}
-            {/* Color submenu */}
-            {onUpdateTaskColor && (
-              <ColorSubmenu
-                currentColor={task.color || "#3b82f6"}
-                onColorChange={color => {
-                  onUpdateTaskColor(task.id, color);
-                  setMenuOpen(false);
-                }}
-                onClose={() => setMenuOpen(false)}
-                onCloseParentMenu={() => setMenuOpen(false)}
-              />
             )}
             {/* Completion options for recurring tasks */}
             {isRecurring && onOutcomeChange && (

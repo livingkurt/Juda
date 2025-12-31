@@ -30,8 +30,7 @@ import {
   X,
   Circle,
 } from "lucide-react";
-import { ColorSubmenu } from "./ColorSubmenu";
-import { formatTime, isOverdue, getRecurrenceLabel } from "@/lib/utils";
+import { formatTime, isOverdue, getRecurrenceLabel, getTaskDisplayColor } from "@/lib/utils";
 
 export const TaskItem = ({
   task,
@@ -59,7 +58,6 @@ export const TaskItem = ({
   hasRecordOnDate, // Function to check if task has any record on a date
   onCompleteWithNote, // (taskId, note) => void - for text completion
   getCompletionForDate, // (taskId, date) => completion object
-  onUpdateTaskColor, // (taskId, color) => void - for updating task color
 }) => {
   // Normalize prop names - support both naming conventions
   const handleEdit = onEdit || onEditTask;
@@ -238,12 +236,8 @@ export const TaskItem = ({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  // Simple border style without drop target feedback
-  const borderStyle = {
-    borderColor: task.color,
-    borderWidth: "2px",
-    borderStyle: "solid",
-  };
+  // Get task color from first tag, or use neutral gray if no tags
+  const taskColor = getTaskDisplayColor(task);
 
   return (
     <Box ref={setNodeRef} style={style} w="100%" maxW="100%">
@@ -251,7 +245,10 @@ export const TaskItem = ({
         borderRadius="lg"
         bg={bgColor}
         transition="box-shadow 0.2s, border-color 0.2s"
-        {...borderStyle}
+        borderColor={taskColor || "gray.300"}
+        _dark={{ borderColor: taskColor || "gray.600" }}
+        borderWidth="2px"
+        borderStyle="solid"
         w="100%"
         maxW="100%"
         overflow="hidden"
@@ -707,17 +704,6 @@ export const TaskItem = ({
                       <Text>Edit</Text>
                     </HStack>
                   </Menu.Item>
-                  {/* Color submenu */}
-                  {onUpdateTaskColor && (
-                    <ColorSubmenu
-                      currentColor={task.color || "#3b82f6"}
-                      onColorChange={color => {
-                        onUpdateTaskColor(task.id, color);
-                        setActionMenuOpen(false);
-                      }}
-                      onCloseParentMenu={() => setActionMenuOpen(false)}
-                    />
-                  )}
                   {/* Not Completed option for recurring tasks in today view */}
                   {isToday && !taskIsOverdue && onOutcomeChange && isRecurring && (
                     <Menu.Item

@@ -31,7 +31,6 @@ const BacklogDrawerComponent = ({
   onCompleteWithNote,
   onSkipTask,
   getCompletionForDate,
-  onUpdateTaskColor,
 }) => {
   const bgColor = { _light: "white", _dark: "gray.800" };
   const borderColor = { _light: "gray.200", _dark: "gray.600" };
@@ -247,7 +246,6 @@ const BacklogDrawerComponent = ({
                     onCompleteWithNote={onCompleteWithNote}
                     onSkipTask={onSkipTask}
                     getCompletionForDate={getCompletionForDate}
-                    onUpdateTaskColor={onUpdateTaskColor}
                   />
                 ))}
                 <Input
