@@ -61,6 +61,10 @@ export const TaskItem = ({
   onCompleteWithNote, // (taskId, note) => void - for text completion
   getCompletionForDate, // (taskId, date) => completion object
   onStatusChange, // Handler for status changes (kanban)
+  isSelected, // Whether this task is selected for bulk edit
+  onSelect, // Handler for task selection (taskId, event) => void
+  selectedCount, // Number of tasks currently selected
+  onBulkEdit, // Handler to open bulk edit dialog
 }) => {
   // Normalize prop names - support both naming conventions
   const handleEdit = onEdit || onEditTask;
@@ -246,15 +250,16 @@ export const TaskItem = ({
     <Box ref={setNodeRef} style={style} w="100%" maxW="100%">
       <Box
         borderRadius="lg"
-        bg={bgColor}
-        transition="box-shadow 0.2s, border-color 0.2s"
-        borderColor={taskColor || "gray.300"}
-        _dark={{ borderColor: taskColor || "gray.600" }}
+        bg={isSelected ? { _light: "blue.50", _dark: "blue.900" } : bgColor}
+        transition="box-shadow 0.2s, border-color 0.2s, background-color 0.2s"
+        borderColor={isSelected ? { _light: "blue.500", _dark: "blue.400" } : taskColor || "gray.300"}
+        _dark={{ borderColor: isSelected ? "blue.400" : taskColor || "gray.600" }}
         borderWidth="2px"
         borderStyle="solid"
         w="100%"
         maxW="100%"
         overflow="hidden"
+        boxShadow={isSelected ? "0 0 0 2px var(--chakra-colors-blue-400)" : "none"}
       >
         <Flex
           align="center"
@@ -268,6 +273,13 @@ export const TaskItem = ({
           w="100%"
           maxW="100%"
           overflow="hidden"
+          onClick={e => {
+            // Handle cmd/ctrl+click for selection (only for non-subtask variants)
+            if ((e.metaKey || e.ctrlKey) && !isSubtask && onSelect) {
+              e.stopPropagation();
+              onSelect(task.id, e);
+            }
+          }}
         >
           {/* Expand button for subtasks */}
           {task.subtasks && task.subtasks.length > 0 ? (
@@ -718,6 +730,34 @@ export const TaskItem = ({
             <Portal>
               <Menu.Positioner>
                 <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+                  {/* Show Bulk Edit option if multiple tasks are selected */}
+                  {selectedCount > 0 && onBulkEdit && (
+                    <>
+                      <Menu.Item
+                        onClick={e => {
+                          e.stopPropagation();
+                          onBulkEdit();
+                          setActionMenuOpen(false);
+                        }}
+                      >
+                        <HStack gap={2}>
+                          <Box
+                            as="span"
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                            w="14px"
+                            h="14px"
+                            flexShrink={0}
+                          >
+                            <Edit2 size={14} />
+                          </Box>
+                          <Text>Bulk Edit ({selectedCount} selected)</Text>
+                        </HStack>
+                      </Menu.Item>
+                      <Menu.Separator />
+                    </>
+                  )}
                   <Menu.Item
                     onClick={e => {
                       e.stopPropagation();

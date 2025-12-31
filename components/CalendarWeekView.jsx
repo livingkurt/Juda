@@ -418,7 +418,7 @@ export const CalendarWeekView = ({
               }}
             >
               <Box w={12} fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} pr={1} textAlign="right" pt={1}>
-                {hour === 0 ? "" : hour < 12 ? `${hour}a` : hour === 12 ? "12p" : `${hour - 12}p`}
+                {hour === 0 ? "" : hour < 12 ? `${hour} am` : hour === 12 ? "12 pm" : `${hour - 12} pm`}
               </Box>
             </Box>
           ))}

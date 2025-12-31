@@ -55,6 +55,7 @@ import {
 } from "lucide-react";
 import { Section } from "@/components/Section";
 import { TaskDialog } from "@/components/TaskDialog";
+import { BulkEditDialog } from "@/components/BulkEditDialog";
 import { SectionDialog } from "@/components/SectionDialog";
 import { BacklogDrawer } from "@/components/BacklogDrawer";
 import { useTasks } from "@/hooks/useTasks";
@@ -135,6 +136,7 @@ export default function DailyTasksApp() {
     duplicateTask,
     saveTask,
     batchReorderTasks,
+    batchUpdateTasks,
     updateTagInTasks,
     removeTagFromTasks,
     loading: tasksLoading,
@@ -376,6 +378,10 @@ export default function DailyTasksApp() {
   const closeSectionDialog = () => setSectionDialogOpen(false);
 
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
+
+  // Bulk edit state - track selected task IDs
+  const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
+  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
 
   // Resize handlers for backlog drawer
   const resizeStartRef = useRef(null);
@@ -979,6 +985,57 @@ export default function DailyTasksApp() {
 
   const handleDeleteTask = async taskId => {
     await deleteTask(taskId);
+  };
+
+  // Bulk edit handlers
+  const handleTaskSelect = (taskId, event) => {
+    // Check if cmd/ctrl key is pressed
+    const isMultiSelect = event?.metaKey || event?.ctrlKey;
+
+    if (isMultiSelect) {
+      setSelectedTaskIds(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(taskId)) {
+          newSet.delete(taskId);
+        } else {
+          newSet.add(taskId);
+        }
+        return newSet;
+      });
+    } else {
+      // Clear selection if clicking without cmd/ctrl
+      setSelectedTaskIds(new Set());
+    }
+  };
+
+  const handleBulkEdit = () => {
+    if (selectedTaskIds.size === 0) return;
+    setBulkEditDialogOpen(true);
+  };
+
+  const handleBulkEditSave = async updates => {
+    try {
+      // Use the proper batch update endpoint - single API call for all tasks
+      await batchUpdateTasks(Array.from(selectedTaskIds), updates);
+
+      toast({
+        title: `Updated ${selectedTaskIds.size} task(s)`,
+        status: "success",
+        duration: 2000,
+      });
+
+      // Clear selection and close dialog
+      setSelectedTaskIds(new Set());
+      setBulkEditDialogOpen(false);
+    } catch (err) {
+      console.error("Bulk edit error:", err);
+      toast({
+        title: "Failed to update tasks",
+        description: err.message,
+        status: "error",
+        duration: 3000,
+      });
+    }
   };
 
   const handleDuplicateTask = async taskId => {
@@ -2480,6 +2537,9 @@ export default function DailyTasksApp() {
                             onCompleteWithNote={handleCompleteWithNote}
                             onSkipTask={handleNotCompletedTask}
                             getCompletionForDate={getCompletionForDate}
+                            selectedTaskIds={selectedTaskIds}
+                            onTaskSelect={handleTaskSelect}
+                            onBulkEdit={handleBulkEdit}
                           />
                         )}
                       </Box>
@@ -2589,6 +2649,9 @@ export default function DailyTasksApp() {
                           onCompleteWithNote={handleCompleteWithNote}
                           onSkipTask={handleNotCompletedTask}
                           getCompletionForDate={getCompletionForDate}
+                          selectedTaskIds={selectedTaskIds}
+                          onTaskSelect={handleTaskSelect}
+                          onBulkEdit={handleBulkEdit}
                         />
                       </Box>
                     )}
@@ -2844,6 +2907,9 @@ export default function DailyTasksApp() {
                           onCompleteWithNote={handleCompleteWithNote}
                           onSkipTask={handleNotCompletedTask}
                           getCompletionForDate={getCompletionForDate}
+                          selectedTaskIds={selectedTaskIds}
+                          onTaskSelect={handleTaskSelect}
+                          onBulkEdit={handleBulkEdit}
                         />
                       )}
                       {/* Resize handle - hidden on mobile */}
@@ -3041,6 +3107,9 @@ export default function DailyTasksApp() {
                                   onCompleteWithNote={handleCompleteWithNote}
                                   onSkipTask={handleNotCompletedTask}
                                   getCompletionForDate={getCompletionForDate}
+                                  selectedTaskIds={selectedTaskIds}
+                                  onTaskSelect={handleTaskSelect}
+                                  onBulkEdit={handleBulkEdit}
                                 />
                               </Box>
                             </>
@@ -3485,6 +3554,18 @@ export default function DailyTasksApp() {
         onCreateTag={createTag}
         onUpdateTag={updateTag}
         onDeleteTag={deleteTag}
+      />
+      <BulkEditDialog
+        isOpen={bulkEditDialogOpen}
+        onClose={() => {
+          setBulkEditDialogOpen(false);
+        }}
+        onSave={handleBulkEditSave}
+        sections={sections}
+        tags={tags}
+        onCreateTag={createTag}
+        onDeleteTag={deleteTag}
+        selectedCount={selectedTaskIds.size}
       />
     </Box>
   );

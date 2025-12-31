@@ -578,41 +578,77 @@ export const useTasks = () => {
     return updateTask(taskId, { status });
   };
 
-  // Update tag references in tasks when a tag is updated
-  const updateTagInTasks = useCallback(
-    (tagId, updatedTag) => {
-      setTasks(prevTasks => {
-        const updateTaskTags = task => {
-          const updatedTags = task.tags?.map(tag => (tag.id === tagId ? updatedTag : tag));
-          return {
-            ...task,
-            tags: updatedTags,
-            subtasks: task.subtasks?.map(updateTaskTags) || [],
-          };
-        };
-        return prevTasks.map(updateTaskTags);
+  const batchUpdateTasks = async (taskIds, updates) => {
+    const previousTasks = [...tasks];
+
+    try {
+      const response = await authFetch("/api/tasks/batch-update", {
+        method: "POST",
+        body: JSON.stringify({ taskIds, updates }),
       });
-    },
-    []
-  );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || `Failed to batch update tasks (${response.status})`;
+        throw new Error(errorMessage);
+      }
+
+      const { tasks: updatedTasks } = await response.json();
+
+      // Update tasks in state
+      setTasks(prev => {
+        const updatedTasksMap = new Map(updatedTasks.map(t => [t.id, t]));
+        return prev.map(task => {
+          if (updatedTasksMap.has(task.id)) {
+            const updated = updatedTasksMap.get(task.id);
+            return {
+              ...updated,
+              // Preserve subtasks from current state
+              subtasks: Array.isArray(task.subtasks) ? task.subtasks : [],
+            };
+          }
+          return task;
+        });
+      });
+
+      return updatedTasks;
+    } catch (err) {
+      // Rollback on error
+      setTasks(previousTasks);
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // Update tag references in tasks when a tag is updated
+  const updateTagInTasks = useCallback((tagId, updatedTag) => {
+    setTasks(prevTasks => {
+      const updateTaskTags = task => {
+        const updatedTags = task.tags?.map(tag => (tag.id === tagId ? updatedTag : tag));
+        return {
+          ...task,
+          tags: updatedTags,
+          subtasks: task.subtasks?.map(updateTaskTags) || [],
+        };
+      };
+      return prevTasks.map(updateTaskTags);
+    });
+  }, []);
 
   // Remove tag references from tasks when a tag is deleted
-  const removeTagFromTasks = useCallback(
-    tagId => {
-      setTasks(prevTasks => {
-        const removeTagFromTask = task => {
-          const filteredTags = task.tags?.filter(tag => tag.id !== tagId) || [];
-          return {
-            ...task,
-            tags: filteredTags,
-            subtasks: task.subtasks?.map(removeTagFromTask) || [],
-          };
+  const removeTagFromTasks = useCallback(tagId => {
+    setTasks(prevTasks => {
+      const removeTagFromTask = task => {
+        const filteredTags = task.tags?.filter(tag => tag.id !== tagId) || [];
+        return {
+          ...task,
+          tags: filteredTags,
+          subtasks: task.subtasks?.map(removeTagFromTask) || [],
         };
-        return prevTasks.map(removeTagFromTask);
-      });
-    },
-    []
-  );
+      };
+      return prevTasks.map(removeTagFromTask);
+    });
+  }, []);
 
   return {
     tasks,
@@ -628,6 +664,7 @@ export const useTasks = () => {
     promoteSubtask,
     saveTask,
     batchReorderTasks,
+    batchUpdateTasks,
     refetch: fetchTasks,
     updateTagInTasks,
     removeTagFromTasks,

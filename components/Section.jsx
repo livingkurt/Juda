@@ -33,6 +33,9 @@ export const Section = ({
   onCompleteWithNote,
   onSkipTask,
   getCompletionForDate,
+  selectedTaskIds,
+  onTaskSelect,
+  onBulkEdit,
 }) => {
   const dropHighlight = { _light: "gray.50", _dark: "gray.800" };
 
@@ -73,6 +76,9 @@ export const Section = ({
             onCompleteWithNote={onCompleteWithNote}
             onSkipTask={onSkipTask}
             getCompletionForDate={getCompletionForDate}
+            selectedTaskIds={selectedTaskIds}
+            onTaskSelect={onTaskSelect}
+            onBulkEdit={onBulkEdit}
           />
         ))}
         <Button

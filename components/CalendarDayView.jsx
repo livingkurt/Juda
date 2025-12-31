@@ -375,7 +375,7 @@ export const CalendarDayView = ({
               }}
             >
               <Box w={16} fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} pr={2} textAlign="right" pt={1}>
-                {hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
+                {hour === 0 ? "12 am" : hour < 12 ? `${hour} am` : hour === 12 ? "12 pm" : `${hour - 12} pm`}
               </Box>
               <Box flex={1} borderLeftWidth="1px" borderColor={borderColor} />
             </Box>
@@ -424,66 +424,68 @@ export const CalendarDayView = ({
             ))}
 
             {/* Render status task blocks (in-progress and completed with time tracking) */}
-            {showStatusTasks && getCompletionForDate && tasks
-              .filter(task => {
-                // Only show non-recurring tasks with status tracking
-                if (task.recurrence && task.recurrence.type !== "none") return false;
-                if (task.completionType === "note") return false;
-                if (task.parentId) return false;
+            {showStatusTasks &&
+              getCompletionForDate &&
+              tasks
+                .filter(task => {
+                  // Only show non-recurring tasks with status tracking
+                  if (task.recurrence && task.recurrence.type !== "none") return false;
+                  if (task.completionType === "note") return false;
+                  if (task.parentId) return false;
 
-                // Show in-progress tasks
-                if (task.status === "in_progress" && task.startedAt) return true;
+                  // Show in-progress tasks
+                  if (task.status === "in_progress" && task.startedAt) return true;
 
-                // Show completed tasks with timing data
-                const completion = getCompletionForDate(task.id, date);
-                return completion && completion.startedAt && completion.completedAt;
-              })
-              .map(task => {
-                const isInProgress = task.status === "in_progress";
-                let startedAt, completedAt, top, height;
-
-                if (isInProgress) {
-                  // In-progress task: use task.startedAt to now
-                  startedAt = task.startedAt;
-                  completedAt = new Date().toISOString();
-
-                  const startTime = new Date(startedAt);
-                  const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
-                  const now = new Date();
-                  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-                  const durationMinutes = nowMinutes - startMinutes;
-
-                  top = (startMinutes / 60) * HOUR_HEIGHT;
-                  height = (durationMinutes / 60) * HOUR_HEIGHT;
-                } else {
-                  // Completed task: use completion timing data
+                  // Show completed tasks with timing data
                   const completion = getCompletionForDate(task.id, date);
-                  startedAt = completion.startedAt;
-                  completedAt = completion.completedAt;
+                  return completion && completion.startedAt && completion.completedAt;
+                })
+                .map(task => {
+                  const isInProgress = task.status === "in_progress";
+                  let startedAt, completedAt, top, height;
 
-                  const startTime = new Date(startedAt);
-                  const endTime = new Date(completedAt);
-                  const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
-                  const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
-                  const durationMinutes = endMinutes - startMinutes;
+                  if (isInProgress) {
+                    // In-progress task: use task.startedAt to now
+                    startedAt = task.startedAt;
+                    completedAt = new Date().toISOString();
 
-                  top = (startMinutes / 60) * HOUR_HEIGHT;
-                  height = (durationMinutes / 60) * HOUR_HEIGHT;
-                }
+                    const startTime = new Date(startedAt);
+                    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+                    const now = new Date();
+                    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                    const durationMinutes = nowMinutes - startMinutes;
 
-                return (
-                  <StatusTaskBlock
-                    key={`status-${task.id}`}
-                    task={task}
-                    top={top}
-                    height={height}
-                    isInProgress={isInProgress}
-                    onTaskClick={onTaskClick}
-                    startedAt={startedAt}
-                    completedAt={completedAt}
-                  />
-                );
-              })}
+                    top = (startMinutes / 60) * HOUR_HEIGHT;
+                    height = (durationMinutes / 60) * HOUR_HEIGHT;
+                  } else {
+                    // Completed task: use completion timing data
+                    const completion = getCompletionForDate(task.id, date);
+                    startedAt = completion.startedAt;
+                    completedAt = completion.completedAt;
+
+                    const startTime = new Date(startedAt);
+                    const endTime = new Date(completedAt);
+                    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+                    const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+                    const durationMinutes = endMinutes - startMinutes;
+
+                    top = (startMinutes / 60) * HOUR_HEIGHT;
+                    height = (durationMinutes / 60) * HOUR_HEIGHT;
+                  }
+
+                  return (
+                    <StatusTaskBlock
+                      key={`status-${task.id}`}
+                      task={task}
+                      top={top}
+                      height={height}
+                      isInProgress={isInProgress}
+                      onTaskClick={onTaskClick}
+                      startedAt={startedAt}
+                      completedAt={completedAt}
+                    />
+                  );
+                })}
           </Box>
         </Box>
       </Box>

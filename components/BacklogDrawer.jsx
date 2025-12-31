@@ -31,6 +31,9 @@ const BacklogDrawerComponent = ({
   onCompleteWithNote,
   onSkipTask,
   getCompletionForDate,
+  selectedTaskIds,
+  onTaskSelect,
+  onBulkEdit,
 }) => {
   const bgColor = { _light: "white", _dark: "gray.800" };
   const borderColor = { _light: "gray.200", _dark: "gray.600" };
@@ -246,6 +249,10 @@ const BacklogDrawerComponent = ({
                     onCompleteWithNote={onCompleteWithNote}
                     onSkipTask={onSkipTask}
                     getCompletionForDate={getCompletionForDate}
+                    isSelected={selectedTaskIds?.has(task.id)}
+                    onSelect={onTaskSelect}
+                    selectedCount={selectedTaskIds?.size || 0}
+                    onBulkEdit={onBulkEdit}
                   />
                 ))}
                 <Input
