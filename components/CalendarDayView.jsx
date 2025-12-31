@@ -9,6 +9,7 @@ import { UntimedTask } from "./UntimedTask";
 import { TimedTask } from "./TimedTask";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
+import { CurrentTimeLine } from "./CurrentTimeLine";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_DAY;
 
@@ -94,6 +95,36 @@ export const CalendarDayView = ({
   const { dayTasks, untimedTasks } = filteredTasks;
 
   const containerRef = useRef(null);
+
+  // Check if viewing today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const viewDate = new Date(date);
+  viewDate.setHours(0, 0, 0, 0);
+  const isToday = viewDate.getTime() === today.getTime();
+
+  // Auto-scroll to current time on mount or when date changes to today
+  useEffect(() => {
+    if (!isToday || !containerRef.current) return;
+
+    const scrollToCurrentTime = () => {
+      if (!containerRef.current) return;
+
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const scrollPosition = (currentMinutes / 60) * HOUR_HEIGHT - containerRef.current.clientHeight / 2;
+
+      // Scroll smoothly to current time, centered in viewport
+      containerRef.current.scrollTo({
+        top: Math.max(0, scrollPosition),
+        behavior: "smooth",
+      });
+    };
+
+    // Small delay to ensure container is rendered and has correct dimensions
+    const timeoutId = setTimeout(scrollToCurrentTime, 200);
+    return () => clearTimeout(timeoutId);
+  }, [isToday, HOUR_HEIGHT, date]);
 
   // Internal drag state for time/duration adjustments (not cross-container)
   const [internalDrag, setInternalDrag] = useState({
@@ -325,6 +356,9 @@ export const CalendarDayView = ({
       {/* Timed calendar grid */}
       <Box ref={containerRef} flex={1} overflowY="auto" w="100%" maxW="100%" minH={0}>
         <Box position="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
+          {/* Current time line - only show if viewing today */}
+          {isToday && <CurrentTimeLine hourHeight={HOUR_HEIGHT} isVisible={true} />}
+
           {/* Hour lines */}
           {hours.map(hour => (
             <Box

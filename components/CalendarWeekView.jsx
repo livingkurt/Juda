@@ -8,6 +8,7 @@ import { DayHeaderColumn } from "./DayHeaderColumn";
 import { TimedColumn } from "./TimedColumn";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
+import { CurrentTimeLine } from "./CurrentTimeLine";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_WEEK;
 
@@ -61,6 +62,33 @@ export const CalendarWeekView = ({
   const headerRef = useRef(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState([]);
+
+  // Find today's index in the week
+  const todayIndex = weekDays.findIndex(day => day.toDateString() === today.toDateString());
+  const isTodayInWeek = todayIndex !== -1;
+
+  // Auto-scroll to current time on mount if today is in the week
+  useEffect(() => {
+    if (!isTodayInWeek || !containerRef.current) return;
+
+    const scrollToCurrentTime = () => {
+      if (!containerRef.current) return;
+
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const scrollPosition = (currentMinutes / 60) * HOUR_HEIGHT - containerRef.current.clientHeight / 2;
+
+      // Scroll smoothly to current time, centered in viewport
+      containerRef.current.scrollTo({
+        top: Math.max(0, scrollPosition),
+        behavior: "smooth",
+      });
+    };
+
+    // Small delay to ensure container is rendered and has correct dimensions
+    const timeoutId = setTimeout(scrollToCurrentTime, 200);
+    return () => clearTimeout(timeoutId);
+  }, [isTodayInWeek, HOUR_HEIGHT, weekDays]);
 
   // Internal drag state for time/duration adjustments
   const [internalDrag, setInternalDrag] = useState({
@@ -398,6 +426,7 @@ export const CalendarWeekView = ({
           <Flex position="absolute" left={12} right={0} top={0} bottom={0} minW="fit-content">
             {weekDays.map((day, i) => {
               const dayTasks = getTasksForDay(day);
+              const isTodayColumn = i === todayIndex;
 
               return (
                 <TimedColumn
@@ -423,6 +452,7 @@ export const CalendarWeekView = ({
                   onDuplicateTask={onDuplicateTask}
                   onDeleteTask={onDeleteTask}
                   onUpdateTaskColor={onUpdateTaskColor}
+                  isToday={isTodayColumn}
                 />
               );
             })}

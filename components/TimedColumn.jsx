@@ -4,6 +4,7 @@ import { Box } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { calculateTaskPositions } from "@/lib/utils";
 import { TimedWeekTask } from "./TimedWeekTask";
+import { CurrentTimeLine } from "./CurrentTimeLine";
 
 export const TimedColumn = ({
   day,
@@ -27,6 +28,7 @@ export const TimedColumn = ({
   onDuplicateTask,
   onDeleteTask,
   onUpdateTaskColor,
+  isToday = false,
 }) => {
   const timedDroppableId = createDroppableId.calendarWeek(day);
   const { setNodeRef, isOver } = useDroppable({
@@ -63,6 +65,9 @@ export const TimedColumn = ({
         }
       }}
     >
+      {/* Current time line - only show on today's column */}
+      {isToday && <CurrentTimeLine hourHeight={hourHeight} isVisible={true} />}
+
       {/* Render tasks */}
       {calculateTaskPositions(timedTasks).map(task => (
         <TimedWeekTask
