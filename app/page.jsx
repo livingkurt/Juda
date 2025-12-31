@@ -738,6 +738,8 @@ export default function DailyTasksApp() {
             startDate: `${todayDateStr}T00:00:00.000Z`,
           },
           time: currentTime,
+          // Set status to complete for non-recurring tasks when checking
+          status: "complete",
         });
       }
       // If task is non-recurring (one-time task) and doesn't have a time, set it to current time when checking
@@ -746,6 +748,15 @@ export default function DailyTasksApp() {
         // Task is non-recurring (one-time), assign current time for completion tracking
         await updateTask(taskId, {
           time: currentTime,
+          // Set status to complete for non-recurring tasks when checking
+          status: "complete",
+        });
+      }
+      // If task is non-recurring and already has a time, just update status when checking
+      else if (!isRecurringTask && !isCompletedOnTargetDate) {
+        // Task is non-recurring, just update status to complete
+        await updateTask(taskId, {
+          status: "complete",
         });
       }
 
@@ -754,6 +765,13 @@ export default function DailyTasksApp() {
         // Task is completed on the target date, remove completion record
         const completionsToDelete = collectSubtaskCompletionsToDelete(task, targetDate);
         await batchDeleteCompletions(completionsToDelete);
+
+        // For non-recurring tasks, set status back to todo when unchecking
+        if (!isRecurringTask) {
+          await updateTask(taskId, {
+            status: "todo",
+          });
+        }
 
         // If hiding completed tasks, remove from recently completed set immediately when unchecked
         if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
@@ -874,9 +892,18 @@ export default function DailyTasksApp() {
       // Check if this is a subtask (has a parentId)
       const isSubtask = task?.parentId != null;
 
+      // Check if task is recurring
+      const isRecurringTask = task?.recurrence && task.recurrence.type && task.recurrence.type !== "none";
+
       if (outcome === null) {
         // Remove record
         await deleteCompletion(taskId, dateObj.toISOString());
+
+        // For non-recurring tasks, set status back to todo when unchecking
+        if (!isRecurringTask) {
+          await updateTask(taskId, { status: "todo" });
+        }
+
         // If hiding completed tasks, remove from recently completed set immediately when unchecked
         if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
           removeFromRecentlyCompleted(taskId);
@@ -894,6 +921,11 @@ export default function DailyTasksApp() {
         // Create or update record with outcome
         try {
           await createCompletion(taskId, dateObj.toISOString(), { outcome });
+
+          // For non-recurring tasks, set status to complete when marking as completed
+          if (outcome === "completed" && !isRecurringTask) {
+            await updateTask(taskId, { status: "complete" });
+          }
 
           // Only cascade to subtasks if this is a PARENT task (not a subtask itself)
           if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
@@ -933,6 +965,13 @@ export default function DailyTasksApp() {
       const task = tasks.find(t => t.id === taskId);
       const targetDate = todayViewDate || today;
       await createCompletion(taskId, targetDate.toISOString(), { note, outcome: "completed" });
+
+      // For non-recurring tasks, set status to complete
+      const isRecurringTask = task?.recurrence && task.recurrence.type && task.recurrence.type !== "none";
+      if (!isRecurringTask) {
+        await updateTask(taskId, { status: "complete" });
+      }
+
       // If hiding completed tasks, add to recently completed set
       if (!showCompletedTasks) {
         addToRecentlyCompleted(taskId, task?.sectionId);
