@@ -99,6 +99,13 @@
       "when": 1767147679547,
       "tag": "0013_remove_skipped_column",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1767149882179,
+      "tag": "0014_remove_task_color_column",
+      "breakpoints": true
     }
   ]
 }

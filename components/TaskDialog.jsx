@@ -19,7 +19,7 @@ import {
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { Plus, Search } from "lucide-react";
-import { DAYS_OF_WEEK, DURATION_OPTIONS, TASK_COLORS, ORDINAL_OPTIONS, MONTH_OPTIONS } from "@/lib/constants";
+import { DAYS_OF_WEEK, DURATION_OPTIONS, ORDINAL_OPTIONS, MONTH_OPTIONS } from "@/lib/constants";
 import { formatLocalDate } from "@/lib/utils";
 import { TagSelector } from "./TagSelector";
 import { TaskItem } from "./TaskItem";
@@ -106,8 +106,6 @@ function TaskDialogForm({
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [subtaskTime, setSubtaskTime] = useState("");
   const [subtaskDuration, setSubtaskDuration] = useState(30);
-  const [subtaskColor, setSubtaskColor] = useState("#3b82f6");
-  const [color, setColor] = useState(task?.color || "#3b82f6");
   const [selectedTagIds, setSelectedTagIds] = useState(() => {
     const taskTags = Array.isArray(task?.tags) ? task.tags : [];
     return taskTags.map(t => t.id);
@@ -278,7 +276,6 @@ function TaskDialogForm({
       subtasks: orderedSubtasks,
       // Note: Task completion is tracked via TaskCompletion records, not a field on Task
       expanded: task?.expanded || false,
-      color,
       order: task?.order ?? 999,
       tagIds: selectedTagIds,
       completionType,
@@ -343,7 +340,6 @@ function TaskDialogForm({
         completed: false,
         time: existingTask.time,
         duration: existingTask.duration || 30,
-        color: existingTask.color || "#3b82f6",
         order: subtasks.length,
         isExisting: true, // Flag to indicate this is an existing task
       },
@@ -382,27 +378,6 @@ function TaskDialogForm({
                       }
                     }}
                   />
-                </Box>
-                <Box w="full">
-                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                    Color
-                  </Text>
-                  <HStack spacing={2} mt={2} flexWrap="wrap">
-                    {TASK_COLORS.map(c => (
-                      <Button
-                        key={c}
-                        w={8}
-                        h={8}
-                        borderRadius="full"
-                        bg={c}
-                        onClick={() => setColor(c)}
-                        borderWidth={color === c ? "3px" : "0px"}
-                        borderColor="blue.400"
-                        _hover={{ transform: "scale(1.1)" }}
-                        aria-label={`Select color ${c}`}
-                      />
-                    ))}
-                  </HStack>
                 </Box>
                 <Box w="full">
                   <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
@@ -901,7 +876,6 @@ function TaskDialogForm({
                                   setSubtaskTitle(st.title);
                                   setSubtaskTime(st.time || "");
                                   setSubtaskDuration(st.duration || 30);
-                                  setSubtaskColor(st.color || "#3b82f6");
                                 }}
                                 onDelete={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
                               />
@@ -938,7 +912,6 @@ function TaskDialogForm({
                                   completed: false,
                                   time: null,
                                   duration: 30,
-                                  color: "#3b82f6",
                                   order: subtasks.length,
                                 },
                               ]);
@@ -957,7 +930,6 @@ function TaskDialogForm({
                                   completed: false,
                                   time: null,
                                   duration: 30,
-                                  color: "#3b82f6",
                                   order: subtasks.length,
                                 },
                               ]);
@@ -1070,27 +1042,6 @@ function TaskDialogForm({
                               placeholder="Subtask title"
                             />
                           </Box>
-                          <Box w="full">
-                            <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                              Color
-                            </Text>
-                            <HStack spacing={2} mt={2} flexWrap="wrap">
-                              {TASK_COLORS.map(c => (
-                                <Button
-                                  key={c}
-                                  w={6}
-                                  h={6}
-                                  borderRadius="full"
-                                  bg={c}
-                                  onClick={() => setSubtaskColor(c)}
-                                  borderWidth={subtaskColor === c ? "3px" : "0px"}
-                                  borderColor="blue.400"
-                                  _hover={{ transform: "scale(1.1)" }}
-                                  aria-label={`Select color ${c}`}
-                                />
-                              ))}
-                            </HStack>
-                          </Box>
                           <SimpleGrid columns={2} spacing={4} w="full">
                             <Box>
                               <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
@@ -1142,7 +1093,6 @@ function TaskDialogForm({
                                         title: subtaskTitle.trim(),
                                         time: subtaskTime || null,
                                         duration: subtaskDuration,
-                                        color: subtaskColor,
                                       }
                                     : st
                                 )
@@ -1151,7 +1101,6 @@ function TaskDialogForm({
                               setSubtaskTitle("");
                               setSubtaskTime("");
                               setSubtaskDuration(30);
-                              setSubtaskColor("#3b82f6");
                             }
                           }}
                           isDisabled={!subtaskTitle.trim()}

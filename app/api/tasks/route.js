@@ -41,7 +41,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { title, sectionId, parentId, time, duration, color, recurrence, order, completionType, content, folderId } =
+    const { title, sectionId, parentId, time, duration, recurrence, order, completionType, content, folderId } =
       body;
 
     // Verify the section belongs to this user
@@ -62,7 +62,6 @@ export async function POST(request) {
         parentId: parentId || null,
         time: time || null,
         duration: duration ?? 30,
-        color: color ?? "#3b82f6",
         recurrence: recurrence || null,
         order: order ?? 0,
         completionType: completionType || "checkbox",
@@ -91,7 +90,6 @@ export async function PUT(request) {
       parentId,
       time,
       duration,
-      color,
       recurrence,
       expanded,
       order,
@@ -134,7 +132,6 @@ export async function PUT(request) {
     if (parentId !== undefined) updateData.parentId = parentId; // Allow null to clear parent
     if (time !== undefined) updateData.time = time;
     if (duration !== undefined) updateData.duration = duration;
-    if (color !== undefined) updateData.color = color;
     if (recurrence !== undefined) updateData.recurrence = recurrence;
     if (expanded !== undefined) updateData.expanded = expanded;
     if (order !== undefined) updateData.order = order;

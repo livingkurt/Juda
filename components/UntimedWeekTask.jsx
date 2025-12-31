@@ -65,9 +65,11 @@ export const UntimedWeekTask = ({
           p={1}
           borderRadius="sm"
           bg={taskColor || "gray.200"}
-          _dark={{ bg: taskColor || "gray.700" }}
-          color={taskColor ? "white" : undefined}
-          _dark={{ color: taskColor ? "white" : undefined }}
+          color={taskColor ? "white" : "gray.800"}
+          _dark={{
+            bg: taskColor || "gray.700",
+            color: taskColor ? "white" : "gray.100",
+          }}
           cursor="grab"
           boxShadow="sm"
           onClick={e => {

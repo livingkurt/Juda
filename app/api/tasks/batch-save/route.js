@@ -64,7 +64,6 @@ export async function POST(request) {
             parentId: taskFields.parentId || null,
             time: taskFields.time || null,
             duration: taskFields.duration ?? 30,
-            color: taskFields.color ?? "#3b82f6",
             recurrence: taskFields.recurrence || null,
             order: taskFields.order ?? 0,
           };
@@ -83,7 +82,6 @@ export async function POST(request) {
           if (taskFields.parentId !== undefined) updateData.parentId = taskFields.parentId;
           if (taskFields.time !== undefined) updateData.time = taskFields.time;
           if (taskFields.duration !== undefined) updateData.duration = taskFields.duration;
-          if (taskFields.color !== undefined) updateData.color = taskFields.color;
           if (taskFields.recurrence !== undefined) updateData.recurrence = taskFields.recurrence;
           if (taskFields.order !== undefined) updateData.order = taskFields.order;
 

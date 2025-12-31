@@ -68,15 +68,18 @@ export const TimedTask = ({
       ml={1}
       mr={1}
       borderRadius="md"
-      color="white"
+      color={taskColor ? "white" : "gray.800"}
       overflow="hidden"
       cursor="grab"
       _hover={{ shadow: "lg" }}
       bg={isNoDuration ? "gray.600" : taskColor || "gray.200"}
-      _dark={{ bg: isNoDuration ? "gray.600" : taskColor || "gray.700" }}
       borderWidth={isNoDuration ? "2px" : "0"}
       borderColor={isNoDuration ? taskColor || "gray.300" : "transparent"}
-      _dark={{ borderColor: isNoDuration ? taskColor || "gray.600" : "transparent" }}
+      _dark={{
+        color: taskColor ? "white" : "gray.100",
+        bg: isNoDuration ? "gray.600" : taskColor || "gray.700",
+        borderColor: isNoDuration ? taskColor || "gray.600" : "transparent",
+      }}
       minH={isNoDuration ? "24px" : undefined}
       style={style}
       boxShadow={internalDrag.taskId === task.id ? "xl" : "none"}

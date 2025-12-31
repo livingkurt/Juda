@@ -133,6 +133,8 @@ export default function DailyTasksApp() {
     duplicateTask,
     saveTask,
     batchReorderTasks,
+    updateTagInTasks,
+    removeTagFromTasks,
     loading: tasksLoading,
   } = useTasks();
   const {
@@ -155,7 +157,28 @@ export default function DailyTasksApp() {
     hasAnyCompletion,
     fetchCompletions,
   } = useCompletions();
-  const { tags, createTag, updateTag, deleteTag } = useTags();
+  const { tags, createTag, updateTag: updateTagOriginal, deleteTag: deleteTagOriginal } = useTags();
+
+  // Wrapper around updateTag that also updates tag references in tasks
+  const updateTag = useCallback(
+    async (id, updates) => {
+      const updatedTag = await updateTagOriginal(id, updates);
+      // Update tag references in all tasks
+      updateTagInTasks(id, updatedTag);
+      return updatedTag;
+    },
+    [updateTagOriginal, updateTagInTasks]
+  );
+
+  // Wrapper around deleteTag that also removes tag references from tasks
+  const deleteTag = useCallback(
+    async id => {
+      await deleteTagOriginal(id);
+      // Remove tag references from all tasks
+      removeTagFromTasks(id);
+    },
+    [deleteTagOriginal, removeTagFromTasks]
+  );
 
   // Get preferences from context
   const { preferences, initialized: prefsInitialized, updatePreference } = usePreferencesContext();

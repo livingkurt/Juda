@@ -395,7 +395,6 @@ export const useTasks = () => {
         sectionId: taskToDuplicate.sectionId,
         time: taskToDuplicate.time,
         duration: taskToDuplicate.duration,
-        color: taskToDuplicate.color,
         recurrence: taskToDuplicate.recurrence,
         parentId: taskToDuplicate.parentId, // Preserve parent relationship for subtasks
         subtasks: taskToDuplicate.subtasks
@@ -579,6 +578,42 @@ export const useTasks = () => {
     return updateTask(taskId, { status });
   };
 
+  // Update tag references in tasks when a tag is updated
+  const updateTagInTasks = useCallback(
+    (tagId, updatedTag) => {
+      setTasks(prevTasks => {
+        const updateTaskTags = task => {
+          const updatedTags = task.tags?.map(tag => (tag.id === tagId ? updatedTag : tag));
+          return {
+            ...task,
+            tags: updatedTags,
+            subtasks: task.subtasks?.map(updateTaskTags) || [],
+          };
+        };
+        return prevTasks.map(updateTaskTags);
+      });
+    },
+    []
+  );
+
+  // Remove tag references from tasks when a tag is deleted
+  const removeTagFromTasks = useCallback(
+    tagId => {
+      setTasks(prevTasks => {
+        const removeTagFromTask = task => {
+          const filteredTags = task.tags?.filter(tag => tag.id !== tagId) || [];
+          return {
+            ...task,
+            tags: filteredTags,
+            subtasks: task.subtasks?.map(removeTagFromTask) || [],
+          };
+        };
+        return prevTasks.map(removeTagFromTask);
+      });
+    },
+    []
+  );
+
   return {
     tasks,
     loading,
@@ -594,5 +629,7 @@ export const useTasks = () => {
     saveTask,
     batchReorderTasks,
     refetch: fetchTasks,
+    updateTagInTasks,
+    removeTagFromTasks,
   };
 };
