@@ -85,6 +85,20 @@
       "when": 1766521395553,
       "tag": "0011_add_notes_system",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1767147070948,
+      "tag": "0012_rename_skip_to_not_completed",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1767147679547,
+      "tag": "0013_remove_skipped_column",
+      "breakpoints": true
     }
   ]
 }

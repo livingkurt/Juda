@@ -51,7 +51,7 @@ export const CalendarDayView = ({
     let dayTasks = tasks.filter(t => t.time && shouldShowOnDate(t, date));
     let untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, date));
 
-    // Filter out completed/skipped tasks if showCompleted is false
+    // Filter out completed/not completed tasks if showCompleted is false
     if (!showCompleted) {
       dayTasks = dayTasks.filter(task => {
         const isCompleted = isCompletedOnDate(task.id, date);

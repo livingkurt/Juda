@@ -64,7 +64,7 @@ export async function POST(request) {
     }
 
     // Validate outcome
-    if (!["completed", "skipped"].includes(outcome)) {
+    if (!["completed", "not_completed"].includes(outcome)) {
       return NextResponse.json({ error: "Invalid outcome value" }, { status: 400 });
     }
 
@@ -242,7 +242,7 @@ export async function PATCH(request) {
       return NextResponse.json({ error: "Task ID, date, and outcome are required" }, { status: 400 });
     }
 
-    if (!["completed", "skipped"].includes(outcome)) {
+    if (!["completed", "not_completed"].includes(outcome)) {
       return NextResponse.json({ error: "Invalid outcome value" }, { status: 400 });
     }
 

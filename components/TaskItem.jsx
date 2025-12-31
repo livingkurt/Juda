@@ -27,7 +27,7 @@ import {
   AlertCircle,
   MoreVertical,
   Check,
-  SkipForward,
+  X,
   Circle,
 } from "lucide-react";
 import { ColorSubmenu } from "./ColorSubmenu";
@@ -137,13 +137,13 @@ export const TaskItem = ({
   // Get existing completion data for text-type tasks
   const existingCompletion = getCompletionForDate?.(task.id, viewDate);
   const isTextTask = task.completionType === "text";
-  const isSkipped = existingCompletion?.skipped || false;
+  const isNotCompleted = existingCompletion?.outcome === "not_completed" || false;
   const savedNote = existingCompletion?.note || "";
   // For text tasks, completion status comes from the completion record, not task.completed
   const isTextTaskCompleted =
     isTextTask &&
     (existingCompletion?.outcome === "completed" ||
-      (existingCompletion && !existingCompletion.skipped && existingCompletion.note));
+      (existingCompletion && existingCompletion.outcome !== "not_completed" && existingCompletion.note));
 
   // Initialize noteInput from saved note - update whenever savedNote or existingCompletion changes
   useEffect(() => {
@@ -163,7 +163,7 @@ export const TaskItem = ({
   const outcome =
     (isToday || isSubtask || isBacklog) && getOutcomeOnDate && viewDate ? getOutcomeOnDate(task.id, viewDate) : null;
 
-  // Check if task has any outcome (completed or skipped) - should show strikethrough
+  // Check if task has any outcome (completed or not completed) - should show strikethrough
   const hasAnyOutcome = outcome !== null;
   const shouldShowStrikethrough = isChecked || hasAnyOutcome;
 
@@ -178,7 +178,7 @@ export const TaskItem = ({
   // Check if task is recurring (has recurrence and type is not "none")
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
 
-  // Check if we should show menu: only for recurring tasks that are overdue OR have outcome set (skipped)
+  // Check if we should show menu: only for recurring tasks that are overdue OR have outcome set (not completed)
   // Works for today view tasks, subtasks, and backlog items
   const shouldShowMenu =
     (isToday || isSubtask || isBacklog) && onOutcomeChange && isRecurring && (taskIsOverdue || outcome !== null);
@@ -361,7 +361,7 @@ export const TaskItem = ({
                     >
                       <Checkbox.HiddenInput />
                       <Checkbox.Control
-                        bg={outcome === "skipped" ? "white" : undefined}
+                        bg={outcome === "not_completed" ? "white" : undefined}
                         boxShadow="none"
                         outline="none"
                         _focus={{ boxShadow: "none", outline: "none" }}
@@ -371,10 +371,10 @@ export const TaskItem = ({
                           <Checkbox.Indicator>
                             <Check size={14} />
                           </Checkbox.Indicator>
-                        ) : outcome === "skipped" ? (
+                        ) : outcome === "not_completed" ? (
                           <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
                             <Box as="span" color="gray.700">
-                              <SkipForward size={12} stroke="currentColor" />
+                              <X size={18} stroke="currentColor" style={{ strokeWidth: 3 }} />
                             </Box>
                           </Box>
                         ) : null}
@@ -417,17 +417,17 @@ export const TaskItem = ({
                             </HStack>
                           </Menu.Item>
                         )}
-                        {/* Only show Skipped if not already skipped */}
-                        {outcome !== "skipped" && (
+                        {/* Only show Not Completed if not already not completed */}
+                        {outcome !== "not_completed" && (
                           <Menu.Item
                             onClick={e => {
                               e.stopPropagation();
-                              onOutcomeChange(task.id, viewDate, "skipped");
+                              onOutcomeChange(task.id, viewDate, "not_completed");
                             }}
                           >
                             <HStack>
-                              <SkipForward size={14} />
-                              <Text>Skipped</Text>
+                              <X size={14} />
+                              <Text>Not Completed</Text>
                             </HStack>
                           </Menu.Item>
                         )}
@@ -509,7 +509,7 @@ export const TaskItem = ({
                   placeholder="Enter response to complete..."
                   size="sm"
                   variant="filled"
-                  disabled={isSkipped}
+                  disabled={isNotCompleted}
                   onClick={e => e.stopPropagation()}
                   onMouseDown={e => e.stopPropagation()}
                   onBlur={() => {
@@ -536,14 +536,14 @@ export const TaskItem = ({
                     }
                     e.stopPropagation();
                   }}
-                  bg={isSkipped ? "gray.100" : undefined}
+                  bg={isNotCompleted ? "gray.100" : undefined}
                   _dark={{
-                    bg: isSkipped ? "gray.700" : undefined,
+                    bg: isNotCompleted ? "gray.700" : undefined,
                   }}
                 />
-                {isSkipped && (
+                {isNotCompleted && (
                   <Text fontSize="xs" color="gray.500" mt={1}>
-                    Skipped
+                    Not Completed
                   </Text>
                 )}
               </Box>
@@ -709,12 +709,12 @@ export const TaskItem = ({
                       onCloseParentMenu={() => setActionMenuOpen(false)}
                     />
                   )}
-                  {/* Skip option for recurring tasks in today view */}
+                  {/* Not Completed option for recurring tasks in today view */}
                   {isToday && !taskIsOverdue && onOutcomeChange && isRecurring && (
                     <Menu.Item
                       onClick={e => {
                         e.stopPropagation();
-                        onOutcomeChange(task.id, viewDate, "skipped");
+                        onOutcomeChange(task.id, viewDate, "not_completed");
                         setActionMenuOpen(false);
                       }}
                     >
@@ -728,9 +728,9 @@ export const TaskItem = ({
                           h="14px"
                           flexShrink={0}
                         >
-                          <SkipForward size={14} />
+                          <X size={14} />
                         </Box>
-                        <Text>Skip</Text>
+                        <Text>Not Completed</Text>
                       </HStack>
                     </Menu.Item>
                   )}

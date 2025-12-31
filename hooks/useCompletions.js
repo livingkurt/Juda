@@ -63,7 +63,7 @@ export const useCompletions = () => {
     }
 
     // Validate outcome
-    if (!["completed", "skipped"].includes(outcome)) {
+    if (!["completed", "not_completed"].includes(outcome)) {
       throw new Error("Invalid outcome value");
     }
 

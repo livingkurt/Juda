@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Box, Text, Menu, HStack, Portal } from "@chakra-ui/react";
 import { useDraggable } from "@dnd-kit/core";
-import { Edit2, SkipForward, Copy, Trash2, Check, Circle } from "lucide-react";
+import { Edit2, X, Copy, Trash2, Check, Circle } from "lucide-react";
 import { ColorSubmenu } from "./ColorSubmenu";
 
 export const UntimedTask = ({
@@ -27,11 +27,11 @@ export const UntimedTask = ({
 
   const isCompleted = isCompletedOnDate ? isCompletedOnDate(task.id, date) : false;
   const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, date) : null;
-  const isSkipped = outcome === "skipped";
+  const isNotCompleted = outcome === "not_completed";
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
 
-  // Diagonal stripe pattern for skipped tasks
-  const skippedPattern = isSkipped
+  // Diagonal stripe pattern for not completed tasks
+  const notCompletedPattern = isNotCompleted
     ? {
         backgroundImage: `repeating-linear-gradient(
           45deg,
@@ -46,10 +46,10 @@ export const UntimedTask = ({
   const style = {
     // Don't apply transform for draggable items - DragOverlay handles the preview
     // Only hide the original element when dragging
-    opacity: isDragging ? 0 : isCompleted || isSkipped ? 0.6 : 1,
-    filter: isCompleted || isSkipped ? "brightness(0.7)" : "none",
+    opacity: isDragging ? 0 : isCompleted || isNotCompleted ? 0.6 : 1,
+    filter: isCompleted || isNotCompleted ? "brightness(0.7)" : "none",
     pointerEvents: isDragging ? "none" : "auto",
-    ...skippedPattern,
+    ...notCompletedPattern,
   };
 
   return (
@@ -74,7 +74,7 @@ export const UntimedTask = ({
           <Text
             fontSize={{ base: "xs", md: "sm" }}
             fontWeight="medium"
-            textDecoration={isCompleted || isSkipped ? "line-through" : "none"}
+            textDecoration={isCompleted || isNotCompleted ? "line-through" : "none"}
           >
             {task.title}
           </Text>
@@ -173,11 +173,11 @@ export const UntimedTask = ({
                     </HStack>
                   </Menu.Item>
                 )}
-                {outcome !== "skipped" && (
+                {outcome !== "not_completed" && (
                   <Menu.Item
                     onClick={e => {
                       e.stopPropagation();
-                      onOutcomeChange(task.id, date, "skipped");
+                      onOutcomeChange(task.id, date, "not_completed");
                       setMenuOpen(false);
                     }}
                   >
@@ -191,9 +191,9 @@ export const UntimedTask = ({
                         h="14px"
                         flexShrink={0}
                       >
-                        <SkipForward size={14} />
+                        <X size={14} />
                       </Box>
-                      <Text>Skip</Text>
+                      <Text>Not Completed</Text>
                     </HStack>
                   </Menu.Item>
                 )}

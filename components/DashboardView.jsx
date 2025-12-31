@@ -115,9 +115,8 @@ export const DashboardView = () => {
     () =>
       createListCollection({
         items: [
-          { label: "Not Done", value: "not_done" },
           { label: "Completed", value: "completed" },
-          { label: "Skipped", value: "skipped" },
+          { label: "Not Completed", value: "not_completed" },
         ],
       }),
     []
@@ -207,7 +206,7 @@ export const DashboardView = () => {
     try {
       const dateStr = date.toISOString();
 
-      if (newOutcome === "not_done") {
+      if (newOutcome === null) {
         // Delete any existing completion
         await deleteCompletion(taskId, dateStr);
       } else {
@@ -577,7 +576,7 @@ export const DashboardView = () => {
                                 const cDate = new Date(c.date);
                                 return c.taskId === task.id && cDate.toDateString() === date.toDateString();
                               });
-                              const currentOutcome = completion?.outcome || "not_done";
+                              const currentOutcome = completion?.outcome || null;
 
                               return (
                                 <Table.Cell

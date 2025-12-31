@@ -449,19 +449,19 @@ export default function DailyTasksApp() {
     const grouped = {};
     sections.forEach(s => {
       let sectionTasks = filteredTodaysTasks.filter(t => t.sectionId === s.id);
-      // Filter out completed/skipped tasks if showCompletedTasks is false
+      // Filter out completed/not completed tasks if showCompletedTasks is false
       // But keep recently completed tasks visible for a delay period
       if (!showCompletedTasks) {
         sectionTasks = sectionTasks.filter(t => {
           const isCompleted =
             t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
-          // Check if task has any outcome (completed or skipped)
+          // Check if task has any outcome (completed or not completed)
           const hasOutcome = t.outcome !== null && t.outcome !== undefined;
           // Keep task visible if it's recently completed (within delay period)
           if (isCompleted && recentlyCompletedTasks.has(t.id)) {
             return true;
           }
-          // Hide if completed or has any outcome (skipped)
+          // Hide if completed or has any outcome (not completed)
           return !isCompleted && !hasOutcome;
         });
       }
@@ -476,7 +476,7 @@ export default function DailyTasksApp() {
   // - Tasks with future dates/times
   // - One-time tasks (type: "none") that have been completed on ANY date
   // - Recurring tasks (daily, weekly, monthly, interval) - these only show on their scheduled dates
-  // - Tasks completed/skipped on today (always hidden, but with delay for visual feedback)
+  // - Tasks completed/not completed on today (always hidden, but with delay for visual feedback)
   // Note: Backlog is always relative to today, not the selected date in Today View
   const backlogTasks = useMemo(() => {
     return tasks
@@ -854,7 +854,7 @@ export default function DailyTasksApp() {
         }
       }
 
-      // Check if section should auto-collapse after task completion/skip
+      // Check if section should auto-collapse after task completion/not completed
       // Use setTimeout to allow tasksBySection to update
       setTimeout(() => {
         if (task?.sectionId) {
@@ -893,20 +893,20 @@ export default function DailyTasksApp() {
     }
   };
 
-  const handleSkipTask = async taskId => {
+  const handleNotCompletedTask = async taskId => {
     try {
       const task = tasks.find(t => t.id === taskId);
       const targetDate = todayViewDate || today;
-      await createCompletion(taskId, targetDate.toISOString(), { skipped: true, outcome: "skipped" });
+      await createCompletion(taskId, targetDate.toISOString(), { skipped: true, outcome: "not_completed" });
 
-      // If hiding completed tasks, add to recently completed set (skipped tasks also get delay)
+      // If hiding completed tasks, add to recently completed set (not completed tasks also get delay)
       if (!showCompletedTasks) {
         addToRecentlyCompleted(taskId, task?.sectionId);
       }
     } catch (error) {
-      console.error("Error skipping task:", error);
+      console.error("Error marking task as not completed:", error);
       toast({
-        title: "Failed to skip task",
+        title: "Failed to mark task as not completed",
         description: error.message,
         status: "error",
         duration: 3000,
@@ -1265,7 +1265,7 @@ export default function DailyTasksApp() {
     await deleteSection(sectionId);
   };
 
-  // Helper function to check if a section should be auto-collapsed after task completion/skip
+  // Helper function to check if a section should be auto-collapsed after task completion/not completed
   // Using useRef to store the latest check function to avoid stale closures in setTimeout
   const checkAndAutoCollapseSectionRef = useRef(null);
 
@@ -2241,7 +2241,7 @@ export default function DailyTasksApp() {
                             getOutcomeOnDate={getOutcomeOnDate}
                             hasRecordOnDate={hasRecordOnDate}
                             onCompleteWithNote={handleCompleteWithNote}
-                            onSkipTask={handleSkipTask}
+                            onSkipTask={handleNotCompletedTask}
                             getCompletionForDate={getCompletionForDate}
                             onUpdateTaskColor={handleUpdateTaskColor}
                           />
@@ -2352,7 +2352,7 @@ export default function DailyTasksApp() {
                           getOutcomeOnDate={getOutcomeOnDate}
                           hasRecordOnDate={hasRecordOnDate}
                           onCompleteWithNote={handleCompleteWithNote}
-                          onSkipTask={handleSkipTask}
+                          onSkipTask={handleNotCompletedTask}
                           getCompletionForDate={getCompletionForDate}
                         />
                       </Box>
@@ -2578,7 +2578,7 @@ export default function DailyTasksApp() {
                           getOutcomeOnDate={getOutcomeOnDate}
                           hasRecordOnDate={hasRecordOnDate}
                           onCompleteWithNote={handleCompleteWithNote}
-                          onSkipTask={handleSkipTask}
+                          onSkipTask={handleNotCompletedTask}
                           getCompletionForDate={getCompletionForDate}
                           onUpdateTaskColor={handleUpdateTaskColor}
                         />
@@ -2775,7 +2775,7 @@ export default function DailyTasksApp() {
                                   getOutcomeOnDate={getOutcomeOnDate}
                                   hasRecordOnDate={hasRecordOnDate}
                                   onCompleteWithNote={handleCompleteWithNote}
-                                  onSkipTask={handleSkipTask}
+                                  onSkipTask={handleNotCompletedTask}
                                   getCompletionForDate={getCompletionForDate}
                                 />
                               </Box>

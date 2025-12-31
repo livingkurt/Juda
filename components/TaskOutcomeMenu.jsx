@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu, MenuItem, IconButton, HStack, Text } from "@chakra-ui/react";
-import { Check, X, SkipForward, Circle } from "lucide-react";
+import { Check, X, Circle } from "lucide-react";
 
 export const TaskOutcomeMenu = ({ taskId, date, currentOutcome, onSelectOutcome, size = "sm" }) => {
   const menuBg = { _light: "white", _dark: "gray.700" };
@@ -12,9 +12,7 @@ export const TaskOutcomeMenu = ({ taskId, date, currentOutcome, onSelectOutcome,
     switch (currentOutcome) {
       case "completed":
         return { icon: <Check size={16} />, colorScheme: "green", variant: "solid" };
-      case "skipped":
-        return { icon: <SkipForward size={16} />, colorScheme: "gray", variant: "outline" };
-      case "not_done":
+      case "not_completed":
         return { icon: <X size={16} />, colorScheme: "red", variant: "outline" };
       default:
         return { icon: <Circle size={16} />, colorScheme: "gray", variant: "ghost" };
@@ -57,23 +55,13 @@ export const TaskOutcomeMenu = ({ taskId, date, currentOutcome, onSelectOutcome,
             </HStack>
           </MenuItem>
           <MenuItem
-            onClick={() => handleSelect("skipped")}
+            onClick={() => handleSelect("not_completed")}
             _hover={{ bg: hoverBg }}
-            fontWeight={currentOutcome === "skipped" ? "bold" : "normal"}
-          >
-            <HStack>
-              <SkipForward size={16} />
-              <Text>Skipped</Text>
-            </HStack>
-          </MenuItem>
-          <MenuItem
-            onClick={() => handleSelect("not_done")}
-            _hover={{ bg: hoverBg }}
-            fontWeight={currentOutcome === "not_done" ? "bold" : "normal"}
+            fontWeight={currentOutcome === "not_completed" ? "bold" : "normal"}
           >
             <HStack>
               <X size={16} />
-              <Text>Not Done</Text>
+              <Text>Not Completed</Text>
             </HStack>
           </MenuItem>
         </Menu.Content>
