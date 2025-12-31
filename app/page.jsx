@@ -769,14 +769,8 @@ export default function DailyTasksApp() {
     const isCompletedOnTargetDate = isCompletedOnDate(subtaskId, targetDate);
 
     try {
-      // Get current time when checking
-      const now = new Date();
-      const currentTime = minutesToTime(now.getHours() * 60 + now.getMinutes());
-
-      // Check if subtask is truly recurring (has recurrence pattern, not just a one-time task)
-      const isRecurringSubtask = subtask.recurrence && subtask.recurrence.type && subtask.recurrence.type !== "none";
-
-      // If subtask has no recurrence and is being checked, set it to show on calendar with current time
+      // For subtasks from backlog (no recurrence), set startDate when completing
+      // But DON'T set time - let them keep their existing time or stay untimed
       if (hasNoRecurrence && !isCompletedOnTargetDate) {
         const todayDateStr = formatLocalDate(today);
         await updateTask(subtaskId, {
@@ -784,17 +778,11 @@ export default function DailyTasksApp() {
             type: "none",
             startDate: `${todayDateStr}T00:00:00.000Z`,
           },
-          time: currentTime,
+          // Removed time assignment - subtasks should not auto-set time on completion
         });
       }
-      // If subtask is non-recurring (one-time task) and doesn't have a time, set it to current time when checking
-      // Skip this for recurring subtasks to preserve their time-flexible nature
-      else if (!isRecurringSubtask && !subtask.time && !isCompletedOnTargetDate) {
-        // Subtask is non-recurring (one-time), assign current time for completion tracking
-        await updateTask(subtaskId, {
-          time: currentTime,
-        });
-      }
+      // Removed time-setting logic for non-recurring subtasks
+      // Subtasks should preserve their existing time or stay untimed
 
       // Update completion record for subtask only (no parent logic)
       if (isCompletedOnTargetDate) {
@@ -818,6 +806,9 @@ export default function DailyTasksApp() {
       const dateObj = date instanceof Date ? date : new Date(date);
       const task = tasks.find(t => t.id === taskId);
 
+      // Check if this is a subtask (has a parentId)
+      const isSubtask = task?.parentId != null;
+
       if (outcome === null) {
         // Remove record
         await deleteCompletion(taskId, dateObj.toISOString());
@@ -826,8 +817,8 @@ export default function DailyTasksApp() {
           removeFromRecentlyCompleted(taskId);
         }
 
-        // If task has subtasks, also uncheck them
-        if (task?.subtasks && task.subtasks.length > 0) {
+        // Only cascade to subtasks if this is a PARENT task (not a subtask itself)
+        if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
           await Promise.all(task.subtasks.map(subtask => deleteCompletion(subtask.id, dateObj.toISOString())));
         }
       } else {
@@ -839,8 +830,8 @@ export default function DailyTasksApp() {
         try {
           await createCompletion(taskId, dateObj.toISOString(), { outcome });
 
-          // If task has subtasks, also mark them with the same outcome
-          if (task?.subtasks && task.subtasks.length > 0) {
+          // Only cascade to subtasks if this is a PARENT task (not a subtask itself)
+          if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
             await Promise.all(
               task.subtasks.map(subtask => createCompletion(subtask.id, dateObj.toISOString(), { outcome }))
             );

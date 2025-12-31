@@ -178,10 +178,19 @@ export const TaskItem = ({
   // Check if task is recurring (has recurrence and type is not "none")
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
 
-  // Check if we should show menu: only for recurring tasks that are overdue OR have outcome set (not completed)
+  // For subtasks, also check if parent is recurring (subtasks inherit parent's recurring behavior)
+  // This is passed via the task object from the parent component
+  const parentIsRecurring = task.parentRecurrence && task.parentRecurrence.type !== "none";
+  const effectivelyRecurring = isRecurring || (isSubtask && parentIsRecurring);
+
+  // Check if we should show menu: for recurring tasks (parent or subtask) that are overdue OR have outcome set
+  // Subtasks should have same menu access as parent tasks
   // Works for today view tasks, subtasks, and backlog items
   const shouldShowMenu =
-    (isToday || isSubtask || isBacklog) && onOutcomeChange && isRecurring && (taskIsOverdue || outcome !== null);
+    (isToday || isSubtask || isBacklog) &&
+    onOutcomeChange &&
+    effectivelyRecurring &&
+    (taskIsOverdue || outcome !== null);
 
   // Track previous outcome to detect actual changes (not initial render)
   const previousOutcomeRef = useRef(outcome);
@@ -794,7 +803,11 @@ export const TaskItem = ({
               {task.subtasks.map(subtask => (
                 <TaskItem
                   key={subtask.id}
-                  task={subtask}
+                  task={{
+                    ...subtask,
+                    // Pass parent's recurrence so subtask can show outcome menu
+                    parentRecurrence: task.recurrence,
+                  }}
                   variant="subtask"
                   containerId={`subtask-${task.id}`}
                   parentTaskId={task.id}
