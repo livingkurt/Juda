@@ -2584,6 +2584,9 @@ export default function DailyTasksApp() {
                       onCreateTag={createTag}
                       recentlyCompletedTasks={recentlyCompletedTasks}
                       viewDate={viewDate}
+                      selectedTaskIds={selectedTaskIds}
+                      onTaskSelect={handleTaskSelect}
+                      onBulkEdit={handleBulkEdit}
                     />
                   </Box>
                 )}
@@ -3067,6 +3070,9 @@ export default function DailyTasksApp() {
                         onCreateTag={createTag}
                         recentlyCompletedTasks={recentlyCompletedTasks}
                         viewDate={viewDate}
+                        selectedTaskIds={selectedTaskIds}
+                        onTaskSelect={handleTaskSelect}
+                        onBulkEdit={handleBulkEdit}
                       />
                     </Box>
                   ) : mainTabIndex === 2 ? (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Box, HStack, VStack, Tag, Menu, Button, Input, Text, IconButton, Wrap, WrapItem } from "@chakra-ui/react";
+import { Box, HStack, VStack, Menu, Button, Input, Text, IconButton, Wrap, WrapItem } from "@chakra-ui/react";
 import { Tag as TagIcon, Plus, Trash2 } from "lucide-react";
 import { TASK_COLORS } from "@/lib/constants";
 import { TagChip } from "./TagChip";

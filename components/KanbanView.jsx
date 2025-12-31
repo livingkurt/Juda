@@ -19,15 +19,16 @@ const KanbanColumn = memo(function KanbanColumn({
   onAddTask,
   onCreateTaskInline,
   createDraggableId,
-  isCompletedOnDate,
   getOutcomeOnDate,
   onOutcomeChange,
-  onEditTask,
   onDuplicateTask,
   onDeleteTask,
   onStatusChange,
   recentlyCompletedTasks,
   viewDate,
+  selectedTaskIds,
+  onTaskSelect,
+  onBulkEdit,
 }) {
   const { setNodeRef, isOver, active } = useDroppable({
     id: `kanban-column|${id}`,
@@ -53,15 +54,13 @@ const KanbanColumn = memo(function KanbanColumn({
   const visibleTasks = useMemo(() => {
     if (id !== "complete") return tasks;
     // Show tasks that are either still in complete status OR recently completed
-    return tasks.filter(
-      task => task.status === "complete" || recentlyCompletedTasks?.has(task.id)
-    );
+    return tasks.filter(task => task.status === "complete" || recentlyCompletedTasks?.has(task.id));
   }, [id, tasks, recentlyCompletedTasks]);
 
   // Memoize sortable IDs to prevent unnecessary recalculations
   const sortableIds = useMemo(
     () => visibleTasks.map(task => createDraggableId.kanban(task.id, id)),
-    [visibleTasks, id]
+    [visibleTasks, id, createDraggableId]
   );
 
   const handleInlineInputClick = () => {
@@ -107,12 +106,7 @@ const KanbanColumn = memo(function KanbanColumn({
             {visibleTasks.length}
           </Badge>
         </HStack>
-        <IconButton
-          size="xs"
-          variant="ghost"
-          onClick={() => onAddTask(id)}
-          aria-label={`Add task to ${title}`}
-        >
+        <IconButton size="xs" variant="ghost" onClick={() => onAddTask(id)} aria-label={`Add task to ${title}`}>
           <Box as="span" color="currentColor">
             <Plus size={16} stroke="currentColor" />
           </Box>
@@ -149,6 +143,10 @@ const KanbanColumn = memo(function KanbanColumn({
                 onOutcomeChange={onOutcomeChange}
                 getOutcomeOnDate={getOutcomeOnDate}
                 onStatusChange={onStatusChange}
+                isSelected={selectedTaskIds?.has(task.id)}
+                onSelect={onTaskSelect}
+                selectedCount={selectedTaskIds?.size || 0}
+                onBulkEdit={onBulkEdit}
               />
             ))}
             {/* Drop placeholder - shows when dragging over to indicate drop zone */}
@@ -256,6 +254,9 @@ export const KanbanView = memo(function KanbanView({
   onCreateTag,
   recentlyCompletedTasks,
   viewDate = new Date(),
+  selectedTaskIds,
+  onTaskSelect,
+  onBulkEdit,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState([]);
@@ -364,10 +365,12 @@ export const KanbanView = memo(function KanbanView({
             onStatusChange={onStatusChange}
             recentlyCompletedTasks={recentlyCompletedTasks}
             viewDate={viewDate}
+            selectedTaskIds={selectedTaskIds}
+            onTaskSelect={onTaskSelect}
+            onBulkEdit={onBulkEdit}
           />
         ))}
       </Flex>
     </Box>
   );
 });
-
