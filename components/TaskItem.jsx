@@ -622,6 +622,19 @@ export const TaskItem = ({
                 )}
               </HStack>
             )}
+            {/* Note content preview - show below badges */}
+            {task.content && (
+              <Text
+                fontSize={{ base: "xs", md: "sm" }}
+                color={mutedText}
+                mt={{ base: 0.5, md: 1 }}
+                noOfLines={1}
+                wordBreak="break-word"
+              >
+                {/* Strip HTML tags for preview */}
+                {task.content.replace(/<[^>]*>/g, "").trim() || ""}
+              </Text>
+            )}
           </Box>
 
           {/* Time display */}

@@ -3,6 +3,7 @@
 import { ChakraProvider, createSystem, defaultConfig } from "@chakra-ui/react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PreferencesProvider } from "@/contexts/PreferencesContext";
+import { ToastContainer } from "@/components/ToastContainer";
 
 // Create a custom system that matches Chakra v2 colors and styling
 const system = createSystem(defaultConfig, {
@@ -468,7 +469,10 @@ export function Providers({ children }) {
   return (
     <ChakraProvider value={system}>
       <AuthProvider>
-        <PreferencesProvider>{children}</PreferencesProvider>
+        <PreferencesProvider>
+          {children}
+          <ToastContainer />
+        </PreferencesProvider>
       </AuthProvider>
     </ChakraProvider>
   );

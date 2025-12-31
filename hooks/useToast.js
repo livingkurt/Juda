@@ -1,19 +1,48 @@
 "use client";
 
-/**
- * Replacement for Chakra UI v2's useToast hook
- * In v3, toast functionality might be handled differently
- * For now, this provides a basic implementation
- */
+import { useState, useCallback } from "react";
+
+// Simple toast state management
+let toastListeners = [];
+let toastIdCounter = 0;
+
 export function useToast() {
-  return {
-    toast: options => {
-      // Simple implementation for now - can be enhanced with a toast library
-      // In production, you might want to use a library like react-hot-toast or sonner
-      if (typeof window !== "undefined" && options?.title) {
-        // For now, we'll just silently handle toasts
-        // You can add a proper toast implementation here
-      }
+  const [, setCounter] = useState(0);
+
+  const triggerUpdate = useCallback(() => {
+    setCounter(c => c + 1);
+  }, []);
+
+  const toast = useCallback(
+    options => {
+      const { title, description, status = "info", duration = 3000 } = options || {};
+      if (!title) return;
+
+      const id = `toast-${toastIdCounter++}`;
+      const toastData = {
+        id,
+        title,
+        description,
+        status,
+        duration,
+      };
+
+      // Notify all listeners
+      toastListeners.forEach(listener => listener(toastData));
+      triggerUpdate();
+
+      return id;
     },
+    [triggerUpdate]
+  );
+
+  return { toast };
+}
+
+// Subscribe to toast events
+export function subscribeToToasts(callback) {
+  toastListeners.push(callback);
+  return () => {
+    toastListeners = toastListeners.filter(listener => listener !== callback);
   };
 }

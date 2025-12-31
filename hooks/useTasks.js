@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuthFetch } from "./useAuthFetch.js";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/useToast";
 
 export const useTasks = () => {
   const [tasks, setTasks] = useState([]);
@@ -10,6 +11,7 @@ export const useTasks = () => {
   const [error, setError] = useState(null);
   const authFetch = useAuthFetch();
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   const fetchTasks = useCallback(
     async (skipLoading = false) => {
@@ -69,6 +71,11 @@ export const useTasks = () => {
       if (!response.ok) throw new Error("Failed to create task");
       const newTask = await response.json();
       setTasks(prev => [...prev, newTask]);
+      toast({
+        title: "Task created",
+        status: "success",
+        duration: 2000,
+      });
       return newTask;
     } catch (err) {
       setError(err.message);
@@ -126,6 +133,13 @@ export const useTasks = () => {
             };
             return updateTaskInTree(prev, taskData.id, savedTask);
           });
+
+          // Show toast for update
+          toast({
+            title: "Task updated",
+            status: "success",
+            duration: 2000,
+          });
         } else {
           // Create new task - optimistically add
           const response = await authFetch("/api/tasks", {
@@ -137,6 +151,13 @@ export const useTasks = () => {
 
           // Optimistically add the new task to state
           setTasks(prev => [...prev, { ...savedTask, subtasks: [], tags: [] }]);
+
+          // Show toast for create
+          toast({
+            title: "Task created",
+            status: "success",
+            duration: 2000,
+          });
         }
 
         // Handle subtasks if provided - use batch operations
@@ -214,7 +235,7 @@ export const useTasks = () => {
         throw err;
       }
     },
-    [fetchTasks, authFetch, tasks]
+    [fetchTasks, authFetch, tasks, toast]
   );
 
   const updateTask = async (id, taskData) => {

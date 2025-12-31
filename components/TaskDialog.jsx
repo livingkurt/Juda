@@ -23,6 +23,7 @@ import { DAYS_OF_WEEK, DURATION_OPTIONS, TASK_COLORS, ORDINAL_OPTIONS, MONTH_OPT
 import { formatLocalDate } from "@/lib/utils";
 import { TagSelector } from "./TagSelector";
 import { TaskItem } from "./TaskItem";
+import { RichTextEditor } from "./RichTextEditor";
 
 // Internal component that resets when key changes
 function TaskDialogForm({
@@ -115,6 +116,7 @@ function TaskDialogForm({
   const [subtaskTabIndex, setSubtaskTabIndex] = useState(0);
   const [activeSubtaskId, setActiveSubtaskId] = useState(null);
   const [completionType, setCompletionType] = useState(task?.completionType || "checkbox");
+  const [content, setContent] = useState(task?.content || "");
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -280,6 +282,7 @@ function TaskDialogForm({
       order: task?.order ?? 999,
       tagIds: selectedTagIds,
       completionType,
+      content: content || null,
     });
     onClose();
   };
@@ -445,6 +448,11 @@ function TaskDialogForm({
                         }
                       }}
                     />
+                    {date && (
+                      <Button size="xs" variant="ghost" mt={1} onClick={() => setDate("")}>
+                        Clear date
+                      </Button>
+                    )}
                   </Box>
                   <Box>
                     <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
@@ -468,6 +476,11 @@ function TaskDialogForm({
                         }
                       }}
                     />
+                    {time && (
+                      <Button size="xs" variant="ghost" mt={1} onClick={() => setTime("")}>
+                        Clear time
+                      </Button>
+                    )}
                   </Box>
                 </SimpleGrid>
                 <Box w="full">
@@ -516,6 +529,27 @@ function TaskDialogForm({
                       Notes appear in the Notes tab, not in Backlog/Today/Calendar
                     </Text>
                   )}
+                </Box>
+                {/* Note Content Editor - Always visible for adding/editing note content */}
+                <Box w="full">
+                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
+                    Note Content
+                  </Text>
+                  <Box
+                    borderWidth="1px"
+                    borderColor={borderColor}
+                    borderRadius="md"
+                    overflow="hidden"
+                    h="400px"
+                    bg={bgColor}
+                  >
+                    <RichTextEditor
+                      content={content}
+                      onChange={setContent}
+                      placeholder="Start writing your note..."
+                      showToolbar={true}
+                    />
+                  </Box>
                 </Box>
                 <Box w="full">
                   <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
