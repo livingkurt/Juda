@@ -21,15 +21,16 @@ export const DateNavigation = ({ selectedDate, onDateChange, onPrevious, onNext,
   const formatDateDisplay = date => {
     if (!date) return "";
     const isTodayDate = date.toDateString() === today.toDateString();
-    if (isTodayDate) {
-      return "Today";
-    }
-    return date.toLocaleDateString("en-US", {
+    const formattedDate = date.toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
       year: date.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
     });
+    if (isTodayDate) {
+      return `Today, ${formattedDate}`;
+    }
+    return formattedDate;
   };
 
   const formatDateInput = date => {
