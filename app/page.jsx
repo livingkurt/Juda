@@ -1278,6 +1278,11 @@ export default function DailyTasksApp() {
         };
       }
 
+      // Set the time to the current time so it shows up on the calendar at that specific time
+      // Format: "HH:MM" (24-hour format)
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      updates.time = minutesToTime(currentMinutes);
+
       // Create completion record
       await createCompletion(taskId, now.toISOString(), {
         outcome: "completed",
