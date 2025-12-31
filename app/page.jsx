@@ -194,7 +194,7 @@ export default function DailyTasksApp() {
   const {
     showDashboard,
     showCalendar,
-    showKanban,
+    showKanban: _showKanban,
     backlogOpen,
     backlogWidth,
     calendarView,
@@ -212,7 +212,7 @@ export default function DailyTasksApp() {
   // Create setter functions that update preferences
   const setShowDashboard = useCallback(value => updatePreference("showDashboard", value), [updatePreference]);
   const setShowCalendar = useCallback(value => updatePreference("showCalendar", value), [updatePreference]);
-  const setShowKanban = useCallback(value => updatePreference("showKanban", value), [updatePreference]);
+  const _setShowKanban = useCallback(value => updatePreference("showKanban", value), [updatePreference]);
   const setBacklogOpen = useCallback(value => updatePreference("backlogOpen", value), [updatePreference]);
   const setBacklogWidth = useCallback(value => updatePreference("backlogWidth", value), [updatePreference]);
   const setCalendarView = useCallback(value => updatePreference("calendarView", value), [updatePreference]);
@@ -282,7 +282,7 @@ export default function DailyTasksApp() {
   }, []);
 
   // Initialize state with default values (same on server and client)
-  const [mainTabIndex, setMainTabIndex] = useState(0); // 0 = Tasks, 1 = Notes, 2 = History
+  const [mainTabIndex, setMainTabIndex] = useState(0); // 0 = Tasks, 1 = Kanban, 2 = Notes, 3 = History
   const [isResizing, setIsResizing] = useState(false);
   // Mobile-specific state: which view is currently active
   // "backlog" | "today" | "calendar"
@@ -1255,6 +1255,28 @@ export default function DailyTasksApp() {
       // When completing, create a TaskCompletion record with timing data
       const completedAt = now;
       const startedAt = task.startedAt ? new Date(task.startedAt) : completedAt;
+
+      // Check if task has no recurrence (needs to be set so it appears in Today view)
+      const hasNoRecurrence = !task.recurrence;
+      const isRecurringTask = task.recurrence && task.recurrence.type && task.recurrence.type !== "none";
+
+      // If task has no recurrence, set it to today's date so it appears in Today view
+      // (same behavior as completing from backlog)
+      if (hasNoRecurrence) {
+        const todayStr = formatLocalDate(now);
+        updates.recurrence = {
+          type: "none",
+          startDate: `${todayStr}T00:00:00.000Z`,
+        };
+      }
+      // If task is non-recurring (one-time) and doesn't have a startDate, set it to today
+      else if (!isRecurringTask && !task.recurrence.startDate) {
+        const todayStr = formatLocalDate(now);
+        updates.recurrence = {
+          ...task.recurrence,
+          startDate: `${todayStr}T00:00:00.000Z`,
+        };
+      }
 
       // Create completion record
       await createCompletion(taskId, now.toISOString(), {
@@ -2328,6 +2350,17 @@ export default function DailyTasksApp() {
                   px={{ base: 2, md: 3 }}
                 >
                   <HStack spacing={{ base: 1, md: 2 }}>
+                    <Columns size={14} />
+                    <Text>Kanban</Text>
+                  </HStack>
+                </Tabs.Trigger>
+                <Tabs.Trigger
+                  value="2"
+                  fontSize={{ base: "sm", md: "md" }}
+                  py={{ base: 1.5, md: 2 }}
+                  px={{ base: 2, md: 3 }}
+                >
+                  <HStack spacing={{ base: 1, md: 2 }}>
                     <StickyNote size={14} />
                     <Text>Notes</Text>
                     {noteTasks.length > 0 && (
@@ -2344,7 +2377,7 @@ export default function DailyTasksApp() {
                   </HStack>
                 </Tabs.Trigger>
                 <Tabs.Trigger
-                  value="2"
+                  value="3"
                   fontSize={{ base: "sm", md: "md" }}
                   py={{ base: 1.5, md: 2 }}
                   px={{ base: 2, md: 3 }}
@@ -2415,17 +2448,6 @@ export default function DailyTasksApp() {
                       <Calendar size={14} stroke="currentColor" />
                     </Box>
                     Calendar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={showKanban ? "solid" : "outline"}
-                    colorPalette={showKanban ? "blue" : "gray"}
-                    onClick={() => setShowKanban(!showKanban)}
-                  >
-                    <Box as="span" color="currentColor">
-                      <Columns size={14} stroke="currentColor" />
-                    </Box>
-                    Kanban
                   </Button>
                 </HStack>
               </Flex>
@@ -2538,8 +2560,36 @@ export default function DailyTasksApp() {
 
               {/* Mobile Content Area */}
               <Box flex={1} overflow="hidden">
-                {/* Notes Tab - Mobile */}
+                {/* Kanban Tab - Mobile */}
                 {mainTabIndex === 1 && (
+                  <Box h="100%" overflow="hidden" display="flex" flexDirection="column">
+                    <KanbanView
+                      tasks={tasks}
+                      onTaskClick={handleEditTask}
+                      onCreateTask={({ status }) => {
+                        setDefaultSectionId(sections[0]?.id);
+                        setEditingTask({ status });
+                        openTaskDialog();
+                      }}
+                      onCreateTaskInline={handleCreateKanbanTaskInline}
+                      createDraggableId={createDraggableId}
+                      isCompletedOnDate={isCompletedOnDate}
+                      getOutcomeOnDate={getOutcomeOnDate}
+                      onOutcomeChange={handleOutcomeChange}
+                      onEditTask={handleEditTask}
+                      onDuplicateTask={handleDuplicateTask}
+                      onDeleteTask={handleDeleteTask}
+                      onStatusChange={handleStatusChange}
+                      tags={tags}
+                      onCreateTag={createTag}
+                      recentlyCompletedTasks={recentlyCompletedTasks}
+                      viewDate={viewDate}
+                    />
+                  </Box>
+                )}
+
+                {/* Notes Tab - Mobile */}
+                {mainTabIndex === 2 && (
                   <Box h="100%" overflow="hidden">
                     <NotesView
                       notes={noteTasks}
@@ -2570,7 +2620,7 @@ export default function DailyTasksApp() {
                 )}
 
                 {/* History Tab - Mobile */}
-                {mainTabIndex === 2 && (
+                {mainTabIndex === 3 && (
                   <Box h="100%" overflow="auto">
                     <DashboardView />
                   </Box>
@@ -2893,34 +2943,6 @@ export default function DailyTasksApp() {
                         </Box>
                       </Box>
                     )}
-
-                    {/* Kanban View - Mobile */}
-                    {showKanban && (
-                      <Box h="100%" overflow="hidden" display="flex" flexDirection="column">
-                        <KanbanView
-                          tasks={tasks}
-                          onTaskClick={handleEditTask}
-                          onCreateTask={({ status }) => {
-                            setDefaultSectionId(sections[0]?.id);
-                            setEditingTask({ status });
-                            openTaskDialog();
-                          }}
-                          onCreateTaskInline={handleCreateKanbanTaskInline}
-                          createDraggableId={createDraggableId}
-                          isCompletedOnDate={isCompletedOnDate}
-                          getOutcomeOnDate={getOutcomeOnDate}
-                          onOutcomeChange={handleOutcomeChange}
-                          onEditTask={handleEditTask}
-                          onDuplicateTask={handleDuplicateTask}
-                          onDeleteTask={handleDeleteTask}
-                          onStatusChange={handleStatusChange}
-                          tags={tags}
-                          onCreateTag={createTag}
-                          recentlyCompletedTasks={recentlyCompletedTasks}
-                          viewDate={viewDate}
-                        />
-                      </Box>
-                    )}
                   </>
                 )}
               </Box>
@@ -3013,8 +3035,41 @@ export default function DailyTasksApp() {
                 h="100%"
                 minH={0}
               >
-                <Box flex={1} minH={0} h="100%" overflow={mainTabIndex === 1 ? "hidden" : "auto"}>
+                <Box flex={1} minH={0} h="100%" overflow={mainTabIndex === 2 ? "hidden" : "auto"}>
                   {mainTabIndex === 1 ? (
+                    /* Kanban Tab Content */
+                    <Box
+                      h="100%"
+                      overflow="hidden"
+                      display="flex"
+                      flexDirection="column"
+                      px={{ base: 2, md: 4 }}
+                      py={{ base: 3, md: 6 }}
+                    >
+                      <KanbanView
+                        tasks={tasks}
+                        onTaskClick={handleEditTask}
+                        onCreateTask={({ status }) => {
+                          setDefaultSectionId(sections[0]?.id);
+                          setEditingTask({ status });
+                          openTaskDialog();
+                        }}
+                        onCreateTaskInline={handleCreateKanbanTaskInline}
+                        createDraggableId={createDraggableId}
+                        isCompletedOnDate={isCompletedOnDate}
+                        getOutcomeOnDate={getOutcomeOnDate}
+                        onOutcomeChange={handleOutcomeChange}
+                        onEditTask={handleEditTask}
+                        onDuplicateTask={handleDuplicateTask}
+                        onDeleteTask={handleDeleteTask}
+                        onStatusChange={handleStatusChange}
+                        tags={tags}
+                        onCreateTag={createTag}
+                        recentlyCompletedTasks={recentlyCompletedTasks}
+                        viewDate={viewDate}
+                      />
+                    </Box>
+                  ) : mainTabIndex === 2 ? (
                     /* Notes Tab Content */
                     <Box h="100%" overflow="hidden">
                       <NotesView
@@ -3044,7 +3099,7 @@ export default function DailyTasksApp() {
                         onNoteListResize={setNotesListWidth}
                       />
                     </Box>
-                  ) : mainTabIndex === 2 ? (
+                  ) : mainTabIndex === 3 ? (
                     /* History Tab Content */
                     <DashboardView />
                   ) : (
@@ -3056,16 +3111,14 @@ export default function DailyTasksApp() {
                       display="flex"
                       gap={{ base: 2, md: 6 }}
                       h="full"
-                      justifyContent={
-                        !backlogOpen && !showCalendar && !showKanban && showDashboard ? "center" : "flex-start"
-                      }
+                      justifyContent={!backlogOpen && !showCalendar && showDashboard ? "center" : "flex-start"}
                       maxW="100%"
                       overflow="hidden"
                     >
                       {/* Dashboard View */}
                       {showDashboard && (
                         <Box
-                          flex={{ base: "none", md: !backlogOpen && !showCalendar && !showKanban ? "0 1 auto" : 1 }}
+                          flex={{ base: "none", md: !backlogOpen && !showCalendar ? "0 1 auto" : 1 }}
                           minW={0}
                           maxW="100%"
                           w="100%"
@@ -3476,63 +3529,6 @@ export default function DailyTasksApp() {
                               </Card.Body>
                             </Card.Root>
                           )}
-                        </Box>
-                      )}
-
-                      {/* Kanban View - Desktop */}
-                      {showKanban && (
-                        <Box
-                          flex={1}
-                          minW={0}
-                          w={{ base: "100%", md: "auto" }}
-                          maxW="100%"
-                          display="flex"
-                          flexDirection="column"
-                          overflow="hidden"
-                          h="full"
-                        >
-                          {/* Kanban Header */}
-                          <Box
-                            mb={3}
-                            pb={3}
-                            borderBottomWidth="1px"
-                            borderColor={borderColor}
-                            px={{ base: 1, md: 0 }}
-                            w="100%"
-                            maxW="100%"
-                            overflow="hidden"
-                            flexShrink={0}
-                          >
-                            <Heading size="md" flexShrink={0}>
-                              Kanban
-                            </Heading>
-                          </Box>
-
-                          {/* Kanban Content */}
-                          <Box flex={1} overflow="hidden" minH={0}>
-                            <KanbanView
-                              tasks={tasks}
-                              onTaskClick={handleEditTask}
-                              onCreateTask={({ status }) => {
-                                setDefaultSectionId(sections[0]?.id);
-                                setEditingTask({ status });
-                                openTaskDialog();
-                              }}
-                              onCreateTaskInline={handleCreateKanbanTaskInline}
-                              createDraggableId={createDraggableId}
-                              isCompletedOnDate={isCompletedOnDate}
-                              getOutcomeOnDate={getOutcomeOnDate}
-                              onOutcomeChange={handleOutcomeChange}
-                              onEditTask={handleEditTask}
-                              onDuplicateTask={handleDuplicateTask}
-                              onDeleteTask={handleDeleteTask}
-                              onStatusChange={handleStatusChange}
-                              tags={tags}
-                              onCreateTag={createTag}
-                              recentlyCompletedTasks={recentlyCompletedTasks}
-                              viewDate={viewDate}
-                            />
-                          </Box>
                         </Box>
                       )}
                     </Box>
