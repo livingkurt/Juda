@@ -137,13 +137,24 @@ export const CalendarMonthView = ({
               return (
                 <Box
                   key={di}
-                  borderRightWidth="1px"
-                  borderColor={borderColor}
+                  borderTopWidth={isToday ? "1.5px" : "1px"}
+                  borderBottomWidth={isToday ? "1.5px" : "1px"}
+                  borderLeftWidth={isToday ? "1.5px" : "1px"}
+                  borderRightWidth={isToday ? "1.5px" : "1px"}
+                  borderColor={isToday ? "blue.300" : borderColor}
                   p={1}
                   minH={`${80 * zoom}px`}
                   cursor="pointer"
-                  _hover={{ bg: hoverBg }}
-                  bg={!isCurrentMonth ? nonCurrentMonthBg : "transparent"}
+                  _hover={{
+                    bg: isToday ? { _light: "rgba(59, 130, 246, 0.15)", _dark: "rgba(37, 99, 235, 0.2)" } : hoverBg,
+                  }}
+                  bg={
+                    isToday
+                      ? { _light: "rgba(59, 130, 246, 0.1)", _dark: "rgba(37, 99, 235, 0.15)" }
+                      : !isCurrentMonth
+                        ? nonCurrentMonthBg
+                        : "transparent"
+                  }
                   onClick={() => onDayClick(day)}
                 >
                   <Box
@@ -154,13 +165,15 @@ export const CalendarMonthView = ({
                     }}
                     mb={1}
                     display="inline-block"
-                    bg={isToday ? "blue.500" : "transparent"}
+                    bg={isToday ? "blue.400" : "transparent"}
                     color={isToday ? "white" : !isCurrentMonth ? mutedText : textColor}
                     borderRadius="full"
                     w={6 * zoom}
                     h={6 * zoom}
                     lineHeight={`${24 * zoom}px`}
                     textAlign="center"
+                    fontWeight={isToday ? "semibold" : "normal"}
+                    boxShadow={isToday ? "sm" : "none"}
                   >
                     {day.getDate()}
                   </Box>

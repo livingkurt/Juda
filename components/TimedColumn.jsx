@@ -43,8 +43,9 @@ export const TimedColumn = ({
       flexShrink={0}
       flexGrow={1}
       minW={0}
-      borderLeftWidth={dayIndex === 0 ? "0" : "1px"}
-      borderColor={borderColor}
+      borderLeftWidth={dayIndex === 0 ? "0" : isToday ? "1px" : "1px"}
+      borderRightWidth={isToday ? "1px" : "0"}
+      borderColor={isToday ? "blue.300" : borderColor}
       position="relative"
       h="full"
       w="full"
@@ -54,8 +55,14 @@ export const TimedColumn = ({
           handleColumnClick(e, day);
         }
       }}
-      bg={isOver ? dropHighlight : "transparent"}
-      transition="background-color 0.2s"
+      bg={
+        isOver
+          ? dropHighlight
+          : isToday
+            ? { _light: "rgba(59, 130, 246, 0.1)", _dark: "rgba(37, 99, 235, 0.15)" }
+            : "transparent"
+      }
+      transition="background-color 0.2s, border-color 0.2s"
       data-calendar-timed="true"
       data-calendar-view="week"
       data-hour-height={hourHeight}
