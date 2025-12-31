@@ -168,10 +168,14 @@ async function restoreToDev(dump) {
     if (dump.tasks && dump.tasks.length > 0) {
       const tasksToInsert = dump.tasks.map(convertDates);
       // Add userId if it doesn't exist in dump (for backward compatibility)
-      const tasksWithUserId = tasksToInsert.map(t => ({
-        ...t,
-        userId: t.userId || null, // Will be set by migration 0008
-      }));
+      // Remove color field if it exists (was removed in migration 0014)
+      const tasksWithUserId = tasksToInsert.map(t => {
+        const { color: _color, ...taskWithoutColor } = t;
+        return {
+          ...taskWithoutColor,
+          userId: t.userId || null, // Will be set by migration 0008
+        };
+      });
       await devDb.insert(tasks).values(tasksWithUserId);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.tasks.length} tasks`);

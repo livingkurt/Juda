@@ -94,6 +94,7 @@ export async function PUT(request) {
       expanded,
       order,
       status,
+      startedAt,
       completionType,
       content,
       folderId,
@@ -140,6 +141,20 @@ export async function PUT(request) {
         return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
       }
       updateData.status = status;
+
+      // Handle status transitions
+      if (status === "in_progress" && !existingTask.startedAt) {
+        // When moving to in_progress, set startedAt if not already set
+        updateData.startedAt = new Date();
+      } else if (status === "todo") {
+        // When moving back to todo, clear startedAt
+        updateData.startedAt = null;
+      }
+    }
+
+    // Allow explicit startedAt updates
+    if (startedAt !== undefined) {
+      updateData.startedAt = startedAt ? new Date(startedAt) : null;
     }
     if (completionType !== undefined) {
       if (!["checkbox", "text", "note"].includes(completionType)) {

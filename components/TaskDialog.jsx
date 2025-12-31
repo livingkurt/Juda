@@ -55,6 +55,7 @@ function TaskDialogForm({
   });
   const [duration, setDuration] = useState(task?.duration ?? (defaultTime ? 30 : 0));
   const [recurrenceType, setRecurrenceType] = useState(task?.recurrence?.type || "none");
+  const [status, setStatus] = useState(task?.status || (task ? undefined : "todo"));
   const [selectedDays, setSelectedDays] = useState(task?.recurrence?.days || []);
   const [endDate, setEndDate] = useState(() => {
     if (task?.recurrence?.endDate) {
@@ -209,6 +210,18 @@ function TaskDialogForm({
     []
   );
 
+  const statusCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { label: "Todo", value: "todo" },
+          { label: "In Progress", value: "in_progress" },
+          { label: "Complete", value: "complete" },
+        ],
+      }),
+    []
+  );
+
   // State initialization is now handled in useState initializers above
   // No need for useLayoutEffect since we're using a key prop to reset the form
 
@@ -280,6 +293,7 @@ function TaskDialogForm({
       tagIds: selectedTagIds,
       completionType,
       content: content || null,
+      status: recurrenceType === "none" ? status || "todo" : "todo",
     });
     onClose();
   };
@@ -505,6 +519,30 @@ function TaskDialogForm({
                     </Text>
                   )}
                 </Box>
+                {/* Status field - only show for non-recurring tasks */}
+                {recurrenceType === "none" && (
+                  <Box w="full">
+                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
+                      Status
+                    </Text>
+                    <Select.Root
+                      collection={statusCollection}
+                      value={[status || "todo"]}
+                      onValueChange={({ value }) => setStatus(value[0])}
+                    >
+                      <Select.Trigger>
+                        <Select.ValueText placeholder="Select status" />
+                      </Select.Trigger>
+                      <Select.Content>
+                        {statusCollection.items.map(item => (
+                          <Select.Item key={item.value} item={item}>
+                            {item.label}
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Root>
+                  </Box>
+                )}
                 {/* Note Content Editor - Always visible for adding/editing note content */}
                 <Box w="full">
                   <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>

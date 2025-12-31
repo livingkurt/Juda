@@ -29,12 +29,14 @@ import {
   Check,
   X,
   Circle,
+  PlayCircle,
+  CheckCircle,
 } from "lucide-react";
 import { formatTime, isOverdue, getRecurrenceLabel, getTaskDisplayColor } from "@/lib/utils";
 
 export const TaskItem = ({
   task,
-  variant = "today", // "today", "backlog", or "subtask"
+  variant = "today", // "today", "backlog", "subtask", or "kanban"
   containerId, // Container ID for sortable context
   onToggle,
   onToggleSubtask,
@@ -58,6 +60,7 @@ export const TaskItem = ({
   hasRecordOnDate, // Function to check if task has any record on a date
   onCompleteWithNote, // (taskId, note) => void - for text completion
   getCompletionForDate, // (taskId, date) => completion object
+  onStatusChange, // Handler for status changes (kanban)
 }) => {
   // Normalize prop names - support both naming conventions
   const handleEdit = onEdit || onEditTask;
@@ -557,19 +560,52 @@ export const TaskItem = ({
             {/* Badges - show for backlog and today variants */}
             {(isBacklog || isToday) && (
               <HStack spacing={{ base: 1, md: 2 }} mt={{ base: 0.5, md: 1 }} align="center" flexWrap="wrap">
-                {isOverdue(task, viewDate, hasRecordOnDate ? hasRecordOnDate(task.id, viewDate) : task.completed) && (
+                {/* Overdue badge - hide if task is in_progress */}
+                {task.status !== "in_progress" &&
+                  isOverdue(task, viewDate, hasRecordOnDate ? hasRecordOnDate(task.id, viewDate) : task.completed) && (
+                    <Badge
+                      size={{ base: "xs", md: "sm" }}
+                      colorPalette="red"
+                      fontSize={{ base: "3xs", md: "2xs" }}
+                      py={{ base: 0, md: 1 }}
+                      px={{ base: 1, md: 2 }}
+                    >
+                      <HStack spacing={{ base: 0.5, md: 1 }} align="center">
+                        <Box as="span" color="currentColor">
+                          <AlertCircle size={10} stroke="currentColor" />
+                        </Box>
+                        <Text as="span">Overdue</Text>
+                      </HStack>
+                    </Badge>
+                  )}
+                {/* Status badge - only show for non-recurring tasks */}
+                {!isRecurring && task.status && (
                   <Badge
                     size={{ base: "xs", md: "sm" }}
-                    colorPalette="red"
+                    colorPalette={
+                      task.status === "in_progress" ? "blue" : task.status === "complete" ? "green" : "gray"
+                    }
                     fontSize={{ base: "3xs", md: "2xs" }}
                     py={{ base: 0, md: 1 }}
                     px={{ base: 1, md: 2 }}
                   >
                     <HStack spacing={{ base: 0.5, md: 1 }} align="center">
                       <Box as="span" color="currentColor">
-                        <AlertCircle size={10} stroke="currentColor" />
+                        {task.status === "in_progress" ? (
+                          <PlayCircle size={10} stroke="currentColor" />
+                        ) : task.status === "complete" ? (
+                          <CheckCircle size={10} stroke="currentColor" />
+                        ) : (
+                          <Circle size={10} stroke="currentColor" />
+                        )}
                       </Box>
-                      <Text as="span">Overdue</Text>
+                      <Text as="span">
+                        {task.status === "in_progress"
+                          ? "In Progress"
+                          : task.status === "complete"
+                            ? "Complete"
+                            : "Todo"}
+                      </Text>
                     </HStack>
                   </Badge>
                 )}
@@ -752,6 +788,51 @@ export const TaskItem = ({
                         <Text>Duplicate</Text>
                       </HStack>
                     </Menu.Item>
+                  )}
+                  {/* Status options for non-recurring tasks */}
+                  {onStatusChange && !isRecurring && (
+                    <>
+                      <Menu.Separator />
+                      <Menu.Item
+                        onClick={e => {
+                          e.stopPropagation();
+                          onStatusChange(task.id, "todo");
+                          setActionMenuOpen(false);
+                        }}
+                        disabled={task.status === "todo"}
+                      >
+                        <HStack gap={2}>
+                          <Circle size={14} />
+                          <Text>Set to Todo</Text>
+                        </HStack>
+                      </Menu.Item>
+                      <Menu.Item
+                        onClick={e => {
+                          e.stopPropagation();
+                          onStatusChange(task.id, "in_progress");
+                          setActionMenuOpen(false);
+                        }}
+                        disabled={task.status === "in_progress"}
+                      >
+                        <HStack gap={2}>
+                          <Clock size={14} />
+                          <Text>Set to In Progress</Text>
+                        </HStack>
+                      </Menu.Item>
+                      <Menu.Item
+                        onClick={e => {
+                          e.stopPropagation();
+                          onStatusChange(task.id, "complete");
+                          setActionMenuOpen(false);
+                        }}
+                        disabled={task.status === "complete"}
+                      >
+                        <HStack gap={2}>
+                          <Check size={14} />
+                          <Text>Set to Complete</Text>
+                        </HStack>
+                      </Menu.Item>
+                    </>
                   )}
                   <Menu.Item
                     color="red.500"

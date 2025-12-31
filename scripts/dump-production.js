@@ -99,6 +99,13 @@ async function dumpProduction() {
     `;
     const hasTaskUserId = taskColumnsResult.length > 0;
 
+    const taskColorResult = await productionClient`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'Task' AND column_name = 'color'
+    `;
+    const hasTaskColor = taskColorResult.length > 0;
+
     const tagColumnsResult = await productionClient`
       SELECT column_name
       FROM information_schema.columns
@@ -111,9 +118,13 @@ async function dumpProduction() {
       ? '"id", "userId", "name", "icon", "order", "expanded", "createdAt", "updatedAt"'
       : '"id", "name", "icon", "order", "expanded", "createdAt", "updatedAt"';
 
-    const taskFields = hasTaskUserId
-      ? '"id", "userId", "title", "sectionId", "parentId", "time", "duration", "color", "expanded", "order", "recurrence", "createdAt", "updatedAt"'
-      : '"id", "title", "sectionId", "parentId", "time", "duration", "color", "expanded", "order", "recurrence", "createdAt", "updatedAt"';
+    // Build task fields dynamically based on what columns exist
+    const taskBaseFields = hasTaskUserId
+      ? '"id", "userId", "title", "sectionId", "parentId", "time", "duration"'
+      : '"id", "title", "sectionId", "parentId", "time", "duration"';
+
+    const taskColorField = hasTaskColor ? ', "color"' : "";
+    const taskFields = `${taskBaseFields}${taskColorField}, "expanded", "order", "recurrence", "createdAt", "updatedAt"`;
 
     // Fetch all data from production using raw SQL
     const allSections = await productionClient.unsafe(`SELECT ${sectionFields} FROM "Section" ORDER BY "order" ASC`);
@@ -234,10 +245,14 @@ async function restoreToLocal(dump) {
     if (dump.tasks && dump.tasks.length > 0) {
       const tasksToInsert = dump.tasks.map(convertDates);
       // Add userId if it doesn't exist in dump (for backward compatibility)
-      const tasksWithUserId = tasksToInsert.map(t => ({
-        ...t,
-        userId: t.userId || null, // Will be set by migration 0008
-      }));
+      // Remove color field if it exists (was removed in migration 0014)
+      const tasksWithUserId = tasksToInsert.map(t => {
+        const { color: _color, ...taskWithoutColor } = t;
+        return {
+          ...taskWithoutColor,
+          userId: t.userId || null, // Will be set by migration 0008
+        };
+      });
       await localDb.insert(tasks).values(tasksWithUserId);
       // eslint-disable-next-line no-console
       console.log(`   ✓ Restored ${dump.tasks.length} tasks`);

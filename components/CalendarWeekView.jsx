@@ -6,6 +6,7 @@ import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate } from 
 import { HOUR_HEIGHT_WEEK, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { DayHeaderColumn } from "./DayHeaderColumn";
 import { TimedColumn } from "./TimedColumn";
+import { StatusTaskBlock } from "./StatusTaskBlock";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
 import { CurrentTimeLine } from "./CurrentTimeLine";
@@ -25,7 +26,9 @@ export const CalendarWeekView = ({
   createDraggableId,
   isCompletedOnDate,
   getOutcomeOnDate,
+  getCompletionForDate,
   showCompleted = true,
+  showStatusTasks = true,
   zoom = 1.0,
   tags = [],
   onCreateTag,
@@ -432,6 +435,7 @@ export const CalendarWeekView = ({
                   day={day}
                   dayIndex={i}
                   timedTasks={dayTasks}
+                  allTasks={tasks}
                   onTaskClick={onTaskClick}
                   handleColumnClick={handleColumnClick}
                   handleDropTimeCalculation={handleDropTimeCalculation}
@@ -444,6 +448,8 @@ export const CalendarWeekView = ({
                   dropHighlight={dropHighlight}
                   isCompletedOnDate={isCompletedOnDate}
                   getOutcomeOnDate={getOutcomeOnDate}
+                  getCompletionForDate={getCompletionForDate}
+                  showStatusTasks={showStatusTasks}
                   hourHeight={HOUR_HEIGHT}
                   onEditTask={onEditTask}
                   onOutcomeChange={onOutcomeChange}

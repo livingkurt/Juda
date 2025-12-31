@@ -50,14 +50,18 @@ export const useCompletions = () => {
     // Support both old signature (outcome as third param) and new signature (options object)
     let outcome = "completed";
     let note = null;
+    let startedAt = null;
+    let completedAt = null;
 
     if (typeof options === "string") {
       // Old signature: createCompletion(taskId, date, outcome)
       outcome = options;
     } else {
-      // New signature: createCompletion(taskId, date, { outcome, note })
+      // New signature: createCompletion(taskId, date, { outcome, note, startedAt, completedAt })
       outcome = options.outcome || "completed";
       note = options.note || null;
+      startedAt = options.startedAt || null;
+      completedAt = options.completedAt || null;
     }
 
     // Validate outcome
@@ -78,6 +82,8 @@ export const useCompletions = () => {
       date: utcDate.toISOString(),
       outcome,
       note,
+      startedAt: startedAt ? new Date(startedAt).toISOString() : null,
+      completedAt: completedAt ? new Date(completedAt).toISOString() : null,
       createdAt: new Date().toISOString(),
     };
 
@@ -91,7 +97,13 @@ export const useCompletions = () => {
     });
 
     if (existingIndex >= 0) {
-      setCompletions(prev => prev.map((c, i) => (i === existingIndex ? { ...c, outcome, note } : c)));
+      setCompletions(prev =>
+        prev.map((c, i) =>
+          i === existingIndex
+            ? { ...c, outcome, note, startedAt: startedAt ? new Date(startedAt).toISOString() : null, completedAt: completedAt ? new Date(completedAt).toISOString() : null }
+            : c
+        )
+      );
     } else {
       setCompletions(prev => [...prev, optimisticCompletion]);
     }
@@ -99,7 +111,14 @@ export const useCompletions = () => {
     try {
       const response = await authFetch("/api/completions", {
         method: "POST",
-        body: JSON.stringify({ taskId, date: utcDate.toISOString(), outcome, note }),
+        body: JSON.stringify({
+          taskId,
+          date: utcDate.toISOString(),
+          outcome,
+          note,
+          startedAt: startedAt ? new Date(startedAt).toISOString() : null,
+          completedAt: completedAt ? new Date(completedAt).toISOString() : null,
+        }),
       });
       if (!response.ok) throw new Error("Failed to create completion");
       const newCompletion = await response.json();

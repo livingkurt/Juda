@@ -51,6 +51,7 @@ import {
   StickyNote,
   CheckSquare,
   Clock,
+  Columns,
 } from "lucide-react";
 import { Section } from "@/components/Section";
 import { TaskDialog } from "@/components/TaskDialog";
@@ -73,6 +74,7 @@ import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
 import { DashboardView } from "@/components/DashboardView";
+import { KanbanView } from "@/components/KanbanView";
 import { PageSkeleton, SectionSkeleton, BacklogSkeleton, CalendarSkeleton } from "@/components/Skeletons";
 import { DateNavigation } from "@/components/DateNavigation";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
@@ -190,6 +192,7 @@ export default function DailyTasksApp() {
   const {
     showDashboard,
     showCalendar,
+    showKanban,
     backlogOpen,
     backlogWidth,
     calendarView,
@@ -197,6 +200,7 @@ export default function DailyTasksApp() {
     showCompletedTasks,
     showRecurringTasks,
     showCompletedTasksCalendar,
+    showStatusTasks: _showStatusTasks,
     notesSidebarOpen,
     notesSidebarWidth,
     notesListOpen,
@@ -206,9 +210,17 @@ export default function DailyTasksApp() {
   // Create setter functions that update preferences
   const setShowDashboard = useCallback(value => updatePreference("showDashboard", value), [updatePreference]);
   const setShowCalendar = useCallback(value => updatePreference("showCalendar", value), [updatePreference]);
+  const setShowKanban = useCallback(value => updatePreference("showKanban", value), [updatePreference]);
   const setBacklogOpen = useCallback(value => updatePreference("backlogOpen", value), [updatePreference]);
   const setBacklogWidth = useCallback(value => updatePreference("backlogWidth", value), [updatePreference]);
   const setCalendarView = useCallback(value => updatePreference("calendarView", value), [updatePreference]);
+
+  // Reset calendarView if it was set to "kanban" (from old implementation)
+  useEffect(() => {
+    if (calendarView === "kanban") {
+      setCalendarView("week");
+    }
+  }, [calendarView, setCalendarView]);
   const setShowCompletedTasks = useCallback(value => updatePreference("showCompletedTasks", value), [updatePreference]);
   const setNotesSidebarOpen = useCallback(value => updatePreference("notesSidebarOpen", value), [updatePreference]);
   const setNotesSidebarWidth = useCallback(value => updatePreference("notesSidebarWidth", value), [updatePreference]);
@@ -242,6 +254,16 @@ export default function DailyTasksApp() {
       updatePreference("showCompletedTasksCalendar", updater);
     }
   };
+
+  // setShowStatusTasks is available for future use (e.g., toggle in calendar views)
+  // const setShowStatusTasks = updater => {
+  //   if (typeof updater === "function") {
+  //     const newValue = updater(showStatusTasks);
+  //     updatePreference("showStatusTasks", newValue);
+  //   } else {
+  //     updatePreference("showStatusTasks", updater);
+  //   }
+  // };
 
   const isLoading = tasksLoading || sectionsLoading || !prefsInitialized;
 
@@ -431,6 +453,16 @@ export default function DailyTasksApp() {
         .filter(task => {
           // Exclude notes from today's tasks
           if (task.completionType === "note") return false;
+          // Exclude subtasks (handled by parent)
+          if (task.parentId) return false;
+
+          // Include in-progress non-recurring tasks regardless of date
+          const isNonRecurring = !task.recurrence || task.recurrence.type === "none";
+          if (isNonRecurring && task.status === "in_progress") {
+            return true;
+          }
+
+          // Normal date-based filtering
           return shouldShowOnDate(task, viewDate);
         })
         .map(task => ({
@@ -1071,6 +1103,51 @@ export default function DailyTasksApp() {
     await updateTask(taskId, { duration: newDuration });
   };
 
+  const handleStatusChange = async (taskId, newStatus) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const updates = { status: newStatus };
+    const now = new Date();
+
+    if (newStatus === "in_progress") {
+      // Set startedAt when moving to in_progress
+      updates.startedAt = now.toISOString();
+
+      // If task has no date, set it to today (so it appears in Today view)
+      if (!task.recurrence || task.recurrence.type === "none") {
+        const todayStr = formatLocalDate(new Date());
+        if (!task.recurrence?.startDate) {
+          updates.recurrence = { type: "none", startDate: `${todayStr}T00:00:00.000Z` };
+        }
+      }
+    } else if (newStatus === "todo") {
+      // Clear startedAt when moving back to todo
+      updates.startedAt = null;
+    } else if (newStatus === "complete") {
+      // When completing, create a TaskCompletion record with timing data
+      const completedAt = now;
+      const startedAt = task.startedAt ? new Date(task.startedAt) : completedAt;
+
+      // Create completion record
+      await createCompletion(taskId, now.toISOString(), {
+        outcome: "completed",
+        startedAt: startedAt.toISOString(),
+        completedAt: completedAt.toISOString(),
+      });
+
+      // Clear startedAt on task since it's now stored in completion
+      updates.startedAt = null;
+
+      // Add to recently completed for visual feedback
+      if (!showCompletedTasks) {
+        addToRecentlyCompleted(taskId, task.sectionId);
+      }
+    }
+
+    await updateTask(taskId, updates);
+  };
+
   // Main drag end handler
   const handleDragEnd = async result => {
     const { destination, source, draggableId, type } = result;
@@ -1091,6 +1168,15 @@ export default function DailyTasksApp() {
 
     // Handle task dragging
     if (type === "TASK") {
+      // Skip Kanban operations - they're handled in handleDragEndNew
+      const sourceParsed = parseDroppableId(source.droppableId);
+      const destParsed = parseDroppableId(destination.droppableId);
+
+      if (sourceParsed.type === "kanban-column" || destParsed.type === "kanban-column") {
+        dropTimeRef.current = null;
+        return;
+      }
+
       // Extract task ID from context-aware draggable ID
       const taskId = extractTaskId(draggableId);
       const task = tasks.find(t => t.id === taskId);
@@ -1099,9 +1185,6 @@ export default function DailyTasksApp() {
         return;
       }
 
-      const sourceParsed = parseDroppableId(source.droppableId);
-      const destParsed = parseDroppableId(destination.droppableId);
-
       // Get the calculated drop time (if dropping on timed calendar area)
       const calculatedTime = dropTimeRef.current || "09:00";
       dropTimeRef.current = null;
@@ -1109,12 +1192,21 @@ export default function DailyTasksApp() {
       // Determine what updates to make based on source and destination
       let updates = {};
 
-      // DESTINATION: Backlog - clear date, time, and recurrence
+      // DESTINATION: Backlog - clear date, time, and recurrence, set status to todo
       if (destParsed.type === "backlog") {
+        // Only update status for non-recurring tasks when coming from today-section
+        const isRecurring = task.recurrence && task.recurrence.type && task.recurrence.type !== "none";
+        const isFromTodaySection = sourceParsed.type === "today-section";
         updates = {
           time: null,
           recurrence: null,
         };
+        // Set status to todo when moving from today-section to backlog (only for non-recurring tasks)
+        if (!isRecurring && isFromTodaySection) {
+          updates.status = "todo";
+          // Clear startedAt when moving back to todo
+          updates.startedAt = null;
+        }
       }
       // DESTINATION: Today section - set date to the selected date in Today View, preserve time and recurrence
       else if (destParsed.type === "today-section") {
@@ -1128,8 +1220,9 @@ export default function DailyTasksApp() {
         let recurrenceUpdate;
         const currentDateStr = task.recurrence?.startDate?.split("T")[0];
         const needsDateUpdate = currentDateStr !== targetDateStr;
+        const isRecurring = task.recurrence && task.recurrence.type && task.recurrence.type !== "none";
 
-        if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
+        if (isRecurring) {
           // Preserve the recurrence pattern (daily, weekly, etc.) - no updates needed
           recurrenceUpdate = task.recurrence;
           // No updates needed for recurring tasks
@@ -1148,6 +1241,14 @@ export default function DailyTasksApp() {
           } else {
             // Date is the same, no updates needed
             updates = {};
+          }
+          // Set status to in_progress when moving from backlog to today section (only for non-recurring tasks)
+          if (sourceParsed.type === "backlog") {
+            updates.status = "in_progress";
+            // Set startedAt when moving to in_progress if not already set
+            if (!task.startedAt) {
+              updates.startedAt = new Date().toISOString();
+            }
           }
         }
       }
@@ -1329,6 +1430,7 @@ export default function DailyTasksApp() {
 
   // Calendar navigation
   const navigateCalendar = dir => {
+    if (calendarView === "kanban") return; // Kanban view doesn't have date navigation
     const d = new Date(selectedDate);
     if (calendarView === "day") d.setDate(d.getDate() + dir);
     else if (calendarView === "week") d.setDate(d.getDate() + dir * 7);
@@ -1358,6 +1460,7 @@ export default function DailyTasksApp() {
 
   const getCalendarTitle = () => {
     if (!selectedDate) return "";
+    if (calendarView === "kanban") return "Kanban";
     if (calendarView === "day")
       return selectedDate.toLocaleDateString("en-US", {
         weekday: "short",
@@ -1568,11 +1671,18 @@ export default function DailyTasksApp() {
       sourceContainerId &&
       (sourceContainerId === "backlog" ||
         sourceContainerId.startsWith("today-section|") ||
-        sourceContainerId.startsWith("calendar-"));
+        sourceContainerId.startsWith("calendar-") ||
+        sourceContainerId.startsWith("kanban-column|"));
 
     if (!sourceContainerId || !isValidContainerId) {
       // Infer from draggableId pattern
-      if (draggableId.includes("-backlog")) {
+      if (draggableId.includes("-kanban-")) {
+        // Extract status from kanban draggableId: task-{id}-kanban-{status}
+        const match = draggableId.match(/-kanban-(.+)$/);
+        if (match) {
+          sourceContainerId = `kanban-column|${match[1]}`;
+        }
+      } else if (draggableId.includes("-backlog")) {
         sourceContainerId = "backlog";
       } else if (draggableId.includes("-today-section-")) {
         // Extract section ID - it's everything after "-today-section-"
@@ -1598,14 +1708,8 @@ export default function DailyTasksApp() {
         }
       }
 
-      // Log if we had to fall back to draggableId extraction
-      if (activeSortable?.containerId && !isValidContainerId) {
-        console.warn("Invalid containerId from sortable, extracted from draggableId:", {
-          originalContainerId: activeSortable.containerId,
-          extractedContainerId: sourceContainerId,
-          draggableId,
-        });
-      }
+      // Note: We silently fall back to draggableId extraction when sortable containerId
+      // is invalid (e.g., internal "Sortable-X" ids from dnd-kit). This is expected behavior.
     }
 
     // Determine type early
@@ -1621,16 +1725,36 @@ export default function DailyTasksApp() {
     const overDroppable = over.data.current;
 
     // Priority 1: If over.id is a droppable ID pattern, use it directly
-    if (over.id && (over.id === "backlog" || over.id.startsWith("today-section|") || over.id.startsWith("calendar-"))) {
+    if (
+      over.id &&
+      (over.id === "backlog" ||
+        over.id.startsWith("today-section|") ||
+        over.id.startsWith("calendar-") ||
+        over.id.startsWith("kanban-column|"))
+    ) {
       destContainerId = over.id;
     }
     // Priority 2: Use the sortable container ID (for tasks within sections)
+    // But only if it's a valid containerId pattern, not an internal Sortable-X id
     else if (overSortable?.containerId) {
-      destContainerId = overSortable.containerId;
+      const isValidDestContainerId =
+        overSortable.containerId === "backlog" ||
+        overSortable.containerId.startsWith("today-section|") ||
+        overSortable.containerId.startsWith("calendar-") ||
+        overSortable.containerId.startsWith("kanban-column|");
+
+      if (isValidDestContainerId) {
+        destContainerId = overSortable.containerId;
+      }
     }
+
     // Priority 3: Extract container ID from task draggableId pattern
-    else if (over.id && over.id.startsWith("task-")) {
-      if (over.id.includes("-today-section-")) {
+    if (!destContainerId && over.id && over.id.startsWith("task-")) {
+      if (over.id.includes("-kanban-")) {
+        // Extract status from kanban draggableId: task-{id}-kanban-{status}
+        const match = over.id.match(/-kanban-(.+)$/);
+        if (match) destContainerId = `kanban-column|${match[1]}`;
+      } else if (over.id.includes("-today-section-")) {
         // Extract section ID - it's everything after "-today-section-"
         const match = over.id.match(/-today-section-(.+)$/);
         if (match) destContainerId = `today-section|${match[1]}`;
@@ -1667,6 +1791,8 @@ export default function DailyTasksApp() {
     if (!destContainerId && over.id) {
       if (over.id === "backlog") {
         destContainerId = "backlog";
+      } else if (over.id.startsWith("kanban-column|")) {
+        destContainerId = over.id;
       } else if (over.id.startsWith("today-section|")) {
         destContainerId = over.id;
       } else if (over.id.startsWith("calendar-")) {
@@ -1674,8 +1800,14 @@ export default function DailyTasksApp() {
       }
     }
 
+    // For Kanban, we need to handle all operations in the cross-container section
+    // because the sortable indices may not match the actual task order in the column
+    const isKanbanDrag =
+      sourceContainerId?.startsWith("kanban-column|") || destContainerId?.startsWith("kanban-column|");
+
     // Handle reordering within the same container using arrayMove
-    if (activeSortable && overSortable && sourceContainerId === destContainerId && sourceContainerId) {
+    // Skip Kanban here - we handle all Kanban operations in the cross-container section
+    if (activeSortable && overSortable && sourceContainerId === destContainerId && sourceContainerId && !isKanbanDrag) {
       const oldIndex = activeSortable.index;
       const newIndex = overSortable.index;
 
@@ -1735,8 +1867,85 @@ export default function DailyTasksApp() {
       // Subtask reordering is now handled in the task dialog, not via drag-and-drop
     }
 
-    // Handle cross-container moves (backlog ↔ sections ↔ calendar)
-    // First, handle section-to-section moves directly
+    // Handle cross-container moves (backlog ↔ sections ↔ calendar ↔ kanban)
+    // Handle kanban column drops (moving between columns or from other containers)
+    if (type === "TASK" && destContainerId) {
+      const destParsed = parseDroppableId(destContainerId);
+
+      if (destParsed.type === "kanban-column") {
+        const newStatus = destParsed.status;
+        const taskId = extractTaskId(draggableId);
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        const sourceParsed = sourceContainerId ? parseDroppableId(sourceContainerId) : null;
+        const isSameColumn = sourceParsed?.type === "kanban-column" && sourceParsed.status === newStatus;
+
+        // Get all tasks in the destination column
+        const destColumnTasks = tasks
+          .filter(t => {
+            if (t.completionType === "note") return false;
+            if (t.recurrence && t.recurrence.type !== "none") return false;
+            if (t.parentId) return false;
+            return t.status === newStatus;
+          })
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        // If task status is the same, it's a reorder within the same column
+        if (isSameColumn) {
+          // Find the old and new indices
+          const oldIndex = destColumnTasks.findIndex(t => t.id === taskId);
+          const newIndex = overSortable?.index ?? destColumnTasks.length;
+
+          // Skip if no change
+          if (oldIndex === newIndex || oldIndex === -1) {
+            return;
+          }
+
+          // Use arrayMove to reorder
+          const reordered = arrayMove(destColumnTasks, oldIndex, newIndex);
+
+          // Update order for all affected tasks using batch API
+          try {
+            const updates = reordered.map((t, idx) => ({ id: t.id, order: idx }));
+            await batchReorderTasks(updates);
+          } catch {
+            toast({
+              title: "Error",
+              description: "Failed to reorder Kanban tasks",
+              status: "error",
+              duration: 3000,
+            });
+          }
+          return;
+        }
+
+        // Moving from different column or from outside Kanban
+        // Calculate new order position from sortable index
+        const destIndex = overSortable?.index ?? destColumnTasks.length;
+        const reordered = [...destColumnTasks];
+        reordered.splice(destIndex, 0, task);
+
+        // Update status
+        await handleStatusChange(taskId, newStatus);
+
+        // Update order for all affected tasks using batch API
+        try {
+          const updates = reordered.map((t, idx) => ({ id: t.id, order: idx }));
+          await batchReorderTasks(updates);
+        } catch {
+          toast({
+            title: "Error",
+            description: "Failed to reorder Kanban tasks",
+            status: "error",
+            duration: 3000,
+          });
+        }
+        return;
+      }
+    }
+
+    // Handle section-to-section moves directly
     if (type === "TASK" && sourceContainerId && destContainerId) {
       const sourceParsed = parseDroppableId(sourceContainerId);
       const destParsed = parseDroppableId(destContainerId);
@@ -2079,6 +2288,17 @@ export default function DailyTasksApp() {
                       <Calendar size={14} stroke="currentColor" />
                     </Box>
                     Calendar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={showKanban ? "solid" : "outline"}
+                    colorPalette={showKanban ? "blue" : "gray"}
+                    onClick={() => setShowKanban(!showKanban)}
+                  >
+                    <Box as="span" color="currentColor">
+                      <Columns size={14} stroke="currentColor" />
+                    </Box>
+                    Kanban
                   </Button>
                 </HStack>
               </Flex>
@@ -2475,7 +2695,9 @@ export default function DailyTasksApp() {
                                     createDraggableId={createDraggableId}
                                     isCompletedOnDate={isCompletedOnDate}
                                     getOutcomeOnDate={getOutcomeOnDate}
+                                    getCompletionForDate={getCompletionForDate}
                                     showCompleted={showCompletedTasksCalendar.day}
+                                    showStatusTasks={_showStatusTasks.day}
                                     zoom={calendarZoom.day}
                                     tags={tags}
                                     onCreateTag={createTag}
@@ -2506,7 +2728,9 @@ export default function DailyTasksApp() {
                                     onCreateTag={createTag}
                                     isCompletedOnDate={isCompletedOnDate}
                                     getOutcomeOnDate={getOutcomeOnDate}
+                                    getCompletionForDate={getCompletionForDate}
                                     showCompleted={showCompletedTasksCalendar.week}
+                                    showStatusTasks={_showStatusTasks.week}
                                     zoom={calendarZoom.week}
                                     onEditTask={handleEditTask}
                                     onOutcomeChange={handleOutcomeChange}
@@ -2534,6 +2758,33 @@ export default function DailyTasksApp() {
                             );
                           })()}
                         </Box>
+                      </Box>
+                    )}
+
+                    {/* Kanban View - Mobile */}
+                    {showKanban && (
+                      <Box h="100%" overflow="hidden" display="flex" flexDirection="column">
+                        <KanbanView
+                          tasks={tasks}
+                          onTaskClick={handleEditTask}
+                          onCreateTask={({ status }) => {
+                            setDefaultSectionId(sections[0]?.id);
+                            setEditingTask({ status });
+                            openTaskDialog();
+                          }}
+                          createDraggableId={createDraggableId}
+                          isCompletedOnDate={isCompletedOnDate}
+                          getOutcomeOnDate={getOutcomeOnDate}
+                          onOutcomeChange={handleOutcomeChange}
+                          onEditTask={handleEditTask}
+                          onDuplicateTask={handleDuplicateTask}
+                          onDeleteTask={handleDeleteTask}
+                          onStatusChange={handleStatusChange}
+                          tags={tags}
+                          onCreateTag={createTag}
+                          recentlyCompletedTasks={recentlyCompletedTasks}
+                          viewDate={viewDate}
+                        />
                       </Box>
                     )}
                   </>
@@ -2668,14 +2919,16 @@ export default function DailyTasksApp() {
                       display="flex"
                       gap={{ base: 2, md: 6 }}
                       h="full"
-                      justifyContent={!backlogOpen && !showCalendar && showDashboard ? "center" : "flex-start"}
+                      justifyContent={
+                        !backlogOpen && !showCalendar && !showKanban && showDashboard ? "center" : "flex-start"
+                      }
                       maxW="100%"
                       overflow="hidden"
                     >
                       {/* Dashboard View */}
                       {showDashboard && (
                         <Box
-                          flex={{ base: "none", md: !backlogOpen && !showCalendar ? "0 1 auto" : 1 }}
+                          flex={{ base: "none", md: !backlogOpen && !showCalendar && !showKanban ? "0 1 auto" : 1 }}
                           minW={0}
                           maxW="100%"
                           w="100%"
@@ -3083,6 +3336,62 @@ export default function DailyTasksApp() {
                               </Card.Body>
                             </Card.Root>
                           )}
+                        </Box>
+                      )}
+
+                      {/* Kanban View - Desktop */}
+                      {showKanban && (
+                        <Box
+                          flex={1}
+                          minW={0}
+                          w={{ base: "100%", md: "auto" }}
+                          maxW="100%"
+                          display="flex"
+                          flexDirection="column"
+                          overflow="hidden"
+                          h="full"
+                        >
+                          {/* Kanban Header */}
+                          <Box
+                            mb={3}
+                            pb={3}
+                            borderBottomWidth="1px"
+                            borderColor={borderColor}
+                            px={{ base: 1, md: 0 }}
+                            w="100%"
+                            maxW="100%"
+                            overflow="hidden"
+                            flexShrink={0}
+                          >
+                            <Heading size="md" flexShrink={0}>
+                              Kanban
+                            </Heading>
+                          </Box>
+
+                          {/* Kanban Content */}
+                          <Box flex={1} overflow="hidden" minH={0}>
+                            <KanbanView
+                              tasks={tasks}
+                              onTaskClick={handleEditTask}
+                              onCreateTask={({ status }) => {
+                                setDefaultSectionId(sections[0]?.id);
+                                setEditingTask({ status });
+                                openTaskDialog();
+                              }}
+                              createDraggableId={createDraggableId}
+                              isCompletedOnDate={isCompletedOnDate}
+                              getOutcomeOnDate={getOutcomeOnDate}
+                              onOutcomeChange={handleOutcomeChange}
+                              onEditTask={handleEditTask}
+                              onDuplicateTask={handleDuplicateTask}
+                              onDeleteTask={handleDeleteTask}
+                              onStatusChange={handleStatusChange}
+                              tags={tags}
+                              onCreateTag={createTag}
+                              recentlyCompletedTasks={recentlyCompletedTasks}
+                              viewDate={viewDate}
+                            />
+                          </Box>
                         </Box>
                       )}
                     </Box>

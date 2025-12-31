@@ -57,7 +57,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { taskId, date, outcome = "completed", note } = body;
+    const { taskId, date, outcome = "completed", note, startedAt, completedAt } = body;
 
     if (!taskId) {
       return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
@@ -92,6 +92,8 @@ export async function POST(request) {
       // Update existing record with new outcome and note
       const updateData = { outcome };
       if (note !== undefined) updateData.note = note || null;
+      if (startedAt !== undefined) updateData.startedAt = startedAt ? new Date(startedAt) : null;
+      if (completedAt !== undefined) updateData.completedAt = completedAt ? new Date(completedAt) : null;
       const [updated] = await db
         .update(taskCompletions)
         .set(updateData)
@@ -108,6 +110,8 @@ export async function POST(request) {
         date: utcDate,
         outcome,
         note: note || null,
+        startedAt: startedAt ? new Date(startedAt) : null,
+        completedAt: completedAt ? new Date(completedAt) : null,
       })
       .returning();
 
