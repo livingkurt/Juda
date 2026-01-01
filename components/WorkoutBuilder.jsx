@@ -32,7 +32,6 @@ function generateCuid() {
  * Allows users to build multi-week workout programs with sections, days, and exercises
  */
 export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = null }) {
-  const [workoutName, setWorkoutName] = useState("");
   const [sections, setSections] = useState([]);
   const [expandedSections, setExpandedSections] = useState({});
   const [expandedDays, setExpandedDays] = useState({});
@@ -41,6 +40,29 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
   const sectionTypeCollection = useMemo(() => createListCollection({ items: WORKOUT_SECTION_TYPES }), []);
 
   const exerciseTypeCollection = useMemo(() => createListCollection({ items: EXERCISE_TYPES }), []);
+
+  // Helper to convert exercise type/unit to Select value
+  const getExerciseSelectValue = (type, unit) => {
+    if (type === "time") {
+      return unit === "mins" ? "time_mins" : "time_secs";
+    }
+    return type; // "reps" or "distance"
+  };
+
+  // Helper to parse Select value back to type/unit
+  const parseExerciseSelectValue = value => {
+    if (value === "time_secs") {
+      return { type: "time", unit: "secs" };
+    }
+    if (value === "time_mins") {
+      return { type: "time", unit: "mins" };
+    }
+    const exerciseType = EXERCISE_TYPES.find(t => t.value === value);
+    return {
+      type: exerciseType?.value || value,
+      unit: exerciseType?.unit || "reps",
+    };
+  };
 
   // Helper to update days of week for a day
   const updateDaysOfWeek = (sectionId, dayId, newDaysOfWeek) => {
@@ -59,7 +81,6 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
   // Initialize with existing data or defaults
   useEffect(() => {
     if (initialData) {
-      setWorkoutName(initialData.name || "");
       setSections(initialData.sections || []);
 
       // Expand first section and day by default
@@ -201,7 +222,6 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
 
   const handleSave = () => {
     const workoutData = {
-      name: workoutName,
       sections,
     };
 
@@ -237,22 +257,6 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
 
           <Dialog.Body>
             <VStack align="stretch" gap={6}>
-              {/* Workout metadata */}
-              <Box p={4} bg={{ _light: "gray.50", _dark: "gray.700" }} borderRadius="md">
-                <Box>
-                  <Text fontSize="sm" fontWeight="medium" mb={1}>
-                    Workout Name
-                  </Text>
-                  <Input
-                    value={workoutName}
-                    onChange={e => setWorkoutName(e.target.value)}
-                    placeholder="e.g., Workout 8"
-                    bg="white"
-                    _dark={{ bg: "gray.800" }}
-                  />
-                </Box>
-              </Box>
-
               {/* Sections */}
               <VStack align="stretch" gap={4}>
                 <Flex justify="space-between" align="center">
@@ -282,37 +286,46 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                       cursor="pointer"
                       onClick={() => toggleSection(section.id)}
                     >
-                      <HStack flex={1}>
+                      <HStack flex={1} gap={3} align="flex-end">
                         {expandedSections[section.id] ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                        <Input
-                          value={section.name}
-                          onChange={e => {
-                            e.stopPropagation();
-                            updateSection(section.id, { name: e.target.value });
-                          }}
-                          onClick={e => e.stopPropagation()}
-                          size="sm"
-                          variant="filled"
-                          maxW="300px"
-                        />
-                        <Select.Root
-                          collection={sectionTypeCollection}
-                          value={[section.type]}
-                          onValueChange={({ value }) => updateSection(section.id, { type: value[0] })}
-                          size="sm"
-                          maxW="200px"
-                        >
-                          <Select.Trigger onClick={e => e.stopPropagation()}>
-                            <Select.ValueText placeholder="Section type" />
-                          </Select.Trigger>
-                          <Select.Content>
-                            {sectionTypeCollection.items.map(type => (
-                              <Select.Item key={type.value} item={type}>
-                                {type.label}
-                              </Select.Item>
-                            ))}
-                          </Select.Content>
-                        </Select.Root>
+                        <Box flex={1} minW={0}>
+                          <Text fontSize="xs" fontWeight="medium" mb={0.5}>
+                            Section Name
+                          </Text>
+                          <Input
+                            value={section.name}
+                            onChange={e => {
+                              e.stopPropagation();
+                              updateSection(section.id, { name: e.target.value });
+                            }}
+                            onClick={e => e.stopPropagation()}
+                            size="sm"
+                            variant="filled"
+                            w="full"
+                          />
+                        </Box>
+                        <Box minW="150px">
+                          <Text fontSize="xs" fontWeight="medium" mb={0.5}>
+                            Section Type
+                          </Text>
+                          <Select.Root
+                            collection={sectionTypeCollection}
+                            value={[section.type]}
+                            onValueChange={({ value }) => updateSection(section.id, { type: value[0] })}
+                            size="sm"
+                          >
+                            <Select.Trigger onClick={e => e.stopPropagation()} w="full">
+                              <Select.ValueText placeholder="Section type" />
+                            </Select.Trigger>
+                            <Select.Content>
+                              {sectionTypeCollection.items.map(type => (
+                                <Select.Item key={type.value} item={type}>
+                                  {type.label}
+                                </Select.Item>
+                              ))}
+                            </Select.Content>
+                          </Select.Root>
+                        </Box>
                       </HStack>
                       <IconButton
                         size="sm"
@@ -355,22 +368,27 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                                 cursor="pointer"
                                 onClick={() => toggleDay(day.id)}
                               >
-                                <HStack flex={1}>
+                                <HStack flex={1} gap={3} align="flex-end">
                                   {expandedDays[day.id] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                                  <Input
-                                    value={day.name}
-                                    onChange={e => {
-                                      e.stopPropagation();
-                                      updateDay(section.id, day.id, { name: e.target.value });
-                                    }}
-                                    onClick={e => e.stopPropagation()}
-                                    size="sm"
-                                    variant="filled"
-                                    maxW="200px"
-                                  />
-                                  <Box onClick={e => e.stopPropagation()}>
-                                    <Text fontSize="xs" fontWeight="medium" mb={1}>
-                                      Days:
+                                  <Box flex={1} minW={0}>
+                                    <Text fontSize="xs" fontWeight="medium" mb={0.5}>
+                                      Day Name
+                                    </Text>
+                                    <Input
+                                      value={day.name}
+                                      onChange={e => {
+                                        e.stopPropagation();
+                                        updateDay(section.id, day.id, { name: e.target.value });
+                                      }}
+                                      onClick={e => e.stopPropagation()}
+                                      size="sm"
+                                      variant="filled"
+                                      w="full"
+                                    />
+                                  </Box>
+                                  <Box onClick={e => e.stopPropagation()} flexShrink={0}>
+                                    <Text fontSize="xs" fontWeight="medium" mb={0.5}>
+                                      Days of Week
                                     </Text>
                                     <WeekdaySelector
                                       selectedDays={
@@ -413,104 +431,134 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                                         borderColor={{ _light: "gray.200", _dark: "gray.700" }}
                                       >
                                         <VStack align="stretch" gap={2}>
-                                          <Flex justify="space-between" align="center">
-                                            <Input
-                                              value={exercise.name}
-                                              onChange={e =>
-                                                updateExercise(section.id, day.id, exercise.id, {
-                                                  name: e.target.value,
-                                                })
-                                              }
-                                              placeholder="Exercise name"
-                                              size="sm"
-                                              flex={1}
-                                              mr={2}
-                                            />
+                                          <Flex justify="space-between" align="flex-end" gap={2}>
+                                            <Box flex={1} minW={0}>
+                                              <Text fontSize="xs" fontWeight="medium" mb={0.5}>
+                                                Exercise Name
+                                              </Text>
+                                              <Input
+                                                value={exercise.name}
+                                                onChange={e =>
+                                                  updateExercise(section.id, day.id, exercise.id, {
+                                                    name: e.target.value,
+                                                  })
+                                                }
+                                                placeholder="Exercise name"
+                                                size="sm"
+                                                w="full"
+                                              />
+                                            </Box>
                                             <IconButton
                                               size="xs"
                                               variant="ghost"
                                               colorPalette="red"
                                               onClick={() => deleteExercise(section.id, day.id, exercise.id)}
+                                              flexShrink={0}
                                             >
                                               <Trash2 size={12} />
                                             </IconButton>
                                           </Flex>
 
-                                          <HStack>
-                                            <Select.Root
-                                              collection={exerciseTypeCollection}
-                                              value={[exercise.type]}
-                                              onValueChange={({ value }) => {
-                                                const selectedType = EXERCISE_TYPES.find(t => t.value === value[0]);
-                                                updateExercise(section.id, day.id, exercise.id, {
-                                                  type: value[0],
-                                                  unit: selectedType?.unit || "reps",
-                                                });
-                                              }}
-                                              size="sm"
-                                            >
-                                              <Select.Trigger>
-                                                <Select.ValueText placeholder="Type" />
-                                              </Select.Trigger>
-                                              <Select.Content>
-                                                {exerciseTypeCollection.items.map(type => (
-                                                  <Select.Item key={type.value} item={type}>
-                                                    {type.label}
-                                                  </Select.Item>
-                                                ))}
-                                              </Select.Content>
-                                            </Select.Root>
+                                          <HStack gap={2} align="flex-end" w="full">
+                                            <Box minW="180px" flex={1.5}>
+                                              <Text fontSize="xs" fontWeight="medium" mb={0.5}>
+                                                Primary Metric
+                                              </Text>
+                                              <Select.Root
+                                                collection={exerciseTypeCollection}
+                                                value={[getExerciseSelectValue(exercise.type, exercise.unit)]}
+                                                onValueChange={({ value }) => {
+                                                  const { type, unit } = parseExerciseSelectValue(value[0]);
+                                                  updateExercise(section.id, day.id, exercise.id, {
+                                                    type,
+                                                    unit,
+                                                  });
+                                                }}
+                                                size="sm"
+                                              >
+                                                <Select.Trigger w="full">
+                                                  <Select.ValueText placeholder="Type" />
+                                                </Select.Trigger>
+                                                <Select.Content>
+                                                  {exerciseTypeCollection.items.map(type => (
+                                                    <Select.Item key={type.value} item={type}>
+                                                      {type.label}
+                                                    </Select.Item>
+                                                  ))}
+                                                </Select.Content>
+                                              </Select.Root>
+                                            </Box>
 
-                                            <Input
-                                              type="number"
-                                              value={exercise.sets}
-                                              onChange={e =>
-                                                updateExercise(section.id, day.id, exercise.id, {
-                                                  sets: parseInt(e.target.value) || 1,
-                                                })
-                                              }
-                                              placeholder="Sets"
-                                              size="sm"
-                                              maxW="80px"
-                                            />
+                                            <Box minW="70px" flex={1}>
+                                              <Text fontSize="xs" fontWeight="medium" mb={0.5}>
+                                                Sets
+                                              </Text>
+                                              <Input
+                                                type="number"
+                                                value={exercise.sets}
+                                                onChange={e =>
+                                                  updateExercise(section.id, day.id, exercise.id, {
+                                                    sets: parseInt(e.target.value) || 1,
+                                                  })
+                                                }
+                                                placeholder="Sets"
+                                                size="sm"
+                                                w="full"
+                                              />
+                                            </Box>
 
-                                            <Input
-                                              type="number"
-                                              value={exercise.targetValue}
-                                              onChange={e =>
-                                                updateExercise(section.id, day.id, exercise.id, {
-                                                  targetValue: parseInt(e.target.value) || 0,
-                                                })
-                                              }
-                                              placeholder="Target"
-                                              size="sm"
-                                              maxW="100px"
-                                            />
+                                            <Box minW="90px" flex={1}>
+                                              <Text fontSize="xs" fontWeight="medium" mb={0.5}>
+                                                Reps
+                                              </Text>
+                                              <Input
+                                                type="number"
+                                                value={exercise.targetValue}
+                                                onChange={e =>
+                                                  updateExercise(section.id, day.id, exercise.id, {
+                                                    targetValue: parseInt(e.target.value) || 0,
+                                                  })
+                                                }
+                                                placeholder="Target"
+                                                size="sm"
+                                                w="full"
+                                              />
+                                            </Box>
 
-                                            <Input
-                                              value={exercise.goal || ""}
-                                              onChange={e =>
-                                                updateExercise(section.id, day.id, exercise.id, {
-                                                  goal: e.target.value,
-                                                })
-                                              }
-                                              placeholder="Goal (optional)"
-                                              size="sm"
-                                              maxW="150px"
-                                            />
+                                            <Box minW="120px" flex={2}>
+                                              <Text fontSize="xs" fontWeight="medium" mb={0.5}>
+                                                Goal (optional)
+                                              </Text>
+                                              <Input
+                                                value={exercise.goal || ""}
+                                                onChange={e =>
+                                                  updateExercise(section.id, day.id, exercise.id, {
+                                                    goal: e.target.value,
+                                                  })
+                                                }
+                                                placeholder="Goal (optional)"
+                                                size="sm"
+                                                w="full"
+                                              />
+                                            </Box>
                                           </HStack>
 
-                                          <Textarea
-                                            value={exercise.notes || ""}
-                                            onChange={e =>
-                                              updateExercise(section.id, day.id, exercise.id, {
-                                                notes: e.target.value,
-                                              })
-                                            }
-                                            placeholder="Notes (optional)"
-                                            size="sm"
-                                            rows={2}
-                                          />
+                                          <Box>
+                                            <Text fontSize="xs" fontWeight="medium" mb={0.5}>
+                                              Notes (optional)
+                                            </Text>
+                                            <Textarea
+                                              value={exercise.notes || ""}
+                                              onChange={e =>
+                                                updateExercise(section.id, day.id, exercise.id, {
+                                                  notes: e.target.value,
+                                                })
+                                              }
+                                              placeholder="Notes (optional)"
+                                              size="sm"
+                                              rows={2}
+                                            />
+                                          </Box>
 
                                           {/* Weekly Progression Editor */}
                                           {exercise.weeklyProgression && exercise.weeklyProgression.length > 0 && (
@@ -520,30 +568,35 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                                               </Text>
                                               <VStack align="stretch" gap={1}>
                                                 {exercise.weeklyProgression.map((weekData, weekIndex) => (
-                                                  <HStack key={weekIndex} gap={2}>
-                                                    <Text fontSize="xs" minW="50px">
+                                                  <HStack key={weekIndex} gap={2} align="flex-end" w="full">
+                                                    <Text fontSize="xs" minW="50px" flexShrink={0}>
                                                       Week {weekData.week}:
                                                     </Text>
-                                                    <Input
-                                                      type="number"
-                                                      value={weekData.targetValue ?? ""}
-                                                      onChange={e => {
-                                                        const newProgression = [...exercise.weeklyProgression];
-                                                        newProgression[weekIndex] = {
-                                                          ...newProgression[weekIndex],
-                                                          targetValue:
-                                                            e.target.value === ""
-                                                              ? null
-                                                              : parseInt(e.target.value) || 0,
-                                                        };
-                                                        updateExercise(section.id, day.id, exercise.id, {
-                                                          weeklyProgression: newProgression,
-                                                        });
-                                                      }}
-                                                      placeholder="Target"
-                                                      size="xs"
-                                                      maxW="80px"
-                                                    />
+                                                    <Box minW="90px" flex={1}>
+                                                      <Text fontSize="xs" fontWeight="medium" mb={0.5}>
+                                                        Reps
+                                                      </Text>
+                                                      <Input
+                                                        type="number"
+                                                        value={weekData.targetValue ?? ""}
+                                                        onChange={e => {
+                                                          const newProgression = [...exercise.weeklyProgression];
+                                                          newProgression[weekIndex] = {
+                                                            ...newProgression[weekIndex],
+                                                            targetValue:
+                                                              e.target.value === ""
+                                                                ? null
+                                                                : parseInt(e.target.value) || 0,
+                                                          };
+                                                          updateExercise(section.id, day.id, exercise.id, {
+                                                            weeklyProgression: newProgression,
+                                                          });
+                                                        }}
+                                                        placeholder="Target"
+                                                        size="xs"
+                                                        w="full"
+                                                      />
+                                                    </Box>
                                                     <HStack gap={1}>
                                                       <label
                                                         style={{

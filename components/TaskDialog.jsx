@@ -121,6 +121,16 @@ function TaskDialogForm({
   const [workoutData, setWorkoutData] = useState(task?.workoutData || null);
   const [workoutBuilderOpen, setWorkoutBuilderOpen] = useState(false);
 
+  // Calculate total weeks from recurrence dates
+  const totalWeeks = useMemo(() => {
+    if (!date || !endDate) return 1;
+    const startDate = new Date(date);
+    const end = new Date(endDate);
+    const daysDiff = Math.floor((end - startDate) / (1000 * 60 * 60 * 24));
+    const weeks = Math.ceil(daysDiff / 7);
+    return Math.max(1, weeks);
+  }, [date, endDate]);
+
   // Drag and drop sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -533,7 +543,7 @@ function TaskDialogForm({
                         </Button>
                         {workoutData && (
                           <Text fontSize="xs" color="gray.500" mt={1}>
-                            {workoutData.name} - {workoutData.weeks} weeks
+                            {title || "Workout"} - {totalWeeks} weeks
                           </Text>
                         )}
                       </Box>

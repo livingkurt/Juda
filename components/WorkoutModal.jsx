@@ -196,7 +196,7 @@ export default function WorkoutModal({
               <Flex justify="space-between" align="center" w="full">
                 <VStack align="flex-start" gap={1}>
                   <Text fontSize="xl" fontWeight="bold">
-                    {workoutData.name}
+                    {task?.title}
                   </Text>
                   <HStack>
                     <Badge colorPalette="blue" size="sm">

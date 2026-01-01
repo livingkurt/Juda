@@ -5,17 +5,20 @@
 ### 1. Removed Redundant Fields from WorkoutBuilder
 
 **Removed:**
+
 - `startDate` - Now uses task's `recurrence.startDate`
 - `weeks` - Now calculated from task's `recurrence.startDate` and `recurrence.endDate`
 - `currentWeek` - Calculated dynamically based on current date
 
 **Why:**
 These fields were duplicating information already stored in the task's recurrence settings. The task already has:
+
 - `recurrence.startDate` - When the workout starts
 - `recurrence.endDate` - When the workout ends
 - Current date - Used to calculate which week we're in
 
 **Before:**
+
 ```javascript
 workoutData: {
   name: "Workout 8",
@@ -27,6 +30,7 @@ workoutData: {
 ```
 
 **After:**
+
 ```javascript
 workoutData: {
   name: "Workout 8",
@@ -78,26 +82,31 @@ const currentWeek = useMemo(() => {
 Added a quick "Edit Workout" option to the ellipsis menu (⋮) for workout-type tasks:
 
 ```jsx
-{task.completionType === "workout" && handleEdit && (
-  <Menu.Item onClick={() => handleEdit(task)}>
-    <HStack gap={2}>
-      <Dumbbell size={14} />
-      <Text>Edit Workout</Text>
-    </HStack>
-  </Menu.Item>
-)}
+{
+  task.completionType === "workout" && handleEdit && (
+    <Menu.Item onClick={() => handleEdit(task)}>
+      <HStack gap={2}>
+        <Dumbbell size={14} />
+        <Text>Edit Workout</Text>
+      </HStack>
+    </Menu.Item>
+  );
+}
 ```
 
 **Important Distinction:**
+
 - **"Edit Workout"** (menu item) → Opens TaskDialog → Opens WorkoutBuilder (edit structure)
 - **"Start/Continue"** (button) → Opens WorkoutModal (execute/track workout)
 
 **Before:**
+
 1. Click task → Opens TaskDialog
 2. Scroll to find "Edit Workout" button in dialog
 3. Click button → Opens WorkoutBuilder
 
 **After:**
+
 1. Click ellipsis (⋮) on task
 2. Click "Edit Workout" → Opens TaskDialog with WorkoutBuilder
 
@@ -106,11 +115,13 @@ Makes workout editing more discoverable and accessible!
 ## Benefits
 
 ### 1. Single Source of Truth
+
 - No more syncing between `workoutData.startDate` and `task.recurrence.startDate`
 - No more syncing between `workoutData.weeks` and task dates
 - Dates are managed in one place (task recurrence)
 
 ### 2. Simpler Data Model
+
 ```javascript
 // Old workoutData: 5 fields
 {
@@ -129,11 +140,13 @@ Makes workout editing more discoverable and accessible!
 ```
 
 ### 3. More Flexible
+
 - Changing task dates automatically updates workout weeks
 - No need to manually update workout metadata
 - Works correctly even if task dates change
 
 ### 4. Better UX
+
 - Simpler workout builder form (fewer fields)
 - Quick access to workout editing via menu
 - Less cognitive load for users
@@ -170,6 +183,7 @@ New workouts created after this change won't have these fields, and that's fine.
 ## Example
 
 **Task Setup:**
+
 ```javascript
 {
   title: "Workout 8",
@@ -188,6 +202,7 @@ New workouts created after this change won't have these fields, and that's fine.
 ```
 
 **Calculated Values:**
+
 - Total weeks: `ceil((Dec 15 - Nov 10) / 7)` = 5 weeks
 - Current week (on Nov 17): `floor((Nov 17 - Nov 10) / 7) + 1` = Week 2
 - Display: "Week 2 of 5"
@@ -195,8 +210,8 @@ New workouts created after this change won't have these fields, and that's fine.
 ## Future Enhancements
 
 Potential improvements:
+
 1. **Week-by-week notes** - Add notes per week for deload/test weeks
 2. **Progress tracking** - Show completion % per week
 3. **Rest days** - Mark specific days as rest days
 4. **Template library** - Save workout structures as templates
-
