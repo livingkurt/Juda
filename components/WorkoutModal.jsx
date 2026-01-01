@@ -119,6 +119,26 @@ export default function WorkoutModal({
     });
   };
 
+  const handleActualValueChange = (sectionId, dayId, exerciseId, actualValue) => {
+    setCompletionData(prev => {
+      const newData = { ...prev };
+
+      if (!newData[sectionId]) {
+        newData[sectionId] = { days: {} };
+      }
+      if (!newData[sectionId].days[dayId]) {
+        newData[sectionId].days[dayId] = { exercises: {} };
+      }
+      if (!newData[sectionId].days[dayId].exercises[exerciseId]) {
+        newData[sectionId].days[dayId].exercises[exerciseId] = { sets: [] };
+      }
+
+      newData[sectionId].days[dayId].exercises[exerciseId].actualValue = actualValue;
+
+      return newData;
+    });
+  };
+
   // Helper to check if a set is complete based on exercise type
   const isSetComplete = (setData, exerciseType) => {
     if (exerciseType === "distance") {
@@ -252,6 +272,9 @@ export default function WorkoutModal({
                       }
                       currentWeek={currentWeek}
                       isCurrentDay={isDayForCurrentDayOfWeek(dayInSection)}
+                      onActualValueChange={(exerciseId, actualValue) =>
+                        handleActualValueChange(section.id, dayInSection.id, exerciseId, actualValue)
+                      }
                     />
                   </Box>
                 );

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Box, Text, Menu, HStack, Portal } from "@chakra-ui/react";
 import { useDraggable } from "@dnd-kit/core";
 import { getTaskDisplayColor } from "@/lib/utils";
-import { Edit2, X, Copy, Trash2, Check, Circle } from "lucide-react";
+import { Edit2, X, Copy, Trash2, Check, Circle, Dumbbell } from "lucide-react";
 
 export const TimedWeekTask = ({
   task,
@@ -16,6 +16,7 @@ export const TimedWeekTask = ({
   isCompletedOnDate,
   getOutcomeOnDate,
   onEditTask,
+  onEditWorkout,
   onOutcomeChange,
   onDuplicateTask,
   onDeleteTask,
@@ -32,6 +33,7 @@ export const TimedWeekTask = ({
   const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
   const isNotCompleted = outcome === "not_completed";
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
+  const isWorkoutTask = task.completionType === "workout";
 
   // Get task color from first tag, or use neutral gray if no tags
   const taskColor = getTaskDisplayColor(task);
@@ -136,6 +138,31 @@ export const TimedWeekTask = ({
                       <Edit2 size={14} />
                     </Box>
                     <Text>Edit</Text>
+                  </HStack>
+                </Menu.Item>
+              )}
+              {/* Edit Workout option for workout-type tasks */}
+              {isWorkoutTask && onEditWorkout && (
+                <Menu.Item
+                  onClick={e => {
+                    e.stopPropagation();
+                    onEditWorkout(task);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <HStack gap={2}>
+                    <Box
+                      as="span"
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      w="14px"
+                      h="14px"
+                      flexShrink={0}
+                    >
+                      <Dumbbell size={14} />
+                    </Box>
+                    <Text>Edit Workout</Text>
                   </HStack>
                 </Menu.Item>
               )}

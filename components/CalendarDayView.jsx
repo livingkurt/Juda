@@ -28,6 +28,7 @@ export const CalendarDayView = ({
   showStatusTasks = true,
   zoom = 1.0,
   onEditTask,
+  onEditWorkout,
   onOutcomeChange,
   onDuplicateTask,
   onDeleteTask,
@@ -279,6 +280,7 @@ export const CalendarDayView = ({
                 isCompletedOnDate={isCompletedOnDate}
                 getOutcomeOnDate={getOutcomeOnDate}
                 onEditTask={onEditTask}
+                onEditWorkout={onEditWorkout}
                 onOutcomeChange={onOutcomeChange}
                 onDuplicateTask={onDuplicateTask}
                 onDeleteTask={onDeleteTask}
@@ -356,6 +358,7 @@ export const CalendarDayView = ({
                 isCompletedOnDate={isCompletedOnDate}
                 getOutcomeOnDate={getOutcomeOnDate}
                 onEditTask={onEditTask}
+                onEditWorkout={onEditWorkout}
                 onOutcomeChange={onOutcomeChange}
                 onDuplicateTask={onDuplicateTask}
                 onDeleteTask={onDeleteTask}

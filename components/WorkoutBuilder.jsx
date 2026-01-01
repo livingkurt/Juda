@@ -35,11 +35,24 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
   const [sections, setSections] = useState([]);
   const [expandedSections, setExpandedSections] = useState({});
   const [expandedDays, setExpandedDays] = useState({});
+  const [numberOfWeeks, setNumberOfWeeks] = useState(0);
 
   // Create collections for selects
   const sectionTypeCollection = useMemo(() => createListCollection({ items: WORKOUT_SECTION_TYPES }), []);
 
   const exerciseTypeCollection = useMemo(() => createListCollection({ items: EXERCISE_TYPES }), []);
+
+  const weekTypeCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { label: "Normal", value: "normal" },
+          { label: "Deload", value: "deload" },
+          { label: "Test", value: "test" },
+        ],
+      }),
+    []
+  );
 
   // Helper to convert exercise type/unit to Select value
   const getExerciseSelectValue = (type, unit) => {
@@ -47,6 +60,22 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
       return unit === "mins" ? "time_mins" : "time_secs";
     }
     return type; // "reps" or "distance"
+  };
+
+  // Helper to get capitalized label for exercise type/unit
+  const getExerciseLabel = (type, unit) => {
+    const selectValue = getExerciseSelectValue(type, unit);
+    const exerciseType = EXERCISE_TYPES.find(t => t.value === selectValue);
+    return exerciseType?.label || selectValue;
+  };
+
+  // Helper to parse number value based on exercise type
+  const parseExerciseValue = (value, exerciseType) => {
+    if (value === "") return null;
+    if (exerciseType === "distance") {
+      return parseFloat(value) || 0;
+    }
+    return parseInt(value) || 0;
   };
 
   // Helper to parse Select value back to type/unit
@@ -78,10 +107,62 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
     );
   };
 
+  // Helper to extract actual values from progress and populate weekly progression
+  const extractActualValuesFromProgress = (sections, progress) => {
+    if (!progress) return sections;
+
+    return sections.map(section => ({
+      ...section,
+      days: section.days?.map(day => ({
+        ...day,
+        exercises: day.exercises?.map(exercise => {
+          if (!exercise.weeklyProgression) return exercise;
+
+          const updatedProgression = exercise.weeklyProgression.map(weekData => {
+            const weekProgress = progress[weekData.week];
+            if (weekProgress?.sectionCompletions) {
+              const sectionData = weekProgress.sectionCompletions[section.id];
+              const dayData = sectionData?.days?.[day.id];
+              const exerciseData = dayData?.exercises?.[exercise.id];
+              if (exerciseData?.actualValue !== undefined) {
+                return { ...weekData, actualValue: exerciseData.actualValue };
+              }
+            }
+            return weekData;
+          });
+          return { ...exercise, weeklyProgression: updatedProgression };
+        }),
+      })),
+    }));
+  };
+
   // Initialize with existing data or defaults
   useEffect(() => {
     if (initialData) {
-      setSections(initialData.sections || []);
+      // Extract actual values from progress and populate weekly progression
+      const sectionsWithActualValues = extractActualValuesFromProgress(
+        initialData.sections || [],
+        initialData.progress
+      );
+
+      setSections(sectionsWithActualValues);
+
+      // Initialize numberOfWeeks from initialData or calculate from existing exercises
+      if (initialData.numberOfWeeks !== undefined) {
+        setNumberOfWeeks(initialData.numberOfWeeks);
+      } else {
+        // Calculate max weeks from all exercises
+        let maxWeeks = 0;
+        initialData.sections?.forEach(section => {
+          section.days?.forEach(day => {
+            day.exercises?.forEach(exercise => {
+              const weeks = exercise.weeklyProgression?.length || 0;
+              if (weeks > maxWeeks) maxWeeks = weeks;
+            });
+          });
+        });
+        setNumberOfWeeks(maxWeeks);
+      }
 
       // Expand first section and day by default
       if (initialData.sections?.length > 0) {
@@ -101,6 +182,7 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
       };
       setSections([defaultSection]);
       setExpandedSections({ [defaultSection.id]: true });
+      setNumberOfWeeks(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -160,6 +242,20 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
   };
 
   const addExercise = (sectionId, dayId) => {
+    // Initialize weekly progression based on component-level numberOfWeeks
+    const weeklyProgression = [];
+    if (numberOfWeeks > 0) {
+      for (let i = 1; i <= numberOfWeeks; i++) {
+        weeklyProgression.push({
+          week: i,
+          targetValue: 10, // Default to the exercise's targetValue
+          actualValue: null,
+          isDeload: false,
+          isTest: false,
+        });
+      }
+    }
+
     const newExercise = {
       id: generateCuid(),
       name: "New Exercise",
@@ -169,8 +265,7 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
       unit: "reps",
       notes: "",
       goal: "",
-      // Weekly progression can be added later if needed
-      weeklyProgression: [],
+      weeklyProgression,
     };
 
     setSections(
@@ -220,9 +315,53 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
     );
   };
 
+  const updateNumberOfWeeks = newNumberOfWeeks => {
+    setNumberOfWeeks(newNumberOfWeeks);
+
+    // Sync all exercises across all sections and days
+    setSections(
+      sections.map(section => ({
+        ...section,
+        days: section.days.map(day => ({
+          ...day,
+          exercises: day.exercises.map(exercise => {
+            const currentWeeks = exercise.weeklyProgression?.length || 0;
+
+            if (newNumberOfWeeks === 0) {
+              return { ...exercise, weeklyProgression: [] };
+            }
+
+            const progression = [...(exercise.weeklyProgression || [])];
+
+            // Add weeks if needed
+            for (let i = currentWeeks + 1; i <= newNumberOfWeeks; i++) {
+              progression.push({
+                week: i,
+                targetValue: exercise.targetValue || null,
+                actualValue: null,
+                isDeload: false,
+                isTest: false,
+              });
+            }
+
+            // Remove weeks if needed
+            if (progression.length > newNumberOfWeeks) {
+              progression.splice(newNumberOfWeeks);
+            }
+
+            return { ...exercise, weeklyProgression: progression };
+          }),
+        })),
+      }))
+    );
+  };
+
   const handleSave = () => {
     const workoutData = {
       sections,
+      numberOfWeeks,
+      // Preserve progress data if it exists
+      ...(initialData?.progress && { progress: initialData.progress }),
     };
 
     onSave(workoutData);
@@ -257,6 +396,27 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
 
           <Dialog.Body>
             <VStack align="stretch" gap={6}>
+              {/* Number of Weeks - Controls all exercises */}
+              <Box>
+                <Text fontSize="sm" fontWeight="medium" mb={1}>
+                  Number of Weeks
+                </Text>
+                <Input
+                  type="number"
+                  min="0"
+                  value={numberOfWeeks}
+                  onChange={e => {
+                    const weeks = parseInt(e.target.value) || 0;
+                    updateNumberOfWeeks(weeks);
+                  }}
+                  placeholder="0"
+                  maxW="200px"
+                />
+                <Text fontSize="xs" color={{ _light: "gray.600", _dark: "gray.400" }} mt={1}>
+                  This controls weekly progression for all exercises across all sections and days
+                </Text>
+              </Box>
+
               {/* Sections */}
               <VStack align="stretch" gap={4}>
                 <Flex justify="space-between" align="center">
@@ -509,7 +669,7 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
 
                                             <Box minW="90px" flex={1}>
                                               <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                                                Reps
+                                                {getExerciseLabel(exercise.type, exercise.unit)}
                                               </Text>
                                               <Input
                                                 type="number"
@@ -519,7 +679,7 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                                                     targetValue: parseInt(e.target.value) || 0,
                                                   })
                                                 }
-                                                placeholder="Target"
+                                                placeholder={getExerciseLabel(exercise.type, exercise.unit)}
                                                 size="sm"
                                                 w="full"
                                               />
@@ -561,94 +721,155 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                                           </Box>
 
                                           {/* Weekly Progression Editor */}
-                                          {exercise.weeklyProgression && exercise.weeklyProgression.length > 0 && (
+                                          {numberOfWeeks > 0 && (
                                             <Box>
                                               <Text fontSize="xs" fontWeight="medium" mb={1}>
                                                 Weekly Progression
                                               </Text>
                                               <VStack align="stretch" gap={1}>
-                                                {exercise.weeklyProgression.map((weekData, weekIndex) => (
-                                                  <HStack key={weekIndex} gap={2} align="flex-end" w="full">
-                                                    <Text fontSize="xs" minW="50px" flexShrink={0}>
-                                                      Week {weekData.week}:
-                                                    </Text>
-                                                    <Box minW="90px" flex={1}>
-                                                      <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                                                        Reps
+                                                {Array.from({ length: numberOfWeeks }, (_, i) => {
+                                                  const weekNumber = i + 1;
+                                                  const weekData = exercise.weeklyProgression?.find(
+                                                    w => w.week === weekNumber
+                                                  ) || {
+                                                    week: weekNumber,
+                                                    targetValue: exercise.targetValue || null,
+                                                    actualValue: null,
+                                                    isDeload: false,
+                                                    isTest: false,
+                                                  };
+                                                  const isTest = weekData.isTest ?? false;
+                                                  return (
+                                                    <HStack key={weekNumber} gap={2} align="flex-end" w="full">
+                                                      <Text fontSize="xs" minW="50px" flexShrink={0}>
+                                                        Week {weekNumber}:
                                                       </Text>
-                                                      <Input
-                                                        type="number"
-                                                        value={weekData.targetValue ?? ""}
-                                                        onChange={e => {
-                                                          const newProgression = [...exercise.weeklyProgression];
-                                                          newProgression[weekIndex] = {
-                                                            ...newProgression[weekIndex],
-                                                            targetValue:
-                                                              e.target.value === ""
-                                                                ? null
-                                                                : parseInt(e.target.value) || 0,
-                                                          };
-                                                          updateExercise(section.id, day.id, exercise.id, {
-                                                            weeklyProgression: newProgression,
-                                                          });
-                                                        }}
-                                                        placeholder="Target"
-                                                        size="xs"
-                                                        w="full"
-                                                      />
-                                                    </Box>
-                                                    <HStack gap={1}>
-                                                      <label
-                                                        style={{
-                                                          fontSize: "11px",
-                                                          display: "flex",
-                                                          alignItems: "center",
-                                                          gap: "4px",
-                                                        }}
-                                                      >
-                                                        <input
-                                                          type="checkbox"
-                                                          checked={weekData.isDeload || false}
-                                                          onChange={e => {
-                                                            const newProgression = [...exercise.weeklyProgression];
-                                                            newProgression[weekIndex] = {
-                                                              ...newProgression[weekIndex],
-                                                              isDeload: e.target.checked,
-                                                            };
+                                                      {isTest ? (
+                                                        <>
+                                                          <Box minW="90px" flex={1}>
+                                                            <Text
+                                                              fontSize="xs"
+                                                              color={{ _light: "gray.600", _dark: "gray.400" }}
+                                                              mb={0.5}
+                                                            >
+                                                              Test week doesn't get target
+                                                            </Text>
+                                                          </Box>
+                                                        </>
+                                                      ) : (
+                                                        <>
+                                                          <Box minW="90px" flex={1}>
+                                                            <Text fontSize="xs" fontWeight="medium" mb={0.5}>
+                                                              Target {getExerciseLabel(exercise.type, exercise.unit)}
+                                                            </Text>
+                                                            <Input
+                                                              type="number"
+                                                              step={exercise.type === "distance" ? "0.01" : "1"}
+                                                              value={weekData.targetValue ?? ""}
+                                                              onChange={e => {
+                                                                const currentProgression =
+                                                                  exercise.weeklyProgression || [];
+                                                                const weekIndex = currentProgression.findIndex(
+                                                                  w => w.week === weekNumber
+                                                                );
+                                                                const newProgression = [...currentProgression];
+
+                                                                if (weekIndex >= 0) {
+                                                                  newProgression[weekIndex] = {
+                                                                    ...newProgression[weekIndex],
+                                                                    targetValue: parseExerciseValue(
+                                                                      e.target.value,
+                                                                      exercise.type
+                                                                    ),
+                                                                  };
+                                                                } else {
+                                                                  newProgression.push({
+                                                                    week: weekNumber,
+                                                                    targetValue: parseExerciseValue(
+                                                                      e.target.value,
+                                                                      exercise.type
+                                                                    ),
+                                                                    actualValue: null,
+                                                                    isDeload: false,
+                                                                    isTest: false,
+                                                                  });
+                                                                  newProgression.sort((a, b) => a.week - b.week);
+                                                                }
+
+                                                                updateExercise(section.id, day.id, exercise.id, {
+                                                                  weeklyProgression: newProgression,
+                                                                });
+                                                              }}
+                                                              placeholder={getExerciseLabel(
+                                                                exercise.type,
+                                                                exercise.unit
+                                                              )}
+                                                              size="xs"
+                                                              w="full"
+                                                            />
+                                                          </Box>
+                                                        </>
+                                                      )}
+                                                      <Box minW="100px">
+                                                        <Text fontSize="xs" fontWeight="medium" mb={0.5}>
+                                                          Type
+                                                        </Text>
+                                                        <Select.Root
+                                                          collection={weekTypeCollection}
+                                                          value={[
+                                                            weekData.isDeload
+                                                              ? "deload"
+                                                              : weekData.isTest
+                                                                ? "test"
+                                                                : "normal",
+                                                          ]}
+                                                          onValueChange={({ value }) => {
+                                                            const currentProgression = exercise.weeklyProgression || [];
+                                                            const weekIdx = currentProgression.findIndex(
+                                                              w => w.week === weekNumber
+                                                            );
+                                                            const newProgression = [...currentProgression];
+                                                            const isDeload = value[0] === "deload";
+                                                            const isTest = value[0] === "test";
+
+                                                            if (weekIdx >= 0) {
+                                                              newProgression[weekIdx] = {
+                                                                ...newProgression[weekIdx],
+                                                                isDeload,
+                                                                isTest,
+                                                              };
+                                                            } else {
+                                                              newProgression.push({
+                                                                week: weekNumber,
+                                                                targetValue: exercise.targetValue || null,
+                                                                actualValue: null,
+                                                                isDeload,
+                                                                isTest,
+                                                              });
+                                                              newProgression.sort((a, b) => a.week - b.week);
+                                                            }
+
                                                             updateExercise(section.id, day.id, exercise.id, {
                                                               weeklyProgression: newProgression,
                                                             });
                                                           }}
-                                                        />
-                                                        Deload
-                                                      </label>
-                                                      <label
-                                                        style={{
-                                                          fontSize: "11px",
-                                                          display: "flex",
-                                                          alignItems: "center",
-                                                          gap: "4px",
-                                                        }}
-                                                      >
-                                                        <input
-                                                          type="checkbox"
-                                                          checked={weekData.isTest || false}
-                                                          onChange={e => {
-                                                            const newProgression = [...exercise.weeklyProgression];
-                                                            newProgression[weekIndex] = {
-                                                              ...newProgression[weekIndex],
-                                                              isTest: e.target.checked,
-                                                            };
-                                                            updateExercise(section.id, day.id, exercise.id, {
-                                                              weeklyProgression: newProgression,
-                                                            });
-                                                          }}
-                                                        />
-                                                        Test
-                                                      </label>
+                                                          size="xs"
+                                                        >
+                                                          <Select.Trigger w="full">
+                                                            <Select.ValueText />
+                                                          </Select.Trigger>
+                                                          <Select.Content>
+                                                            {weekTypeCollection.items.map(type => (
+                                                              <Select.Item key={type.value} item={type}>
+                                                                {type.label}
+                                                              </Select.Item>
+                                                            ))}
+                                                          </Select.Content>
+                                                        </Select.Root>
+                                                      </Box>
                                                     </HStack>
-                                                  </HStack>
-                                                ))}
+                                                  );
+                                                })}
                                               </VStack>
                                             </Box>
                                           )}

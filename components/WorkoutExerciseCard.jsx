@@ -10,12 +10,30 @@ import { Box, Text, Flex, Checkbox, Input, HStack, VStack, Badge } from "@chakra
  * @param {Function} onSetToggle - Callback when a set is toggled
  * @param {number} currentWeek - Current week number for progression
  */
-export default function WorkoutExerciseCard({ exercise, completedSets = [], onSetToggle, currentWeek = 1 }) {
+export default function WorkoutExerciseCard({
+  exercise,
+  completedSets = [],
+  onSetToggle,
+  currentWeek = 1,
+  actualValue = null,
+  onActualValueChange = null,
+}) {
   // Get target value for current week
   const weeklyTarget = exercise.weeklyProgression?.find(w => w.week === currentWeek);
   const targetValue = weeklyTarget?.targetValue ?? exercise.targetValue;
   const isDeload = weeklyTarget?.isDeload ?? false;
   const isTest = weeklyTarget?.isTest ?? false;
+
+  // Helper to get exercise label
+  const getExerciseLabel = () => {
+    if (exercise.type === "time") {
+      return exercise.unit === "mins" ? "Time (minutes)" : "Time (seconds)";
+    }
+    if (exercise.type === "distance") {
+      return "Distance (miles)";
+    }
+    return "Reps";
+  };
 
   // Format display based on exercise type
   const getDisplayText = () => {
@@ -204,6 +222,30 @@ export default function WorkoutExerciseCard({ exercise, completedSets = [], onSe
             </Badge>
           )}
         </HStack>
+
+        {/* Actual value input for test weeks */}
+        {isTest && onActualValueChange && (
+          <Box>
+            <HStack gap={2} align="flex-end">
+              <Text fontSize="xs" color={{ _light: "gray.600", _dark: "gray.400" }} minW="80px">
+                Actual {getExerciseLabel()}:
+              </Text>
+              <Input
+                type="number"
+                step={exercise.type === "distance" ? "0.01" : "1"}
+                size="sm"
+                placeholder={`Enter actual ${getExerciseLabel().toLowerCase()}`}
+                value={actualValue ?? ""}
+                onChange={e => {
+                  const value = e.target.value === "" ? null : parseFloat(e.target.value) || 0;
+                  onActualValueChange(exercise.id, value);
+                }}
+                bg={{ _light: "white", _dark: "gray.800" }}
+                flex={1}
+              />
+            </HStack>
+          </Box>
+        )}
       </VStack>
     </Box>
   );

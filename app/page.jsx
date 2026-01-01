@@ -3043,6 +3043,7 @@ export default function DailyTasksApp() {
                                     tags={tags}
                                     onCreateTag={createTag}
                                     onEditTask={handleEditTask}
+                                    onEditWorkout={handleEditWorkout}
                                     onOutcomeChange={handleOutcomeChange}
                                     onDuplicateTask={handleDuplicateTask}
                                     onDeleteTask={handleDeleteTask}
@@ -3074,6 +3075,7 @@ export default function DailyTasksApp() {
                                     showStatusTasks={_showStatusTasks.week}
                                     zoom={calendarZoom.week}
                                     onEditTask={handleEditTask}
+                                    onEditWorkout={handleEditWorkout}
                                     onOutcomeChange={handleOutcomeChange}
                                     onDuplicateTask={handleDuplicateTask}
                                     onDeleteTask={handleDeleteTask}
@@ -3659,6 +3661,7 @@ export default function DailyTasksApp() {
                                           tags={tags}
                                           onCreateTag={createTag}
                                           onEditTask={handleEditTask}
+                                          onEditWorkout={handleEditWorkout}
                                           onOutcomeChange={handleOutcomeChange}
                                           onDuplicateTask={handleDuplicateTask}
                                           onDeleteTask={handleDeleteTask}
@@ -3688,6 +3691,7 @@ export default function DailyTasksApp() {
                                           showCompleted={showCompletedTasksCalendar.week}
                                           zoom={calendarZoom.week}
                                           onEditTask={handleEditTask}
+                                          onEditWorkout={handleEditWorkout}
                                           onOutcomeChange={handleOutcomeChange}
                                           onDuplicateTask={handleDuplicateTask}
                                           onDeleteTask={handleDeleteTask}

@@ -21,6 +21,7 @@ export const DayHeaderColumn = ({
   isCompletedOnDate,
   getOutcomeOnDate,
   onEditTask,
+  onEditWorkout,
   onOutcomeChange,
   onDuplicateTask,
   onDeleteTask,
@@ -104,6 +105,7 @@ export const DayHeaderColumn = ({
               isCompletedOnDate={isCompletedOnDate}
               getOutcomeOnDate={getOutcomeOnDate}
               onEditTask={onEditTask}
+              onEditWorkout={onEditWorkout}
               onOutcomeChange={onOutcomeChange}
               onDuplicateTask={onDuplicateTask}
               onDeleteTask={onDeleteTask}

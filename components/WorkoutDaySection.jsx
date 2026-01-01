@@ -18,6 +18,7 @@ export default function WorkoutDaySection({
   onSetToggle,
   currentWeek = 1,
   isCurrentDay = false,
+  onActualValueChange = null,
 }) {
   // Helper to check if a set is complete based on exercise type
   const isSetComplete = (setData, exerciseType) => {
@@ -75,6 +76,8 @@ export default function WorkoutDaySection({
                 completedSets={exerciseCompletion.sets || []}
                 onSetToggle={onSetToggle}
                 currentWeek={currentWeek}
+                actualValue={exerciseCompletion.actualValue ?? null}
+                onActualValueChange={onActualValueChange}
               />
             );
           })}

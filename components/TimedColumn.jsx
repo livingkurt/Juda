@@ -28,6 +28,7 @@ export const TimedColumn = ({
   showStatusTasks = true,
   hourHeight = 48,
   onEditTask,
+  onEditWorkout,
   onOutcomeChange,
   onDuplicateTask,
   onDeleteTask,
@@ -92,6 +93,7 @@ export const TimedColumn = ({
           isCompletedOnDate={isCompletedOnDate}
           getOutcomeOnDate={getOutcomeOnDate}
           onEditTask={onEditTask}
+          onEditWorkout={onEditWorkout}
           onOutcomeChange={onOutcomeChange}
           onDuplicateTask={onDuplicateTask}
           onDeleteTask={onDeleteTask}
