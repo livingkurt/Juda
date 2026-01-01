@@ -297,7 +297,7 @@ export const CalendarWeekView = ({
           style={{ pointerEvents: "auto" }}
         >
           {/* Spacer to match hour labels width */}
-          <Box w={12} flexShrink={0} />
+          <Box w={12} flexShrink={0} borderRightWidth="1px" borderColor={borderColor} />
 
           {weekDays.map((day, i) => {
             const untimedTasksForDay = getUntimedTasksForDay(day);
@@ -358,7 +358,16 @@ export const CalendarWeekView = ({
                 height: `${HOUR_HEIGHT}px`,
               }}
             >
-              <Box w={12} fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} pr={1} textAlign="right" pt={1}>
+              <Box
+                w={12}
+                fontSize={{ base: "2xs", md: "xs" }}
+                color={hourTextColor}
+                pr={1}
+                textAlign="right"
+                pt={1}
+                borderRightWidth="1px"
+                borderColor={borderColor}
+              >
                 {hour === 0 ? "" : hour < 12 ? `${hour} am` : hour === 12 ? "12 pm" : `${hour - 12} pm`}
               </Box>
             </Box>
