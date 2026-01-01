@@ -10,7 +10,6 @@ import {
   Text,
   Flex,
   IconButton,
-  Card,
   Heading,
   Badge,
   Tabs,
@@ -197,6 +196,7 @@ export default function DailyTasksApp() {
     showKanban: _showKanban,
     backlogOpen,
     backlogWidth,
+    todayViewWidth,
     calendarView,
     calendarZoom,
     showCompletedTasks,
@@ -215,6 +215,7 @@ export default function DailyTasksApp() {
   const _setShowKanban = useCallback(value => updatePreference("showKanban", value), [updatePreference]);
   const setBacklogOpen = useCallback(value => updatePreference("backlogOpen", value), [updatePreference]);
   const setBacklogWidth = useCallback(value => updatePreference("backlogWidth", value), [updatePreference]);
+  const setTodayViewWidth = useCallback(value => updatePreference("todayViewWidth", value), [updatePreference]);
   const setCalendarView = useCallback(value => updatePreference("calendarView", value), [updatePreference]);
 
   // Reset calendarView if it was set to "kanban" (from old implementation)
@@ -297,6 +298,9 @@ export default function DailyTasksApp() {
   // Search state for Today view
   const [todaySearchTerm, setTodaySearchTerm] = useState("");
   const [todaySelectedTagIds, setTodaySelectedTagIds] = useState([]);
+  // Search state for Calendar view
+  const [calendarSearchTerm, setCalendarSearchTerm] = useState("");
+  const [calendarSelectedTagIds, setCalendarSelectedTagIds] = useState([]);
   const [editingTask, setEditingTask] = useState(null);
   const [editingSection, setEditingSection] = useState(null);
   const [defaultSectionId, setDefaultSectionId] = useState(null);
@@ -383,34 +387,90 @@ export default function DailyTasksApp() {
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
 
-  // Resize handlers for backlog drawer
+  // Resize handlers for resizable sections
   const resizeStartRef = useRef(null);
+  const [resizeType, setResizeType] = useState(null); // "backlog" or "today"
+  // Local state for smooth resizing (only updates preferences on mouse up)
+  const [localBacklogWidth, setLocalBacklogWidth] = useState(backlogWidth);
+  const [localTodayViewWidth, setLocalTodayViewWidth] = useState(todayViewWidth);
+  const rafRef = useRef(null);
 
   // Track which calendar droppable we're over for time calculation
   const currentCalendarDroppableRef = useRef(null);
   const mouseMoveListenerRef = useRef(null);
-  const handleResizeStart = e => {
+
+  // Sync local widths with preference widths when they change externally
+  useEffect(() => {
+    setLocalBacklogWidth(backlogWidth);
+  }, [backlogWidth]);
+
+  useEffect(() => {
+    setLocalTodayViewWidth(todayViewWidth);
+  }, [todayViewWidth]);
+
+  const handleBacklogResizeStart = e => {
     e.preventDefault();
     setIsResizing(true);
+    setResizeType("backlog");
     resizeStartRef.current = {
       startX: e.clientX,
-      startWidth: backlogWidth,
+      startWidth: localBacklogWidth,
+    };
+  };
+
+  const handleTodayResizeStart = e => {
+    e.preventDefault();
+    setIsResizing(true);
+    setResizeType("today");
+    resizeStartRef.current = {
+      startX: e.clientX,
+      startWidth: localTodayViewWidth,
     };
   };
 
   useEffect(() => {
-    if (!isResizing) return;
+    if (!isResizing || !resizeType) return;
 
     const handleMouseMove = e => {
       if (!resizeStartRef.current) return;
-      const deltaX = e.clientX - resizeStartRef.current.startX;
-      const newWidth = Math.max(300, Math.min(800, resizeStartRef.current.startWidth + deltaX));
-      setBacklogWidth(newWidth);
+
+      // Cancel any pending animation frame
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+
+      // Use requestAnimationFrame for smooth updates
+      rafRef.current = requestAnimationFrame(() => {
+        if (!resizeStartRef.current) return;
+        const deltaX = e.clientX - resizeStartRef.current.startX;
+
+        if (resizeType === "backlog") {
+          const newWidth = Math.max(300, Math.min(800, resizeStartRef.current.startWidth + deltaX));
+          setLocalBacklogWidth(newWidth);
+        } else if (resizeType === "today") {
+          const newWidth = Math.max(300, Math.min(1200, resizeStartRef.current.startWidth + deltaX));
+          setLocalTodayViewWidth(newWidth);
+        }
+      });
     };
 
     const handleMouseUp = () => {
+      // Save final width to preferences
+      if (resizeType === "backlog") {
+        setBacklogWidth(localBacklogWidth);
+      } else if (resizeType === "today") {
+        setTodayViewWidth(localTodayViewWidth);
+      }
+
       setIsResizing(false);
+      setResizeType(null);
       resizeStartRef.current = null;
+
+      // Cancel any pending animation frame
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
 
     document.addEventListener("mousemove", handleMouseMove);
@@ -419,8 +479,11 @@ export default function DailyTasksApp() {
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
     };
-  }, [isResizing, backlogWidth, setBacklogWidth]);
+  }, [isResizing, resizeType, localBacklogWidth, localTodayViewWidth, setBacklogWidth, setTodayViewWidth]);
 
   // Keyboard shortcut: CMD+E (or CTRL+E) to open task dialog
   useEffect(() => {
@@ -1220,6 +1283,14 @@ export default function DailyTasksApp() {
 
   const handleTodayTagDeselect = tagId => {
     setTodaySelectedTagIds(prev => prev.filter(id => id !== tagId));
+  };
+
+  const handleCalendarTagSelect = tagId => {
+    setCalendarSelectedTagIds(prev => [...prev, tagId]);
+  };
+
+  const handleCalendarTagDeselect = tagId => {
+    setCalendarSelectedTagIds(prev => prev.filter(id => id !== tagId));
   };
 
   const handleTaskTimeChange = async (taskId, newTime) => {
@@ -2849,6 +2920,21 @@ export default function DailyTasksApp() {
                               </Portal>
                             </Select.Root>
                           </Flex>
+                          {/* Search and Tag Filter */}
+                          <Box px={2} py={2} w="100%" maxW="100%">
+                            <HStack spacing={1} align="center" w="100%" maxW="100%">
+                              <Box flex={1} minW={0}>
+                                <TaskSearchInput onSearchChange={setCalendarSearchTerm} />
+                              </Box>
+                              <TagFilter
+                                tags={tags}
+                                selectedTagIds={calendarSelectedTagIds}
+                                onTagSelect={handleCalendarTagSelect}
+                                onTagDeselect={handleCalendarTagDeselect}
+                                onCreateTag={createTag}
+                              />
+                            </HStack>
+                          </Box>
                         </Box>
 
                         {/* Calendar View */}
@@ -2858,6 +2944,21 @@ export default function DailyTasksApp() {
                             let filteredTasks = showRecurringTasks[calendarView]
                               ? tasks
                               : tasks.filter(task => !task.recurrence || task.recurrence.type === "none");
+
+                            // Filter by search term
+                            if (calendarSearchTerm.trim()) {
+                              const lowerSearch = calendarSearchTerm.toLowerCase();
+                              filteredTasks = filteredTasks.filter(task =>
+                                task.title.toLowerCase().includes(lowerSearch)
+                              );
+                            }
+
+                            // Filter by tags
+                            if (calendarSelectedTagIds.length > 0) {
+                              filteredTasks = filteredTasks.filter(task =>
+                                task.tags?.some(tag => calendarSelectedTagIds.includes(tag.id))
+                              );
+                            }
 
                             // Filter tasks based on completed preference for current view
                             if (!showCompletedTasksCalendar[calendarView] && calendarView === "day" && selectedDate) {
@@ -2958,298 +3059,300 @@ export default function DailyTasksApp() {
           ) : (
             /* ========== DESKTOP LAYOUT (existing code) ========== */
             <Box display="flex" flex={1} h="100%" minH={0} overflow="hidden">
-              {/* Backlog Sidebar - only show on Tasks tab */}
-              {mainTabIndex === 0 && (
-                <Box
-                  w={
-                    backlogOpen
-                      ? {
-                          base: "100vw",
-                          md: `${backlogWidth}px`,
-                        }
-                      : "0"
-                  }
-                  h="100%"
-                  transition={isResizing ? "none" : "width 0.3s"}
-                  overflow="hidden"
-                  borderRightWidth={backlogOpen ? { base: "0", md: "1px" } : "0"}
-                  borderColor={borderColor}
-                  bg={bgColor}
-                  flexShrink={0}
-                  display="flex"
-                  flexDirection="column"
-                  position="relative"
-                >
-                  {backlogOpen && (
-                    <>
-                      {isLoading ? (
-                        <BacklogSkeleton />
-                      ) : (
-                        <BacklogDrawer
-                          onClose={() => setBacklogOpen(false)}
-                          backlogTasks={backlogTasks}
-                          sections={sections}
-                          onDeleteTask={handleDeleteTask}
-                          onEditTask={handleEditTask}
-                          onUpdateTaskTitle={handleUpdateTaskTitle}
-                          onDuplicateTask={handleDuplicateTask}
-                          onAddTask={handleAddTaskToBacklog}
-                          onCreateBacklogTaskInline={handleCreateBacklogTaskInline}
-                          onToggleExpand={handleToggleExpand}
-                          onToggleSubtask={handleToggleSubtask}
-                          onToggleTask={handleToggleTask}
-                          createDraggableId={createDraggableId}
-                          viewDate={today}
-                          tags={tags}
-                          onCreateTag={createTag}
-                          onOutcomeChange={handleOutcomeChange}
-                          getOutcomeOnDate={getOutcomeOnDate}
-                          hasRecordOnDate={hasRecordOnDate}
-                          onCompleteWithNote={handleCompleteWithNote}
-                          onSkipTask={handleNotCompletedTask}
-                          getCompletionForDate={getCompletionForDate}
-                          selectedTaskIds={selectedTaskIds}
-                          onTaskSelect={handleTaskSelect}
-                          onBulkEdit={handleBulkEdit}
-                        />
-                      )}
-                      {/* Resize handle - hidden on mobile */}
-                      <Box
-                        position="absolute"
-                        right={0}
-                        top={0}
-                        bottom={0}
-                        w="4px"
-                        cursor="col-resize"
-                        bg={isResizing ? "blue.400" : "transparent"}
-                        _hover={{ bg: "blue.300" }}
-                        transition="background-color 0.2s"
-                        onMouseDown={handleResizeStart}
-                        zIndex={10}
-                        sx={{ userSelect: "none" }}
-                        display={{ base: "none", md: "block" }}
-                      />
-                    </>
-                  )}
-                </Box>
-              )}
-
-              {/* Main Content Area */}
-              <Box
-                flex={1}
-                overflow="hidden"
-                display={{ base: backlogOpen ? "none" : "flex", md: "flex" }}
-                flexDirection="column"
-                h="100%"
-                minH={0}
-              >
-                <Box flex={1} minH={0} h="100%" overflow={mainTabIndex === 2 ? "hidden" : "auto"}>
-                  {mainTabIndex === 1 ? (
-                    /* Kanban Tab Content */
-                    <Box
-                      h="100%"
-                      overflow="hidden"
-                      display="flex"
-                      flexDirection="column"
-                      px={{ base: 2, md: 4 }}
-                      py={{ base: 3, md: 6 }}
-                    >
-                      <KanbanView
-                        tasks={tasks}
-                        onTaskClick={handleEditTask}
-                        onCreateTask={({ status }) => {
-                          setDefaultSectionId(sections[0]?.id);
-                          setEditingTask({ status });
-                          openTaskDialog();
-                        }}
-                        onCreateTaskInline={handleCreateKanbanTaskInline}
-                        createDraggableId={createDraggableId}
-                        isCompletedOnDate={isCompletedOnDate}
-                        getOutcomeOnDate={getOutcomeOnDate}
-                        onOutcomeChange={handleOutcomeChange}
-                        onEditTask={handleEditTask}
-                        onDuplicateTask={handleDuplicateTask}
-                        onDeleteTask={handleDeleteTask}
-                        onStatusChange={handleStatusChange}
-                        tags={tags}
-                        onCreateTag={createTag}
-                        recentlyCompletedTasks={recentlyCompletedTasks}
-                        viewDate={viewDate}
-                        selectedTaskIds={selectedTaskIds}
-                        onTaskSelect={handleTaskSelect}
-                        onBulkEdit={handleBulkEdit}
-                      />
-                    </Box>
-                  ) : mainTabIndex === 2 ? (
-                    /* Notes Tab Content */
-                    <Box h="100%" overflow="hidden">
-                      <NotesView
-                        notes={noteTasks}
-                        onCreateNote={() => {
-                          // Create a new note task
-                          createTask({
-                            title: "Untitled Note",
-                            sectionId: sections[0]?.id,
-                            completionType: "note",
-                            content: "",
-                          });
-                        }}
-                        onDeleteNote={taskId => {
-                          deleteTask(taskId);
-                        }}
-                        onUpdateNote={async (taskId, updates) => {
-                          await updateTask(taskId, updates);
-                        }}
-                        sidebarOpen={notesSidebarOpen}
-                        sidebarWidth={notesSidebarWidth}
-                        onSidebarToggle={() => setNotesSidebarOpen(!notesSidebarOpen)}
-                        onSidebarResize={setNotesSidebarWidth}
-                        noteListOpen={notesListOpen}
-                        noteListWidth={notesListWidth}
-                        onNoteListToggle={() => setNotesListOpen(!notesListOpen)}
-                        onNoteListResize={setNotesListWidth}
-                      />
-                    </Box>
-                  ) : mainTabIndex === 3 ? (
-                    /* History Tab Content */
-                    <DashboardView />
-                  ) : (
-                    /* Tasks Tab Content (mainTabIndex === 0) */
-                    <Box
-                      w="full"
-                      px={{ base: 2, md: 4 }}
-                      py={{ base: 3, md: 6 }}
-                      display="flex"
-                      gap={{ base: 2, md: 6 }}
-                      h="full"
-                      justifyContent={!backlogOpen && !showCalendar && showDashboard ? "center" : "flex-start"}
-                      maxW="100%"
-                      overflow="hidden"
-                    >
-                      {/* Dashboard View */}
-                      {showDashboard && (
+              <Box flex={1} minH={0} h="100%" overflow={mainTabIndex === 2 ? "hidden" : "auto"}>
+                {mainTabIndex === 1 ? (
+                  /* Kanban Tab Content */
+                  <Box
+                    h="100%"
+                    overflow="hidden"
+                    display="flex"
+                    flexDirection="column"
+                    px={{ base: 2, md: 4 }}
+                    py={{ base: 3, md: 6 }}
+                  >
+                    <KanbanView
+                      tasks={tasks}
+                      onTaskClick={handleEditTask}
+                      onCreateTask={({ status }) => {
+                        setDefaultSectionId(sections[0]?.id);
+                        setEditingTask({ status });
+                        openTaskDialog();
+                      }}
+                      onCreateTaskInline={handleCreateKanbanTaskInline}
+                      createDraggableId={createDraggableId}
+                      isCompletedOnDate={isCompletedOnDate}
+                      getOutcomeOnDate={getOutcomeOnDate}
+                      onOutcomeChange={handleOutcomeChange}
+                      onEditTask={handleEditTask}
+                      onDuplicateTask={handleDuplicateTask}
+                      onDeleteTask={handleDeleteTask}
+                      onStatusChange={handleStatusChange}
+                      tags={tags}
+                      onCreateTag={createTag}
+                      recentlyCompletedTasks={recentlyCompletedTasks}
+                      viewDate={viewDate}
+                      selectedTaskIds={selectedTaskIds}
+                      onTaskSelect={handleTaskSelect}
+                      onBulkEdit={handleBulkEdit}
+                    />
+                  </Box>
+                ) : mainTabIndex === 2 ? (
+                  /* Notes Tab Content */
+                  <Box h="100%" overflow="hidden">
+                    <NotesView
+                      notes={noteTasks}
+                      onCreateNote={() => {
+                        // Create a new note task
+                        createTask({
+                          title: "Untitled Note",
+                          sectionId: sections[0]?.id,
+                          completionType: "note",
+                          content: "",
+                        });
+                      }}
+                      onDeleteNote={taskId => {
+                        deleteTask(taskId);
+                      }}
+                      onUpdateNote={async (taskId, updates) => {
+                        await updateTask(taskId, updates);
+                      }}
+                      sidebarOpen={notesSidebarOpen}
+                      sidebarWidth={notesSidebarWidth}
+                      onSidebarToggle={() => setNotesSidebarOpen(!notesSidebarOpen)}
+                      onSidebarResize={setNotesSidebarWidth}
+                      noteListOpen={notesListOpen}
+                      noteListWidth={notesListWidth}
+                      onNoteListToggle={() => setNotesListOpen(!notesListOpen)}
+                      onNoteListResize={setNotesListWidth}
+                    />
+                  </Box>
+                ) : mainTabIndex === 3 ? (
+                  /* History Tab Content */
+                  <DashboardView />
+                ) : (
+                  /* Tasks Tab Content (mainTabIndex === 0) */
+                  <Box w="full" h="full" display="flex" maxW="100%" overflow="hidden">
+                    {/* Backlog Section - only show on Tasks tab */}
+                    {mainTabIndex === 0 && backlogOpen && (
+                      <>
                         <Box
-                          flex={{ base: "none", md: !backlogOpen && !showCalendar ? "0 1 auto" : 1 }}
-                          minW={0}
-                          maxW="100%"
-                          w="100%"
+                          w={`${isResizing && resizeType === "backlog" ? localBacklogWidth : backlogWidth}px`}
+                          h="100%"
+                          transition={isResizing && resizeType === "backlog" ? "none" : "width 0.3s"}
+                          overflow="hidden"
+                          borderRightWidth="1px"
+                          borderColor={borderColor}
+                          bg={bgColor}
+                          flexShrink={0}
                           display="flex"
                           flexDirection="column"
-                          overflow="hidden"
-                          h="full"
+                          position="relative"
                         >
-                          {isLoading && sections.length === 0 ? (
-                            <Box>
-                              <SectionSkeleton />
-                              <SectionSkeleton />
-                              <SectionSkeleton />
-                            </Box>
+                          {isLoading ? (
+                            <BacklogSkeleton />
                           ) : (
-                            <>
-                              {/* Today View Header - Sticky */}
-                              <Box
-                                position="sticky"
-                                top={0}
-                                zIndex={10}
-                                bg={bgColor}
-                                mb={4}
-                                pb={4}
-                                borderBottomWidth="1px"
-                                borderColor={borderColor}
-                                flexShrink={0}
-                                w="100%"
-                                maxW="100%"
-                                overflow="hidden"
-                              >
-                                <Flex align="center" justify="space-between" mb={2} w="100%" maxW="100%" gap={2}>
-                                  <Heading size="md" flexShrink={0}>
-                                    Today
-                                  </Heading>
-                                  <Flex align="center" gap={2} flexShrink={0}>
-                                    <Badge colorPalette="blue">
-                                      {filteredTodaysTasks.length} task{filteredTodaysTasks.length !== 1 ? "s" : ""}
-                                      {todaySearchTerm &&
-                                        filteredTodaysTasks.length !== todaysTasks.length &&
-                                        ` of ${todaysTasks.length}`}
-                                    </Badge>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => setShowCompletedTasks(!showCompletedTasks)}
-                                      fontSize="sm"
-                                      color={mutedText}
-                                      _hover={{ color: textColor }}
-                                    >
-                                      <Box as="span" color="currentColor">
-                                        {showCompletedTasks ? (
-                                          <Eye size={16} stroke="currentColor" />
-                                        ) : (
-                                          <EyeOff size={16} stroke="currentColor" />
-                                        )}
-                                      </Box>
-                                      {showCompletedTasks ? "Hide Completed" : "Show Completed"}
-                                    </Button>
-                                  </Flex>
-                                </Flex>
-                                {todayViewDate && (
-                                  <DateNavigation
-                                    selectedDate={todayViewDate}
-                                    onDateChange={handleTodayViewDateChange}
-                                    onPrevious={() => navigateTodayView(-1)}
-                                    onNext={() => navigateTodayView(1)}
-                                    onToday={handleTodayViewToday}
-                                  />
-                                )}
-                                <Box mt={3} w="100%" maxW="100%">
-                                  <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
-                                    <Box flex={1} minW={0}>
-                                      <TaskSearchInput onSearchChange={setTodaySearchTerm} />
-                                    </Box>
-                                    <TagFilter
-                                      tags={tags}
-                                      selectedTagIds={todaySelectedTagIds}
-                                      onTagSelect={handleTodayTagSelect}
-                                      onTagDeselect={handleTodayTagDeselect}
-                                      onCreateTag={createTag}
-                                    />
-                                  </HStack>
-                                </Box>
-                              </Box>
-                              {/* Scrollable Sections Container */}
-                              <Box flex={1} overflowY="auto" minH={0} w="100%" maxW="100%">
-                                <Section
-                                  sections={computedSections}
-                                  tasksBySection={tasksBySection}
-                                  onToggleTask={handleToggleTask}
-                                  onToggleSubtask={handleToggleSubtask}
-                                  onToggleExpand={handleToggleExpand}
-                                  onEditTask={handleEditTask}
-                                  onUpdateTaskTitle={handleUpdateTaskTitle}
-                                  onDeleteTask={handleDeleteTask}
-                                  onDuplicateTask={handleDuplicateTask}
-                                  onAddTask={handleAddTask}
-                                  onCreateTaskInline={handleCreateTaskInline}
-                                  onEditSection={handleEditSection}
-                                  onDeleteSection={handleDeleteSection}
-                                  onAddSection={handleAddSection}
-                                  onToggleSectionExpand={handleToggleSectionExpand}
-                                  createDroppableId={createDroppableId}
-                                  createDraggableId={createDraggableId}
-                                  viewDate={todayViewDate || today}
-                                  onOutcomeChange={handleOutcomeChange}
-                                  getOutcomeOnDate={getOutcomeOnDate}
-                                  hasRecordOnDate={hasRecordOnDate}
-                                  onCompleteWithNote={handleCompleteWithNote}
-                                  onSkipTask={handleNotCompletedTask}
-                                  getCompletionForDate={getCompletionForDate}
-                                  selectedTaskIds={selectedTaskIds}
-                                  onTaskSelect={handleTaskSelect}
-                                  onBulkEdit={handleBulkEdit}
-                                />
-                              </Box>
-                            </>
+                            <BacklogDrawer
+                              onClose={null}
+                              backlogTasks={backlogTasks}
+                              sections={sections}
+                              onDeleteTask={handleDeleteTask}
+                              onEditTask={handleEditTask}
+                              onUpdateTaskTitle={handleUpdateTaskTitle}
+                              onDuplicateTask={handleDuplicateTask}
+                              onAddTask={handleAddTaskToBacklog}
+                              onCreateBacklogTaskInline={handleCreateBacklogTaskInline}
+                              onToggleExpand={handleToggleExpand}
+                              onToggleSubtask={handleToggleSubtask}
+                              onToggleTask={handleToggleTask}
+                              createDraggableId={createDraggableId}
+                              viewDate={today}
+                              tags={tags}
+                              onCreateTag={createTag}
+                              onOutcomeChange={handleOutcomeChange}
+                              getOutcomeOnDate={getOutcomeOnDate}
+                              hasRecordOnDate={hasRecordOnDate}
+                              onCompleteWithNote={handleCompleteWithNote}
+                              onSkipTask={handleNotCompletedTask}
+                              getCompletionForDate={getCompletionForDate}
+                              selectedTaskIds={selectedTaskIds}
+                              onTaskSelect={handleTaskSelect}
+                              onBulkEdit={handleBulkEdit}
+                            />
                           )}
+                          {/* Resize handle between backlog and today */}
+                          <Box
+                            position="absolute"
+                            right={0}
+                            top={0}
+                            bottom={0}
+                            w="4px"
+                            cursor="col-resize"
+                            bg={isResizing && resizeType === "backlog" ? "blue.400" : "transparent"}
+                            _hover={{ bg: "blue.300" }}
+                            transition="background-color 0.2s"
+                            onMouseDown={handleBacklogResizeStart}
+                            zIndex={10}
+                            sx={{ userSelect: "none" }}
+                            display={{ base: "none", md: "block" }}
+                          />
                         </Box>
+                      </>
+                    )}
+
+                    {/* Today and Calendar Section */}
+                    <Box flex={1} overflow="hidden" display="flex" flexDirection="row" h="100%" minH={0} minW={0}>
+                      {/* Today View */}
+                      {showDashboard && (
+                        <>
+                          <Box
+                            w={
+                              showCalendar
+                                ? `${isResizing && resizeType === "today" ? localTodayViewWidth : todayViewWidth}px`
+                                : "100%"
+                            }
+                            h="100%"
+                            transition={isResizing && resizeType === "today" ? "none" : "width 0.3s"}
+                            overflow="hidden"
+                            borderRightWidth={showCalendar ? "1px" : "0"}
+                            borderColor={borderColor}
+                            flexShrink={0}
+                            display="flex"
+                            flexDirection="column"
+                            position="relative"
+                            px={{ base: 2, md: 4 }}
+                            py={{ base: 3, md: 6 }}
+                          >
+                            {isLoading && sections.length === 0 ? (
+                              <Box>
+                                <SectionSkeleton />
+                                <SectionSkeleton />
+                                <SectionSkeleton />
+                              </Box>
+                            ) : (
+                              <>
+                                {/* Today View Header - Sticky */}
+                                <Box
+                                  position="sticky"
+                                  top={0}
+                                  zIndex={10}
+                                  bg={bgColor}
+                                  mb={4}
+                                  pb={4}
+                                  borderBottomWidth="1px"
+                                  borderColor={borderColor}
+                                  flexShrink={0}
+                                  w="100%"
+                                  maxW="100%"
+                                  overflow="hidden"
+                                >
+                                  <Flex align="center" justify="space-between" mb={2} w="100%" maxW="100%" gap={2}>
+                                    <Heading size="md" flexShrink={0}>
+                                      Today
+                                    </Heading>
+                                    <Flex align="center" gap={2} flexShrink={0}>
+                                      <Badge colorPalette="blue">
+                                        {filteredTodaysTasks.length} task{filteredTodaysTasks.length !== 1 ? "s" : ""}
+                                        {todaySearchTerm &&
+                                          filteredTodaysTasks.length !== todaysTasks.length &&
+                                          ` of ${todaysTasks.length}`}
+                                      </Badge>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => setShowCompletedTasks(!showCompletedTasks)}
+                                        fontSize="sm"
+                                        color={mutedText}
+                                        _hover={{ color: textColor }}
+                                      >
+                                        <Box as="span" color="currentColor">
+                                          {showCompletedTasks ? (
+                                            <Eye size={16} stroke="currentColor" />
+                                          ) : (
+                                            <EyeOff size={16} stroke="currentColor" />
+                                          )}
+                                        </Box>
+                                        {showCompletedTasks ? "Hide Completed" : "Show Completed"}
+                                      </Button>
+                                    </Flex>
+                                  </Flex>
+                                  {todayViewDate && (
+                                    <DateNavigation
+                                      selectedDate={todayViewDate}
+                                      onDateChange={handleTodayViewDateChange}
+                                      onPrevious={() => navigateTodayView(-1)}
+                                      onNext={() => navigateTodayView(1)}
+                                      onToday={handleTodayViewToday}
+                                    />
+                                  )}
+                                  <Box mt={3} w="100%" maxW="100%">
+                                    <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
+                                      <Box flex={1} minW={0}>
+                                        <TaskSearchInput onSearchChange={setTodaySearchTerm} />
+                                      </Box>
+                                      <TagFilter
+                                        tags={tags}
+                                        selectedTagIds={todaySelectedTagIds}
+                                        onTagSelect={handleTodayTagSelect}
+                                        onTagDeselect={handleTodayTagDeselect}
+                                        onCreateTag={createTag}
+                                      />
+                                    </HStack>
+                                  </Box>
+                                </Box>
+                                {/* Scrollable Sections Container */}
+                                <Box flex={1} overflowY="auto" minH={0} w="100%" maxW="100%">
+                                  <Section
+                                    sections={computedSections}
+                                    tasksBySection={tasksBySection}
+                                    onToggleTask={handleToggleTask}
+                                    onToggleSubtask={handleToggleSubtask}
+                                    onToggleExpand={handleToggleExpand}
+                                    onEditTask={handleEditTask}
+                                    onUpdateTaskTitle={handleUpdateTaskTitle}
+                                    onDeleteTask={handleDeleteTask}
+                                    onDuplicateTask={handleDuplicateTask}
+                                    onAddTask={handleAddTask}
+                                    onCreateTaskInline={handleCreateTaskInline}
+                                    onEditSection={handleEditSection}
+                                    onDeleteSection={handleDeleteSection}
+                                    onAddSection={handleAddSection}
+                                    onToggleSectionExpand={handleToggleSectionExpand}
+                                    createDroppableId={createDroppableId}
+                                    createDraggableId={createDraggableId}
+                                    viewDate={todayViewDate || today}
+                                    onOutcomeChange={handleOutcomeChange}
+                                    getOutcomeOnDate={getOutcomeOnDate}
+                                    hasRecordOnDate={hasRecordOnDate}
+                                    onCompleteWithNote={handleCompleteWithNote}
+                                    onSkipTask={handleNotCompletedTask}
+                                    getCompletionForDate={getCompletionForDate}
+                                    selectedTaskIds={selectedTaskIds}
+                                    onTaskSelect={handleTaskSelect}
+                                    onBulkEdit={handleBulkEdit}
+                                  />
+                                </Box>
+                              </>
+                            )}
+                            {/* Resize handle between today and calendar */}
+                            {showCalendar && (
+                              <Box
+                                position="absolute"
+                                right={0}
+                                top={0}
+                                bottom={0}
+                                w="4px"
+                                cursor="col-resize"
+                                bg={isResizing && resizeType === "today" ? "blue.400" : "transparent"}
+                                _hover={{ bg: "blue.300" }}
+                                transition="background-color 0.2s"
+                                onMouseDown={handleTodayResizeStart}
+                                zIndex={10}
+                                sx={{ userSelect: "none" }}
+                                display={{ base: "none", md: "block" }}
+                              />
+                            )}
+                          </Box>
+                        </>
                       )}
 
                       {/* Calendar View */}
@@ -3257,7 +3360,7 @@ export default function DailyTasksApp() {
                         <Box
                           flex={1}
                           minW={0}
-                          w={{ base: "100%", md: "auto" }}
+                          w="auto"
                           maxW="100%"
                           display="flex"
                           flexDirection="column"
@@ -3266,11 +3369,12 @@ export default function DailyTasksApp() {
                         >
                           {/* Calendar Header */}
                           <Box
-                            mb={3}
-                            pb={3}
+                            mb={4}
+                            pb={4}
                             borderBottomWidth="1px"
                             borderColor={borderColor}
-                            px={{ base: 1, md: 0 }}
+                            px={{ base: 2, md: 4 }}
+                            pt={{ base: 3, md: 6 }}
                             w="100%"
                             maxW="100%"
                             overflow="hidden"
@@ -3426,26 +3530,48 @@ export default function DailyTasksApp() {
                                 </Portal>
                               </Select.Root>
                             </Flex>
+                            {/* Search and Tag Filter */}
+                            <Box mt={3} w="100%" maxW="100%">
+                              <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
+                                <Box flex={1} minW={0}>
+                                  <TaskSearchInput onSearchChange={setCalendarSearchTerm} />
+                                </Box>
+                                <TagFilter
+                                  tags={tags}
+                                  selectedTagIds={calendarSelectedTagIds}
+                                  onTagSelect={handleCalendarTagSelect}
+                                  onTagDeselect={handleCalendarTagDeselect}
+                                  onCreateTag={createTag}
+                                />
+                              </HStack>
+                            </Box>
                           </Box>
                           {isLoading && !selectedDate ? (
                             <CalendarSkeleton />
                           ) : (
-                            <Card.Root
-                              flex={1}
-                              overflow="hidden"
-                              bg={bgColor}
-                              borderColor={borderColor}
-                              minH="600px"
-                              w="100%"
-                              maxW="100%"
-                              minW={0}
-                            >
-                              <Card.Body p={0} h="full" w="100%" maxW="100%" minW={0} overflow="hidden">
+                            <>
+                              {/* Calendar content */}
+                              <Box flex={1} overflow="hidden" display="flex" flexDirection="column" minH={0}>
                                 {(() => {
                                   // Filter tasks based on recurring preference for current view
                                   let filteredTasks = showRecurringTasks[calendarView]
                                     ? tasks
                                     : tasks.filter(task => !task.recurrence || task.recurrence.type === "none");
+
+                                  // Filter by search term
+                                  if (calendarSearchTerm.trim()) {
+                                    const lowerSearch = calendarSearchTerm.toLowerCase();
+                                    filteredTasks = filteredTasks.filter(task =>
+                                      task.title.toLowerCase().includes(lowerSearch)
+                                    );
+                                  }
+
+                                  // Filter by tags
+                                  if (calendarSelectedTagIds.length > 0) {
+                                    filteredTasks = filteredTasks.filter(task =>
+                                      task.tags?.some(tag => calendarSelectedTagIds.includes(tag.id))
+                                    );
+                                  }
 
                                   // Filter tasks based on completed preference for current view
                                   // For day view, filter here. For week/month views, filter per day in components
@@ -3537,14 +3663,14 @@ export default function DailyTasksApp() {
                                     </>
                                   );
                                 })()}
-                              </Card.Body>
-                            </Card.Root>
+                              </Box>
+                            </>
                           )}
                         </Box>
                       )}
                     </Box>
-                  )}
-                </Box>
+                  </Box>
+                )}
               </Box>
             </Box>
           )}

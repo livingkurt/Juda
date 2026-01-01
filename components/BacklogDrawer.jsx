@@ -4,13 +4,12 @@ import { useState, useMemo, useCallback, memo, useRef } from "react";
 import { Box, VStack, HStack, Flex, Text, IconButton, Badge, Heading, Input } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
 
 const BacklogDrawerComponent = ({
-  onClose,
   backlogTasks,
   onEditTask,
   onUpdateTaskTitle,
@@ -119,7 +118,17 @@ const BacklogDrawerComponent = ({
   return (
     <Box h="100%" display="flex" flexDirection="column" bg={bgColor} w="100%" maxW="100%" overflow="hidden">
       {/* Header */}
-      <Box p={{ base: 3, md: 4 }} borderBottomWidth="1px" borderColor={borderColor} flexShrink={0} w="100%" maxW="100%">
+      <Box
+        px={{ base: 2, md: 4 }}
+        pt={{ base: 3, md: 6 }}
+        pb={4}
+        mb={4}
+        borderBottomWidth="1px"
+        borderColor={borderColor}
+        flexShrink={0}
+        w="100%"
+        maxW="100%"
+      >
         <Flex align="center" justify="space-between" mb={2} gap={2}>
           <Heading size="md" flexShrink={0}>
             Backlog
@@ -134,11 +143,6 @@ const BacklogDrawerComponent = ({
             >
               <Box as="span" color="currentColor">
                 <Plus size={16} stroke="currentColor" />
-              </Box>
-            </IconButton>
-            <IconButton onClick={onClose} size="sm" variant="ghost" aria-label="Close backlog">
-              <Box as="span" color="currentColor">
-                <X size={16} stroke="currentColor" />
               </Box>
             </IconButton>
           </HStack>
@@ -346,7 +350,6 @@ const areBacklogTasksEqual = (prevProps, nextProps) => {
   return (
     prevProps.viewDate?.getTime() === nextProps.viewDate?.getTime() &&
     prevProps.tags.length === nextProps.tags.length &&
-    prevProps.onClose === nextProps.onClose &&
     prevProps.onEditTask === nextProps.onEditTask &&
     prevProps.onUpdateTaskTitle === nextProps.onUpdateTaskTitle &&
     prevProps.onDeleteTask === nextProps.onDeleteTask &&

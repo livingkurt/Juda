@@ -1,11 +1,8 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import { Box, Flex, SimpleGrid, HStack } from "@chakra-ui/react";
+import { Box, Flex, SimpleGrid } from "@chakra-ui/react";
 import { shouldShowOnDate, getTaskDisplayColor } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
-import { TaskSearchInput } from "./TaskSearchInput";
-import { TagFilter } from "./TagFilter";
 
 export const CalendarMonthView = ({
   date,
@@ -15,11 +12,7 @@ export const CalendarMonthView = ({
   getOutcomeOnDate,
   showCompleted = true,
   zoom = 1.0,
-  tags = [],
-  onCreateTag,
 }) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTagIds, setSelectedTagIds] = useState([]);
   const bgColor = { _light: "white", _dark: "gray.800" };
   const borderColor = { _light: "gray.200", _dark: "gray.700" };
   const hoverBg = { _light: "gray.50", _dark: "gray.700" };
@@ -27,32 +20,6 @@ export const CalendarMonthView = ({
   const mutedText = { _light: "gray.400", _dark: "gray.600" };
   const dayHeaderColor = { _light: "gray.500", _dark: "gray.400" };
   const nonCurrentMonthBg = { _light: "gray.50", _dark: "gray.850" };
-
-  // Filter tasks by search term and tags
-  const filteredTasks = useMemo(() => {
-    let result = tasks;
-
-    // Filter by search term
-    if (searchTerm.trim()) {
-      const lowerSearch = searchTerm.toLowerCase();
-      result = result.filter(task => task.title.toLowerCase().includes(lowerSearch));
-    }
-
-    // Filter by tags
-    if (selectedTagIds.length > 0) {
-      result = result.filter(task => task.tags?.some(tag => selectedTagIds.includes(tag.id)));
-    }
-
-    return result;
-  }, [tasks, searchTerm, selectedTagIds]);
-
-  const handleTagSelect = useCallback(tagId => {
-    setSelectedTagIds(prev => [...prev, tagId]);
-  }, []);
-
-  const handleTagDeselect = useCallback(tagId => {
-    setSelectedTagIds(prev => prev.filter(id => id !== tagId));
-  }, []);
 
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -78,31 +45,6 @@ export const CalendarMonthView = ({
 
   return (
     <Flex direction="column" h="full" w="100%" maxW="100%" overflow="hidden">
-      {/* Search input */}
-      <Box
-        px={{ base: 2, md: 4 }}
-        py={2}
-        borderBottomWidth="1px"
-        borderColor={borderColor}
-        bg={bgColor}
-        flexShrink={0}
-        w="100%"
-        maxW="100%"
-      >
-        <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
-          <Box flex={1} minW={0}>
-            <TaskSearchInput onSearchChange={setSearchTerm} />
-          </Box>
-          <TagFilter
-            tags={tags}
-            selectedTagIds={selectedTagIds}
-            onTagSelect={handleTagSelect}
-            onTagDeselect={handleTagDeselect}
-            onCreateTag={onCreateTag}
-            compact
-          />
-        </HStack>
-      </Box>
       <SimpleGrid columns={7} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} w="100%" maxW="100%">
         {DAYS_OF_WEEK.map(day => (
           <Box
@@ -123,7 +65,7 @@ export const CalendarMonthView = ({
             {week.map((day, di) => {
               const isCurrentMonth = day.getMonth() === month;
               const isToday = day.toDateString() === today.toDateString();
-              let dayTasks = filteredTasks.filter(t => shouldShowOnDate(t, day));
+              let dayTasks = tasks.filter(t => shouldShowOnDate(t, day));
               // Filter out completed/not completed tasks if showCompleted is false
               if (!showCompleted) {
                 dayTasks = dayTasks.filter(task => {

@@ -1,15 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Box, Text, Flex, VStack, HStack } from "@chakra-ui/react";
+import { Box, Text, Flex, VStack } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate, calculateTaskPositions } from "@/lib/utils";
 import { HOUR_HEIGHT_DAY, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { UntimedTask } from "./UntimedTask";
 import { TimedTask } from "./TimedTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
-import { TaskSearchInput } from "./TaskSearchInput";
-import { TagFilter } from "./TagFilter";
 import { CurrentTimeLine } from "./CurrentTimeLine";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_DAY;
@@ -27,11 +25,8 @@ export const CalendarDayView = ({
   isCompletedOnDate,
   getOutcomeOnDate,
   getCompletionForDate,
-  showCompleted = true,
   showStatusTasks = true,
   zoom = 1.0,
-  tags = [],
-  onCreateTag,
   onEditTask,
   onOutcomeChange,
   onDuplicateTask,
@@ -44,57 +39,16 @@ export const CalendarDayView = ({
   const hourTextColor = { _light: "gray.400", _dark: "gray.500" };
   const hourBorderColor = { _light: "gray.100", _dark: "gray.700" };
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTagIds, setSelectedTagIds] = useState([]);
-
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
-  // Filter tasks by date and search term
-  const filteredTasks = useMemo(() => {
-    let dayTasks = tasks.filter(t => t.time && shouldShowOnDate(t, date));
-    let untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, date));
+  // Filter tasks by date (search/tag filtering is now done in parent)
+  const dayTasks = useMemo(() => {
+    return tasks.filter(t => t.time && shouldShowOnDate(t, date));
+  }, [tasks, date]);
 
-    // Filter out completed/not completed tasks if showCompleted is false
-    if (!showCompleted) {
-      dayTasks = dayTasks.filter(task => {
-        const isCompleted = isCompletedOnDate(task.id, date);
-        const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, date) : null;
-        const hasOutcome = outcome !== null && outcome !== undefined;
-        return !isCompleted && !hasOutcome;
-      });
-      untimedTasks = untimedTasks.filter(task => {
-        const isCompleted = isCompletedOnDate(task.id, date);
-        const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, date) : null;
-        const hasOutcome = outcome !== null && outcome !== undefined;
-        return !isCompleted && !hasOutcome;
-      });
-    }
-
-    // Filter by search term
-    if (searchTerm.trim()) {
-      const lowerSearch = searchTerm.toLowerCase();
-      dayTasks = dayTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
-      untimedTasks = untimedTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
-    }
-
-    // Filter by tags
-    if (selectedTagIds.length > 0) {
-      dayTasks = dayTasks.filter(task => task.tags?.some(tag => selectedTagIds.includes(tag.id)));
-      untimedTasks = untimedTasks.filter(task => task.tags?.some(tag => selectedTagIds.includes(tag.id)));
-    }
-
-    return { dayTasks, untimedTasks };
-  }, [tasks, date, showCompleted, isCompletedOnDate, getOutcomeOnDate, searchTerm, selectedTagIds]);
-
-  const handleTagSelect = useCallback(tagId => {
-    setSelectedTagIds(prev => [...prev, tagId]);
-  }, []);
-
-  const handleTagDeselect = useCallback(tagId => {
-    setSelectedTagIds(prev => prev.filter(id => id !== tagId));
-  }, []);
-
-  const { dayTasks, untimedTasks } = filteredTasks;
+  const untimedTasks = useMemo(() => {
+    return tasks.filter(t => !t.time && shouldShowOnDate(t, date));
+  }, [tasks, date]);
 
   const containerRef = useRef(null);
 
@@ -292,24 +246,9 @@ export const CalendarDayView = ({
         <Text fontSize={{ base: "xl", md: "2xl" }} fontWeight="bold">
           {date.getDate()}
         </Text>
-        <Text fontSize={{ base: "xs", md: "sm" }} color={hourTextColor} mb={3}>
+        <Text fontSize={{ base: "xs", md: "sm" }} color={hourTextColor}>
           {date.toLocaleDateString("en-US", { weekday: "long", month: "long" })}
         </Text>
-        <Box px={{ base: 2, md: 4 }} py={2} w="100%" maxW="100%">
-          <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
-            <Box flex={1} minW={0}>
-              <TaskSearchInput onSearchChange={setSearchTerm} />
-            </Box>
-            <TagFilter
-              tags={tags}
-              selectedTagIds={selectedTagIds}
-              onTagSelect={handleTagSelect}
-              onTagDeselect={handleTagDeselect}
-              onCreateTag={onCreateTag}
-              compact
-            />
-          </HStack>
-        </Box>
       </Box>
 
       {/* Untimed tasks area */}

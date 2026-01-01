@@ -1,15 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Box, Flex, HStack } from "@chakra-ui/react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Box, Flex } from "@chakra-ui/react";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate } from "@/lib/utils";
 import { HOUR_HEIGHT_WEEK, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { DayHeaderColumn } from "./DayHeaderColumn";
 import { TimedColumn } from "./TimedColumn";
-import { StatusTaskBlock } from "./StatusTaskBlock";
-import { TaskSearchInput } from "./TaskSearchInput";
-import { TagFilter } from "./TagFilter";
-import { CurrentTimeLine } from "./CurrentTimeLine";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_WEEK;
 
@@ -30,8 +26,6 @@ export const CalendarWeekView = ({
   showCompleted = true,
   showStatusTasks = true,
   zoom = 1.0,
-  tags = [],
-  onCreateTag,
   onEditTask,
   onOutcomeChange,
   onDuplicateTask,
@@ -62,8 +56,6 @@ export const CalendarWeekView = ({
 
   const containerRef = useRef(null);
   const headerRef = useRef(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTagIds, setSelectedTagIds] = useState([]);
 
   // Find today's index in the week
   const todayIndex = weekDays.findIndex(day => day.toDateString() === today.toDateString());
@@ -104,35 +96,9 @@ export const CalendarWeekView = ({
     hasMoved: false,
   });
 
-  // Filter tasks by search term and tags
-  const filteredTasks = useMemo(() => {
-    let result = tasks;
-
-    // Filter by search term
-    if (searchTerm.trim()) {
-      const lowerSearch = searchTerm.toLowerCase();
-      result = result.filter(task => task.title.toLowerCase().includes(lowerSearch));
-    }
-
-    // Filter by tags
-    if (selectedTagIds.length > 0) {
-      result = result.filter(task => task.tags?.some(tag => selectedTagIds.includes(tag.id)));
-    }
-
-    return result;
-  }, [tasks, searchTerm, selectedTagIds]);
-
-  const handleTagSelect = useCallback(tagId => {
-    setSelectedTagIds(prev => [...prev, tagId]);
-  }, []);
-
-  const handleTagDeselect = useCallback(tagId => {
-    setSelectedTagIds(prev => prev.filter(id => id !== tagId));
-  }, []);
-
   const getTasksForDay = useCallback(
     day => {
-      let dayTasks = filteredTasks.filter(t => t.time && shouldShowOnDate(t, day));
+      let dayTasks = tasks.filter(t => t.time && shouldShowOnDate(t, day));
       if (!showCompleted) {
         dayTasks = dayTasks.filter(task => {
           const isCompleted = isCompletedOnDate(task.id, day);
@@ -143,11 +109,11 @@ export const CalendarWeekView = ({
       }
       return dayTasks;
     },
-    [filteredTasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]
+    [tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]
   );
   const getUntimedTasksForDay = useCallback(
     day => {
-      let untimedTasks = filteredTasks.filter(t => !t.time && shouldShowOnDate(t, day));
+      let untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, day));
       if (!showCompleted) {
         untimedTasks = untimedTasks.filter(task => {
           const isCompleted = isCompletedOnDate(task.id, day);
@@ -158,7 +124,7 @@ export const CalendarWeekView = ({
       }
       return untimedTasks;
     },
-    [filteredTasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]
+    [tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]
   );
 
   const getTaskStyle = task => {
@@ -310,31 +276,6 @@ export const CalendarWeekView = ({
 
   return (
     <Flex direction="column" h="full" w="100%" maxW="100%" overflow="hidden">
-      {/* Search input */}
-      <Box
-        px={{ base: 2, md: 4 }}
-        py={2}
-        borderBottomWidth="1px"
-        borderColor={borderColor}
-        bg={bgColor}
-        flexShrink={0}
-        w="100%"
-        maxW="100%"
-      >
-        <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
-          <Box flex={1} minW={0}>
-            <TaskSearchInput onSearchChange={setSearchTerm} />
-          </Box>
-          <TagFilter
-            tags={tags}
-            selectedTagIds={selectedTagIds}
-            onTagSelect={handleTagSelect}
-            onTagDeselect={handleTagDeselect}
-            onCreateTag={onCreateTag}
-            compact
-          />
-        </HStack>
-      </Box>
       {/* Week header - syncs horizontal scroll with main container */}
       <Box
         ref={headerRef}
