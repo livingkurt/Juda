@@ -23,16 +23,28 @@ export default function WorkoutModal({
 
   const workoutData = task?.workoutData;
 
-  // Determine current week based on start date
-  const currentWeek = useMemo(() => {
-    if (!workoutData?.startDate) return 1;
+  // Calculate total weeks from task recurrence dates
+  const totalWeeks = useMemo(() => {
+    if (!task?.recurrence?.startDate || !task?.recurrence?.endDate) return 1;
 
-    const startDate = new Date(workoutData.startDate);
+    const startDate = new Date(task.recurrence.startDate);
+    const endDate = new Date(task.recurrence.endDate);
+    const daysDiff = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
+    const weeks = Math.ceil(daysDiff / 7);
+
+    return Math.max(1, weeks);
+  }, [task?.recurrence]);
+
+  // Determine current week based on task start date
+  const currentWeek = useMemo(() => {
+    if (!task?.recurrence?.startDate) return 1;
+
+    const startDate = new Date(task.recurrence.startDate);
     const daysDiff = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24));
     const weekNumber = Math.floor(daysDiff / 7) + 1;
 
-    return Math.min(Math.max(1, weekNumber), workoutData.weeks || 1);
-  }, [workoutData, currentDate]);
+    return Math.min(Math.max(1, weekNumber), totalWeeks);
+  }, [task?.recurrence, currentDate, totalWeeks]);
 
   // Determine current day of week
   const currentDayOfWeek = currentDate.getDay();
@@ -117,6 +129,18 @@ export default function WorkoutModal({
     return Boolean(setData.completed);
   };
 
+  // Helper to check if a day matches the current day of week
+  const isDayForCurrentDayOfWeek = day => {
+    // Support both old dayOfWeek (single) and new daysOfWeek (array)
+    if (day.daysOfWeek) {
+      return day.daysOfWeek.includes(currentDayOfWeek);
+    }
+    if (day.dayOfWeek !== undefined) {
+      return day.dayOfWeek === currentDayOfWeek;
+    }
+    return false;
+  };
+
   // Calculate progress for all sections on the current day
   const calculateProgress = () => {
     if (!workoutData) return { completed: 0, total: 0 };
@@ -126,7 +150,7 @@ export default function WorkoutModal({
 
     // Count exercises from all sections for the current day
     workoutData.sections.forEach(section => {
-      const dayInSection = section.days.find(d => d.dayOfWeek === currentDayOfWeek) || section.days[0];
+      const dayInSection = section.days.find(d => isDayForCurrentDayOfWeek(d)) || section.days[0];
       if (!dayInSection) return;
 
       dayInSection.exercises.forEach(exercise => {
@@ -176,7 +200,7 @@ export default function WorkoutModal({
                   </Text>
                   <HStack>
                     <Badge colorPalette="blue" size="sm">
-                      Week {currentWeek} of {workoutData.weeks}
+                      Week {currentWeek} of {totalWeeks}
                     </Badge>
                     {isSaving && (
                       <Badge colorPalette="green" size="sm">
@@ -211,7 +235,7 @@ export default function WorkoutModal({
 
               {/* Show all sections for the current day */}
               {workoutData.sections.map(section => {
-                const dayInSection = section.days.find(d => d.dayOfWeek === currentDayOfWeek) || section.days[0];
+                const dayInSection = section.days.find(d => isDayForCurrentDayOfWeek(d)) || section.days[0];
                 if (!dayInSection) return null;
 
                 return (
@@ -227,7 +251,7 @@ export default function WorkoutModal({
                         handleSetToggle(section.id, dayInSection.id, exerciseId, setNumber, setData)
                       }
                       currentWeek={currentWeek}
-                      isCurrentDay={dayInSection.dayOfWeek === currentDayOfWeek}
+                      isCurrentDay={isDayForCurrentDayOfWeek(dayInSection)}
                     />
                   </Box>
                 );

@@ -81,6 +81,7 @@ import { NotesView } from "@/components/NotesView";
 import { TagEditor } from "@/components/TagEditor";
 import { Tag as TagIcon } from "lucide-react";
 import WorkoutModal from "@/components/WorkoutModal";
+import WorkoutBuilder from "@/components/WorkoutBuilder";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
@@ -305,6 +306,7 @@ export default function DailyTasksApp() {
   const [defaultSectionId, setDefaultSectionId] = useState(null);
   const [defaultTime, setDefaultTime] = useState(null);
   const [defaultDate, setDefaultDate] = useState(null);
+  const [editingWorkoutTask, setEditingWorkoutTask] = useState(null);
   // Store drop time calculated from mouse position during drag
   const dropTimeRef = useRef(null);
   // Track active drag item for DragOverlay - combined into single state for performance
@@ -1081,6 +1083,10 @@ export default function DailyTasksApp() {
     setDefaultSectionId(null);
     setDefaultTime(null);
     openTaskDialog();
+  };
+
+  const handleEditWorkout = task => {
+    setEditingWorkoutTask(task);
   };
 
   const handleUpdateTaskTitle = async (taskId, newTitle) => {
@@ -2713,6 +2719,7 @@ export default function DailyTasksApp() {
                       onTaskSelect={handleTaskSelect}
                       onBulkEdit={handleBulkEdit}
                       onBeginWorkout={handleBeginWorkout}
+                      onEditWorkout={handleEditWorkout}
                     />
                   </Box>
                 )}
@@ -2769,6 +2776,7 @@ export default function DailyTasksApp() {
                             sections={sections}
                             onDeleteTask={handleDeleteTask}
                             onEditTask={handleEditTask}
+                            onEditWorkout={handleEditWorkout}
                             onUpdateTaskTitle={handleUpdateTaskTitle}
                             onDuplicateTask={handleDuplicateTask}
                             onAddTask={handleAddTaskToBacklog}
@@ -2881,6 +2889,7 @@ export default function DailyTasksApp() {
                           onToggleSubtask={handleToggleSubtask}
                           onToggleExpand={handleToggleExpand}
                           onEditTask={handleEditTask}
+                          onEditWorkout={handleEditWorkout}
                           onUpdateTaskTitle={handleUpdateTaskTitle}
                           onDeleteTask={handleDeleteTask}
                           onDuplicateTask={handleDuplicateTask}
@@ -3134,6 +3143,8 @@ export default function DailyTasksApp() {
                       selectedTaskIds={selectedTaskIds}
                       onTaskSelect={handleTaskSelect}
                       onBulkEdit={handleBulkEdit}
+                      onBeginWorkout={handleBeginWorkout}
+                      onEditWorkout={handleEditWorkout}
                     />
                   </Box>
                 ) : mainTabIndex === 2 ? (
@@ -3197,6 +3208,7 @@ export default function DailyTasksApp() {
                               sections={sections}
                               onDeleteTask={handleDeleteTask}
                               onEditTask={handleEditTask}
+                              onEditWorkout={handleEditWorkout}
                               onUpdateTaskTitle={handleUpdateTaskTitle}
                               onDuplicateTask={handleDuplicateTask}
                               onAddTask={handleAddTaskToBacklog}
@@ -3349,6 +3361,7 @@ export default function DailyTasksApp() {
                                     onToggleSubtask={handleToggleSubtask}
                                     onToggleExpand={handleToggleExpand}
                                     onEditTask={handleEditTask}
+                                    onEditWorkout={handleEditWorkout}
                                     onUpdateTaskTitle={handleUpdateTaskTitle}
                                     onDeleteTask={handleDeleteTask}
                                     onDuplicateTask={handleDuplicateTask}
@@ -3821,6 +3834,18 @@ export default function DailyTasksApp() {
           createCompletion(taskId, date, { outcome: "completed" });
         }}
         currentDate={viewDate}
+      />
+      <WorkoutBuilder
+        key={editingWorkoutTask?.id || "new"}
+        isOpen={Boolean(editingWorkoutTask)}
+        onClose={() => setEditingWorkoutTask(null)}
+        onSave={workoutData => {
+          if (editingWorkoutTask) {
+            updateTask(editingWorkoutTask.id, { workoutData });
+          }
+          setEditingWorkoutTask(null);
+        }}
+        initialData={editingWorkoutTask?.workoutData}
       />
     </Box>
   );

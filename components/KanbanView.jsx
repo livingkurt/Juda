@@ -29,6 +29,7 @@ const KanbanColumn = memo(function KanbanColumn({
   selectedTaskIds,
   onTaskSelect,
   onBulkEdit,
+  onEditWorkout,
 }) {
   const { setNodeRef, isOver, active } = useDroppable({
     id: `kanban-column|${id}`,
@@ -147,6 +148,7 @@ const KanbanColumn = memo(function KanbanColumn({
                 onSelect={onTaskSelect}
                 selectedCount={selectedTaskIds?.size || 0}
                 onBulkEdit={onBulkEdit}
+                onEditWorkout={onEditWorkout}
               />
             ))}
             {/* Drop placeholder - shows when dragging over to indicate drop zone */}
@@ -257,6 +259,7 @@ export const KanbanView = memo(function KanbanView({
   selectedTaskIds,
   onTaskSelect,
   onBulkEdit,
+  onEditWorkout,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState([]);
@@ -368,6 +371,7 @@ export const KanbanView = memo(function KanbanView({
             selectedTaskIds={selectedTaskIds}
             onTaskSelect={onTaskSelect}
             onBulkEdit={onBulkEdit}
+            onEditWorkout={onEditWorkout}
           />
         ))}
       </Flex>

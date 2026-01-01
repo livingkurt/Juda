@@ -25,7 +25,7 @@ export default function WorkoutExerciseCard({ exercise, completedSets = [], onSe
     if (targetValue === null) {
       return `${exercise.sets} sets - Max Effort`;
     }
-    return `${exercise.sets}x${targetValue}${exercise.unit}`;
+    return `${exercise.sets} x ${targetValue} ${exercise.unit}`;
   };
 
   const handleSetClick = setNumber => {
@@ -116,23 +116,24 @@ export default function WorkoutExerciseCard({ exercise, completedSets = [], onSe
     );
   };
 
-  return (
-    <Box
-      p={4}
-      bg={{ _light: "gray.50", _dark: "gray.700" }}
-      borderRadius="md"
-      borderWidth="1px"
-      borderColor={{ _light: "gray.200", _dark: "gray.600" }}
-    >
-      <VStack align="stretch" gap={3}>
-        {/* Exercise header */}
-        <Flex justify="space-between" align="flex-start">
-          <VStack align="flex-start" gap={1} flex={1}>
-            <Text fontWeight="semibold" fontSize="md">
-              {exercise.name}
-            </Text>
-            <HStack>
-              <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
+  // For distance exercises, show expanded layout
+  if (exercise.type === "distance") {
+    return (
+      <Box
+        p={3}
+        bg={{ _light: "gray.50", _dark: "gray.700" }}
+        borderRadius="md"
+        borderWidth="1px"
+        borderColor={{ _light: "gray.200", _dark: "gray.600" }}
+      >
+        <VStack align="stretch" gap={2}>
+          {/* Exercise header */}
+          <Flex justify="space-between" align="center">
+            <HStack gap={2}>
+              <Text fontWeight="semibold" fontSize="md">
+                {exercise.name}
+              </Text>
+              <Text fontSize="md" color={{ _light: "gray.600", _dark: "gray.400" }}>
                 {getDisplayText()}
               </Text>
               {isDeload && (
@@ -142,60 +143,67 @@ export default function WorkoutExerciseCard({ exercise, completedSets = [], onSe
               )}
               {isTest && (
                 <Badge colorPalette="purple" size="sm">
-                  Test
+                  TEST
                 </Badge>
               )}
             </HStack>
-          </VStack>
+            {exercise.goal && (
+              <Badge colorPalette="blue" size="sm">
+                {exercise.goal}
+              </Badge>
+            )}
+          </Flex>
+
+          {/* Distance inputs */}
+          {renderSetInput(1)}
+        </VStack>
+      </Box>
+    );
+  }
+
+  // For reps/time exercises, show compact horizontal layout
+  return (
+    <Box
+      p={3}
+      bg={{ _light: "gray.50", _dark: "gray.700" }}
+      borderRadius="md"
+      borderWidth="1px"
+      borderColor={{ _light: "gray.200", _dark: "gray.600" }}
+    >
+      <VStack align="stretch" gap={2}>
+        {/* Top row: Exercise name and checkboxes */}
+        <Flex align="center" justify="space-between" gap={3}>
+          <Text fontWeight="semibold" fontSize="md">
+            {exercise.name}
+          </Text>
+          <HStack gap={2}>
+            {Array.from({ length: exercise.sets }, (_, i) => i + 1).map(setNumber => (
+              <Box key={setNumber}>{renderSetInput(setNumber)}</Box>
+            ))}
+          </HStack>
+        </Flex>
+
+        {/* Bottom row: Reps info and badges */}
+        <HStack gap={2}>
+          <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
+            {getDisplayText()}
+          </Text>
+          {isDeload && (
+            <Badge colorPalette="orange" size="sm">
+              Deload
+            </Badge>
+          )}
+          {isTest && (
+            <Badge colorPalette="purple" size="sm">
+              TEST
+            </Badge>
+          )}
           {exercise.goal && (
             <Badge colorPalette="blue" size="sm">
               {exercise.goal}
             </Badge>
           )}
-        </Flex>
-
-        {/* Exercise notes */}
-        {exercise.notes && (
-          <Text fontSize="xs" color={{ _light: "gray.600", _dark: "gray.400" }} fontStyle="italic">
-            {exercise.notes}
-          </Text>
-        )}
-
-        {/* Set tracking */}
-        {exercise.type === "distance" ? (
-          // Single set for running
-          <Box>{renderSetInput(1)}</Box>
-        ) : (
-          // Multiple sets for reps/time
-          <HStack gap={3} flexWrap="wrap">
-            {Array.from({ length: exercise.sets }, (_, i) => i + 1).map(setNumber => (
-              <Box key={setNumber}>{renderSetInput(setNumber)}</Box>
-            ))}
-          </HStack>
-        )}
-
-        {/* Progress indicator */}
-        <Flex
-          justify="space-between"
-          align="center"
-          pt={2}
-          borderTopWidth="1px"
-          borderColor={{ _light: "gray.200", _dark: "gray.600" }}
-        >
-          <Text fontSize="xs" color={{ _light: "gray.600", _dark: "gray.400" }}>
-            {
-              completedSets.filter(s => {
-                if (exercise.type === "distance") {
-                  // For distance exercises, all three fields must be filled
-                  return Boolean(s.time && s.distance && s.pace);
-                }
-                // For reps/time exercises, check the completed flag
-                return Boolean(s.completed);
-              }).length
-            }{" "}
-            / {exercise.sets} complete
-          </Text>
-        </Flex>
+        </HStack>
       </VStack>
     </Box>
   );

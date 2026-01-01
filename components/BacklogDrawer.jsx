@@ -12,6 +12,7 @@ import { TagFilter } from "./TagFilter";
 const BacklogDrawerComponent = ({
   backlogTasks,
   onEditTask,
+  onEditWorkout,
   onUpdateTaskTitle,
   onDeleteTask,
   onDuplicateTask,
@@ -237,6 +238,7 @@ const BacklogDrawerComponent = ({
                     variant="backlog"
                     containerId="backlog"
                     onEditTask={onEditTask}
+                    onEditWorkout={onEditWorkout}
                     onUpdateTaskTitle={onUpdateTaskTitle}
                     onDeleteTask={onDeleteTask}
                     onDuplicateTask={onDuplicateTask}

@@ -148,6 +148,13 @@
       "when": 1767292619661,
       "tag": "0020_add_night_stretches_workout",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1767295483975,
+      "tag": "0021_convert_dayofweek_to_daysofweek",
+      "breakpoints": true
     }
   ]
 }

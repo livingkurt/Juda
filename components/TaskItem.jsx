@@ -45,6 +45,7 @@ export const TaskItem = ({
   onToggleExpand,
   onEdit,
   onEditTask, // Alternative prop name for backlog variant
+  onEditWorkout, // Handler for editing workout structure
   onUpdateTitle,
   onUpdateTaskTitle, // Alternative prop name for backlog variant
   onDelete,
@@ -866,6 +867,31 @@ export const TaskItem = ({
                       <Text>Edit</Text>
                     </HStack>
                   </Menu.Item>
+                  {/* Edit Workout option for workout-type tasks */}
+                  {isWorkoutTask && onEditWorkout && (
+                    <Menu.Item
+                      onClick={e => {
+                        e.stopPropagation();
+                        onEditWorkout(task);
+                        setActionMenuOpen(false);
+                      }}
+                    >
+                      <HStack gap={2}>
+                        <Box
+                          as="span"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          w="14px"
+                          h="14px"
+                          flexShrink={0}
+                        >
+                          <Dumbbell size={14} />
+                        </Box>
+                        <Text>Edit Workout</Text>
+                      </HStack>
+                    </Menu.Item>
+                  )}
                   {/* Not Completed option for recurring tasks in today view */}
                   {isToday && !taskIsOverdue && onOutcomeChange && isRecurring && (
                     <Menu.Item

@@ -13,10 +13,12 @@ import {
   IconButton,
   Textarea,
   Dialog,
+  createListCollection,
 } from "@chakra-ui/react";
 import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
-import { useState, useEffect } from "react";
-import { EXERCISE_TYPES, WORKOUT_SECTION_TYPES, DAYS_OF_WEEK } from "@/lib/constants";
+import { useState, useEffect, useMemo } from "react";
+import { EXERCISE_TYPES, WORKOUT_SECTION_TYPES } from "@/lib/constants";
+import WeekdaySelector from "./WeekdaySelector";
 
 // Helper to generate CUID-like IDs
 function generateCuid() {
@@ -31,18 +33,33 @@ function generateCuid() {
  */
 export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = null }) {
   const [workoutName, setWorkoutName] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [weeks, setWeeks] = useState(4);
   const [sections, setSections] = useState([]);
   const [expandedSections, setExpandedSections] = useState({});
   const [expandedDays, setExpandedDays] = useState({});
+
+  // Create collections for selects
+  const sectionTypeCollection = useMemo(() => createListCollection({ items: WORKOUT_SECTION_TYPES }), []);
+
+  const exerciseTypeCollection = useMemo(() => createListCollection({ items: EXERCISE_TYPES }), []);
+
+  // Helper to update days of week for a day
+  const updateDaysOfWeek = (sectionId, dayId, newDaysOfWeek) => {
+    setSections(
+      sections.map(s =>
+        s.id === sectionId
+          ? {
+              ...s,
+              days: s.days.map(d => (d.id === dayId ? { ...d, daysOfWeek: newDaysOfWeek } : d)),
+            }
+          : s
+      )
+    );
+  };
 
   // Initialize with existing data or defaults
   useEffect(() => {
     if (initialData) {
       setWorkoutName(initialData.name || "");
-      setStartDate(initialData.startDate ? new Date(initialData.startDate).toISOString().split("T")[0] : "");
-      setWeeks(initialData.weeks || 4);
       setSections(initialData.sections || []);
 
       // Expand first section and day by default
@@ -64,7 +81,8 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
       setSections([defaultSection]);
       setExpandedSections({ [defaultSection.id]: true });
     }
-  }, [initialData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addSection = () => {
     const newSection = {
@@ -92,7 +110,7 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
     const newDay = {
       id: generateCuid(),
       name: "New Day",
-      dayOfWeek: 1, // Monday
+      daysOfWeek: [1], // Monday by default, but can select multiple
       exercises: [],
     };
 
@@ -130,10 +148,8 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
       unit: "reps",
       notes: "",
       goal: "",
-      weeklyProgression: Array.from({ length: weeks }, (_, i) => ({
-        week: i + 1,
-        targetValue: 10,
-      })),
+      // Weekly progression can be added later if needed
+      weeklyProgression: [],
     };
 
     setSections(
@@ -186,9 +202,6 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
   const handleSave = () => {
     const workoutData = {
       name: workoutName,
-      startDate: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
-      weeks: parseInt(weeks),
-      currentWeek: 1,
       sections,
     };
 
@@ -226,48 +239,18 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
             <VStack align="stretch" gap={6}>
               {/* Workout metadata */}
               <Box p={4} bg={{ _light: "gray.50", _dark: "gray.700" }} borderRadius="md">
-                <VStack align="stretch" gap={3}>
-                  <Box>
-                    <Text fontSize="sm" fontWeight="medium" mb={1}>
-                      Workout Name
-                    </Text>
-                    <Input
-                      value={workoutName}
-                      onChange={e => setWorkoutName(e.target.value)}
-                      placeholder="e.g., Workout 8: 11/10/25 - 12/15/25"
-                      bg="white"
-                      _dark={{ bg: "gray.800" }}
-                    />
-                  </Box>
-                  <HStack>
-                    <Box flex={1}>
-                      <Text fontSize="sm" fontWeight="medium" mb={1}>
-                        Start Date
-                      </Text>
-                      <Input
-                        type="date"
-                        value={startDate}
-                        onChange={e => setStartDate(e.target.value)}
-                        bg="white"
-                        _dark={{ bg: "gray.800" }}
-                      />
-                    </Box>
-                    <Box flex={1}>
-                      <Text fontSize="sm" fontWeight="medium" mb={1}>
-                        Total Weeks
-                      </Text>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={52}
-                        value={weeks}
-                        onChange={e => setWeeks(parseInt(e.target.value) || 1)}
-                        bg="white"
-                        _dark={{ bg: "gray.800" }}
-                      />
-                    </Box>
-                  </HStack>
-                </VStack>
+                <Box>
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Workout Name
+                  </Text>
+                  <Input
+                    value={workoutName}
+                    onChange={e => setWorkoutName(e.target.value)}
+                    placeholder="e.g., Workout 8"
+                    bg="white"
+                    _dark={{ bg: "gray.800" }}
+                  />
+                </Box>
               </Box>
 
               {/* Sections */}
@@ -313,8 +296,9 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                           maxW="300px"
                         />
                         <Select.Root
+                          collection={sectionTypeCollection}
                           value={[section.type]}
-                          onValueChange={e => updateSection(section.id, { type: e.value[0] })}
+                          onValueChange={({ value }) => updateSection(section.id, { type: value[0] })}
                           size="sm"
                           maxW="200px"
                         >
@@ -322,8 +306,8 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                             <Select.ValueText placeholder="Section type" />
                           </Select.Trigger>
                           <Select.Content>
-                            {WORKOUT_SECTION_TYPES.map(type => (
-                              <Select.Item key={type.value} item={type.value}>
+                            {sectionTypeCollection.items.map(type => (
+                              <Select.Item key={type.value} item={type}>
                                 {type.label}
                               </Select.Item>
                             ))}
@@ -382,27 +366,20 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                                     onClick={e => e.stopPropagation()}
                                     size="sm"
                                     variant="filled"
-                                    maxW="250px"
+                                    maxW="200px"
                                   />
-                                  <Select.Root
-                                    value={[day.dayOfWeek.toString()]}
-                                    onValueChange={e =>
-                                      updateDay(section.id, day.id, { dayOfWeek: parseInt(e.value[0]) })
-                                    }
-                                    size="sm"
-                                    maxW="150px"
-                                  >
-                                    <Select.Trigger onClick={e => e.stopPropagation()}>
-                                      <Select.ValueText placeholder="Day" />
-                                    </Select.Trigger>
-                                    <Select.Content>
-                                      {DAYS_OF_WEEK.map(d => (
-                                        <Select.Item key={d.value} item={d.value.toString()}>
-                                          {d.label}
-                                        </Select.Item>
-                                      ))}
-                                    </Select.Content>
-                                  </Select.Root>
+                                  <Box onClick={e => e.stopPropagation()}>
+                                    <Text fontSize="xs" fontWeight="medium" mb={1}>
+                                      Days:
+                                    </Text>
+                                    <WeekdaySelector
+                                      selectedDays={
+                                        day.daysOfWeek || (day.dayOfWeek !== undefined ? [day.dayOfWeek] : [])
+                                      }
+                                      onChange={newDays => updateDaysOfWeek(section.id, day.id, newDays)}
+                                      size="xs"
+                                    />
+                                  </Box>
                                 </HStack>
                                 <IconButton
                                   size="sm"
@@ -461,11 +438,12 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
 
                                           <HStack>
                                             <Select.Root
+                                              collection={exerciseTypeCollection}
                                               value={[exercise.type]}
-                                              onValueChange={e => {
-                                                const selectedType = EXERCISE_TYPES.find(t => t.value === e.value[0]);
+                                              onValueChange={({ value }) => {
+                                                const selectedType = EXERCISE_TYPES.find(t => t.value === value[0]);
                                                 updateExercise(section.id, day.id, exercise.id, {
-                                                  type: e.value[0],
+                                                  type: value[0],
                                                   unit: selectedType?.unit || "reps",
                                                 });
                                               }}
@@ -475,8 +453,8 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                                                 <Select.ValueText placeholder="Type" />
                                               </Select.Trigger>
                                               <Select.Content>
-                                                {EXERCISE_TYPES.map(type => (
-                                                  <Select.Item key={type.value} item={type.value}>
+                                                {exerciseTypeCollection.items.map(type => (
+                                                  <Select.Item key={type.value} item={type}>
                                                     {type.label}
                                                   </Select.Item>
                                                 ))}
@@ -533,6 +511,94 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                                             size="sm"
                                             rows={2}
                                           />
+
+                                          {/* Weekly Progression Editor */}
+                                          {exercise.weeklyProgression && exercise.weeklyProgression.length > 0 && (
+                                            <Box>
+                                              <Text fontSize="xs" fontWeight="medium" mb={1}>
+                                                Weekly Progression
+                                              </Text>
+                                              <VStack align="stretch" gap={1}>
+                                                {exercise.weeklyProgression.map((weekData, weekIndex) => (
+                                                  <HStack key={weekIndex} gap={2}>
+                                                    <Text fontSize="xs" minW="50px">
+                                                      Week {weekData.week}:
+                                                    </Text>
+                                                    <Input
+                                                      type="number"
+                                                      value={weekData.targetValue ?? ""}
+                                                      onChange={e => {
+                                                        const newProgression = [...exercise.weeklyProgression];
+                                                        newProgression[weekIndex] = {
+                                                          ...newProgression[weekIndex],
+                                                          targetValue:
+                                                            e.target.value === ""
+                                                              ? null
+                                                              : parseInt(e.target.value) || 0,
+                                                        };
+                                                        updateExercise(section.id, day.id, exercise.id, {
+                                                          weeklyProgression: newProgression,
+                                                        });
+                                                      }}
+                                                      placeholder="Target"
+                                                      size="xs"
+                                                      maxW="80px"
+                                                    />
+                                                    <HStack gap={1}>
+                                                      <label
+                                                        style={{
+                                                          fontSize: "11px",
+                                                          display: "flex",
+                                                          alignItems: "center",
+                                                          gap: "4px",
+                                                        }}
+                                                      >
+                                                        <input
+                                                          type="checkbox"
+                                                          checked={weekData.isDeload || false}
+                                                          onChange={e => {
+                                                            const newProgression = [...exercise.weeklyProgression];
+                                                            newProgression[weekIndex] = {
+                                                              ...newProgression[weekIndex],
+                                                              isDeload: e.target.checked,
+                                                            };
+                                                            updateExercise(section.id, day.id, exercise.id, {
+                                                              weeklyProgression: newProgression,
+                                                            });
+                                                          }}
+                                                        />
+                                                        Deload
+                                                      </label>
+                                                      <label
+                                                        style={{
+                                                          fontSize: "11px",
+                                                          display: "flex",
+                                                          alignItems: "center",
+                                                          gap: "4px",
+                                                        }}
+                                                      >
+                                                        <input
+                                                          type="checkbox"
+                                                          checked={weekData.isTest || false}
+                                                          onChange={e => {
+                                                            const newProgression = [...exercise.weeklyProgression];
+                                                            newProgression[weekIndex] = {
+                                                              ...newProgression[weekIndex],
+                                                              isTest: e.target.checked,
+                                                            };
+                                                            updateExercise(section.id, day.id, exercise.id, {
+                                                              weeklyProgression: newProgression,
+                                                            });
+                                                          }}
+                                                        />
+                                                        Test
+                                                      </label>
+                                                    </HStack>
+                                                  </HStack>
+                                                ))}
+                                              </VStack>
+                                            </Box>
+                                          )}
                                         </VStack>
                                       </Box>
                                     ))}

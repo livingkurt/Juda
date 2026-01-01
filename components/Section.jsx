@@ -14,6 +14,7 @@ export const Section = ({
   onToggleSubtask,
   onToggleExpand,
   onEditTask,
+  onEditWorkout,
   onUpdateTaskTitle,
   onDeleteTask,
   onDuplicateTask,
@@ -59,6 +60,7 @@ export const Section = ({
             onToggleSubtask={onToggleSubtask}
             onToggleExpand={onToggleExpand}
             onEditTask={onEditTask}
+            onEditWorkout={onEditWorkout}
             onUpdateTaskTitle={onUpdateTaskTitle}
             onDeleteTask={onDeleteTask}
             onDuplicateTask={onDuplicateTask}

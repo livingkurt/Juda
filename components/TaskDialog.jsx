@@ -25,6 +25,7 @@ import { TaskItem } from "./TaskItem";
 import { RichTextEditor } from "./RichTextEditor";
 import { TagChip } from "./TagChip";
 import WorkoutBuilder from "./WorkoutBuilder";
+import WeekdaySelector from "./WeekdaySelector";
 
 // Internal component that resets when key changes
 function TaskDialogForm({
@@ -605,27 +606,7 @@ function TaskDialogForm({
                     </Select.Root>
                   </Box>
                   {recurrenceType === "weekly" && (
-                    <HStack spacing={1} w="full">
-                      {DAYS_OF_WEEK.map(day => (
-                        <Button
-                          key={day.value}
-                          w={9}
-                          h={9}
-                          borderRadius="full"
-                          fontSize={{ base: "xs", md: "sm" }}
-                          fontWeight="medium"
-                          onClick={() =>
-                            setSelectedDays(prev =>
-                              prev.includes(day.value) ? prev.filter(d => d !== day.value) : [...prev, day.value]
-                            )
-                          }
-                          colorPalette={selectedDays.includes(day.value) ? "blue" : "gray"}
-                          variant={selectedDays.includes(day.value) ? "solid" : "outline"}
-                        >
-                          {day.short}
-                        </Button>
-                      ))}
-                    </HStack>
+                    <WeekdaySelector selectedDays={selectedDays} onChange={setSelectedDays} size="sm" />
                   )}
                   {recurrenceType === "monthly" && (
                     <VStack spacing={3} w="full" align="stretch">
