@@ -3,7 +3,17 @@
 import { Box, Button, IconButton, Text, Flex, Input, Badge } from "@chakra-ui/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export const DateNavigation = ({ selectedDate, onDateChange, onPrevious, onNext, onToday }) => {
+export const DateNavigation = ({
+  selectedDate,
+  onDateChange,
+  onPrevious,
+  onNext,
+  onToday,
+  title,
+  showDatePicker = true,
+  showDateDisplay = true,
+  rightContent,
+}) => {
   const bgColor = { _light: "white", _dark: "gray.800" };
   const borderColor = { _light: "gray.200", _dark: "gray.600" };
   const textColor = { _light: "gray.900", _dark: "gray.100" };
@@ -63,50 +73,62 @@ export const DateNavigation = ({ selectedDate, onDateChange, onPrevious, onNext,
       maxW="100%"
       overflow="hidden"
     >
-      <Flex align="center" gap={2} flexWrap="wrap" w="100%" maxW="100%">
+      <Flex align="center" gap={2} w="100%" maxW="100%">
         <Button variant="outline" size="sm" onClick={onToday}>
           Today
         </Button>
-        <IconButton onClick={onPrevious} variant="ghost" aria-label="Previous day" size="sm">
+        <IconButton onClick={onPrevious} variant="ghost" aria-label="Previous" size="sm">
           <Box as="span" color="currentColor">
             <ChevronLeft size={14} stroke="currentColor" />
           </Box>
         </IconButton>
-        <IconButton onClick={onNext} variant="ghost" aria-label="Next day" size="sm">
+        <IconButton onClick={onNext} variant="ghost" aria-label="Next" size="sm">
           <Box as="span" color="currentColor">
             <ChevronRight size={14} stroke="currentColor" />
           </Box>
         </IconButton>
-        <Box position="relative" flex={1} minW={{ base: 0, md: "200px" }}>
-          <Input
-            type="date"
-            value={formatDateInput(selectedDate)}
-            onChange={handleDateInputChange}
-            size="sm"
-            variant="outline"
-            cursor="pointer"
-            sx={{
-              "&::-webkit-calendar-picker-indicator": {
-                cursor: "pointer",
-              },
-            }}
-          />
-        </Box>
-        <Flex align="center" gap={2} minW={{ base: 0, md: "120px" }} flexShrink={{ base: 1, md: 0 }}>
-          <Text fontSize="sm" fontWeight="medium" color={isToday ? textColor : warningText}>
-            {formatDateDisplay(selectedDate)}
+        {showDatePicker && (
+          <Box position="relative" flex={1} minW={{ base: 0, md: "200px" }}>
+            <Input
+              type="date"
+              value={formatDateInput(selectedDate)}
+              onChange={handleDateInputChange}
+              size="sm"
+              variant="outline"
+              cursor="pointer"
+              sx={{
+                "&::-webkit-calendar-picker-indicator": {
+                  cursor: "pointer",
+                },
+              }}
+            />
+          </Box>
+        )}
+        {title && (
+          <Text fontSize="sm" fontWeight="medium" minW="120px">
+            {title}
           </Text>
-          {isPast && (
-            <Badge colorPalette="orange" fontSize="xs">
-              Past Date
-            </Badge>
-          )}
-          {isFuture && (
-            <Badge colorPalette="blue" fontSize="xs">
-              Future Date
-            </Badge>
-          )}
-        </Flex>
+        )}
+        {showDateDisplay && (
+          <Flex align="center" gap={2} minW={{ base: 0, md: "120px" }} flexShrink={{ base: 1, md: 0 }}>
+            <Text fontSize="sm" fontWeight="medium" color={isToday ? textColor : warningText}>
+              {formatDateDisplay(selectedDate)}
+            </Text>
+            {isPast && (
+              <Badge colorPalette="orange" fontSize="xs">
+                Past Date
+              </Badge>
+            )}
+            {isFuture && (
+              <Badge colorPalette="blue" fontSize="xs">
+                Future Date
+              </Badge>
+            )}
+          </Flex>
+        )}
+        {/* Spacer to push rightContent to the end */}
+        {rightContent && <Box flex={1} />}
+        {rightContent}
       </Flex>
     </Box>
   );

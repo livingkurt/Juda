@@ -32,8 +32,6 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import {
-  ChevronLeft,
-  ChevronRight,
   Calendar,
   LayoutDashboard,
   List,
@@ -2859,67 +2857,55 @@ export default function DailyTasksApp() {
                       <Box h="100%" overflow="hidden" display="flex" flexDirection="column">
                         {/* Mobile Calendar Controls */}
                         <Box p={2} borderBottomWidth="1px" borderColor={borderColor} bg={headerBg}>
-                          <Flex align="center" justify="space-between" mb={2} flexWrap="wrap" gap={2}>
-                            <HStack spacing={1}>
-                              <Button
-                                variant="outline"
+                          <DateNavigation
+                            selectedDate={selectedDate}
+                            onDateChange={date => {
+                              const d = new Date(date);
+                              d.setHours(0, 0, 0, 0);
+                              setSelectedDate(d);
+                            }}
+                            onPrevious={() => navigateCalendar(-1)}
+                            onNext={() => navigateCalendar(1)}
+                            onToday={() => {
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              setSelectedDate(today);
+                            }}
+                            title={getCalendarTitle()}
+                            showDatePicker={false}
+                            showDateDisplay={false}
+                            rightContent={
+                              <Select.Root
+                                collection={calendarViewCollection}
+                                value={[calendarView]}
+                                onValueChange={({ value }) => setCalendarView(value[0])}
                                 size="sm"
-                                onClick={() => {
-                                  const today = new Date();
-                                  today.setHours(0, 0, 0, 0);
-                                  setSelectedDate(today);
-                                }}
+                                w={20}
                               >
-                                Today
-                              </Button>
-                              <IconButton
-                                icon={<ChevronLeft size={16} />}
-                                onClick={() => navigateCalendar(-1)}
-                                variant="ghost"
-                                size="sm"
-                                aria-label="Previous"
-                              />
-                              <IconButton
-                                icon={<ChevronRight size={16} />}
-                                onClick={() => navigateCalendar(1)}
-                                variant="ghost"
-                                size="sm"
-                                aria-label="Next"
-                              />
-                            </HStack>
-                            <Text fontSize="sm" fontWeight="medium" flex={1} textAlign="center">
-                              {getCalendarTitle()}
-                            </Text>
-                            <Select.Root
-                              collection={calendarViewCollection}
-                              value={[calendarView]}
-                              onValueChange={({ value }) => setCalendarView(value[0])}
-                              size="sm"
-                              w={20}
-                            >
-                              <Select.HiddenSelect />
-                              <Select.Control>
-                                <Select.Trigger>
-                                  <Select.ValueText placeholder="View" />
-                                </Select.Trigger>
-                                <Select.IndicatorGroup>
-                                  <Select.Indicator />
-                                </Select.IndicatorGroup>
-                              </Select.Control>
-                              <Portal>
-                                <Select.Positioner>
-                                  <Select.Content>
-                                    {calendarViewCollection.items.map(item => (
-                                      <Select.Item item={item} key={item.value}>
-                                        {item.label}
-                                        <Select.ItemIndicator />
-                                      </Select.Item>
-                                    ))}
-                                  </Select.Content>
-                                </Select.Positioner>
-                              </Portal>
-                            </Select.Root>
-                          </Flex>
+                                <Select.HiddenSelect />
+                                <Select.Control>
+                                  <Select.Trigger>
+                                    <Select.ValueText placeholder="View" />
+                                  </Select.Trigger>
+                                  <Select.IndicatorGroup>
+                                    <Select.Indicator />
+                                  </Select.IndicatorGroup>
+                                </Select.Control>
+                                <Portal>
+                                  <Select.Positioner>
+                                    <Select.Content>
+                                      {calendarViewCollection.items.map(item => (
+                                        <Select.Item item={item} key={item.value}>
+                                          {item.label}
+                                          <Select.ItemIndicator />
+                                        </Select.Item>
+                                      ))}
+                                    </Select.Content>
+                                  </Select.Positioner>
+                                </Portal>
+                              </Select.Root>
+                            }
+                          />
                           {/* Search and Tag Filter */}
                           <Box px={2} py={2} w="100%" maxW="100%">
                             <HStack spacing={1} align="center" w="100%" maxW="100%">
@@ -3475,61 +3461,55 @@ export default function DailyTasksApp() {
                               </HStack>
                             </Flex>
                             {/* Calendar Controls */}
-                            <Flex align="center" gap={2} px={2} w="100%" maxW="100%" overflowX="auto">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  const today = new Date();
-                                  today.setHours(0, 0, 0, 0);
-                                  setSelectedDate(today);
-                                }}
-                              >
-                                Today
-                              </Button>
-                              <IconButton onClick={() => navigateCalendar(-1)} variant="ghost" aria-label="Previous">
-                                <Box as="span" color="currentColor">
-                                  <ChevronLeft size={16} stroke="currentColor" />
-                                </Box>
-                              </IconButton>
-                              <IconButton onClick={() => navigateCalendar(1)} variant="ghost" aria-label="Next">
-                                <Box as="span" color="currentColor">
-                                  <ChevronRight size={16} stroke="currentColor" />
-                                </Box>
-                              </IconButton>
-                              <Text fontSize="sm" fontWeight="medium" minW="120px">
-                                {getCalendarTitle()}
-                              </Text>
-                              <Select.Root
-                                collection={calendarViewCollection}
-                                value={[calendarView]}
-                                onValueChange={({ value }) => setCalendarView(value[0])}
-                                size="sm"
-                                w={24}
-                              >
-                                <Select.HiddenSelect />
-                                <Select.Control>
-                                  <Select.Trigger>
-                                    <Select.ValueText placeholder="View" />
-                                  </Select.Trigger>
-                                  <Select.IndicatorGroup>
-                                    <Select.Indicator />
-                                  </Select.IndicatorGroup>
-                                </Select.Control>
-                                <Portal>
-                                  <Select.Positioner>
-                                    <Select.Content>
-                                      {calendarViewCollection.items.map(item => (
-                                        <Select.Item item={item} key={item.value}>
-                                          {item.label}
-                                          <Select.ItemIndicator />
-                                        </Select.Item>
-                                      ))}
-                                    </Select.Content>
-                                  </Select.Positioner>
-                                </Portal>
-                              </Select.Root>
-                            </Flex>
+                            <DateNavigation
+                              selectedDate={selectedDate}
+                              onDateChange={date => {
+                                const d = new Date(date);
+                                d.setHours(0, 0, 0, 0);
+                                setSelectedDate(d);
+                              }}
+                              onPrevious={() => navigateCalendar(-1)}
+                              onNext={() => navigateCalendar(1)}
+                              onToday={() => {
+                                const today = new Date();
+                                today.setHours(0, 0, 0, 0);
+                                setSelectedDate(today);
+                              }}
+                              title={getCalendarTitle()}
+                              showDatePicker={false}
+                              showDateDisplay={false}
+                              rightContent={
+                                <Select.Root
+                                  collection={calendarViewCollection}
+                                  value={[calendarView]}
+                                  onValueChange={({ value }) => setCalendarView(value[0])}
+                                  size="sm"
+                                  w={24}
+                                >
+                                  <Select.HiddenSelect />
+                                  <Select.Control>
+                                    <Select.Trigger>
+                                      <Select.ValueText placeholder="View" />
+                                    </Select.Trigger>
+                                    <Select.IndicatorGroup>
+                                      <Select.Indicator />
+                                    </Select.IndicatorGroup>
+                                  </Select.Control>
+                                  <Portal>
+                                    <Select.Positioner>
+                                      <Select.Content>
+                                        {calendarViewCollection.items.map(item => (
+                                          <Select.Item item={item} key={item.value}>
+                                            {item.label}
+                                            <Select.ItemIndicator />
+                                          </Select.Item>
+                                        ))}
+                                      </Select.Content>
+                                    </Select.Positioner>
+                                  </Portal>
+                                </Select.Root>
+                              }
+                            />
                             {/* Search and Tag Filter */}
                             <Box mt={3} w="100%" maxW="100%">
                               <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
