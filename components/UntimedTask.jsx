@@ -5,6 +5,7 @@ import { Box, Text, Menu, HStack, Portal } from "@chakra-ui/react";
 import { useDraggable } from "@dnd-kit/core";
 import { getTaskDisplayColor } from "@/lib/utils";
 import { Edit2, X, Copy, Trash2, Check, Circle, Dumbbell } from "lucide-react";
+import { TagMenuSelector } from "./TagMenuSelector";
 
 export const UntimedTask = ({
   task,
@@ -17,6 +18,9 @@ export const UntimedTask = ({
   onOutcomeChange,
   onDuplicateTask,
   onDeleteTask,
+  tags,
+  onTagsChange,
+  onCreateTag,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -244,6 +248,10 @@ export const UntimedTask = ({
                   <Text>Duplicate</Text>
                 </HStack>
               </Menu.Item>
+            )}
+            {/* Tags submenu */}
+            {tags && onTagsChange && onCreateTag && (
+              <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
             )}
             {onDeleteTask && (
               <Menu.Item

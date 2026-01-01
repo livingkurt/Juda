@@ -1,23 +1,12 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import {
-  Box,
-  Heading,
-  Text,
-  Table,
-  Select,
-  HStack,
-  VStack,
-  Card,
-  Badge,
-  Tabs,
-  createListCollection,
-} from "@chakra-ui/react";
+import { Box, Heading, Text, Table, HStack, VStack, Card, Badge, Tabs, createListCollection } from "@chakra-ui/react";
 import { useCompletions } from "@/hooks/useCompletions";
 import { useTasks } from "@/hooks/useTasks";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { shouldShowOnDate } from "@/lib/utils";
+import { SelectDropdown } from "./SelectDropdown";
 import {
   LineChart,
   Line,
@@ -315,45 +304,27 @@ export const DashboardView = () => {
                 <Text fontSize="sm" mb={1} color={mutedText}>
                   Date Range
                 </Text>
-                <Select.Root
+                <SelectDropdown
                   collection={dateRangeCollection}
                   value={[dateRange]}
                   onValueChange={({ value }) => setDateRange(value[0])}
+                  placeholder="Select range"
                   w="150px"
-                >
-                  <Select.Trigger bg={bgColor} borderColor={borderColor}>
-                    <Select.ValueText placeholder="Select range" />
-                  </Select.Trigger>
-                  <Select.Content>
-                    {dateRangeCollection.items.map(item => (
-                      <Select.Item key={item.value} item={item}>
-                        {item.label}
-                      </Select.Item>
-                    ))}
-                  </Select.Content>
-                </Select.Root>
+                  triggerProps={{ bg: bgColor, borderColor: borderColor }}
+                />
               </Box>
               <Box>
                 <Text fontSize="sm" mb={1} color={mutedText}>
                   Task Filter
                 </Text>
-                <Select.Root
+                <SelectDropdown
                   collection={taskFilterCollection}
                   value={[selectedTask]}
                   onValueChange={({ value }) => setSelectedTask(value[0])}
+                  placeholder="Select task"
                   w="200px"
-                >
-                  <Select.Trigger bg={bgColor} borderColor={borderColor}>
-                    <Select.ValueText placeholder="Select task" />
-                  </Select.Trigger>
-                  <Select.Content>
-                    {taskFilterCollection.items.map(item => (
-                      <Select.Item key={item.value} item={item}>
-                        {item.label}
-                      </Select.Item>
-                    ))}
-                  </Select.Content>
-                </Select.Root>
+                  triggerProps={{ bg: bgColor, borderColor: borderColor }}
+                />
               </Box>
             </HStack>
           </Card.Body>
@@ -482,24 +453,14 @@ export const DashboardView = () => {
                               })}
                             </Table.Cell>
                             <Table.Cell>
-                              <Select.Root
+                              <SelectDropdown
                                 collection={statusCollection}
                                 value={["checked"]}
                                 onValueChange={({ value }) => handleStatusChange(completion, value[0])}
                                 size="sm"
                                 w="120px"
-                              >
-                                <Select.Trigger bg={bgColor} borderColor={borderColor}>
-                                  <Select.ValueText />
-                                </Select.Trigger>
-                                <Select.Content>
-                                  {statusCollection.items.map(item => (
-                                    <Select.Item key={item.value} item={item}>
-                                      {item.label}
-                                    </Select.Item>
-                                  ))}
-                                </Select.Content>
-                              </Select.Root>
+                                triggerProps={{ bg: bgColor, borderColor: borderColor }}
+                              />
                             </Table.Cell>
                           </Table.Row>
                         );
@@ -585,7 +546,7 @@ export const DashboardView = () => {
                                   opacity={shouldShow ? 1 : 0.4}
                                 >
                                   {shouldShow ? (
-                                    <Select.Root
+                                    <SelectDropdown
                                       collection={outcomeCollection}
                                       value={[currentOutcome]}
                                       onValueChange={({ value }) =>
@@ -593,18 +554,8 @@ export const DashboardView = () => {
                                       }
                                       size="sm"
                                       w="110px"
-                                    >
-                                      <Select.Trigger bg={bgColor} borderColor={borderColor}>
-                                        <Select.ValueText />
-                                      </Select.Trigger>
-                                      <Select.Content>
-                                        {outcomeCollection.items.map(item => (
-                                          <Select.Item key={item.value} item={item}>
-                                            {item.label}
-                                          </Select.Item>
-                                        ))}
-                                      </Select.Content>
-                                    </Select.Root>
+                                      triggerProps={{ bg: bgColor, borderColor: borderColor }}
+                                    />
                                   ) : (
                                     <Text color={mutedText} fontSize="xs" fontStyle="italic">
                                       N/A

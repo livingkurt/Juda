@@ -39,6 +39,9 @@ export const SectionCard = ({
   onTaskSelect,
   onBulkEdit,
   onBeginWorkout,
+  tags,
+  onTagsChange,
+  onCreateTag,
 }) => {
   const bgColor = { _light: "white", _dark: "gray.800" };
   const borderColor = { _light: "gray.200", _dark: "gray.600" };
@@ -310,6 +313,9 @@ export const SectionCard = ({
                       selectedCount={selectedTaskIds?.size || 0}
                       onBulkEdit={onBulkEdit}
                       onBeginWorkout={onBeginWorkout}
+                      tags={tags}
+                      onTagsChange={onTagsChange}
+                      onCreateTag={onCreateTag}
                     />
                   ))}
                   <Input

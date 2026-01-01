@@ -1,21 +1,11 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import {
-  Box,
-  Button,
-  Input,
-  Dialog,
-  Select,
-  VStack,
-  HStack,
-  SimpleGrid,
-  Text,
-  createListCollection,
-} from "@chakra-ui/react";
+import { Box, Button, Input, Dialog, VStack, HStack, SimpleGrid, Text, createListCollection } from "@chakra-ui/react";
 import { DAYS_OF_WEEK, DURATION_OPTIONS } from "@/lib/constants";
 import { TagSelector } from "./TagSelector";
 import { TagChip } from "./TagChip";
+import { SelectDropdown } from "./SelectDropdown";
 
 export const BulkEditDialog = ({
   isOpen,
@@ -282,26 +272,16 @@ export const BulkEditDialog = ({
                   <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                     Section
                   </Text>
-                  <Select.Root
+                  <SelectDropdown
                     collection={sectionCollection}
                     value={[sectionId]}
                     onValueChange={({ value }) => {
                       setSectionId(value[0]);
                       markFieldEdited("sectionId");
                     }}
-                    onFocus={() => markFieldEdited("sectionId")}
-                  >
-                    <Select.Trigger>
-                      <Select.ValueText placeholder="..." />
-                    </Select.Trigger>
-                    <Select.Content>
-                      {sectionCollection.items.map(item => (
-                        <Select.Item key={item.value} item={item}>
-                          {item.label}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Root>
+                    placeholder="..."
+                    inModal={true}
+                  />
                 </Box>
 
                 <SimpleGrid columns={2} spacing={4} w="full">
@@ -355,78 +335,48 @@ export const BulkEditDialog = ({
                   <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                     Duration
                   </Text>
-                  <Select.Root
+                  <SelectDropdown
                     collection={durationCollection}
                     value={[duration]}
                     onValueChange={({ value }) => {
                       setDuration(value[0]);
                       markFieldEdited("duration");
                     }}
-                    onFocus={() => markFieldEdited("duration")}
-                  >
-                    <Select.Trigger>
-                      <Select.ValueText placeholder="..." />
-                    </Select.Trigger>
-                    <Select.Content>
-                      {durationCollection.items.map(item => (
-                        <Select.Item key={item.value} item={item}>
-                          {item.label}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Root>
+                    placeholder="..."
+                    inModal={true}
+                  />
                 </Box>
 
                 <Box w="full">
                   <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                     Status
                   </Text>
-                  <Select.Root
+                  <SelectDropdown
                     collection={statusCollection}
                     value={[status]}
                     onValueChange={({ value }) => {
                       setStatus(value[0]);
                       markFieldEdited("status");
                     }}
-                    onFocus={() => markFieldEdited("status")}
-                  >
-                    <Select.Trigger>
-                      <Select.ValueText placeholder="..." />
-                    </Select.Trigger>
-                    <Select.Content>
-                      {statusCollection.items.map(item => (
-                        <Select.Item key={item.value} item={item}>
-                          {item.label}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Root>
+                    placeholder="..."
+                    inModal={true}
+                  />
                 </Box>
 
                 <Box w="full">
                   <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                     Recurrence
                   </Text>
-                  <Select.Root
+                  <SelectDropdown
                     collection={recurrenceCollection}
                     value={[recurrenceType]}
                     onValueChange={({ value }) => {
                       setRecurrenceType(value[0]);
                       markFieldEdited("recurrenceType");
                     }}
-                    onFocus={() => markFieldEdited("recurrenceType")}
-                  >
-                    <Select.Trigger>
-                      <Select.ValueText placeholder="..." />
-                    </Select.Trigger>
-                    <Select.Content>
-                      {recurrenceCollection.items.map(item => (
-                        <Select.Item key={item.value} item={item}>
-                          {item.label}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Root>
+                    placeholder="..."
+                    inModal={true}
+                  />
                 </Box>
 
                 {recurrenceType === "weekly" && (

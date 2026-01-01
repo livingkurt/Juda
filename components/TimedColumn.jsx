@@ -33,6 +33,9 @@ export const TimedColumn = ({
   onDuplicateTask,
   onDeleteTask,
   isToday = false,
+  tags,
+  onTagsChange,
+  onCreateTag,
 }) => {
   const timedDroppableId = createDroppableId.calendarWeek(day);
   const { setNodeRef, isOver } = useDroppable({
@@ -97,6 +100,9 @@ export const TimedColumn = ({
           onOutcomeChange={onOutcomeChange}
           onDuplicateTask={onDuplicateTask}
           onDeleteTask={onDeleteTask}
+          tags={tags}
+          onTagsChange={onTagsChange}
+          onCreateTag={onCreateTag}
         />
       ))}
 

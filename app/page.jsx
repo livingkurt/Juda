@@ -82,6 +82,7 @@ import { TagEditor } from "@/components/TagEditor";
 import { Tag as TagIcon } from "lucide-react";
 import WorkoutModal from "@/components/WorkoutModal";
 import WorkoutBuilder from "@/components/WorkoutBuilder";
+import { SelectDropdown } from "@/components/SelectDropdown";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
@@ -138,6 +139,7 @@ export default function DailyTasksApp() {
     batchUpdateTasks,
     updateTagInTasks,
     removeTagFromTasks,
+    refetch: fetchTasks,
     loading: tasksLoading,
   } = useTasks();
   const {
@@ -160,7 +162,13 @@ export default function DailyTasksApp() {
     hasAnyCompletion,
     fetchCompletions,
   } = useCompletions();
-  const { tags, createTag, updateTag: updateTagOriginal, deleteTag: deleteTagOriginal } = useTags();
+  const {
+    tags,
+    createTag,
+    updateTag: updateTagOriginal,
+    deleteTag: deleteTagOriginal,
+    batchUpdateTaskTags,
+  } = useTags();
 
   // Wrapper around updateTag that also updates tag references in tasks
   const updateTag = useCallback(
@@ -1096,6 +1104,26 @@ export default function DailyTasksApp() {
 
   const handleDeleteTask = async taskId => {
     await deleteTask(taskId);
+  };
+
+  // Tag handlers
+  const handleTaskTagsChange = async (taskId, newTagIds) => {
+    try {
+      // Use the batch endpoint to update all tags at once
+      await batchUpdateTaskTags(taskId, newTagIds);
+
+      // Refresh tasks to get updated tag associations
+      await fetchTasks();
+    } catch (error) {
+      console.error("Error updating task tags:", error);
+      toast({
+        title: "Failed to update tags",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
   // Bulk edit handlers
@@ -2712,6 +2740,7 @@ export default function DailyTasksApp() {
                       onDeleteTask={handleDeleteTask}
                       onStatusChange={handleStatusChange}
                       tags={tags}
+                      onTagsChange={handleTaskTagsChange}
                       onCreateTag={createTag}
                       recentlyCompletedTasks={recentlyCompletedTasks}
                       viewDate={viewDate}
@@ -2787,6 +2816,7 @@ export default function DailyTasksApp() {
                             createDraggableId={createDraggableId}
                             viewDate={today}
                             tags={tags}
+                            onTagsChange={handleTaskTagsChange}
                             onCreateTag={createTag}
                             onOutcomeChange={handleOutcomeChange}
                             getOutcomeOnDate={getOutcomeOnDate}
@@ -2912,6 +2942,9 @@ export default function DailyTasksApp() {
                           onTaskSelect={handleTaskSelect}
                           onBulkEdit={handleBulkEdit}
                           onBeginWorkout={handleBeginWorkout}
+                          tags={tags}
+                          onTagsChange={handleTaskTagsChange}
+                          onCreateTag={createTag}
                         />
                       </Box>
                     )}
@@ -2938,35 +2971,15 @@ export default function DailyTasksApp() {
                             showDatePicker={false}
                             showDateDisplay={false}
                             rightContent={
-                              <Select.Root
+                              <SelectDropdown
                                 collection={calendarViewCollection}
                                 value={[calendarView]}
                                 onValueChange={({ value }) => setCalendarView(value[0])}
+                                placeholder="View"
                                 size="sm"
                                 w={20}
-                              >
-                                <Select.HiddenSelect />
-                                <Select.Control>
-                                  <Select.Trigger>
-                                    <Select.ValueText placeholder="View" />
-                                  </Select.Trigger>
-                                  <Select.IndicatorGroup>
-                                    <Select.Indicator />
-                                  </Select.IndicatorGroup>
-                                </Select.Control>
-                                <Portal>
-                                  <Select.Positioner>
-                                    <Select.Content>
-                                      {calendarViewCollection.items.map(item => (
-                                        <Select.Item item={item} key={item.value}>
-                                          {item.label}
-                                          <Select.ItemIndicator />
-                                        </Select.Item>
-                                      ))}
-                                    </Select.Content>
-                                  </Select.Positioner>
-                                </Portal>
-                              </Select.Root>
+                                showIndicator={true}
+                              />
                             }
                           />
                           {/* Search and Tag Filter */}
@@ -3038,10 +3051,11 @@ export default function DailyTasksApp() {
                                     getOutcomeOnDate={getOutcomeOnDate}
                                     getCompletionForDate={getCompletionForDate}
                                     showCompleted={showCompletedTasksCalendar.day}
+                                    tags={tags}
+                                    onTagsChange={handleTaskTagsChange}
+                                    onCreateTag={createTag}
                                     showStatusTasks={_showStatusTasks.day}
                                     zoom={calendarZoom.day}
-                                    tags={tags}
-                                    onCreateTag={createTag}
                                     onEditTask={handleEditTask}
                                     onEditWorkout={handleEditWorkout}
                                     onOutcomeChange={handleOutcomeChange}
@@ -3067,6 +3081,7 @@ export default function DailyTasksApp() {
                                     createDroppableId={createDroppableId}
                                     createDraggableId={createDraggableId}
                                     tags={tags}
+                                    onTagsChange={handleTaskTagsChange}
                                     onCreateTag={createTag}
                                     isCompletedOnDate={isCompletedOnDate}
                                     getOutcomeOnDate={getOutcomeOnDate}
@@ -3139,6 +3154,7 @@ export default function DailyTasksApp() {
                       onDeleteTask={handleDeleteTask}
                       onStatusChange={handleStatusChange}
                       tags={tags}
+                      onTagsChange={handleTaskTagsChange}
                       onCreateTag={createTag}
                       recentlyCompletedTasks={recentlyCompletedTasks}
                       viewDate={viewDate}
@@ -3221,6 +3237,7 @@ export default function DailyTasksApp() {
                               createDraggableId={createDraggableId}
                               viewDate={today}
                               tags={tags}
+                              onTagsChange={handleTaskTagsChange}
                               onCreateTag={createTag}
                               onOutcomeChange={handleOutcomeChange}
                               getOutcomeOnDate={getOutcomeOnDate}
@@ -3386,6 +3403,9 @@ export default function DailyTasksApp() {
                                     onTaskSelect={handleTaskSelect}
                                     onBulkEdit={handleBulkEdit}
                                     onBeginWorkout={handleBeginWorkout}
+                                    tags={tags}
+                                    onTagsChange={handleTaskTagsChange}
+                                    onCreateTag={createTag}
                                   />
                                 </Box>
                               </>
@@ -3659,6 +3679,7 @@ export default function DailyTasksApp() {
                                           showCompleted={showCompletedTasksCalendar.day}
                                           zoom={calendarZoom.day}
                                           tags={tags}
+                                          onTagsChange={handleTaskTagsChange}
                                           onCreateTag={createTag}
                                           onEditTask={handleEditTask}
                                           onEditWorkout={handleEditWorkout}
@@ -3685,6 +3706,7 @@ export default function DailyTasksApp() {
                                           createDroppableId={createDroppableId}
                                           createDraggableId={createDraggableId}
                                           tags={tags}
+                                          onTagsChange={handleTaskTagsChange}
                                           onCreateTag={createTag}
                                           isCompletedOnDate={isCompletedOnDate}
                                           getOutcomeOnDate={getOutcomeOnDate}

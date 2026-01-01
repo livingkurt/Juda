@@ -6,7 +6,6 @@ import {
   Button,
   Input,
   Dialog,
-  Select,
   VStack,
   HStack,
   SimpleGrid,
@@ -26,6 +25,7 @@ import { RichTextEditor } from "./RichTextEditor";
 import { TagChip } from "./TagChip";
 import WorkoutBuilder from "./WorkoutBuilder";
 import WeekdaySelector from "./WeekdaySelector";
+import { SelectDropdown } from "./SelectDropdown";
 
 // Internal component that resets when key changes
 function TaskDialogForm({
@@ -409,22 +409,13 @@ function TaskDialogForm({
                     <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                       Section
                     </Text>
-                    <Select.Root
+                    <SelectDropdown
                       collection={sectionCollection}
                       value={[sectionId]}
                       onValueChange={({ value }) => setSectionId(value[0])}
-                    >
-                      <Select.Trigger>
-                        <Select.ValueText placeholder="Select section" />
-                      </Select.Trigger>
-                      <Select.Content>
-                        {sectionCollection.items.map(item => (
-                          <Select.Item key={item.value} item={item}>
-                            {item.label}
-                          </Select.Item>
-                        ))}
-                      </Select.Content>
-                    </Select.Root>
+                      placeholder="Select section"
+                      inModal={true}
+                    />
                   </Box>
                   <SimpleGrid columns={2} spacing={4} w="full">
                     <Box>
@@ -488,43 +479,25 @@ function TaskDialogForm({
                     <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                       Duration
                     </Text>
-                    <Select.Root
+                    <SelectDropdown
                       collection={durationCollection}
                       value={[duration.toString()]}
                       onValueChange={({ value }) => setDuration(parseInt(value[0]))}
-                    >
-                      <Select.Trigger>
-                        <Select.ValueText placeholder="Select duration" />
-                      </Select.Trigger>
-                      <Select.Content>
-                        {durationCollection.items.map(item => (
-                          <Select.Item key={item.value} item={item}>
-                            {item.label}
-                          </Select.Item>
-                        ))}
-                      </Select.Content>
-                    </Select.Root>
+                      placeholder="Select duration"
+                      inModal={true}
+                    />
                   </Box>
                   <Box w="full">
                     <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                       Completion Type
                     </Text>
-                    <Select.Root
+                    <SelectDropdown
                       collection={completionTypeCollection}
                       value={[completionType]}
                       onValueChange={({ value }) => setCompletionType(value[0])}
-                    >
-                      <Select.Trigger>
-                        <Select.ValueText placeholder="Select completion type" />
-                      </Select.Trigger>
-                      <Select.Content>
-                        {completionTypeCollection.items.map(item => (
-                          <Select.Item key={item.value} item={item}>
-                            {item.label}
-                          </Select.Item>
-                        ))}
-                      </Select.Content>
-                    </Select.Root>
+                      placeholder="Select completion type"
+                      inModal={true}
+                    />
                     {completionType === "note" && (
                       <Text fontSize="xs" color="gray.500" mt={1}>
                         Notes appear in the Notes tab, not in Backlog/Today/Calendar
@@ -555,22 +528,13 @@ function TaskDialogForm({
                       <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                         Status
                       </Text>
-                      <Select.Root
+                      <SelectDropdown
                         collection={statusCollection}
                         value={[status || "todo"]}
                         onValueChange={({ value }) => setStatus(value[0])}
-                      >
-                        <Select.Trigger>
-                          <Select.ValueText placeholder="Select status" />
-                        </Select.Trigger>
-                        <Select.Content>
-                          {statusCollection.items.map(item => (
-                            <Select.Item key={item.value} item={item}>
-                              {item.label}
-                            </Select.Item>
-                          ))}
-                        </Select.Content>
-                      </Select.Root>
+                        placeholder="Select status"
+                        inModal={true}
+                      />
                     </Box>
                   )}
                   {/* Note Content Editor - Always visible for adding/editing note content */}
@@ -598,44 +562,26 @@ function TaskDialogForm({
                     <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                       Recurrence
                     </Text>
-                    <Select.Root
+                    <SelectDropdown
                       collection={recurrenceCollection}
                       value={[recurrenceType]}
                       onValueChange={({ value }) => setRecurrenceType(value[0])}
-                    >
-                      <Select.Trigger>
-                        <Select.ValueText placeholder="Select recurrence" />
-                      </Select.Trigger>
-                      <Select.Content>
-                        {recurrenceCollection.items.map(item => (
-                          <Select.Item key={item.value} item={item}>
-                            {item.label}
-                          </Select.Item>
-                        ))}
-                      </Select.Content>
-                    </Select.Root>
+                      placeholder="Select recurrence"
+                      inModal={true}
+                    />
                   </Box>
                   {recurrenceType === "weekly" && (
                     <WeekdaySelector selectedDays={selectedDays} onChange={setSelectedDays} size="sm" />
                   )}
                   {recurrenceType === "monthly" && (
                     <VStack spacing={3} w="full" align="stretch">
-                      <Select.Root
+                      <SelectDropdown
                         collection={monthlyModeCollection}
                         value={[monthlyMode]}
                         onValueChange={({ value }) => setMonthlyMode(value[0])}
-                      >
-                        <Select.Trigger>
-                          <Select.ValueText placeholder="Select pattern type" />
-                        </Select.Trigger>
-                        <Select.Content>
-                          {monthlyModeCollection.items.map(item => (
-                            <Select.Item key={item.value} item={item}>
-                              {item.label}
-                            </Select.Item>
-                          ))}
-                        </Select.Content>
-                      </Select.Root>
+                        placeholder="Select pattern type"
+                        inModal={true}
+                      />
                       {monthlyMode === "dayOfMonth" && (
                         <Box>
                           <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={2}>
@@ -664,38 +610,22 @@ function TaskDialogForm({
                       )}
                       {monthlyMode === "weekPattern" && (
                         <HStack spacing={2}>
-                          <Select.Root
+                          <SelectDropdown
                             collection={ordinalCollection}
                             value={[monthlyOrdinal.toString()]}
                             onValueChange={({ value }) => setMonthlyOrdinal(Number(value[0]))}
-                          >
-                            <Select.Trigger w="120px">
-                              <Select.ValueText placeholder="Select" />
-                            </Select.Trigger>
-                            <Select.Content>
-                              {ordinalCollection.items.map(item => (
-                                <Select.Item key={item.value} item={item}>
-                                  {item.label}
-                                </Select.Item>
-                              ))}
-                            </Select.Content>
-                          </Select.Root>
-                          <Select.Root
+                            placeholder="Select"
+                            w="120px"
+                            inModal={true}
+                          />
+                          <SelectDropdown
                             collection={dayOfWeekCollection}
                             value={[monthlyDayOfWeek.toString()]}
                             onValueChange={({ value }) => setMonthlyDayOfWeek(Number(value[0]))}
-                          >
-                            <Select.Trigger flex={1}>
-                              <Select.ValueText placeholder="Select day" />
-                            </Select.Trigger>
-                            <Select.Content>
-                              {dayOfWeekCollection.items.map(item => (
-                                <Select.Item key={item.value} item={item}>
-                                  {item.label}
-                                </Select.Item>
-                              ))}
-                            </Select.Content>
-                          </Select.Root>
+                            placeholder="Select day"
+                            flex={1}
+                            inModal={true}
+                          />
                         </HStack>
                       )}
                       <HStack>
@@ -715,92 +645,51 @@ function TaskDialogForm({
                   )}
                   {recurrenceType === "yearly" && (
                     <VStack spacing={3} w="full" align="stretch">
-                      <Select.Root
+                      <SelectDropdown
                         collection={yearlyModeCollection}
                         value={[yearlyMode]}
                         onValueChange={({ value }) => setYearlyMode(value[0])}
-                      >
-                        <Select.Trigger>
-                          <Select.ValueText placeholder="Select pattern type" />
-                        </Select.Trigger>
-                        <Select.Content>
-                          {yearlyModeCollection.items.map(item => (
-                            <Select.Item key={item.value} item={item}>
-                              {item.label}
-                            </Select.Item>
-                          ))}
-                        </Select.Content>
-                      </Select.Root>
+                        placeholder="Select pattern type"
+                        inModal={true}
+                      />
                       <HStack spacing={2}>
-                        <Select.Root
+                        <SelectDropdown
                           collection={monthCollection}
                           value={[yearlyMonth.toString()]}
                           onValueChange={({ value }) => setYearlyMonth(Number(value[0]))}
-                        >
-                          <Select.Trigger flex={1}>
-                            <Select.ValueText placeholder="Select month" />
-                          </Select.Trigger>
-                          <Select.Content>
-                            {monthCollection.items.map(item => (
-                              <Select.Item key={item.value} item={item}>
-                                {item.label}
-                              </Select.Item>
-                            ))}
-                          </Select.Content>
-                        </Select.Root>
+                          placeholder="Select month"
+                          flex={1}
+                          inModal={true}
+                        />
                         {yearlyMode === "dayOfMonth" && (
-                          <Select.Root
+                          <SelectDropdown
                             collection={dayOfMonthSelectCollection}
                             value={[yearlyDayOfMonth.toString()]}
                             onValueChange={({ value }) => setYearlyDayOfMonth(Number(value[0]))}
-                          >
-                            <Select.Trigger w="80px">
-                              <Select.ValueText placeholder="Day" />
-                            </Select.Trigger>
-                            <Select.Content>
-                              {dayOfMonthSelectCollection.items.map(item => (
-                                <Select.Item key={item.value} item={item}>
-                                  {item.label}
-                                </Select.Item>
-                              ))}
-                            </Select.Content>
-                          </Select.Root>
+                            placeholder="Day"
+                            w="80px"
+                            inModal={true}
+                          />
                         )}
                       </HStack>
                       {yearlyMode === "weekPattern" && (
                         <HStack spacing={2}>
-                          <Select.Root
+                          <SelectDropdown
                             collection={ordinalCollection}
                             value={[yearlyOrdinal.toString()]}
                             onValueChange={({ value }) => setYearlyOrdinal(Number(value[0]))}
-                          >
-                            <Select.Trigger w="120px">
-                              <Select.ValueText placeholder="Select" />
-                            </Select.Trigger>
-                            <Select.Content>
-                              {ordinalCollection.items.map(item => (
-                                <Select.Item key={item.value} item={item}>
-                                  {item.label}
-                                </Select.Item>
-                              ))}
-                            </Select.Content>
-                          </Select.Root>
-                          <Select.Root
+                            placeholder="Select"
+                            w="120px"
+                            inModal={true}
+                          />
+                          <SelectDropdown
                             collection={dayOfWeekCollection}
                             value={[yearlyDayOfWeek.toString()]}
                             onValueChange={({ value }) => setYearlyDayOfWeek(Number(value[0]))}
-                          >
-                            <Select.Trigger flex={1}>
-                              <Select.ValueText placeholder="Select day" />
-                            </Select.Trigger>
-                            <Select.Content>
-                              {dayOfWeekCollection.items.map(item => (
-                                <Select.Item key={item.value} item={item}>
-                                  {item.label}
-                                </Select.Item>
-                              ))}
-                            </Select.Content>
-                          </Select.Root>
+                            placeholder="Select day"
+                            flex={1}
+                            inModal={true}
+                          />
                         </HStack>
                       )}
                       <HStack>
@@ -1094,22 +983,13 @@ function TaskDialogForm({
                                 <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
                                   Duration
                                 </Text>
-                                <Select.Root
+                                <SelectDropdown
                                   collection={durationCollection}
                                   value={[subtaskDuration.toString()]}
                                   onValueChange={({ value }) => setSubtaskDuration(parseInt(value[0]))}
-                                >
-                                  <Select.Trigger>
-                                    <Select.ValueText placeholder="Select duration" />
-                                  </Select.Trigger>
-                                  <Select.Content>
-                                    {durationCollection.items.map(item => (
-                                      <Select.Item key={item.value} item={item}>
-                                        {item.label}
-                                      </Select.Item>
-                                    ))}
-                                  </Select.Content>
-                                </Select.Root>
+                                  placeholder="Select duration"
+                                  inModal={true}
+                                />
                               </Box>
                             </SimpleGrid>
                           </VStack>

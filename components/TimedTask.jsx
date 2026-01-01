@@ -5,6 +5,7 @@ import { Box, Text, Menu, HStack, Portal } from "@chakra-ui/react";
 import { useDraggable } from "@dnd-kit/core";
 import { formatTime, getTaskDisplayColor } from "@/lib/utils";
 import { Edit2, X, Copy, Trash2, Check, Circle, Dumbbell } from "lucide-react";
+import { TagMenuSelector } from "./TagMenuSelector";
 
 export const TimedTask = ({
   task,
@@ -20,6 +21,9 @@ export const TimedTask = ({
   onOutcomeChange,
   onDuplicateTask,
   onDeleteTask,
+  tags,
+  onTagsChange,
+  onCreateTag,
 }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: createDraggableId.calendarTimed(task.id, date),
@@ -279,6 +283,10 @@ export const TimedTask = ({
                     <Text>Duplicate</Text>
                   </HStack>
                 </Menu.Item>
+              )}
+              {/* Tags submenu */}
+              {tags && onTagsChange && onCreateTag && (
+                <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
               )}
               {onDeleteTask && (
                 <Menu.Item

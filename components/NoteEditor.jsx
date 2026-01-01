@@ -7,7 +7,6 @@ import {
   HStack,
   Input,
   IconButton,
-  Select,
   Menu,
   MenuItem,
   Tag,
@@ -17,6 +16,7 @@ import {
 } from "@chakra-ui/react";
 import { MoreVertical, Trash2, CheckSquare, Type, Folder, Plus, Tag as TagIcon } from "lucide-react";
 import { RichTextEditor } from "./RichTextEditor";
+import { SelectDropdown } from "./SelectDropdown";
 
 export const NoteEditor = ({ note, folders, allTags: _allTags, onUpdate, onDelete, onConvertToTask }) => {
   // Initialize state from note prop
@@ -182,24 +182,14 @@ export const NoteEditor = ({ note, folders, allTags: _allTags, onUpdate, onDelet
               <Text fontSize="xs" fontWeight="medium" color={{ base: "gray.500", _dark: "gray.400" }} minW="50px">
                 Folder
               </Text>
-              <Select.Root
+              <SelectDropdown
                 collection={folderCollection}
                 value={[folderId]}
                 onValueChange={({ value }) => setFolderId(value[0])}
+                placeholder="No folder"
                 size="sm"
                 width="160px"
-              >
-                <Select.Trigger>
-                  <Select.ValueText placeholder="No folder" />
-                </Select.Trigger>
-                <Select.Content>
-                  {folderCollection.items.map(item => (
-                    <Select.Item key={item.value} item={item}>
-                      {item.label}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
+              />
             </HStack>
 
             {/* Tags */}

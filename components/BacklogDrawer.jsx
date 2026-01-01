@@ -24,6 +24,7 @@ const BacklogDrawerComponent = ({
   createDraggableId,
   viewDate,
   tags = [],
+  onTagsChange,
   onCreateTag,
   onOutcomeChange,
   getOutcomeOnDate,
@@ -261,6 +262,9 @@ const BacklogDrawerComponent = ({
                     selectedCount={selectedTaskIds?.size || 0}
                     onBulkEdit={onBulkEdit}
                     onBeginWorkout={onBeginWorkout}
+                    tags={tags}
+                    onTagsChange={onTagsChange}
+                    onCreateTag={onCreateTag}
                   />
                 ))}
                 <Input

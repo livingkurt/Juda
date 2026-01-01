@@ -9,7 +9,6 @@ import {
   Input,
   VStack,
   HStack,
-  Select,
   IconButton,
   Textarea,
   Dialog,
@@ -19,6 +18,7 @@ import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { EXERCISE_TYPES, WORKOUT_SECTION_TYPES } from "@/lib/constants";
 import WeekdaySelector from "./WeekdaySelector";
+import { SelectDropdown } from "./SelectDropdown";
 
 // Helper to generate CUID-like IDs
 function generateCuid() {
@@ -464,27 +464,18 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                             w="full"
                           />
                         </Box>
-                        <Box minW="150px">
+                        <Box minW="150px" onClick={e => e.stopPropagation()}>
                           <Text fontSize="xs" fontWeight="medium" mb={0.5}>
                             Section Type
                           </Text>
-                          <Select.Root
+                          <SelectDropdown
                             collection={sectionTypeCollection}
                             value={[section.type]}
                             onValueChange={({ value }) => updateSection(section.id, { type: value[0] })}
+                            placeholder="Section type"
                             size="sm"
-                          >
-                            <Select.Trigger onClick={e => e.stopPropagation()} w="full">
-                              <Select.ValueText placeholder="Section type" />
-                            </Select.Trigger>
-                            <Select.Content>
-                              {sectionTypeCollection.items.map(type => (
-                                <Select.Item key={type.value} item={type}>
-                                  {type.label}
-                                </Select.Item>
-                              ))}
-                            </Select.Content>
-                          </Select.Root>
+                            inModal={true}
+                          />
                         </Box>
                       </HStack>
                       <IconButton
@@ -624,7 +615,7 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                                               <Text fontSize="xs" fontWeight="medium" mb={0.5}>
                                                 Primary Metric
                                               </Text>
-                                              <Select.Root
+                                              <SelectDropdown
                                                 collection={exerciseTypeCollection}
                                                 value={[getExerciseSelectValue(exercise.type, exercise.unit)]}
                                                 onValueChange={({ value }) => {
@@ -634,19 +625,10 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                                                     unit,
                                                   });
                                                 }}
+                                                placeholder="Type"
                                                 size="sm"
-                                              >
-                                                <Select.Trigger w="full">
-                                                  <Select.ValueText placeholder="Type" />
-                                                </Select.Trigger>
-                                                <Select.Content>
-                                                  {exerciseTypeCollection.items.map(type => (
-                                                    <Select.Item key={type.value} item={type}>
-                                                      {type.label}
-                                                    </Select.Item>
-                                                  ))}
-                                                </Select.Content>
-                                              </Select.Root>
+                                                inModal={true}
+                                              />
                                             </Box>
 
                                             <Box minW="70px" flex={1}>
@@ -814,7 +796,7 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                                                         <Text fontSize="xs" fontWeight="medium" mb={0.5}>
                                                           Type
                                                         </Text>
-                                                        <Select.Root
+                                                        <SelectDropdown
                                                           collection={weekTypeCollection}
                                                           value={[
                                                             weekData.isDeload
@@ -854,18 +836,8 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                                                             });
                                                           }}
                                                           size="xs"
-                                                        >
-                                                          <Select.Trigger w="full">
-                                                            <Select.ValueText />
-                                                          </Select.Trigger>
-                                                          <Select.Content>
-                                                            {weekTypeCollection.items.map(type => (
-                                                              <Select.Item key={type.value} item={type}>
-                                                                {type.label}
-                                                              </Select.Item>
-                                                            ))}
-                                                          </Select.Content>
-                                                        </Select.Root>
+                                                          inModal={true}
+                                                        />
                                                       </Box>
                                                     </HStack>
                                                   );

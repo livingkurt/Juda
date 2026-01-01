@@ -129,6 +129,24 @@ export function useTags() {
     [authFetch]
   );
 
+  // Batch update task tags (replaces all tags for a task)
+  const batchUpdateTaskTags = useCallback(
+    async (taskId, tagIds) => {
+      try {
+        const response = await authFetch("/api/task-tags/batch", {
+          method: "POST",
+          body: JSON.stringify({ taskId, tagIds }),
+        });
+        if (!response.ok) throw new Error("Failed to update task tags");
+        return await response.json();
+      } catch (err) {
+        console.error("Error batch updating task tags:", err);
+        throw err;
+      }
+    },
+    [authFetch]
+  );
+
   return {
     tags,
     loading,
@@ -139,5 +157,6 @@ export function useTags() {
     deleteTag,
     assignTagToTask,
     removeTagFromTask,
+    batchUpdateTaskTags,
   };
 }

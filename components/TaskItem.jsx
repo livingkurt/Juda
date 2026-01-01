@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { formatTime, isOverdue, getRecurrenceLabel, getTaskDisplayColor } from "@/lib/utils";
 import { TagChip } from "./TagChip";
+import { TagMenuSelector } from "./TagMenuSelector";
 
 export const TaskItem = ({
   task,
@@ -69,6 +70,9 @@ export const TaskItem = ({
   selectedCount, // Number of tasks currently selected
   onBulkEdit, // Handler to open bulk edit dialog
   onBeginWorkout, // Handler for beginning workout (workout-type tasks)
+  tags, // All available tags
+  onTagsChange, // (taskId, newTagIds) => void
+  onCreateTag, // (name, color) => Promise<newTag>
 }) => {
   // Normalize prop names - support both naming conventions
   const handleEdit = onEdit || onEditTask;
@@ -941,6 +945,10 @@ export const TaskItem = ({
                       </HStack>
                     </Menu.Item>
                   )}
+                  {/* Tags submenu */}
+                  {tags && onTagsChange && onCreateTag ? (
+                    <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
+                  ) : null}
                   {/* Status options for non-recurring tasks */}
                   {onStatusChange && !isRecurring && (
                     <>
