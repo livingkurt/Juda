@@ -80,6 +80,7 @@ import { TagFilter } from "@/components/TagFilter";
 import { NotesView } from "@/components/NotesView";
 import { TagEditor } from "@/components/TagEditor";
 import { Tag as TagIcon } from "lucide-react";
+import WorkoutModal from "@/components/WorkoutModal";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
@@ -384,6 +385,10 @@ export default function DailyTasksApp() {
   // Bulk edit state - track selected task IDs
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
+
+  // Workout modal state
+  const [workoutModalOpen, setWorkoutModalOpen] = useState(false);
+  const [workoutModalTask, setWorkoutModalTask] = useState(null);
 
   // Resize handlers for resizable sections
   const resizeStartRef = useRef(null);
@@ -1132,6 +1137,52 @@ export default function DailyTasksApp() {
       toast({
         title: "Failed to update tasks",
         description: err.message,
+        status: "error",
+        duration: 3000,
+      });
+    }
+  };
+
+  // Workout handlers
+  const handleBeginWorkout = task => {
+    setWorkoutModalTask(task);
+    setWorkoutModalOpen(true);
+  };
+
+  const handleSaveWorkoutProgress = async (taskId, date, workoutCompletion) => {
+    try {
+      // Find the task to update its workoutData
+      const task = tasks.find(t => t.id === taskId);
+      if (!task || !task.workoutData) {
+        throw new Error("Task or workout data not found");
+      }
+
+      // Update workoutData with progress
+      const updatedWorkoutData = {
+        ...task.workoutData,
+        progress: {
+          ...(task.workoutData.progress || {}),
+          [workoutCompletion.week]: {
+            sectionCompletions: workoutCompletion.sectionCompletions,
+          },
+        },
+      };
+
+      // Save progress to the task itself (not TaskCompletion)
+      await saveTask({ id: taskId, workoutData: updatedWorkoutData });
+
+      // Update the modal task if it's the same task
+      if (workoutModalTask?.id === taskId) {
+        setWorkoutModalTask({
+          ...workoutModalTask,
+          workoutData: updatedWorkoutData,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to save workout progress:", error);
+      toast({
+        title: "Failed to save workout progress",
+        description: error.message,
         status: "error",
         duration: 3000,
       });
@@ -2661,6 +2712,7 @@ export default function DailyTasksApp() {
                       selectedTaskIds={selectedTaskIds}
                       onTaskSelect={handleTaskSelect}
                       onBulkEdit={handleBulkEdit}
+                      onBeginWorkout={handleBeginWorkout}
                     />
                   </Box>
                 )}
@@ -2737,6 +2789,7 @@ export default function DailyTasksApp() {
                             selectedTaskIds={selectedTaskIds}
                             onTaskSelect={handleTaskSelect}
                             onBulkEdit={handleBulkEdit}
+                            onBeginWorkout={handleBeginWorkout}
                           />
                         )}
                       </Box>
@@ -2849,6 +2902,7 @@ export default function DailyTasksApp() {
                           selectedTaskIds={selectedTaskIds}
                           onTaskSelect={handleTaskSelect}
                           onBulkEdit={handleBulkEdit}
+                          onBeginWorkout={handleBeginWorkout}
                         />
                       </Box>
                     )}
@@ -3163,6 +3217,7 @@ export default function DailyTasksApp() {
                               selectedTaskIds={selectedTaskIds}
                               onTaskSelect={handleTaskSelect}
                               onBulkEdit={handleBulkEdit}
+                              onBeginWorkout={handleBeginWorkout}
                             />
                           )}
                           {/* Resize handle between backlog and today */}
@@ -3315,6 +3370,7 @@ export default function DailyTasksApp() {
                                     selectedTaskIds={selectedTaskIds}
                                     onTaskSelect={handleTaskSelect}
                                     onBulkEdit={handleBulkEdit}
+                                    onBeginWorkout={handleBeginWorkout}
                                   />
                                 </Box>
                               </>
@@ -3752,6 +3808,19 @@ export default function DailyTasksApp() {
         onDeleteTag={deleteTag}
         selectedCount={selectedTaskIds.size}
         selectedTasks={tasks.filter(t => selectedTaskIds.has(t.id))}
+      />
+      <WorkoutModal
+        task={workoutModalTask}
+        isOpen={workoutModalOpen}
+        onClose={() => {
+          setWorkoutModalOpen(false);
+          setWorkoutModalTask(null);
+        }}
+        onSaveProgress={handleSaveWorkoutProgress}
+        onCompleteTask={(taskId, date) => {
+          createCompletion(taskId, date, { outcome: "completed" });
+        }}
+        currentDate={viewDate}
       />
     </Box>
   );

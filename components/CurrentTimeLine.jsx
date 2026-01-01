@@ -51,4 +51,3 @@ export const CurrentTimeLine = ({ hourHeight, isVisible = true }) => {
     </Box>
   );
 };
-

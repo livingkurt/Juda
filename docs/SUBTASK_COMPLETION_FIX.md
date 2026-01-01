@@ -3,6 +3,7 @@
 ## Summary
 
 Fixed subtasks to have the same completion features as parent tasks, including:
+
 - No automatic time assignment when completed individually
 - Full outcome support (completed, not completed) for recurring subtasks
 - Independent completion status (doesn't cascade to siblings)
@@ -14,6 +15,7 @@ Fixed subtasks to have the same completion features as parent tasks, including:
 **Location**: `handleToggleSubtaskCompletion` function (lines 771-795)
 
 **Before**: Subtasks would automatically get assigned the current time when checked:
+
 ```javascript
 // Old behavior - set time when completing
 const currentTime = minutesToTime(now.getHours() * 60 + now.getMinutes());
@@ -25,6 +27,7 @@ if (!isRecurringSubtask && !subtask.time && !isCompletedOnTargetDate) {
 ```
 
 **After**: Subtasks preserve their existing time or stay untimed:
+
 ```javascript
 // New behavior - DON'T set time
 // Removed time-setting logic for non-recurring subtasks
@@ -38,15 +41,14 @@ if (!isRecurringSubtask && !subtask.time && !isCompletedOnTargetDate) {
 **Before**: Outcome changes always cascaded to all subtasks, even when changing a single subtask
 
 **After**: Added subtask detection to prevent cascading:
+
 ```javascript
 // Check if this is a subtask (has a parentId)
 const isSubtask = task?.parentId != null;
 
 // Only cascade to subtasks if this is a PARENT task (not a subtask itself)
 if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
-  await Promise.all(
-    task.subtasks.map(subtask => createCompletion(subtask.id, dateObj.toISOString(), { outcome }))
-  );
+  await Promise.all(task.subtasks.map(subtask => createCompletion(subtask.id, dateObj.toISOString(), { outcome })));
 }
 ```
 
@@ -65,11 +67,12 @@ const effectivelyRecurring = isRecurring || (isSubtask && parentIsRecurring);
 const shouldShowMenu =
   (isToday || isSubtask || isBacklog) &&
   onOutcomeChange &&
-  effectivelyRecurring &&  // Now uses effectivelyRecurring instead of just isRecurring
+  effectivelyRecurring && // Now uses effectivelyRecurring instead of just isRecurring
   (taskIsOverdue || outcome !== null);
 ```
 
 **Passing Parent Recurrence**: When rendering subtasks, parent's recurrence is passed:
+
 ```javascript
 task={{
   ...subtask,
@@ -81,31 +84,31 @@ task={{
 
 ### Subtask Completion Behavior
 
-| Action | Before | After |
-|--------|--------|-------|
-| Check subtask from backlog | Sets time to now | Preserves existing time or stays untimed |
-| Check recurring subtask | Sets time to now | Preserves existing time or stays untimed |
-| Set subtask outcome (recurring) | Not available | Full support (completed/not completed) |
-| Change parent outcome | Cascades to all subtasks | Still cascades to all subtasks ✓ |
-| Change subtask outcome | Would cascade to siblings | Only affects that subtask ✓ |
+| Action                          | Before                    | After                                    |
+| ------------------------------- | ------------------------- | ---------------------------------------- |
+| Check subtask from backlog      | Sets time to now          | Preserves existing time or stays untimed |
+| Check recurring subtask         | Sets time to now          | Preserves existing time or stays untimed |
+| Set subtask outcome (recurring) | Not available             | Full support (completed/not completed)   |
+| Change parent outcome           | Cascades to all subtasks  | Still cascades to all subtasks ✓         |
+| Change subtask outcome          | Would cascade to siblings | Only affects that subtask ✓              |
 
 ### Time Assignment Rules (After Fix)
 
-| Task Type | Completion Method | Time Behavior |
-|-----------|------------------|---------------|
-| Parent task (non-recurring, no time) | Check | Sets to current time |
-| Parent task (recurring, no time) | Check | Stays untimed |
-| Subtask (any type, no time) | Check | Stays untimed ✓ |
-| Subtask (any type, has time) | Check | Preserves existing time ✓ |
+| Task Type                            | Completion Method | Time Behavior             |
+| ------------------------------------ | ----------------- | ------------------------- |
+| Parent task (non-recurring, no time) | Check             | Sets to current time      |
+| Parent task (recurring, no time)     | Check             | Stays untimed             |
+| Subtask (any type, no time)          | Check             | Stays untimed ✓           |
+| Subtask (any type, has time)         | Check             | Preserves existing time ✓ |
 
 ### Outcome Support (After Fix)
 
-| Task Type | Recurring | Outcome Options |
-|-----------|-----------|-----------------|
-| Parent task | Yes | Completed, Not Completed ✓ |
-| Parent task | No | Simple toggle |
-| Subtask | Yes | Completed, Not Completed ✓ |
-| Subtask | No | Simple toggle |
+| Task Type   | Recurring | Outcome Options            |
+| ----------- | --------- | -------------------------- |
+| Parent task | Yes       | Completed, Not Completed ✓ |
+| Parent task | No        | Simple toggle              |
+| Subtask     | Yes       | Completed, Not Completed ✓ |
+| Subtask     | No        | Simple toggle              |
 
 ## Testing Checklist
 
@@ -141,6 +144,7 @@ task={{
 ### Database Schema
 
 No schema changes required. Uses existing fields:
+
 - `parentId` - identifies subtasks
 - `time` - optional time field (now preserved for subtasks)
 - `recurrence` - determines if outcome menu shows
@@ -175,4 +179,3 @@ No schema changes required. Uses existing fields:
 - No database migration needed
 - Existing subtask completions remain valid
 - The change is purely behavioral, not structural
-

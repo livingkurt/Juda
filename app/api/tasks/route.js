@@ -41,8 +41,19 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { title, sectionId, parentId, time, duration, recurrence, order, completionType, content, folderId } =
-      body;
+    const {
+      title,
+      sectionId,
+      parentId,
+      time,
+      duration,
+      recurrence,
+      order,
+      completionType,
+      content,
+      workoutData,
+      folderId,
+    } = body;
 
     // Verify the section belongs to this user
     const section = await db.query.sections.findFirst({
@@ -66,6 +77,7 @@ export async function POST(request) {
         order: order ?? 0,
         completionType: completionType || "checkbox",
         content: content || null,
+        workoutData: workoutData || null,
         folderId: folderId || null,
       })
       .returning();
@@ -97,6 +109,7 @@ export async function PUT(request) {
       startedAt,
       completionType,
       content,
+      workoutData,
       folderId,
     } = body;
 
@@ -157,12 +170,13 @@ export async function PUT(request) {
       updateData.startedAt = startedAt ? new Date(startedAt) : null;
     }
     if (completionType !== undefined) {
-      if (!["checkbox", "text", "note"].includes(completionType)) {
+      if (!["checkbox", "text", "note", "workout"].includes(completionType)) {
         return NextResponse.json({ error: "Invalid completionType value" }, { status: 400 });
       }
       updateData.completionType = completionType;
     }
     if (content !== undefined) updateData.content = content;
+    if (workoutData !== undefined) updateData.workoutData = workoutData;
     if (folderId !== undefined) updateData.folderId = folderId;
 
     // Ensure we have at least one field to update

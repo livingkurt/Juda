@@ -13,7 +13,9 @@ export const StatusTaskBlock = memo(function StatusTaskBlock({
   startedAt,
   completedAt,
 }) {
-  const bgColor = isInProgress ? { _light: "blue.100", _dark: "blue.900" } : { _light: "green.100", _dark: "green.900" };
+  const bgColor = isInProgress
+    ? { _light: "blue.100", _dark: "blue.900" }
+    : { _light: "green.100", _dark: "green.900" };
   const borderColor = isInProgress ? "blue.400" : "green.400";
 
   // Calculate duration
@@ -55,4 +57,3 @@ export const StatusTaskBlock = memo(function StatusTaskBlock({
     </Box>
   );
 });
-

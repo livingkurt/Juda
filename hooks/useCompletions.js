@@ -100,7 +100,13 @@ export const useCompletions = () => {
       setCompletions(prev =>
         prev.map((c, i) =>
           i === existingIndex
-            ? { ...c, outcome, note, startedAt: startedAt ? new Date(startedAt).toISOString() : null, completedAt: completedAt ? new Date(completedAt).toISOString() : null }
+            ? {
+                ...c,
+                outcome,
+                note,
+                startedAt: startedAt ? new Date(startedAt).toISOString() : null,
+                completedAt: completedAt ? new Date(completedAt).toISOString() : null,
+              }
             : c
         )
       );

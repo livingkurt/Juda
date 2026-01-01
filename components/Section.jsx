@@ -36,6 +36,7 @@ export const Section = ({
   selectedTaskIds,
   onTaskSelect,
   onBulkEdit,
+  onBeginWorkout,
 }) => {
   const dropHighlight = { _light: "gray.50", _dark: "gray.800" };
 
@@ -79,6 +80,7 @@ export const Section = ({
             selectedTaskIds={selectedTaskIds}
             onTaskSelect={onTaskSelect}
             onBulkEdit={onBulkEdit}
+            onBeginWorkout={onBeginWorkout}
           />
         ))}
         <Button

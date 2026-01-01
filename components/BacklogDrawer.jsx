@@ -33,6 +33,7 @@ const BacklogDrawerComponent = ({
   selectedTaskIds,
   onTaskSelect,
   onBulkEdit,
+  onBeginWorkout,
 }) => {
   const bgColor = { _light: "white", _dark: "gray.800" };
   const borderColor = { _light: "gray.200", _dark: "gray.600" };
@@ -257,6 +258,7 @@ const BacklogDrawerComponent = ({
                     onSelect={onTaskSelect}
                     selectedCount={selectedTaskIds?.size || 0}
                     onBulkEdit={onBulkEdit}
+                    onBeginWorkout={onBeginWorkout}
                   />
                 ))}
                 <Input

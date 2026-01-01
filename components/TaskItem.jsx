@@ -1,7 +1,20 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Box, Checkbox, Text, Flex, HStack, IconButton, VStack, Input, Badge, Menu, Portal } from "@chakra-ui/react";
+import {
+  Box,
+  Checkbox,
+  Text,
+  Flex,
+  HStack,
+  IconButton,
+  VStack,
+  Input,
+  Badge,
+  Menu,
+  Portal,
+  Button,
+} from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -18,6 +31,7 @@ import {
   Circle,
   PlayCircle,
   CheckCircle,
+  Dumbbell,
 } from "lucide-react";
 import { formatTime, isOverdue, getRecurrenceLabel, getTaskDisplayColor } from "@/lib/utils";
 import { TagChip } from "./TagChip";
@@ -53,6 +67,7 @@ export const TaskItem = ({
   onSelect, // Handler for task selection (taskId, event) => void
   selectedCount, // Number of tasks currently selected
   onBulkEdit, // Handler to open bulk edit dialog
+  onBeginWorkout, // Handler for beginning workout (workout-type tasks)
 }) => {
   // Normalize prop names - support both naming conventions
   const handleEdit = onEdit || onEditTask;
@@ -130,8 +145,67 @@ export const TaskItem = ({
   // Get existing completion data for text-type tasks
   const existingCompletion = getCompletionForDate?.(task.id, viewDate);
   const isTextTask = task.completionType === "text";
+  const isWorkoutTask = task.completionType === "workout";
   const isNotCompleted = existingCompletion?.outcome === "not_completed" || false;
   const savedNote = existingCompletion?.note || "";
+
+  // For workout tasks, only mark complete if outcome is explicitly "completed" (not "in_progress")
+  const isWorkoutTaskCompleted = isWorkoutTask && existingCompletion?.outcome === "completed";
+
+  // Determine workout button text based on completion status
+  const getWorkoutButtonText = () => {
+    if (!isWorkoutTask) return "";
+    if (isWorkoutTaskCompleted) return "View Results";
+
+    const workoutData = task.workoutData;
+    if (!workoutData) return "Start";
+
+    // Calculate which week the viewDate falls into
+    if (!workoutData.startDate || !viewDate) return "Start";
+
+    const startDate = new Date(workoutData.startDate);
+    const viewDateObj = new Date(viewDate);
+    const daysDiff = Math.floor((viewDateObj - startDate) / (1000 * 60 * 60 * 24));
+    const weekNumber = Math.floor(daysDiff / 7) + 1;
+
+    // If viewing a date outside the workout program range, show "Start"
+    // (before start or after the program ends)
+    if (weekNumber < 1 || weekNumber > (workoutData.weeks || 1)) {
+      return "Start";
+    }
+
+    const currentWeek = weekNumber;
+
+    // Check if there's progress data for the CURRENT week only
+    const progress = workoutData.progress;
+    if (!progress || !progress[currentWeek]) return "Start";
+
+    const weekData = progress[currentWeek];
+    if (!weekData?.sectionCompletions) return "Start";
+
+    // Check if sectionCompletions is empty
+    if (Object.keys(weekData.sectionCompletions).length === 0) return "Start";
+
+    // Get the current day of week (0=Sun, 1=Mon, etc.)
+    const viewDayOfWeek = viewDateObj.getDay();
+
+    // Day ID prefixes based on day of week
+    const dayPrefixes = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+    const currentDayPrefix = dayPrefixes[viewDayOfWeek];
+
+    // Check if any section has progress for TODAY's day of week
+    const hasProgressForToday = Object.values(weekData.sectionCompletions).some(sectionData => {
+      if (!sectionData?.days) return false;
+
+      // Check if any day ID starts with the current day prefix
+      return Object.keys(sectionData.days).some(dayId => dayId.startsWith(currentDayPrefix + "-"));
+    });
+
+    return hasProgressForToday ? "Continue" : "Start";
+  };
+
+  const workoutButtonText = getWorkoutButtonText();
+
   // For text tasks, completion status comes from the completion record, not task.completed
   const isTextTaskCompleted =
     isTextTask &&
@@ -327,7 +401,11 @@ export const TaskItem = ({
                   >
                     <Checkbox.Root
                       checked={
-                        isTextTask ? isTextTaskCompleted : outcome === "completed" || (outcome === null && isChecked)
+                        isTextTask
+                          ? isTextTaskCompleted
+                          : isWorkoutTask
+                            ? isWorkoutTaskCompleted
+                            : outcome === "completed" || (outcome === null && isChecked)
                       }
                       size="md"
                       onCheckedChange={() => {
@@ -675,6 +753,29 @@ export const TaskItem = ({
               </HStack>
             )}
           </Box>
+
+          {/* Begin Workout button for workout-type tasks */}
+          {isWorkoutTask && onBeginWorkout && (isToday || isBacklog) && (
+            <Button
+              size="sm"
+              colorPalette={
+                workoutButtonText === "View Results" ? "purple" : workoutButtonText === "Continue" ? "green" : "blue"
+              }
+              variant="outline"
+              onClick={e => {
+                e.stopPropagation();
+                onBeginWorkout(task);
+              }}
+              onMouseDown={e => e.stopPropagation()}
+              onPointerDown={e => e.stopPropagation()}
+              flexShrink={0}
+            >
+              <Dumbbell size={14} />
+              <Text ml={1} display={{ base: "none", md: "inline" }}>
+                {workoutButtonText}
+              </Text>
+            </Button>
+          )}
 
           {/* Time display */}
           {task.time && (

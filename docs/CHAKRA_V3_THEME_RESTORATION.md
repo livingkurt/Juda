@@ -3,6 +3,7 @@
 ## Overview
 
 After upgrading from Chakra UI v2 to v3, the application lost its distinctive theme styling, including:
+
 - Blue-gray tones in dark mode
 - Proper badge colors (red, orange, purple, green, blue)
 - Button color schemes
@@ -75,6 +76,7 @@ semanticTokens: {
 Added custom recipes for Badge and Button components to restore v2 styling:
 
 **Badge Recipe:**
+
 ```javascript
 badge: {
   base: {
@@ -99,6 +101,7 @@ badge: {
 ```
 
 **Button Recipe:**
+
 ```javascript
 button: {
   base: {
@@ -134,6 +137,7 @@ button: {
 ```
 
 **IconButton Recipe:**
+
 ```javascript
 iconButton: {
   base: {
@@ -169,6 +173,7 @@ iconButton: {
 Changed all instances of `colorScheme` to `colorPalette` throughout the codebase:
 
 **Files Updated:**
+
 - `components/TaskItem.jsx` - Badge components for overdue, recurring, and "no time" indicators
 - `components/BacklogDrawer.jsx` - Badge and IconButton components
 - `components/DateNavigation.jsx` - Badge components for past/future dates
@@ -183,6 +188,7 @@ Changed all instances of `colorScheme` to `colorPalette` throughout the codebase
 - `app/page.jsx` - Badge and Button components throughout main app
 
 **Example Change:**
+
 ```javascript
 // Before (Chakra v2)
 <Badge colorScheme="red">Overdue</Badge>
@@ -196,6 +202,7 @@ Changed all instances of `colorScheme` to `colorPalette` throughout the codebase
 ## Visual Results
 
 ### Dark Mode
+
 - ✅ Background: `#171923` (blue-gray navy tone)
 - ✅ Cards: `#1A202C` (blue-gray card background)
 - ✅ Text: `#EDF2F7` (light gray)
@@ -203,6 +210,7 @@ Changed all instances of `colorScheme` to `colorPalette` throughout the codebase
 - ✅ Buttons: Blue tones with proper hover states
 
 ### Light Mode
+
 - ✅ Background: `#F7FAFC` (light gray)
 - ✅ Cards: `#FFFFFF` (white)
 - ✅ Text: `#1A202C` (dark gray)
@@ -210,6 +218,7 @@ Changed all instances of `colorScheme` to `colorPalette` throughout the codebase
 - ✅ Buttons: Blue tones with proper hover states
 
 ### Badge Colors
+
 - 🔴 Red: Overdue tasks, delete actions
 - 🟠 Orange: No time set, past dates
 - 🟣 Purple: Recurring tasks
@@ -217,6 +226,7 @@ Changed all instances of `colorScheme` to `colorPalette` throughout the codebase
 - 🟢 Green: Completion stats
 
 ### Button Variants
+
 - **Solid**: Filled background with white text
 - **Outline**: Border with transparent background
 - **Ghost**: No border, transparent background with hover effect
@@ -244,9 +254,11 @@ When migrating other Chakra v2 apps to v3:
 ## Files Modified
 
 ### Theme Configuration
+
 - `app/providers.jsx` - Complete theme system with tokens, semantic tokens, and recipes
 
 ### Component Updates (colorScheme → colorPalette)
+
 - `components/TaskItem.jsx`
 - `components/BacklogDrawer.jsx`
 - `components/DateNavigation.jsx`
@@ -284,4 +296,3 @@ After these changes, verify:
 - [Chakra UI v3 Migration Guide](https://www.chakra-ui.com/docs/get-started/migration)
 - [Chakra UI v3 Theming](https://www.chakra-ui.com/docs/theming/overview)
 - [Chakra UI v2 Default Theme](https://v2.chakra-ui.com/docs/styled-system/theme)
-
