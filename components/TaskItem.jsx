@@ -37,6 +37,7 @@ import { formatTime, isOverdue, getRecurrenceLabel, getTaskDisplayColor } from "
 import { TagChip } from "./TagChip";
 import { TagMenuSelector } from "./TagMenuSelector";
 import { useWorkoutProgress } from "@/hooks/useWorkoutProgress";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const TaskItem = ({
   task,
@@ -86,11 +87,13 @@ export const TaskItem = ({
   const isToday = variant === "today";
   const isSubtask = variant === "subtask";
 
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const hoverBg = { _light: "gray.50", _dark: "gray.700" };
-  const textColorDefault = { _light: "gray.900", _dark: "gray.100" };
-  const mutedTextDefault = { _light: "gray.500", _dark: "gray.400" };
-  const gripColorDefault = { _light: "gray.400", _dark: "gray.500" };
+  const { mode, badges } = useSemanticColors();
+
+  const bgColor = mode.bg.surface;
+  const hoverBg = mode.bg.surfaceHover;
+  const textColorDefault = mode.text.primary;
+  const mutedTextDefault = mode.text.secondary;
+  const gripColorDefault = mode.text.muted;
 
   const textColor = textColorProp || textColorDefault;
   const mutedText = mutedTextProp || mutedTextDefault;
@@ -300,16 +303,15 @@ export const TaskItem = ({
     <Box ref={setNodeRef} style={style} w="100%" maxW="100%" data-task-id={task.id}>
       <Box
         borderRadius="lg"
-        bg={isSelected ? { _light: "blue.50", _dark: "blue.900" } : bgColor}
+        bg={isSelected ? mode.selection.bg : bgColor}
         transition="box-shadow 0.2s, border-color 0.2s, background-color 0.2s"
-        borderColor={isSelected ? { _light: "blue.500", _dark: "blue.400" } : taskColor || "gray.300"}
-        _dark={{ borderColor: isSelected ? "blue.400" : taskColor || "gray.600" }}
+        borderColor={isSelected ? mode.selection.border : taskColor || mode.border.default}
         borderWidth="2px"
         borderStyle="solid"
         w="100%"
         maxW="100%"
         overflow="hidden"
-        boxShadow={isSelected ? "0 0 0 2px var(--chakra-colors-blue-400)" : "none"}
+        boxShadow={isSelected ? `0 0 0 2px ${mode.selection.border}` : "none"}
       >
         <Flex
           align="center"
@@ -448,7 +450,7 @@ export const TaskItem = ({
                           </Checkbox.Indicator>
                         ) : outcome === "not_completed" ? (
                           <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
-                            <Box as="span" color="gray.700">
+                            <Box as="span" color={mode.text.muted}>
                               <X size={18} stroke="currentColor" style={{ strokeWidth: 3 }} />
                             </Box>
                           </Box>
@@ -611,13 +613,10 @@ export const TaskItem = ({
                     }
                     e.stopPropagation();
                   }}
-                  bg={isNotCompleted ? "gray.100" : undefined}
-                  _dark={{
-                    bg: isNotCompleted ? "gray.700" : undefined,
-                  }}
+                  bg={isNotCompleted ? mode.bg.muted : undefined}
                 />
                 {isNotCompleted && (
-                  <Text fontSize="xs" color="gray.500" mt={1}>
+                  <Text fontSize="xs" color={mode.text.muted} mt={1}>
                     Not Completed
                   </Text>
                 )}
@@ -631,7 +630,7 @@ export const TaskItem = ({
                   isOverdue(task, viewDate, hasRecordOnDate ? hasRecordOnDate(task.id, viewDate) : task.completed) && (
                     <Badge
                       size={{ base: "xs", md: "sm" }}
-                      colorPalette="red"
+                      colorPalette={badges.overdue.colorPalette}
                       fontSize={{ base: "3xs", md: "2xs" }}
                       py={{ base: 0, md: 1 }}
                       px={{ base: 1, md: 2 }}
@@ -678,7 +677,7 @@ export const TaskItem = ({
                 {task.recurrence && task.recurrence.type !== "none" && (
                   <Badge
                     size={{ base: "xs", md: "sm" }}
-                    colorPalette="purple"
+                    colorPalette={badges.recurring.colorPalette}
                     fontSize={{ base: "3xs", md: "2xs" }}
                     py={{ base: 0, md: 1 }}
                     px={{ base: 1, md: 2 }}
@@ -689,7 +688,7 @@ export const TaskItem = ({
                 {task.recurrence?.endDate && (
                   <Badge
                     size={{ base: "xs", md: "sm" }}
-                    colorPalette="orange"
+                    colorPalette={badges.noTime.colorPalette}
                     fontSize={{ base: "3xs", md: "2xs" }}
                     py={{ base: 0, md: 1 }}
                     px={{ base: 1, md: 2 }}
@@ -701,7 +700,7 @@ export const TaskItem = ({
                 {!task.time && !isBacklog && (
                   <Badge
                     size={{ base: "xs", md: "sm" }}
-                    colorPalette="orange"
+                    colorPalette={badges.noTime.colorPalette}
                     fontSize={{ base: "3xs", md: "2xs" }}
                     py={{ base: 0, md: 1 }}
                     px={{ base: 1, md: 2 }}
@@ -978,7 +977,7 @@ export const TaskItem = ({
                     </>
                   )}
                   <Menu.Item
-                    color="red.500"
+                    color={mode.status.error}
                     onClick={e => {
                       e.stopPropagation();
                       isSubtask ? handleDelete(parentTaskId, task.id) : handleDelete(task.id);

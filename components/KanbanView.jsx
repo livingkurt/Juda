@@ -8,6 +8,7 @@ import { Plus } from "lucide-react";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Kanban column component
 const KanbanColumn = memo(function KanbanColumn({
@@ -43,12 +44,14 @@ const KanbanColumn = memo(function KanbanColumn({
   // Simplified check - just use isOver since we know only tasks can be dragged to Kanban
   const isDraggingOver = isOver && active;
 
-  const bgColor = { _light: "gray.50", _dark: "gray.900" };
-  const columnBg = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.700" };
-  const dropHighlight = { _light: "blue.50", _dark: "blue.900" };
-  const textColor = { _light: "gray.900", _dark: "gray.100" };
-  const mutedText = { _light: "gray.500", _dark: "gray.400" };
+  const { mode, dnd, interactive } = useSemanticColors();
+
+  const bgColor = mode.bg.canvas;
+  const columnBg = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const dropHighlight = dnd.dropTarget;
+  const textColor = mode.text.primary;
+  const mutedText = mode.text.secondary;
 
   const [inlineInputValue, setInlineInputValue] = useState("");
   const [isInlineInputActive, setIsInlineInputActive] = useState(false);
@@ -123,7 +126,7 @@ const KanbanColumn = memo(function KanbanColumn({
         bg={isOver ? dropHighlight : columnBg}
         borderRadius="md"
         border="2px solid"
-        borderColor={isDraggingOver ? "blue.400" : borderColor}
+        borderColor={isDraggingOver ? dnd.dropTargetBorder : borderColor}
         minH="200px"
         maxH="calc(100vh - 300px)"
         overflowY="auto"
@@ -162,10 +165,9 @@ const KanbanColumn = memo(function KanbanColumn({
               <Box
                 minH="80px"
                 border="2px dashed"
-                borderColor="blue.400"
+                borderColor={dnd.dropTargetBorder}
                 borderRadius="md"
-                bg="blue.50"
-                _dark={{ bg: "blue.900", borderColor: "blue.500" }}
+                bg={dnd.dropTarget}
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
@@ -173,7 +175,7 @@ const KanbanColumn = memo(function KanbanColumn({
                 transition="all 0.2s"
                 flex={visibleTasks.length === 0 ? 1 : undefined}
               >
-                <Text fontSize="sm" color="blue.600" _dark={{ color: "blue.300" }} fontWeight="medium">
+                <Text fontSize="sm" color={interactive.primary} fontWeight="medium">
                   Drop here
                 </Text>
               </Box>

@@ -6,6 +6,7 @@ import { shouldShowOnDate, getTaskDisplayColor } from "@/lib/utils";
 import { MONTH_OPTIONS } from "@/lib/constants";
 import { Calendar } from "lucide-react";
 import { TaskContextMenu } from "./TaskContextMenu";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const CalendarYearView = ({
   date,
@@ -22,15 +23,17 @@ export const CalendarYearView = ({
   onDeleteTask,
 }) => {
   const [openMenuDate, setOpenMenuDate] = useState(null);
+  const { mode, calendar } = useSemanticColors();
+
   // Color scheme
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.400", _dark: "gray.500" }; // More visible borders
-  const cellBg = { _light: "gray.50", _dark: "gray.700" };
-  const cellHover = { _light: "gray.100", _dark: "gray.700" };
-  const invalidCellBg = { _light: "gray.100", _dark: "gray.900" };
-  const todayBorder = { _light: "blue.500", _dark: "blue.400" };
-  const headerText = { _light: "gray.600", _dark: "gray.400" };
-  const monthText = { _light: "gray.700", _dark: "gray.300" };
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.emphasized; // More visible borders
+  const cellBg = mode.bg.muted;
+  const cellHover = mode.bg.surfaceHover;
+  const invalidCellBg = mode.bg.subtle;
+  const todayBorder = calendar.today;
+  const headerText = mode.text.secondary;
+  const monthText = mode.text.primary;
 
   const year = date.getFullYear();
   const today = new Date();
@@ -96,7 +99,7 @@ export const CalendarYearView = ({
     lg: `${cellHeight * 1.4}px`,
   };
 
-  const mutedText = { _light: "gray.400", _dark: "gray.600" };
+  const mutedText = mode.text.muted;
 
   const monthLabelWidth = "50px";
 
@@ -197,18 +200,19 @@ export const CalendarYearView = ({
                       minH={cellMinHeight}
                       display="flex"
                       flexDirection="column"
-                      bg={valid ? cellBg : invalidCellBg}
-                      borderTopWidth={monthIndex === 0 ? "2px" : "1px"}
+                      bg={todayCell ? calendar.todayBg : valid ? cellBg : invalidCellBg}
+                      borderStyle="solid"
+                      borderTopWidth={todayCell ? "1.5px" : monthIndex === 0 ? "2px" : "1px"}
                       borderTopColor={todayCell ? todayBorder : borderColor}
-                      borderBottomWidth={monthIndex === 11 ? "2px" : "1px"}
+                      borderBottomWidth={todayCell ? "1.5px" : monthIndex === 11 ? "2px" : "1px"}
                       borderBottomColor={todayCell ? todayBorder : borderColor}
-                      borderLeftWidth={day === 1 ? "2px" : "1px"}
+                      borderLeftWidth={todayCell ? "1.5px" : day === 1 ? "2px" : "1px"}
                       borderLeftColor={todayCell ? todayBorder : borderColor}
-                      borderRightWidth={day === 31 ? "2px" : "1px"}
+                      borderRightWidth={todayCell ? "1.5px" : day === 31 ? "2px" : "1px"}
                       borderRightColor={todayCell ? todayBorder : borderColor}
                       cursor={valid ? "pointer" : "default"}
                       opacity={valid ? 1 : 0.3}
-                      _hover={valid ? { bg: cellHover } : {}}
+                      _hover={valid ? { bg: todayCell ? calendar.selected : cellHover } : {}}
                       onClick={e => {
                         // If there are hidden tasks, open menu; otherwise navigate to day
                         if (!hasHiddenTasks) {
@@ -236,7 +240,7 @@ export const CalendarYearView = ({
                       }}
                       mb={zoom >= 1.0 ? 0.5 : 0.25}
                       display="inline-block"
-                      bg={todayCell ? "blue.400" : "transparent"}
+                      bg={todayCell ? calendar.today : "transparent"}
                       color={todayCell ? "white" : textColor}
                       borderRadius="full"
                       w={zoom >= 1.5 ? 6 : zoom >= 1.0 ? 5 : 4}
@@ -268,8 +272,7 @@ export const CalendarYearView = ({
                                 borderRadius="md"
                                 isTruncated
                                 color={taskColor ? "white" : undefined}
-                                bg={taskColor || { _light: "gray.200", _dark: "gray.700" }}
-                                _dark={{ bg: taskColor || "gray.700" }}
+                                bg={taskColor || mode.task.neutral}
                                 title={task.title}
                                 lineHeight={zoom >= 1.5 ? 1.2 : zoom >= 1.0 ? 1.1 : 1}
                                 overflow="hidden"
@@ -316,9 +319,9 @@ export const CalendarYearView = ({
                             p={2}
                             mb={2}
                             borderRadius="md"
-                            bg={{ _light: "blue.50", _dark: "blue.900" }}
-                            color={{ _light: "blue.700", _dark: "blue.200" }}
-                            _hover={{ bg: { _light: "blue.100", _dark: "blue.800" } }}
+                            bg={calendar.todayBg}
+                            color={mode.text.link}
+                            _hover={{ bg: calendar.selected }}
                             onClick={e => {
                               e.stopPropagation();
                               handleCellClick(monthIndex, day);
@@ -357,8 +360,8 @@ export const CalendarYearView = ({
                                       px={2}
                                       py={1.5}
                                       borderRadius="md"
-                                      bg={taskColor || { _light: "gray.200", _dark: "gray.700" }}
-                                      color={taskColor ? "white" : { _light: "gray.900", _dark: "gray.100" }}
+                                      bg={taskColor || mode.task.neutral}
+                                      color={taskColor ? "white" : mode.task.neutralText}
                                       _hover={{
                                         opacity: 0.8,
                                         transform: "translateY(-1px)",

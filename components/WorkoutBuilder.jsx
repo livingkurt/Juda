@@ -21,6 +21,7 @@ import WeekdaySelector from "./WeekdaySelector";
 import { SelectDropdown } from "./SelectDropdown";
 import { useWorkoutProgram } from "@/hooks/useWorkoutProgram";
 import { useToast } from "@/hooks/useToast";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Helper to generate CUID-like IDs
 function generateCuid() {
@@ -389,7 +390,8 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
     });
   };
 
-  const bgColor = { _light: "white", _dark: "gray.800" };
+  const { mode } = useSemanticColors();
+  const bgColor = mode.bg.surface;
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={e => !e.open && onClose()} size="full">
@@ -432,7 +434,7 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
                   placeholder="0"
                   maxW="200px"
                 />
-                <Text fontSize="xs" color={{ _light: "gray.600", _dark: "gray.400" }} mt={1}>
+                <Text fontSize="xs" color={mode.text.secondary} mt={1}>
                   This controls weekly progression for all exercises across all sections and days
                 </Text>
               </Box>
@@ -524,8 +526,7 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
                             <Box
                               key={day.id}
                               borderWidth="1px"
-                              borderColor="gray.200"
-                              _dark={{ borderColor: "gray.600" }}
+                              borderColor={mode.border.default}
                               borderRadius="md"
                               overflow="hidden"
                             >
@@ -596,10 +597,10 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
                                       <Box
                                         key={exercise.id}
                                         p={3}
-                                        bg={{ _light: "white", _dark: "gray.900" }}
+                                        bg={mode.bg.canvas}
                                         borderRadius="md"
                                         borderWidth="1px"
-                                        borderColor={{ _light: "gray.200", _dark: "gray.700" }}
+                                        borderColor={mode.border.default}
                                       >
                                         <VStack align="stretch" gap={2}>
                                           <Flex justify="space-between" align="flex-end" gap={2}>
@@ -749,11 +750,7 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
                                                       {isTest ? (
                                                         <>
                                                           <Box minW="90px" flex={1}>
-                                                            <Text
-                                                              fontSize="xs"
-                                                              color={{ _light: "gray.600", _dark: "gray.400" }}
-                                                              mb={0.5}
-                                                            >
+                                                            <Text fontSize="xs" color={mode.text.secondary} mb={0.5}>
                                                               Test week doesn&apos;t get target
                                                             </Text>
                                                           </Box>

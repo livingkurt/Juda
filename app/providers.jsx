@@ -244,6 +244,7 @@ const system = createSystem(defaultConfig, {
         slots: ["root", "field", "addon"],
         base: {
           field: {
+            bg: "transparent",
             borderWidth: "1px",
             borderStyle: "solid",
             borderColor: { _light: "gray.200", _dark: "gray.600" },
@@ -251,9 +252,34 @@ const system = createSystem(defaultConfig, {
             // Use smaller font size on mobile to match overall design
             fontSize: { base: "14px", md: "inherit" },
             _focus: {
+              bg: "transparent",
               borderColor: "blue.400",
               boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
               outline: "none",
+            },
+            _focusVisible: {
+              bg: "transparent",
+            },
+          },
+        },
+        variants: {
+          variant: {
+            unstyled: {
+              field: {
+                bg: "transparent",
+                borderWidth: "0",
+                borderColor: "transparent",
+                borderRadius: "0",
+                _focus: {
+                  bg: "transparent",
+                  borderWidth: "0",
+                  borderColor: "transparent",
+                  boxShadow: "none",
+                },
+                _focusVisible: {
+                  bg: "transparent",
+                },
+              },
             },
           },
         },

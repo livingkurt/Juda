@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { Box, Text, HStack } from "@chakra-ui/react";
 import { Clock, PlayCircle } from "lucide-react";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const StatusTaskBlock = memo(function StatusTaskBlock({
   task,
@@ -13,10 +14,9 @@ export const StatusTaskBlock = memo(function StatusTaskBlock({
   startedAt,
   completedAt,
 }) {
-  const bgColor = isInProgress
-    ? { _light: "blue.100", _dark: "blue.900" }
-    : { _light: "green.100", _dark: "green.900" };
-  const borderColor = isInProgress ? "blue.400" : "green.400";
+  const { mode, status } = useSemanticColors();
+  const bgColor = isInProgress ? status.infoBg : status.successBg;
+  const borderColor = isInProgress ? status.info : status.success;
 
   // Calculate duration
   const startTime = startedAt ? new Date(startedAt) : new Date();
@@ -51,7 +51,7 @@ export const StatusTaskBlock = memo(function StatusTaskBlock({
           {task.title}
         </Text>
       </HStack>
-      <Text fontSize="2xs" color="gray.600">
+      <Text fontSize="2xs" color={mode.text.muted}>
         {durationText}
       </Text>
     </Box>

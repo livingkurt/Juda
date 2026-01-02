@@ -4,11 +4,13 @@ import { useState } from "react";
 import { Box, Button, Dialog, HStack, IconButton, Input, SimpleGrid, Text, VStack, Portal } from "@chakra-ui/react";
 import { Edit2, Plus, Trash2, X, Check, Tag as TagIcon } from "lucide-react";
 import { TASK_COLORS } from "@/lib/constants";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onDeleteTag }) => {
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
-  const hoverBg = { _light: "gray.50", _dark: "gray.700" };
+  const { mode, interactive } = useSemanticColors();
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const hoverBg = mode.bg.muted;
 
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(TASK_COLORS[0]);
@@ -79,7 +81,7 @@ export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onD
                     size="sm"
                     mb={2}
                   />
-                  <Text fontSize="xs" color="gray.500" mb={1}>
+                  <Text fontSize="xs" color={mode.text.secondary} mb={1}>
                     Color
                   </Text>
                   <SimpleGrid columns={10} gap={1}>
@@ -92,8 +94,7 @@ export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onD
                         bg={color}
                         cursor="pointer"
                         borderWidth={newTagColor === color ? "2px" : "1px"}
-                        borderColor={newTagColor === color ? "blue.500" : "gray.300"}
-                        _dark={{ borderColor: newTagColor === color ? "blue.400" : "gray.600" }}
+                        borderColor={newTagColor === color ? interactive.primary : mode.border.input}
                         _hover={{ transform: "scale(1.1)" }}
                         onClick={() => setNewTagColor(color)}
                         transition="all 0.15s"
@@ -113,7 +114,7 @@ export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onD
                   </Text>
                   <VStack spacing={2} align="stretch" maxH="300px" overflowY="auto">
                     {tags.length === 0 ? (
-                      <Text fontSize="sm" color="gray.500" textAlign="center" py={4}>
+                      <Text fontSize="sm" color={mode.text.secondary} textAlign="center" py={4}>
                         No tags yet. Create your first tag above.
                       </Text>
                     ) : (

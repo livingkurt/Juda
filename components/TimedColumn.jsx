@@ -6,6 +6,7 @@ import { calculateTaskPositions } from "@/lib/utils";
 import { TimedWeekTask } from "./TimedWeekTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
 import { CurrentTimeLine } from "./CurrentTimeLine";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const TimedColumn = ({
   day,
@@ -37,6 +38,7 @@ export const TimedColumn = ({
   onTagsChange,
   onCreateTag,
 }) => {
+  const { calendar } = useSemanticColors();
   const timedDroppableId = createDroppableId.calendarWeek(day);
   const { setNodeRef, isOver } = useDroppable({
     id: timedDroppableId,
@@ -52,7 +54,7 @@ export const TimedColumn = ({
       minW={0}
       borderLeftWidth={dayIndex === 0 ? "0" : isToday ? "1px" : "1px"}
       borderRightWidth={isToday ? "1px" : "0"}
-      borderColor={isToday ? "blue.300" : borderColor}
+      borderColor={isToday ? calendar.today : borderColor}
       position="relative"
       h="full"
       w="full"
@@ -62,13 +64,7 @@ export const TimedColumn = ({
           handleColumnClick(e, day);
         }
       }}
-      bg={
-        isOver
-          ? dropHighlight
-          : isToday
-            ? { _light: "rgba(59, 130, 246, 0.1)", _dark: "rgba(37, 99, 235, 0.15)" }
-            : "transparent"
-      }
+      bg={isOver ? dropHighlight : isToday ? calendar.todayBg : "transparent"}
       transition="background-color 0.2s, border-color 0.2s"
       data-calendar-timed="true"
       data-calendar-view="week"

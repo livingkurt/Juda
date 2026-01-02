@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useToast } from "@/hooks/useToast";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { AuthPage } from "@/components/AuthPage";
 import {
   DndContext,
@@ -119,15 +120,17 @@ export default function DailyTasksApp() {
   const { isAuthenticated, loading: authLoading, initialized: authInitialized, logout } = useAuth();
   const { colorMode, toggleColorMode } = useColorModeSync();
   const { toast } = useToast();
-  const bgColor = { _light: "gray.50", _dark: "gray.900" };
-  const headerBg = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
-  const textColor = { _light: "gray.900", _dark: "gray.100" };
-  const mutedText = { _light: "gray.500", _dark: "gray.400" };
-  const progressBarBg = { _light: "gray.200", _dark: "gray.700" };
-  const dragOverlayBg = { _light: "blue.100", _dark: "blue.800" };
-  const dragOverlayBorder = { _light: "blue.400", _dark: "blue.500" };
-  const dragOverlayText = { _light: "blue.900", _dark: "blue.100" };
+  const { mode, interactive, dnd } = useSemanticColors();
+
+  const bgColor = mode.bg.canvas;
+  const headerBg = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const textColor = mode.text.primary;
+  const mutedText = mode.text.secondary;
+  const progressBarBg = mode.bg.muted;
+  const dragOverlayBg = dnd.dropTarget;
+  const dragOverlayBorder = dnd.dropTargetBorder;
+  const dragOverlayText = interactive.primary;
 
   const {
     tasks,
@@ -2510,7 +2513,7 @@ export default function DailyTasksApp() {
         <Box w="full" px={{ base: 3, md: 4 }} py={{ base: 2, md: 4 }}>
           <Flex align="center" justify="space-between">
             <Flex align="center" gap={{ base: 2, md: 3 }}>
-              <Box as="span" color="orange.500">
+              <Box as="span" color={mode.status.warning}>
                 <GreetingIcon size={20} stroke="currentColor" />
               </Box>
               <Box>
@@ -2663,7 +2666,7 @@ export default function DailyTasksApp() {
                         position="absolute"
                         top="-1"
                         right="-1"
-                        bg="red.500"
+                        bg={mode.status.error}
                         color="white"
                         fontSize="xs"
                         borderRadius="full"
@@ -2723,8 +2726,8 @@ export default function DailyTasksApp() {
                     <Box
                       h="full"
                       bgGradient="to-r"
-                      gradientFrom="blue.500"
-                      gradientTo="green.500"
+                      gradientFrom={colorMode === "dark" ? "#48BB78" : "#38A169"}
+                      gradientTo={colorMode === "dark" ? "#4299E1" : "#3182CE"}
                       transition="width 0.3s ease-in-out"
                       width={`${progressPercent}%`}
                     />
@@ -2756,8 +2759,8 @@ export default function DailyTasksApp() {
                     variant="ghost"
                     borderRadius={0}
                     borderBottomWidth={mobileActiveView === "backlog" ? "2px" : "0"}
-                    borderBottomColor="blue.500"
-                    color={mobileActiveView === "backlog" ? "blue.500" : textColor}
+                    borderBottomColor={interactive.primary}
+                    color={mobileActiveView === "backlog" ? interactive.primary : textColor}
                     onClick={() => setMobileActiveView("backlog")}
                     py={2}
                     position="relative"
@@ -2778,8 +2781,8 @@ export default function DailyTasksApp() {
                     variant="ghost"
                     borderRadius={0}
                     borderBottomWidth={mobileActiveView === "today" ? "2px" : "0"}
-                    borderBottomColor="blue.500"
-                    color={mobileActiveView === "today" ? "blue.500" : textColor}
+                    borderBottomColor={interactive.primary}
+                    color={mobileActiveView === "today" ? interactive.primary : textColor}
                     onClick={() => setMobileActiveView("today")}
                     py={2}
                     fontSize="sm"

@@ -5,6 +5,7 @@ import { Box, Heading, Text, Table, HStack, VStack, Card, Badge, Tabs, createLis
 import { useCompletions } from "@/hooks/useCompletions";
 import { useTasks } from "@/hooks/useTasks";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { shouldShowOnDate } from "@/lib/utils";
 import { SelectDropdown } from "./SelectDropdown";
 import {
@@ -44,17 +45,8 @@ const resolveColor = (colorObj, colorMode) => {
   return colorMap[colorValue] || colorValue || "#000000";
 };
 
-// Color constants for Chakra UI components (used with _light/_dark syntax)
-const bgColor = { _light: "white", _dark: "gray.800" };
-const borderColor = { _light: "gray.200", _dark: "gray.600" };
-const textColor = { _light: "gray.900", _dark: "gray.100" };
-const mutedText = { _light: "gray.500", _dark: "gray.400" };
-const cardBg = { _light: "white", _dark: "gray.800" };
-const tableBg = { _light: "white", _dark: "gray.800" };
-const tableHeaderBg = { _light: "gray.50", _dark: "gray.700" };
-const tableRowHover = { _light: "gray.50", _dark: "gray.700" };
-
 export const DashboardView = () => {
+  const { mode } = useSemanticColors();
   const {
     completions,
     fetchCompletions,
@@ -131,10 +123,19 @@ export const DashboardView = () => {
   }, []);
 
   // Resolved colors for Recharts (must be strings)
-  const resolvedBorderColor = useMemo(() => resolveColor(borderColor, colorMode), [colorMode]);
-  const resolvedMutedText = useMemo(() => resolveColor(mutedText, colorMode), [colorMode]);
-  const resolvedCardBg = useMemo(() => resolveColor(cardBg, colorMode), [colorMode]);
-  const resolvedTextColor = useMemo(() => resolveColor(textColor, colorMode), [colorMode]);
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const textColor = mode.text.primary;
+  const mutedText = mode.text.secondary;
+  const cardBg = mode.bg.surface;
+  const tableBg = mode.bg.surface;
+  const tableHeaderBg = mode.bg.muted;
+  const tableRowHover = mode.bg.surfaceHover;
+
+  const resolvedBorderColor = useMemo(() => resolveColor(borderColor, colorMode), [borderColor, colorMode]);
+  const resolvedMutedText = useMemo(() => resolveColor(mutedText, colorMode), [mutedText, colorMode]);
+  const resolvedCardBg = useMemo(() => resolveColor(cardBg, colorMode), [cardBg, colorMode]);
+  const resolvedTextColor = useMemo(() => resolveColor(textColor, colorMode), [textColor, colorMode]);
 
   const loading = completionsLoading || tasksLoading;
 
@@ -310,7 +311,7 @@ export const DashboardView = () => {
                   onValueChange={({ value }) => setDateRange(value[0])}
                   placeholder="Select range"
                   w="150px"
-                  triggerProps={{ bg: bgColor, borderColor: borderColor }}
+                  triggerProps={{ bg: "transparent", borderColor: borderColor, borderWidth: "1px" }}
                 />
               </Box>
               <Box>
@@ -323,7 +324,7 @@ export const DashboardView = () => {
                   onValueChange={({ value }) => setSelectedTask(value[0])}
                   placeholder="Select task"
                   w="200px"
-                  triggerProps={{ bg: bgColor, borderColor: borderColor }}
+                  triggerProps={{ bg: "transparent", borderColor: borderColor, borderWidth: "1px" }}
                 />
               </Box>
             </HStack>
@@ -459,7 +460,7 @@ export const DashboardView = () => {
                                 onValueChange={({ value }) => handleStatusChange(completion, value[0])}
                                 size="sm"
                                 w="120px"
-                                triggerProps={{ bg: bgColor, borderColor: borderColor }}
+                                triggerProps={{ bg: "transparent", borderColor: borderColor, borderWidth: "1px" }}
                               />
                             </Table.Cell>
                           </Table.Row>
@@ -542,7 +543,7 @@ export const DashboardView = () => {
                               return (
                                 <Table.Cell
                                   key={`${task.id}-${dateStr}`}
-                                  bg={shouldShow ? tableBg : { _light: "gray.200", _dark: "gray.700" }}
+                                  bg={shouldShow ? tableBg : mode.bg.muted}
                                   opacity={shouldShow ? 1 : 0.4}
                                 >
                                   {shouldShow ? (
@@ -554,7 +555,7 @@ export const DashboardView = () => {
                                       }
                                       size="sm"
                                       w="110px"
-                                      triggerProps={{ bg: bgColor, borderColor: borderColor }}
+                                      triggerProps={{ bg: "transparent", borderColor: borderColor, borderWidth: "1px" }}
                                     />
                                   ) : (
                                     <Text color={mutedText} fontSize="xs" fontStyle="italic">

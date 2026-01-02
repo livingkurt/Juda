@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Box, HStack, VStack, Menu, Button, Input, Text, Checkbox, Portal } from "@chakra-ui/react";
 import { Tag as TagIcon, Plus, Search } from "lucide-react";
 import { TASK_COLORS } from "@/lib/constants";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const TagMenuSelector = ({
   task,
@@ -21,10 +22,11 @@ export const TagMenuSelector = ({
   const [selectedTagIds, setSelectedTagIds] = useState(initialTagIds);
   const [hasChanges, setHasChanges] = useState(false);
 
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
-  const hoverBg = { _light: "gray.100", _dark: "gray.700" };
-  const mutedText = { _light: "gray.500", _dark: "gray.400" };
+  const { mode, interactive } = useSemanticColors();
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const hoverBg = mode.bg.surfaceHover;
+  const mutedText = mode.text.secondary;
 
   // Get current task's tag IDs
   const currentTagIds = selectedTagIds;
@@ -162,7 +164,7 @@ export const TagMenuSelector = ({
                         onMouseDown={e => e.stopPropagation()}
                         borderWidth={selectedColor === color ? "2px" : "0px"}
                         borderColor="white"
-                        boxShadow={selectedColor === color ? "0 0 0 2px var(--chakra-colors-blue-400)" : "none"}
+                        boxShadow={selectedColor === color ? `0 0 0 2px ${interactive.primary}` : "none"}
                         _hover={{ transform: "scale(1.1)" }}
                         transition="transform 0.1s"
                       />

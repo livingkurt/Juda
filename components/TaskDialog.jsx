@@ -27,6 +27,7 @@ import WorkoutBuilder from "./WorkoutBuilder";
 import WeekdaySelector from "./WeekdaySelector";
 import { SelectDropdown } from "./SelectDropdown";
 import { useWorkoutProgram } from "@/hooks/useWorkoutProgram";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Internal component that resets when key changes
 function TaskDialogForm({
@@ -42,9 +43,11 @@ function TaskDialogForm({
   onDeleteTag,
   allTasks,
 }) {
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const searchResultBg = { _light: "gray.100", _dark: "gray.600" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
+  const { mode } = useSemanticColors();
+
+  const bgColor = mode.bg.surface;
+  const searchResultBg = mode.bg.muted;
+  const borderColor = mode.border.default;
 
   // Initialize state from task or defaults
   const [title, setTitle] = useState(task?.title || "");
@@ -857,7 +860,7 @@ function TaskDialogForm({
                             ) : null}
                           </DragOverlay>
                         </DndContext>
-                        <Box borderTopWidth="1px" borderColor={{ _light: "gray.200", _dark: "gray.600" }} my={2} />
+                        <Box borderTopWidth="1px" borderColor={borderColor} my={2} />
                         <HStack spacing={2}>
                           <Input
                             value={newSubtask}

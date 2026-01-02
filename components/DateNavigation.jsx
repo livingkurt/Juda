@@ -2,6 +2,7 @@
 
 import { Box, Button, IconButton, Text, Flex, Input, Badge } from "@chakra-ui/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const DateNavigation = ({
   selectedDate,
@@ -14,12 +15,14 @@ export const DateNavigation = ({
   showDateDisplay = true,
   rightContent,
 }) => {
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
-  const textColor = { _light: "gray.900", _dark: "gray.100" };
-  const warningBg = { _light: "orange.50", _dark: "orange.900" };
-  const warningBorder = { _light: "orange.200", _dark: "orange.700" };
-  const warningText = { _light: "orange.800", _dark: "orange.200" };
+  const { mode, badges } = useSemanticColors();
+
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const textColor = mode.text.primary;
+  const warningBg = mode.status.warningBg;
+  const warningBorder = mode.status.warning;
+  const warningText = mode.status.warningText;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -115,12 +118,12 @@ export const DateNavigation = ({
               {formatDateDisplay(selectedDate)}
             </Text>
             {isPast && (
-              <Badge colorPalette="orange" fontSize="xs">
+              <Badge colorPalette={badges.past.colorPalette} fontSize="xs">
                 Past Date
               </Badge>
             )}
             {isFuture && (
-              <Badge colorPalette="blue" fontSize="xs">
+              <Badge colorPalette={badges.future.colorPalette} fontSize="xs">
                 Future Date
               </Badge>
             )}

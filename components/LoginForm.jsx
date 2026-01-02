@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Box, Button, Input, VStack, Text, Alert, Link } from "@chakra-ui/react";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
   const { login } = useAuth();
@@ -12,8 +13,9 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
+  const { mode } = useSemanticColors();
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
 
   const handleSubmit = async e => {
     e.preventDefault();

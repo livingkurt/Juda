@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { Box, Text, HStack, IconButton } from "@chakra-ui/react";
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
 import { subscribeToToasts } from "@/hooks/useToast";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export function ToastContainer() {
+  const { mode, status } = useSemanticColors();
   const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
@@ -40,29 +42,29 @@ export function ToastContainer() {
     }
   };
 
-  const getStatusColor = status => {
-    switch (status) {
+  const getStatusColor = toastStatus => {
+    switch (toastStatus) {
       case "success":
-        return { _light: "green.500", _dark: "green.400" };
+        return status.success;
       case "error":
-        return { _light: "red.500", _dark: "red.400" };
+        return status.error;
       case "warning":
-        return { _light: "orange.500", _dark: "orange.400" };
+        return status.warning;
       default:
-        return { _light: "blue.500", _dark: "blue.400" };
+        return status.info;
     }
   };
 
-  const getStatusBg = status => {
-    switch (status) {
+  const getStatusBg = toastStatus => {
+    switch (toastStatus) {
       case "success":
-        return { _light: "green.50", _dark: "green.900" };
+        return status.successBg;
       case "error":
-        return { _light: "red.50", _dark: "red.900" };
+        return status.errorBg;
       case "warning":
-        return { _light: "orange.50", _dark: "orange.900" };
+        return status.warningBg;
       default:
-        return { _light: "blue.50", _dark: "blue.900" };
+        return status.infoBg;
     }
   };
 
@@ -110,11 +112,11 @@ export function ToastContainer() {
                 {getStatusIcon(toast.status)}
               </Box>
               <Box flex={1} minW={0}>
-                <Text fontWeight="semibold" fontSize="sm" color={{ _light: "gray.900", _dark: "gray.100" }}>
+                <Text fontWeight="semibold" fontSize="sm" color={mode.text.primary}>
                   {toast.title}
                 </Text>
                 {toast.description && (
-                  <Text fontSize="xs" color={{ _light: "gray.600", _dark: "gray.300" }} mt={1}>
+                  <Text fontSize="xs" color={mode.text.secondary} mt={1}>
                     {toast.description}
                   </Text>
                 )}

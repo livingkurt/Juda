@@ -5,6 +5,7 @@ import { Box, Flex, SimpleGrid, Menu, Portal } from "@chakra-ui/react";
 import { shouldShowOnDate, getTaskDisplayColor } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 import { TaskContextMenu } from "./TaskContextMenu";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const CalendarMonthView = ({
   date,
@@ -21,13 +22,15 @@ export const CalendarMonthView = ({
   onDeleteTask,
 }) => {
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.700" };
-  const hoverBg = { _light: "gray.50", _dark: "gray.700" };
-  const textColor = { _light: "gray.900", _dark: "gray.200" };
-  const mutedText = { _light: "gray.400", _dark: "gray.600" };
-  const dayHeaderColor = { _light: "gray.500", _dark: "gray.400" };
-  const nonCurrentMonthBg = { _light: "gray.50", _dark: "gray.850" };
+  const { mode, calendar } = useSemanticColors();
+
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const hoverBg = mode.bg.surfaceHover;
+  const textColor = mode.text.primary;
+  const mutedText = mode.text.secondary;
+  const dayHeaderColor = mode.text.muted;
+  const nonCurrentMonthBg = mode.bg.subtle;
 
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -91,20 +94,14 @@ export const CalendarMonthView = ({
                   borderBottomWidth={isToday ? "1.5px" : "1px"}
                   borderLeftWidth={isToday ? "1.5px" : "1px"}
                   borderRightWidth={isToday ? "1.5px" : "1px"}
-                  borderColor={isToday ? "blue.300" : borderColor}
+                  borderColor={isToday ? calendar.today : borderColor}
                   p={1}
                   minH={`${80 * zoom}px`}
                   cursor="pointer"
                   _hover={{
-                    bg: isToday ? { _light: "rgba(59, 130, 246, 0.15)", _dark: "rgba(37, 99, 235, 0.2)" } : hoverBg,
+                    bg: isToday ? calendar.todayBg : hoverBg,
                   }}
-                  bg={
-                    isToday
-                      ? { _light: "rgba(59, 130, 246, 0.1)", _dark: "rgba(37, 99, 235, 0.15)" }
-                      : !isCurrentMonth
-                        ? nonCurrentMonthBg
-                        : "transparent"
-                  }
+                  bg={isToday ? calendar.todayBg : !isCurrentMonth ? nonCurrentMonthBg : "transparent"}
                   onClick={e => {
                     // Only navigate to day if clicking on the cell background, not a task
                     if (e.target === e.currentTarget || e.target.tagName === "SPAN") {
@@ -120,8 +117,8 @@ export const CalendarMonthView = ({
                     }}
                     mb={1}
                     display="inline-block"
-                    bg={isToday ? "blue.400" : "transparent"}
-                    color={isToday ? "white" : !isCurrentMonth ? mutedText : textColor}
+                    bg={isToday ? calendar.today : "transparent"}
+                    color={isToday ? mode.text.inverse : !isCurrentMonth ? mutedText : textColor}
                     borderRadius="full"
                     w={6 * zoom}
                     h={6 * zoom}
@@ -162,8 +159,7 @@ export const CalendarMonthView = ({
                             isTruncated
                             color={getTaskDisplayColor(task) ? "white" : undefined}
                             mb={0.5}
-                            bg={getTaskDisplayColor(task) || "gray.200"}
-                            _dark={{ bg: getTaskDisplayColor(task) || "gray.700" }}
+                            bg={getTaskDisplayColor(task) || mode.task.neutral}
                             cursor="pointer"
                             _hover={{ opacity: 0.8 }}
                             onClick={e => {

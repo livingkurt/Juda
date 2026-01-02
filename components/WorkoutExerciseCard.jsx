@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, Text, Flex, Checkbox, Input, HStack, VStack, Badge } from "@chakra-ui/react";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 /**
  * WorkoutExerciseCard - Displays a single exercise with set tracking
@@ -18,6 +19,7 @@ export default function WorkoutExerciseCard({
   actualValue = null,
   onActualValueChange = null,
 }) {
+  const { mode } = useSemanticColors();
   // Get target value for current week
   const weeklyTarget = exercise.weeklyProgression?.find(w => w.week === currentWeek);
   const targetValue = weeklyTarget?.targetValue ?? exercise.targetValue;
@@ -76,7 +78,7 @@ export default function WorkoutExerciseCard({
       return (
         <VStack gap={2} w="full" align="stretch">
           <HStack>
-            <Text fontSize="xs" color={{ _light: "gray.600", _dark: "gray.400" }} minW="50px">
+            <Text fontSize="xs" color={mode.text.secondary} minW="50px">
               Time:
             </Text>
             <Input
@@ -84,11 +86,11 @@ export default function WorkoutExerciseCard({
               placeholder="08:05"
               value={setData.time || ""}
               onChange={e => handleValueChange(setNumber, "time", e.target.value)}
-              bg={{ _light: "white", _dark: "gray.800" }}
+              bg={mode.bg.surface}
             />
           </HStack>
           <HStack>
-            <Text fontSize="xs" color={{ _light: "gray.600", _dark: "gray.400" }} minW="50px">
+            <Text fontSize="xs" color={mode.text.secondary} minW="50px">
               Miles:
             </Text>
             <Input
@@ -98,11 +100,11 @@ export default function WorkoutExerciseCard({
               placeholder="1.02"
               value={setData.distance || ""}
               onChange={e => handleValueChange(setNumber, "distance", parseFloat(e.target.value) || "")}
-              bg={{ _light: "white", _dark: "gray.800" }}
+              bg={mode.bg.surface}
             />
           </HStack>
           <HStack>
-            <Text fontSize="xs" color={{ _light: "gray.600", _dark: "gray.400" }} minW="50px">
+            <Text fontSize="xs" color={mode.text.secondary} minW="50px">
               Pace:
             </Text>
             <Input
@@ -110,7 +112,7 @@ export default function WorkoutExerciseCard({
               placeholder="7:55"
               value={setData.pace || ""}
               onChange={e => handleValueChange(setNumber, "pace", e.target.value)}
-              bg={{ _light: "white", _dark: "gray.800" }}
+              bg={mode.bg.surface}
             />
           </HStack>
         </VStack>
@@ -137,13 +139,7 @@ export default function WorkoutExerciseCard({
   // For distance exercises, show expanded layout
   if (exercise.type === "distance") {
     return (
-      <Box
-        p={3}
-        bg={{ _light: "gray.50", _dark: "gray.700" }}
-        borderRadius="md"
-        borderWidth="1px"
-        borderColor={{ _light: "gray.200", _dark: "gray.600" }}
-      >
+      <Box p={3} bg={mode.bg.muted} borderRadius="md" borderWidth="1px" borderColor={mode.border.default}>
         <VStack align="stretch" gap={2}>
           {/* Exercise header */}
           <Flex justify="space-between" align="center">
@@ -151,7 +147,7 @@ export default function WorkoutExerciseCard({
               <Text fontWeight="semibold" fontSize="md">
                 {exercise.name}
               </Text>
-              <Text fontSize="md" color={{ _light: "gray.600", _dark: "gray.400" }}>
+              <Text fontSize="md" color={mode.text.secondary}>
                 {getDisplayText()}
               </Text>
               {isDeload && (
@@ -181,13 +177,7 @@ export default function WorkoutExerciseCard({
 
   // For reps/time exercises, show compact horizontal layout
   return (
-    <Box
-      p={3}
-      bg={{ _light: "gray.50", _dark: "gray.700" }}
-      borderRadius="md"
-      borderWidth="1px"
-      borderColor={{ _light: "gray.200", _dark: "gray.600" }}
-    >
+    <Box p={3} bg={mode.bg.muted} borderRadius="md" borderWidth="1px" borderColor={mode.border.default}>
       <VStack align="stretch" gap={2}>
         {/* Top row: Exercise name and checkboxes */}
         <Flex align="center" justify="space-between" gap={3}>
@@ -203,7 +193,7 @@ export default function WorkoutExerciseCard({
 
         {/* Bottom row: Reps info and badges */}
         <HStack gap={2}>
-          <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
+          <Text fontSize="sm" color={mode.text.secondary}>
             {getDisplayText()}
           </Text>
           {isDeload && (
@@ -227,7 +217,7 @@ export default function WorkoutExerciseCard({
         {isTest && onActualValueChange && (
           <Box>
             <HStack gap={2} align="flex-end">
-              <Text fontSize="xs" color={{ _light: "gray.600", _dark: "gray.400" }} minW="80px">
+              <Text fontSize="xs" color={mode.text.secondary} minW="80px">
                 Actual {getExerciseLabel()}:
               </Text>
               <Input
@@ -240,7 +230,7 @@ export default function WorkoutExerciseCard({
                   const value = e.target.value === "" ? null : parseFloat(e.target.value) || 0;
                   onActualValueChange(exercise.id, value);
                 }}
-                bg={{ _light: "white", _dark: "gray.800" }}
+                bg={mode.bg.surface}
                 flex={1}
               />
             </HStack>

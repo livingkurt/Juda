@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Box, HStack, Menu, Button, Input, Text } from "@chakra-ui/react";
 import { Tag as TagIcon, Plus, X } from "lucide-react";
 import { TagChip } from "./TagChip";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const TagFilter = ({
   tags = [],
@@ -19,10 +20,11 @@ export const TagFilter = ({
   const onClose = () => setIsOpen(false);
   const inputRef = useRef(null);
 
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
-  const hoverBg = { _light: "gray.100", _dark: "gray.700" };
-  const mutedText = { _light: "gray.500", _dark: "gray.400" };
+  const { mode } = useSemanticColors();
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const hoverBg = mode.bg.surfaceHover;
+  const mutedText = mode.text.secondary;
 
   // Focus input when menu opens
   useEffect(() => {

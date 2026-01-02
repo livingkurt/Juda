@@ -6,6 +6,7 @@ import { DAYS_OF_WEEK, DURATION_OPTIONS } from "@/lib/constants";
 import { TagSelector } from "./TagSelector";
 import { TagChip } from "./TagChip";
 import { SelectDropdown } from "./SelectDropdown";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const BulkEditDialog = ({
   isOpen,
@@ -18,9 +19,10 @@ export const BulkEditDialog = ({
   selectedCount,
   selectedTasks,
 }) => {
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
-  const placeholderColor = { _light: "gray.400", _dark: "gray.500" };
+  const { mode } = useSemanticColors();
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const placeholderColor = mode.text.placeholder;
 
   // Calculate common values across all selected tasks
   const commonValues = useMemo(() => {

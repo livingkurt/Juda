@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Box, Button, Input, Text, Dialog, VStack, HStack, IconButton } from "@chakra-ui/react";
 import { SECTION_ICONS } from "@/lib/constants";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Internal component that resets when key changes
 function SectionForm({ section, onSave, onClose, bgColor }) {
@@ -70,7 +71,8 @@ function SectionForm({ section, onSave, onClose, bgColor }) {
 }
 
 export const SectionDialog = ({ isOpen, onClose, section, onSave }) => {
-  const bgColor = { _light: "white", _dark: "gray.800" };
+  const { mode } = useSemanticColors();
+  const bgColor = mode.bg.surface;
 
   if (!isOpen) return null;
 

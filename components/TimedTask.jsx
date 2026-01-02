@@ -6,6 +6,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { formatTime, getTaskDisplayColor } from "@/lib/utils";
 import { Edit2, X, Copy, Trash2, Check, Circle, Dumbbell } from "lucide-react";
 import { TagMenuSelector } from "./TagMenuSelector";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const TimedTask = ({
   task,
@@ -25,6 +26,7 @@ export const TimedTask = ({
   onTagsChange,
   onCreateTag,
 }) => {
+  const { mode } = useSemanticColors();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: createDraggableId.calendarTimed(task.id, date),
     data: { task, type: "TASK" },
@@ -74,18 +76,13 @@ export const TimedTask = ({
       ml={1}
       mr={1}
       borderRadius="md"
-      color={taskColor ? "white" : "gray.800"}
+      color={taskColor ? "white" : mode.task.neutralText}
       overflow="hidden"
       cursor="grab"
       _hover={{ shadow: "lg" }}
-      bg={isNoDuration ? "gray.600" : taskColor || "gray.200"}
+      bg={isNoDuration ? mode.text.muted : taskColor || mode.task.neutral}
       borderWidth={isNoDuration ? "2px" : "0"}
-      borderColor={isNoDuration ? taskColor || "gray.300" : "transparent"}
-      _dark={{
-        color: taskColor ? "white" : "gray.100",
-        bg: isNoDuration ? "gray.600" : taskColor || "gray.700",
-        borderColor: isNoDuration ? taskColor || "gray.600" : "transparent",
-      }}
+      borderColor={isNoDuration ? taskColor || mode.border.default : "transparent"}
       minH={isNoDuration ? "24px" : undefined}
       style={style}
       boxShadow={internalDrag.taskId === task.id ? "xl" : "none"}

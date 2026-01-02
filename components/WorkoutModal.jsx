@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import WorkoutDaySection from "./WorkoutDaySection";
 import { useWorkoutProgram } from "@/hooks/useWorkoutProgram";
 import { useAuthFetch } from "@/hooks/useAuthFetch";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 /**
  * WorkoutModal - Main modal for executing workouts
@@ -12,6 +13,7 @@ import { useAuthFetch } from "@/hooks/useAuthFetch";
  * Tracks completion per set with auto-save
  */
 export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, currentDate = new Date() }) {
+  const { mode } = useSemanticColors();
   const { fetchWorkoutProgram } = useWorkoutProgram();
   const authFetch = useAuthFetch();
   const [completionData, setCompletionData] = useState({});
@@ -341,11 +343,11 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
     }
   }, [progress.completed, progress.total, hasAutoCompleted, onCompleteTask, task?.id, currentDate]);
 
+  const bgColor = mode.bg.surface;
+
   if (!workoutData) {
     return null;
   }
-
-  const bgColor = { _light: "white", _dark: "gray.800" };
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={e => !e.open && onClose()} size="xl">
@@ -383,7 +385,7 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
                   <Text fontSize="sm" fontWeight="medium">
                     Progress
                   </Text>
-                  <Text fontSize="sm" fontWeight="medium" color={{ _light: "gray.600", _dark: "gray.400" }}>
+                  <Text fontSize="sm" fontWeight="medium" color={mode.text.secondary}>
                     {Math.round(progressPercent)}%
                   </Text>
                 </Flex>
@@ -402,7 +404,7 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
                 return (
                   <Box key={section.id}>
                     {/* Section header */}
-                    <Text fontSize="md" fontWeight="bold" mb={3} color={{ _light: "gray.700", _dark: "gray.200" }}>
+                    <Text fontSize="md" fontWeight="bold" mb={3} color={mode.text.primary}>
                       {section.name}
                     </Text>
                     <WorkoutDaySection

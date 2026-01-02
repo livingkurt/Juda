@@ -25,6 +25,7 @@ import { SelectDropdown } from "./SelectDropdown";
 import { CellEditorPopover } from "./CellEditorPopover";
 import WorkoutModal from "./WorkoutModal";
 import { TagMenuSelector } from "./TagMenuSelector";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Flatten tasks including subtasks
 const flattenTasks = tasks => {
@@ -208,6 +209,7 @@ const TaskColumnHeader = ({
   onTagsChange,
   onCreateTag,
 }) => {
+  const { mode } = useSemanticColors();
   const [menuOpen, setMenuOpen] = useState(false);
   const isWorkoutTask = task.completionType === "workout";
 
@@ -224,7 +226,7 @@ const TaskColumnHeader = ({
           px={2}
           py={2}
           cursor="pointer"
-          _hover={{ bg: { _light: "gray.100", _dark: "gray.600" } }}
+          _hover={{ bg: mode.bg.surfaceHover }}
           onClick={e => {
             e.stopPropagation();
             setMenuOpen(true);
@@ -322,7 +324,7 @@ const TaskColumnHeader = ({
             )}
             {onDeleteTask && (
               <Menu.Item
-                color="red.500"
+                color={mode.status.error}
                 onClick={e => {
                   e.stopPropagation();
                   onDeleteTask(task.id);
@@ -354,6 +356,7 @@ const TaskColumnHeader = ({
 
 // Table cell component
 const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, onSaveWorkoutProgress }) => {
+  const { mode } = useSemanticColors();
   const [isOpen, setIsOpen] = useState(false);
   const [workoutModalOpen, setWorkoutModalOpen] = useState(false);
   const [textValue, setTextValue] = useState(completion?.note || "");
@@ -460,7 +463,8 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
     }
   };
 
-  const cellBg = !isScheduled && completion ? { _light: "purple.50", _dark: "purple.900" } : "transparent";
+  const { task: taskColors } = useSemanticColors();
+  const cellBg = !isScheduled && completion ? taskColors.recurringBg : "transparent";
   const cellContent = getCellDisplay();
 
   // Handle text input completion type
@@ -497,7 +501,7 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
             border="none"
             bg="transparent"
             _hover={{ bg: "transparent" }}
-            _focus={{ bg: "transparent", border: "1px solid", borderColor: "blue.500" }}
+            _focus={{ bg: "transparent", border: "1px solid", borderColor: mode.border.focus }}
           />
         </Box>
       );
@@ -528,7 +532,7 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
             border="none"
             bg="transparent"
             _hover={{ bg: "transparent" }}
-            _focus={{ bg: "transparent", border: "1px solid", borderColor: "blue.500" }}
+            _focus={{ bg: "transparent", border: "1px solid", borderColor: mode.border.focus }}
           />
         </Box>
       );
@@ -550,7 +554,7 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
             alignItems="center"
             justifyContent="center"
             bg={cellBg}
-            _hover={{ bg: { _light: "gray.50", _dark: "gray.700" } }}
+            _hover={{ bg: mode.bg.muted }}
             cursor="pointer"
             border="none"
             outline="none"
@@ -600,7 +604,7 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
           alignItems="center"
           justifyContent="center"
           bg={cellBg}
-          _hover={{ bg: { _light: "gray.50", _dark: "gray.700" } }}
+          _hover={{ bg: mode.bg.muted }}
           cursor="pointer"
           border="none"
           outline="none"
@@ -660,7 +664,7 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
           alignItems="center"
           justifyContent="center"
           bg={cellBg}
-          _hover={{ bg: { _light: "gray.50", _dark: "gray.700" } }}
+          _hover={{ bg: mode.bg.muted }}
           cursor="pointer"
           border="none"
           outline="none"
@@ -864,17 +868,19 @@ export const RecurringTableView = ({
     }
   };
 
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
-  const headerBg = { _light: "gray.50", _dark: "gray.700" };
-  const sectionHeaderBg = { _light: "blue.50", _dark: "gray.750" };
-  const todayRowBg = { _light: "blue.50", _dark: "whiteAlpha.100" };
+  const { mode, calendar } = useSemanticColors();
+
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const headerBg = mode.bg.muted;
+  const sectionHeaderBg = calendar.todayBg;
+  const todayRowBg = calendar.todayBg;
 
   if (recurringTasks.length === 0) {
     return (
       <Box p={8} textAlign="center">
-        <Text color={{ _light: "gray.500", _dark: "gray.400" }}>No recurring tasks found.</Text>
-        <Text fontSize="sm" color={{ _light: "gray.400", _dark: "gray.500" }} mt={2}>
+        <Text color={mode.text.secondary}>No recurring tasks found.</Text>
+        <Text fontSize="sm" color={mode.text.muted} mt={2}>
           Create recurring tasks to see them in this view.
         </Text>
       </Box>
@@ -993,7 +999,7 @@ export const RecurringTableView = ({
         <Text fontSize="xl" fontWeight="bold" mb={2}>
           Recurring Tasks
         </Text>
-        <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
+        <Text fontSize="sm" color={mode.text.secondary}>
           {getDateRangeDisplay()}
         </Text>
       </Box>
@@ -1019,12 +1025,7 @@ export const RecurringTableView = ({
 
             {/* Preset Range Selector */}
             <HStack gap={2} flex={1}>
-              <Text
-                fontSize="sm"
-                fontWeight="medium"
-                color={{ _light: "gray.700", _dark: "gray.300" }}
-                minW="fit-content"
-              >
+              <Text fontSize="sm" fontWeight="medium" color={mode.text.primary} minW="fit-content">
                 Preset:
               </Text>
               <SelectDropdown
@@ -1040,7 +1041,7 @@ export const RecurringTableView = ({
             {/* Pagination for preset ranges */}
             {!useCustomRange && totalPages > 1 && (
               <HStack gap={2}>
-                <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
+                <Text fontSize="sm" color={mode.text.secondary}>
                   Page {page + 1} of {totalPages}
                 </Text>
               </HStack>
@@ -1049,16 +1050,11 @@ export const RecurringTableView = ({
 
           {/* Custom Date Range Pickers */}
           <Flex align="center" gap={2} flexWrap="wrap">
-            <Text
-              fontSize="sm"
-              fontWeight="medium"
-              color={{ _light: "gray.700", _dark: "gray.300" }}
-              minW="fit-content"
-            >
+            <Text fontSize="sm" fontWeight="medium" color={mode.text.primary} minW="fit-content">
               Custom Range:
             </Text>
             <HStack gap={2}>
-              <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
+              <Text fontSize="sm" color={mode.text.secondary}>
                 From
               </Text>
               <Input
@@ -1075,7 +1071,7 @@ export const RecurringTableView = ({
                   },
                 }}
               />
-              <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
+              <Text fontSize="sm" color={mode.text.secondary}>
                 To
               </Text>
               <Input
@@ -1127,7 +1123,7 @@ export const RecurringTableView = ({
                   textAlign="center"
                   fontWeight="bold"
                   borderWidth="1px"
-                  borderColor={{ _light: "gray.200", _dark: "gray.600" }}
+                  borderColor={borderColor}
                   borderLeftWidth="0"
                   borderTopWidth="1px"
                   px={2}
@@ -1157,7 +1153,7 @@ export const RecurringTableView = ({
                     minW="100px"
                     maxW="150px"
                     borderWidth="1px"
-                    borderColor={{ _light: "gray.200", _dark: "gray.600" }}
+                    borderColor={borderColor}
                     borderLeftWidth="0"
                     borderTopWidth="0"
                     p={0}
@@ -1185,7 +1181,7 @@ export const RecurringTableView = ({
                 <Table.Row
                   key={date.toISOString()}
                   bg={isTodayDate ? todayRowBg : "transparent"}
-                  _hover={{ bg: { _light: "gray.50", _dark: "gray.700" } }}
+                  _hover={{ bg: mode.bg.muted }}
                 >
                   {/* Date cell */}
                   <Table.Cell
@@ -1214,7 +1210,7 @@ export const RecurringTableView = ({
                           key={task.id}
                           p={0}
                           borderWidth="1px"
-                          borderColor={{ _light: "gray.200", _dark: "gray.600" }}
+                          borderColor={borderColor}
                           borderLeftWidth="0"
                           borderTopWidth="0"
                           textAlign="center"

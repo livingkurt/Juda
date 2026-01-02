@@ -9,6 +9,7 @@ import { UntimedTask } from "./UntimedTask";
 import { TimedTask } from "./TimedTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
 import { CurrentTimeLine } from "./CurrentTimeLine";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_DAY;
 
@@ -37,11 +38,13 @@ export const CalendarDayView = ({
   onCreateTag,
 }) => {
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.700" };
-  const dropHighlight = { _light: "blue.50", _dark: "blue.900" };
-  const hourTextColor = { _light: "gray.400", _dark: "gray.500" };
-  const hourBorderColor = { _light: "gray.100", _dark: "gray.700" };
+  const { mode, calendar, dnd } = useSemanticColors();
+
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const dropHighlight = dnd.dropTarget;
+  const hourTextColor = calendar.hourText;
+  const hourBorderColor = calendar.gridLine;
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
 

@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { Box, VStack, HStack, Text, Button, Input, createListCollection, Heading, Badge } from "@chakra-ui/react";
 import { SelectDropdown } from "./SelectDropdown";
 import { formatDateDisplay } from "@/lib/utils";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Format time for input (HH:MM)
 const formatTimeForInput = time => {
@@ -12,6 +13,7 @@ const formatTimeForInput = time => {
 };
 
 export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave, onDelete, onClose }) => {
+  const { mode } = useSemanticColors();
   // Initialize state based on completion - use "null" string for unchecked state
   const [outcome, setOutcome] = useState(() => completion?.outcome || "null");
   const [note, setNote] = useState(() => completion?.note || "");
@@ -62,7 +64,7 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
         {/* Header */}
         <VStack align="stretch" spacing={1}>
           <Heading size="sm">{task.title}</Heading>
-          <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
+          <Text fontSize="sm" color={mode.text.secondary}>
             {formatDateDisplay(date)}
           </Text>
           {!isScheduled && (

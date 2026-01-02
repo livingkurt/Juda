@@ -8,6 +8,7 @@ import { Plus } from "lucide-react";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 const BacklogDrawerComponent = ({
   backlogTasks,
@@ -38,12 +39,14 @@ const BacklogDrawerComponent = ({
   onBulkEdit,
   onBeginWorkout,
 }) => {
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
-  const textColor = { _light: "gray.900", _dark: "gray.100" };
-  const mutedText = { _light: "gray.500", _dark: "gray.400" };
-  const dropHighlight = { _light: "blue.50", _dark: "blue.900" };
-  const gripColor = { _light: "gray.400", _dark: "gray.500" };
+  const { mode, dnd } = useSemanticColors();
+
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const textColor = mode.text.primary;
+  const mutedText = mode.text.secondary;
+  const dropHighlight = dnd.dropTarget;
+  const gripColor = mode.text.muted;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState([]);
@@ -183,7 +186,7 @@ const BacklogDrawerComponent = ({
                 setNewTaskTitle("");
               }
             }}
-            bg={bgColor}
+            bg="transparent"
             borderWidth="0"
             borderColor="transparent"
             color={textColor}
@@ -215,7 +218,7 @@ const BacklogDrawerComponent = ({
         borderRadius="md"
         transition="background-color 0.2s, padding 0.2s"
         borderWidth={isOver ? "2px" : "0px"}
-        borderColor={isOver ? "blue.400" : "transparent"}
+        borderColor={isOver ? dnd.dropTargetBorder : "transparent"}
         borderStyle="dashed"
         mx={isOver ? { base: 1, md: 2 } : 0}
         w="100%"

@@ -5,6 +5,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
 import { SectionCard } from "./SectionCard";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Main Section component that renders all sections
 export const Section = ({
@@ -43,7 +44,8 @@ export const Section = ({
   onTagsChange,
   onCreateTag,
 }) => {
-  const dropHighlight = { _light: "gray.50", _dark: "gray.800" };
+  const { dnd } = useSemanticColors();
+  const dropHighlight = dnd.dropTarget;
 
   // Use droppable for section reordering
   const { setNodeRef, isOver } = useDroppable({

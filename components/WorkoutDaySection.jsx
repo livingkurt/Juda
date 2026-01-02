@@ -2,6 +2,7 @@
 
 import { Box, Text, VStack, Heading, Badge, Flex } from "@chakra-ui/react";
 import WorkoutExerciseCard from "./WorkoutExerciseCard";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 /**
  * WorkoutDaySection - Groups exercises by day within a workout section
@@ -37,21 +38,20 @@ export default function WorkoutDaySection({
     return sum + exerciseData.sets.filter(s => isSetComplete(s, exercise.type)).length;
   }, 0);
 
+  const { mode, calendar } = useSemanticColors();
+
   return (
     <Box
       p={4}
-      bg={{ _light: isCurrentDay ? "blue.50" : "white", _dark: isCurrentDay ? "blue.900" : "gray.800" }}
+      bg={isCurrentDay ? calendar.todayBg : mode.bg.surface}
       borderRadius="lg"
       borderWidth="2px"
-      borderColor={{ _light: isCurrentDay ? "blue.400" : "gray.200", _dark: isCurrentDay ? "blue.600" : "gray.700" }}
+      borderColor={isCurrentDay ? calendar.today : mode.border.default}
     >
       <VStack align="stretch" gap={4}>
         {/* Day header */}
         <Flex justify="space-between" align="center">
-          <Heading
-            size="md"
-            color={{ _light: isCurrentDay ? "blue.700" : "gray.800", _dark: isCurrentDay ? "blue.300" : "gray.100" }}
-          >
+          <Heading size="md" color={isCurrentDay ? mode.text.link : mode.text.primary}>
             {day.name}
             {isCurrentDay && (
               <Badge ml={2} colorPalette="blue" size="sm">
@@ -59,7 +59,7 @@ export default function WorkoutDaySection({
               </Badge>
             )}
           </Heading>
-          <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
+          <Text fontSize="sm" color={mode.text.secondary}>
             {completedSets} / {totalSets} sets
           </Text>
         </Flex>

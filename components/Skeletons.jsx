@@ -2,6 +2,7 @@
 
 import { Box, Spinner, Flex } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Pulse animation for loading dots
 const pulse = keyframes`
@@ -17,8 +18,8 @@ const pulse = keyframes`
 
 // Simple loading spinner component
 export const LoadingSpinner = ({ size = "xl", color, ...props }) => {
-  // Use Chakra v3's native _light/_dark syntax for color mode
-  const spinnerColor = color || { _light: "blue.500", _dark: "blue.300" };
+  const { interactive } = useSemanticColors();
+  const spinnerColor = color || interactive.primary;
   return (
     <Flex align="center" justify="center" {...props}>
       <Spinner size={size} color={spinnerColor} thickness="4px" speed="0.65s" />
@@ -28,7 +29,8 @@ export const LoadingSpinner = ({ size = "xl", color, ...props }) => {
 
 // Loading dots animation
 export const LoadingDots = ({ ...props }) => {
-  const color = { _light: "blue.500", _dark: "blue.300" };
+  const { interactive } = useSemanticColors();
+  const color = interactive.primary;
   const pulseAnimation = `${pulse} 1.4s ease-in-out infinite`;
 
   return (
@@ -69,8 +71,9 @@ export const CalendarSkeleton = () => {
 
 // Full page loading (replaces PageSkeleton)
 export const PageSkeleton = () => {
-  const bgColor = { _light: "gray.50", _dark: "gray.900" };
-  const textColor = { _light: "gray.600", _dark: "gray.400" };
+  const { mode } = useSemanticColors();
+  const bgColor = mode.bg.canvas;
+  const textColor = mode.text.secondary;
 
   return (
     <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg={bgColor} suppressHydrationWarning>

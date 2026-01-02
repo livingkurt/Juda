@@ -426,9 +426,16 @@ export const NotesView = ({
                 <Input
                   placeholder="Search notes..."
                   size="sm"
-                  variant="unstyled"
+                  bg="transparent"
+                  borderColor={{ base: "gray.200", _dark: "gray.600" }}
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
+                  _focus={{
+                    bg: "transparent",
+                    borderColor: "blue.400",
+                    boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                  }}
+                  _focusVisible={{ bg: "transparent" }}
                 />
               </HStack>
             </Box>
@@ -704,9 +711,16 @@ export const NotesView = ({
             <Input
               placeholder="Search notes..."
               size="sm"
-              variant="unstyled"
+              bg="transparent"
+              borderColor={{ base: "gray.200", _dark: "gray.600" }}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
+              _focus={{
+                bg: "transparent",
+                borderColor: "blue.400",
+                boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+              }}
+              _focusVisible={{ bg: "transparent" }}
             />
           </HStack>
         </Box>

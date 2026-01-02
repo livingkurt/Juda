@@ -5,6 +5,7 @@ import { Box, HStack, VStack, Menu, Button, Input, Text, IconButton, Wrap, WrapI
 import { Tag as TagIcon, Plus, Trash2 } from "lucide-react";
 import { TASK_COLORS } from "@/lib/constants";
 import { TagChip } from "./TagChip";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const TagSelector = ({
   tags = [],
@@ -21,10 +22,11 @@ export const TagSelector = ({
   const onClose = () => setIsOpen(false);
   const inputRef = useRef(null);
 
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
-  const hoverBg = { _light: "gray.100", _dark: "gray.700" };
-  const mutedText = { _light: "gray.500", _dark: "gray.400" };
+  const { mode, interactive } = useSemanticColors();
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const hoverBg = mode.bg.surfaceHover;
+  const mutedText = mode.text.secondary;
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -100,7 +102,7 @@ export const TagSelector = ({
                       onClick={() => setNewTagColor(c)}
                       borderWidth={newTagColor === c ? "2px" : "0px"}
                       borderColor="white"
-                      boxShadow={newTagColor === c ? "0 0 0 2px var(--chakra-colors-blue-400)" : "none"}
+                      boxShadow={newTagColor === c ? `0 0 0 2px ${interactive.primary}` : "none"}
                       _hover={{ transform: "scale(1.1)" }}
                     />
                   ))}
@@ -202,7 +204,7 @@ export const TagSelector = ({
                       onClick={() => setNewTagColor(c)}
                       borderWidth={newTagColor === c ? "2px" : "0px"}
                       borderColor="white"
-                      boxShadow={newTagColor === c ? "0 0 0 2px var(--chakra-colors-blue-400)" : "none"}
+                      boxShadow={newTagColor === c ? `0 0 0 2px ${interactive.primary}` : "none"}
                       _hover={{ transform: "scale(1.1)" }}
                     />
                   ))}

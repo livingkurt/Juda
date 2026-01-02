@@ -6,6 +6,7 @@ import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate } from 
 import { HOUR_HEIGHT_WEEK, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { DayHeaderColumn } from "./DayHeaderColumn";
 import { TimedColumn } from "./TimedColumn";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_WEEK;
 
@@ -36,12 +37,14 @@ export const CalendarWeekView = ({
   onCreateTag,
 }) => {
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
-  const dropHighlight = { _light: "blue.50", _dark: "blue.900" };
-  const hourTextColor = { _light: "gray.400", _dark: "gray.500" };
-  const hourBorderColor = { _light: "gray.100", _dark: "gray.700" };
-  const hoverBg = { _light: "gray.50", _dark: "gray.700" };
+  const { mode, calendar, dnd } = useSemanticColors();
+
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const dropHighlight = dnd.dropTarget;
+  const hourTextColor = calendar.hourText;
+  const hourBorderColor = calendar.gridLine;
+  const hoverBg = mode.bg.surfaceHover;
 
   // Calculate week days - memoized to prevent recalculation on every render
   const weekDays = useMemo(() => {

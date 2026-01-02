@@ -2,6 +2,7 @@
 
 import { HStack, Box, Text, Menu } from "@chakra-ui/react";
 import { Edit2, Check, X, Circle, Copy, Trash2, Dumbbell } from "lucide-react";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const TaskContextMenu = ({
   task,
@@ -16,6 +17,7 @@ export const TaskContextMenu = ({
   onDeleteTask,
   onClose,
 }) => {
+  const { mode } = useSemanticColors();
   return (
     <>
       {onEditTask && (
@@ -159,7 +161,7 @@ export const TaskContextMenu = ({
             onDeleteTask(task.id);
             onClose?.();
           }}
-          color={{ _light: "red.600", _dark: "red.400" }}
+          color={mode.status.error}
         >
           <HStack gap={2}>
             <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>

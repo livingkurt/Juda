@@ -2,10 +2,12 @@
 
 import { Menu, MenuItem, IconButton, HStack, Text } from "@chakra-ui/react";
 import { Check, X, Circle } from "lucide-react";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const TaskOutcomeMenu = ({ taskId, date, currentOutcome, onSelectOutcome, size = "sm" }) => {
-  const menuBg = { _light: "white", _dark: "gray.700" };
-  const hoverBg = { _light: "gray.100", _dark: "gray.600" };
+  const { mode } = useSemanticColors();
+  const menuBg = mode.bg.surface;
+  const hoverBg = mode.bg.surfaceHover;
 
   // Determine current icon and color
   const getButtonProps = () => {

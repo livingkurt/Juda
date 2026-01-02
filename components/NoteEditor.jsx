@@ -211,6 +211,7 @@ export const NoteEditor = ({ note, folders, allTags: _allTags, onUpdate, onDelet
                   size="xs"
                   w="80px"
                   variant="flushed"
+                  bg="transparent"
                   onKeyDown={e => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -236,10 +237,13 @@ export const NoteEditor = ({ note, folders, allTags: _allTags, onUpdate, onDelet
           onChange={e => setTitle(e.target.value)}
           placeholder="Untitled"
           variant="unstyled"
+          bg="transparent"
           fontSize="2xl"
           fontWeight="bold"
           color={{ base: "gray.900", _dark: "gray.50" }}
           _placeholder={{ color: { base: "gray.300", _dark: "gray.600" } }}
+          _focus={{ bg: "transparent" }}
+          _focusVisible={{ bg: "transparent" }}
         />
       </Box>
 

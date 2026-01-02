@@ -8,6 +8,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Plus, MoreVertical, GripVertical, Sun, ChevronDown, ChevronUp } from "lucide-react";
 import { TaskItem } from "./TaskItem";
 import { SECTION_ICONS } from "@/lib/constants";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const SectionCard = ({
   section,
@@ -44,11 +45,13 @@ export const SectionCard = ({
   onTagsChange,
   onCreateTag,
 }) => {
-  const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.600" };
-  const textColor = { _light: "gray.900", _dark: "gray.100" };
-  const mutedText = { _light: "gray.500", _dark: "gray.400" };
-  const dropHighlight = { _light: "blue.50", _dark: "blue.900" };
+  const { mode, dnd } = useSemanticColors();
+
+  const bgColor = mode.bg.surface;
+  const borderColor = mode.border.default;
+  const textColor = mode.text.primary;
+  const mutedText = mode.text.secondary;
+  const dropHighlight = dnd.dropTarget;
 
   const [inlineInputValue, setInlineInputValue] = useState("");
   const [isInlineInputActive, setIsInlineInputActive] = useState(false);
@@ -133,7 +136,7 @@ export const SectionCard = ({
       style={sectionStyle}
       mb={{ base: 2, md: 4 }}
       bg={bgColor}
-      borderColor={isDropTarget || isOver ? "blue.400" : borderColor}
+      borderColor={isDropTarget || isOver ? dnd.dropTargetBorder : borderColor}
       borderWidth={isDropTarget || isOver ? "2px" : "1px"}
       opacity={sectionIsDragging ? 0.5 : 1}
       transition="border-color 0.2s, border-width 0.2s"
@@ -161,7 +164,7 @@ export const SectionCard = ({
             >
               <GripVertical size={14} stroke="currentColor" />
             </Box>
-            <Box as="span" color="orange.500">
+            <Box as="span" color={mode.status.warning}>
               <IconComponent size={14} stroke="currentColor" />
             </Box>
             <Heading size={{ base: "sm", md: "md" }} color={textColor} noOfLines={1}>
@@ -244,7 +247,7 @@ export const SectionCard = ({
             p={tasksWithIds.length === 0 ? { base: 2, md: 4 } : { base: 1, md: 2 }}
             transition="background-color 0.2s, padding 0.2s, min-height 0.2s"
             borderWidth={isOver ? "2px" : "0px"}
-            borderColor={isOver ? "blue.400" : "transparent"}
+            borderColor={isOver ? dnd.dropTargetBorder : "transparent"}
             borderStyle="dashed"
           >
             {tasksWithIds.length === 0 ? (

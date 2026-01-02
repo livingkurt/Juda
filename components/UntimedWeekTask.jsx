@@ -6,6 +6,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { getTaskDisplayColor } from "@/lib/utils";
 import { Edit2, X, Copy, Trash2, Check, Circle, Dumbbell } from "lucide-react";
 import { TagMenuSelector } from "./TagMenuSelector";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const UntimedWeekTask = ({
   task,
@@ -22,6 +23,7 @@ export const UntimedWeekTask = ({
   onTagsChange,
   onCreateTag,
 }) => {
+  const { mode } = useSemanticColors();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -70,12 +72,8 @@ export const UntimedWeekTask = ({
           {...listeners}
           p={1}
           borderRadius="sm"
-          bg={taskColor || "gray.200"}
-          color={taskColor ? "white" : "gray.800"}
-          _dark={{
-            bg: taskColor || "gray.700",
-            color: taskColor ? "white" : "gray.100",
-          }}
+          bg={taskColor || mode.task.neutral}
+          color={taskColor ? "white" : mode.task.neutralText}
           cursor="grab"
           boxShadow="sm"
           onClick={e => {
