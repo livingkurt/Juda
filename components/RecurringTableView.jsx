@@ -16,6 +16,8 @@ import {
   Input,
   Menu,
   Portal,
+  Button,
+  VStack,
 } from "@chakra-ui/react";
 import { Check, X, ChevronLeft, ChevronRight, Dumbbell, Edit2, Copy, Trash2 } from "lucide-react";
 import { shouldShowOnDate, formatDateDisplay } from "@/lib/utils";
@@ -471,30 +473,110 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
       }
     };
 
+    // If scheduled, show inline text input
+    if (isScheduled) {
+      return (
+        <Box w="100%" h="100%" minH="40px" display="flex" alignItems="center" p={1} bg={cellBg}>
+          <Input
+            value={textValue}
+            onChange={e => setTextValue(e.target.value)}
+            onBlur={handleTextSave}
+            onKeyDown={e => {
+              if (e.key === "Enter") {
+                handleTextSave();
+                e.target.blur();
+              }
+            }}
+            placeholder="Enter text..."
+            size="sm"
+            variant="ghost"
+            fontSize="xs"
+            p={1}
+            h="auto"
+            minH="30px"
+            border="none"
+            _hover={{ bg: { _light: "gray.50", _dark: "gray.700" } }}
+            _focus={{ bg: { _light: "white", _dark: "gray.800" }, border: "1px solid", borderColor: "blue.500" }}
+          />
+        </Box>
+      );
+    }
+
+    // If not scheduled, show text input if there's a completion, otherwise show popover button
+    if (completion?.note) {
+      // Has completion - show editable text input
+      return (
+        <Box w="100%" h="100%" minH="40px" display="flex" alignItems="center" p={1} bg={cellBg}>
+          <Input
+            value={textValue}
+            onChange={e => setTextValue(e.target.value)}
+            onBlur={handleTextSave}
+            onKeyDown={e => {
+              if (e.key === "Enter") {
+                handleTextSave();
+                e.target.blur();
+              }
+            }}
+            placeholder="Enter text..."
+            size="sm"
+            variant="ghost"
+            fontSize="xs"
+            p={1}
+            h="auto"
+            minH="30px"
+            border="none"
+            _hover={{ bg: { _light: "gray.50", _dark: "gray.700" } }}
+            _focus={{ bg: { _light: "white", _dark: "gray.800" }, border: "1px solid", borderColor: "blue.500" }}
+          />
+        </Box>
+      );
+    }
+
+    // No completion - show popover to add one
     return (
-      <Box w="100%" h="100%" minH="40px" display="flex" alignItems="center" p={1} bg={cellBg}>
-        <Input
-          value={textValue}
-          onChange={e => setTextValue(e.target.value)}
-          onBlur={handleTextSave}
-          onKeyDown={e => {
-            if (e.key === "Enter") {
-              handleTextSave();
-              e.target.blur();
-            }
-          }}
-          placeholder={isScheduled ? "Enter text..." : ""}
-          size="sm"
-          variant="ghost"
-          fontSize="xs"
-          p={1}
-          h="auto"
-          minH="30px"
-          border="none"
-          _hover={{ bg: { _light: "gray.50", _dark: "gray.700" } }}
-          _focus={{ bg: { _light: "white", _dark: "gray.800" }, border: "1px solid", borderColor: "blue.500" }}
-        />
-      </Box>
+      <Popover.Root open={isOpen} onOpenChange={e => setIsOpen(e.open)}>
+        <PopoverTrigger asChild>
+          <Box
+            as="button"
+            onClick={() => setIsOpen(true)}
+            p={0}
+            m={0}
+            w="100%"
+            h="100%"
+            minH="40px"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            bg={cellBg}
+            _hover={{ bg: { _light: "gray.50", _dark: "gray.700" } }}
+            cursor="pointer"
+            border="none"
+            outline="none"
+            boxShadow="none"
+            _focus={{ border: "none", outline: "none", boxShadow: "none" }}
+            _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
+          />
+        </PopoverTrigger>
+        <Popover.Positioner>
+          <PopoverContent>
+            <CellEditorPopover
+              task={task}
+              date={date}
+              completion={completion}
+              isScheduled={isScheduled}
+              onSave={data => {
+                onUpdate(data);
+                setIsOpen(false);
+              }}
+              onDelete={() => {
+                onDelete();
+                setIsOpen(false);
+              }}
+              onClose={() => setIsOpen(false)}
+            />
+          </PopoverContent>
+        </Popover.Positioner>
+      </Popover.Root>
     );
   }
 
@@ -629,6 +711,9 @@ export const RecurringTableView = ({
 }) => {
   const [range, setRange] = useState("month");
   const [page, setPage] = useState(0);
+  const [customStartDate, setCustomStartDate] = useState(null);
+  const [customEndDate, setCustomEndDate] = useState(null);
+  const [useCustomRange, setUseCustomRange] = useState(false);
 
   const rangeCollection = useMemo(
     () =>
@@ -651,7 +736,23 @@ export const RecurringTableView = ({
   const groupedTasks = useMemo(() => groupTasksBySection(recurringTasks, sections), [recurringTasks, sections]);
 
   // Generate dates for current range and page
-  const dates = useMemo(() => generateDates(range, page), [range, page]);
+  const dates = useMemo(() => {
+    if (useCustomRange && customStartDate && customEndDate) {
+      // Generate dates from custom range
+      const result = [];
+      let current = new Date(customEndDate);
+      current.setHours(0, 0, 0, 0);
+      const start = new Date(customStartDate);
+      start.setHours(0, 0, 0, 0);
+
+      while (current >= start) {
+        result.push(new Date(current));
+        current.setDate(current.getDate() - 1);
+      }
+      return result; // Most recent first
+    }
+    return generateDates(range, page);
+  }, [range, page, useCustomRange, customStartDate, customEndDate]);
 
   // Calculate total pages
   const totalPages = useMemo(() => calculateTotalPages(range), [range]);
@@ -778,47 +879,221 @@ export const RecurringTableView = ({
     );
   }
 
+  // Calculate date range display
+  const getDateRangeDisplay = () => {
+    if (dates.length === 0) return "";
+
+    const startDate = dates[dates.length - 1]; // dates are in reverse order
+    const endDate = dates[0];
+
+    const startYear = startDate.getFullYear();
+    const endYear = endDate.getFullYear();
+
+    const formatDate = date => {
+      const month = date.toLocaleDateString("en-US", { month: "short" });
+      const day = date.getDate();
+      return `${month} ${day}`;
+    };
+
+    if (startYear === endYear) {
+      // Same year
+      return `${formatDate(startDate)} - ${formatDate(endDate)}, ${endYear}`;
+    } else {
+      // Different years
+      return `${formatDate(startDate)}, ${startYear} - ${formatDate(endDate)}, ${endYear}`;
+    }
+  };
+
+  // Format date for input field
+  const formatDateInput = date => {
+    if (!date) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  // Handle start date change
+  const handleStartDateChange = e => {
+    const value = e.target.value;
+    if (value) {
+      const newDate = new Date(value);
+      newDate.setHours(0, 0, 0, 0);
+      setCustomStartDate(newDate);
+      setUseCustomRange(true);
+      setPage(0);
+    }
+  };
+
+  // Handle end date change
+  const handleEndDateChange = e => {
+    const value = e.target.value;
+    if (value) {
+      const newDate = new Date(value);
+      newDate.setHours(0, 0, 0, 0);
+      setCustomEndDate(newDate);
+      setUseCustomRange(true);
+      setPage(0);
+    }
+  };
+
+  // Handle preset range change
+  const handleRangeChange = value => {
+    setRange(value);
+    setUseCustomRange(false);
+    setPage(0);
+  };
+
+  // Navigate dates backward (earlier)
+  const handlePreviousDay = () => {
+    if (useCustomRange && customStartDate && customEndDate) {
+      const newStart = new Date(customStartDate);
+      newStart.setDate(newStart.getDate() - 1);
+      const newEnd = new Date(customEndDate);
+      newEnd.setDate(newEnd.getDate() - 1);
+      setCustomStartDate(newStart);
+      setCustomEndDate(newEnd);
+    } else {
+      setPage(Math.min(totalPages - 1, page + 1));
+    }
+  };
+
+  // Navigate dates forward (more recent)
+  const handleNextDay = () => {
+    if (useCustomRange && customStartDate && customEndDate) {
+      const newStart = new Date(customStartDate);
+      newStart.setDate(newStart.getDate() + 1);
+      const newEnd = new Date(customEndDate);
+      newEnd.setDate(newEnd.getDate() + 1);
+      setCustomStartDate(newStart);
+      setCustomEndDate(newEnd);
+    } else {
+      setPage(Math.max(0, page - 1));
+    }
+  };
+
+  // Reset to today
+  const handleToday = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    setCustomEndDate(today);
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - 29); // 30 days
+    setCustomStartDate(startDate);
+    setUseCustomRange(true);
+    setPage(0);
+  };
+
   return (
     <Box h="100%" display="flex" flexDirection="column" overflow="hidden">
+      {/* Header with title and date range */}
+      <Box p={4} borderBottomWidth="1px" borderColor={borderColor}>
+        <Text fontSize="xl" fontWeight="bold" mb={2}>
+          Recurring Tasks
+        </Text>
+        <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
+          {getDateRangeDisplay()}
+        </Text>
+      </Box>
+
       {/* Controls */}
-      <Flex justify="space-between" align="center" p={4} borderBottomWidth="1px" borderColor={borderColor}>
-        <HStack spacing={4}>
-          <SelectDropdown
-            collection={rangeCollection}
-            value={[range]}
-            onValueChange={({ value }) => {
-              setRange(value[0]);
-              setPage(0); // Reset to first page when changing range
-            }}
-            placeholder="Select range"
-            size="sm"
-            w="150px"
-          />
-          {totalPages > 1 && (
-            <HStack spacing={2}>
-              <IconButton
-                size="sm"
-                variant="outline"
-                onClick={() => setPage(Math.max(0, page - 1))}
-                disabled={page === 0}
+      <Box p={4} borderBottomWidth="1px" borderColor={borderColor}>
+        <VStack gap={3} align="stretch">
+          {/* Navigation and Today button */}
+          <Flex align="center" gap={2} flexWrap="wrap">
+            <Button variant="outline" size="sm" onClick={handleToday}>
+              Today
+            </Button>
+            <IconButton onClick={handlePreviousDay} variant="ghost" aria-label="Previous" size="sm">
+              <Box as="span" color="currentColor">
+                <ChevronLeft size={14} stroke="currentColor" />
+              </Box>
+            </IconButton>
+            <IconButton onClick={handleNextDay} variant="ghost" aria-label="Next" size="sm">
+              <Box as="span" color="currentColor">
+                <ChevronRight size={14} stroke="currentColor" />
+              </Box>
+            </IconButton>
+
+            {/* Preset Range Selector */}
+            <HStack gap={2} flex={1}>
+              <Text
+                fontSize="sm"
+                fontWeight="medium"
+                color={{ _light: "gray.700", _dark: "gray.300" }}
+                minW="fit-content"
               >
-                <ChevronLeft size={16} />
-              </IconButton>
-              <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
-                Page {page + 1} of {totalPages}
+                Preset:
               </Text>
-              <IconButton
+              <SelectDropdown
+                collection={rangeCollection}
+                value={[range]}
+                onValueChange={({ value }) => handleRangeChange(value[0])}
+                placeholder="Select range"
+                size="sm"
+                w="150px"
+              />
+            </HStack>
+
+            {/* Pagination for preset ranges */}
+            {!useCustomRange && totalPages > 1 && (
+              <HStack gap={2}>
+                <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
+                  Page {page + 1} of {totalPages}
+                </Text>
+              </HStack>
+            )}
+          </Flex>
+
+          {/* Custom Date Range Pickers */}
+          <Flex align="center" gap={2} flexWrap="wrap">
+            <Text
+              fontSize="sm"
+              fontWeight="medium"
+              color={{ _light: "gray.700", _dark: "gray.300" }}
+              minW="fit-content"
+            >
+              Custom Range:
+            </Text>
+            <HStack gap={2}>
+              <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
+                From
+              </Text>
+              <Input
+                type="date"
+                value={formatDateInput(customStartDate)}
+                onChange={handleStartDateChange}
                 size="sm"
                 variant="outline"
-                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-                disabled={page >= totalPages - 1}
-              >
-                <ChevronRight size={16} />
-              </IconButton>
+                cursor="pointer"
+                w="150px"
+                sx={{
+                  "&::-webkit-calendar-picker-indicator": {
+                    cursor: "pointer",
+                  },
+                }}
+              />
+              <Text fontSize="sm" color={{ _light: "gray.600", _dark: "gray.400" }}>
+                To
+              </Text>
+              <Input
+                type="date"
+                value={formatDateInput(customEndDate)}
+                onChange={handleEndDateChange}
+                size="sm"
+                variant="outline"
+                cursor="pointer"
+                w="150px"
+                sx={{
+                  "&::-webkit-calendar-picker-indicator": {
+                    cursor: "pointer",
+                  },
+                }}
+              />
             </HStack>
-          )}
-        </HStack>
-      </Flex>
+          </Flex>
+        </VStack>
+      </Box>
 
       {/* Table */}
       <Box flex={1} overflow="auto">
