@@ -216,6 +216,9 @@ const TaskColumnHeader = ({
           as="button"
           w="100%"
           h="100%"
+          minH="55px"
+          display="flex"
+          alignItems="center"
           px={2}
           py={2}
           cursor="pointer"
@@ -228,6 +231,7 @@ const TaskColumnHeader = ({
           outline="none"
           bg="transparent"
           textAlign="left"
+          transition="background-color 0.15s"
         >
           <Text fontSize="xs" noOfLines={1} title={task.title}>
             {task.title}
@@ -880,6 +884,7 @@ export const RecurringTableView = ({
                     borderLeftWidth="0"
                     borderTopWidth="0"
                     p={0}
+                    overflow="hidden"
                   >
                     <TaskColumnHeader
                       task={task}
