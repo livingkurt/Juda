@@ -252,7 +252,10 @@ BEGIN
                 (exercise_data->>'name')::text,
                 COALESCE((exercise_data->>'type')::text, 'reps'),
                 COALESCE((exercise_data->>'sets')::integer, 3),
-                (exercise_data->>'targetValue')::integer,
+                CASE
+                  WHEN exercise_data->>'targetValue' IS NULL THEN NULL
+                  ELSE ROUND((exercise_data->>'targetValue')::numeric)::integer
+                END,
                 COALESCE((exercise_data->>'unit')::text, 'reps'),
                 (exercise_data->>'goal')::text,
                 (exercise_data->>'notes')::text,
@@ -273,7 +276,10 @@ BEGIN
                     'c' || substr(md5(random()::text || clock_timestamp()::text), 1, 25),
                     exercise_id,
                     (progression_data->>'week')::integer,
-                    (progression_data->>'targetValue')::integer,
+                    CASE
+                      WHEN progression_data->>'targetValue' IS NULL THEN NULL
+                      ELSE ROUND((progression_data->>'targetValue')::numeric)::integer
+                    END,
                     COALESCE((progression_data->>'isDeload')::boolean, false),
                     COALESCE((progression_data->>'isTest')::boolean, false),
                     now()

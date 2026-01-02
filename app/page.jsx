@@ -71,6 +71,7 @@ import { parseDroppableId, createDroppableId, createDraggableId, extractTaskId }
 import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
+import { CalendarYearView } from "@/components/CalendarYearView";
 import { RecurringTableView } from "@/components/RecurringTableView";
 import { KanbanView } from "@/components/KanbanView";
 import { PageSkeleton, SectionSkeleton, BacklogSkeleton, CalendarSkeleton } from "@/components/Skeletons";
@@ -92,6 +93,7 @@ const calendarViewCollection = createListCollection({
     { label: "Day", value: "day" },
     { label: "Week", value: "week" },
     { label: "Month", value: "month" },
+    { label: "Year", value: "year" },
   ],
 });
 
@@ -1705,6 +1707,8 @@ export default function DailyTasksApp() {
     const d = new Date(selectedDate);
     if (calendarView === "day") d.setDate(d.getDate() + dir);
     else if (calendarView === "week") d.setDate(d.getDate() + dir * 7);
+    else if (calendarView === "month") d.setMonth(d.getMonth() + dir);
+    else if (calendarView === "year") d.setFullYear(d.getFullYear() + dir);
     else d.setMonth(d.getMonth() + dir);
     d.setHours(0, 0, 0, 0);
     setSelectedDate(d);
@@ -1750,6 +1754,9 @@ export default function DailyTasksApp() {
         month: "short",
         day: "numeric",
       })}`;
+    }
+    if (calendarView === "year") {
+      return selectedDate.getFullYear().toString();
     }
     return selectedDate.toLocaleDateString("en-US", {
       month: "long",
@@ -3084,6 +3091,19 @@ export default function DailyTasksApp() {
                                     onCreateTag={createTag}
                                   />
                                 )}
+                                {calendarView === "year" && selectedDate && (
+                                  <CalendarYearView
+                                    date={selectedDate}
+                                    tasks={filteredTasks}
+                                    onDayClick={d => {
+                                      setSelectedDate(d);
+                                      setCalendarView("day");
+                                    }}
+                                    isCompletedOnDate={isCompletedOnDate}
+                                    getOutcomeOnDate={getOutcomeOnDate}
+                                    showCompleted={showCompletedTasksCalendar.year}
+                                  />
+                                )}
                               </>
                             );
                           })()}
@@ -3714,6 +3734,19 @@ export default function DailyTasksApp() {
                                           zoom={calendarZoom.month}
                                           tags={tags}
                                           onCreateTag={createTag}
+                                        />
+                                      )}
+                                      {calendarView === "year" && selectedDate && (
+                                        <CalendarYearView
+                                          date={selectedDate}
+                                          tasks={filteredTasks}
+                                          onDayClick={d => {
+                                            setSelectedDate(d);
+                                            setCalendarView("day");
+                                          }}
+                                          isCompletedOnDate={isCompletedOnDate}
+                                          getOutcomeOnDate={getOutcomeOnDate}
+                                          showCompleted={showCompletedTasksCalendar.year}
                                         />
                                       )}
                                     </>
