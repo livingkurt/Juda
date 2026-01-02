@@ -201,15 +201,15 @@ export const CalendarYearView = ({
                       display="flex"
                       flexDirection="column"
                       bg={todayCell ? calendar.todayBg : valid ? cellBg : invalidCellBg}
-                      borderStyle="solid"
-                      borderTopWidth={todayCell ? "1.5px" : monthIndex === 0 ? "2px" : "1px"}
-                      borderTopColor={todayCell ? todayBorder : borderColor}
-                      borderBottomWidth={todayCell ? "1.5px" : monthIndex === 11 ? "2px" : "1px"}
-                      borderBottomColor={todayCell ? todayBorder : borderColor}
-                      borderLeftWidth={todayCell ? "1.5px" : day === 1 ? "2px" : "1px"}
-                      borderLeftColor={todayCell ? todayBorder : borderColor}
-                      borderRightWidth={todayCell ? "1.5px" : day === 31 ? "2px" : "1px"}
-                      borderRightColor={todayCell ? todayBorder : borderColor}
+                      borderTopWidth={monthIndex === 0 ? "2px" : "1px"}
+                      borderTopColor={borderColor}
+                      borderBottomWidth={monthIndex === 11 ? "2px" : "1px"}
+                      borderBottomColor={borderColor}
+                      borderLeftWidth={day === 1 ? "2px" : "1px"}
+                      borderLeftColor={borderColor}
+                      borderRightWidth={day === 31 ? "2px" : "1px"}
+                      borderRightColor={borderColor}
+                      boxShadow={todayCell ? `inset 0 0 0 1.5px ${todayBorder}` : "none"}
                       cursor={valid ? "pointer" : "default"}
                       opacity={valid ? 1 : 0.3}
                       _hover={valid ? { bg: todayCell ? calendar.selected : cellHover } : {}}
