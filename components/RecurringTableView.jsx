@@ -221,7 +221,10 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete }) 
     }
 
     // Has completion - show checkbox with appropriate state
-    if (completion.outcome === "completed") {
+    // Check outcome explicitly
+    const outcome = completion?.outcome;
+
+    if (outcome === "completed") {
       // Completed - green checkmark (match TaskItem style)
       return (
         <Checkbox.Root checked={true} size="md">
@@ -240,8 +243,9 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete }) 
           </Checkbox.Control>
         </Checkbox.Root>
       );
-    } else {
+    } else if (outcome === "not_completed" || outcome === "not completed") {
       // Not completed - X mark (match TaskItem style)
+      // Handle both "not_completed" and "not completed" formats
       return (
         <Checkbox.Root checked={false} size="md">
           <Checkbox.HiddenInput />
@@ -261,17 +265,34 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete }) 
           </Checkbox.Control>
         </Checkbox.Root>
       );
+    } else {
+      // Outcome is missing/null/unknown - if scheduled, show empty checkbox, otherwise empty cell
+      if (isScheduled) {
+        return (
+          <Checkbox.Root checked={false} size="md">
+            <Checkbox.HiddenInput />
+            <Checkbox.Control
+              bg="white"
+              boxShadow="none"
+              outline="none"
+              border="none"
+              _focus={{ boxShadow: "none", outline: "none" }}
+              _focusVisible={{ boxShadow: "none", outline: "none" }}
+            >
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+          </Checkbox.Root>
+        );
+      } else {
+        return null;
+      }
     }
   };
 
   const cellBg = !isScheduled && completion ? { _light: "purple.50", _dark: "purple.900" } : "transparent";
   const cellContent = getCellDisplay();
 
-  // If there's no content to show (unscheduled, no completion), don't render the popover
-  if (!cellContent && !isScheduled) {
-    return null;
-  }
-
+  // Always render a clickable cell to allow adding completions to non-scheduled days
   return (
     <Popover.Root open={isOpen} onOpenChange={e => setIsOpen(e.open)}>
       <PopoverTrigger asChild>
@@ -307,23 +328,25 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete }) 
           )}
         </Box>
       </PopoverTrigger>
-      <PopoverContent>
-        <CellEditorPopover
-          task={task}
-          date={date}
-          completion={completion}
-          isScheduled={isScheduled}
-          onSave={data => {
-            onUpdate(data);
-            setIsOpen(false);
-          }}
-          onDelete={() => {
-            onDelete();
-            setIsOpen(false);
-          }}
-          onClose={() => setIsOpen(false)}
-        />
-      </PopoverContent>
+      <Popover.Positioner>
+        <PopoverContent>
+          <CellEditorPopover
+            task={task}
+            date={date}
+            completion={completion}
+            isScheduled={isScheduled}
+            onSave={data => {
+              onUpdate(data);
+              setIsOpen(false);
+            }}
+            onDelete={() => {
+              onDelete();
+              setIsOpen(false);
+            }}
+            onClose={() => setIsOpen(false)}
+          />
+        </PopoverContent>
+      </Popover.Positioner>
     </Popover.Root>
   );
 };

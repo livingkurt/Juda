@@ -321,7 +321,10 @@ export const useCompletions = () => {
       const response = await authFetch(`/api/completions?${params}`, {
         method: "DELETE",
       });
-      if (!response.ok) throw new Error("Failed to delete completion");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to delete completion");
+      }
       // State already updated optimistically
     } catch (err) {
       // Rollback on error

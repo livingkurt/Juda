@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Box, VStack, HStack, Text, Button, Input, createListCollection, Heading, Badge } from "@chakra-ui/react";
 import { SelectDropdown } from "./SelectDropdown";
 import { formatDateDisplay } from "@/lib/utils";
@@ -12,14 +12,16 @@ const formatTimeForInput = time => {
 };
 
 export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave, onDelete, onClose }) => {
-  const [outcome, setOutcome] = useState(completion?.outcome || "completed");
-  const [note, setNote] = useState(completion?.note || "");
-  const [time, setTime] = useState(completion?.completedAt ? formatTimeForInput(task.time) : task.time || "");
+  // Initialize state based on completion - use "null" string for unchecked state
+  const [outcome, setOutcome] = useState(() => completion?.outcome || "null");
+  const [note, setNote] = useState(() => completion?.note || "");
+  const [time, setTime] = useState(() => (completion?.completedAt ? formatTimeForInput(task.time) : task.time || ""));
 
   const outcomeCollection = useMemo(
     () =>
       createListCollection({
         items: [
+          { label: "Unchecked", value: "null" },
           { label: "Complete", value: "completed" },
           { label: "Not Completed", value: "not_completed" },
         ],
@@ -27,20 +29,18 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
     []
   );
 
-  useEffect(() => {
-    if (completion) {
-      setOutcome(completion.outcome);
-      setNote(completion.note || "");
-      // For time, use task's time or completion's time if available
-      setTime(task.time || "");
-    } else {
-      setOutcome("completed");
-      setNote("");
-      setTime(task.time || "");
-    }
-  }, [completion, task]);
-
   const handleSave = () => {
+    // If outcome is "null" (Unchecked), delete the completion instead
+    if (outcome === "null") {
+      if (completion) {
+        onDelete();
+      } else {
+        // Nothing to do - no completion exists and user wants it unchecked
+        onClose();
+      }
+      return;
+    }
+
     const saveData = {
       outcome,
       note: task.completionType === "text" ? note : null,
