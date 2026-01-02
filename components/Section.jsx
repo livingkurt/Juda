@@ -20,6 +20,7 @@ export const Section = ({
   onDuplicateTask,
   onAddTask,
   onCreateTaskInline,
+  onCreateSubtask,
   onEditSection,
   onDeleteSection,
   onAddSection,
@@ -69,6 +70,7 @@ export const Section = ({
             onDuplicateTask={onDuplicateTask}
             onAddTask={onAddTask}
             onCreateTaskInline={onCreateTaskInline}
+            onCreateSubtask={onCreateSubtask}
             onEditSection={onEditSection}
             onDeleteSection={onDeleteSection}
             onToggleSectionExpand={onToggleSectionExpand}

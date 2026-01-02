@@ -74,6 +74,7 @@ export const TaskItem = ({
   tags, // All available tags
   onTagsChange, // (taskId, newTagIds) => void
   onCreateTag, // (name, color) => Promise<newTag>
+  onCreateSubtask, // (parentTaskId, subtaskTitle) => void - for creating subtasks inline
 }) => {
   // Normalize prop names - support both naming conventions
   const handleEdit = onEdit || onEditTask;
@@ -101,6 +102,8 @@ export const TaskItem = ({
   const [noteInput, setNoteInput] = useState("");
   const noteInputRef = useRef(null);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const newSubtaskInputRef = useRef(null);
 
   useEffect(() => {
     setEditedTitle(task.title);
@@ -141,6 +144,23 @@ export const TaskItem = ({
       setEditedTitle(task.title);
       setIsEditingTitle(false);
       titleInputRef.current?.blur();
+    }
+  };
+
+  const handleCreateSubtask = async () => {
+    if (newSubtaskTitle.trim() && onCreateSubtask) {
+      await onCreateSubtask(task.id, newSubtaskTitle.trim());
+      setNewSubtaskTitle("");
+    }
+  };
+
+  const handleNewSubtaskKeyDown = async e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      await handleCreateSubtask();
+    } else if (e.key === "Escape") {
+      setNewSubtaskTitle("");
+      newSubtaskInputRef.current?.blur();
     }
   };
 
@@ -987,34 +1007,68 @@ export const TaskItem = ({
         </Flex>
 
         {/* Expanded subtasks */}
-        {task.expanded && task.subtasks && task.subtasks.length > 0 && onToggleSubtask && (
+        {task.expanded && onToggleSubtask && (
           <Box pl={{ base: 8, md: 16 }} pr={{ base: 2, md: 3 }} pb={{ base: 2, md: 3 }}>
             <VStack align="stretch" spacing={{ base: 1.5, md: 2 }}>
-              {task.subtasks.map(subtask => (
-                <TaskItem
-                  key={subtask.id}
-                  task={{
-                    ...subtask,
-                    // Pass parent's recurrence so subtask can show outcome menu
-                    parentRecurrence: task.recurrence,
+              {task.subtasks &&
+                task.subtasks.length > 0 &&
+                task.subtasks.map(subtask => (
+                  <TaskItem
+                    key={subtask.id}
+                    task={{
+                      ...subtask,
+                      // Pass parent's recurrence so subtask can show outcome menu
+                      parentRecurrence: task.recurrence,
+                    }}
+                    variant="subtask"
+                    containerId={`subtask-${task.id}`}
+                    parentTaskId={task.id}
+                    draggableId={`subtask-${task.id}-${subtask.id}`}
+                    onToggle={onToggleSubtask}
+                    onEdit={handleEdit ? () => handleEdit(subtask) : undefined}
+                    onDuplicate={handleDuplicate}
+                    onDelete={handleDelete ? async (parentId, subtaskId) => handleDelete(subtaskId) : undefined}
+                    textColor={textColor}
+                    mutedText={mutedText}
+                    gripColor={gripColor}
+                    viewDate={viewDate}
+                    onOutcomeChange={onOutcomeChange}
+                    getOutcomeOnDate={getOutcomeOnDate}
+                    hasRecordOnDate={hasRecordOnDate}
+                  />
+                ))}
+              {/* New subtask input */}
+              {onCreateSubtask && (
+                <Input
+                  ref={newSubtaskInputRef}
+                  value={newSubtaskTitle}
+                  onChange={e => setNewSubtaskTitle(e.target.value)}
+                  onKeyDown={handleNewSubtaskKeyDown}
+                  onBlur={handleCreateSubtask}
+                  onClick={e => e.stopPropagation()}
+                  onMouseDown={e => e.stopPropagation()}
+                  onPointerDown={e => e.stopPropagation()}
+                  placeholder="New subtask..."
+                  variant="unstyled"
+                  fontSize={{ base: "sm", md: "md" }}
+                  color={textColor}
+                  px={2}
+                  py={2}
+                  minH="auto"
+                  h="auto"
+                  bg="transparent"
+                  _placeholder={{
+                    color: mutedText,
                   }}
-                  variant="subtask"
-                  containerId={`subtask-${task.id}`}
-                  parentTaskId={task.id}
-                  draggableId={`subtask-${task.id}-${subtask.id}`}
-                  onToggle={onToggleSubtask}
-                  onEdit={handleEdit ? () => handleEdit(subtask) : undefined}
-                  onDuplicate={handleDuplicate}
-                  onDelete={handleDelete ? async (parentId, subtaskId) => handleDelete(subtaskId) : undefined}
-                  textColor={textColor}
-                  mutedText={mutedText}
-                  gripColor={gripColor}
-                  viewDate={viewDate}
-                  onOutcomeChange={onOutcomeChange}
-                  getOutcomeOnDate={getOutcomeOnDate}
-                  hasRecordOnDate={hasRecordOnDate}
+                  _focus={{
+                    outline: "none",
+                    bg: "transparent",
+                  }}
+                  _hover={{
+                    bg: "transparent",
+                  }}
                 />
-              ))}
+              )}
             </VStack>
           </Box>
         )}

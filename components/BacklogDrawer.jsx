@@ -18,6 +18,7 @@ const BacklogDrawerComponent = ({
   onDuplicateTask,
   onAddTask,
   onCreateBacklogTaskInline,
+  onCreateSubtask,
   onToggleExpand,
   onToggleSubtask,
   onToggleTask,
@@ -257,6 +258,7 @@ const BacklogDrawerComponent = ({
                     onCompleteWithNote={onCompleteWithNote}
                     onSkipTask={onSkipTask}
                     getCompletionForDate={getCompletionForDate}
+                    onCreateSubtask={onCreateSubtask}
                     isSelected={selectedTaskIds?.has(task.id)}
                     onSelect={onTaskSelect}
                     selectedCount={selectedTaskIds?.size || 0}

@@ -495,8 +495,9 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
             h="auto"
             minH="30px"
             border="none"
-            _hover={{ bg: { _light: "gray.50", _dark: "gray.700" } }}
-            _focus={{ bg: { _light: "white", _dark: "gray.800" }, border: "1px solid", borderColor: "blue.500" }}
+            bg="transparent"
+            _hover={{ bg: "transparent" }}
+            _focus={{ bg: "transparent", border: "1px solid", borderColor: "blue.500" }}
           />
         </Box>
       );
@@ -525,8 +526,9 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
             h="auto"
             minH="30px"
             border="none"
-            _hover={{ bg: { _light: "gray.50", _dark: "gray.700" } }}
-            _focus={{ bg: { _light: "white", _dark: "gray.800" }, border: "1px solid", borderColor: "blue.500" }}
+            bg="transparent"
+            _hover={{ bg: "transparent" }}
+            _focus={{ bg: "transparent", border: "1px solid", borderColor: "blue.500" }}
           />
         </Box>
       );

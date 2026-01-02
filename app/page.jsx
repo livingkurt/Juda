@@ -1249,6 +1249,45 @@ export default function DailyTasksApp() {
     }
   };
 
+  const handleCreateSubtask = async (parentTaskId, subtaskTitle) => {
+    if (!subtaskTitle.trim()) return;
+
+    try {
+      // Find the parent task to get its section
+      const parentTask = tasks.find(t => t.id === parentTaskId);
+      if (!parentTask) return;
+
+      await createTask({
+        title: subtaskTitle.trim(),
+        sectionId: parentTask.sectionId,
+        parentId: parentTaskId,
+        time: null,
+        duration: 30,
+        color: "#3b82f6",
+        recurrence: null,
+        subtasks: [],
+        order: 999,
+      });
+
+      // Refetch tasks to rebuild parent-child relationships
+      await fetchTasks(true);
+
+      toast({
+        title: "Subtask created",
+        status: "success",
+        duration: 2000,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to create subtask",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   const handleAddTaskToBacklog = () => {
     setDefaultSectionId(sections[0]?.id);
     setDefaultTime(null);
@@ -2796,6 +2835,7 @@ export default function DailyTasksApp() {
                             onDuplicateTask={handleDuplicateTask}
                             onAddTask={handleAddTaskToBacklog}
                             onCreateBacklogTaskInline={handleCreateBacklogTaskInline}
+                            onCreateSubtask={handleCreateSubtask}
                             onToggleExpand={handleToggleExpand}
                             onToggleSubtask={handleToggleSubtask}
                             onToggleTask={handleToggleTask}
@@ -2911,6 +2951,7 @@ export default function DailyTasksApp() {
                           onDuplicateTask={handleDuplicateTask}
                           onAddTask={handleAddTask}
                           onCreateTaskInline={handleCreateTaskInline}
+                          onCreateSubtask={handleCreateSubtask}
                           onEditSection={handleEditSection}
                           onDeleteSection={handleDeleteSection}
                           onAddSection={handleAddSection}
@@ -3257,6 +3298,7 @@ export default function DailyTasksApp() {
                               onDuplicateTask={handleDuplicateTask}
                               onAddTask={handleAddTaskToBacklog}
                               onCreateBacklogTaskInline={handleCreateBacklogTaskInline}
+                              onCreateSubtask={handleCreateSubtask}
                               onToggleExpand={handleToggleExpand}
                               onToggleSubtask={handleToggleSubtask}
                               onToggleTask={handleToggleTask}
@@ -3412,6 +3454,7 @@ export default function DailyTasksApp() {
                                     onDuplicateTask={handleDuplicateTask}
                                     onAddTask={handleAddTask}
                                     onCreateTaskInline={handleCreateTaskInline}
+                                    onCreateSubtask={handleCreateSubtask}
                                     onEditSection={handleEditSection}
                                     onDeleteSection={handleDeleteSection}
                                     onAddSection={handleAddSection}

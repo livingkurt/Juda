@@ -22,6 +22,7 @@ export const SectionCard = ({
   onDuplicateTask,
   onAddTask,
   onCreateTaskInline,
+  onCreateSubtask,
   onEditSection,
   onDeleteSection,
   onToggleSectionExpand,
@@ -316,6 +317,7 @@ export const SectionCard = ({
                       tags={tags}
                       onTagsChange={onTagsChange}
                       onCreateTag={onCreateTag}
+                      onCreateSubtask={onCreateSubtask}
                     />
                   ))}
                   <Input
