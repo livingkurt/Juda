@@ -329,6 +329,8 @@ export default function DailyTasksApp() {
   });
   // Ref for Today view scrollable container (for auto-scroll to next incomplete task)
   const todayScrollContainerRef = useRef(null);
+  // Track if we've already auto-scrolled on initial load (to prevent scrolling on every change)
+  const hasAutoScrolledRef = useRef(false);
   // Track recently completed tasks that should remain visible for a delay
   const [recentlyCompletedTasks, setRecentlyCompletedTasks] = useState(new Set());
   const recentlyCompletedTimeoutsRef = useRef({});
@@ -1821,15 +1823,17 @@ export default function DailyTasksApp() {
     });
   }, [sortedSections, autoCollapsedSections]);
 
-  // Auto-scroll to next incomplete task in Today view (similar to calendar time scrolling)
+  // Auto-scroll to next incomplete task in Today view on initial load only
   useEffect(() => {
-    if (!todayScrollContainerRef.current || !todayViewDate) return;
+    // Only scroll once on initial load
+    if (hasAutoScrolledRef.current) return;
+    if (!todayViewDate) return;
+    // On desktop, we need the container ref. On mobile, we scroll the window.
+    if (!isMobile && !todayScrollContainerRef.current) return;
+    // Wait for tasks to be loaded
+    if (computedSections.length === 0 || Object.keys(tasksBySection).length === 0) return;
 
     const scrollToNextIncompleteTask = () => {
-      if (!todayScrollContainerRef.current) return;
-
-      console.log("🔍 Searching for first incomplete task...");
-
       // Find the first incomplete task across all sections
       let firstIncompleteTaskElement = null;
 
@@ -1863,25 +1867,39 @@ export default function DailyTasksApp() {
 
       // If we found an incomplete task, scroll to it
       if (firstIncompleteTaskElement) {
-        const container = todayScrollContainerRef.current;
-        const containerRect = container.getBoundingClientRect();
         const taskRect = firstIncompleteTaskElement.getBoundingClientRect();
 
-        // Calculate scroll position to place task at the top (with small offset)
-        const scrollPosition = container.scrollTop + taskRect.top - containerRect.top - 8;
+        if (isMobile) {
+          // On mobile, scroll the window to bring the task to the top
+          const scrollPosition = window.scrollY + taskRect.top - 8; // 8px offset from top
 
-        // Scroll smoothly to the task
-        container.scrollTo({
-          top: Math.max(0, scrollPosition),
-          behavior: "smooth",
-        });
+          window.scrollTo({
+            top: Math.max(0, scrollPosition),
+            behavior: "smooth",
+          });
+        } else {
+          // On desktop, scroll the container
+          const container = todayScrollContainerRef.current;
+          if (!container) return;
+
+          const containerRect = container.getBoundingClientRect();
+          const scrollPosition = container.scrollTop + taskRect.top - containerRect.top - 8;
+
+          container.scrollTo({
+            top: Math.max(0, scrollPosition),
+            behavior: "smooth",
+          });
+        }
+
+        // Mark that we've scrolled
+        hasAutoScrolledRef.current = true;
       }
     };
 
     // Small delay to ensure DOM is rendered and has correct dimensions
     const timeoutId = setTimeout(scrollToNextIncompleteTask, 500);
     return () => clearTimeout(timeoutId);
-  }, [todayViewDate, computedSections, tasksBySection]);
+  }, [todayViewDate, computedSections, tasksBySection, isMobile]);
 
   // Configure sensors for @dnd-kit
   const sensors = useSensors(
@@ -2924,7 +2942,7 @@ export default function DailyTasksApp() {
                     )}
 
                     {mobileActiveView === "today" && (
-                      <Box ref={todayScrollContainerRef} h="100%" overflow="auto" px={3} py={3}>
+                      <Box h="100%" overflow="auto" px={3} py={3}>
                         {/* Mobile Today View - Progress bar */}
                         <Box mb={3}>
                           <Flex justify="space-between" fontSize="xs" color={mutedText} mb={1}>
