@@ -12,6 +12,7 @@ export const metadata = {
   },
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const viewport = {
   width: "device-width",
   initialScale: 1,

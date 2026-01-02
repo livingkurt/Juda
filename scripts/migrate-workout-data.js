@@ -19,6 +19,7 @@ async function migrateWorkoutData() {
       where: isNotNull(tasks.workoutData),
     });
 
+    // eslint-disable-next-line no-console
     console.log(`Found ${tasksWithWorkouts.length} tasks with workout data\n`);
 
     let migratedCount = 0;
@@ -60,6 +61,7 @@ async function migrateWorkoutData() {
             })
             .returning();
 
+          // eslint-disable-next-line no-console
           console.log(`  📁 Created program: ${program.id}`);
 
           // Helper function to create weekly progressions
@@ -167,6 +169,7 @@ async function migrateWorkoutData() {
           }
         });
 
+        // eslint-disable-next-line no-console
         console.log(`✅ Migrated task ${task.id} (${task.title})\n`);
         migratedCount++;
       } catch (err) {
@@ -175,6 +178,7 @@ async function migrateWorkoutData() {
       }
     }
 
+    // eslint-disable-next-line no-console
     console.log("\n========================================");
     // eslint-disable-next-line no-console
     console.log("Migration Summary:");

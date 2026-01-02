@@ -165,21 +165,30 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
           });
         };
 
-        for (const [_sectionId, sectionData] of Object.entries(dataToSave)) {
-          if (!sectionData?.days) continue;
+        const processExerciseSets = (exerciseId, exerciseData) => {
+          if (!exerciseData?.sets) return;
+          exerciseData.sets.forEach(setData => {
+            savePromises.push(createSavePromise(exerciseId, setData));
+          });
+        };
 
-          for (const [_dayId, dayData] of Object.entries(sectionData.days)) {
-            if (!dayData?.exercises) continue;
+        const processDayExercises = dayData => {
+          if (!dayData?.exercises) return;
+          Object.entries(dayData.exercises).forEach(([exerciseId, exerciseData]) => {
+            processExerciseSets(exerciseId, exerciseData);
+          });
+        };
 
-            for (const [exerciseId, exerciseData] of Object.entries(dayData.exercises)) {
-              if (!exerciseData?.sets) continue;
+        const processSectionDays = sectionData => {
+          if (!sectionData?.days) return;
+          Object.values(sectionData.days).forEach(dayData => {
+            processDayExercises(dayData);
+          });
+        };
 
-              for (const setData of exerciseData.sets) {
-                savePromises.push(createSavePromise(exerciseId, setData));
-              }
-            }
-          }
-        }
+        Object.values(dataToSave).forEach(sectionData => {
+          processSectionDays(sectionData);
+        });
 
         await Promise.all(savePromises);
       } catch (err) {

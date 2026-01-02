@@ -62,6 +62,7 @@ async function checkMigration() {
 
     // Detailed check for each program
     if (programs.length > 0) {
+      // eslint-disable-next-line no-console
       console.log("📊 Detailed program structure:");
       for (const program of programs) {
         const programWithData = await db.query.workoutPrograms.findFirst({
