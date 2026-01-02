@@ -2766,6 +2766,13 @@ export default function DailyTasksApp() {
                       updateCompletion={updateCompletion}
                       getCompletionForDate={getCompletionForDate}
                       updateTask={updateTask}
+                      onEditTask={handleEditTask}
+                      onEditWorkout={handleEditWorkout}
+                      onDuplicateTask={handleDuplicateTask}
+                      onDeleteTask={handleDeleteTask}
+                      tags={tags}
+                      onTagsChange={handleTaskTagsChange}
+                      onCreateTag={createTag}
                     />
                   </Box>
                 )}
@@ -3089,6 +3096,11 @@ export default function DailyTasksApp() {
                                     zoom={calendarZoom.month}
                                     tags={tags}
                                     onCreateTag={createTag}
+                                    onEditTask={handleEditTask}
+                                    onEditWorkout={handleEditWorkout}
+                                    onOutcomeChange={handleOutcomeChange}
+                                    onDuplicateTask={handleDuplicateTask}
+                                    onDeleteTask={handleDeleteTask}
                                   />
                                 )}
                                 {calendarView === "year" && selectedDate && (
@@ -3103,6 +3115,11 @@ export default function DailyTasksApp() {
                                     getOutcomeOnDate={getOutcomeOnDate}
                                     showCompleted={showCompletedTasksCalendar.year}
                                     zoom={calendarZoom.year}
+                                    onEditTask={handleEditTask}
+                                    onEditWorkout={handleEditWorkout}
+                                    onOutcomeChange={handleOutcomeChange}
+                                    onDuplicateTask={handleDuplicateTask}
+                                    onDeleteTask={handleDeleteTask}
                                   />
                                 )}
                               </>
@@ -3199,6 +3216,13 @@ export default function DailyTasksApp() {
                     updateCompletion={updateCompletion}
                     getCompletionForDate={getCompletionForDate}
                     updateTask={updateTask}
+                    onEditTask={handleEditTask}
+                    onEditWorkout={handleEditWorkout}
+                    onDuplicateTask={handleDuplicateTask}
+                    onDeleteTask={handleDeleteTask}
+                    tags={tags}
+                    onTagsChange={handleTaskTagsChange}
+                    onCreateTag={createTag}
                   />
                 ) : (
                   /* Tasks Tab Content (mainTabIndex === 0) */
@@ -3735,6 +3759,11 @@ export default function DailyTasksApp() {
                                           zoom={calendarZoom.month}
                                           tags={tags}
                                           onCreateTag={createTag}
+                                          onEditTask={handleEditTask}
+                                          onEditWorkout={handleEditWorkout}
+                                          onOutcomeChange={handleOutcomeChange}
+                                          onDuplicateTask={handleDuplicateTask}
+                                          onDeleteTask={handleDeleteTask}
                                         />
                                       )}
                                       {calendarView === "year" && selectedDate && (
@@ -3749,6 +3778,11 @@ export default function DailyTasksApp() {
                                           getOutcomeOnDate={getOutcomeOnDate}
                                           showCompleted={showCompletedTasksCalendar.year}
                                           zoom={calendarZoom.year}
+                                          onEditTask={handleEditTask}
+                                          onEditWorkout={handleEditWorkout}
+                                          onOutcomeChange={handleOutcomeChange}
+                                          onDuplicateTask={handleDuplicateTask}
+                                          onDeleteTask={handleDeleteTask}
                                         />
                                       )}
                                     </>

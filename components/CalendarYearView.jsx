@@ -1,8 +1,11 @@
 "use client";
 
-import { Box, Flex, VStack } from "@chakra-ui/react";
+import { useState } from "react";
+import { Box, Flex, VStack, Text, Menu, Portal } from "@chakra-ui/react";
 import { shouldShowOnDate, getTaskDisplayColor } from "@/lib/utils";
 import { MONTH_OPTIONS } from "@/lib/constants";
+import { Calendar } from "lucide-react";
+import { TaskContextMenu } from "./TaskContextMenu";
 
 export const CalendarYearView = ({
   date,
@@ -12,7 +15,13 @@ export const CalendarYearView = ({
   getOutcomeOnDate,
   showCompleted = true,
   zoom = 1.0,
+  onEditTask,
+  onEditWorkout,
+  onOutcomeChange,
+  onDuplicateTask,
+  onDeleteTask,
 }) => {
+  const [openMenuDate, setOpenMenuDate] = useState(null);
   // Color scheme
   const bgColor = { _light: "white", _dark: "gray.800" };
   const borderColor = { _light: "gray.400", _dark: "gray.500" }; // More visible borders
@@ -87,7 +96,6 @@ export const CalendarYearView = ({
     lg: `${cellHeight * 1.4}px`,
   };
 
-  const textColor = { _light: "gray.900", _dark: "gray.200" };
   const mutedText = { _light: "gray.400", _dark: "gray.600" };
 
   const monthLabelWidth = "50px";
@@ -170,41 +178,56 @@ export const CalendarYearView = ({
               const visibleTasks = dayTasks.slice(0, maxTasks);
               const remainingCount = dayTasks.length - visibleTasks.length;
 
+              const cellDate = valid ? new Date(year, monthIndex, day) : null;
+              const dateKey = cellDate ? cellDate.toISOString() : null;
+              const hasHiddenTasks = remainingCount > 0;
+
               return (
-                <Box
+                <Menu.Root
                   key={day}
-                  w={cellSizePx}
-                  minW={cellSizePx}
-                  maxW={cellSizePx}
-                  flexShrink={0}
-                  minH={cellMinHeight}
-                  display="flex"
-                  flexDirection="column"
-                  bg={valid ? cellBg : invalidCellBg}
-                  borderTopWidth={monthIndex === 0 ? "2px" : "1px"}
-                  borderTopColor={todayCell ? todayBorder : borderColor}
-                  borderBottomWidth={monthIndex === 11 ? "2px" : "1px"}
-                  borderBottomColor={todayCell ? todayBorder : borderColor}
-                  borderLeftWidth={day === 1 ? "2px" : "1px"}
-                  borderLeftColor={todayCell ? todayBorder : borderColor}
-                  borderRightWidth={day === 31 ? "2px" : "1px"}
-                  borderRightColor={todayCell ? todayBorder : borderColor}
-                  cursor={valid ? "pointer" : "default"}
-                  opacity={valid ? 1 : 0.3}
-                  _hover={valid ? { bg: cellHover } : {}}
-                  onClick={() => handleCellClick(monthIndex, day)}
-                  transition="all 0.15s"
-                  p={zoom >= 1.0 ? 1 : 0.5}
-                  position="relative"
-                  boxSizing="border-box"
-                  title={
-                    valid && dayTasks.length > 0
-                      ? `${monthOption.label} ${day}: ${dayTasks.length} task${dayTasks.length !== 1 ? "s" : ""}`
-                      : undefined
-                  }
+                  open={openMenuDate === dateKey}
+                  onOpenChange={e => setOpenMenuDate(e.open ? dateKey : null)}
                 >
-                  {/* Day number */}
-                  {/* {valid && (
+                  <Menu.Trigger asChild>
+                    <Box
+                      w={cellSizePx}
+                      minW={cellSizePx}
+                      maxW={cellSizePx}
+                      flexShrink={0}
+                      minH={cellMinHeight}
+                      display="flex"
+                      flexDirection="column"
+                      bg={valid ? cellBg : invalidCellBg}
+                      borderTopWidth={monthIndex === 0 ? "2px" : "1px"}
+                      borderTopColor={todayCell ? todayBorder : borderColor}
+                      borderBottomWidth={monthIndex === 11 ? "2px" : "1px"}
+                      borderBottomColor={todayCell ? todayBorder : borderColor}
+                      borderLeftWidth={day === 1 ? "2px" : "1px"}
+                      borderLeftColor={todayCell ? todayBorder : borderColor}
+                      borderRightWidth={day === 31 ? "2px" : "1px"}
+                      borderRightColor={todayCell ? todayBorder : borderColor}
+                      cursor={valid ? "pointer" : "default"}
+                      opacity={valid ? 1 : 0.3}
+                      _hover={valid ? { bg: cellHover } : {}}
+                      onClick={e => {
+                        // If there are hidden tasks, open menu; otherwise navigate to day
+                        if (!hasHiddenTasks) {
+                          e.stopPropagation();
+                          handleCellClick(monthIndex, day);
+                        }
+                      }}
+                      transition="all 0.15s"
+                      p={zoom >= 1.0 ? 1 : 0.5}
+                      position="relative"
+                      boxSizing="border-box"
+                      title={
+                        valid && dayTasks.length > 0
+                          ? `${monthOption.label} ${day}: ${dayTasks.length} task${dayTasks.length !== 1 ? "s" : ""}`
+                          : undefined
+                      }
+                    >
+                      {/* Day number */}
+                      {/* {valid && (
                     <Box
                       as="span"
                       fontSize={{
@@ -228,51 +251,167 @@ export const CalendarYearView = ({
                     </Box>
                   )} */}
 
-                  {/* Tasks */}
-                  {valid && (
-                    <VStack spacing={zoom >= 1.0 ? 0.5 : 0.25} align="stretch" flex={1} overflow="hidden">
-                      {visibleTasks.map(task => {
-                        const taskColor = getTaskDisplayColor(task);
-                        return (
-                          <Box
-                            key={task.id}
-                            fontSize={{
-                              base: zoom >= 1.5 ? "2xs" : zoom >= 1.0 ? "3xs" : "4xs",
-                              md: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
-                            }}
-                            px={zoom >= 1.0 ? 0.5 : 0.25}
-                            py={zoom >= 1.0 ? 0.5 : 0.25}
-                            borderRadius="md"
-                            isTruncated
-                            color={taskColor ? "white" : undefined}
-                            bg={taskColor || { _light: "gray.200", _dark: "gray.700" }}
-                            _dark={{ bg: taskColor || "gray.700" }}
-                            title={task.title}
-                            lineHeight={zoom >= 1.5 ? 1.2 : zoom >= 1.0 ? 1.1 : 1}
-                            overflow="hidden"
-                            textOverflow="ellipsis"
-                            whiteSpace="nowrap"
-                          >
-                            {task.title}
-                          </Box>
-                        );
-                      })}
-                      {remainingCount > 0 && (
-                        <Box
-                          fontSize={{
-                            base: zoom >= 1.5 ? "3xs" : zoom >= 1.0 ? "4xs" : "5xs",
-                            md: zoom >= 1.5 ? "2xs" : zoom >= 1.0 ? "3xs" : "4xs",
-                          }}
-                          color={mutedText}
-                          textAlign="center"
-                          px={0.5}
-                        >
-                          +{remainingCount}
-                        </Box>
+                      {/* Tasks */}
+                      {valid && (
+                        <VStack spacing={zoom >= 1.0 ? 0.5 : 0.25} align="stretch" flex={1} overflow="hidden">
+                          {visibleTasks.map(task => {
+                            const taskColor = getTaskDisplayColor(task);
+                            return (
+                              <Box
+                                key={task.id}
+                                fontSize={{
+                                  base: zoom >= 1.5 ? "2xs" : zoom >= 1.0 ? "3xs" : "4xs",
+                                  md: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
+                                }}
+                                px={zoom >= 1.0 ? 0.5 : 0.25}
+                                py={zoom >= 1.0 ? 0.5 : 0.25}
+                                borderRadius="md"
+                                isTruncated
+                                color={taskColor ? "white" : undefined}
+                                bg={taskColor || { _light: "gray.200", _dark: "gray.700" }}
+                                _dark={{ bg: taskColor || "gray.700" }}
+                                title={task.title}
+                                lineHeight={zoom >= 1.5 ? 1.2 : zoom >= 1.0 ? 1.1 : 1}
+                                overflow="hidden"
+                                textOverflow="ellipsis"
+                                whiteSpace="nowrap"
+                              >
+                                {task.title}
+                              </Box>
+                            );
+                          })}
+                          {remainingCount > 0 && (
+                            <Box
+                              fontSize={{
+                                base: zoom >= 1.5 ? "3xs" : zoom >= 1.0 ? "4xs" : "5xs",
+                                md: zoom >= 1.5 ? "2xs" : zoom >= 1.0 ? "3xs" : "4xs",
+                              }}
+                              color={mutedText}
+                              textAlign="center"
+                              px={0.5}
+                            >
+                              +{remainingCount}
+                            </Box>
+                          )}
+                        </VStack>
                       )}
-                    </VStack>
+                    </Box>
+                  </Menu.Trigger>
+
+                  {/* Popover menu for all tasks */}
+                  {hasHiddenTasks && (
+                    <Portal>
+                      <Menu.Positioner>
+                        <Menu.Content
+                          onClick={e => e.stopPropagation()}
+                          onMouseDown={e => e.stopPropagation()}
+                          minW="250px"
+                          maxW="350px"
+                          p={2}
+                        >
+                          {/* Go to Day View button */}
+                          <Box
+                            as="button"
+                            w="full"
+                            p={2}
+                            mb={2}
+                            borderRadius="md"
+                            bg={{ _light: "blue.50", _dark: "blue.900" }}
+                            color={{ _light: "blue.700", _dark: "blue.200" }}
+                            _hover={{ bg: { _light: "blue.100", _dark: "blue.800" } }}
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleCellClick(monthIndex, day);
+                              setOpenMenuDate(null);
+                            }}
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                            gap={2}
+                            cursor="pointer"
+                            border="none"
+                            outline="none"
+                          >
+                            <Calendar size={14} />
+                            <Text fontSize="sm" fontWeight="medium">
+                              Go to Day View
+                            </Text>
+                          </Box>
+
+                          {/* All tasks for this day - styled like calendar cells */}
+                          <VStack spacing={1} align="stretch">
+                            {dayTasks.map(task => {
+                              const taskColor = getTaskDisplayColor(task);
+                              const isRecurring = task.recurrence && task.recurrence.type !== "none";
+                              const isWorkoutTask = task.completionType === "workout";
+                              const taskDate = new Date(year, monthIndex, day);
+                              taskDate.setHours(0, 0, 0, 0);
+                              const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, taskDate) : null;
+
+                              return (
+                                <Menu.Root key={task.id}>
+                                  <Menu.Trigger asChild>
+                                    <Box
+                                      as="button"
+                                      w="full"
+                                      px={2}
+                                      py={1.5}
+                                      borderRadius="md"
+                                      bg={taskColor || { _light: "gray.200", _dark: "gray.700" }}
+                                      color={taskColor ? "white" : { _light: "gray.900", _dark: "gray.100" }}
+                                      _hover={{
+                                        opacity: 0.8,
+                                        transform: "translateY(-1px)",
+                                        boxShadow: "sm",
+                                      }}
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                      }}
+                                      cursor="pointer"
+                                      textAlign="left"
+                                      transition="all 0.15s"
+                                      border="none"
+                                      outline="none"
+                                      display="flex"
+                                      alignItems="center"
+                                      gap={2}
+                                    >
+                                      <Text flex={1} fontSize="sm" isTruncated fontWeight="medium">
+                                        {task.title}
+                                      </Text>
+                                    </Box>
+                                  </Menu.Trigger>
+                                  <Portal>
+                                    <Menu.Positioner>
+                                      <Menu.Content
+                                        onClick={e => e.stopPropagation()}
+                                        onMouseDown={e => e.stopPropagation()}
+                                      >
+                                        <TaskContextMenu
+                                          task={task}
+                                          date={taskDate}
+                                          isRecurring={isRecurring}
+                                          isWorkoutTask={isWorkoutTask}
+                                          outcome={outcome}
+                                          onEditTask={onEditTask}
+                                          onEditWorkout={onEditWorkout}
+                                          onOutcomeChange={onOutcomeChange}
+                                          onDuplicateTask={onDuplicateTask}
+                                          onDeleteTask={onDeleteTask}
+                                          onClose={() => setOpenMenuDate(null)}
+                                        />
+                                      </Menu.Content>
+                                    </Menu.Positioner>
+                                  </Portal>
+                                </Menu.Root>
+                              );
+                            })}
+                          </VStack>
+                        </Menu.Content>
+                      </Menu.Positioner>
+                    </Portal>
                   )}
-                </Box>
+                </Menu.Root>
               );
             })}
           </Flex>

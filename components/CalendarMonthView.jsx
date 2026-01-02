@@ -1,8 +1,10 @@
 "use client";
 
-import { Box, Flex, SimpleGrid } from "@chakra-ui/react";
+import { useState } from "react";
+import { Box, Flex, SimpleGrid, Menu, Portal } from "@chakra-ui/react";
 import { shouldShowOnDate, getTaskDisplayColor } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
+import { TaskContextMenu } from "./TaskContextMenu";
 
 export const CalendarMonthView = ({
   date,
@@ -12,7 +14,13 @@ export const CalendarMonthView = ({
   getOutcomeOnDate,
   showCompleted = true,
   zoom = 1.0,
+  onEditTask,
+  onEditWorkout,
+  onOutcomeChange,
+  onDuplicateTask,
+  onDeleteTask,
 }) => {
+  const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
   const bgColor = { _light: "white", _dark: "gray.800" };
   const borderColor = { _light: "gray.200", _dark: "gray.700" };
   const hoverBg = { _light: "gray.50", _dark: "gray.700" };
@@ -97,7 +105,12 @@ export const CalendarMonthView = ({
                         ? nonCurrentMonthBg
                         : "transparent"
                   }
-                  onClick={() => onDayClick(day)}
+                  onClick={e => {
+                    // Only navigate to day if clicking on the cell background, not a task
+                    if (e.target === e.currentTarget || e.target.tagName === "SPAN") {
+                      onDayClick(day);
+                    }
+                  }}
                 >
                   <Box
                     as="span"
@@ -119,25 +132,69 @@ export const CalendarMonthView = ({
                   >
                     {day.getDate()}
                   </Box>
-                  {dayTasks.map(task => (
-                    <Box
-                      key={task.id}
-                      fontSize={{
-                        base: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
-                        md: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
-                      }}
-                      px={1}
-                      py={0.5}
-                      borderRadius="md"
-                      isTruncated
-                      color={getTaskDisplayColor(task) ? "white" : undefined}
-                      mb={0.5}
-                      bg={getTaskDisplayColor(task) || "gray.200"}
-                      _dark={{ bg: getTaskDisplayColor(task) || "gray.700" }}
-                    >
-                      {task.title}
-                    </Box>
-                  ))}
+                  {dayTasks.map(task => {
+                    const isMenuOpen = openMenuTaskId === task.id;
+                    const isRecurring = task.recurrence && task.recurrence.type !== "none";
+                    const isWorkoutTask = task.completionType === "workout";
+                    const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
+
+                    return (
+                      <Menu.Root
+                        key={task.id}
+                        open={isMenuOpen}
+                        onOpenChange={isOpen => {
+                          if (isOpen) {
+                            setOpenMenuTaskId(task.id);
+                          } else {
+                            setOpenMenuTaskId(null);
+                          }
+                        }}
+                      >
+                        <Menu.Trigger asChild>
+                          <Box
+                            fontSize={{
+                              base: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
+                              md: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
+                            }}
+                            px={1}
+                            py={0.5}
+                            borderRadius="md"
+                            isTruncated
+                            color={getTaskDisplayColor(task) ? "white" : undefined}
+                            mb={0.5}
+                            bg={getTaskDisplayColor(task) || "gray.200"}
+                            _dark={{ bg: getTaskDisplayColor(task) || "gray.700" }}
+                            cursor="pointer"
+                            _hover={{ opacity: 0.8 }}
+                            onClick={e => {
+                              e.stopPropagation();
+                            }}
+                          >
+                            {task.title}
+                          </Box>
+                        </Menu.Trigger>
+                        <Portal>
+                          <Menu.Positioner>
+                            <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+                              <TaskContextMenu
+                                task={task}
+                                date={day}
+                                isRecurring={isRecurring}
+                                isWorkoutTask={isWorkoutTask}
+                                outcome={outcome}
+                                onEditTask={onEditTask}
+                                onEditWorkout={onEditWorkout}
+                                onOutcomeChange={onOutcomeChange}
+                                onDuplicateTask={onDuplicateTask}
+                                onDeleteTask={onDeleteTask}
+                                onClose={() => setOpenMenuTaskId(null)}
+                              />
+                            </Menu.Content>
+                          </Menu.Positioner>
+                        </Portal>
+                      </Menu.Root>
+                    );
+                  })}
                 </Box>
               );
             })}

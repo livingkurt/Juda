@@ -14,12 +14,15 @@ import {
   createListCollection,
   Checkbox,
   Input,
+  Menu,
+  Portal,
 } from "@chakra-ui/react";
-import { Check, X, ChevronLeft, ChevronRight, Dumbbell } from "lucide-react";
+import { Check, X, ChevronLeft, ChevronRight, Dumbbell, Edit2, Copy, Trash2 } from "lucide-react";
 import { shouldShowOnDate, formatDateDisplay } from "@/lib/utils";
 import { SelectDropdown } from "./SelectDropdown";
 import { CellEditorPopover } from "./CellEditorPopover";
 import WorkoutModal from "./WorkoutModal";
+import { TagMenuSelector } from "./TagMenuSelector";
 
 // Flatten tasks including subtasks
 const flattenTasks = tasks => {
@@ -190,6 +193,157 @@ const getCompletionForTaskDate = (completions, taskId, date) => {
     );
     return c.taskId === taskId && utcCompletionDate.getTime() === utcCheckDate.getTime();
   });
+};
+
+// Task column header with menu
+const TaskColumnHeader = ({
+  task,
+  onEditTask,
+  onEditWorkout,
+  onDuplicateTask,
+  onDeleteTask,
+  tags,
+  onTagsChange,
+  onCreateTag,
+}) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const isWorkoutTask = task.completionType === "workout";
+
+  return (
+    <Menu.Root open={menuOpen} onOpenChange={({ open }) => setMenuOpen(open)}>
+      <Menu.Trigger asChild>
+        <Box
+          as="button"
+          w="100%"
+          h="100%"
+          px={2}
+          py={2}
+          cursor="pointer"
+          _hover={{ bg: { _light: "gray.100", _dark: "gray.600" } }}
+          onClick={e => {
+            e.stopPropagation();
+            setMenuOpen(true);
+          }}
+          border="none"
+          outline="none"
+          bg="transparent"
+          textAlign="left"
+        >
+          <Text fontSize="xs" noOfLines={1} title={task.title}>
+            {task.title}
+          </Text>
+        </Box>
+      </Menu.Trigger>
+      <Portal>
+        <Menu.Positioner>
+          <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+            {onEditTask && (
+              <Menu.Item
+                onClick={e => {
+                  e.stopPropagation();
+                  onEditTask(task);
+                  setMenuOpen(false);
+                }}
+              >
+                <HStack gap={2}>
+                  <Box
+                    as="span"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    w="14px"
+                    h="14px"
+                    flexShrink={0}
+                  >
+                    <Edit2 size={14} />
+                  </Box>
+                  <Text>Edit</Text>
+                </HStack>
+              </Menu.Item>
+            )}
+            {/* Edit Workout option for workout-type tasks */}
+            {isWorkoutTask && onEditWorkout && (
+              <Menu.Item
+                onClick={e => {
+                  e.stopPropagation();
+                  onEditWorkout(task);
+                  setMenuOpen(false);
+                }}
+              >
+                <HStack gap={2}>
+                  <Box
+                    as="span"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    w="14px"
+                    h="14px"
+                    flexShrink={0}
+                  >
+                    <Dumbbell size={14} />
+                  </Box>
+                  <Text>Edit Workout</Text>
+                </HStack>
+              </Menu.Item>
+            )}
+            {onDuplicateTask && (
+              <Menu.Item
+                onClick={e => {
+                  e.stopPropagation();
+                  onDuplicateTask(task.id);
+                  setMenuOpen(false);
+                }}
+              >
+                <HStack gap={2}>
+                  <Box
+                    as="span"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    w="14px"
+                    h="14px"
+                    flexShrink={0}
+                  >
+                    <Copy size={14} />
+                  </Box>
+                  <Text>Duplicate</Text>
+                </HStack>
+              </Menu.Item>
+            )}
+            {/* Tags submenu */}
+            {tags && onTagsChange && onCreateTag && (
+              <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
+            )}
+            {onDeleteTask && (
+              <Menu.Item
+                color="red.500"
+                onClick={e => {
+                  e.stopPropagation();
+                  onDeleteTask(task.id);
+                  setMenuOpen(false);
+                }}
+              >
+                <HStack gap={2}>
+                  <Box
+                    as="span"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    w="14px"
+                    h="14px"
+                    flexShrink={0}
+                  >
+                    <Trash2 size={14} />
+                  </Box>
+                  <Text>Delete</Text>
+                </HStack>
+              </Menu.Item>
+            )}
+          </Menu.Content>
+        </Menu.Positioner>
+      </Portal>
+    </Menu.Root>
+  );
 };
 
 // Table cell component
@@ -461,6 +615,13 @@ export const RecurringTableView = ({
   updateCompletion,
   getCompletionForDate,
   updateTask,
+  onEditTask,
+  onEditWorkout,
+  onDuplicateTask,
+  onDeleteTask,
+  tags,
+  onTagsChange,
+  onCreateTag,
 }) => {
   const [range, setRange] = useState("month");
   const [page, setPage] = useState(0);
@@ -666,7 +827,7 @@ export const RecurringTableView = ({
                 left={{ base: "auto", md: 0 }}
                 zIndex={{ base: "auto", md: 11 }}
                 bg={headerBg}
-                minW="120px"
+                minW="150px"
                 borderRightWidth="2px"
                 borderColor={borderColor}
                 borderWidth="1px"
@@ -714,17 +875,22 @@ export const RecurringTableView = ({
                     key={task.id}
                     minW="100px"
                     maxW="150px"
-                    title={task.title}
                     borderWidth="1px"
                     borderColor={{ _light: "gray.200", _dark: "gray.600" }}
                     borderLeftWidth="0"
                     borderTopWidth="0"
-                    px={2}
-                    py={2}
+                    p={0}
                   >
-                    <Text fontSize="xs" noOfLines={1}>
-                      {task.title}
-                    </Text>
+                    <TaskColumnHeader
+                      task={task}
+                      onEditTask={onEditTask}
+                      onEditWorkout={onEditWorkout}
+                      onDuplicateTask={onDuplicateTask}
+                      onDeleteTask={onDeleteTask}
+                      tags={tags}
+                      onTagsChange={onTagsChange}
+                      onCreateTag={onCreateTag}
+                    />
                   </Table.ColumnHeader>
                 ))
               )}
@@ -772,6 +938,7 @@ export const RecurringTableView = ({
                           textAlign="center"
                           verticalAlign="middle"
                           position="relative"
+                          minW="150px"
                         >
                           <TableCell
                             task={task}
