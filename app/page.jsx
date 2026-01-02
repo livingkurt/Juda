@@ -1512,13 +1512,14 @@ export default function DailyTasksApp() {
             // Date is the same, no updates needed
             updates = {};
           }
-          // Set status to in_progress when moving from backlog to today section (only for non-recurring tasks)
-          if (sourceParsed.type === "backlog") {
-            updates.status = "in_progress";
-            // Set startedAt when moving to in_progress if not already set
-            if (!task.startedAt) {
-              updates.startedAt = new Date().toISOString();
-            }
+        }
+
+        // Set status to in_progress when moving from backlog to today section (only for non-recurring tasks)
+        if (!isRecurring && sourceParsed.type === "backlog") {
+          updates.status = "in_progress";
+          // Set startedAt when moving to in_progress if not already set
+          if (!task.startedAt) {
+            updates.startedAt = new Date().toISOString();
           }
         }
       }

@@ -55,15 +55,21 @@ const productionUrl = cleanDatabaseUrl(process.env.PRODUCTION_DATABASE_URL);
 const localUrl = cleanDatabaseUrl(process.env.DATABASE_URL);
 
 if (!productionUrl) {
+  // eslint-disable-next-line no-console
   console.error("❌ Error: PRODUCTION_DATABASE_URL not found in .env file");
+  // eslint-disable-next-line no-console
   console.error("   Add it to your .env file:");
+  // eslint-disable-next-line no-console
   console.error('   PRODUCTION_DATABASE_URL="your-production-database-url"');
+  // eslint-disable-next-line no-console
   console.error("   Get it from Vercel: Settings → Environment Variables → DATABASE_URL");
   process.exit(1);
 }
 
 if (!localUrl) {
+  // eslint-disable-next-line no-console
   console.error("❌ Error: DATABASE_URL not found in .env file");
+  // eslint-disable-next-line no-console
   console.error("   Make sure your .env file has DATABASE_URL set for your local database");
   process.exit(1);
 }
@@ -95,17 +101,20 @@ async function dumpTable(client, tableName) {
     const rows = await client.unsafe(`SELECT * FROM "${tableName}"`);
     return rows;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.warn(`   ⚠️  Could not dump table "${tableName}": ${error.message}`);
     return [];
   }
 }
 
 async function dumpProduction() {
+  // eslint-disable-next-line no-console
   console.log("📦 Dumping production database...\n");
 
   try {
     // Get all tables
     const tables = await getUserTables(productionClient);
+    // eslint-disable-next-line no-console
     console.log(`   Found ${tables.length} tables: ${tables.join(", ")}\n`);
 
     // Dump all tables
@@ -117,6 +126,7 @@ async function dumpProduction() {
     for (const tableName of tables) {
       const rows = await dumpTable(productionClient, tableName);
       dump.tables[tableName] = rows;
+      // eslint-disable-next-line no-console
       console.log(`   ✓ ${tableName}: ${rows.length} rows`);
     }
 
@@ -131,14 +141,18 @@ async function dumpProduction() {
 
     fs.writeFileSync(dumpFile, JSON.stringify(dump, null, 2));
 
+    // eslint-disable-next-line no-console
+
     console.log(`\n✅ Dump saved to: ${dumpFile}`);
 
     // Summary
     const totalRows = Object.values(dump.tables).reduce((sum, rows) => sum + rows.length, 0);
+    // eslint-disable-next-line no-console
     console.log(`   Total: ${tables.length} tables, ${totalRows} rows\n`);
 
     return dump;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("❌ Error dumping production database:", error.message);
     throw error;
   }
@@ -229,9 +243,12 @@ function topologicalSort(tables, dependencies) {
 
 async function restoreToLocal(dump) {
   if (!localUrl) {
+    // eslint-disable-next-line no-console
     console.log("⚠️  Skipping local restore (no DATABASE_URL set)");
     return;
   }
+
+  // eslint-disable-next-line no-console
 
   console.log("🔄 Restoring to local database...\n");
 
@@ -245,23 +262,28 @@ async function restoreToLocal(dump) {
     const sortedTables = topologicalSort(tables, dependencies);
 
     // Clear all tables in reverse dependency order
+    // eslint-disable-next-line no-console
     console.log("   Clearing tables...");
     for (const tableName of sortedTables.reverse()) {
       try {
         await localClient.unsafe(`TRUNCATE TABLE "${tableName}" CASCADE`);
+        // eslint-disable-next-line no-console
         console.log(`   ✓ Cleared ${tableName}`);
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.warn(`   ⚠️  Could not clear table "${tableName}": ${error.message}`);
       }
     }
 
     // Restore tables in dependency order (dependencies first)
     sortedTables.reverse();
+    // eslint-disable-next-line no-console
     console.log("\n   Restoring data...");
 
     for (const tableName of sortedTables) {
       const rows = dump.tables[tableName];
       if (!rows || rows.length === 0) {
+        // eslint-disable-next-line no-console
         console.log(`   ○ ${tableName}: 0 rows (skipped)`);
         continue;
       }
@@ -311,15 +333,21 @@ async function restoreToLocal(dump) {
           await insertRows(localClient, tableName, processedRows);
         }
 
+        // eslint-disable-next-line no-console
+
         console.log(`   ✓ ${tableName}: ${rows.length} rows`);
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error(`   ✗ ${tableName}: Failed - ${error.message}`);
         // Continue with other tables even if one fails
       }
     }
 
+    // eslint-disable-next-line no-console
+
     console.log("\n✅ Local database restored successfully!");
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("❌ Error restoring to local database:", error.message);
     throw error;
   }
@@ -334,9 +362,11 @@ async function main() {
     if (shouldRestore) {
       await restoreToLocal(dump);
     } else {
+      // eslint-disable-next-line no-console
       console.log('💡 Tip: Use "npm run db:restore" to automatically restore to local database');
     }
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("\n❌ Failed:", error.message);
     process.exit(1);
   } finally {

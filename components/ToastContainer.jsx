@@ -9,15 +9,17 @@ export function ToastContainer() {
   const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
-    const unsubscribe = subscribeToToasts(toastData => {
+    const handleToast = toastData => {
       setToasts(prev => [...prev, toastData]);
 
       // Auto-remove after duration
+      const duration = toastData.duration || 3000;
       setTimeout(() => {
         setToasts(prev => prev.filter(t => t.id !== toastData.id));
-      }, toastData.duration || 3000);
-    });
+      }, duration);
+    };
 
+    const unsubscribe = subscribeToToasts(handleToast);
     return unsubscribe;
   }, []);
 

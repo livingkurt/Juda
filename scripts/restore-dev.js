@@ -54,8 +54,11 @@ loadEnvFile();
 const devUrl = cleanDatabaseUrl(process.env.DEV_DATABASE_URL || process.env.DATABASE_URL);
 
 if (!devUrl) {
+  // eslint-disable-next-line no-console
   console.error("❌ Error: DATABASE_URL or DEV_DATABASE_URL not found in .env file");
+  // eslint-disable-next-line no-console
   console.error("   Make sure your .env file has DATABASE_URL set for your dev database");
+  // eslint-disable-next-line no-console
   console.error("   Or set DEV_DATABASE_URL to explicitly use a dev database");
   process.exit(1);
 }
@@ -63,6 +66,7 @@ if (!devUrl) {
 // Show which database we're connecting to (masked for security)
 const urlObj = new URL(devUrl);
 const maskedUrl = `${urlObj.protocol}//${urlObj.username}@${urlObj.hostname}${urlObj.pathname}`;
+// eslint-disable-next-line no-console
 console.log(`🔗 Connecting to: ${maskedUrl}\n`);
 
 const devClient = postgres(devUrl);
@@ -70,7 +74,9 @@ const devClient = postgres(devUrl);
 function findMostRecentDump() {
   const dumpDir = path.join(process.cwd(), "dumps");
   if (!fs.existsSync(dumpDir)) {
+    // eslint-disable-next-line no-console
     console.error("❌ Error: dumps directory not found");
+    // eslint-disable-next-line no-console
     console.error("   Run 'npm run db:dump' first to create a dump");
     process.exit(1);
   }
@@ -79,7 +85,9 @@ function findMostRecentDump() {
   const dumpFiles = files.filter(file => file.startsWith("production-dump-") && file.endsWith(".json"));
 
   if (dumpFiles.length === 0) {
+    // eslint-disable-next-line no-console
     console.error("❌ Error: No dump files found in dumps/ directory");
+    // eslint-disable-next-line no-console
     console.error("   Run 'npm run db:dump' first to create a dump");
     process.exit(1);
   }
@@ -98,6 +106,7 @@ function loadDump(dumpPath) {
     const dump = JSON.parse(dumpContent);
     return dump;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error(`❌ Error loading dump file: ${error.message}`);
     throw error;
   }
@@ -187,20 +196,24 @@ function topologicalSort(tables, dependencies) {
 }
 
 async function restoreToDev(dump) {
+  // eslint-disable-next-line no-console
   console.log("🔄 Restoring to dev database...\n");
 
   try {
     const tables = Object.keys(dump.tables);
 
     // Get current counts for comparison
+    // eslint-disable-next-line no-console
     console.log("   Current database state:");
     const currentCounts = {};
     for (const tableName of tables) {
       try {
         const result = await devClient.unsafe(`SELECT COUNT(*) as count FROM "${tableName}"`);
         currentCounts[tableName] = parseInt(result[0].count);
+        // eslint-disable-next-line no-console
         console.log(`     ${tableName}: ${currentCounts[tableName]} rows`);
-      } catch (error) {
+      } catch {
+        // eslint-disable-next-line no-console
         console.log(`     ${tableName}: table not found (will be skipped)`);
       }
     }
@@ -212,23 +225,28 @@ async function restoreToDev(dump) {
     const sortedTables = topologicalSort(tables, dependencies);
 
     // Clear all tables in reverse dependency order
+    // eslint-disable-next-line no-console
     console.log("\n   Clearing tables...");
     for (const tableName of sortedTables.reverse()) {
       try {
         await devClient.unsafe(`TRUNCATE TABLE "${tableName}" CASCADE`);
+        // eslint-disable-next-line no-console
         console.log(`   ✓ Cleared ${tableName}`);
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.warn(`   ⚠️  Could not clear table "${tableName}": ${error.message}`);
       }
     }
 
     // Restore tables in dependency order (dependencies first)
     sortedTables.reverse();
+    // eslint-disable-next-line no-console
     console.log("\n   Restoring data...");
 
     for (const tableName of sortedTables) {
       const rows = dump.tables[tableName];
       if (!rows || rows.length === 0) {
+        // eslint-disable-next-line no-console
         console.log(`   ○ ${tableName}: 0 rows (skipped)`);
         continue;
       }
@@ -278,14 +296,18 @@ async function restoreToDev(dump) {
           await insertRows(devClient, tableName, processedRows);
         }
 
+        // eslint-disable-next-line no-console
+
         console.log(`   ✓ ${tableName}: ${rows.length} rows`);
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error(`   ✗ ${tableName}: Failed - ${error.message}`);
         // Continue with other tables even if one fails
       }
     }
 
     // Verify the restore
+    // eslint-disable-next-line no-console
     console.log("\n   Verifying restore...");
     let allMatch = true;
     for (const tableName of tables) {
@@ -295,22 +317,28 @@ async function restoreToDev(dump) {
         const expectedCount = dump.tables[tableName]?.length || 0;
 
         if (actualCount === expectedCount) {
+          // eslint-disable-next-line no-console
           console.log(`   ✓ ${tableName}: ${actualCount} rows (matches)`);
         } else {
+          // eslint-disable-next-line no-console
           console.warn(`   ⚠️  ${tableName}: ${actualCount} rows (expected ${expectedCount})`);
           allMatch = false;
         }
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.warn(`   ⚠️  Could not verify ${tableName}: ${error.message}`);
       }
     }
 
     if (allMatch) {
+      // eslint-disable-next-line no-console
       console.log("\n✅ Dev database restored successfully! All counts match.");
     } else {
+      // eslint-disable-next-line no-console
       console.log("\n⚠️  Dev database restored with some mismatches. Check warnings above.");
     }
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("❌ Error restoring to dev database:", error.message);
     throw error;
   }
@@ -320,24 +348,30 @@ async function main() {
   try {
     // Find most recent dump
     const { path: dumpPath, filename } = findMostRecentDump();
+    // eslint-disable-next-line no-console
     console.log(`📦 Loading dump: ${filename}\n`);
 
     // Load dump
     const dump = loadDump(dumpPath);
+    // eslint-disable-next-line no-console
     console.log(`   Timestamp: ${dump.timestamp || "unknown"}`);
 
     // Show what's in the dump
     if (dump.tables) {
+      // eslint-disable-next-line no-console
       console.log(`   Tables in dump:`);
       for (const [tableName, rows] of Object.entries(dump.tables)) {
+        // eslint-disable-next-line no-console
         console.log(`     ${tableName}: ${rows.length} rows`);
       }
     }
+    // eslint-disable-next-line no-console
     console.log("");
 
     // Restore to dev
     await restoreToDev(dump);
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("\n❌ Failed:", error.message);
     process.exit(1);
   } finally {

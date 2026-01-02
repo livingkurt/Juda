@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Box, Flex } from "@chakra-ui/react";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate } from "@/lib/utils";
 import { HOUR_HEIGHT_WEEK, DRAG_THRESHOLD } from "@/lib/calendarConstants";
@@ -43,16 +43,18 @@ export const CalendarWeekView = ({
   const hourBorderColor = { _light: "gray.100", _dark: "gray.700" };
   const hoverBg = { _light: "gray.50", _dark: "gray.700" };
 
-  // Calculate week days
-  const startOfWeek = new Date(date);
-  startOfWeek.setDate(date.getDate() - date.getDay());
-  startOfWeek.setHours(0, 0, 0, 0);
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(startOfWeek);
-    d.setDate(startOfWeek.getDate() + i);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
+  // Calculate week days - memoized to prevent recalculation on every render
+  const weekDays = useMemo(() => {
+    const startOfWeek = new Date(date);
+    startOfWeek.setDate(date.getDate() - date.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    });
+  }, [date]);
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const today = new Date();

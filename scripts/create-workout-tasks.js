@@ -6,7 +6,7 @@
  */
 
 import { db } from "../lib/db.js";
-import { tasks, sections, users } from "../lib/schema.js";
+import { tasks, sections } from "../lib/schema.js";
 import { eq } from "drizzle-orm";
 
 // Helper to generate CUID-like IDs
@@ -18,6 +18,7 @@ function generateCuid() {
 
 async function createWorkoutTasks() {
   try {
+    // eslint-disable-next-line no-console
     console.log("🔍 Looking for user and section...");
 
     // Get the first user
@@ -27,6 +28,7 @@ async function createWorkoutTasks() {
       process.exit(1);
     }
 
+    // eslint-disable-next-line no-console
     console.log(`✅ Found user: ${user.email}`);
 
     // Get the first section for this user
@@ -39,6 +41,7 @@ async function createWorkoutTasks() {
       process.exit(1);
     }
 
+    // eslint-disable-next-line no-console
     console.log(`✅ Found section: ${section.name}`);
 
     // Check if workout tasks already exist
@@ -48,10 +51,12 @@ async function createWorkoutTasks() {
 
     const hasWorkout8 = existingTasks.some(t => t.title.includes("Workout 8"));
     if (hasWorkout8) {
+      // eslint-disable-next-line no-console
       console.log("⚠️  Workout 8 tasks already exist. Skipping creation.");
       process.exit(0);
     }
 
+    // eslint-disable-next-line no-console
     console.log("🏋️  Creating Workout 8 tasks...");
 
     // The full workout data would go here - for brevity, I'll show the structure
@@ -62,11 +67,16 @@ async function createWorkoutTasks() {
     const cooldownTaskId = generateCuid();
 
     // Insert tasks (you'll need to add the full workoutData from the migration)
+    // eslint-disable-next-line no-console
     console.log("Creating tasks...");
 
+    // eslint-disable-next-line no-console
     console.log("✅ Workout 8 tasks created successfully!");
+    // eslint-disable-next-line no-console
     console.log(`   - Warmup Task ID: ${warmupTaskId}`);
+    // eslint-disable-next-line no-console
     console.log(`   - Workout Task ID: ${workoutTaskId}`);
+    // eslint-disable-next-line no-console
     console.log(`   - Cool Down Task ID: ${cooldownTaskId}`);
   } catch (error) {
     console.error("❌ Error creating workout tasks:", error);

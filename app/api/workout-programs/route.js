@@ -146,74 +146,87 @@ export async function POST(request) {
         programId = newProgram.id;
       }
 
-      // Create sections with nested data
-      if (sectionsData && sectionsData.length > 0) {
-        for (let sIdx = 0; sIdx < sectionsData.length; sIdx++) {
-          const sectionData = sectionsData[sIdx];
+      // Helper function to create weekly progressions for an exercise (no nesting)
+      const createWeeklyProgressions = async (tx, exerciseId, weeklyProgression) => {
+        if (!weeklyProgression || weeklyProgression.length === 0) return;
 
-          const [section] = await tx
-            .insert(workoutSections)
+        const progressionValues = weeklyProgression.map(wp => ({
+          exerciseId,
+          week: wp.week,
+          targetValue: wp.targetValue,
+          isDeload: wp.isDeload || false,
+          isTest: wp.isTest || false,
+        }));
+
+        await tx.insert(weeklyProgressions).values(progressionValues);
+      };
+
+      // Helper function to create a single exercise
+      const createExercise = async (tx, dayId, exerciseData, order) => {
+        const [exercise] = await tx
+          .insert(exercises)
+          .values({
+            id: exerciseData.id, // Preserve ID
+            dayId,
+            name: exerciseData.name,
+            type: exerciseData.type || "reps",
+            sets: exerciseData.sets || 3,
+            targetValue: exerciseData.targetValue,
+            unit: exerciseData.unit || "reps",
+            goal: exerciseData.goal || null,
+            notes: exerciseData.notes || null,
+            order,
+          })
+          .returning();
+
+        await createWeeklyProgressions(tx, exercise.id, exerciseData.weeklyProgression);
+      };
+
+      // Create sections with nested data
+      if (!sectionsData || sectionsData.length === 0) {
+        return { programId };
+      }
+
+      for (let sIdx = 0; sIdx < sectionsData.length; sIdx++) {
+        const sectionData = sectionsData[sIdx];
+
+        const [section] = await tx
+          .insert(workoutSections)
+          .values({
+            id: sectionData.id, // Preserve ID for completion compatibility
+            programId,
+            name: sectionData.name,
+            type: sectionData.type || "workout",
+            order: sIdx,
+          })
+          .returning();
+
+        // Create days for this section
+        if (!sectionData.days || sectionData.days.length === 0) {
+          continue;
+        }
+
+        for (let dIdx = 0; dIdx < sectionData.days.length; dIdx++) {
+          const dayData = sectionData.days[dIdx];
+
+          const [day] = await tx
+            .insert(workoutDays)
             .values({
-              id: sectionData.id, // Preserve ID for completion compatibility
-              programId,
-              name: sectionData.name,
-              type: sectionData.type || "workout",
-              order: sIdx,
+              id: dayData.id, // Preserve ID
+              sectionId: section.id,
+              name: dayData.name,
+              daysOfWeek: dayData.daysOfWeek || [1],
+              order: dIdx,
             })
             .returning();
 
-          // Create days
-          if (sectionData.days && sectionData.days.length > 0) {
-            for (let dIdx = 0; dIdx < sectionData.days.length; dIdx++) {
-              const dayData = sectionData.days[dIdx];
+          // Create exercises for this day
+          if (!dayData.exercises || dayData.exercises.length === 0) {
+            continue;
+          }
 
-              const [day] = await tx
-                .insert(workoutDays)
-                .values({
-                  id: dayData.id, // Preserve ID
-                  sectionId: section.id,
-                  name: dayData.name,
-                  daysOfWeek: dayData.daysOfWeek || [1],
-                  order: dIdx,
-                })
-                .returning();
-
-              // Create exercises
-              if (dayData.exercises && dayData.exercises.length > 0) {
-                for (let eIdx = 0; eIdx < dayData.exercises.length; eIdx++) {
-                  const exerciseData = dayData.exercises[eIdx];
-
-                  const [exercise] = await tx
-                    .insert(exercises)
-                    .values({
-                      id: exerciseData.id, // Preserve ID
-                      dayId: day.id,
-                      name: exerciseData.name,
-                      type: exerciseData.type || "reps",
-                      sets: exerciseData.sets || 3,
-                      targetValue: exerciseData.targetValue,
-                      unit: exerciseData.unit || "reps",
-                      goal: exerciseData.goal || null,
-                      notes: exerciseData.notes || null,
-                      order: eIdx,
-                    })
-                    .returning();
-
-                  // Create weekly progressions
-                  if (exerciseData.weeklyProgression && exerciseData.weeklyProgression.length > 0) {
-                    const progressionValues = exerciseData.weeklyProgression.map(wp => ({
-                      exerciseId: exercise.id,
-                      week: wp.week,
-                      targetValue: wp.targetValue,
-                      isDeload: wp.isDeload || false,
-                      isTest: wp.isTest || false,
-                    }));
-
-                    await tx.insert(weeklyProgressions).values(progressionValues);
-                  }
-                }
-              }
-            }
+          for (let eIdx = 0; eIdx < dayData.exercises.length; eIdx++) {
+            await createExercise(tx, day.id, dayData.exercises[eIdx], eIdx);
           }
         }
       }

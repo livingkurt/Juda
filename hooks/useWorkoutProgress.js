@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuthFetch } from "./useAuthFetch";
+import { useAuthFetch } from "./useAuthFetch.js";
 
 /**
  * Hook to check if a workout task has in-progress workout data for a specific date
@@ -11,13 +11,19 @@ import { useAuthFetch } from "./useAuthFetch";
  * @returns {boolean} - Whether the task has workout progress for this date
  */
 export const useWorkoutProgress = (taskId, date, isWorkoutTask) => {
-  const [hasProgress, setHasProgress] = useState(false);
+  // Initialize state based on props to avoid setState in effect
+  const [hasProgress, setHasProgress] = useState(() => {
+    return Boolean(taskId && date && isWorkoutTask);
+  });
   const authFetch = useAuthFetch();
 
   useEffect(() => {
     if (!taskId || !date || !isWorkoutTask) {
-      setHasProgress(false);
-      return;
+      // Use setTimeout to avoid synchronous setState in effect
+      const timeoutId = setTimeout(() => {
+        setHasProgress(false);
+      }, 0);
+      return () => clearTimeout(timeoutId);
     }
 
     const checkProgress = async () => {
@@ -43,4 +49,3 @@ export const useWorkoutProgress = (taskId, date, isWorkoutTask) => {
 
   return hasProgress;
 };
-

@@ -4,6 +4,18 @@ alwaysApply: true
 
 # Juda - Daily Task Manager
 
+## 🚨 CRITICAL REMINDERS (Always Apply)
+
+Before making any changes, remember:
+
+1. **React 19** - Don't use `useMemo`/`useCallback` unless there's high computational cost
+2. **Chakra UI v3** - Syntax is different from v2, check existing components for patterns
+3. **Next.js 16** - Latest version with App Router
+4. **Drizzle ORM** - NOT Prisma! Use `lib/db.js` and `lib/schema.js`
+5. **Lint-Free** - Always run `npm run lint` and fix ALL errors before completing tasks
+
+---
+
 ## Project Overview
 
 Juda is a daily task management system built with Next.js, Chakra UI, and PostgreSQL. The core feature is a flexible drag-and-drop interface that allows users to seamlessly move tasks between three main areas:
@@ -18,17 +30,94 @@ The goal is to make task scheduling feel effortless - drag a task from your back
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
-- **UI Library**: Chakra UI v2
-- **Database**: PostgreSQL with Prisma ORM
-- **Drag & Drop**: @hello-pangea/dnd (React DnD fork)
+- **Framework**: Next.js 16 (App Router) - Latest version
+- **React**: React 19 - Latest version with automatic optimizations
+- **UI Library**: Chakra UI v3 - Latest version (syntax differs significantly from v2)
+- **Database**: PostgreSQL with Drizzle ORM (NOT Prisma)
+- **Drag & Drop**: @dnd-kit (replaced @hello-pangea/dnd)
 - **Icons**: Lucide React
+
+---
+
+## ⚠️ CRITICAL: React 19 Optimization Rules
+
+**React 19 automatically optimizes components**, so `useMemo` and `useCallback` are **NOT necessary** unless you have:
+
+1. **High computational cost** - Expensive calculations that take >10ms
+2. **Large object/array creation** - Creating massive data structures (>1000 items)
+3. **Stable reference requirements** - When a dependency array requires exact reference equality
+
+### ❌ DON'T Do This (Unnecessary in React 19)
+
+```javascript
+// Bad - React 19 handles this automatically
+const memoizedValue = useMemo(() => expensiveCalculation(data), [data]);
+const memoizedCallback = useCallback(() => handleClick(id), [id]);
+```
+
+### ✅ DO This Instead
+
+```javascript
+// Good - Let React 19 optimize automatically
+const value = expensiveCalculation(data);
+const handleClick = () => doSomething(id);
+```
+
+**Only use useMemo/useCallback when profiling shows actual performance issues.**
+
+---
+
+## ⚠️ CRITICAL: Chakra UI v3 Syntax
+
+**Chakra UI v3 has significant syntax differences from v2.** Always use v3 patterns:
+
+### Component Imports
+
+```javascript
+// ✅ CORRECT - v3 syntax
+import { Box, Flex, Button, Text, VStack, HStack } from "@chakra-ui/react";
+```
+
+### Styling Patterns
+
+Chakra UI v3 uses a different styling system. Check existing components for patterns:
+
+- Use `Box`, `Flex`, `VStack`, `HStack` for layout
+- Use `Button`, `Text`, `Input` for form elements
+- Check `components/TaskItem.jsx` and `components/WorkoutModal.jsx` for examples
+
+**When in doubt, check existing components in the codebase for v3 patterns.**
+
+---
+
+## ⚠️ CRITICAL: Lint-Free Codebase
+
+**This project maintains a lint-free codebase.** You MUST:
+
+1. **Run linters after every code change:**
+
+   ```bash
+   npm run lint
+   ```
+
+2. **Fix ALL linting errors before completing any task:**
+
+   ```bash
+   npm run lint:fix  # Auto-fix what can be fixed
+   # Then manually fix remaining issues
+   ```
+
+3. **Never commit code with linting errors**
+
+4. **Check linting status before marking tasks complete**
+
+The project uses ESLint with Next.js, React, and Prettier configurations. All code must pass linting checks.
 
 ---
 
 ## Project Structure
 
-```
+```text
 juda/
 ├── app/
 │   ├── api/                    # API routes
@@ -52,11 +141,13 @@ juda/
 │   ├── useSections.js         # Section state & API calls
 │   └── useBacklog.js          # Backlog state & API calls
 ├── lib/
-│   ├── prisma.js              # Prisma client singleton
+│   ├── db.js                  # Drizzle database client
+│   ├── schema.js              # Drizzle schema definitions
 │   ├── utils.js               # Helper functions
 │   └── constants.js           # App constants
-└── prisma/
-    └── schema.prisma          # Database schema
+└── drizzle/
+    ├── *.sql                  # Migration SQL files
+    └── meta/                  # Migration metadata
 ```
 
 ---
@@ -133,11 +224,12 @@ parseDroppableId("calendar-week-untimed|2025-01-15T00:00:00.000Z");
 
 The calendar views use TWO separate drag systems:
 
-### 1. @hello-pangea/dnd (Cross-Container)
+### 1. @dnd-kit (Cross-Container)
 
 - Handles dragging tasks between containers (backlog ↔ today ↔ calendar)
-- Uses `<DragDropContext>`, `<Droppable>`, `<Draggable>`
+- Uses `<DndContext>`, `<SortableContext>`, `<useSortable>` from `@dnd-kit`
 - Controlled by `handleDragEnd` in `page.jsx`
+- Uses `@dnd-kit/core` and `@dnd-kit/sortable` packages
 
 ### 2. Internal Mouse Drag (Time/Duration Adjustment)
 
@@ -226,6 +318,8 @@ const updateTask = async (id, taskData) => {
 2. **`components/CalendarDayView.jsx`** - Day view with both DnD and internal drag systems
 3. **`lib/utils.js`** - `shouldShowOnDate()`, `calculateTaskPositions()`, time conversion helpers
 4. **`hooks/useTasks.js`** - Task CRUD with optimistic updates
+5. **`lib/db.js`** - Drizzle database client and connection
+6. **`lib/schema.js`** - Drizzle schema definitions
 
 ---
 
@@ -273,20 +367,22 @@ try {
 
 ## Adding New Features
 
-### Adding a new droppable area:
+### Adding a new droppable area
 
 1. Add ID generator to `createDroppableId` in `page.jsx`
 2. Add parsing logic to `parseDroppableId` in `page.jsx`
 3. Add behavior rules to `handleDragEnd` in `page.jsx`
 4. Create the `<Droppable>` component with correct ID
 
-### Adding a new task property:
+### Adding a new task property
 
-1. Update Prisma schema in `prisma/schema.prisma`
-2. Run `npx prisma migrate dev`
-3. Update API routes to handle the field
-4. Update `TaskDialog.jsx` form
-5. Update display in `TaskItem.jsx` / calendar views
+1. Update Drizzle schema in `lib/schema.js`
+2. Generate migration: `npm run db:generate migration_name`
+3. Write SQL in the generated migration file
+4. Run migration: `npm run db:migrate`
+5. Update API routes to handle the field
+6. Update `TaskDialog.jsx` form
+7. Update display in `TaskItem.jsx` / calendar views
 
 ---
 
@@ -295,8 +391,11 @@ try {
 ```bash
 npm run dev          # Start dev server on port 3001
 npm run build        # Build for production
-npx prisma studio    # Open database GUI
-npx prisma migrate dev --name <name>  # Create migration
+npm run lint         # Check for linting errors
+npm run lint:fix     # Auto-fix linting errors
+npm run db:generate <name>  # Generate Drizzle migration
+npm run db:migrate   # Apply pending migrations
+npm run db:studio    # Open database GUI (Drizzle Studio)
 ```
 
 ---

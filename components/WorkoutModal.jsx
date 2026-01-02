@@ -94,16 +94,17 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
           // Transform API response into completionData structure
           const transformed = {};
 
-          data.completions.forEach(completion => {
-            // Find which section/day this exercise belongs to
+          const transformCompletion = completion => {
             if (!workoutData) return;
 
-            workoutData.sections.forEach(section => {
-              section.days.forEach(day => {
+            for (const section of workoutData.sections) {
+              for (const day of section.days) {
                 const exercise = day.exercises.find(ex => ex.id === completion.exerciseId);
                 if (exercise) {
                   if (!transformed[section.id]) transformed[section.id] = { days: {} };
-                  if (!transformed[section.id].days[day.id]) transformed[section.id].days[day.id] = { exercises: {} };
+                  if (!transformed[section.id].days[day.id]) {
+                    transformed[section.id].days[day.id] = { exercises: {} };
+                  }
                   if (!transformed[section.id].days[day.id].exercises[exercise.id]) {
                     transformed[section.id].days[day.id].exercises[exercise.id] = { sets: [] };
                   }
@@ -116,11 +117,13 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
                     distance: completion.distance,
                     pace: completion.pace,
                   });
+                  return; // Found the exercise, no need to continue
                 }
-              });
-            });
-          });
+              }
+            }
+          };
 
+          data.completions.forEach(transformCompletion);
           setCompletionData(transformed);
         }
       } catch (err) {
@@ -145,36 +148,38 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
         const dateKey = currentDate.toISOString().split("T")[0];
         const savePromises = [];
 
-        Object.entries(dataToSave).forEach(([_sectionId, sectionData]) => {
-          if (!sectionData?.days) return;
-
-          Object.entries(sectionData.days).forEach(([_dayId, dayData]) => {
-            if (!dayData?.exercises) return;
-
-            Object.entries(dayData.exercises).forEach(([exerciseId, exerciseData]) => {
-              if (!exerciseData?.sets) return;
-
-              exerciseData.sets.forEach(setData => {
-                savePromises.push(
-                  authFetchRef.current("/api/workout-set-completions", {
-                    method: "POST",
-                    body: JSON.stringify({
-                      taskId: task.id,
-                      date: dateKey,
-                      exerciseId,
-                      setNumber: setData.setNumber,
-                      completed: setData.completed,
-                      value: setData.value,
-                      time: setData.time,
-                      distance: setData.distance,
-                      pace: setData.pace,
-                    }),
-                  })
-                );
-              });
-            });
+        const createSavePromise = (exerciseId, setData) => {
+          return authFetchRef.current("/api/workout-set-completions", {
+            method: "POST",
+            body: JSON.stringify({
+              taskId: task.id,
+              date: dateKey,
+              exerciseId,
+              setNumber: setData.setNumber,
+              completed: setData.completed,
+              value: setData.value,
+              time: setData.time,
+              distance: setData.distance,
+              pace: setData.pace,
+            }),
           });
-        });
+        };
+
+        for (const [_sectionId, sectionData] of Object.entries(dataToSave)) {
+          if (!sectionData?.days) continue;
+
+          for (const [_dayId, dayData] of Object.entries(sectionData.days)) {
+            if (!dayData?.exercises) continue;
+
+            for (const [exerciseId, exerciseData] of Object.entries(dayData.exercises)) {
+              if (!exerciseData?.sets) continue;
+
+              for (const setData of exerciseData.sets) {
+                savePromises.push(createSavePromise(exerciseId, setData));
+              }
+            }
+          }
+        }
 
         await Promise.all(savePromises);
       } catch (err) {
