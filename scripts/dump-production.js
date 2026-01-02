@@ -3,16 +3,15 @@
 /**
  * Script to dump production database and restore it locally
  *
- * Reads PRODUCTION_DATABASE_URL and DATABASE_URL from .env file
+ * This script is SCHEMA-AGNOSTIC - it dumps all tables and columns automatically
+ * without needing to know the schema in advance.
  *
  * Usage:
  *   npm run db:dump
  *   npm run db:restore
  */
 
-import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { sections, tasks, taskCompletions, tags, taskTags } from "../lib/schema.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -51,116 +50,75 @@ function cleanDatabaseUrl(url) {
 // Load .env file
 loadEnvFile();
 
-// Get database URLs from environment (now loaded from .env)
+// Get database URLs from environment
 const productionUrl = cleanDatabaseUrl(process.env.PRODUCTION_DATABASE_URL);
 const localUrl = cleanDatabaseUrl(process.env.DATABASE_URL);
 
 if (!productionUrl) {
   console.error("❌ Error: PRODUCTION_DATABASE_URL not found in .env file");
-
   console.error("   Add it to your .env file:");
-
   console.error('   PRODUCTION_DATABASE_URL="your-production-database-url"');
-
   console.error("   Get it from Vercel: Settings → Environment Variables → DATABASE_URL");
   process.exit(1);
 }
 
 if (!localUrl) {
   console.error("❌ Error: DATABASE_URL not found in .env file");
-
   console.error("   Make sure your .env file has DATABASE_URL set for your local database");
   process.exit(1);
 }
 
 const productionClient = postgres(productionUrl);
-
 const localClient = postgres(localUrl);
-const localDb = drizzle(localClient);
+
+/**
+ * Get all user tables from the database (excluding system tables)
+ */
+async function getUserTables(client) {
+  const tables = await client`
+    SELECT table_name
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_type = 'BASE TABLE'
+      AND table_name NOT LIKE 'pg_%'
+      AND table_name NOT LIKE '_drizzle%'
+    ORDER BY table_name
+  `;
+  return tables.map(t => t.table_name);
+}
+
+/**
+ * Dump all data from a table (schema-agnostic)
+ */
+async function dumpTable(client, tableName) {
+  try {
+    const rows = await client.unsafe(`SELECT * FROM "${tableName}"`);
+    return rows;
+  } catch (error) {
+    console.warn(`   ⚠️  Could not dump table "${tableName}": ${error.message}`);
+    return [];
+  }
+}
 
 async function dumpProduction() {
-  // eslint-disable-next-line no-console
   console.log("📦 Dumping production database...\n");
 
   try {
-    // Use raw SQL to query only columns that exist (production may not have userId yet)
-    // Check if userId column exists in Section table
-    const sectionColumnsResult = await productionClient`
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_name = 'Section' AND column_name = 'userId'
-    `;
-    const hasSectionUserId = sectionColumnsResult.length > 0;
+    // Get all tables
+    const tables = await getUserTables(productionClient);
+    console.log(`   Found ${tables.length} tables: ${tables.join(", ")}\n`);
 
-    const taskColumnsResult = await productionClient`
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_name = 'Task' AND column_name = 'userId'
-    `;
-    const hasTaskUserId = taskColumnsResult.length > 0;
-
-    const taskColorResult = await productionClient`
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_name = 'Task' AND column_name = 'color'
-    `;
-    const hasTaskColor = taskColorResult.length > 0;
-
-    const tagColumnsResult = await productionClient`
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_name = 'Tag' AND column_name = 'userId'
-    `;
-    const hasTagUserId = tagColumnsResult.length > 0;
-
-    // Build SELECT queries based on what columns exist
-    const sectionFields = hasSectionUserId
-      ? '"id", "userId", "name", "icon", "order", "expanded", "createdAt", "updatedAt"'
-      : '"id", "name", "icon", "order", "expanded", "createdAt", "updatedAt"';
-
-    // Build task fields dynamically based on what columns exist
-    const taskBaseFields = hasTaskUserId
-      ? '"id", "userId", "title", "sectionId", "parentId", "time", "duration"'
-      : '"id", "title", "sectionId", "parentId", "time", "duration"';
-
-    const taskColorField = hasTaskColor ? ', "color"' : "";
-    const taskFields = `${taskBaseFields}${taskColorField}, "expanded", "order", "recurrence", "createdAt", "updatedAt"`;
-
-    // Fetch all data from production using raw SQL
-    const allSections = await productionClient.unsafe(`SELECT ${sectionFields} FROM "Section" ORDER BY "order" ASC`);
-    const allTasks = await productionClient.unsafe(
-      `SELECT ${taskFields} FROM "Task" ORDER BY "sectionId" ASC, "order" ASC`
-    );
-    const allCompletions = await productionClient.unsafe(
-      `SELECT "id", "taskId", "date", "createdAt" FROM "TaskCompletion" ORDER BY "date" DESC`
-    );
-
-    // Also dump tags and taskTags if they exist
-    let allTags = [];
-    let allTaskTags = [];
-
-    try {
-      const tagFields = hasTagUserId
-        ? '"id", "userId", "name", "color", "createdAt", "updatedAt"'
-        : '"id", "name", "color", "createdAt", "updatedAt"';
-
-      allTags = await productionClient.unsafe(`SELECT ${tagFields} FROM "Tag" ORDER BY "name" ASC`);
-
-      allTaskTags = await productionClient.unsafe(`SELECT "id", "taskId", "tagId", "createdAt" FROM "TaskTag"`);
-    } catch {
-      // Tags table might not exist yet, that's okay
-      // eslint-disable-next-line no-console
-      console.log("   ⚠️  Tags table not found (skipping)");
-    }
-
+    // Dump all tables
     const dump = {
       timestamp: new Date().toISOString(),
-      sections: allSections,
-      tasks: allTasks,
-      taskCompletions: allCompletions,
-      tags: allTags,
-      taskTags: allTaskTags,
+      tables: {},
     };
+
+    for (const tableName of tables) {
+      const rows = await dumpTable(productionClient, tableName);
+      dump.tables[tableName] = rows;
+      console.log(`   ✓ ${tableName}: ${rows.length} rows`);
+    }
 
     // Save to file
     const dumpDir = path.join(process.cwd(), "dumps");
@@ -173,18 +131,11 @@ async function dumpProduction() {
 
     fs.writeFileSync(dumpFile, JSON.stringify(dump, null, 2));
 
-    // eslint-disable-next-line no-console
-    console.log(`✅ Dump saved to: ${dumpFile}`);
-    // eslint-disable-next-line no-console
-    console.log(`   Sections: ${allSections.length}`);
-    // eslint-disable-next-line no-console
-    console.log(`   Tasks: ${allTasks.length}`);
-    // eslint-disable-next-line no-console
-    console.log(`   Task Completions: ${allCompletions.length}`);
-    // eslint-disable-next-line no-console
-    console.log(`   Tags: ${allTags.length}`);
-    // eslint-disable-next-line no-console
-    console.log(`   Task Tags: ${allTaskTags.length}\n`);
+    console.log(`\n✅ Dump saved to: ${dumpFile}`);
+
+    // Summary
+    const totalRows = Object.values(dump.tables).reduce((sum, rows) => sum + rows.length, 0);
+    console.log(`   Total: ${tables.length} tables, ${totalRows} rows\n`);
 
     return dump;
   } catch (error) {
@@ -193,101 +144,180 @@ async function dumpProduction() {
   }
 }
 
-// Convert date strings to Date objects for all timestamp fields
-function convertDates(record) {
-  const converted = { ...record };
-  const dateFields = ["createdAt", "updatedAt", "date"];
+/**
+ * Get the foreign key dependencies between tables
+ * Returns a map of tableName -> [tables it depends on]
+ */
+async function getTableDependencies(client) {
+  const fks = await client`
+    SELECT
+      tc.table_name as from_table,
+      ccu.table_name as to_table
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.constraint_column_usage ccu
+      ON tc.constraint_name = ccu.constraint_name
+    WHERE tc.constraint_type = 'FOREIGN KEY'
+      AND tc.table_schema = 'public'
+  `;
 
-  for (const field of dateFields) {
-    if (converted[field] && typeof converted[field] === "string") {
-      converted[field] = new Date(converted[field]);
+  const deps = {};
+  for (const fk of fks) {
+    if (!deps[fk.from_table]) {
+      deps[fk.from_table] = [];
+    }
+    if (fk.from_table !== fk.to_table) {
+      // Ignore self-references
+      deps[fk.from_table].push(fk.to_table);
     }
   }
+  return deps;
+}
 
-  return converted;
+/**
+ * Helper function to insert rows into a table
+ */
+async function insertRows(client, tableName, rows) {
+  if (!rows || rows.length === 0) {
+    return;
+  }
+
+  const columns = Object.keys(rows[0]);
+  const columnList = columns.map(c => `"${c}"`).join(", ");
+
+  for (const row of rows) {
+    const values = columns.map(col => row[col]);
+    const placeholders = values.map((_, i) => `$${i + 1}`).join(", ");
+
+    await client.unsafe(`INSERT INTO "${tableName}" (${columnList}) VALUES (${placeholders})`, values);
+  }
+}
+
+/**
+ * Topologically sort tables based on foreign key dependencies
+ * Returns tables in order where dependencies come first
+ */
+function topologicalSort(tables, dependencies) {
+  const sorted = [];
+  const visited = new Set();
+  const visiting = new Set();
+
+  function visit(table) {
+    if (visited.has(table)) return;
+    if (visiting.has(table)) {
+      // Circular dependency - just add it and move on
+      return;
+    }
+
+    visiting.add(table);
+    const deps = dependencies[table] || [];
+    for (const dep of deps) {
+      if (tables.includes(dep)) {
+        visit(dep);
+      }
+    }
+    visiting.delete(table);
+    visited.add(table);
+    sorted.push(table);
+  }
+
+  for (const table of tables) {
+    visit(table);
+  }
+
+  return sorted;
 }
 
 async function restoreToLocal(dump) {
   if (!localUrl) {
-    // eslint-disable-next-line no-console
     console.log("⚠️  Skipping local restore (no DATABASE_URL set)");
     return;
   }
 
-  // eslint-disable-next-line no-console
   console.log("🔄 Restoring to local database...\n");
 
   try {
-    // Clear local database (in reverse order due to foreign keys)
-    await localDb.delete(taskCompletions);
-    await localDb.delete(taskTags);
-    await localDb.delete(tasks);
-    await localDb.delete(tags);
-    await localDb.delete(sections);
+    const tables = Object.keys(dump.tables);
 
-    // eslint-disable-next-line no-console
-    console.log("   ✓ Cleared local database");
+    // Get table dependencies
+    const dependencies = await getTableDependencies(localClient);
 
-    // Restore sections first (tasks depend on them)
-    if (dump.sections && dump.sections.length > 0) {
-      const sectionsToInsert = dump.sections.map(convertDates);
-      // Add userId if it doesn't exist in dump (for backward compatibility)
-      const sectionsWithUserId = sectionsToInsert.map(s => ({
-        ...s,
-        userId: s.userId || null, // Will be set by migration 0008
-      }));
-      await localDb.insert(sections).values(sectionsWithUserId);
-      // eslint-disable-next-line no-console
-      console.log(`   ✓ Restored ${dump.sections.length} sections`);
+    // Sort tables by dependencies (dependencies first)
+    const sortedTables = topologicalSort(tables, dependencies);
+
+    // Clear all tables in reverse dependency order
+    console.log("   Clearing tables...");
+    for (const tableName of sortedTables.reverse()) {
+      try {
+        await localClient.unsafe(`TRUNCATE TABLE "${tableName}" CASCADE`);
+        console.log(`   ✓ Cleared ${tableName}`);
+      } catch (error) {
+        console.warn(`   ⚠️  Could not clear table "${tableName}": ${error.message}`);
+      }
     }
 
-    // Restore tasks (Drizzle will automatically handle field validation)
-    if (dump.tasks && dump.tasks.length > 0) {
-      const tasksToInsert = dump.tasks.map(convertDates);
-      // Add userId if it doesn't exist in dump (for backward compatibility)
-      // Remove color field if it exists (was removed in migration 0014)
-      const tasksWithUserId = tasksToInsert.map(t => {
-        const { color: _color, ...taskWithoutColor } = t;
-        return {
-          ...taskWithoutColor,
-          userId: t.userId || null, // Will be set by migration 0008
-        };
-      });
-      await localDb.insert(tasks).values(tasksWithUserId);
-      // eslint-disable-next-line no-console
-      console.log(`   ✓ Restored ${dump.tasks.length} tasks`);
+    // Restore tables in dependency order (dependencies first)
+    sortedTables.reverse();
+    console.log("\n   Restoring data...");
+
+    for (const tableName of sortedTables) {
+      const rows = dump.tables[tableName];
+      if (!rows || rows.length === 0) {
+        console.log(`   ○ ${tableName}: 0 rows (skipped)`);
+        continue;
+      }
+
+      try {
+        // Get the actual columns that exist in the local database table
+        const tableInfo = await localClient.unsafe(
+          `
+          SELECT column_name
+          FROM information_schema.columns
+          WHERE table_name = $1 AND table_schema = 'public'
+        `,
+          [tableName]
+        );
+        const validColumns = new Set(tableInfo.map(c => c.column_name));
+
+        // Convert date strings to Date objects and filter out invalid columns
+        const processedRows = rows.map(row => {
+          const processed = {};
+          for (const [key, value] of Object.entries(row)) {
+            // Skip columns that don't exist in the local schema
+            if (!validColumns.has(key)) {
+              continue;
+            }
+
+            // Convert ISO date strings to Date objects
+            if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+              processed[key] = new Date(value);
+            } else {
+              processed[key] = value;
+            }
+          }
+          return processed;
+        });
+
+        // Special handling for Task table: insert parent tasks first
+        if (tableName === "Task") {
+          // Separate tasks with and without parents
+          const tasksWithoutParent = processedRows.filter(t => !t.parentId);
+          const tasksWithParent = processedRows.filter(t => t.parentId);
+
+          // Insert parent tasks first
+          await insertRows(localClient, tableName, tasksWithoutParent);
+          // Then insert child tasks
+          await insertRows(localClient, tableName, tasksWithParent);
+        } else {
+          await insertRows(localClient, tableName, processedRows);
+        }
+
+        console.log(`   ✓ ${tableName}: ${rows.length} rows`);
+      } catch (error) {
+        console.error(`   ✗ ${tableName}: Failed - ${error.message}`);
+        // Continue with other tables even if one fails
+      }
     }
 
-    // Restore task completions (if present in dump)
-    if (dump.taskCompletions && dump.taskCompletions.length > 0) {
-      const completionsToInsert = dump.taskCompletions.map(convertDates);
-      await localDb.insert(taskCompletions).values(completionsToInsert);
-      // eslint-disable-next-line no-console
-      console.log(`   ✓ Restored ${dump.taskCompletions.length} task completions`);
-    }
-
-    // Restore tags (if present in dump)
-    if (dump.tags && dump.tags.length > 0) {
-      const tagsToInsert = dump.tags.map(convertDates);
-      // Add userId if it doesn't exist in dump (for backward compatibility)
-      const tagsWithUserId = tagsToInsert.map(t => ({
-        ...t,
-        userId: t.userId || null, // Will be set by migration 0008
-      }));
-      await localDb.insert(tags).values(tagsWithUserId);
-      // eslint-disable-next-line no-console
-      console.log(`   ✓ Restored ${dump.tags.length} tags`);
-    }
-
-    // Restore task tags (if present in dump)
-    if (dump.taskTags && dump.taskTags.length > 0) {
-      const taskTagsToInsert = dump.taskTags.map(convertDates);
-      await localDb.insert(taskTags).values(taskTagsToInsert);
-      // eslint-disable-next-line no-console
-      console.log(`   ✓ Restored ${dump.taskTags.length} task tags`);
-    }
-
-    // eslint-disable-next-line no-console
     console.log("\n✅ Local database restored successfully!");
   } catch (error) {
     console.error("❌ Error restoring to local database:", error.message);
@@ -304,7 +334,6 @@ async function main() {
     if (shouldRestore) {
       await restoreToLocal(dump);
     } else {
-      // eslint-disable-next-line no-console
       console.log('💡 Tip: Use "npm run db:restore" to automatically restore to local database');
     }
   } catch (error) {

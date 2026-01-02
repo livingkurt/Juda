@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   Box,
   Table,
@@ -13,11 +13,13 @@ import {
   Flex,
   createListCollection,
   Checkbox,
+  Input,
 } from "@chakra-ui/react";
-import { Check, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, X, ChevronLeft, ChevronRight, Dumbbell } from "lucide-react";
 import { shouldShowOnDate, formatDateDisplay } from "@/lib/utils";
 import { SelectDropdown } from "./SelectDropdown";
 import { CellEditorPopover } from "./CellEditorPopover";
+import WorkoutModal from "./WorkoutModal";
 
 // Flatten tasks including subtasks
 const flattenTasks = tasks => {
@@ -191,8 +193,17 @@ const getCompletionForTaskDate = (completions, taskId, date) => {
 };
 
 // Table cell component
-const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete }) => {
+const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, onSaveWorkoutProgress }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [workoutModalOpen, setWorkoutModalOpen] = useState(false);
+  const [textValue, setTextValue] = useState(completion?.note || "");
+  const prevCompletionNoteRef = useRef(completion?.note);
+
+  // Update text value when completion changes from external source
+  if (prevCompletionNoteRef.current !== completion?.note) {
+    prevCompletionNoteRef.current = completion?.note;
+    setTextValue(completion?.note || "");
+  }
 
   const getCellDisplay = () => {
     if (!completion) {
@@ -292,6 +303,105 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete }) 
   const cellBg = !isScheduled && completion ? { _light: "purple.50", _dark: "purple.900" } : "transparent";
   const cellContent = getCellDisplay();
 
+  // Handle text input completion type
+  if (task.completionType === "text") {
+    const handleTextSave = () => {
+      if (textValue.trim()) {
+        onUpdate({ outcome: "completed", note: textValue });
+      } else if (completion) {
+        onDelete();
+      }
+    };
+
+    return (
+      <Box w="100%" h="100%" minH="40px" display="flex" alignItems="center" p={1} bg={cellBg}>
+        <Input
+          value={textValue}
+          onChange={e => setTextValue(e.target.value)}
+          onBlur={handleTextSave}
+          onKeyDown={e => {
+            if (e.key === "Enter") {
+              handleTextSave();
+              e.target.blur();
+            }
+          }}
+          placeholder={isScheduled ? "Enter text..." : ""}
+          size="sm"
+          variant="ghost"
+          fontSize="xs"
+          p={1}
+          h="auto"
+          minH="30px"
+          border="none"
+          _hover={{ bg: { _light: "gray.50", _dark: "gray.700" } }}
+          _focus={{ bg: { _light: "white", _dark: "gray.800" }, border: "1px solid", borderColor: "blue.500" }}
+        />
+      </Box>
+    );
+  }
+
+  // Handle workout completion type
+  if (task.completionType === "workout") {
+    const handleWorkoutClick = () => {
+      setWorkoutModalOpen(true);
+    };
+
+    return (
+      <>
+        <Box
+          as="button"
+          onClick={handleWorkoutClick}
+          w="100%"
+          h="100%"
+          minH="40px"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          bg={cellBg}
+          _hover={{ bg: { _light: "gray.50", _dark: "gray.700" } }}
+          cursor="pointer"
+          border="none"
+          outline="none"
+          boxShadow="none"
+          _focus={{ border: "none", outline: "none", boxShadow: "none" }}
+          _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
+        >
+          {completion?.outcome === "completed" ? (
+            <Checkbox.Root checked={true} size="md">
+              <Checkbox.HiddenInput />
+              <Checkbox.Control
+                bg="white"
+                boxShadow="none"
+                outline="none"
+                border="none"
+                _focus={{ boxShadow: "none", outline: "none" }}
+                _focusVisible={{ boxShadow: "none", outline: "none" }}
+              >
+                <Checkbox.Indicator>
+                  <Check size={14} />
+                </Checkbox.Indicator>
+              </Checkbox.Control>
+            </Checkbox.Root>
+          ) : (
+            <Dumbbell size={18} />
+          )}
+        </Box>
+        <WorkoutModal
+          task={task}
+          isOpen={workoutModalOpen}
+          onClose={() => setWorkoutModalOpen(false)}
+          onSaveProgress={onSaveWorkoutProgress}
+          onCompleteTask={(_taskId, _completionDate) => {
+            onUpdate({ outcome: "completed" });
+            setWorkoutModalOpen(false);
+          }}
+          currentDate={date}
+        />
+      </>
+    );
+  }
+
+  // Handle checkbox completion type (default)
   // Always render a clickable cell to allow adding completions to non-scheduled days
   return (
     <Popover.Root open={isOpen} onOpenChange={e => setIsOpen(e.open)}>
@@ -316,16 +426,7 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete }) 
           _focus={{ border: "none", outline: "none", boxShadow: "none" }}
           _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
         >
-          {task.completionType === "text" && completion?.note ? (
-            <HStack spacing={2} align="center" justify="center">
-              {cellContent}
-              <Text fontSize="xs" noOfLines={1} maxW="80px" title={completion.note}>
-                {completion.note}
-              </Text>
-            </HStack>
-          ) : (
-            cellContent
-          )}
+          {cellContent}
         </Box>
       </PopoverTrigger>
       <Popover.Positioner>
@@ -359,6 +460,7 @@ export const RecurringTableView = ({
   deleteCompletion,
   updateCompletion,
   getCompletionForDate,
+  updateTask,
 }) => {
   const [range, setRange] = useState("month");
   const [page, setPage] = useState(0);
@@ -404,6 +506,28 @@ export const RecurringTableView = ({
   // Handle cell delete
   const handleCellDelete = async (taskId, date) => {
     await deleteCompletion(taskId, date);
+  };
+
+  // Handle workout progress save
+  const handleSaveWorkoutProgress = async (taskId, date, workoutCompletion) => {
+    try {
+      // Find the task to update its workoutData
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const updatedWorkoutData = {
+        ...task.workoutData,
+        progress: {
+          ...task.workoutData?.progress,
+          [workoutCompletion.week]: workoutCompletion,
+        },
+      };
+
+      // Update the task with new workout data
+      await updateTask(taskId, { workoutData: updatedWorkoutData });
+    } catch (error) {
+      console.error("Failed to save workout progress:", error);
+    }
   };
 
   const bgColor = { _light: "white", _dark: "gray.800" };
@@ -590,6 +714,7 @@ export const RecurringTableView = ({
                             isScheduled={isScheduled}
                             onUpdate={data => handleCellUpdate(task.id, date, data)}
                             onDelete={() => handleCellDelete(task.id, date)}
+                            onSaveWorkoutProgress={handleSaveWorkoutProgress}
                           />
                         </Table.Cell>
                       );

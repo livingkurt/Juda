@@ -2797,6 +2797,7 @@ export default function DailyTasksApp() {
                       deleteCompletion={deleteCompletion}
                       updateCompletion={updateCompletion}
                       getCompletionForDate={getCompletionForDate}
+                      updateTask={updateTask}
                     />
                   </Box>
                 )}
@@ -3215,6 +3216,7 @@ export default function DailyTasksApp() {
                     deleteCompletion={deleteCompletion}
                     updateCompletion={updateCompletion}
                     getCompletionForDate={getCompletionForDate}
+                    updateTask={updateTask}
                   />
                 ) : (
                   /* Tasks Tab Content (mainTabIndex === 0) */

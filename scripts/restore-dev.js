@@ -3,17 +3,14 @@
 /**
  * Script to restore the most recent production dump to dev database
  *
- * Reads DATABASE_URL from .env file (dev database)
- * Finds the most recent dump file in dumps/ folder
+ * This script is SCHEMA-AGNOSTIC - it restores all tables automatically
+ * without needing to know the schema in advance.
  *
  * Usage:
  *   npm run db:restore-dev
  */
 
-import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { sections, tasks, taskCompletions, tags, taskTags } from "../lib/schema.js";
-import { count } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -58,9 +55,7 @@ const devUrl = cleanDatabaseUrl(process.env.DEV_DATABASE_URL || process.env.DATA
 
 if (!devUrl) {
   console.error("❌ Error: DATABASE_URL or DEV_DATABASE_URL not found in .env file");
-
   console.error("   Make sure your .env file has DATABASE_URL set for your dev database");
-
   console.error("   Or set DEV_DATABASE_URL to explicitly use a dev database");
   process.exit(1);
 }
@@ -68,17 +63,14 @@ if (!devUrl) {
 // Show which database we're connecting to (masked for security)
 const urlObj = new URL(devUrl);
 const maskedUrl = `${urlObj.protocol}//${urlObj.username}@${urlObj.hostname}${urlObj.pathname}`;
-// eslint-disable-next-line no-console
 console.log(`🔗 Connecting to: ${maskedUrl}\n`);
 
 const devClient = postgres(devUrl);
-const devDb = drizzle(devClient);
 
 function findMostRecentDump() {
   const dumpDir = path.join(process.cwd(), "dumps");
   if (!fs.existsSync(dumpDir)) {
     console.error("❌ Error: dumps directory not found");
-
     console.error("   Run 'npm run db:dump' first to create a dump");
     process.exit(1);
   }
@@ -88,7 +80,6 @@ function findMostRecentDump() {
 
   if (dumpFiles.length === 0) {
     console.error("❌ Error: No dump files found in dumps/ directory");
-
     console.error("   Run 'npm run db:dump' first to create a dump");
     process.exit(1);
   }
@@ -112,130 +103,212 @@ function loadDump(dumpPath) {
   }
 }
 
-// Convert date strings to Date objects for all timestamp fields
-// This function automatically detects timestamp fields (createdAt, updatedAt, date)
-function convertDates(record) {
-  const converted = { ...record };
-  const dateFields = ["createdAt", "updatedAt", "date"];
+/**
+ * Get the foreign key dependencies between tables
+ * Returns a map of tableName -> [tables it depends on]
+ */
+async function getTableDependencies(client) {
+  const fks = await client`
+    SELECT
+      tc.table_name as from_table,
+      ccu.table_name as to_table
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.constraint_column_usage ccu
+      ON tc.constraint_name = ccu.constraint_name
+    WHERE tc.constraint_type = 'FOREIGN KEY'
+      AND tc.table_schema = 'public'
+  `;
 
-  for (const field of dateFields) {
-    if (converted[field] && typeof converted[field] === "string") {
-      converted[field] = new Date(converted[field]);
+  const deps = {};
+  for (const fk of fks) {
+    if (!deps[fk.from_table]) {
+      deps[fk.from_table] = [];
+    }
+    if (fk.from_table !== fk.to_table) {
+      // Ignore self-references
+      deps[fk.from_table].push(fk.to_table);
     }
   }
+  return deps;
+}
 
-  return converted;
+/**
+ * Helper function to insert rows into a table
+ */
+async function insertRows(client, tableName, rows) {
+  if (!rows || rows.length === 0) {
+    return;
+  }
+
+  const columns = Object.keys(rows[0]);
+  const columnList = columns.map(c => `"${c}"`).join(", ");
+
+  for (const row of rows) {
+    const values = columns.map(col => row[col]);
+    const placeholders = values.map((_, i) => `$${i + 1}`).join(", ");
+
+    await client.unsafe(`INSERT INTO "${tableName}" (${columnList}) VALUES (${placeholders})`, values);
+  }
+}
+
+/**
+ * Topologically sort tables based on foreign key dependencies
+ * Returns tables in order where dependencies come first
+ */
+function topologicalSort(tables, dependencies) {
+  const sorted = [];
+  const visited = new Set();
+  const visiting = new Set();
+
+  function visit(table) {
+    if (visited.has(table)) return;
+    if (visiting.has(table)) {
+      // Circular dependency - just add it and move on
+      return;
+    }
+
+    visiting.add(table);
+    const deps = dependencies[table] || [];
+    for (const dep of deps) {
+      if (tables.includes(dep)) {
+        visit(dep);
+      }
+    }
+    visiting.delete(table);
+    visited.add(table);
+    sorted.push(table);
+  }
+
+  for (const table of tables) {
+    visit(table);
+  }
+
+  return sorted;
 }
 
 async function restoreToDev(dump) {
-  // eslint-disable-next-line no-console
   console.log("🔄 Restoring to dev database...\n");
 
   try {
-    // Verify connection by checking table counts
-    const [sectionCountResult] = await devDb.select({ count: count() }).from(sections);
-    const [taskCountResult] = await devDb.select({ count: count() }).from(tasks);
-    const [completionCountResult] = await devDb.select({ count: count() }).from(taskCompletions);
-    // eslint-disable-next-line no-console
-    console.log(
-      `   Current database state: ${sectionCountResult.count} sections, ${taskCountResult.count} tasks, ${completionCountResult.count} completions`
-    );
+    const tables = Object.keys(dump.tables);
 
-    // Clear dev database (in reverse order due to foreign keys)
-    await devDb.delete(taskCompletions);
-    await devDb.delete(taskTags);
-    await devDb.delete(tasks);
-    await devDb.delete(tags);
-    await devDb.delete(sections);
-
-    // eslint-disable-next-line no-console
-    console.log("   ✓ Cleared dev database");
-
-    // Restore sections first (tasks depend on them)
-    if (dump.sections && dump.sections.length > 0) {
-      const sectionsToInsert = dump.sections.map(convertDates);
-      // Add userId if it doesn't exist in dump (for backward compatibility)
-      const sectionsWithUserId = sectionsToInsert.map(s => ({
-        ...s,
-        userId: s.userId || null, // Will be set by migration 0008
-      }));
-      await devDb.insert(sections).values(sectionsWithUserId);
-      // eslint-disable-next-line no-console
-      console.log(`   ✓ Restored ${dump.sections.length} sections`);
+    // Get current counts for comparison
+    console.log("   Current database state:");
+    const currentCounts = {};
+    for (const tableName of tables) {
+      try {
+        const result = await devClient.unsafe(`SELECT COUNT(*) as count FROM "${tableName}"`);
+        currentCounts[tableName] = parseInt(result[0].count);
+        console.log(`     ${tableName}: ${currentCounts[tableName]} rows`);
+      } catch (error) {
+        console.log(`     ${tableName}: table not found (will be skipped)`);
+      }
     }
 
-    // Restore tasks (Drizzle will automatically handle field validation)
-    if (dump.tasks && dump.tasks.length > 0) {
-      const tasksToInsert = dump.tasks.map(convertDates);
-      // Add userId if it doesn't exist in dump (for backward compatibility)
-      // Remove color field if it exists (was removed in migration 0014)
-      const tasksWithUserId = tasksToInsert.map(t => {
-        const { color: _color, ...taskWithoutColor } = t;
-        return {
-          ...taskWithoutColor,
-          userId: t.userId || null, // Will be set by migration 0008
-        };
-      });
-      await devDb.insert(tasks).values(tasksWithUserId);
-      // eslint-disable-next-line no-console
-      console.log(`   ✓ Restored ${dump.tasks.length} tasks`);
+    // Get table dependencies
+    const dependencies = await getTableDependencies(devClient);
+
+    // Sort tables by dependencies (dependencies first)
+    const sortedTables = topologicalSort(tables, dependencies);
+
+    // Clear all tables in reverse dependency order
+    console.log("\n   Clearing tables...");
+    for (const tableName of sortedTables.reverse()) {
+      try {
+        await devClient.unsafe(`TRUNCATE TABLE "${tableName}" CASCADE`);
+        console.log(`   ✓ Cleared ${tableName}`);
+      } catch (error) {
+        console.warn(`   ⚠️  Could not clear table "${tableName}": ${error.message}`);
+      }
     }
 
-    // Restore task completions (if present in dump)
-    if (dump.taskCompletions && dump.taskCompletions.length > 0) {
-      const completionsToInsert = dump.taskCompletions.map(convertDates);
-      await devDb.insert(taskCompletions).values(completionsToInsert);
-      // eslint-disable-next-line no-console
-      console.log(`   ✓ Restored ${dump.taskCompletions.length} task completions`);
+    // Restore tables in dependency order (dependencies first)
+    sortedTables.reverse();
+    console.log("\n   Restoring data...");
+
+    for (const tableName of sortedTables) {
+      const rows = dump.tables[tableName];
+      if (!rows || rows.length === 0) {
+        console.log(`   ○ ${tableName}: 0 rows (skipped)`);
+        continue;
+      }
+
+      try {
+        // Get the actual columns that exist in the local database table
+        const tableInfo = await devClient.unsafe(
+          `
+          SELECT column_name
+          FROM information_schema.columns
+          WHERE table_name = $1 AND table_schema = 'public'
+        `,
+          [tableName]
+        );
+        const validColumns = new Set(tableInfo.map(c => c.column_name));
+
+        // Convert date strings to Date objects and filter out invalid columns
+        const processedRows = rows.map(row => {
+          const processed = {};
+          for (const [key, value] of Object.entries(row)) {
+            // Skip columns that don't exist in the local schema
+            if (!validColumns.has(key)) {
+              continue;
+            }
+
+            // Convert ISO date strings to Date objects
+            if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+              processed[key] = new Date(value);
+            } else {
+              processed[key] = value;
+            }
+          }
+          return processed;
+        });
+
+        // Special handling for Task table: insert parent tasks first
+        if (tableName === "Task") {
+          // Separate tasks with and without parents
+          const tasksWithoutParent = processedRows.filter(t => !t.parentId);
+          const tasksWithParent = processedRows.filter(t => t.parentId);
+
+          // Insert parent tasks first
+          await insertRows(devClient, tableName, tasksWithoutParent);
+          // Then insert child tasks
+          await insertRows(devClient, tableName, tasksWithParent);
+        } else {
+          await insertRows(devClient, tableName, processedRows);
+        }
+
+        console.log(`   ✓ ${tableName}: ${rows.length} rows`);
+      } catch (error) {
+        console.error(`   ✗ ${tableName}: Failed - ${error.message}`);
+        // Continue with other tables even if one fails
+      }
     }
 
-    // Restore tags (if present in dump)
-    if (dump.tags && dump.tags.length > 0) {
-      const tagsToInsert = dump.tags.map(convertDates);
-      // Add userId if it doesn't exist in dump (for backward compatibility)
-      const tagsWithUserId = tagsToInsert.map(t => ({
-        ...t,
-        userId: t.userId || null, // Will be set by migration 0008
-      }));
-      await devDb.insert(tags).values(tagsWithUserId);
-      // eslint-disable-next-line no-console
-      console.log(`   ✓ Restored ${dump.tags.length} tags`);
+    // Verify the restore
+    console.log("\n   Verifying restore...");
+    let allMatch = true;
+    for (const tableName of tables) {
+      try {
+        const result = await devClient.unsafe(`SELECT COUNT(*) as count FROM "${tableName}"`);
+        const actualCount = parseInt(result[0].count);
+        const expectedCount = dump.tables[tableName]?.length || 0;
+
+        if (actualCount === expectedCount) {
+          console.log(`   ✓ ${tableName}: ${actualCount} rows (matches)`);
+        } else {
+          console.warn(`   ⚠️  ${tableName}: ${actualCount} rows (expected ${expectedCount})`);
+          allMatch = false;
+        }
+      } catch (error) {
+        console.warn(`   ⚠️  Could not verify ${tableName}: ${error.message}`);
+      }
     }
 
-    // Restore task tags (if present in dump)
-    if (dump.taskTags && dump.taskTags.length > 0) {
-      const taskTagsToInsert = dump.taskTags.map(convertDates);
-      await devDb.insert(taskTags).values(taskTagsToInsert);
-      // eslint-disable-next-line no-console
-      console.log(`   ✓ Restored ${dump.taskTags.length} task tags`);
-    }
-
-    // Verify the restore by counting records
-    const [finalSectionCountResult] = await devDb.select({ count: count() }).from(sections);
-    const [finalTaskCountResult] = await devDb.select({ count: count() }).from(tasks);
-    const [finalCompletionCountResult] = await devDb.select({ count: count() }).from(taskCompletions);
-
-    // eslint-disable-next-line no-console
-    console.log("\n✅ Dev database restored successfully!");
-    // eslint-disable-next-line no-console
-    console.log(
-      `   Final counts: ${finalSectionCountResult.count} sections, ${finalTaskCountResult.count} tasks, ${finalCompletionCountResult.count} completions`
-    );
-
-    const sectionMatch = finalSectionCountResult.count === (dump.sections?.length || 0);
-    const taskMatch = finalTaskCountResult.count === (dump.tasks?.length || 0);
-    const completionMatch = finalCompletionCountResult.count === (dump.taskCompletions?.length || 0);
-
-    if (!sectionMatch || !taskMatch || !completionMatch) {
-      console.warn("\n⚠️  Warning: Record counts don't match!");
-
-      console.warn(
-        `   Expected: ${dump.sections?.length || 0} sections, ${dump.tasks?.length || 0} tasks, ${dump.taskCompletions?.length || 0} completions`
-      );
-
-      console.warn(
-        `   Actual: ${finalSectionCountResult.count} sections, ${finalTaskCountResult.count} tasks, ${finalCompletionCountResult.count} completions`
-      );
+    if (allMatch) {
+      console.log("\n✅ Dev database restored successfully! All counts match.");
+    } else {
+      console.log("\n⚠️  Dev database restored with some mismatches. Check warnings above.");
     }
   } catch (error) {
     console.error("❌ Error restoring to dev database:", error.message);
@@ -247,19 +320,20 @@ async function main() {
   try {
     // Find most recent dump
     const { path: dumpPath, filename } = findMostRecentDump();
-    // eslint-disable-next-line no-console
     console.log(`📦 Loading dump: ${filename}\n`);
 
     // Load dump
     const dump = loadDump(dumpPath);
-    // eslint-disable-next-line no-console
     console.log(`   Timestamp: ${dump.timestamp || "unknown"}`);
-    // eslint-disable-next-line no-console
-    console.log(`   Sections: ${dump.sections?.length || 0}`);
-    // eslint-disable-next-line no-console
-    console.log(`   Tasks: ${dump.tasks?.length || 0}`);
-    // eslint-disable-next-line no-console
-    console.log(`   Task Completions: ${dump.taskCompletions?.length || 0}\n`);
+
+    // Show what's in the dump
+    if (dump.tables) {
+      console.log(`   Tables in dump:`);
+      for (const [tableName, rows] of Object.entries(dump.tables)) {
+        console.log(`     ${tableName}: ${rows.length} rows`);
+      }
+    }
+    console.log("");
 
     // Restore to dev
     await restoreToDev(dump);
