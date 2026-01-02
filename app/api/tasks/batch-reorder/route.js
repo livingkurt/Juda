@@ -2,59 +2,43 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authMiddleware";
+import { withApi, Errors } from "@/lib/apiHelpers";
 
-export async function PUT(request) {
-  const userId = getAuthenticatedUserId(request);
-  if (!userId) return unauthorizedResponse();
+export const PUT = withApi(async (request, { userId, getBody }) => {
+  const body = await getBody();
+  const { updates } = body;
 
-  try {
-    const body = await request.json();
-    const { updates } = body;
-
-    // Validate input
-    if (!Array.isArray(updates) || updates.length === 0) {
-      return NextResponse.json({ error: "Updates array is required and must not be empty" }, { status: 400 });
-    }
-
-    // Validate each update has id and order
-    for (const update of updates) {
-      if (!update.id || typeof update.order !== "number") {
-        return NextResponse.json({ error: "Each update must have an id and order property" }, { status: 400 });
-      }
-    }
-
-    // Extract task IDs
-    const taskIds = updates.map(u => u.id);
-
-    // Verify all tasks belong to the user
-    const userTasks = await db.query.tasks.findMany({
-      where: and(inArray(tasks.id, taskIds), eq(tasks.userId, userId)),
-    });
-
-    if (userTasks.length !== taskIds.length) {
-      return NextResponse.json({ error: "One or more tasks not found" }, { status: 404 });
-    }
-
-    // Use a transaction to update all tasks atomically
-    // Note: Drizzle doesn't support bulk updates with different values per row,
-    // so we use Promise.all to run updates in parallel within the transaction
-    await db.transaction(async tx => {
-      const now = new Date();
-      await Promise.all(
-        updates.map(update =>
-          tx
-            .update(tasks)
-            .set({ order: update.order, updatedAt: now })
-            .where(and(eq(tasks.id, update.id), eq(tasks.userId, userId)))
-        )
-      );
-    });
-
-    // Return success
-    return NextResponse.json({ success: true, updatedCount: updates.length });
-  } catch (error) {
-    console.error("Error batch reordering tasks:", error);
-    return NextResponse.json({ error: "Failed to batch reorder tasks" }, { status: 500 });
+  if (!Array.isArray(updates) || updates.length === 0) {
+    throw Errors.badRequest("Updates array is required and must not be empty");
   }
-}
+
+  for (const update of updates) {
+    if (!update.id || typeof update.order !== "number") {
+      throw Errors.badRequest("Each update must have an id and order property");
+    }
+  }
+
+  const taskIds = updates.map(u => u.id);
+
+  const userTasks = await db.query.tasks.findMany({
+    where: and(inArray(tasks.id, taskIds), eq(tasks.userId, userId)),
+  });
+
+  if (userTasks.length !== taskIds.length) {
+    throw Errors.notFound("One or more tasks");
+  }
+
+  await db.transaction(async tx => {
+    const now = new Date();
+    await Promise.all(
+      updates.map(update =>
+        tx
+          .update(tasks)
+          .set({ order: update.order, updatedAt: now })
+          .where(and(eq(tasks.id, update.id), eq(tasks.userId, userId)))
+      )
+    );
+  });
+
+  return NextResponse.json({ success: true, updatedCount: updates.length });
+});

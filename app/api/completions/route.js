@@ -2,287 +2,209 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { taskCompletions, tasks } from "@/lib/schema";
 import { eq, and, gte, lte, desc, inArray } from "drizzle-orm";
-import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authMiddleware";
+import { withApi, Errors, validateRequired, validateEnum } from "@/lib/apiHelpers";
 
-// GET - Fetch completions with optional filters
-export async function GET(request) {
-  const userId = getAuthenticatedUserId(request);
-  if (!userId) return unauthorizedResponse();
+export const GET = withApi(async (request, { userId, getSearchParams }) => {
+  const searchParams = getSearchParams();
+  const taskId = searchParams.get("taskId");
+  const startDate = searchParams.get("startDate");
+  const endDate = searchParams.get("endDate");
 
-  try {
-    const url = new URL(request.url);
-    const { searchParams } = url;
-    const taskId = searchParams.get("taskId");
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+  const userTasks = await db.query.tasks.findMany({
+    where: eq(tasks.userId, userId),
+    columns: { id: true },
+  });
+  const userTaskIds = userTasks.map(t => t.id);
 
-    // Get user's task IDs
-    const userTasks = await db.query.tasks.findMany({
-      where: eq(tasks.userId, userId),
-      columns: { id: true },
-    });
-    const userTaskIds = userTasks.map(t => t.id);
-
-    if (userTaskIds.length === 0) {
-      return NextResponse.json([]);
-    }
-
-    const conditions = [];
-    if (taskId && userTaskIds.includes(taskId)) {
-      // If specific taskId is provided and belongs to user, filter by it
-      conditions.push(eq(taskCompletions.taskId, taskId));
-    } else {
-      // Otherwise, filter by all user's task IDs
-      conditions.push(inArray(taskCompletions.taskId, userTaskIds));
-    }
-    if (startDate) conditions.push(gte(taskCompletions.date, new Date(startDate)));
-    if (endDate) conditions.push(lte(taskCompletions.date, new Date(endDate)));
-
-    const completions = await db.query.taskCompletions.findMany({
-      where: and(...conditions),
-      orderBy: [desc(taskCompletions.date)],
-    });
-
-    return NextResponse.json(completions);
-  } catch (error) {
-    console.error("Error fetching completions:", error);
-    return NextResponse.json({ error: "Failed to fetch completions", details: error.message }, { status: 500 });
+  if (userTaskIds.length === 0) {
+    return NextResponse.json([]);
   }
-}
 
-// POST - Create a completion record
-export async function POST(request) {
-  const userId = getAuthenticatedUserId(request);
-  if (!userId) return unauthorizedResponse();
+  const conditions = [];
+  if (taskId && userTaskIds.includes(taskId)) {
+    conditions.push(eq(taskCompletions.taskId, taskId));
+  } else {
+    conditions.push(inArray(taskCompletions.taskId, userTaskIds));
+  }
+  if (startDate) conditions.push(gte(taskCompletions.date, new Date(startDate)));
+  if (endDate) conditions.push(lte(taskCompletions.date, new Date(endDate)));
 
-  try {
-    const body = await request.json();
-    const { taskId, date, outcome = "completed", note, time, startedAt, completedAt } = body;
+  const completions = await db.query.taskCompletions.findMany({
+    where: and(...conditions),
+    orderBy: [desc(taskCompletions.date)],
+  });
 
-    if (!taskId) {
-      return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
-    }
+  return NextResponse.json(completions);
+});
 
-    // Validate outcome
-    if (!["completed", "not_completed"].includes(outcome)) {
-      return NextResponse.json({ error: "Invalid outcome value" }, { status: 400 });
-    }
+export const POST = withApi(async (request, { userId, getBody }) => {
+  const body = await getBody();
+  const { taskId, date, outcome = "completed", note, time, startedAt, completedAt } = body;
 
-    // Verify task belongs to user
-    const task = await db.query.tasks.findFirst({
-      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
-    });
+  validateRequired(body, ["taskId"]);
+  validateEnum("outcome", outcome, ["completed", "not_completed"]);
 
-    if (!task) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    }
+  const task = await db.query.tasks.findFirst({
+    where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+  });
 
-    // Normalize date to start of day for consistent storage - use UTC to avoid timezone issues
-    const completionDate = date ? new Date(date) : new Date();
-    const utcDate = new Date(
-      Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
-    );
+  if (!task) {
+    throw Errors.notFound("Task");
+  }
 
-    // Check if completion already exists for this task and date
-    const existing = await db.query.taskCompletions.findFirst({
-      where: and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)),
-    });
+  const completionDate = date ? new Date(date) : new Date();
+  const utcDate = new Date(
+    Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
+  );
 
-    if (existing) {
-      // Update existing record with new outcome, note, and time
-      const updateData = { outcome };
-      if (note !== undefined) updateData.note = note || null;
-      if (time !== undefined) updateData.time = time || null;
-      if (startedAt !== undefined) updateData.startedAt = startedAt ? new Date(startedAt) : null;
-      if (completedAt !== undefined) updateData.completedAt = completedAt ? new Date(completedAt) : null;
-      const [updated] = await db
-        .update(taskCompletions)
-        .set(updateData)
-        .where(eq(taskCompletions.id, existing.id))
-        .returning();
-      return NextResponse.json(updated);
-    }
+  const existing = await db.query.taskCompletions.findFirst({
+    where: and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)),
+  });
 
-    // Create new completion
-    const [completion] = await db
+  if (existing) {
+    const updateData = { outcome };
+    if (note !== undefined) updateData.note = note || null;
+    if (time !== undefined) updateData.time = time || null;
+    if (startedAt !== undefined) updateData.startedAt = startedAt ? new Date(startedAt) : null;
+    if (completedAt !== undefined) updateData.completedAt = completedAt ? new Date(completedAt) : null;
+    const [updated] = await db
+      .update(taskCompletions)
+      .set(updateData)
+      .where(eq(taskCompletions.id, existing.id))
+      .returning();
+    return NextResponse.json(updated);
+  }
+
+  const [completion] = await db
+    .insert(taskCompletions)
+    .values({
+      taskId,
+      date: utcDate,
+      outcome,
+      note: note || null,
+      time: time || null,
+      startedAt: startedAt ? new Date(startedAt) : null,
+      completedAt: completedAt ? new Date(completedAt) : null,
+    })
+    .returning();
+
+  return NextResponse.json(completion, { status: 201 });
+});
+
+export const DELETE = withApi(async (request, { userId, getSearchParams }) => {
+  const searchParams = getSearchParams();
+  const taskId = searchParams.get("taskId");
+  const date = searchParams.get("date");
+
+  if (!taskId || !date) {
+    throw Errors.badRequest("Task ID and date are required");
+  }
+
+  const task = await db.query.tasks.findFirst({
+    where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+  });
+
+  if (!task) {
+    throw Errors.notFound("Task");
+  }
+
+  const completionDate = new Date(date);
+  const utcDate = new Date(
+    Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
+  );
+
+  const result = await db
+    .delete(taskCompletions)
+    .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)))
+    .returning();
+
+  if (result.length === 0) {
+    throw Errors.notFound("Completion");
+  }
+
+  return NextResponse.json({ success: true });
+});
+
+export const PUT = withApi(async (request, { userId, getBody }) => {
+  const body = await getBody();
+  const { taskId, date, outcome, note, time } = body;
+
+  validateRequired(body, ["taskId", "date"]);
+  validateEnum("outcome", outcome, ["completed", "not_completed"]);
+
+  const task = await db.query.tasks.findFirst({
+    where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+  });
+
+  if (!task) {
+    throw Errors.notFound("Task");
+  }
+
+  const completionDate = new Date(date);
+  const utcDate = new Date(
+    Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
+  );
+
+  const existing = await db.query.taskCompletions.findFirst({
+    where: and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)),
+  });
+
+  const updateData = {};
+  if (outcome !== undefined) updateData.outcome = outcome;
+  if (note !== undefined) updateData.note = note || null;
+  if (time !== undefined) updateData.time = time || null;
+
+  if (existing) {
+    const [updated] = await db
+      .update(taskCompletions)
+      .set(updateData)
+      .where(eq(taskCompletions.id, existing.id))
+      .returning();
+    return NextResponse.json(updated);
+  } else {
+    const [created] = await db
       .insert(taskCompletions)
       .values({
         taskId,
         date: utcDate,
-        outcome,
+        outcome: outcome || "completed",
         note: note || null,
         time: time || null,
-        startedAt: startedAt ? new Date(startedAt) : null,
-        completedAt: completedAt ? new Date(completedAt) : null,
       })
       .returning();
-
-    return NextResponse.json(completion, { status: 201 });
-  } catch (error) {
-    console.error("Error creating completion:", error);
-    return NextResponse.json({ error: "Failed to create completion", details: error.message }, { status: 500 });
+    return NextResponse.json(created, { status: 201 });
   }
-}
+});
 
-// DELETE - Remove a completion record
-export async function DELETE(request) {
-  const userId = getAuthenticatedUserId(request);
-  if (!userId) return unauthorizedResponse();
+export const PATCH = withApi(async (request, { userId, getBody }) => {
+  const body = await getBody();
+  const { taskId, date, outcome } = body;
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const taskId = searchParams.get("taskId");
-    const date = searchParams.get("date");
+  validateRequired(body, ["taskId", "date", "outcome"]);
+  validateEnum("outcome", outcome, ["completed", "not_completed"]);
 
-    if (!taskId || !date) {
-      return NextResponse.json({ error: "Task ID and date are required" }, { status: 400 });
-    }
+  const task = await db.query.tasks.findFirst({
+    where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+  });
 
-    // Verify task belongs to user
-    const task = await db.query.tasks.findFirst({
-      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
-    });
-
-    if (!task) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    }
-
-    // Normalize date to start of day - use UTC to avoid timezone issues
-    const completionDate = new Date(date);
-    const utcDate = new Date(
-      Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
-    );
-
-    const result = await db
-      .delete(taskCompletions)
-      .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)))
-      .returning();
-
-    if (result.length === 0) {
-      return NextResponse.json({ error: "Completion not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error deleting completion:", error);
-    return NextResponse.json({ error: "Failed to delete completion" }, { status: 500 });
+  if (!task) {
+    throw Errors.notFound("Task");
   }
-}
 
-// PUT - Update a completion record (including outcome and note)
-export async function PUT(request) {
-  const userId = getAuthenticatedUserId(request);
-  if (!userId) return unauthorizedResponse();
+  const completionDate = new Date(date);
+  const utcDate = new Date(
+    Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
+  );
 
-  try {
-    const body = await request.json();
-    const { taskId, date, outcome, note, time } = body;
+  const [updated] = await db
+    .update(taskCompletions)
+    .set({ outcome })
+    .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)))
+    .returning();
 
-    if (!taskId || !date) {
-      return NextResponse.json({ error: "Task ID and date are required" }, { status: 400 });
-    }
-
-    // Validate outcome if provided
-    if (outcome !== undefined && !["completed", "not_completed"].includes(outcome)) {
-      return NextResponse.json({ error: "Invalid outcome value" }, { status: 400 });
-    }
-
-    // Verify task belongs to user
-    const task = await db.query.tasks.findFirst({
-      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
-    });
-
-    if (!task) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    }
-
-    const completionDate = new Date(date);
-    const utcDate = new Date(
-      Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
-    );
-
-    // Find existing completion
-    const existing = await db.query.taskCompletions.findFirst({
-      where: and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)),
-    });
-
-    const updateData = {};
-    if (outcome !== undefined) updateData.outcome = outcome;
-    if (note !== undefined) updateData.note = note || null;
-    if (time !== undefined) updateData.time = time || null;
-
-    if (existing) {
-      // Update existing record
-      const [updated] = await db
-        .update(taskCompletions)
-        .set(updateData)
-        .where(eq(taskCompletions.id, existing.id))
-        .returning();
-      return NextResponse.json(updated);
-    } else {
-      // Create new record if doesn't exist
-      const [created] = await db
-        .insert(taskCompletions)
-        .values({
-          taskId,
-          date: utcDate,
-          outcome: outcome || "completed",
-          note: note || null,
-          time: time || null,
-        })
-        .returning();
-      return NextResponse.json(created, { status: 201 });
-    }
-  } catch (error) {
-    console.error("Error updating completion:", error);
-    return NextResponse.json({ error: "Failed to update completion" }, { status: 500 });
+  if (!updated) {
+    throw Errors.notFound("Record");
   }
-}
 
-// PATCH - Update a completion record's outcome
-export async function PATCH(request) {
-  const userId = getAuthenticatedUserId(request);
-  if (!userId) return unauthorizedResponse();
-
-  try {
-    const body = await request.json();
-    const { taskId, date, outcome } = body;
-
-    if (!taskId || !date || !outcome) {
-      return NextResponse.json({ error: "Task ID, date, and outcome are required" }, { status: 400 });
-    }
-
-    if (!["completed", "not_completed"].includes(outcome)) {
-      return NextResponse.json({ error: "Invalid outcome value" }, { status: 400 });
-    }
-
-    // Verify task belongs to user
-    const task = await db.query.tasks.findFirst({
-      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
-    });
-
-    if (!task) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    }
-
-    const completionDate = new Date(date);
-    const utcDate = new Date(
-      Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
-    );
-
-    const [updated] = await db
-      .update(taskCompletions)
-      .set({ outcome })
-      .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)))
-      .returning();
-
-    if (!updated) {
-      return NextResponse.json({ error: "Record not found" }, { status: 404 });
-    }
-
-    return NextResponse.json(updated);
-  } catch (error) {
-    console.error("Error updating completion:", error);
-    return NextResponse.json({ error: "Failed to update completion" }, { status: 500 });
-  }
-}
+  return NextResponse.json(updated);
+});

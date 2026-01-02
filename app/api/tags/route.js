@@ -2,116 +2,71 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tags } from "@/lib/schema";
 import { eq, and, asc } from "drizzle-orm";
-import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authMiddleware";
+import { withApi, Errors, validateRequired } from "@/lib/apiHelpers";
 
-// GET all tags
-export async function GET(request) {
-  const userId = getAuthenticatedUserId(request);
-  if (!userId) return unauthorizedResponse();
+export const GET = withApi(async (request, { userId }) => {
+  const allTags = await db.query.tags.findMany({
+    where: eq(tags.userId, userId),
+    orderBy: [asc(tags.name)],
+  });
+  return NextResponse.json(allTags);
+});
 
-  try {
-    const allTags = await db.query.tags.findMany({
-      where: eq(tags.userId, userId),
-      orderBy: [asc(tags.name)],
-    });
-    return NextResponse.json(allTags);
-  } catch (error) {
-    console.error("Error fetching tags:", error);
-    return NextResponse.json({ error: "Failed to fetch tags" }, { status: 500 });
+export const POST = withApi(async (request, { userId, getBody }) => {
+  const body = await getBody();
+  const { name, color } = body;
+
+  if (!name?.trim()) {
+    throw Errors.validation("name", "is required");
   }
-}
 
-// POST create new tag
-export async function POST(request) {
-  const userId = getAuthenticatedUserId(request);
-  if (!userId) return unauthorizedResponse();
+  const [tag] = await db
+    .insert(tags)
+    .values({
+      userId,
+      name: name.trim(),
+      color: color || "#6366f1",
+    })
+    .returning();
 
-  try {
-    const body = await request.json();
-    const { name, color } = body;
+  return NextResponse.json(tag, { status: 201 });
+});
 
-    if (!name?.trim()) {
-      return NextResponse.json({ error: "Tag name is required" }, { status: 400 });
-    }
+export const PUT = withApi(async (request, { userId, getBody }) => {
+  const body = await getBody();
+  validateRequired(body, ["id"]);
 
-    const [tag] = await db
-      .insert(tags)
-      .values({
-        userId,
-        name: name.trim(),
-        color: color || "#6366f1",
-      })
-      .returning();
+  const { id, name, color } = body;
 
-    return NextResponse.json(tag, { status: 201 });
-  } catch (error) {
-    console.error("Error creating tag:", error);
-    return NextResponse.json({ error: "Failed to create tag" }, { status: 500 });
+  const existingTag = await db.query.tags.findFirst({
+    where: and(eq(tags.id, id), eq(tags.userId, userId)),
+  });
+
+  if (!existingTag) {
+    throw Errors.notFound("Tag");
   }
-}
 
-// PUT update tag
-export async function PUT(request) {
-  const userId = getAuthenticatedUserId(request);
-  if (!userId) return unauthorizedResponse();
+  const updateData = {};
+  if (name !== undefined) updateData.name = name.trim();
+  if (color !== undefined) updateData.color = color;
 
-  try {
-    const body = await request.json();
-    const { id, name, color } = body;
+  const [updatedTag] = await db
+    .update(tags)
+    .set(updateData)
+    .where(and(eq(tags.id, id), eq(tags.userId, userId)))
+    .returning();
 
-    if (!id) {
-      return NextResponse.json({ error: "Tag ID is required" }, { status: 400 });
-    }
-
-    // Verify tag belongs to user
-    const existingTag = await db.query.tags.findFirst({
-      where: and(eq(tags.id, id), eq(tags.userId, userId)),
-    });
-
-    if (!existingTag) {
-      return NextResponse.json({ error: "Tag not found" }, { status: 404 });
-    }
-
-    const updateData = {};
-    if (name !== undefined) updateData.name = name.trim();
-    if (color !== undefined) updateData.color = color;
-
-    const [updatedTag] = await db
-      .update(tags)
-      .set(updateData)
-      .where(and(eq(tags.id, id), eq(tags.userId, userId)))
-      .returning();
-
-    if (!updatedTag) {
-      return NextResponse.json({ error: "Tag not found" }, { status: 404 });
-    }
-
-    return NextResponse.json(updatedTag);
-  } catch (error) {
-    console.error("Error updating tag:", error);
-    return NextResponse.json({ error: "Failed to update tag" }, { status: 500 });
+  if (!updatedTag) {
+    throw Errors.notFound("Tag");
   }
-}
 
-// DELETE tag
-export async function DELETE(request) {
-  const userId = getAuthenticatedUserId(request);
-  if (!userId) return unauthorizedResponse();
+  return NextResponse.json(updatedTag);
+});
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
+export const DELETE = withApi(async (request, { userId, getRequiredParam }) => {
+  const id = getRequiredParam("id");
 
-    if (!id) {
-      return NextResponse.json({ error: "Tag ID is required" }, { status: 400 });
-    }
+  await db.delete(tags).where(and(eq(tags.id, id), eq(tags.userId, userId)));
 
-    // Verify and delete (only if belongs to user)
-    await db.delete(tags).where(and(eq(tags.id, id), eq(tags.userId, userId)));
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error deleting tag:", error);
-    return NextResponse.json({ error: "Failed to delete tag" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ success: true });
+});

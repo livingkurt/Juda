@@ -2,119 +2,81 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { taskTags, tasks, tags } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
-import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authMiddleware";
+import { withApi, Errors, validateRequired } from "@/lib/apiHelpers";
 
-// GET tags for a specific task
-export async function GET(request) {
-  const userId = getAuthenticatedUserId(request);
-  if (!userId) return unauthorizedResponse();
+export const GET = withApi(async (request, { userId, getRequiredParam }) => {
+  const taskId = getRequiredParam("taskId");
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const taskId = searchParams.get("taskId");
+  const task = await db.query.tasks.findFirst({
+    where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+  });
 
-    if (!taskId) {
-      return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
-    }
-
-    // Verify task belongs to user
-    const task = await db.query.tasks.findFirst({
-      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
-    });
-
-    if (!task) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    }
-
-    const result = await db.query.taskTags.findMany({
-      where: eq(taskTags.taskId, taskId),
-      with: {
-        tag: true,
-      },
-    });
-
-    const tagsForTask = result.map(tt => tt.tag);
-    return NextResponse.json(tagsForTask);
-  } catch (error) {
-    console.error("Error fetching task tags:", error);
-    return NextResponse.json({ error: "Failed to fetch task tags" }, { status: 500 });
+  if (!task) {
+    throw Errors.notFound("Task");
   }
-}
 
-// POST assign tag to task
-export async function POST(request) {
-  const userId = getAuthenticatedUserId(request);
-  if (!userId) return unauthorizedResponse();
+  const result = await db.query.taskTags.findMany({
+    where: eq(taskTags.taskId, taskId),
+    with: {
+      tag: true,
+    },
+  });
 
-  try {
-    const body = await request.json();
-    const { taskId, tagId } = body;
+  const tagsForTask = result.map(tt => tt.tag);
+  return NextResponse.json(tagsForTask);
+});
 
-    if (!taskId || !tagId) {
-      return NextResponse.json({ error: "Task ID and Tag ID are required" }, { status: 400 });
-    }
+export const POST = withApi(async (request, { userId, getBody }) => {
+  const body = await getBody();
+  const { taskId, tagId } = body;
 
-    // Verify task and tag belong to user
-    const task = await db.query.tasks.findFirst({
-      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
-    });
-    const tag = await db.query.tags.findFirst({
-      where: and(eq(tags.id, tagId), eq(tags.userId, userId)),
-    });
+  validateRequired(body, ["taskId", "tagId"]);
 
-    if (!task || !tag) {
-      return NextResponse.json({ error: "Task or tag not found" }, { status: 404 });
-    }
+  const task = await db.query.tasks.findFirst({
+    where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+  });
+  const tag = await db.query.tags.findFirst({
+    where: and(eq(tags.id, tagId), eq(tags.userId, userId)),
+  });
 
-    // Check if assignment already exists
-    const existing = await db.query.taskTags.findFirst({
-      where: and(eq(taskTags.taskId, taskId), eq(taskTags.tagId, tagId)),
-    });
-
-    if (existing) {
-      return NextResponse.json({ message: "Tag already assigned" }, { status: 200 });
-    }
-
-    const [taskTag] = await db.insert(taskTags).values({ taskId, tagId }).returning();
-
-    return NextResponse.json(taskTag, { status: 201 });
-  } catch (error) {
-    console.error("Error assigning tag:", error);
-    return NextResponse.json({ error: "Failed to assign tag" }, { status: 500 });
+  if (!task || !tag) {
+    throw Errors.notFound("Task or tag");
   }
-}
 
-// DELETE remove tag from task
-export async function DELETE(request) {
-  const userId = getAuthenticatedUserId(request);
-  if (!userId) return unauthorizedResponse();
+  const existing = await db.query.taskTags.findFirst({
+    where: and(eq(taskTags.taskId, taskId), eq(taskTags.tagId, tagId)),
+  });
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const taskId = searchParams.get("taskId");
-    const tagId = searchParams.get("tagId");
-
-    if (!taskId || !tagId) {
-      return NextResponse.json({ error: "Task ID and Tag ID are required" }, { status: 400 });
-    }
-
-    // Verify task and tag belong to user
-    const task = await db.query.tasks.findFirst({
-      where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
-    });
-    const tag = await db.query.tags.findFirst({
-      where: and(eq(tags.id, tagId), eq(tags.userId, userId)),
-    });
-
-    if (!task || !tag) {
-      return NextResponse.json({ error: "Task or tag not found" }, { status: 404 });
-    }
-
-    await db.delete(taskTags).where(and(eq(taskTags.taskId, taskId), eq(taskTags.tagId, tagId)));
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error removing tag:", error);
-    return NextResponse.json({ error: "Failed to remove tag" }, { status: 500 });
+  if (existing) {
+    return NextResponse.json({ message: "Tag already assigned" }, { status: 200 });
   }
-}
+
+  const [taskTag] = await db.insert(taskTags).values({ taskId, tagId }).returning();
+
+  return NextResponse.json(taskTag, { status: 201 });
+});
+
+export const DELETE = withApi(async (request, { userId, getSearchParams }) => {
+  const searchParams = getSearchParams();
+  const taskId = searchParams.get("taskId");
+  const tagId = searchParams.get("tagId");
+
+  if (!taskId || !tagId) {
+    throw Errors.badRequest("Task ID and Tag ID are required");
+  }
+
+  const task = await db.query.tasks.findFirst({
+    where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),
+  });
+  const tag = await db.query.tags.findFirst({
+    where: and(eq(tags.id, tagId), eq(tags.userId, userId)),
+  });
+
+  if (!task || !tag) {
+    throw Errors.notFound("Task or tag");
+  }
+
+  await db.delete(taskTags).where(and(eq(taskTags.taskId, taskId), eq(taskTags.tagId, tagId)));
+
+  return NextResponse.json({ success: true });
+});
