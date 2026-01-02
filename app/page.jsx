@@ -1185,46 +1185,6 @@ export default function DailyTasksApp() {
     setWorkoutModalOpen(true);
   };
 
-  const handleSaveWorkoutProgress = async (taskId, date, workoutCompletion) => {
-    try {
-      // Find the task to update its workoutData
-      const task = tasks.find(t => t.id === taskId);
-      if (!task || !task.workoutData) {
-        throw new Error("Task or workout data not found");
-      }
-
-      // Update workoutData with progress
-      const updatedWorkoutData = {
-        ...task.workoutData,
-        progress: {
-          ...(task.workoutData.progress || {}),
-          [workoutCompletion.week]: {
-            sectionCompletions: workoutCompletion.sectionCompletions,
-          },
-        },
-      };
-
-      // Save progress to the task itself (not TaskCompletion)
-      await saveTask({ id: taskId, workoutData: updatedWorkoutData });
-
-      // Update the modal task if it's the same task
-      if (workoutModalTask?.id === taskId) {
-        setWorkoutModalTask({
-          ...workoutModalTask,
-          workoutData: updatedWorkoutData,
-        });
-      }
-    } catch (error) {
-      console.error("Failed to save workout progress:", error);
-      toast({
-        title: "Failed to save workout progress",
-        description: error.message,
-        status: "error",
-        duration: 3000,
-      });
-    }
-  };
-
   const handleDuplicateTask = async taskId => {
     try {
       await duplicateTask(taskId);
@@ -3875,9 +3835,11 @@ export default function DailyTasksApp() {
           setWorkoutModalOpen(false);
           setWorkoutModalTask(null);
         }}
-        onSaveProgress={handleSaveWorkoutProgress}
-        onCompleteTask={(taskId, date) => {
-          createCompletion(taskId, date, { outcome: "completed" });
+        onCompleteTask={async (taskId, date) => {
+          // When workout is 100% complete, create a TaskCompletion record
+          await createCompletion(taskId, date, {
+            outcome: "completed",
+          });
         }}
         currentDate={viewDate}
       />
@@ -3885,13 +3847,12 @@ export default function DailyTasksApp() {
         key={editingWorkoutTask?.id || "new"}
         isOpen={Boolean(editingWorkoutTask)}
         onClose={() => setEditingWorkoutTask(null)}
-        onSave={workoutData => {
-          if (editingWorkoutTask) {
-            updateTask(editingWorkoutTask.id, { workoutData });
-          }
+        taskId={editingWorkoutTask?.id}
+        onSaveComplete={() => {
           setEditingWorkoutTask(null);
+          // Refresh tasks to get updated workout program status
+          fetchTasks(true);
         }}
-        initialData={editingWorkoutTask?.workoutData}
       />
     </Box>
   );

@@ -36,6 +36,7 @@ import {
 import { formatTime, isOverdue, getRecurrenceLabel, getTaskDisplayColor } from "@/lib/utils";
 import { TagChip } from "./TagChip";
 import { TagMenuSelector } from "./TagMenuSelector";
+import { useWorkoutProgress } from "@/hooks/useWorkoutProgress";
 
 export const TaskItem = ({
   task,
@@ -157,56 +158,18 @@ export const TaskItem = ({
   // For workout tasks, only mark complete if outcome is explicitly "completed" (not "in_progress")
   const isWorkoutTaskCompleted = isWorkoutTask && existingCompletion?.outcome === "completed";
 
+  // Check if workout has in-progress data
+  const hasWorkoutProgress = useWorkoutProgress(task.id, viewDate, isWorkoutTask);
+
   // Determine workout button text based on completion status
   const getWorkoutButtonText = () => {
     if (!isWorkoutTask) return "";
     if (isWorkoutTaskCompleted) return "View Results";
 
-    const workoutData = task.workoutData;
-    if (!workoutData) return "Start";
+    // Check if there's any in-progress workout data for this task and date
+    if (hasWorkoutProgress) return "Continue";
 
-    // Calculate which week the viewDate falls into
-    if (!workoutData.startDate || !viewDate) return "Start";
-
-    const startDate = new Date(workoutData.startDate);
-    const viewDateObj = new Date(viewDate);
-    const daysDiff = Math.floor((viewDateObj - startDate) / (1000 * 60 * 60 * 24));
-    const weekNumber = Math.floor(daysDiff / 7) + 1;
-
-    // If viewing a date outside the workout program range, show "Start"
-    // (before start or after the program ends)
-    if (weekNumber < 1 || weekNumber > (workoutData.weeks || 1)) {
-      return "Start";
-    }
-
-    const currentWeek = weekNumber;
-
-    // Check if there's progress data for the CURRENT week only
-    const progress = workoutData.progress;
-    if (!progress || !progress[currentWeek]) return "Start";
-
-    const weekData = progress[currentWeek];
-    if (!weekData?.sectionCompletions) return "Start";
-
-    // Check if sectionCompletions is empty
-    if (Object.keys(weekData.sectionCompletions).length === 0) return "Start";
-
-    // Get the current day of week (0=Sun, 1=Mon, etc.)
-    const viewDayOfWeek = viewDateObj.getDay();
-
-    // Day ID prefixes based on day of week
-    const dayPrefixes = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-    const currentDayPrefix = dayPrefixes[viewDayOfWeek];
-
-    // Check if any section has progress for TODAY's day of week
-    const hasProgressForToday = Object.values(weekData.sectionCompletions).some(sectionData => {
-      if (!sectionData?.days) return false;
-
-      // Check if any day ID starts with the current day prefix
-      return Object.keys(sectionData.days).some(dayId => dayId.startsWith(currentDayPrefix + "-"));
-    });
-
-    return hasProgressForToday ? "Continue" : "Start";
+    return "Start";
   };
 
   const workoutButtonText = getWorkoutButtonText();

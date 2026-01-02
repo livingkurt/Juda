@@ -190,6 +190,34 @@
       "when": 1767331890891,
       "tag": "0026_tag_non_recurring_tasks_with_juda",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1767332564586,
+      "tag": "0027_normalize_workout_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1767333128514,
+      "tag": "0028_fix_workout_decimal_values",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1767333474322,
+      "tag": "0029_add_workout_progress_field",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1767333683926,
+      "tag": "0030_add_workout_set_completions_table",
+      "breakpoints": true
     }
   ]
 }

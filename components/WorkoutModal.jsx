@@ -1,27 +1,30 @@
 "use client";
 
 import { Box, Button, Flex, Text, VStack, HStack, Badge, Progress, Dialog } from "@chakra-ui/react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import WorkoutDaySection from "./WorkoutDaySection";
+import { useWorkoutProgram } from "@/hooks/useWorkoutProgram";
+import { useAuthFetch } from "@/hooks/useAuthFetch";
 
 /**
  * WorkoutModal - Main modal for executing workouts
  * Displays exercises organized by section (warmup/workout/cooldown) and day
  * Tracks completion per set with auto-save
  */
-export default function WorkoutModal({
-  task,
-  isOpen,
-  onClose,
-  onSaveProgress,
-  onCompleteTask,
-  currentDate = new Date(),
-}) {
+export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, currentDate = new Date() }) {
+  const { fetchWorkoutProgram } = useWorkoutProgram();
+  const authFetch = useAuthFetch();
   const [completionData, setCompletionData] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [hasAutoCompleted, setHasAutoCompleted] = useState(false);
+  const [workoutData, setWorkoutData] = useState(null);
+  const [isLoadingCompletions, setIsLoadingCompletions] = useState(false);
 
-  const workoutData = task?.workoutData;
+  // Use refs to prevent save loops
+  const pendingSaveRef = useRef(false);
+  const saveTimeoutRef = useRef(null);
+  const authFetchRef = useRef(authFetch);
+  authFetchRef.current = authFetch;
 
   // Calculate total weeks from task recurrence dates
   const totalWeeks = useMemo(() => {
@@ -49,50 +52,171 @@ export default function WorkoutModal({
   // Determine current day of week
   const currentDayOfWeek = currentDate.getDay();
 
-  // Load existing progress from task's workoutData
+  // Load workout program from API
   useEffect(() => {
-    if (workoutData?.progress) {
-      const weekProgress = workoutData.progress[currentWeek];
-      if (weekProgress?.sectionCompletions) {
-        setCompletionData(weekProgress.sectionCompletions || {});
-      }
+    if (isOpen && task?.id) {
+      fetchWorkoutProgram(task.id)
+        .then(program => {
+          setWorkoutData(program);
+        })
+        .catch(err => {
+          console.error("Failed to load workout program:", err);
+          setWorkoutData(null);
+        });
+    } else if (!isOpen) {
+      setWorkoutData(null);
     }
-  }, [workoutData, currentWeek]);
+  }, [isOpen, task?.id, fetchWorkoutProgram]);
 
-  // Auto-save on completion data change
+  // Load set completions from database when modal opens
   useEffect(() => {
-    // Don't save if there's no completion data or if it's empty
-    if (Object.keys(completionData).length === 0) return;
+    if (!isOpen || !task?.id) {
+      // Clear state when modal closes
+      setCompletionData({});
+      setHasAutoCompleted(false);
+      pendingSaveRef.current = false;
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      return;
+    }
 
-    // Check if there's any actual progress (any section with days/exercises)
-    const hasActualProgress = Object.values(completionData).some(
-      sectionData => sectionData?.days && Object.keys(sectionData.days).length > 0
-    );
-    if (!hasActualProgress) return;
+    const loadCompletions = async () => {
+      setIsLoadingCompletions(true);
+      pendingSaveRef.current = false; // Don't save data we just loaded
+      try {
+        const dateKey = currentDate.toISOString().split("T")[0]; // YYYY-MM-DD
+        const response = await authFetchRef.current(`/api/workout-set-completions?taskId=${task.id}&date=${dateKey}`);
 
-    if (isSaving) return;
+        if (response.ok) {
+          const data = await response.json();
+          // Transform API response into completionData structure
+          const transformed = {};
 
-    const timeoutId = setTimeout(async () => {
+          data.completions.forEach(completion => {
+            // Find which section/day this exercise belongs to
+            if (!workoutData) return;
+
+            workoutData.sections.forEach(section => {
+              section.days.forEach(day => {
+                const exercise = day.exercises.find(ex => ex.id === completion.exerciseId);
+                if (exercise) {
+                  if (!transformed[section.id]) transformed[section.id] = { days: {} };
+                  if (!transformed[section.id].days[day.id]) transformed[section.id].days[day.id] = { exercises: {} };
+                  if (!transformed[section.id].days[day.id].exercises[exercise.id]) {
+                    transformed[section.id].days[day.id].exercises[exercise.id] = { sets: [] };
+                  }
+
+                  transformed[section.id].days[day.id].exercises[exercise.id].sets.push({
+                    setNumber: completion.setNumber,
+                    completed: completion.completed,
+                    value: completion.value,
+                    time: completion.time,
+                    distance: completion.distance,
+                    pace: completion.pace,
+                  });
+                }
+              });
+            });
+          });
+
+          setCompletionData(transformed);
+        }
+      } catch (err) {
+        console.error("Failed to load workout completions:", err);
+      } finally {
+        setIsLoadingCompletions(false);
+      }
+    };
+
+    if (workoutData) {
+      loadCompletions();
+    }
+  }, [isOpen, task?.id, currentDate, workoutData, authFetch]);
+
+  // Save function using refs to avoid dependency issues
+  const saveCompletions = useCallback(
+    async dataToSave => {
+      if (!task?.id) return;
+
       setIsSaving(true);
       try {
-        const workoutCompletion = {
-          week: currentWeek,
-          sectionCompletions: completionData,
-        };
+        const dateKey = currentDate.toISOString().split("T")[0];
+        const savePromises = [];
 
-        await onSaveProgress(task.id, currentDate, workoutCompletion);
+        Object.entries(dataToSave).forEach(([_sectionId, sectionData]) => {
+          if (!sectionData?.days) return;
+
+          Object.entries(sectionData.days).forEach(([_dayId, dayData]) => {
+            if (!dayData?.exercises) return;
+
+            Object.entries(dayData.exercises).forEach(([exerciseId, exerciseData]) => {
+              if (!exerciseData?.sets) return;
+
+              exerciseData.sets.forEach(setData => {
+                savePromises.push(
+                  authFetchRef.current("/api/workout-set-completions", {
+                    method: "POST",
+                    body: JSON.stringify({
+                      taskId: task.id,
+                      date: dateKey,
+                      exerciseId,
+                      setNumber: setData.setNumber,
+                      completed: setData.completed,
+                      value: setData.value,
+                      time: setData.time,
+                      distance: setData.distance,
+                      pace: setData.pace,
+                    }),
+                  })
+                );
+              });
+            });
+          });
+        });
+
+        await Promise.all(savePromises);
       } catch (err) {
         console.error("Failed to save workout progress:", err);
       } finally {
         setIsSaving(false);
+        pendingSaveRef.current = false;
       }
-    }, 500); // Debounce 500ms
+    },
+    [task?.id, currentDate]
+  );
 
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completionData]);
+  // Trigger save when pendingSaveRef is set (called from handleSetToggle)
+  useEffect(() => {
+    // Only save if we have a pending save and not currently loading/saving
+    if (!pendingSaveRef.current || isLoadingCompletions || isSaving) {
+      return;
+    }
+
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounce save by 500ms
+    saveTimeoutRef.current = setTimeout(() => {
+      if (pendingSaveRef.current && Object.keys(completionData).length > 0) {
+        saveCompletions(completionData);
+      }
+    }, 500);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [completionData, isLoadingCompletions, isSaving, saveCompletions]);
 
   const handleSetToggle = (sectionId, dayId, exerciseId, setNumber, setData) => {
+    // Mark that we need to save after this update
+    pendingSaveRef.current = true;
+
     setCompletionData(prev => {
       const newData = { ...prev };
 
@@ -120,6 +244,9 @@ export default function WorkoutModal({
   };
 
   const handleActualValueChange = (sectionId, dayId, exerciseId, actualValue) => {
+    // Mark that we need to save after this update
+    pendingSaveRef.current = true;
+
     setCompletionData(prev => {
       const newData = { ...prev };
 

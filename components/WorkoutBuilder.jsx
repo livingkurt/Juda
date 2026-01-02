@@ -19,6 +19,8 @@ import { useState, useEffect, useMemo } from "react";
 import { EXERCISE_TYPES, WORKOUT_SECTION_TYPES } from "@/lib/constants";
 import WeekdaySelector from "./WeekdaySelector";
 import { SelectDropdown } from "./SelectDropdown";
+import { useWorkoutProgram } from "@/hooks/useWorkoutProgram";
+import { useToast } from "@/hooks/useToast";
 
 // Helper to generate CUID-like IDs
 function generateCuid() {
@@ -31,11 +33,14 @@ function generateCuid() {
  * WorkoutBuilder - Modal for creating/editing workout structures
  * Allows users to build multi-week workout programs with sections, days, and exercises
  */
-export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = null }) {
+export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete }) {
+  const { fetchWorkoutProgram, saveWorkoutProgram, loading: programLoading } = useWorkoutProgram();
+  const { toast } = useToast();
   const [sections, setSections] = useState([]);
   const [expandedSections, setExpandedSections] = useState({});
   const [expandedDays, setExpandedDays] = useState({});
   const [numberOfWeeks, setNumberOfWeeks] = useState(0);
+  const [name, setName] = useState("");
 
   // Create collections for selects
   const sectionTypeCollection = useMemo(() => createListCollection({ items: WORKOUT_SECTION_TYPES }), []);
@@ -107,85 +112,62 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
     );
   };
 
-  // Helper to extract actual values from progress and populate weekly progression
-  const extractActualValuesFromProgress = (sections, progress) => {
-    if (!progress) return sections;
+  // Load existing workout program on open
+  useEffect(() => {
+    if (isOpen && taskId) {
+      fetchWorkoutProgram(taskId)
+        .then(program => {
+          if (program) {
+            setName(program.name || "");
+            setNumberOfWeeks(program.numberOfWeeks || 0);
+            setSections(program.sections || []);
 
-    return sections.map(section => ({
-      ...section,
-      days: section.days?.map(day => ({
-        ...day,
-        exercises: day.exercises?.map(exercise => {
-          if (!exercise.weeklyProgression) return exercise;
-
-          const updatedProgression = exercise.weeklyProgression.map(weekData => {
-            const weekProgress = progress[weekData.week];
-            if (weekProgress?.sectionCompletions) {
-              const sectionData = weekProgress.sectionCompletions[section.id];
-              const dayData = sectionData?.days?.[day.id];
-              const exerciseData = dayData?.exercises?.[exercise.id];
-              if (exerciseData?.actualValue !== undefined) {
-                return { ...weekData, actualValue: exerciseData.actualValue };
+            // Expand first section and day by default
+            if (program.sections?.length > 0) {
+              const firstSectionId = program.sections[0].id;
+              setExpandedSections({ [firstSectionId]: true });
+              if (program.sections[0].days?.length > 0) {
+                setExpandedDays({ [program.sections[0].days[0].id]: true });
               }
             }
-            return weekData;
-          });
-          return { ...exercise, weeklyProgression: updatedProgression };
-        }),
-      })),
-    }));
-  };
-
-  // Initialize with existing data or defaults
-  useEffect(() => {
-    if (initialData) {
-      // Extract actual values from progress and populate weekly progression
-      const sectionsWithActualValues = extractActualValuesFromProgress(
-        initialData.sections || [],
-        initialData.progress
-      );
-
-      setSections(sectionsWithActualValues);
-
-      // Initialize numberOfWeeks from initialData or calculate from existing exercises
-      if (initialData.numberOfWeeks !== undefined) {
-        setNumberOfWeeks(initialData.numberOfWeeks);
-      } else {
-        // Calculate max weeks from all exercises
-        let maxWeeks = 0;
-        initialData.sections?.forEach(section => {
-          section.days?.forEach(day => {
-            day.exercises?.forEach(exercise => {
-              const weeks = exercise.weeklyProgression?.length || 0;
-              if (weeks > maxWeeks) maxWeeks = weeks;
-            });
+          } else {
+            // Initialize with defaults for new workout
+            const defaultSection = {
+              id: generateCuid(),
+              name: "Workout",
+              type: "workout",
+              days: [],
+            };
+            setName("");
+            setSections([defaultSection]);
+            setExpandedSections({ [defaultSection.id]: true });
+            setNumberOfWeeks(0);
+          }
+        })
+        .catch(err => {
+          console.error("Failed to load workout program:", err);
+          toast({
+            title: "Failed to load workout",
+            description: err.message,
+            status: "error",
+            duration: 3000,
           });
         });
-        setNumberOfWeeks(maxWeeks);
-      }
-
-      // Expand first section and day by default
-      if (initialData.sections?.length > 0) {
-        const firstSectionId = initialData.sections[0].id;
-        setExpandedSections({ [firstSectionId]: true });
-        if (initialData.sections[0].days?.length > 0) {
-          setExpandedDays({ [initialData.sections[0].days[0].id]: true });
-        }
-      }
-    } else {
-      // Initialize with one workout section
+    } else if (isOpen && !taskId) {
+      // Initialize with defaults if no taskId
       const defaultSection = {
         id: generateCuid(),
         name: "Workout",
         type: "workout",
         days: [],
       };
+      setName("");
       setSections([defaultSection]);
       setExpandedSections({ [defaultSection.id]: true });
       setNumberOfWeeks(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isOpen, taskId]);
 
   const addSection = () => {
     const newSection = {
@@ -356,16 +338,41 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
     );
   };
 
-  const handleSave = () => {
-    const workoutData = {
-      sections,
-      numberOfWeeks,
-      // Preserve progress data if it exists
-      ...(initialData?.progress && { progress: initialData.progress }),
-    };
+  const handleSave = async () => {
+    if (!taskId) {
+      toast({
+        title: "Error",
+        description: "Task ID is required",
+        status: "error",
+        duration: 3000,
+      });
+      return;
+    }
 
-    onSave(workoutData);
-    onClose();
+    try {
+      await saveWorkoutProgram(taskId, {
+        name,
+        numberOfWeeks,
+        sections,
+      });
+
+      toast({
+        title: "Workout saved",
+        status: "success",
+        duration: 2000,
+      });
+
+      onSaveComplete?.();
+      onClose();
+    } catch (err) {
+      console.error("Failed to save workout:", err);
+      toast({
+        title: "Failed to save workout",
+        description: err.message,
+        status: "error",
+        duration: 3000,
+      });
+    }
   };
 
   const toggleSection = sectionId => {
@@ -396,6 +403,19 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
 
           <Dialog.Body>
             <VStack align="stretch" gap={6}>
+              {/* Workout Name */}
+              <Box>
+                <Text fontSize="sm" fontWeight="medium" mb={1}>
+                  Workout Name (optional)
+                </Text>
+                <Input
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="My Workout Program"
+                  maxW="400px"
+                />
+              </Box>
+
               {/* Number of Weeks - Controls all exercises */}
               <Box>
                 <Text fontSize="sm" fontWeight="medium" mb={1}>
@@ -734,7 +754,7 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
                                                               color={{ _light: "gray.600", _dark: "gray.400" }}
                                                               mb={0.5}
                                                             >
-                                                              Test week doesn't get target
+                                                              Test week doesn&apos;t get target
                                                             </Text>
                                                           </Box>
                                                         </>
@@ -866,7 +886,7 @@ export default function WorkoutBuilder({ isOpen, onClose, onSave, initialData = 
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button colorPalette="blue" onClick={handleSave}>
+            <Button colorPalette="blue" onClick={handleSave} loading={programLoading}>
               Save Workout
             </Button>
           </Dialog.Footer>

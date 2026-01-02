@@ -51,7 +51,7 @@ export async function POST(request) {
       order,
       completionType,
       content,
-      workoutData,
+      // workoutData removed - now managed separately via /api/workout-programs
       folderId,
     } = body;
 
@@ -77,7 +77,7 @@ export async function POST(request) {
         order: order ?? 0,
         completionType: completionType || "checkbox",
         content: content || null,
-        workoutData: workoutData || null,
+        // workoutData removed - now managed separately via /api/workout-programs
         folderId: folderId || null,
       })
       .returning();
@@ -109,7 +109,7 @@ export async function PUT(request) {
       startedAt,
       completionType,
       content,
-      workoutData,
+      // workoutData removed - now managed separately via /api/workout-programs
       folderId,
     } = body;
 
@@ -176,7 +176,7 @@ export async function PUT(request) {
       updateData.completionType = completionType;
     }
     if (content !== undefined) updateData.content = content;
-    if (workoutData !== undefined) updateData.workoutData = workoutData;
+    // workoutData removed - now managed separately via /api/workout-programs
     if (folderId !== undefined) updateData.folderId = folderId;
 
     // Ensure we have at least one field to update
