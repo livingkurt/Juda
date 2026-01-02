@@ -6,16 +6,17 @@ import { MobileZoomFix } from "@/components/MobileZoomFix";
 export const metadata = {
   title: "Juda",
   description: "The true personal assistant",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-  },
   icons: {
     icon: "/icon.png",
     apple: "/apple-icon.png",
   },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({ children }) {
