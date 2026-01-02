@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Flex } from "@chakra-ui/react";
+import { Box, Flex, VStack } from "@chakra-ui/react";
 import { shouldShowOnDate, getTaskDisplayColor } from "@/lib/utils";
 import { MONTH_OPTIONS } from "@/lib/constants";
 
@@ -11,10 +11,11 @@ export const CalendarYearView = ({
   isCompletedOnDate,
   getOutcomeOnDate,
   showCompleted = true,
+  zoom = 1.0,
 }) => {
   // Color scheme
   const bgColor = { _light: "white", _dark: "gray.800" };
-  const borderColor = { _light: "gray.200", _dark: "gray.700" };
+  const borderColor = { _light: "gray.400", _dark: "gray.500" }; // More visible borders
   const cellBg = { _light: "gray.50", _dark: "gray.700" };
   const cellHover = { _light: "gray.100", _dark: "gray.700" };
   const invalidCellBg = { _light: "gray.100", _dark: "gray.900" };
@@ -73,42 +74,52 @@ export const CalendarYearView = ({
     onDayClick(clickedDate);
   };
 
-  // Get indicator color based on tasks
-  const getIndicatorColor = dayTasks => {
-    if (dayTasks.length === 0) return null;
-
-    // If single task with tag, use tag color (returns hex string)
-    if (dayTasks.length === 1 && dayTasks[0].tags?.length > 0) {
-      const tagColor = getTaskDisplayColor(dayTasks[0]);
-      if (tagColor) {
-        // Convert hex string to object format for Chakra v3
-        return { _light: tagColor, _dark: tagColor };
-      }
-    }
-
-    // Multiple tasks or no tag - use intensity based on count
-    const count = dayTasks.length;
-    if (count >= 5) return { _light: "blue.600", _dark: "blue.400" };
-    if (count >= 3) return { _light: "blue.400", _dark: "blue.500" };
-    return { _light: "blue.200", _dark: "blue.700" };
+  // Cell size based on zoom - use exact pixel values for alignment
+  const baseCellWidth = 60;
+  const cellWidth = baseCellWidth * zoom;
+  const baseCellHeight = 80;
+  const cellHeight = baseCellHeight * zoom;
+  // Use exact pixel value to ensure header and cells align perfectly
+  const cellSizePx = `${cellWidth}px`;
+  const cellMinHeight = {
+    base: `${cellHeight}px`,
+    md: `${cellHeight * 1.2}px`,
+    lg: `${cellHeight * 1.4}px`,
   };
 
-  // Cell size
-  const cellSize = { base: "20px", md: "24px", lg: "28px" };
+  const textColor = { _light: "gray.900", _dark: "gray.200" };
+  const mutedText = { _light: "gray.400", _dark: "gray.600" };
 
   return (
     <Flex direction="column" h="full" overflow="auto" bg={bgColor} p={2}>
       {/* Header row - Day numbers */}
-      <Flex mb={1} pl={{ base: "40px", md: "60px" }}>
+      <Flex mb={0} pl={"32px"} position="sticky" top={0} bg={bgColor} zIndex={10} pb={0}>
         {daysOfMonth.map(day => (
           <Box
             key={day}
-            w={cellSize}
-            minW={cellSize}
-            textAlign="center"
-            fontSize={{ base: "2xs", md: "xs" }}
+            w={cellSizePx}
+            minW={cellSizePx}
+            maxW={cellSizePx}
+            h="auto"
+            textAlign="left"
+            fontSize={{
+              base: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
+              md: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
+            }}
+            pl={2}
             color={headerText}
             fontWeight="medium"
+            borderTopWidth="2px"
+            borderTopColor={borderColor}
+            borderBottomWidth="1px"
+            borderBottomColor={borderColor}
+            borderLeftWidth={day === 1 ? "2px" : "1px"}
+            borderLeftColor={borderColor}
+            borderRightWidth={day === 31 ? "2px" : "1px"}
+            borderRightColor={borderColor}
+            py={1}
+            bg={bgColor}
+            boxSizing="border-box"
           >
             {day}
           </Box>
@@ -117,15 +128,22 @@ export const CalendarYearView = ({
 
       {/* Month rows */}
       {MONTH_OPTIONS.map((monthOption, monthIndex) => (
-        <Flex key={monthOption.value} align="center" mb={0.5}>
+        <Flex key={monthOption.value} align="flex-start" mb={0}>
           {/* Month label */}
           <Box
-            w={{ base: "40px", md: "60px" }}
+            w={{ base: "60px", md: "80px" }}
             pr={2}
-            fontSize={{ base: "2xs", md: "xs" }}
+            fontSize={{
+              base: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
+              md: zoom >= 1.5 ? "md" : zoom >= 1.0 ? "sm" : "xs",
+            }}
             fontWeight="medium"
             color={monthText}
             textAlign="right"
+            position="sticky"
+            left={0}
+            bg={bgColor}
+            zIndex={5}
           >
             {monthOption.label.substring(0, 3)}
           </Box>
@@ -136,39 +154,111 @@ export const CalendarYearView = ({
               const valid = isValidDate(monthIndex, day);
               const dayTasks = valid ? getTasksForDate(monthIndex, day) : [];
               const todayCell = isToday(monthIndex, day);
-              const indicatorColor = getIndicatorColor(dayTasks);
+              // Limit tasks shown based on zoom
+              const maxTasks = zoom >= 1.5 ? 5 : zoom >= 1.0 ? 3 : 2;
+              const visibleTasks = dayTasks.slice(0, maxTasks);
+              const remainingCount = dayTasks.length - visibleTasks.length;
 
               return (
                 <Box
                   key={day}
-                  w={cellSize}
-                  h={cellSize}
-                  minW={cellSize}
+                  w={cellSizePx}
+                  minW={cellSizePx}
+                  maxW={cellSizePx}
+                  minH={cellMinHeight}
                   display="flex"
-                  alignItems="center"
-                  justifyContent="center"
+                  flexDirection="column"
                   bg={valid ? cellBg : invalidCellBg}
-                  borderWidth={todayCell ? "2px" : "1px"}
-                  borderColor={todayCell ? todayBorder : borderColor}
-                  borderRadius="sm"
+                  borderTopWidth={monthIndex === 0 ? "2px" : "1px"}
+                  borderTopColor={todayCell ? todayBorder : borderColor}
+                  borderBottomWidth={monthIndex === 11 ? "2px" : "1px"}
+                  borderBottomColor={todayCell ? todayBorder : borderColor}
+                  borderLeftWidth={day === 1 ? "2px" : "1px"}
+                  borderLeftColor={todayCell ? todayBorder : borderColor}
+                  borderRightWidth={day === 31 ? "2px" : "1px"}
+                  borderRightColor={todayCell ? todayBorder : borderColor}
                   cursor={valid ? "pointer" : "default"}
                   opacity={valid ? 1 : 0.3}
                   _hover={valid ? { bg: cellHover } : {}}
                   onClick={() => handleCellClick(monthIndex, day)}
                   transition="all 0.15s"
+                  p={zoom >= 1.0 ? 1 : 0.5}
+                  position="relative"
+                  boxSizing="border-box"
                   title={
                     valid && dayTasks.length > 0
                       ? `${monthOption.label} ${day}: ${dayTasks.length} task${dayTasks.length !== 1 ? "s" : ""}`
                       : undefined
                   }
                 >
-                  {indicatorColor && (
+                  {/* Day number */}
+                  {valid && (
                     <Box
-                      w={{ base: "6px", md: "8px" }}
-                      h={{ base: "6px", md: "8px" }}
+                      as="span"
+                      fontSize={{
+                        base: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
+                        md: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
+                      }}
+                      mb={zoom >= 1.0 ? 0.5 : 0.25}
+                      display="inline-block"
+                      bg={todayCell ? "blue.400" : "transparent"}
+                      color={todayCell ? "white" : textColor}
                       borderRadius="full"
-                      bg={indicatorColor}
-                    />
+                      w={zoom >= 1.5 ? 6 : zoom >= 1.0 ? 5 : 4}
+                      h={zoom >= 1.5 ? 6 : zoom >= 1.0 ? 5 : 4}
+                      lineHeight={`${zoom >= 1.5 ? 24 : zoom >= 1.0 ? 20 : 16}px`}
+                      textAlign="center"
+                      fontWeight={todayCell ? "semibold" : "normal"}
+                      boxShadow={todayCell ? "sm" : "none"}
+                      alignSelf="flex-start"
+                    >
+                      {day}
+                    </Box>
+                  )}
+
+                  {/* Tasks */}
+                  {valid && (
+                    <VStack spacing={zoom >= 1.0 ? 0.5 : 0.25} align="stretch" flex={1} overflow="hidden">
+                      {visibleTasks.map(task => {
+                        const taskColor = getTaskDisplayColor(task);
+                        return (
+                          <Box
+                            key={task.id}
+                            fontSize={{
+                              base: zoom >= 1.5 ? "2xs" : zoom >= 1.0 ? "3xs" : "4xs",
+                              md: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
+                            }}
+                            px={zoom >= 1.0 ? 0.5 : 0.25}
+                            py={zoom >= 1.0 ? 0.5 : 0.25}
+                            borderRadius="md"
+                            isTruncated
+                            color={taskColor ? "white" : undefined}
+                            bg={taskColor || { _light: "gray.200", _dark: "gray.700" }}
+                            _dark={{ bg: taskColor || "gray.700" }}
+                            title={task.title}
+                            lineHeight={zoom >= 1.5 ? 1.2 : zoom >= 1.0 ? 1.1 : 1}
+                            overflow="hidden"
+                            textOverflow="ellipsis"
+                            whiteSpace="nowrap"
+                          >
+                            {task.title}
+                          </Box>
+                        );
+                      })}
+                      {remainingCount > 0 && (
+                        <Box
+                          fontSize={{
+                            base: zoom >= 1.5 ? "3xs" : zoom >= 1.0 ? "4xs" : "5xs",
+                            md: zoom >= 1.5 ? "2xs" : zoom >= 1.0 ? "3xs" : "4xs",
+                          }}
+                          color={mutedText}
+                          textAlign="center"
+                          px={0.5}
+                        >
+                          +{remainingCount}
+                        </Box>
+                      )}
+                    </VStack>
                   )}
                 </Box>
               );
@@ -179,4 +269,3 @@ export const CalendarYearView = ({
     </Flex>
   );
 };
-

@@ -3102,6 +3102,7 @@ export default function DailyTasksApp() {
                                     isCompletedOnDate={isCompletedOnDate}
                                     getOutcomeOnDate={getOutcomeOnDate}
                                     showCompleted={showCompletedTasksCalendar.year}
+                                    zoom={calendarZoom.year}
                                   />
                                 )}
                               </>
@@ -3747,6 +3748,7 @@ export default function DailyTasksApp() {
                                           isCompletedOnDate={isCompletedOnDate}
                                           getOutcomeOnDate={getOutcomeOnDate}
                                           showCompleted={showCompletedTasksCalendar.year}
+                                          zoom={calendarZoom.year}
                                         />
                                       )}
                                     </>
