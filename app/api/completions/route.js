@@ -167,17 +167,22 @@ export async function DELETE(request) {
   }
 }
 
-// PUT - Update a completion record (including note)
+// PUT - Update a completion record (including outcome and note)
 export async function PUT(request) {
   const userId = getAuthenticatedUserId(request);
   if (!userId) return unauthorizedResponse();
 
   try {
     const body = await request.json();
-    const { taskId, date, note } = body;
+    const { taskId, date, outcome, note } = body;
 
     if (!taskId || !date) {
       return NextResponse.json({ error: "Task ID and date are required" }, { status: 400 });
+    }
+
+    // Validate outcome if provided
+    if (outcome !== undefined && !["completed", "not_completed"].includes(outcome)) {
+      return NextResponse.json({ error: "Invalid outcome value" }, { status: 400 });
     }
 
     // Verify task belongs to user
@@ -200,7 +205,8 @@ export async function PUT(request) {
     });
 
     const updateData = {};
-    if (note !== undefined) updateData.note = note;
+    if (outcome !== undefined) updateData.outcome = outcome;
+    if (note !== undefined) updateData.note = note || null;
 
     if (existing) {
       // Update existing record
@@ -217,7 +223,7 @@ export async function PUT(request) {
         .values({
           taskId,
           date: utcDate,
-          outcome: "completed",
+          outcome: outcome || "completed",
           note: note || null,
         })
         .returning();

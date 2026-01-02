@@ -71,7 +71,7 @@ import { parseDroppableId, createDroppableId, createDraggableId, extractTaskId }
 import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
-import { DashboardView } from "@/components/DashboardView";
+import { RecurringTableView } from "@/components/RecurringTableView";
 import { KanbanView } from "@/components/KanbanView";
 import { PageSkeleton, SectionSkeleton, BacklogSkeleton, CalendarSkeleton } from "@/components/Skeletons";
 import { DateNavigation } from "@/components/DateNavigation";
@@ -151,8 +151,10 @@ export default function DailyTasksApp() {
     loading: sectionsLoading,
   } = useSections();
   const {
+    completions,
     createCompletion,
     deleteCompletion,
+    updateCompletion,
     batchCreateCompletions,
     batchDeleteCompletions,
     isCompletedOnDate,
@@ -2786,8 +2788,16 @@ export default function DailyTasksApp() {
 
                 {/* History Tab - Mobile */}
                 {mainTabIndex === 3 && (
-                  <Box h="100%" overflow="auto">
-                    <DashboardView />
+                  <Box h="100%" overflow="hidden">
+                    <RecurringTableView
+                      tasks={tasks}
+                      sections={sections}
+                      completions={completions}
+                      createCompletion={createCompletion}
+                      deleteCompletion={deleteCompletion}
+                      updateCompletion={updateCompletion}
+                      getCompletionForDate={getCompletionForDate}
+                    />
                   </Box>
                 )}
 
@@ -3197,7 +3207,15 @@ export default function DailyTasksApp() {
                   </Box>
                 ) : mainTabIndex === 3 ? (
                   /* History Tab Content */
-                  <DashboardView />
+                  <RecurringTableView
+                    tasks={tasks}
+                    sections={sections}
+                    completions={completions}
+                    createCompletion={createCompletion}
+                    deleteCompletion={deleteCompletion}
+                    updateCompletion={updateCompletion}
+                    getCompletionForDate={getCompletionForDate}
+                  />
                 ) : (
                   /* Tasks Tab Content (mainTabIndex === 0) */
                   <Box w="full" h="full" display="flex" maxW="100%" overflow="hidden">

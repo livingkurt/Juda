@@ -199,6 +199,78 @@ export const useCompletions = () => {
     }
   };
 
+  // General update function that can update outcome, note, or both
+  const updateCompletion = async (taskId, date, updates) => {
+    // Normalize date for consistent comparison - use UTC to avoid timezone issues
+    const completionDate = date ? new Date(date) : new Date();
+    const utcDate = new Date(
+      Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
+    );
+
+    const { outcome, note } = updates || {};
+
+    // Validate outcome if provided
+    if (outcome && !["completed", "not_completed"].includes(outcome)) {
+      throw new Error("Invalid outcome value");
+    }
+
+    // Optimistic update
+    const previousCompletions = [...completions];
+    const existingIndex = completions.findIndex(c => {
+      const cDate = new Date(c.date);
+      const cUtcDate = new Date(Date.UTC(cDate.getUTCFullYear(), cDate.getUTCMonth(), cDate.getUTCDate(), 0, 0, 0, 0));
+      return c.taskId === taskId && cUtcDate.getTime() === utcDate.getTime();
+    });
+
+    if (existingIndex >= 0) {
+      setCompletions(prev =>
+        prev.map((c, i) =>
+          i === existingIndex
+            ? {
+                ...c,
+                ...(outcome !== undefined && { outcome }),
+                ...(note !== undefined && { note }),
+              }
+            : c
+        )
+      );
+    }
+
+    try {
+      // Use PUT endpoint with full update data
+      const response = await authFetch("/api/completions", {
+        method: "PUT",
+        body: JSON.stringify({
+          taskId,
+          date: utcDate.toISOString(),
+          outcome,
+          note,
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to update completion");
+      const updatedCompletion = await response.json();
+
+      // Replace optimistic with real completion
+      setCompletions(prev => {
+        const filtered = prev.filter(c => {
+          const cDate = new Date(c.date);
+          const cUtcDate = new Date(
+            Date.UTC(cDate.getUTCFullYear(), cDate.getUTCMonth(), cDate.getUTCDate(), 0, 0, 0, 0)
+          );
+          return !(c.taskId === taskId && cUtcDate.getTime() === utcDate.getTime());
+        });
+        return [...filtered, updatedCompletion];
+      });
+
+      return updatedCompletion;
+    } catch (err) {
+      // Rollback on error
+      setCompletions(previousCompletions);
+      setError(err.message);
+      throw err;
+    }
+  };
+
   // Get the full completion object for a task on a specific date
   const getCompletionForDate = useCallback(
     (taskId, date) => {
@@ -479,6 +551,7 @@ export const useCompletions = () => {
     createCompletion,
     deleteCompletion,
     updateCompletionNote,
+    updateCompletion,
     batchCreateCompletions,
     batchDeleteCompletions,
     isCompletedOnDate,
