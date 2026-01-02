@@ -297,7 +297,7 @@ export const TaskItem = ({
   const taskColor = getTaskDisplayColor(task);
 
   return (
-    <Box ref={setNodeRef} style={style} w="100%" maxW="100%">
+    <Box ref={setNodeRef} style={style} w="100%" maxW="100%" data-task-id={task.id}>
       <Box
         borderRadius="lg"
         bg={isSelected ? { _light: "blue.50", _dark: "blue.900" } : bgColor}

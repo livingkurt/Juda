@@ -327,6 +327,8 @@ export default function DailyTasksApp() {
     activeTask: null,
     offset: { x: 0, y: 0 },
   });
+  // Ref for Today view scrollable container (for auto-scroll to next incomplete task)
+  const todayScrollContainerRef = useRef(null);
   // Track recently completed tasks that should remain visible for a delay
   const [recentlyCompletedTasks, setRecentlyCompletedTasks] = useState(new Set());
   const recentlyCompletedTimeoutsRef = useRef({});
@@ -1819,6 +1821,68 @@ export default function DailyTasksApp() {
     });
   }, [sortedSections, autoCollapsedSections]);
 
+  // Auto-scroll to next incomplete task in Today view (similar to calendar time scrolling)
+  useEffect(() => {
+    if (!todayScrollContainerRef.current || !todayViewDate) return;
+
+    const scrollToNextIncompleteTask = () => {
+      if (!todayScrollContainerRef.current) return;
+
+      console.log("🔍 Searching for first incomplete task...");
+
+      // Find the first incomplete task across all sections
+      let firstIncompleteTaskElement = null;
+
+      // Iterate through sections in order
+      for (const section of computedSections) {
+        const sectionTasks = tasksBySection[section.id] || [];
+
+        // Find first incomplete task in this section
+        for (const task of sectionTasks) {
+          // Task is incomplete if:
+          // 1. Not completed (checked)
+          // 2. No outcome set (not completed/skipped)
+          // 3. If has subtasks, not all subtasks are completed
+          const isTaskCompleted =
+            task.completed || (task.subtasks && task.subtasks.length > 0 && task.subtasks.every(st => st.completed));
+          const hasOutcome = task.outcome !== null && task.outcome !== undefined;
+
+          // Skip if task is completed or has an outcome
+          if (!isTaskCompleted && !hasOutcome) {
+            // Try to find the DOM element for this task
+            const taskElement = document.querySelector(`[data-task-id="${task.id}"]`);
+            if (taskElement) {
+              firstIncompleteTaskElement = taskElement;
+              break;
+            }
+          }
+        }
+
+        if (firstIncompleteTaskElement) break;
+      }
+
+      // If we found an incomplete task, scroll to it
+      if (firstIncompleteTaskElement) {
+        const container = todayScrollContainerRef.current;
+        const containerRect = container.getBoundingClientRect();
+        const taskRect = firstIncompleteTaskElement.getBoundingClientRect();
+
+        // Calculate scroll position to place task at the top (with small offset)
+        const scrollPosition = container.scrollTop + taskRect.top - containerRect.top - 8;
+
+        // Scroll smoothly to the task
+        container.scrollTo({
+          top: Math.max(0, scrollPosition),
+          behavior: "smooth",
+        });
+      }
+    };
+
+    // Small delay to ensure DOM is rendered and has correct dimensions
+    const timeoutId = setTimeout(scrollToNextIncompleteTask, 500);
+    return () => clearTimeout(timeoutId);
+  }, [todayViewDate, computedSections, tasksBySection]);
+
   // Configure sensors for @dnd-kit
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -2860,7 +2924,7 @@ export default function DailyTasksApp() {
                     )}
 
                     {mobileActiveView === "today" && (
-                      <Box h="100%" overflow="auto" px={3} py={3}>
+                      <Box ref={todayScrollContainerRef} h="100%" overflow="auto" px={3} py={3}>
                         {/* Mobile Today View - Progress bar */}
                         <Box mb={3}>
                           <Flex justify="space-between" fontSize="xs" color={mutedText} mb={1}>
@@ -3440,7 +3504,14 @@ export default function DailyTasksApp() {
                                   </Box>
                                 </Box>
                                 {/* Scrollable Sections Container */}
-                                <Box flex={1} overflowY="auto" minH={0} w="100%" maxW="100%">
+                                <Box
+                                  ref={todayScrollContainerRef}
+                                  flex={1}
+                                  overflowY="auto"
+                                  minH={0}
+                                  w="100%"
+                                  maxW="100%"
+                                >
                                   <Section
                                     sections={computedSections}
                                     tasksBySection={tasksBySection}
