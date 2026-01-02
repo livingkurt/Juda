@@ -176,6 +176,20 @@
       "when": 1767330906972,
       "tag": "0024_add_time_to_completions",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1767331668947,
+      "tag": "0025_mark_completed_tasks_with_juda_tag",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1767331890891,
+      "tag": "0026_tag_non_recurring_tasks_with_juda",
+      "breakpoints": true
     }
   ]
 }
