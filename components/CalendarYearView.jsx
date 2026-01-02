@@ -75,7 +75,7 @@ export const CalendarYearView = ({
   };
 
   // Cell size based on zoom - use exact pixel values for alignment
-  const baseCellWidth = 60;
+  const baseCellWidth = 150;
   const cellWidth = baseCellWidth * zoom;
   const baseCellHeight = 80;
   const cellHeight = baseCellHeight * zoom;
@@ -204,7 +204,7 @@ export const CalendarYearView = ({
                   }
                 >
                   {/* Day number */}
-                  {valid && (
+                  {/* {valid && (
                     <Box
                       as="span"
                       fontSize={{
@@ -226,7 +226,7 @@ export const CalendarYearView = ({
                     >
                       {day}
                     </Box>
-                  )}
+                  )} */}
 
                   {/* Tasks */}
                   {valid && (
