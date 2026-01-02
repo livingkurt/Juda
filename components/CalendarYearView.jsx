@@ -90,40 +90,49 @@ export const CalendarYearView = ({
   const textColor = { _light: "gray.900", _dark: "gray.200" };
   const mutedText = { _light: "gray.400", _dark: "gray.600" };
 
+  const monthLabelWidth = "50px";
+
   return (
     <Flex direction="column" h="full" overflow="auto" bg={bgColor} p={2}>
       {/* Header row - Day numbers */}
-      <Flex mb={0} pl={"32px"} position="sticky" top={0} bg={bgColor} zIndex={10} pb={0}>
-        {daysOfMonth.map(day => (
-          <Box
-            key={day}
-            w={cellSizePx}
-            minW={cellSizePx}
-            maxW={cellSizePx}
-            h="auto"
-            textAlign="left"
-            fontSize={{
-              base: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
-              md: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
-            }}
-            pl={2}
-            color={headerText}
-            fontWeight="medium"
-            borderTopWidth="2px"
-            borderTopColor={borderColor}
-            borderBottomWidth="1px"
-            borderBottomColor={borderColor}
-            borderLeftWidth={day === 1 ? "2px" : "1px"}
-            borderLeftColor={borderColor}
-            borderRightWidth={day === 31 ? "2px" : "1px"}
-            borderRightColor={borderColor}
-            py={1}
-            bg={bgColor}
-            boxSizing="border-box"
-          >
-            {day}
-          </Box>
-        ))}
+      <Flex mb={0} position="sticky" top={0} bg={bgColor} zIndex={10} pb={0}>
+        {/* Empty space for month label column */}
+        <Box w={monthLabelWidth} minW={monthLabelWidth} flexShrink={0} />
+
+        {/* Day number headers */}
+        <Flex>
+          {daysOfMonth.map(day => (
+            <Box
+              key={day}
+              w={cellSizePx}
+              minW={cellSizePx}
+              maxW={cellSizePx}
+              flexShrink={0}
+              h="auto"
+              textAlign="left"
+              fontSize={{
+                base: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
+                md: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
+              }}
+              pl={2}
+              color={headerText}
+              fontWeight="medium"
+              borderTopWidth="2px"
+              borderTopColor={borderColor}
+              borderBottomWidth="1px"
+              borderBottomColor={borderColor}
+              borderLeftWidth={day === 1 ? "2px" : "1px"}
+              borderLeftColor={borderColor}
+              borderRightWidth={day === 31 ? "2px" : "1px"}
+              borderRightColor={borderColor}
+              py={1}
+              bg={bgColor}
+              boxSizing="border-box"
+            >
+              {day}
+            </Box>
+          ))}
+        </Flex>
       </Flex>
 
       {/* Month rows */}
@@ -131,7 +140,9 @@ export const CalendarYearView = ({
         <Flex key={monthOption.value} align="flex-start" mb={0}>
           {/* Month label */}
           <Box
-            w={{ base: "60px", md: "80px" }}
+            w={monthLabelWidth}
+            minW={monthLabelWidth}
+            flexShrink={0}
             pr={2}
             fontSize={{
               base: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
@@ -149,7 +160,7 @@ export const CalendarYearView = ({
           </Box>
 
           {/* Day cells */}
-          <Flex>
+          <Flex flexShrink={0}>
             {daysOfMonth.map(day => {
               const valid = isValidDate(monthIndex, day);
               const dayTasks = valid ? getTasksForDate(monthIndex, day) : [];
@@ -165,6 +176,7 @@ export const CalendarYearView = ({
                   w={cellSizePx}
                   minW={cellSizePx}
                   maxW={cellSizePx}
+                  flexShrink={0}
                   minH={cellMinHeight}
                   display="flex"
                   flexDirection="column"
