@@ -162,6 +162,20 @@
       "when": 1767304121753,
       "tag": "0022_remove_workout_name_field",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1767330760175,
+      "tag": "0023_add_number_of_weeks_and_weekly_progression",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1767330906972,
+      "tag": "0024_add_time_to_completions",
+      "breakpoints": true
     }
   ]
 }

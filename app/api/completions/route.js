@@ -57,7 +57,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { taskId, date, outcome = "completed", note, startedAt, completedAt } = body;
+    const { taskId, date, outcome = "completed", note, time, startedAt, completedAt } = body;
 
     if (!taskId) {
       return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
@@ -89,9 +89,10 @@ export async function POST(request) {
     });
 
     if (existing) {
-      // Update existing record with new outcome and note
+      // Update existing record with new outcome, note, and time
       const updateData = { outcome };
       if (note !== undefined) updateData.note = note || null;
+      if (time !== undefined) updateData.time = time || null;
       if (startedAt !== undefined) updateData.startedAt = startedAt ? new Date(startedAt) : null;
       if (completedAt !== undefined) updateData.completedAt = completedAt ? new Date(completedAt) : null;
       const [updated] = await db
@@ -110,6 +111,7 @@ export async function POST(request) {
         date: utcDate,
         outcome,
         note: note || null,
+        time: time || null,
         startedAt: startedAt ? new Date(startedAt) : null,
         completedAt: completedAt ? new Date(completedAt) : null,
       })
@@ -174,7 +176,7 @@ export async function PUT(request) {
 
   try {
     const body = await request.json();
-    const { taskId, date, outcome, note } = body;
+    const { taskId, date, outcome, note, time } = body;
 
     if (!taskId || !date) {
       return NextResponse.json({ error: "Task ID and date are required" }, { status: 400 });
@@ -207,6 +209,7 @@ export async function PUT(request) {
     const updateData = {};
     if (outcome !== undefined) updateData.outcome = outcome;
     if (note !== undefined) updateData.note = note || null;
+    if (time !== undefined) updateData.time = time || null;
 
     if (existing) {
       // Update existing record
@@ -225,6 +228,7 @@ export async function PUT(request) {
           date: utcDate,
           outcome: outcome || "completed",
           note: note || null,
+          time: time || null,
         })
         .returning();
       return NextResponse.json(created, { status: 201 });

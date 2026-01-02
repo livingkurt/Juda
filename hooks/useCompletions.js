@@ -50,6 +50,7 @@ export const useCompletions = () => {
     // Support both old signature (outcome as third param) and new signature (options object)
     let outcome = "completed";
     let note = null;
+    let time = null;
     let startedAt = null;
     let completedAt = null;
 
@@ -57,9 +58,10 @@ export const useCompletions = () => {
       // Old signature: createCompletion(taskId, date, outcome)
       outcome = options;
     } else {
-      // New signature: createCompletion(taskId, date, { outcome, note, startedAt, completedAt })
+      // New signature: createCompletion(taskId, date, { outcome, note, time, startedAt, completedAt })
       outcome = options.outcome || "completed";
       note = options.note || null;
+      time = options.time || null;
       startedAt = options.startedAt || null;
       completedAt = options.completedAt || null;
     }
@@ -82,6 +84,7 @@ export const useCompletions = () => {
       date: utcDate.toISOString(),
       outcome,
       note,
+      time,
       startedAt: startedAt ? new Date(startedAt).toISOString() : null,
       completedAt: completedAt ? new Date(completedAt).toISOString() : null,
       createdAt: new Date().toISOString(),
@@ -104,6 +107,7 @@ export const useCompletions = () => {
                 ...c,
                 outcome,
                 note,
+                time,
                 startedAt: startedAt ? new Date(startedAt).toISOString() : null,
                 completedAt: completedAt ? new Date(completedAt).toISOString() : null,
               }
@@ -122,6 +126,7 @@ export const useCompletions = () => {
           date: utcDate.toISOString(),
           outcome,
           note,
+          time,
           startedAt: startedAt ? new Date(startedAt).toISOString() : null,
           completedAt: completedAt ? new Date(completedAt).toISOString() : null,
         }),
@@ -199,7 +204,7 @@ export const useCompletions = () => {
     }
   };
 
-  // General update function that can update outcome, note, or both
+  // General update function that can update outcome, note, time, or any combination
   const updateCompletion = async (taskId, date, updates) => {
     // Normalize date for consistent comparison - use UTC to avoid timezone issues
     const completionDate = date ? new Date(date) : new Date();
@@ -207,7 +212,7 @@ export const useCompletions = () => {
       Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
     );
 
-    const { outcome, note } = updates || {};
+    const { outcome, note, time } = updates || {};
 
     // Validate outcome if provided
     if (outcome && !["completed", "not_completed"].includes(outcome)) {
@@ -230,6 +235,7 @@ export const useCompletions = () => {
                 ...c,
                 ...(outcome !== undefined && { outcome }),
                 ...(note !== undefined && { note }),
+                ...(time !== undefined && { time }),
               }
             : c
         )
@@ -245,6 +251,7 @@ export const useCompletions = () => {
           date: utcDate.toISOString(),
           outcome,
           note,
+          time,
         }),
       });
       if (!response.ok) throw new Error("Failed to update completion");

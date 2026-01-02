@@ -494,6 +494,38 @@ export const RecurringTableView = ({
   // Handle cell update
   const handleCellUpdate = async (taskId, date, data) => {
     const existingCompletion = getCompletionForDate(taskId, date);
+
+    // If this is an off-schedule completion with a time, add the date to additionalDates
+    if (!data.isScheduled && data.time) {
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        // Normalize date to UTC to avoid timezone issues
+        const d = new Date(date);
+        const utcDate = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0));
+        const dateStr = utcDate.toISOString();
+
+        // Check if this date is already in additionalDates
+        const existingAdditionalDates = task.recurrence?.additionalDates || [];
+        const dateAlreadyAdded = existingAdditionalDates.some(d => {
+          const existingDateStr = d.split("T")[0];
+          const newDateStr = dateStr.split("T")[0];
+          return existingDateStr === newDateStr;
+        });
+
+        if (!dateAlreadyAdded) {
+          const updatedRecurrence = {
+            ...task.recurrence,
+            additionalDates: [...existingAdditionalDates, dateStr],
+          };
+
+          // Update the task with the new recurrence (but NOT the time - that's stored in the completion)
+          await updateTask(taskId, {
+            recurrence: updatedRecurrence,
+          });
+        }
+      }
+    }
+
     if (existingCompletion) {
       // Update existing
       await updateCompletion(taskId, date, data);
@@ -505,6 +537,40 @@ export const RecurringTableView = ({
 
   // Handle cell delete
   const handleCellDelete = async (taskId, date) => {
+    // Check if this was an off-schedule completion
+    const task = tasks.find(t => t.id === taskId);
+    if (task && task.recurrence?.additionalDates) {
+      // Normalize date to UTC to avoid timezone issues
+      const d = new Date(date);
+      const utcDate = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0));
+      const dateStr = utcDate.toISOString();
+      const dateStrShort = dateStr.split("T")[0];
+
+      // Check if this date is in additionalDates
+      const hasAdditionalDate = task.recurrence.additionalDates.some(d => {
+        const existingDateStr = d.split("T")[0];
+        return existingDateStr === dateStrShort;
+      });
+
+      if (hasAdditionalDate) {
+        // Remove this date from additionalDates
+        const updatedAdditionalDates = task.recurrence.additionalDates.filter(d => {
+          const existingDateStr = d.split("T")[0];
+          return existingDateStr !== dateStrShort;
+        });
+
+        const updatedRecurrence = {
+          ...task.recurrence,
+          additionalDates: updatedAdditionalDates,
+        };
+
+        // Update the task to remove this date from additionalDates
+        await updateTask(taskId, {
+          recurrence: updatedRecurrence,
+        });
+      }
+    }
+
     await deleteCompletion(taskId, date);
   };
 
@@ -533,8 +599,8 @@ export const RecurringTableView = ({
   const bgColor = { _light: "white", _dark: "gray.800" };
   const borderColor = { _light: "gray.200", _dark: "gray.600" };
   const headerBg = { _light: "gray.50", _dark: "gray.700" };
-  const sectionHeaderBg = { _light: "blue.50", _dark: "blue.900" };
-  const todayRowBg = { _light: "yellow.50", _dark: "yellow.900" };
+  const sectionHeaderBg = { _light: "blue.50", _dark: "gray.750" };
+  const todayRowBg = { _light: "blue.50", _dark: "whiteAlpha.100" };
 
   if (recurringTasks.length === 0) {
     return (

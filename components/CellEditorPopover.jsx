@@ -44,8 +44,8 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
     const saveData = {
       outcome,
       note: task.completionType === "text" ? note : null,
-      // For off-schedule completions, we might want to store time
-      // But for now, we'll just use the outcome and note
+      time: time || null, // Include time for off-schedule completions
+      isScheduled, // Let the handler know if this is off-schedule
     };
     onSave(saveData);
   };
