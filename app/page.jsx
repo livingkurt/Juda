@@ -55,10 +55,31 @@ import { TaskDialog } from "@/components/TaskDialog";
 import { BulkEditDialog } from "@/components/BulkEditDialog";
 import { SectionDialog } from "@/components/SectionDialog";
 import { BacklogDrawer } from "@/components/BacklogDrawer";
-import { useTasks } from "@/hooks/useTasks";
-import { useSections } from "@/hooks/useSections";
+import {
+  useGetTasksQuery,
+  useCreateTaskMutation,
+  useUpdateTaskMutation,
+  useDeleteTaskMutation,
+  useReorderTaskMutation,
+  useBatchUpdateTasksMutation,
+  useBatchReorderTasksMutation,
+  useBatchSaveTasksMutation,
+} from "@/lib/store/api/tasksApi.js";
+import {
+  useGetSectionsQuery,
+  useCreateSectionMutation,
+  useUpdateSectionMutation,
+  useDeleteSectionMutation,
+  useReorderSectionsMutation,
+} from "@/lib/store/api/sectionsApi.js";
 import { useCompletions } from "@/hooks/useCompletions";
-import { useTags } from "@/hooks/useTags";
+import {
+  useGetTagsQuery,
+  useCreateTagMutation,
+  useUpdateTagMutation,
+  useDeleteTagMutation,
+  useBatchUpdateTaskTagsMutation,
+} from "@/lib/store/api/tagsApi.js";
 import {
   shouldShowOnDate,
   getGreeting,
@@ -129,29 +150,28 @@ export default function DailyTasksApp() {
   const dragOverlayBorder = { _light: "blue.400", _dark: "blue.500" };
   const dragOverlayText = { _light: "blue.900", _dark: "blue.100" };
 
+  // RTK Query hooks
   const {
-    tasks,
-    createTask,
-    updateTask,
-    deleteTask,
-    reorderTask,
-    duplicateTask,
-    saveTask,
-    batchReorderTasks,
-    batchUpdateTasks,
-    updateTagInTasks,
-    removeTagFromTasks,
+    data: tasks = [],
+    isLoading: tasksLoading,
     refetch: fetchTasks,
-    loading: tasksLoading,
-  } = useTasks();
-  const {
-    sections,
-    createSection,
-    updateSection,
-    deleteSection,
-    reorderSections,
-    loading: sectionsLoading,
-  } = useSections();
+  } = useGetTasksQuery(undefined, { skip: !isAuthenticated });
+  const [createTaskMutation] = useCreateTaskMutation();
+  const [updateTaskMutation] = useUpdateTaskMutation();
+  const [deleteTaskMutation] = useDeleteTaskMutation();
+  const [reorderTaskMutation] = useReorderTaskMutation();
+  const [batchUpdateTasksMutation] = useBatchUpdateTasksMutation();
+  const [batchReorderTasksMutation] = useBatchReorderTasksMutation();
+  const [batchSaveTasksMutation] = useBatchSaveTasksMutation();
+
+  const { data: sections = [], isLoading: sectionsLoading } = useGetSectionsQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const [createSectionMutation] = useCreateSectionMutation();
+  const [updateSectionMutation] = useUpdateSectionMutation();
+  const [deleteSectionMutation] = useDeleteSectionMutation();
+  const [reorderSectionsMutation] = useReorderSectionsMutation();
+
   const {
     completions,
     createCompletion,
@@ -166,33 +186,417 @@ export default function DailyTasksApp() {
     hasAnyCompletion,
     fetchCompletions,
   } = useCompletions();
-  const {
-    tags,
-    createTag,
-    updateTag: updateTagOriginal,
-    deleteTag: deleteTagOriginal,
-    batchUpdateTaskTags,
-  } = useTags();
 
-  // Wrapper around updateTag that also updates tag references in tasks
-  const updateTag = useCallback(
-    async (id, updates) => {
-      const updatedTag = await updateTagOriginal(id, updates);
-      // Update tag references in all tasks
-      updateTagInTasks(id, updatedTag);
-      return updatedTag;
+  const { data: tags = [] } = useGetTagsQuery(undefined, { skip: !isAuthenticated });
+  const [createTagMutation] = useCreateTagMutation();
+  const [updateTagMutation] = useUpdateTagMutation();
+  const [deleteTagMutation] = useDeleteTagMutation();
+  const [batchUpdateTaskTagsMutation] = useBatchUpdateTaskTagsMutation();
+
+  // Organize tasks into tree structure (matching old useTasks hook)
+  // RTK Query returns flat array, so we organize it into a tree
+  const organizedTasks = useMemo(() => {
+    if (!tasks || tasks.length === 0) return [];
+
+    const tasksMap = new Map(tasks.map(t => [t.id, { ...t, subtasks: [] }]));
+    const rootTasks = [];
+
+    tasks.forEach(task => {
+      const taskWithSubtasks = tasksMap.get(task.id);
+      if (task.parentId && tasksMap.has(task.parentId)) {
+        // This is a subtask - add it to its parent
+        tasksMap.get(task.parentId).subtasks.push(taskWithSubtasks);
+      } else {
+        // This is a root task
+        rootTasks.push(taskWithSubtasks);
+      }
+    });
+
+    return rootTasks;
+  }, [tasks]); // tasks is the flat array from RTK Query
+
+  // Use organized tasks (tree structure) for components that expect it
+  const tasksForUse = organizedTasks;
+
+  // Helper to flatten tree for filtering/searching
+  const flattenTasks = useCallback(
+    (taskList = tasksForUse) => {
+      const result = [];
+      const flatten = taskArray => {
+        taskArray.forEach(task => {
+          result.push(task);
+          if (task.subtasks && task.subtasks.length > 0) {
+            flatten(task.subtasks);
+          }
+        });
+      };
+      flatten(taskList);
+      return result;
     },
-    [updateTagOriginal, updateTagInTasks]
+    [tasksForUse]
   );
 
-  // Wrapper around deleteTag that also removes tag references from tasks
+  // Wrapper functions for RTK Query mutations to match old API
+  const createTask = useCallback(
+    async taskData => {
+      try {
+        const result = await createTaskMutation(taskData).unwrap();
+        return result;
+      } catch (err) {
+        console.error("Error creating task:", err);
+        throw err;
+      }
+    },
+    [createTaskMutation]
+  );
+
+  const updateTask = useCallback(
+    async (id, taskData) => {
+      try {
+        const result = await updateTaskMutation({ id, ...taskData }).unwrap();
+        return result;
+      } catch (err) {
+        console.error("Error updating task:", err);
+        throw err;
+      }
+    },
+    [updateTaskMutation]
+  );
+
+  const deleteTask = useCallback(
+    async id => {
+      try {
+        await deleteTaskMutation(id).unwrap();
+      } catch (err) {
+        console.error("Error deleting task:", err);
+        throw err;
+      }
+    },
+    [deleteTaskMutation]
+  );
+
+  const reorderTask = useCallback(
+    async (taskId, sourceSectionId, targetSectionId, newOrder) => {
+      try {
+        await reorderTaskMutation({ taskId, sourceSectionId, targetSectionId, newOrder }).unwrap();
+        await fetchTasks();
+      } catch (err) {
+        console.error("Error reordering task:", err);
+        throw err;
+      }
+    },
+    [reorderTaskMutation, fetchTasks]
+  );
+
+  const batchReorderTasks = useCallback(
+    async updates => {
+      try {
+        await batchReorderTasksMutation({ updates }).unwrap();
+      } catch (err) {
+        console.error("Error batch reordering tasks:", err);
+        throw err;
+      }
+    },
+    [batchReorderTasksMutation]
+  );
+
+  const batchUpdateTasks = useCallback(
+    async (taskIds, updates) => {
+      try {
+        const result = await batchUpdateTasksMutation({ taskIds, updates }).unwrap();
+        return result.tasks || [];
+      } catch (err) {
+        console.error("Error batch updating tasks:", err);
+        throw err;
+      }
+    },
+    [batchUpdateTasksMutation]
+  );
+
+  // Complex saveTask function that handles subtasks and tags
+  const saveTask = useCallback(
+    async taskData => {
+      const { tagIds, subtasks: subtasksData, ...taskFields } = taskData;
+
+      try {
+        let savedTask;
+
+        if (taskData.id) {
+          // Update existing task
+          savedTask = await updateTaskMutation({ id: taskData.id, ...taskFields }).unwrap();
+        } else {
+          // Create new task
+          savedTask = await createTaskMutation(taskFields).unwrap();
+        }
+
+        // Handle subtasks if provided
+        if (subtasksData !== undefined) {
+          const existingSubtasks = tasksForUse.find(t => t.id === savedTask.id)?.subtasks || [];
+          const existingSubtaskIds = existingSubtasks.map(st => st.id);
+          const newSubtaskIds = subtasksData.map(st => st.id);
+
+          // Delete removed subtasks
+          const subtasksToDelete = existingSubtaskIds.filter(id => !newSubtaskIds.includes(id));
+          if (subtasksToDelete.length > 0) {
+            await batchSaveTasksMutation({
+              tasks: [],
+            });
+            // Delete via individual delete mutations
+            await Promise.all(subtasksToDelete.map(id => deleteTaskMutation(id).unwrap()));
+          }
+
+          // Prepare subtasks for batch create/update
+          const subtasksToSave = subtasksData.map(subtask => ({
+            ...subtask,
+            parentId: savedTask.id,
+            sectionId: savedTask.sectionId,
+          }));
+
+          if (subtasksToSave.length > 0) {
+            await batchSaveTasksMutation({
+              tasks: subtasksToSave,
+            });
+          }
+        }
+
+        // Handle tag assignments
+        if (tagIds !== undefined) {
+          await batchUpdateTaskTagsMutation({
+            taskId: savedTask.id,
+            tagIds,
+          }).unwrap();
+        }
+
+        // Refetch to get updated relationships
+        await fetchTasks();
+
+        return savedTask;
+      } catch (err) {
+        console.error("Error saving task:", err);
+        throw err;
+      }
+    },
+    [
+      createTaskMutation,
+      updateTaskMutation,
+      deleteTaskMutation,
+      batchSaveTasksMutation,
+      batchUpdateTaskTagsMutation,
+      tasksForUse,
+      fetchTasks,
+    ]
+  );
+
+  // Duplicate task
+  const duplicateTask = useCallback(
+    async taskId => {
+      const taskToDuplicate =
+        tasksForUse.find(t => t.id === taskId) ||
+        tasksForUse.flatMap(t => t.subtasks || []).find(st => st.id === taskId);
+
+      if (!taskToDuplicate) {
+        throw new Error("Task not found");
+      }
+
+      try {
+        const duplicatedTaskData = {
+          title: `Copy of ${taskToDuplicate.title}`,
+          sectionId: taskToDuplicate.sectionId,
+          time: taskToDuplicate.time,
+          duration: taskToDuplicate.duration,
+          recurrence: taskToDuplicate.recurrence,
+          parentId: taskToDuplicate.parentId,
+          subtasks: taskToDuplicate.subtasks
+            ? taskToDuplicate.subtasks.map(st => ({
+                ...st,
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+              }))
+            : [],
+          order: taskToDuplicate.order,
+        };
+
+        const newTask = await createTaskMutation(duplicatedTaskData).unwrap();
+        return newTask;
+      } catch (err) {
+        console.error("Error duplicating task:", err);
+        throw err;
+      }
+    },
+    [tasksForUse, createTaskMutation]
+  );
+
+  // Combine as subtask (used in drag handlers)
+  const _combineAsSubtask = useCallback(
+    async (sourceTaskId, targetTaskId) => {
+      const sourceTask =
+        tasksForUse.find(t => t.id === sourceTaskId) ||
+        tasksForUse.flatMap(t => t.subtasks || []).find(st => st.id === sourceTaskId);
+      const targetTask =
+        tasksForUse.find(t => t.id === targetTaskId) ||
+        tasksForUse.flatMap(t => t.subtasks || []).find(st => st.id === targetTaskId);
+
+      if (!sourceTask || !targetTask) {
+        throw new Error("Source or target task not found");
+      }
+
+      if (sourceTaskId === targetTaskId) {
+        throw new Error("Cannot combine task with itself");
+      }
+
+      // Check for circular references
+      const checkCircular = (task, targetId) => {
+        if (task.id === targetId) return true;
+        if (task.subtasks && task.subtasks.length > 0) {
+          return task.subtasks.some(st => checkCircular(st, targetId));
+        }
+        return false;
+      };
+
+      if (checkCircular(sourceTask, targetTaskId)) {
+        throw new Error("Cannot create circular reference");
+      }
+
+      try {
+        await updateTaskMutation({
+          id: sourceTaskId,
+          parentId: targetTaskId,
+          order: targetTask.subtasks?.length || 0,
+        }).unwrap();
+
+        await updateTaskMutation({
+          id: targetTaskId,
+          expanded: true,
+        }).unwrap();
+
+        await fetchTasks();
+      } catch (err) {
+        console.error("Error combining as subtask:", err);
+        throw err;
+      }
+    },
+    [tasksForUse, updateTaskMutation, fetchTasks]
+  );
+
+  // Promote subtask (used in drag handlers)
+  const _promoteSubtask = useCallback(
+    async (taskId, additionalData = {}) => {
+      try {
+        await updateTaskMutation({
+          id: taskId,
+          parentId: null,
+          ...additionalData,
+        }).unwrap();
+
+        await fetchTasks();
+      } catch (err) {
+        console.error("Error promoting subtask:", err);
+        throw err;
+      }
+    },
+    [updateTaskMutation, fetchTasks]
+  );
+
+  // Section wrappers
+  const createSection = useCallback(
+    async sectionData => {
+      try {
+        const result = await createSectionMutation(sectionData).unwrap();
+        return result;
+      } catch (err) {
+        console.error("Error creating section:", err);
+        throw err;
+      }
+    },
+    [createSectionMutation]
+  );
+
+  const updateSection = useCallback(
+    async (id, sectionData) => {
+      try {
+        const result = await updateSectionMutation({ id, ...sectionData }).unwrap();
+        return result;
+      } catch (err) {
+        console.error("Error updating section:", err);
+        throw err;
+      }
+    },
+    [updateSectionMutation]
+  );
+
+  const deleteSection = useCallback(
+    async id => {
+      try {
+        await deleteSectionMutation(id).unwrap();
+      } catch (err) {
+        console.error("Error deleting section:", err);
+        throw err;
+      }
+    },
+    [deleteSectionMutation]
+  );
+
+  const reorderSections = useCallback(
+    async newSections => {
+      try {
+        const updates = newSections.map((s, index) => ({ id: s.id, order: index }));
+        await reorderSectionsMutation({ updates }).unwrap();
+      } catch (err) {
+        console.error("Error reordering sections:", err);
+        throw err;
+      }
+    },
+    [reorderSectionsMutation]
+  );
+
+  // Tag wrappers
+  const createTag = useCallback(
+    async (name, color = "#6366f1") => {
+      try {
+        const result = await createTagMutation({ name, color }).unwrap();
+        return result;
+      } catch (err) {
+        console.error("Error creating tag:", err);
+        throw err;
+      }
+    },
+    [createTagMutation]
+  );
+
+  const updateTag = useCallback(
+    async (id, updates) => {
+      try {
+        const result = await updateTagMutation({ id, ...updates }).unwrap();
+        return result;
+      } catch (err) {
+        console.error("Error updating tag:", err);
+        throw err;
+      }
+    },
+    [updateTagMutation]
+  );
+
   const deleteTag = useCallback(
     async id => {
-      await deleteTagOriginal(id);
-      // Remove tag references from all tasks
-      removeTagFromTasks(id);
+      try {
+        await deleteTagMutation(id).unwrap();
+      } catch (err) {
+        console.error("Error deleting tag:", err);
+        throw err;
+      }
     },
-    [deleteTagOriginal, removeTagFromTasks]
+    [deleteTagMutation]
+  );
+
+  const batchUpdateTaskTags = useCallback(
+    async (taskId, tagIds) => {
+      try {
+        await batchUpdateTaskTagsMutation({ taskId, tagIds }).unwrap();
+      } catch (err) {
+        console.error("Error batch updating task tags:", err);
+        throw err;
+      }
+    },
+    [batchUpdateTaskTagsMutation]
   );
 
   // Get preferences from context
@@ -539,7 +943,7 @@ export default function DailyTasksApp() {
   const viewDate = todayViewDate || today;
   const todaysTasks = useMemo(
     () =>
-      tasks
+      flattenTasks(tasksForUse)
         .filter(task => {
           // Exclude notes from today's tasks
           if (task.completionType === "note") return false;
@@ -572,7 +976,7 @@ export default function DailyTasksApp() {
               }))
             : undefined,
         })),
-    [tasks, viewDate, isCompletedOnDate, getOutcomeOnDate, hasRecordOnDate]
+    [tasksForUse, viewDate, isCompletedOnDate, getOutcomeOnDate, hasRecordOnDate, flattenTasks]
   );
 
   // Filter today's tasks by search term and tags
@@ -628,7 +1032,7 @@ export default function DailyTasksApp() {
   // - Tasks completed/not completed on today (always hidden, but with delay for visual feedback)
   // Note: Backlog is always relative to today, not the selected date in Today View
   const backlogTasks = useMemo(() => {
-    return tasks
+    return flattenTasks(tasksForUse)
       .filter(task => {
         // If task shows on today's calendar/today view, don't show in backlog
         if (shouldShowOnDate(task, today)) return false;
@@ -679,7 +1083,7 @@ export default function DailyTasksApp() {
             }))
           : undefined,
       }));
-  }, [tasks, today, isCompletedOnDate, getOutcomeOnDate, hasAnyCompletion, recentlyCompletedTasks]);
+  }, [tasksForUse, today, isCompletedOnDate, getOutcomeOnDate, hasAnyCompletion, recentlyCompletedTasks, flattenTasks]);
 
   // Filter tasks that are notes (completionType === "note")
   const noteTasks = useMemo(() => {
@@ -4028,7 +4432,7 @@ export default function DailyTasksApp() {
         onCreateTag={createTag}
         onDeleteTag={deleteTag}
         selectedCount={selectedTaskIds.size}
-        selectedTasks={tasks.filter(t => selectedTaskIds.has(t.id))}
+        selectedTasks={flattenTasks(tasksForUse).filter(t => selectedTaskIds.has(t.id))}
       />
       <WorkoutModal
         task={workoutModalTask}

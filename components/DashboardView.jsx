@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Box, Heading, Text, Table, HStack, VStack, Card, Badge, Tabs, createListCollection } from "@chakra-ui/react";
 import { useCompletions } from "@/hooks/useCompletions";
-import { useTasks } from "@/hooks/useTasks";
+import { useGetTasksQuery } from "@/lib/store/api/tasksApi.js";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { shouldShowOnDate } from "@/lib/utils";
 import { SelectDropdown } from "./SelectDropdown";
@@ -62,7 +62,7 @@ export const DashboardView = () => {
     deleteCompletion,
     loading: completionsLoading,
   } = useCompletions();
-  const { tasks, loading: tasksLoading } = useTasks();
+  const { data: tasks = [], isLoading: tasksLoading } = useGetTasksQuery();
   const { colorMode } = useColorModeSync();
   const [dateRange, setDateRange] = useState("30"); // days
   const [selectedTask, setSelectedTask] = useState("all");

@@ -1,6 +1,8 @@
 "use client";
 
 import { ChakraProvider, createSystem, defaultConfig } from "@chakra-ui/react";
+import { Provider as ReduxProvider } from "react-redux";
+import { store } from "@/lib/store";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PreferencesProvider } from "@/contexts/PreferencesContext";
 import { ToastContainer } from "@/components/ToastContainer";
@@ -467,13 +469,15 @@ const system = createSystem(defaultConfig, {
 
 export function Providers({ children }) {
   return (
-    <ChakraProvider value={system}>
-      <AuthProvider>
-        <PreferencesProvider>
-          {children}
-          <ToastContainer />
-        </PreferencesProvider>
-      </AuthProvider>
-    </ChakraProvider>
+    <ReduxProvider store={store}>
+      <ChakraProvider value={system}>
+        <AuthProvider>
+          <PreferencesProvider>
+            {children}
+            <ToastContainer />
+          </PreferencesProvider>
+        </AuthProvider>
+      </ChakraProvider>
+    </ReduxProvider>
   );
 }
