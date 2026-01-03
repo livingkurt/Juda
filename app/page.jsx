@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import {
   Box,
   Button,
@@ -21,17 +21,7 @@ import { useToast } from "@/hooks/useToast";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { AuthPage } from "@/components/AuthPage";
-import {
-  DndContext,
-  DragOverlay,
-  pointerWithin,
-  closestCenter,
-  useSensor,
-  useSensors,
-  PointerSensor,
-  KeyboardSensor,
-} from "@dnd-kit/core";
-import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
+import { DndContext, DragOverlay, pointerWithin, closestCenter } from "@dnd-kit/core";
 import {
   Calendar,
   LayoutDashboard,
@@ -60,15 +50,21 @@ import { useTasks } from "@/hooks/useTasks";
 import { useSections } from "@/hooks/useSections";
 import { useCompletions } from "@/hooks/useCompletions";
 import { useTags } from "@/hooks/useTags";
-import {
-  shouldShowOnDate,
-  getGreeting,
-  hasFutureDateTime,
-  minutesToTime,
-  snapToIncrement,
-  formatLocalDate,
-} from "@/lib/utils";
-import { parseDroppableId, createDroppableId, createDraggableId, extractTaskId } from "@/lib/dragHelpers";
+import { useViewState } from "@/hooks/useViewState";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
+import { useResizeHandlers } from "@/hooks/useResizeHandlers";
+import { useSelectionState } from "@/hooks/useSelectionState";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useMobileDetection } from "@/hooks/useMobileDetection";
+import { useSectionOperations } from "@/hooks/useSectionOperations";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
+import { useStatusHandlers } from "@/hooks/useStatusHandlers";
+import { useAutoScroll } from "@/hooks/useAutoScroll";
+import { useSectionExpansion } from "@/hooks/useSectionExpansion";
+import { getGreeting } from "@/lib/utils";
+import { createDroppableId, createDraggableId, extractTaskId } from "@/lib/dragHelpers";
 import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
@@ -285,229 +281,47 @@ export default function DailyTasksApp() {
 
   const isLoading = tasksLoading || sectionsLoading || !prefsInitialized;
 
-  // Detect mobile vs desktop - use client-side only to avoid SSR issues
-  const [isMobile, setIsMobile] = useState(false);
+  // Extract view state using hook
+  const viewState = useViewState({
+    showCompletedTasks,
+    calendarView,
+    calendarZoom,
+  });
 
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
+  // Extract selection state
+  const selectionState = useSelectionState({ batchUpdateTasks });
 
-  // Initialize state with default values (same on server and client)
-  const [mainTabIndex, setMainTabIndex] = useState(0); // 0 = Tasks, 1 = Kanban, 2 = Notes, 3 = History
-  const [isResizing, setIsResizing] = useState(false);
-  // Mobile-specific state: which view is currently active
-  // "backlog" | "today" | "calendar"
-  const [mobileActiveView, setMobileActiveView] = useState("today");
+  // Extract resize handlers
+  const resizeHandlers = useResizeHandlers({
+    backlogWidth,
+    todayViewWidth,
+    setBacklogWidth,
+    setTodayViewWidth,
+  });
+
+  // Extract dialog state
+  const dialogState = useDialogState();
+
+  // Extract mobile detection
+  const isMobile = useMobileDetection();
+
+  // Initialize section expansion state early (will be updated when tasksBySection is available)
+  // We'll recreate it after taskFilters is created, but for now use empty object
+  const sectionExpansionInitial = useSectionExpansion({
+    sections,
+    showCompletedTasks,
+    tasksBySection: {},
+  });
 
   // Determine if we should show mobile layout
   const showMobileLayout = isMobile;
-  // Initialize selectedDate to null, then set it in useEffect to avoid hydration mismatch
-  const [selectedDate, setSelectedDate] = useState(null);
-  // Initialize todayViewDate to null, then set it in useEffect to avoid hydration mismatch
-  const [todayViewDate, setTodayViewDate] = useState(null);
-  // Search state for Today view
-  const [todaySearchTerm, setTodaySearchTerm] = useState("");
-  const [todaySelectedTagIds, setTodaySelectedTagIds] = useState([]);
-  // Search state for Calendar view
-  const [calendarSearchTerm, setCalendarSearchTerm] = useState("");
-  const [calendarSelectedTagIds, setCalendarSelectedTagIds] = useState([]);
-  const [editingTask, setEditingTask] = useState(null);
-  const [editingSection, setEditingSection] = useState(null);
-  const [defaultSectionId, setDefaultSectionId] = useState(null);
-  const [defaultTime, setDefaultTime] = useState(null);
-  const [defaultDate, setDefaultDate] = useState(null);
-  const [editingWorkoutTask, setEditingWorkoutTask] = useState(null);
-  // Store drop time calculated from mouse position during drag
-  const dropTimeRef = useRef(null);
-  // Track active drag item for DragOverlay - combined into single state for performance
-  const [dragState, setDragState] = useState({
-    activeId: null,
-    activeTask: null,
-    offset: { x: 0, y: 0 },
-  });
-  // Ref for Today view scrollable container (for auto-scroll to next incomplete task)
-  const todayScrollContainerRef = useRef(null);
-  // Track if we've already auto-scrolled on initial load (to prevent scrolling on every change)
-  const hasAutoScrolledRef = useRef(false);
-  // Track recently completed tasks that should remain visible for a delay
-  const [recentlyCompletedTasks, setRecentlyCompletedTasks] = useState(new Set());
-  const recentlyCompletedTimeoutsRef = useRef({});
-  // Track sections that are auto-collapsed (not manually collapsed by user)
-  const [autoCollapsedSections, setAutoCollapsedSections] = useState(new Set());
-  // Track sections that were manually expanded after being auto-collapsed (to prevent re-collapsing)
-  const [manuallyExpandedSections, setManuallyExpandedSections] = useState(new Set());
-
-  // Set selectedDate and todayViewDate on mount to avoid hydration mismatch
-  useEffect(() => {
-    // Set selectedDate on mount to avoid hydration mismatch
-    if (selectedDate === null) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      setSelectedDate(today);
-    }
-    // Set todayViewDate on mount to avoid hydration mismatch
-    if (todayViewDate === null) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      setTodayViewDate(today);
-    }
-  }, [selectedDate, todayViewDate]);
 
   // Load completions on mount
   useEffect(() => {
     fetchCompletions();
   }, [fetchCompletions]);
 
-  // Cleanup timeouts when component unmounts or when showCompletedTasks changes
-  useEffect(() => {
-    return () => {
-      // Clear all pending timeouts on unmount
-      Object.values(recentlyCompletedTimeoutsRef.current).forEach(timeout => {
-        clearTimeout(timeout);
-      });
-      recentlyCompletedTimeoutsRef.current = {};
-    };
-  }, []);
-
-  // Clear recently completed tasks when showCompletedTasks is turned on
-  useEffect(() => {
-    if (showCompletedTasks) {
-      setRecentlyCompletedTasks(new Set());
-      // Clear all pending timeouts
-      Object.values(recentlyCompletedTimeoutsRef.current).forEach(timeout => {
-        clearTimeout(timeout);
-      });
-      recentlyCompletedTimeoutsRef.current = {};
-      // Clear auto-collapsed sections when showing completed tasks
-      setAutoCollapsedSections(new Set());
-    } else {
-      // When hiding completed tasks, clear manually expanded sections
-      // so sections can auto-collapse again if they become empty
-      setManuallyExpandedSections(new Set());
-    }
-  }, [showCompletedTasks]);
-
-  // Dialog state management (replacing useDisclosure from Chakra v2)
-  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
-  const openTaskDialog = () => setTaskDialogOpen(true);
-  const closeTaskDialog = () => setTaskDialogOpen(false);
-
-  const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
-  const openSectionDialog = () => setSectionDialogOpen(true);
-  const closeSectionDialog = () => setSectionDialogOpen(false);
-
-  const [tagEditorOpen, setTagEditorOpen] = useState(false);
-
-  // Bulk edit state - track selected task IDs
-  const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
-  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
-
-  // Workout modal state
-  const [workoutModalOpen, setWorkoutModalOpen] = useState(false);
-  const [workoutModalTask, setWorkoutModalTask] = useState(null);
-
-  // Resize handlers for resizable sections
-  const resizeStartRef = useRef(null);
-  const [resizeType, setResizeType] = useState(null); // "backlog" or "today"
-  // Local state for smooth resizing (only updates preferences on mouse up)
-  const [localBacklogWidth, setLocalBacklogWidth] = useState(backlogWidth);
-  const [localTodayViewWidth, setLocalTodayViewWidth] = useState(todayViewWidth);
-  const rafRef = useRef(null);
-
-  // Track which calendar droppable we're over for time calculation
-  const currentCalendarDroppableRef = useRef(null);
-  const mouseMoveListenerRef = useRef(null);
-
-  // Sync local widths with preference widths when they change externally
-  useEffect(() => {
-    setLocalBacklogWidth(backlogWidth);
-  }, [backlogWidth]);
-
-  useEffect(() => {
-    setLocalTodayViewWidth(todayViewWidth);
-  }, [todayViewWidth]);
-
-  const handleBacklogResizeStart = e => {
-    e.preventDefault();
-    setIsResizing(true);
-    setResizeType("backlog");
-    resizeStartRef.current = {
-      startX: e.clientX,
-      startWidth: localBacklogWidth,
-    };
-  };
-
-  const handleTodayResizeStart = e => {
-    e.preventDefault();
-    setIsResizing(true);
-    setResizeType("today");
-    resizeStartRef.current = {
-      startX: e.clientX,
-      startWidth: localTodayViewWidth,
-    };
-  };
-
-  useEffect(() => {
-    if (!isResizing || !resizeType) return;
-
-    const handleMouseMove = e => {
-      if (!resizeStartRef.current) return;
-
-      // Cancel any pending animation frame
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
-
-      // Use requestAnimationFrame for smooth updates
-      rafRef.current = requestAnimationFrame(() => {
-        if (!resizeStartRef.current) return;
-        const deltaX = e.clientX - resizeStartRef.current.startX;
-
-        if (resizeType === "backlog") {
-          const newWidth = Math.max(300, Math.min(800, resizeStartRef.current.startWidth + deltaX));
-          setLocalBacklogWidth(newWidth);
-        } else if (resizeType === "today") {
-          const newWidth = Math.max(300, Math.min(1200, resizeStartRef.current.startWidth + deltaX));
-          setLocalTodayViewWidth(newWidth);
-        }
-      });
-    };
-
-    const handleMouseUp = () => {
-      // Save final width to preferences
-      if (resizeType === "backlog") {
-        setBacklogWidth(localBacklogWidth);
-      } else if (resizeType === "today") {
-        setTodayViewWidth(localTodayViewWidth);
-      }
-
-      setIsResizing(false);
-      setResizeType(null);
-      resizeStartRef.current = null;
-
-      // Cancel any pending animation frame
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-    };
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
-    };
-  }, [isResizing, resizeType, localBacklogWidth, localTodayViewWidth, setBacklogWidth, setTodayViewWidth]);
+  // Cleanup and state management for recently completed tasks is now handled by completionHandlers hook
 
   // Keyboard shortcut: CMD+E (or CTRL+E) to open task dialog
   useEffect(() => {
@@ -518,7 +332,7 @@ export default function DailyTasksApp() {
       const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
       if ((e.metaKey || e.ctrlKey) && e.key === "e" && !isInput) {
         e.preventDefault();
-        setTaskDialogOpen(true);
+        dialogState.openTaskDialog();
       }
     };
 
@@ -526,168 +340,163 @@ export default function DailyTasksApp() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [dialogState]);
 
-  const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }, []);
+  // Extract task operations
+  const taskOps = useTaskOperations({
+    tasks,
+    sections,
+    updateTask,
+    deleteTask,
+    duplicateTask,
+    saveTask,
+    createTask,
+    fetchTasks,
+    batchUpdateTaskTags,
+    toast,
+    setEditingTask: dialogState.setEditingTask,
+    setEditingWorkoutTask: dialogState.setEditingWorkoutTask,
+    setDefaultSectionId: dialogState.setDefaultSectionId,
+    setDefaultTime: dialogState.setDefaultTime,
+    setDefaultDate: dialogState.setDefaultDate,
+    openTaskDialog: dialogState.openTaskDialog,
+    viewDate: viewState.viewDate,
+  });
+
+  // Destructure view state for easier access
+  const {
+    today,
+    selectedDate,
+    todayViewDate,
+    viewDate,
+    mainTabIndex,
+    setMainTabIndex,
+    todaySearchTerm,
+    setTodaySearchTerm,
+    todaySelectedTagIds,
+    calendarSearchTerm,
+    setCalendarSearchTerm,
+    calendarSelectedTagIds,
+    mobileActiveView,
+    setMobileActiveView,
+  } = viewState;
+
+  // Completion handlers are available via completionHandlers object
+  // e.g., completionHandlers.handleToggleTask, completionHandlers.recentlyCompletedTasks
+
+  // Initialize completion handlers early (before tasksBySection which uses recentlyCompletedTasks)
+
+  const completionHandlers = useCompletionHandlers({
+    tasks,
+    sections,
+    updateTask,
+    createCompletion,
+    deleteCompletion,
+    batchCreateCompletions,
+    batchDeleteCompletions,
+    isCompletedOnDate,
+    showCompletedTasks,
+    today: viewState.today,
+    viewDate: viewState.viewDate,
+    autoCollapsedSections: sectionExpansionInitial.autoCollapsedSections,
+    setAutoCollapsedSections: sectionExpansionInitial.setAutoCollapsedSections,
+    updateSection,
+    checkAndAutoCollapseSection: sectionExpansionInitial.checkAndAutoCollapseSection,
+    toast,
+  });
+
+  // Extract task filters
+  const taskFilters = useTaskFilters({
+    tasks,
+    sections,
+    viewDate: viewState.viewDate,
+    today: viewState.today,
+    todaySearchTerm: viewState.todaySearchTerm,
+    todaySelectedTagIds: viewState.todaySelectedTagIds,
+    showCompletedTasks,
+    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+    isCompletedOnDate,
+    getOutcomeOnDate,
+    hasRecordOnDate,
+    hasAnyCompletion,
+  });
+
+  // Recreate section expansion with actual tasksBySection
+  // Note: This creates a new hook instance, but the state is preserved via useState
+  const sectionExpansion = useSectionExpansion({
+    sections,
+    showCompletedTasks,
+    tasksBySection: taskFilters.tasksBySection,
+  });
+
+  // Extract status handlers
+  const statusHandlers = useStatusHandlers({
+    tasks,
+    updateTask,
+    createCompletion,
+    showCompletedTasks,
+    addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
+  });
+
+  // Extract section operations
+  const sectionOps = useSectionOperations({
+    sections,
+    createSection,
+    updateSection,
+    deleteSection,
+    editingSection: dialogState.editingSection,
+    setEditingSection: dialogState.setEditingSection,
+    openSectionDialog: dialogState.openSectionDialog,
+    closeSectionDialog: dialogState.closeSectionDialog,
+    autoCollapsedSections: sectionExpansion.autoCollapsedSections,
+    setAutoCollapsedSections: sectionExpansion.setAutoCollapsedSections,
+    setManuallyExpandedSections: sectionExpansion.setManuallyExpandedSections,
+    toast,
+  });
+
+  // Extract auto-scroll
+  const autoScroll = useAutoScroll({
+    todayViewDate: viewState.todayViewDate,
+    computedSections: sectionExpansion.computedSections,
+    tasksBySection: taskFilters.tasksBySection,
+    isMobile,
+  });
+
+  // Create a stable callback ref to avoid ESLint warning
+  const todayScrollContainerRefCallback = useCallback(
+    node => {
+      autoScroll.setTodayScrollContainerRef(node);
+    },
+    [autoScroll]
+  );
 
   const greeting = getGreeting();
   const GreetingIcon = greeting.icon === "Sun" ? Sun : greeting.icon === "Sunset" ? Sunset : Moon;
+  const todaysTasks = taskFilters.todaysTasks;
+  const filteredTodaysTasks = taskFilters.filteredTodaysTasks;
+  const tasksBySection = taskFilters.tasksBySection;
+  const backlogTasks = taskFilters.backlogTasks;
+  const noteTasks = taskFilters.noteTasks;
 
-  // Tasks that should show in today's dashboard, enhanced with completion status
-  // Use todayViewDate if available, otherwise fall back to today
-  const viewDate = todayViewDate || today;
-  const todaysTasks = useMemo(
-    () =>
-      tasks
-        .filter(task => {
-          // Exclude notes from today's tasks
-          if (task.completionType === "note") return false;
-          // Exclude subtasks (handled by parent)
-          if (task.parentId) return false;
+  // Extract drag and drop handlers (after taskFilters so backlogTasks and tasksBySection are available)
+  const dragAndDrop = useDragAndDrop({
+    tasks,
+    sections,
+    updateTask,
+    reorderTask,
+    reorderSections,
+    today: viewState.today,
+    viewDate: viewState.viewDate,
+    selectedDate: viewState.selectedDate,
+    calendarView: viewState.calendarView,
+    backlogTasks,
+    tasksBySection,
+    batchReorderTasks,
+    handleStatusChange: statusHandlers.handleStatusChange,
+    toast,
+  });
 
-          // Include in-progress non-recurring tasks regardless of date
-          const isNonRecurring = !task.recurrence || task.recurrence.type === "none";
-          if (isNonRecurring && task.status === "in_progress") {
-            return true;
-          }
-
-          // Normal date-based filtering
-          return shouldShowOnDate(task, viewDate);
-        })
-        .map(task => ({
-          ...task,
-          // Override completed field with the selected date's completion record status
-          completed: isCompletedOnDate(task.id, viewDate),
-          // Add outcome and hasRecord for outcome menu
-          outcome: getOutcomeOnDate(task.id, viewDate),
-          hasRecord: hasRecordOnDate(task.id, viewDate),
-          // Also update subtasks with completion status
-          subtasks: task.subtasks
-            ? task.subtasks.map(subtask => ({
-                ...subtask,
-                completed: isCompletedOnDate(subtask.id, viewDate),
-                outcome: getOutcomeOnDate(subtask.id, viewDate),
-                hasRecord: hasRecordOnDate(subtask.id, viewDate),
-              }))
-            : undefined,
-        })),
-    [tasks, viewDate, isCompletedOnDate, getOutcomeOnDate, hasRecordOnDate]
-  );
-
-  // Filter today's tasks by search term and tags
-  const filteredTodaysTasks = useMemo(() => {
-    let result = todaysTasks;
-
-    // Filter by search term
-    if (todaySearchTerm.trim()) {
-      const lowerSearch = todaySearchTerm.toLowerCase();
-      result = result.filter(task => task.title.toLowerCase().includes(lowerSearch));
-    }
-
-    // Filter by tags
-    if (todaySelectedTagIds.length > 0) {
-      result = result.filter(task => task.tags?.some(tag => todaySelectedTagIds.includes(tag.id)));
-    }
-
-    return result;
-  }, [todaysTasks, todaySearchTerm, todaySelectedTagIds]);
-
-  // Group today's tasks by section, optionally filtering out completed tasks
-  const tasksBySection = useMemo(() => {
-    const grouped = {};
-    sections.forEach(s => {
-      let sectionTasks = filteredTodaysTasks.filter(t => t.sectionId === s.id);
-      // Filter out completed/not completed tasks if showCompletedTasks is false
-      // But keep recently completed tasks visible for a delay period
-      if (!showCompletedTasks) {
-        sectionTasks = sectionTasks.filter(t => {
-          const isCompleted =
-            t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
-          // Check if task has any outcome (completed or not completed)
-          const hasOutcome = t.outcome !== null && t.outcome !== undefined;
-          // Keep task visible if it's recently completed (within delay period)
-          if (isCompleted && recentlyCompletedTasks.has(t.id)) {
-            return true;
-          }
-          // Hide if completed or has any outcome (not completed)
-          return !isCompleted && !hasOutcome;
-        });
-      }
-      grouped[s.id] = sectionTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
-    });
-    return grouped;
-  }, [filteredTodaysTasks, sections, showCompletedTasks, recentlyCompletedTasks]);
-
-  // Tasks for backlog: tasks without recurrence that don't show on any date
-  // Excludes:
-  // - Tasks that show on today's date (shouldShowOnDate)
-  // - Tasks with future dates/times
-  // - One-time tasks (type: "none") that have been completed on ANY date
-  // - Recurring tasks (daily, weekly, monthly, interval) - these only show on their scheduled dates
-  // - Tasks completed/not completed on today (always hidden, but with delay for visual feedback)
-  // Note: Backlog is always relative to today, not the selected date in Today View
-  const backlogTasks = useMemo(() => {
-    return tasks
-      .filter(task => {
-        // If task shows on today's calendar/today view, don't show in backlog
-        if (shouldShowOnDate(task, today)) return false;
-        // Exclude tasks with future date/time
-        if (hasFutureDateTime(task)) return false;
-
-        // For one-time tasks (type: "none"), if they've been completed on ANY date,
-        // they should stay on that date's calendar view, not reappear in backlog
-        if (task.recurrence?.type === "none" && hasAnyCompletion(task.id)) {
-          // Keep task visible if it's recently completed (within delay period)
-          if (recentlyCompletedTasks.has(task.id)) {
-            return true;
-          }
-          return false;
-        }
-
-        // For recurring tasks (daily, weekly, monthly, interval), they should NEVER appear in backlog
-        // Recurring tasks only show on their scheduled dates, not in backlog
-        if (task.recurrence?.type && task.recurrence.type !== "none") {
-          return false;
-        }
-
-        // Exclude notes from backlog
-        if (task.completionType === "note") return false;
-
-        // For tasks without recurrence (null), check if completed today
-        // These are true backlog items that haven't been scheduled yet
-        const outcome = getOutcomeOnDate(task.id, today);
-        if (outcome !== null) {
-          // Keep task visible if it's recently completed (within delay period)
-          if (recentlyCompletedTasks.has(task.id)) {
-            return true;
-          }
-          return false;
-        }
-        return true;
-      })
-      .sort((a, b) => (a.order || 0) - (b.order || 0))
-      .map(task => ({
-        ...task,
-        // Add completion status from records for display
-        completed: isCompletedOnDate(task.id, today),
-        // Also update subtasks with completion status
-        subtasks: task.subtasks
-          ? task.subtasks.map(subtask => ({
-              ...subtask,
-              completed: isCompletedOnDate(subtask.id, today),
-            }))
-          : undefined,
-      }));
-  }, [tasks, today, isCompletedOnDate, getOutcomeOnDate, hasAnyCompletion, recentlyCompletedTasks]);
-
-  // Filter tasks that are notes (completionType === "note")
-  const noteTasks = useMemo(() => {
-    return tasks.filter(task => task.completionType === "note");
-  }, [tasks]);
+  // Legacy useMemo blocks removed - now using taskFilters hook
 
   // Progress calculation - check completion records for the selected date
   const totalTasks = filteredTodaysTasks.length;
@@ -700,1789 +509,30 @@ export default function DailyTasksApp() {
   }).length;
   const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-  // Helper function to collect subtask completions to delete
-  const collectSubtaskCompletionsToDelete = (task, targetDate) => {
-    const completionsToDelete = [{ taskId: task.id, date: targetDate.toISOString() }];
-    if (!task.subtasks || task.subtasks.length === 0) {
-      return completionsToDelete;
-    }
+  // Use statusHandlers.handleStatusChange instead of local handleStatusChange
+  const handleStatusChange = statusHandlers.handleStatusChange;
+
+  // Section handlers - now using sectionOps hook
+  const handleEditSection = sectionOps.handleEditSection;
+  const handleAddSection = sectionOps.handleAddSection;
+  const handleSaveSection = sectionOps.handleSaveSection;
+  const handleDeleteSection = sectionOps.handleDeleteSection;
+  const handleToggleSectionExpand = sectionOps.handleToggleSectionExpand;
+
+  // Calendar navigation - now using viewState helpers
+  const navigateCalendar = viewState.navigateCalendar;
+  const navigateTodayView = viewState.navigateTodayView;
+  const handleTodayViewToday = viewState.handleTodayViewToday;
+  const handleTodayViewDateChange = viewState.handleTodayViewDateChange;
+  const getCalendarTitle = viewState.getCalendarTitle;
+
+  // Computed sections - now using sectionExpansion hook
+  const computedSections = sectionExpansion.computedSections;
+
+  // Drag handlers are now in useDragAndDrop hook
+  const handleDragOver = dragAndDrop.handleDragOver;
+  const handleDragEndNew = dragAndDrop.handleDragEndNew;
 
-    for (const subtask of task.subtasks) {
-      if (isCompletedOnDate(subtask.id, targetDate)) {
-        completionsToDelete.push({ taskId: subtask.id, date: targetDate.toISOString() });
-      }
-    }
-    return completionsToDelete;
-  };
-
-  // Helper function to collect subtask completions to create
-  const collectSubtaskCompletionsToCreate = (task, targetDate) => {
-    const completionsToCreate = [{ taskId: task.id, date: targetDate.toISOString() }];
-    if (!task.subtasks || task.subtasks.length === 0) {
-      return completionsToCreate;
-    }
-
-    for (const subtask of task.subtasks) {
-      if (!isCompletedOnDate(subtask.id, targetDate)) {
-        completionsToCreate.push({ taskId: subtask.id, date: targetDate.toISOString() });
-      }
-    }
-    return completionsToCreate;
-  };
-
-  // Helper function to remove task from recently completed set
-  const removeFromRecentlyCompleted = taskId => {
-    setRecentlyCompletedTasks(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(taskId);
-      return newSet;
-    });
-    if (recentlyCompletedTimeoutsRef.current[taskId]) {
-      clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
-      delete recentlyCompletedTimeoutsRef.current[taskId];
-    }
-  };
-
-  // Helper function to add task to recently completed set with timeout
-  const addToRecentlyCompleted = (taskId, sectionId) => {
-    setRecentlyCompletedTasks(prev => new Set(prev).add(taskId));
-
-    // Clear any existing timeout for this task
-    if (recentlyCompletedTimeoutsRef.current[taskId]) {
-      clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
-    }
-
-    // Set timeout to remove from recently completed after 2 seconds
-    recentlyCompletedTimeoutsRef.current[taskId] = setTimeout(() => {
-      removeFromRecentlyCompleted(taskId);
-
-      // After the delay, check if section should auto-collapse
-      if (sectionId) {
-        setTimeout(() => {
-          checkAndAutoCollapseSection(sectionId);
-        }, 50);
-      }
-    }, 2000);
-  };
-
-  // Task handlers
-  const handleToggleTask = async taskId => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    // Check if task has no recurrence (appears in backlog)
-    const hasNoRecurrence = !task.recurrence;
-
-    // Determine which date to use: viewDate for Today View, today for backlog
-    const targetDate = hasNoRecurrence ? today : viewDate;
-    const isCompletedOnTargetDate = isCompletedOnDate(taskId, targetDate);
-
-    // Check if we need to temporarily expand a section when checking from backlog
-    let wasSectionCollapsed = false;
-    let sectionWasManuallyCollapsed = false;
-    let sectionWasAutoCollapsed = false;
-
-    if (hasNoRecurrence && !isCompletedOnTargetDate && task.sectionId) {
-      const section = sections.find(s => s.id === task.sectionId);
-      if (section) {
-        sectionWasManuallyCollapsed = section.expanded === false;
-        sectionWasAutoCollapsed = autoCollapsedSections.has(section.id);
-        wasSectionCollapsed = sectionWasManuallyCollapsed || sectionWasAutoCollapsed;
-
-        // Temporarily expand the section if it's collapsed
-        if (wasSectionCollapsed) {
-          // Remove from auto-collapsed if it's there
-          if (sectionWasAutoCollapsed) {
-            setAutoCollapsedSections(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(section.id);
-              return newSet;
-            });
-          }
-          // Expand manually collapsed section
-          if (sectionWasManuallyCollapsed) {
-            await updateSection(section.id, { expanded: true });
-          }
-        }
-      }
-    }
-
-    try {
-      // Get current time when checking
-      const now = new Date();
-      const currentTime = minutesToTime(now.getHours() * 60 + now.getMinutes());
-
-      // Check if task is truly recurring (has recurrence pattern, not just a one-time task)
-      const isRecurringTask = task.recurrence && task.recurrence.type && task.recurrence.type !== "none";
-
-      // If task has no recurrence and is being checked, set it to show on calendar with current time
-      if (hasNoRecurrence && !isCompletedOnTargetDate) {
-        // Set recurrence to today's date and time to current time so it appears in calendar
-        const todayDateStr = formatLocalDate(today);
-        await updateTask(taskId, {
-          recurrence: {
-            type: "none",
-            startDate: `${todayDateStr}T00:00:00.000Z`,
-          },
-          time: currentTime,
-          // Set status to complete for non-recurring tasks when checking
-          status: "complete",
-        });
-      }
-      // If task is non-recurring (one-time task) and doesn't have a time, set it to current time when checking
-      // Skip this for recurring tasks to preserve their time-flexible nature
-      else if (!isRecurringTask && !task.time && !isCompletedOnTargetDate) {
-        // Task is non-recurring (one-time), assign current time for completion tracking
-        await updateTask(taskId, {
-          time: currentTime,
-          // Set status to complete for non-recurring tasks when checking
-          status: "complete",
-        });
-      }
-      // If task is non-recurring and already has a time, just update status when checking
-      else if (!isRecurringTask && !isCompletedOnTargetDate) {
-        // Task is non-recurring, just update status to complete
-        await updateTask(taskId, {
-          status: "complete",
-        });
-      }
-
-      // Update completion record
-      if (isCompletedOnTargetDate) {
-        // Task is completed on the target date, remove completion record
-        const completionsToDelete = collectSubtaskCompletionsToDelete(task, targetDate);
-        await batchDeleteCompletions(completionsToDelete);
-
-        // For non-recurring tasks, set status back to todo when unchecking
-        if (!isRecurringTask) {
-          await updateTask(taskId, {
-            status: "todo",
-          });
-        }
-
-        // If hiding completed tasks, remove from recently completed set immediately when unchecked
-        if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
-          removeFromRecentlyCompleted(taskId);
-        }
-      } else {
-        // Task is not completed on the target date, create completion record
-        // Add to recently completed set BEFORE creating completion to prevent flash
-        if (!showCompletedTasks) {
-          addToRecentlyCompleted(taskId, task.sectionId);
-        }
-
-        // Create completion record after adding to recently completed set
-        try {
-          const completionsToCreate = collectSubtaskCompletionsToCreate(task, targetDate);
-          await batchCreateCompletions(completionsToCreate);
-        } catch (completionError) {
-          // If completion creation fails, remove from recently completed set
-          if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
-            removeFromRecentlyCompleted(taskId);
-          }
-          throw completionError;
-        }
-      }
-
-      // If we temporarily expanded a section and hide completed is true, collapse it again
-      if (wasSectionCollapsed && !showCompletedTasks && task.sectionId) {
-        const sectionIdToCollapse = task.sectionId;
-        // Wait a bit for the UI to update, then collapse the section again
-        setTimeout(() => {
-          // Re-collapse manually collapsed section
-          if (sectionWasManuallyCollapsed) {
-            updateSection(sectionIdToCollapse, { expanded: false }).catch(err => {
-              console.error("Error collapsing section:", err);
-            });
-          }
-          // Re-add to auto-collapsed if it was auto-collapsed
-          // The checkAndAutoCollapseSection will handle this, but we can also do it here
-          // to ensure it happens immediately
-          if (sectionWasAutoCollapsed) {
-            // Check if section should be auto-collapsed (no visible tasks)
-            checkAndAutoCollapseSection(sectionIdToCollapse);
-          }
-        }, 100);
-      }
-    } catch (error) {
-      console.error("Error toggling task completion:", error);
-      // If there was an error and we expanded the section, try to restore its state
-      if (wasSectionCollapsed && task.sectionId) {
-        const sectionIdToRestore = task.sectionId;
-        if (sectionWasManuallyCollapsed) {
-          updateSection(sectionIdToRestore, { expanded: false }).catch(err => {
-            console.error("Error restoring section state:", err);
-          });
-        }
-        if (sectionWasAutoCollapsed) {
-          setAutoCollapsedSections(prev => {
-            const newSet = new Set(prev);
-            newSet.add(sectionIdToRestore);
-            return newSet;
-          });
-        }
-      }
-    }
-  };
-
-  const handleToggleSubtask = async (taskId, subtaskId) => {
-    // Subtasks are now full tasks, toggle the subtask directly without parent logic
-    const subtask =
-      tasks.find(t => t.id === subtaskId) || tasks.flatMap(t => t.subtasks || []).find(st => st.id === subtaskId);
-    if (!subtask) return;
-
-    // Check if subtask has no recurrence (appears in backlog)
-    const hasNoRecurrence = !subtask.recurrence;
-
-    // Determine which date to use: viewDate for Today View, today for backlog
-    const targetDate = hasNoRecurrence ? today : viewDate;
-    const isCompletedOnTargetDate = isCompletedOnDate(subtaskId, targetDate);
-
-    try {
-      // For subtasks from backlog (no recurrence), set startDate when completing
-      // But DON'T set time - let them keep their existing time or stay untimed
-      if (hasNoRecurrence && !isCompletedOnTargetDate) {
-        const todayDateStr = formatLocalDate(today);
-        await updateTask(subtaskId, {
-          recurrence: {
-            type: "none",
-            startDate: `${todayDateStr}T00:00:00.000Z`,
-          },
-          // Removed time assignment - subtasks should not auto-set time on completion
-        });
-      }
-      // Removed time-setting logic for non-recurring subtasks
-      // Subtasks should preserve their existing time or stay untimed
-
-      // Update completion record for subtask only (no parent logic)
-      if (isCompletedOnTargetDate) {
-        await deleteCompletion(subtaskId, targetDate.toISOString());
-      } else {
-        await createCompletion(subtaskId, targetDate.toISOString());
-      }
-    } catch (error) {
-      console.error("Error toggling subtask completion:", error);
-    }
-  };
-
-  const handleToggleExpand = async taskId => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-    await updateTask(taskId, { expanded: !task.expanded });
-  };
-
-  const handleOutcomeChange = async (taskId, date, outcome) => {
-    try {
-      const dateObj = date instanceof Date ? date : new Date(date);
-      const task = tasks.find(t => t.id === taskId);
-
-      // Check if this is a subtask (has a parentId)
-      const isSubtask = task?.parentId != null;
-
-      // Check if task is recurring
-      const isRecurringTask = task?.recurrence && task.recurrence.type && task.recurrence.type !== "none";
-
-      if (outcome === null) {
-        // Remove record
-        await deleteCompletion(taskId, dateObj.toISOString());
-
-        // For non-recurring tasks, set status back to todo when unchecking
-        if (!isRecurringTask) {
-          await updateTask(taskId, { status: "todo" });
-        }
-
-        // If hiding completed tasks, remove from recently completed set immediately when unchecked
-        if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
-          removeFromRecentlyCompleted(taskId);
-        }
-
-        // Only cascade to subtasks if this is a PARENT task (not a subtask itself)
-        if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
-          await Promise.all(task.subtasks.map(subtask => deleteCompletion(subtask.id, dateObj.toISOString())));
-        }
-      } else {
-        // If marking as completed and hiding completed tasks, add to recently completed set
-        if (outcome === "completed" && !showCompletedTasks) {
-          addToRecentlyCompleted(taskId, task?.sectionId);
-        }
-        // Create or update record with outcome
-        try {
-          await createCompletion(taskId, dateObj.toISOString(), { outcome });
-
-          // For non-recurring tasks, set status to complete when marking as completed
-          if (outcome === "completed" && !isRecurringTask) {
-            await updateTask(taskId, { status: "complete" });
-          }
-
-          // Only cascade to subtasks if this is a PARENT task (not a subtask itself)
-          if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
-            await Promise.all(
-              task.subtasks.map(subtask => createCompletion(subtask.id, dateObj.toISOString(), { outcome }))
-            );
-          }
-        } catch (completionError) {
-          // If completion creation fails, remove from recently completed set
-          if (outcome === "completed" && !showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
-            removeFromRecentlyCompleted(taskId);
-          }
-          throw completionError;
-        }
-      }
-
-      // Check if section should auto-collapse after task completion/not completed
-      // Use setTimeout to allow tasksBySection to update
-      setTimeout(() => {
-        if (task?.sectionId) {
-          checkAndAutoCollapseSection(task.sectionId);
-        }
-      }, 100);
-    } catch (error) {
-      toast({
-        title: "Failed to update task",
-        description: error.message,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleCompleteWithNote = async (taskId, note) => {
-    try {
-      const task = tasks.find(t => t.id === taskId);
-      const targetDate = todayViewDate || today;
-      await createCompletion(taskId, targetDate.toISOString(), { note, outcome: "completed" });
-
-      // For non-recurring tasks, set status to complete
-      const isRecurringTask = task?.recurrence && task.recurrence.type && task.recurrence.type !== "none";
-      if (!isRecurringTask) {
-        await updateTask(taskId, { status: "complete" });
-      }
-
-      // If hiding completed tasks, add to recently completed set
-      if (!showCompletedTasks) {
-        addToRecentlyCompleted(taskId, task?.sectionId);
-      }
-    } catch (error) {
-      console.error("Error completing task with note:", error);
-      toast({
-        title: "Failed to complete task",
-        description: error.message,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleNotCompletedTask = async taskId => {
-    try {
-      const task = tasks.find(t => t.id === taskId);
-      const targetDate = todayViewDate || today;
-      await createCompletion(taskId, targetDate.toISOString(), { outcome: "not_completed" });
-
-      // If hiding completed tasks, add to recently completed set (not completed tasks also get delay)
-      if (!showCompletedTasks) {
-        addToRecentlyCompleted(taskId, task?.sectionId);
-      }
-    } catch (error) {
-      console.error("Error marking task as not completed:", error);
-      toast({
-        title: "Failed to mark task as not completed",
-        description: error.message,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleEditTask = task => {
-    setEditingTask(task);
-    setDefaultSectionId(null);
-    setDefaultTime(null);
-    openTaskDialog();
-  };
-
-  const handleEditWorkout = task => {
-    setEditingWorkoutTask(task);
-  };
-
-  const handleUpdateTaskTitle = async (taskId, newTitle) => {
-    if (!newTitle.trim()) return;
-    await updateTask(taskId, { title: newTitle.trim() });
-  };
-
-  const handleDeleteTask = async taskId => {
-    await deleteTask(taskId);
-  };
-
-  // Tag handlers
-  const handleTaskTagsChange = async (taskId, newTagIds) => {
-    try {
-      // Use the batch endpoint to update all tags at once
-      await batchUpdateTaskTags(taskId, newTagIds);
-
-      // Refresh tasks to get updated tag associations
-      await fetchTasks();
-    } catch (error) {
-      console.error("Error updating task tags:", error);
-      toast({
-        title: "Failed to update tags",
-        description: error.message,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  // Bulk edit handlers
-  const handleTaskSelect = (taskId, event) => {
-    // Check if cmd/ctrl key is pressed
-    const isMultiSelect = event?.metaKey || event?.ctrlKey;
-
-    if (isMultiSelect) {
-      setSelectedTaskIds(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(taskId)) {
-          newSet.delete(taskId);
-        } else {
-          newSet.add(taskId);
-        }
-        return newSet;
-      });
-    } else {
-      // Clear selection if clicking without cmd/ctrl
-      setSelectedTaskIds(new Set());
-    }
-  };
-
-  const handleBulkEdit = () => {
-    if (selectedTaskIds.size === 0) return;
-    setBulkEditDialogOpen(true);
-  };
-
-  const handleBulkEditSave = async updates => {
-    try {
-      // Use the proper batch update endpoint - single API call for all tasks
-      await batchUpdateTasks(Array.from(selectedTaskIds), updates);
-
-      toast({
-        title: `Updated ${selectedTaskIds.size} task(s)`,
-        status: "success",
-        duration: 2000,
-      });
-
-      // Clear selection and close dialog
-      setSelectedTaskIds(new Set());
-      setBulkEditDialogOpen(false);
-    } catch (err) {
-      console.error("Bulk edit error:", err);
-      toast({
-        title: "Failed to update tasks",
-        description: err.message,
-        status: "error",
-        duration: 3000,
-      });
-    }
-  };
-
-  // Workout handlers
-  const handleBeginWorkout = task => {
-    setWorkoutModalTask(task);
-    setWorkoutModalOpen(true);
-  };
-
-  const handleDuplicateTask = async taskId => {
-    try {
-      await duplicateTask(taskId);
-      toast({
-        title: "Task duplicated",
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to duplicate task",
-        description: error.message,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleAddTask = sectionId => {
-    setDefaultSectionId(sectionId);
-    setDefaultTime(null);
-    setDefaultDate(formatLocalDate(viewDate || new Date()));
-    setEditingTask(null);
-    openTaskDialog();
-  };
-
-  const handleCreateTaskInline = async (sectionId, title) => {
-    if (!title.trim()) return;
-
-    try {
-      const taskDate = viewDate || new Date();
-      taskDate.setHours(0, 0, 0, 0);
-      const now = new Date();
-
-      await createTask({
-        title: title.trim(),
-        sectionId,
-        time: null,
-        duration: 0,
-        color: "#3b82f6",
-        status: "in_progress",
-        startedAt: now.toISOString(),
-        recurrence: {
-          type: "none",
-          startDate: taskDate.toISOString(),
-        },
-        subtasks: [],
-        order: 999,
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to create task",
-        description: error.message,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleCreateSubtask = async (parentTaskId, subtaskTitle) => {
-    if (!subtaskTitle.trim()) return;
-
-    try {
-      // Find the parent task to get its section
-      const parentTask = tasks.find(t => t.id === parentTaskId);
-      if (!parentTask) return;
-
-      await createTask({
-        title: subtaskTitle.trim(),
-        sectionId: parentTask.sectionId,
-        parentId: parentTaskId,
-        time: null,
-        duration: 30,
-        color: "#3b82f6",
-        recurrence: null,
-        subtasks: [],
-        order: 999,
-      });
-
-      // Refetch tasks to rebuild parent-child relationships
-      await fetchTasks(true);
-
-      toast({
-        title: "Subtask created",
-        status: "success",
-        duration: 2000,
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to create subtask",
-        description: error.message,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleAddTaskToBacklog = () => {
-    setDefaultSectionId(sections[0]?.id);
-    setDefaultTime(null);
-    setDefaultDate(null);
-    setEditingTask(null);
-    openTaskDialog();
-  };
-
-  const handleCreateBacklogTaskInline = async title => {
-    if (!title.trim()) return;
-
-    try {
-      await createTask({
-        title: title.trim(),
-        sectionId: sections[0]?.id,
-        time: null,
-        duration: 0,
-        color: "#3b82f6",
-        recurrence: null, // Backlog items have no recurrence/date
-        subtasks: [],
-        order: 999,
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to create task",
-        description: error.message,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleCreateKanbanTaskInline = async (status, title) => {
-    if (!title.trim()) return;
-
-    try {
-      const now = new Date();
-      await createTask({
-        title: title.trim(),
-        sectionId: sections[0]?.id,
-        time: null,
-        duration: 0,
-        color: "#3b82f6",
-        status: status,
-        startedAt: status === "in_progress" ? now.toISOString() : null,
-        recurrence: null, // Kanban tasks are non-recurring
-        subtasks: [],
-        order: 999,
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to create task",
-        description: error.message,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleCreateTaskFromCalendar = (time, day) => {
-    setDefaultTime(time);
-    setDefaultDate(day ? formatLocalDate(day) : null);
-    setDefaultSectionId(sections[0]?.id);
-    setEditingTask(null);
-    openTaskDialog();
-  };
-
-  const handleSaveTask = async taskData => {
-    await saveTask(taskData);
-    setEditingTask(null);
-    closeTaskDialog();
-  };
-
-  const handleTodayTagSelect = tagId => {
-    setTodaySelectedTagIds(prev => [...prev, tagId]);
-  };
-
-  const handleTodayTagDeselect = tagId => {
-    setTodaySelectedTagIds(prev => prev.filter(id => id !== tagId));
-  };
-
-  const handleCalendarTagSelect = tagId => {
-    setCalendarSelectedTagIds(prev => [...prev, tagId]);
-  };
-
-  const handleCalendarTagDeselect = tagId => {
-    setCalendarSelectedTagIds(prev => prev.filter(id => id !== tagId));
-  };
-
-  const handleTaskTimeChange = async (taskId, newTime) => {
-    await updateTask(taskId, { time: newTime });
-  };
-
-  const handleTaskDurationChange = async (taskId, newDuration) => {
-    await updateTask(taskId, { duration: newDuration });
-  };
-
-  const handleStatusChange = async (taskId, newStatus) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    const updates = { status: newStatus };
-    const now = new Date();
-
-    if (newStatus === "in_progress") {
-      // Set startedAt when moving to in_progress
-      updates.startedAt = now.toISOString();
-
-      // If task has no date, set it to today (so it appears in Today view)
-      if (!task.recurrence || task.recurrence.type === "none") {
-        const todayStr = formatLocalDate(new Date());
-        if (!task.recurrence?.startDate) {
-          updates.recurrence = { type: "none", startDate: `${todayStr}T00:00:00.000Z` };
-        }
-      }
-    } else if (newStatus === "todo") {
-      // Clear startedAt when moving back to todo
-      updates.startedAt = null;
-    } else if (newStatus === "complete") {
-      // When completing, create a TaskCompletion record with timing data
-      const completedAt = now;
-      const startedAt = task.startedAt ? new Date(task.startedAt) : completedAt;
-
-      // Check if task has no recurrence (needs to be set so it appears in Today view)
-      const hasNoRecurrence = !task.recurrence;
-      const isRecurringTask = task.recurrence && task.recurrence.type && task.recurrence.type !== "none";
-
-      // If task has no recurrence, set it to today's date so it appears in Today view
-      // (same behavior as completing from backlog)
-      if (hasNoRecurrence) {
-        const todayStr = formatLocalDate(now);
-        updates.recurrence = {
-          type: "none",
-          startDate: `${todayStr}T00:00:00.000Z`,
-        };
-      }
-      // If task is non-recurring (one-time) and doesn't have a startDate, set it to today
-      else if (!isRecurringTask && !task.recurrence.startDate) {
-        const todayStr = formatLocalDate(now);
-        updates.recurrence = {
-          ...task.recurrence,
-          startDate: `${todayStr}T00:00:00.000Z`,
-        };
-      }
-
-      // Set the time to the current time so it shows up on the calendar at that specific time
-      // Format: "HH:MM" (24-hour format)
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      updates.time = minutesToTime(currentMinutes);
-
-      // Create completion record
-      await createCompletion(taskId, now.toISOString(), {
-        outcome: "completed",
-        startedAt: startedAt.toISOString(),
-        completedAt: completedAt.toISOString(),
-      });
-
-      // Clear startedAt on task since it's now stored in completion
-      updates.startedAt = null;
-
-      // Add to recently completed for visual feedback
-      if (!showCompletedTasks) {
-        addToRecentlyCompleted(taskId, task.sectionId);
-      }
-    }
-
-    await updateTask(taskId, updates);
-  };
-
-  // Main drag end handler
-  const handleDragEnd = async result => {
-    const { destination, source, draggableId, type } = result;
-
-    if (!destination) {
-      dropTimeRef.current = null;
-      return;
-    }
-
-    // Handle section reordering
-    if (type === "SECTION") {
-      const newSections = Array.from(sections).sort((a, b) => a.order - b.order);
-      const [reorderedSection] = newSections.splice(source.index, 1);
-      newSections.splice(destination.index, 0, reorderedSection);
-      await reorderSections(newSections);
-      return;
-    }
-
-    // Handle task dragging
-    if (type === "TASK") {
-      // Skip Kanban operations - they're handled in handleDragEndNew
-      const sourceParsed = parseDroppableId(source.droppableId);
-      const destParsed = parseDroppableId(destination.droppableId);
-
-      if (sourceParsed.type === "kanban-column" || destParsed.type === "kanban-column") {
-        dropTimeRef.current = null;
-        return;
-      }
-
-      // Extract task ID from context-aware draggable ID
-      const taskId = extractTaskId(draggableId);
-      const task = tasks.find(t => t.id === taskId);
-      if (!task) {
-        dropTimeRef.current = null;
-        return;
-      }
-
-      // Get the calculated drop time (if dropping on timed calendar area)
-      const calculatedTime = dropTimeRef.current || "09:00";
-      dropTimeRef.current = null;
-
-      // Determine what updates to make based on source and destination
-      let updates = {};
-
-      // DESTINATION: Backlog - clear date, time, and recurrence, set status to todo
-      if (destParsed.type === "backlog") {
-        // Only update status for non-recurring tasks when coming from today-section
-        const isRecurring = task.recurrence && task.recurrence.type && task.recurrence.type !== "none";
-        const isFromTodaySection = sourceParsed.type === "today-section";
-        updates = {
-          time: null,
-          recurrence: null,
-        };
-        // Set status to todo when moving from today-section to backlog (only for non-recurring tasks)
-        if (!isRecurring && isFromTodaySection) {
-          updates.status = "todo";
-          // Clear startedAt when moving back to todo
-          updates.startedAt = null;
-        }
-      }
-      // DESTINATION: Today section - set date to the selected date in Today View, preserve time and recurrence
-      else if (destParsed.type === "today-section") {
-        // Don't set sectionId here - let the reordering logic below handle it
-        // Use the selected date in Today View (todayViewDate), or fall back to today
-        const targetDate = viewDate || today;
-        const targetDateStr = formatLocalDate(targetDate);
-
-        // Preserve existing recurrence if it exists, otherwise set to none with today's date
-        // For recurring tasks, preserve everything. For one-time tasks, update date if different.
-        let recurrenceUpdate;
-        const currentDateStr = task.recurrence?.startDate?.split("T")[0];
-        const needsDateUpdate = currentDateStr !== targetDateStr;
-        const isRecurring = task.recurrence && task.recurrence.type && task.recurrence.type !== "none";
-
-        if (isRecurring) {
-          // Preserve the recurrence pattern (daily, weekly, etc.) - no updates needed
-          recurrenceUpdate = task.recurrence;
-          // No updates needed for recurring tasks
-          updates = {};
-        } else {
-          // One-time task or no recurrence - update date if different
-          if (needsDateUpdate || !task.recurrence) {
-            recurrenceUpdate = {
-              type: "none",
-              startDate: `${targetDateStr}T00:00:00.000Z`,
-            };
-            updates = {
-              recurrence: recurrenceUpdate,
-              // Preserve existing time - don't clear it
-            };
-          } else {
-            // Date is the same, no updates needed
-            updates = {};
-          }
-        }
-
-        // Set status to in_progress when moving from backlog to today section (only for non-recurring tasks)
-        if (!isRecurring && sourceParsed.type === "backlog") {
-          updates.status = "in_progress";
-          // Set startedAt when moving to in_progress if not already set
-          if (!task.startedAt) {
-            updates.startedAt = new Date().toISOString();
-          }
-        }
-      }
-      // DESTINATION: Calendar (timed area) - set date and time, preserve recurrence
-      else if (destParsed.type === "calendar" && !destParsed.isUntimed) {
-        // Use dateStr from parsed droppable ID, or format local date as fallback
-        let dropDateStr;
-        if (destParsed.dateStr) {
-          dropDateStr = destParsed.dateStr.split("T")[0];
-        } else {
-          const fallbackDate = selectedDate || new Date();
-          dropDateStr = formatLocalDate(fallbackDate);
-        }
-
-        // Preserve existing recurrence if it exists, otherwise set to none with drop date
-        let recurrenceUpdate;
-        if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
-          // Preserve the recurrence pattern (daily, weekly, etc.)
-          recurrenceUpdate = task.recurrence;
-        } else {
-          // No recurrence or type is "none" - set to none with drop date
-          recurrenceUpdate = {
-            type: "none",
-            startDate: `${dropDateStr}T00:00:00.000Z`,
-          };
-        }
-
-        updates = {
-          time: calculatedTime,
-          recurrence: recurrenceUpdate,
-        };
-      }
-      // DESTINATION: Calendar (untimed area) - set date, clear time, preserve recurrence
-      else if (destParsed.type === "calendar" && destParsed.isUntimed) {
-        // Use dateStr from parsed droppable ID, or format local date as fallback
-        let dropDateStr;
-        if (destParsed.dateStr) {
-          dropDateStr = destParsed.dateStr.split("T")[0];
-        } else {
-          const fallbackDate = selectedDate || new Date();
-          dropDateStr = formatLocalDate(fallbackDate);
-        }
-
-        // Preserve existing recurrence if it exists, otherwise set to none with drop date
-        let recurrenceUpdate;
-        if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
-          // Preserve the recurrence pattern (daily, weekly, etc.)
-          recurrenceUpdate = task.recurrence;
-        } else {
-          // No recurrence or type is "none" - set to none with drop date
-          recurrenceUpdate = {
-            type: "none",
-            startDate: `${dropDateStr}T00:00:00.000Z`,
-          };
-        }
-
-        updates = {
-          time: null,
-          recurrence: recurrenceUpdate,
-        };
-      }
-
-      // Handle reordering when dropping into a section
-      if (destParsed.type === "today-section") {
-        const targetSectionId = destParsed.sectionId;
-        const sourceSectionId = sourceParsed.type === "today-section" ? sourceParsed.sectionId : task.sectionId; // Use task's current sectionId if not from a section
-
-        // Use the dedicated reorderTask function which handles all reordering logic
-        await reorderTask(taskId, sourceSectionId, targetSectionId, destination.index);
-
-        // Apply time/recurrence updates separately if there are any
-        if (Object.keys(updates).length > 0) {
-          await updateTask(taskId, updates);
-        }
-
-        // Clear updates since they've been applied
-        updates = {};
-      }
-
-      // Apply any remaining updates (for non-section destinations)
-      if (Object.keys(updates).length > 0) {
-        await updateTask(taskId, updates);
-      }
-    }
-  };
-
-  // Section handlers
-  const handleEditSection = section => {
-    setEditingSection(section);
-    openSectionDialog();
-  };
-
-  const handleAddSection = () => {
-    setEditingSection(null);
-    openSectionDialog();
-  };
-
-  const handleSaveSection = async sectionData => {
-    if (editingSection) {
-      await updateSection(editingSection.id, sectionData);
-    } else {
-      await createSection(sectionData);
-    }
-    setEditingSection(null);
-    closeSectionDialog();
-  };
-
-  const handleDeleteSection = async sectionId => {
-    if (sections.length <= 1) {
-      toast({
-        title: "Cannot delete section",
-        description: "You need at least one section",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    await deleteSection(sectionId);
-  };
-
-  // Helper function to check if a section should be auto-collapsed after task completion/not completed
-  // Using useRef to store the latest check function to avoid stale closures in setTimeout
-  const checkAndAutoCollapseSectionRef = useRef(null);
-
-  useEffect(() => {
-    checkAndAutoCollapseSectionRef.current = sectionId => {
-      // Only auto-collapse when hide completed is true
-      if (showCompletedTasks) return;
-
-      // Don't auto-collapse if user manually expanded it
-      if (manuallyExpandedSections.has(sectionId)) return;
-
-      // Get visible tasks for this section
-      const visibleTasks = tasksBySection[sectionId] || [];
-
-      // Auto-collapse if no visible tasks remain
-      if (visibleTasks.length === 0) {
-        setAutoCollapsedSections(prev => {
-          const newSet = new Set(prev);
-          newSet.add(sectionId);
-          return newSet;
-        });
-      }
-    };
-  }, [showCompletedTasks, tasksBySection, manuallyExpandedSections]);
-
-  const checkAndAutoCollapseSection = useCallback(sectionId => {
-    if (checkAndAutoCollapseSectionRef.current) {
-      checkAndAutoCollapseSectionRef.current(sectionId);
-    }
-  }, []);
-
-  const handleToggleSectionExpand = async sectionId => {
-    const section = sections.find(s => s.id === sectionId);
-    if (!section) return;
-
-    const isCurrentlyCollapsed = section.expanded === false || autoCollapsedSections.has(section.id);
-    const willBeExpanded = !isCurrentlyCollapsed;
-
-    // If user is expanding a section that was auto-collapsed, mark it as manually expanded
-    if (willBeExpanded && autoCollapsedSections.has(section.id)) {
-      setManuallyExpandedSections(prev => {
-        const newSet = new Set(prev);
-        newSet.add(sectionId);
-        return newSet;
-      });
-      // Clear auto-collapse state
-      setAutoCollapsedSections(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(sectionId);
-        return newSet;
-      });
-    }
-
-    // Update manual expanded state
-    await updateSection(sectionId, { expanded: !(section.expanded !== false) });
-  };
-
-  // Calendar navigation
-  const navigateCalendar = dir => {
-    if (calendarView === "kanban") return; // Kanban view doesn't have date navigation
-    const d = new Date(selectedDate);
-    if (calendarView === "day") d.setDate(d.getDate() + dir);
-    else if (calendarView === "week") d.setDate(d.getDate() + dir * 7);
-    else if (calendarView === "month") d.setMonth(d.getMonth() + dir);
-    else if (calendarView === "year") d.setFullYear(d.getFullYear() + dir);
-    else d.setMonth(d.getMonth() + dir);
-    d.setHours(0, 0, 0, 0);
-    setSelectedDate(d);
-  };
-
-  // Today View navigation
-  const navigateTodayView = dir => {
-    if (!todayViewDate) return;
-    const d = new Date(todayViewDate);
-    d.setDate(d.getDate() + dir);
-    d.setHours(0, 0, 0, 0);
-    setTodayViewDate(d);
-  };
-
-  const handleTodayViewToday = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    setTodayViewDate(today);
-  };
-
-  const handleTodayViewDateChange = date => {
-    setTodayViewDate(date);
-  };
-
-  const getCalendarTitle = () => {
-    if (!selectedDate) return "";
-    if (calendarView === "kanban") return "Kanban";
-    if (calendarView === "day")
-      return selectedDate.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      });
-    if (calendarView === "week") {
-      const start = new Date(selectedDate);
-      start.setDate(selectedDate.getDate() - selectedDate.getDay());
-      const end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      return `${start.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })} - ${end.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })}`;
-    }
-    if (calendarView === "year") {
-      return selectedDate.getFullYear().toString();
-    }
-    return selectedDate.toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    });
-  };
-
-  const sortedSections = [...sections].sort((a, b) => a.order - b.order);
-
-  // Create computed sections with combined expanded state (manual + auto-collapse)
-  const computedSections = useMemo(() => {
-    return sortedSections.map(section => {
-      const isManuallyCollapsed = section.expanded === false;
-      const isAutoCollapsed = autoCollapsedSections.has(section.id);
-      // Section is collapsed if either manually collapsed OR auto-collapsed
-      const isCollapsed = isManuallyCollapsed || isAutoCollapsed;
-      return {
-        ...section,
-        expanded: !isCollapsed, // expanded is true when NOT collapsed
-      };
-    });
-  }, [sortedSections, autoCollapsedSections]);
-
-  // Auto-scroll to next incomplete task in Today view on initial load only
-  useEffect(() => {
-    // Only scroll once on initial load
-    if (hasAutoScrolledRef.current) return;
-    if (!todayViewDate) return;
-    // On desktop, we need the container ref. On mobile, we scroll the window.
-    if (!isMobile && !todayScrollContainerRef.current) return;
-    // Wait for tasks to be loaded
-    if (computedSections.length === 0 || Object.keys(tasksBySection).length === 0) return;
-
-    const scrollToNextIncompleteTask = () => {
-      // Find the first incomplete task across all sections
-      let firstIncompleteTaskElement = null;
-
-      // Iterate through sections in order
-      for (const section of computedSections) {
-        const sectionTasks = tasksBySection[section.id] || [];
-
-        // Find first incomplete task in this section
-        for (const task of sectionTasks) {
-          // Task is incomplete if:
-          // 1. Not completed (checked)
-          // 2. No outcome set (not completed/skipped)
-          // 3. If has subtasks, not all subtasks are completed
-          const isTaskCompleted =
-            task.completed || (task.subtasks && task.subtasks.length > 0 && task.subtasks.every(st => st.completed));
-          const hasOutcome = task.outcome !== null && task.outcome !== undefined;
-
-          // Skip if task is completed or has an outcome
-          if (!isTaskCompleted && !hasOutcome) {
-            // Try to find the DOM element for this task
-            const taskElement = document.querySelector(`[data-task-id="${task.id}"]`);
-            if (taskElement) {
-              firstIncompleteTaskElement = taskElement;
-              break;
-            }
-          }
-        }
-
-        if (firstIncompleteTaskElement) break;
-      }
-
-      // If we found an incomplete task, scroll to it
-      if (firstIncompleteTaskElement) {
-        const taskRect = firstIncompleteTaskElement.getBoundingClientRect();
-
-        if (isMobile) {
-          // On mobile, scroll the window to bring the task to the top
-          const scrollPosition = window.scrollY + taskRect.top - 8; // 8px offset from top
-
-          window.scrollTo({
-            top: Math.max(0, scrollPosition),
-            behavior: "smooth",
-          });
-        } else {
-          // On desktop, scroll the container
-          const container = todayScrollContainerRef.current;
-          if (!container) return;
-
-          const containerRect = container.getBoundingClientRect();
-          const scrollPosition = container.scrollTop + taskRect.top - containerRect.top - 8;
-
-          container.scrollTo({
-            top: Math.max(0, scrollPosition),
-            behavior: "smooth",
-          });
-        }
-
-        // Mark that we've scrolled
-        hasAutoScrolledRef.current = true;
-      }
-    };
-
-    // Small delay to ensure DOM is rendered and has correct dimensions
-    const timeoutId = setTimeout(scrollToNextIncompleteTask, 500);
-    return () => clearTimeout(timeoutId);
-  }, [todayViewDate, computedSections, tasksBySection, isMobile]);
-
-  // Configure sensors for @dnd-kit
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // Same as TaskDialog for consistent behavior
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  // Memoize the task lookup map for faster drag start
-  const taskLookupMap = useMemo(() => {
-    const map = new Map();
-    const addToMap = taskList => {
-      taskList.forEach(task => {
-        map.set(task.id, task);
-        if (task.subtasks && task.subtasks.length > 0) {
-          addToMap(task.subtasks);
-        }
-      });
-    };
-    addToMap(tasks);
-    return map;
-  }, [tasks]);
-
-  // Handle drag start - optimized for performance with single state update
-  const handleDragStart = event => {
-    const { active } = event;
-
-    // Calculate offset from click position relative to the dragged element
-    const activatorEvent = event.activatorEvent;
-    let offset;
-    if (activatorEvent && activatorEvent.offsetX !== undefined && activatorEvent.offsetY !== undefined) {
-      const clickX = activatorEvent.offsetX;
-      const clickY = activatorEvent.offsetY;
-      offset = {
-        x: clickX - 90,
-        y: clickY - 20,
-      };
-    } else {
-      offset = { x: -90, y: -20 };
-    }
-
-    // Fast task lookup using memoized map
-    let task = null;
-    try {
-      const taskId = extractTaskId(active.id);
-      task = taskLookupMap.get(taskId) || null;
-    } catch {
-      // Not a task drag (might be section reorder)
-      task = null;
-    }
-
-    // Single state update - triggers only ONE re-render!
-    setDragState({
-      activeId: active.id,
-      activeTask: task,
-      offset,
-    });
-
-    // Clear calendar droppable tracking
-    currentCalendarDroppableRef.current = null;
-    dropTimeRef.current = null;
-  };
-
-  // Handle drag over (for real-time updates like time calculation)
-  // Throttled to avoid performance issues during drag
-  const handleDragOver = event => {
-    // Only process if we're not already processing
-    // This prevents the heavy DOM queries from running on every single drag over event
-    const { over } = event;
-
-    if (over && over.id && typeof over.id === "string") {
-      const droppableId = over.id;
-
-      // Check if we're over a timed calendar area
-      if (droppableId.startsWith("calendar-day|") || droppableId.startsWith("calendar-week|")) {
-        currentCalendarDroppableRef.current = droppableId;
-
-        // Set up mousemove listener if not already set
-        if (!mouseMoveListenerRef.current) {
-          // Cache the timed areas to avoid repeated DOM queries
-          let cachedTimedAreas = null;
-          let cacheTime = 0;
-          const CACHE_DURATION = 100; // Cache for 100ms
-
-          const handleMouseMove = e => {
-            if (!currentCalendarDroppableRef.current) return;
-
-            const now = Date.now();
-
-            // Refresh cache if expired or doesn't exist
-            if (!cachedTimedAreas || now - cacheTime > CACHE_DURATION) {
-              cachedTimedAreas = Array.from(document.querySelectorAll('[data-calendar-timed="true"]'));
-              cacheTime = now;
-            }
-
-            // Find the timed area under the cursor
-            const timedArea = cachedTimedAreas.find(el => {
-              const rect = el.getBoundingClientRect();
-              return (
-                rect.top <= e.clientY && rect.bottom >= e.clientY && rect.left <= e.clientX && rect.right >= e.clientX
-              );
-            });
-
-            if (timedArea) {
-              const rect = timedArea.getBoundingClientRect();
-              const y = e.clientY - rect.top;
-
-              // Get HOUR_HEIGHT from data attribute or use default based on view
-              const hourHeight =
-                parseInt(timedArea.getAttribute("data-hour-height")) || (calendarView === "day" ? 64 : 48);
-
-              const minutes = Math.max(0, Math.min(24 * 60 - 1, Math.floor((y / hourHeight) * 60)));
-              const snappedMinutes = snapToIncrement(minutes, 15);
-              dropTimeRef.current = minutesToTime(snappedMinutes);
-            }
-          };
-
-          window.addEventListener("mousemove", handleMouseMove);
-          mouseMoveListenerRef.current = handleMouseMove;
-        }
-      } else {
-        // Not over timed calendar area - clear
-        currentCalendarDroppableRef.current = null;
-        if (mouseMoveListenerRef.current) {
-          window.removeEventListener("mousemove", mouseMoveListenerRef.current);
-          mouseMoveListenerRef.current = null;
-        }
-        if (droppableId.startsWith("calendar-day-untimed|") || droppableId.startsWith("calendar-week-untimed|")) {
-          dropTimeRef.current = null;
-        }
-      }
-    }
-  };
-
-  // Handle drag end - properly handle @dnd-kit events
-  const handleDragEndNew = async event => {
-    const { active, over } = event;
-
-    setDragState({ activeId: null, activeTask: null, offset: { x: 0, y: 0 } });
-
-    // Clean up mousemove listener
-    if (mouseMoveListenerRef.current) {
-      window.removeEventListener("mousemove", mouseMoveListenerRef.current);
-      mouseMoveListenerRef.current = null;
-    }
-    currentCalendarDroppableRef.current = null;
-
-    if (!over) {
-      dropTimeRef.current = null;
-      return;
-    }
-
-    const draggableId = active.id;
-    const activeSortable = active.data.current?.sortable;
-    const overSortable = over.data.current?.sortable;
-
-    // Get source container ID from sortable data or infer from draggableId
-    let sourceContainerId = activeSortable?.containerId;
-
-    // Validate containerId format - it should match our droppable ID patterns
-    // If it doesn't look valid (e.g., "Sortable-8"), extract from draggableId instead
-    const isValidContainerId =
-      sourceContainerId &&
-      (sourceContainerId === "backlog" ||
-        sourceContainerId.startsWith("today-section|") ||
-        sourceContainerId.startsWith("calendar-") ||
-        sourceContainerId.startsWith("kanban-column|"));
-
-    if (!sourceContainerId || !isValidContainerId) {
-      // Infer from draggableId pattern
-      if (draggableId.includes("-kanban-")) {
-        // Extract status from kanban draggableId: task-{id}-kanban-{status}
-        const match = draggableId.match(/-kanban-(.+)$/);
-        if (match) {
-          sourceContainerId = `kanban-column|${match[1]}`;
-        }
-      } else if (draggableId.includes("-backlog")) {
-        sourceContainerId = "backlog";
-      } else if (draggableId.includes("-today-section-")) {
-        // Extract section ID - it's everything after "-today-section-"
-        const match = draggableId.match(/-today-section-(.+)$/);
-        if (match) {
-          sourceContainerId = `today-section|${match[1]}`;
-        } else {
-          console.warn("Failed to extract section ID from draggableId:", draggableId);
-        }
-      } else if (draggableId.includes("-calendar-untimed-")) {
-        const match = draggableId.match(/-calendar-untimed-(.+)$/);
-        if (match) {
-          const dateStr = match[1];
-          sourceContainerId = dateStr.includes("T")
-            ? `calendar-day-untimed|${dateStr}`
-            : `calendar-week-untimed|${dateStr}`;
-        }
-      } else if (draggableId.includes("-calendar-timed-")) {
-        const match = draggableId.match(/-calendar-timed-(.+)$/);
-        if (match) {
-          const dateStr = match[1];
-          sourceContainerId = dateStr.includes("T") ? `calendar-day|${dateStr}` : `calendar-week|${dateStr}`;
-        }
-      }
-
-      // Note: We silently fall back to draggableId extraction when sortable containerId
-      // is invalid (e.g., internal "Sortable-X" ids from dnd-kit). This is expected behavior.
-    }
-
-    // Determine type early
-    let type = active.data.current?.type || "TASK";
-    if (draggableId.startsWith("section-")) {
-      type = "SECTION";
-    }
-
-    // Get destination container ID - check droppable ID first, then sortable container
-    let destContainerId = null;
-
-    // Check if dropping on a task drop target (for combining tasks)
-    const overDroppable = over.data.current;
-
-    // Priority 1: If over.id is a droppable ID pattern, use it directly
-    if (
-      over.id &&
-      (over.id === "backlog" ||
-        over.id.startsWith("today-section|") ||
-        over.id.startsWith("calendar-") ||
-        over.id.startsWith("kanban-column|"))
-    ) {
-      destContainerId = over.id;
-    }
-    // Priority 2: Use the sortable container ID (for tasks within sections)
-    // But only if it's a valid containerId pattern, not an internal Sortable-X id
-    else if (overSortable?.containerId) {
-      const isValidDestContainerId =
-        overSortable.containerId === "backlog" ||
-        overSortable.containerId.startsWith("today-section|") ||
-        overSortable.containerId.startsWith("calendar-") ||
-        overSortable.containerId.startsWith("kanban-column|");
-
-      if (isValidDestContainerId) {
-        destContainerId = overSortable.containerId;
-      }
-    }
-
-    // Priority 3: Extract container ID from task draggableId pattern
-    if (!destContainerId && over.id && over.id.startsWith("task-")) {
-      if (over.id.includes("-kanban-")) {
-        // Extract status from kanban draggableId: task-{id}-kanban-{status}
-        const match = over.id.match(/-kanban-(.+)$/);
-        if (match) destContainerId = `kanban-column|${match[1]}`;
-      } else if (over.id.includes("-today-section-")) {
-        // Extract section ID - it's everything after "-today-section-"
-        const match = over.id.match(/-today-section-(.+)$/);
-        if (match) destContainerId = `today-section|${match[1]}`;
-      } else if (over.id.includes("-backlog")) {
-        destContainerId = "backlog";
-      }
-    }
-
-    // Subtask dragging is disabled - subtasks can only be managed in the task dialog
-
-    // Check if over is a droppable (not a sortable item)
-    // Priority: droppable data > task draggableId pattern > section card > droppable ID pattern
-    if (overDroppable?.sectionId) {
-      // Dropping directly on a section droppable area
-      destContainerId = `today-section|${overDroppable.sectionId}`;
-    } else if (over.id && over.id.startsWith("task-") && over.id.includes("-today-section-")) {
-      // Dropping on a task in a section - extract section from task's draggableId
-      // Extract section ID - it's everything after "-today-section-"
-      const match = over.id.match(/-today-section-(.+)$/);
-      if (match) {
-        destContainerId = `today-section|${match[1]}`;
-      }
-    } else if (over.id && over.id.startsWith("task-") && over.id.includes("-backlog")) {
-      // Dropping on a task in backlog - use backlog container
-      destContainerId = "backlog";
-    } else if (over.id && over.id.startsWith("section-")) {
-      // Dropping on a section card itself - extract section ID
-      const sectionId = over.id.replace("section-", "");
-      destContainerId = `today-section|${sectionId}`;
-    }
-    // Task combining is now handled in the task dialog, not via drag-and-drop
-
-    // Final fallback: if destContainerId still isn't set and over.id matches droppable patterns
-    if (!destContainerId && over.id) {
-      if (over.id === "backlog") {
-        destContainerId = "backlog";
-      } else if (over.id.startsWith("kanban-column|")) {
-        destContainerId = over.id;
-      } else if (over.id.startsWith("today-section|")) {
-        destContainerId = over.id;
-      } else if (over.id.startsWith("calendar-")) {
-        destContainerId = over.id;
-      }
-    }
-
-    // For Kanban, we need to handle all operations in the cross-container section
-    // because the sortable indices may not match the actual task order in the column
-    const isKanbanDrag =
-      sourceContainerId?.startsWith("kanban-column|") || destContainerId?.startsWith("kanban-column|");
-
-    // Handle reordering within the same container using arrayMove
-    // Skip Kanban here - we handle all Kanban operations in the cross-container section
-    if (activeSortable && overSortable && sourceContainerId === destContainerId && sourceContainerId && !isKanbanDrag) {
-      const oldIndex = activeSortable.index;
-      const newIndex = overSortable.index;
-
-      // Skip if dropped in same position
-      if (oldIndex === newIndex) {
-        return;
-      }
-
-      // Handle section reordering
-      if (type === "SECTION" && sourceContainerId === "sections") {
-        const sortedSections = [...sections].sort((a, b) => a.order - b.order);
-        const reordered = arrayMove(sortedSections, oldIndex, newIndex);
-        await reorderSections(reordered);
-        return;
-      }
-
-      // Handle task reordering within the same section
-      if (type === "TASK" && sourceContainerId.startsWith("today-section|")) {
-        const sectionId = sourceContainerId.split("|")[1];
-        const taskId = extractTaskId(draggableId);
-
-        // Use the reorderTask function which handles the reordering logic
-        await reorderTask(taskId, sectionId, sectionId, newIndex);
-        return;
-      }
-
-      // Handle backlog task reordering
-      if (type === "TASK" && sourceContainerId === "backlog") {
-        const taskId = extractTaskId(draggableId);
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) return;
-
-        // Get all backlog tasks sorted by order
-        const sortedBacklogTasks = backlogTasks
-          .map(t => tasks.find(fullTask => fullTask.id === t.id))
-          .filter(Boolean)
-          .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-        // Use arrayMove to reorder
-        const reordered = arrayMove(sortedBacklogTasks, oldIndex, newIndex);
-
-        // Update order for all affected tasks using batch API
-        try {
-          const updates = reordered.map((t, idx) => ({ id: t.id, order: idx }));
-          await batchReorderTasks(updates);
-        } catch {
-          toast({
-            title: "Error",
-            description: "Failed to reorder backlog tasks",
-            status: "error",
-            duration: 3000,
-          });
-        }
-        return;
-      }
-
-      // Subtask reordering is now handled in the task dialog, not via drag-and-drop
-    }
-
-    // Handle cross-container moves (backlog ↔ sections ↔ calendar ↔ kanban)
-    // Handle kanban column drops (moving between columns or from other containers)
-    if (type === "TASK" && destContainerId) {
-      const destParsed = parseDroppableId(destContainerId);
-
-      if (destParsed.type === "kanban-column") {
-        const newStatus = destParsed.status;
-        const taskId = extractTaskId(draggableId);
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) return;
-
-        const sourceParsed = sourceContainerId ? parseDroppableId(sourceContainerId) : null;
-        const isSameColumn = sourceParsed?.type === "kanban-column" && sourceParsed.status === newStatus;
-
-        // Get all tasks in the destination column
-        const destColumnTasks = tasks
-          .filter(t => {
-            if (t.completionType === "note") return false;
-            if (t.recurrence && t.recurrence.type !== "none") return false;
-            if (t.parentId) return false;
-            return t.status === newStatus;
-          })
-          .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-        // If task status is the same, it's a reorder within the same column
-        if (isSameColumn) {
-          // Find the old and new indices
-          const oldIndex = destColumnTasks.findIndex(t => t.id === taskId);
-          const newIndex = overSortable?.index ?? destColumnTasks.length;
-
-          // Skip if no change
-          if (oldIndex === newIndex || oldIndex === -1) {
-            return;
-          }
-
-          // Use arrayMove to reorder
-          const reordered = arrayMove(destColumnTasks, oldIndex, newIndex);
-
-          // Update order for all affected tasks using batch API
-          try {
-            const updates = reordered.map((t, idx) => ({ id: t.id, order: idx }));
-            await batchReorderTasks(updates);
-          } catch {
-            toast({
-              title: "Error",
-              description: "Failed to reorder Kanban tasks",
-              status: "error",
-              duration: 3000,
-            });
-          }
-          return;
-        }
-
-        // Moving from different column or from outside Kanban
-        // Calculate new order position from sortable index
-        const destIndex = overSortable?.index ?? destColumnTasks.length;
-        const reordered = [...destColumnTasks];
-        reordered.splice(destIndex, 0, task);
-
-        // Update status
-        await handleStatusChange(taskId, newStatus);
-
-        // Update order for all affected tasks using batch API
-        try {
-          const updates = reordered.map((t, idx) => ({ id: t.id, order: idx }));
-          await batchReorderTasks(updates);
-        } catch {
-          toast({
-            title: "Error",
-            description: "Failed to reorder Kanban tasks",
-            status: "error",
-            duration: 3000,
-          });
-        }
-        return;
-      }
-    }
-
-    // Handle section-to-section moves directly
-    if (type === "TASK" && sourceContainerId && destContainerId) {
-      const sourceParsed = parseDroppableId(sourceContainerId);
-      const destParsed = parseDroppableId(destContainerId);
-
-      // Only handle section-to-section moves here (both source and dest must be sections)
-      if (sourceParsed.type === "today-section" && destParsed.type === "today-section") {
-        const taskId = extractTaskId(draggableId);
-
-        // Find the task to get its current data
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) {
-          console.error("Task not found:", taskId);
-          return;
-        }
-
-        // Get source and target section IDs
-        const sourceSectionId = sourceParsed.sectionId;
-        const targetSectionId = destParsed.sectionId;
-
-        // Calculate destination index
-        // If dropping on a sortable item, use its index
-        // If dropping on empty area, use the length of tasks in target section (append to end)
-        let destIndex = 0;
-        if (overSortable?.index !== undefined && overSortable.index !== null) {
-          destIndex = overSortable.index;
-        } else {
-          // Dropping on empty area - append to end of target section
-          const targetSectionTasks = tasksBySection[targetSectionId] || [];
-          destIndex = targetSectionTasks.length;
-        }
-
-        // Validate section IDs and index
-        if (!sourceSectionId || !targetSectionId) {
-          console.error("Invalid section IDs", {
-            sourceParsed,
-            destParsed,
-            sourceSectionId,
-            targetSectionId,
-            taskSectionId: task.sectionId,
-            sourceContainerId,
-            destContainerId,
-            draggableId,
-          });
-          return;
-        }
-        if (typeof destIndex !== "number" || destIndex < 0) {
-          console.error("Invalid destination index", { destIndex, overSortable });
-          return;
-        }
-
-        // Verify sections exist
-        const sourceSection = sections.find(s => s.id === sourceSectionId);
-        const targetSection = sections.find(s => s.id === targetSectionId);
-        if (!sourceSection || !targetSection) {
-          console.error("Section not found", {
-            sourceSectionId,
-            targetSectionId,
-            availableSections: sections.map(s => s.id),
-          });
-          return;
-        }
-
-        // Clear any drop time since we're moving to a section (not calendar)
-        dropTimeRef.current = null;
-
-        // Use the selected date in Today View (todayViewDate), or fall back to today
-        const targetDate = viewDate || today;
-        const targetDateStr = formatLocalDate(targetDate);
-
-        // Preserve existing recurrence if it exists, otherwise set to none with today's date
-        // For recurring tasks, preserve everything. For one-time tasks, update date if different.
-        const currentDateStr = task.recurrence?.startDate?.split("T")[0];
-        const needsDateUpdate = currentDateStr !== targetDateStr;
-
-        // Reorder the task (this handles section change and order)
-        // eslint-disable-next-line no-console
-        console.log("Reordering task:", {
-          taskId,
-          sourceSectionId,
-          targetSectionId,
-          destIndex,
-          sourceContainerId,
-          destContainerId,
-        });
-        await reorderTask(taskId, sourceSectionId, targetSectionId, destIndex);
-
-        // Apply recurrence updates only for one-time tasks when date changed
-        // Preserve existing time - don't clear it
-        if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
-          // Recurring task - no updates needed, preserve everything
-        } else if (needsDateUpdate || !task.recurrence) {
-          // One-time task - update date if different or initialize recurrence
-          const recurrenceUpdate = {
-            type: "none",
-            startDate: `${targetDateStr}T00:00:00.000Z`,
-          };
-          await updateTask(taskId, {
-            recurrence: recurrenceUpdate,
-          });
-        }
-        // If date is the same and recurrence exists, no updates needed
-
-        return;
-      }
-    }
-
-    // Convert to the format expected by handleDragEnd for other cross-container moves
-    const sourceIndex = activeSortable?.index ?? 0;
-    const destIndex = overSortable?.index ?? 0;
-
-    // Ensure destContainerId is set
-    if (!destContainerId) {
-      console.error("Destination container ID not set", { over, overSortable, overDroppable });
-      return;
-    }
-
-    const result = {
-      draggableId,
-      type,
-      source: {
-        droppableId: sourceContainerId || "unknown",
-        index: sourceIndex,
-      },
-      destination: {
-        droppableId: destContainerId,
-        index: destIndex,
-      },
-    };
-
-    await handleDragEnd(result);
-  };
-
-  // Show loading while:
-  // 1. Auth is not yet initialized (still checking if user has valid session)
-  // 2. Auth is loading
   // This ensures we never show the login form while auth check is in progress
   if (!authInitialized || authLoading) {
     return <PageSkeleton showBacklog={false} showDashboard={false} showCalendar={false} />;
@@ -2531,7 +581,7 @@ export default function DailyTasksApp() {
             </Flex>
             <HStack spacing={{ base: 1, md: 2 }}>
               <IconButton
-                onClick={() => setTagEditorOpen(true)}
+                onClick={() => dialogState.setTagEditorOpen(true)}
                 variant="ghost"
                 size={{ base: "xs", md: "md" }}
                 aria-label="Manage tags"
@@ -2741,9 +791,9 @@ export default function DailyTasksApp() {
 
       {/* Main content with DndContext */}
       <DndContext
-        sensors={sensors}
+        sensors={dragAndDrop.sensors}
         collisionDetection={customCollisionDetection}
-        onDragStart={handleDragStart}
+        onDragStart={dragAndDrop.handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEndNew}
       >
@@ -2818,31 +868,31 @@ export default function DailyTasksApp() {
                   <Box h="100%" overflow="hidden" display="flex" flexDirection="column">
                     <KanbanView
                       tasks={tasks}
-                      onTaskClick={handleEditTask}
+                      onTaskClick={taskOps.handleEditTask}
                       onCreateTask={({ status }) => {
-                        setDefaultSectionId(sections[0]?.id);
-                        setEditingTask({ status });
-                        openTaskDialog();
+                        dialogState.setDefaultSectionId(sections[0]?.id);
+                        dialogState.setEditingTask({ status });
+                        dialogState.openTaskDialog();
                       }}
-                      onCreateTaskInline={handleCreateKanbanTaskInline}
+                      onCreateTaskInline={taskOps.handleCreateKanbanTaskInline}
                       createDraggableId={createDraggableId}
                       isCompletedOnDate={isCompletedOnDate}
                       getOutcomeOnDate={getOutcomeOnDate}
-                      onOutcomeChange={handleOutcomeChange}
-                      onEdit={handleEditTask}
-                      onDuplicate={handleDuplicateTask}
-                      onDelete={handleDeleteTask}
+                      onOutcomeChange={completionHandlers.handleOutcomeChange}
+                      onEdit={taskOps.handleEditTask}
+                      onDuplicate={taskOps.handleDuplicateTask}
+                      onDelete={taskOps.handleDeleteTask}
                       onStatusChange={handleStatusChange}
                       tags={tags}
-                      onTagsChange={handleTaskTagsChange}
+                      onTagsChange={taskOps.handleTaskTagsChange}
                       onCreateTag={createTag}
-                      recentlyCompletedTasks={recentlyCompletedTasks}
+                      recentlyCompletedTasks={completionHandlers.recentlyCompletedTasks}
                       viewDate={viewDate}
-                      selectedTaskIds={selectedTaskIds}
-                      onSelect={handleTaskSelect}
-                      onBulkEdit={handleBulkEdit}
-                      onBeginWorkout={handleBeginWorkout}
-                      onEditWorkout={handleEditWorkout}
+                      selectedTaskIds={selectionState.selectedTaskIds}
+                      onSelect={selectionState.handleTaskSelect}
+                      onBulkEdit={selectionState.handleBulkEdit}
+                      onBeginWorkout={dialogState.handleBeginWorkout}
+                      onEditWorkout={taskOps.handleEditWorkout}
                     />
                   </Box>
                 )}
@@ -2890,12 +940,12 @@ export default function DailyTasksApp() {
                       updateCompletion={updateCompletion}
                       getCompletionForDate={getCompletionForDate}
                       updateTask={updateTask}
-                      onEdit={handleEditTask}
-                      onEditWorkout={handleEditWorkout}
-                      onDuplicate={handleDuplicateTask}
-                      onDelete={handleDeleteTask}
+                      onEdit={taskOps.handleEditTask}
+                      onEditWorkout={taskOps.handleEditWorkout}
+                      onDuplicate={taskOps.handleDuplicateTask}
+                      onDelete={taskOps.handleDeleteTask}
                       tags={tags}
-                      onTagsChange={handleTaskTagsChange}
+                      onTagsChange={taskOps.handleTaskTagsChange}
                       onCreateTag={createTag}
                     />
                   </Box>
@@ -2913,32 +963,32 @@ export default function DailyTasksApp() {
                             onClose={() => setMobileActiveView("today")}
                             backlogTasks={backlogTasks}
                             sections={sections}
-                            onDeleteTask={handleDeleteTask}
-                            onEditTask={handleEditTask}
-                            onEditWorkout={handleEditWorkout}
-                            onUpdateTaskTitle={handleUpdateTaskTitle}
-                            onDuplicateTask={handleDuplicateTask}
-                            onAddTask={handleAddTaskToBacklog}
-                            onCreateBacklogTaskInline={handleCreateBacklogTaskInline}
-                            onCreateSubtask={handleCreateSubtask}
-                            onToggleExpand={handleToggleExpand}
-                            onToggleSubtask={handleToggleSubtask}
-                            onToggleTask={handleToggleTask}
+                            onDeleteTask={taskOps.handleDeleteTask}
+                            onEditTask={taskOps.handleEditTask}
+                            onEditWorkout={taskOps.handleEditWorkout}
+                            onUpdateTaskTitle={taskOps.handleUpdateTaskTitle}
+                            onDuplicateTask={taskOps.handleDuplicateTask}
+                            onAddTask={taskOps.handleAddTaskToBacklog}
+                            onCreateBacklogTaskInline={taskOps.handleCreateBacklogTaskInline}
+                            onCreateSubtask={taskOps.handleCreateSubtask}
+                            onToggleExpand={taskOps.handleToggleExpand}
+                            onToggleSubtask={completionHandlers.handleToggleSubtask}
+                            onToggleTask={completionHandlers.handleToggleTask}
                             createDraggableId={createDraggableId}
                             viewDate={today}
                             tags={tags}
-                            onTagsChange={handleTaskTagsChange}
+                            onTagsChange={taskOps.handleTaskTagsChange}
                             onCreateTag={createTag}
-                            onOutcomeChange={handleOutcomeChange}
+                            onOutcomeChange={completionHandlers.handleOutcomeChange}
                             getOutcomeOnDate={getOutcomeOnDate}
                             hasRecordOnDate={hasRecordOnDate}
-                            onCompleteWithNote={handleCompleteWithNote}
-                            onSkipTask={handleNotCompletedTask}
+                            onCompleteWithNote={completionHandlers.handleCompleteWithNote}
+                            onSkipTask={completionHandlers.handleNotCompletedTask}
                             getCompletionForDate={getCompletionForDate}
-                            selectedTaskIds={selectedTaskIds}
-                            onSelect={handleTaskSelect}
-                            onBulkEdit={handleBulkEdit}
-                            onBeginWorkout={handleBeginWorkout}
+                            selectedTaskIds={selectionState.selectedTaskIds}
+                            onSelect={selectionState.handleTaskSelect}
+                            onBulkEdit={selectionState.handleBulkEdit}
+                            onBeginWorkout={dialogState.handleBeginWorkout}
                           />
                         )}
                       </Box>
@@ -3015,8 +1065,8 @@ export default function DailyTasksApp() {
                             <TagFilter
                               tags={tags}
                               selectedTagIds={todaySelectedTagIds}
-                              onTagSelect={handleTodayTagSelect}
-                              onTagDeselect={handleTodayTagDeselect}
+                              onTagSelect={viewState.handleTodayTagSelect}
+                              onTagDeselect={viewState.handleTodayTagDeselect}
                               onCreateTag={createTag}
                             />
                           </HStack>
@@ -3026,17 +1076,17 @@ export default function DailyTasksApp() {
                         <Section
                           sections={computedSections}
                           tasksBySection={tasksBySection}
-                          onToggleTask={handleToggleTask}
-                          onToggleSubtask={handleToggleSubtask}
-                          onToggleExpand={handleToggleExpand}
-                          onEditTask={handleEditTask}
-                          onEditWorkout={handleEditWorkout}
-                          onUpdateTaskTitle={handleUpdateTaskTitle}
-                          onDeleteTask={handleDeleteTask}
-                          onDuplicateTask={handleDuplicateTask}
-                          onAddTask={handleAddTask}
-                          onCreateTaskInline={handleCreateTaskInline}
-                          onCreateSubtask={handleCreateSubtask}
+                          onToggleTask={completionHandlers.handleToggleTask}
+                          onToggleSubtask={completionHandlers.handleToggleSubtask}
+                          onToggleExpand={taskOps.handleToggleExpand}
+                          onEditTask={taskOps.handleEditTask}
+                          onEditWorkout={taskOps.handleEditWorkout}
+                          onUpdateTaskTitle={taskOps.handleUpdateTaskTitle}
+                          onDeleteTask={taskOps.handleDeleteTask}
+                          onDuplicateTask={taskOps.handleDuplicateTask}
+                          onAddTask={taskOps.handleAddTask}
+                          onCreateTaskInline={taskOps.handleCreateTaskInline}
+                          onCreateSubtask={taskOps.handleCreateSubtask}
                           onEditSection={handleEditSection}
                           onDeleteSection={handleDeleteSection}
                           onAddSection={handleAddSection}
@@ -3044,18 +1094,18 @@ export default function DailyTasksApp() {
                           createDroppableId={createDroppableId}
                           createDraggableId={createDraggableId}
                           viewDate={viewDate}
-                          onOutcomeChange={handleOutcomeChange}
+                          onOutcomeChange={completionHandlers.handleOutcomeChange}
                           getOutcomeOnDate={getOutcomeOnDate}
                           hasRecordOnDate={hasRecordOnDate}
-                          onCompleteWithNote={handleCompleteWithNote}
-                          onSkipTask={handleNotCompletedTask}
+                          onCompleteWithNote={completionHandlers.handleCompleteWithNote}
+                          onSkipTask={completionHandlers.handleNotCompletedTask}
                           getCompletionForDate={getCompletionForDate}
-                          selectedTaskIds={selectedTaskIds}
-                          onTaskSelect={handleTaskSelect}
-                          onBulkEdit={handleBulkEdit}
-                          onBeginWorkout={handleBeginWorkout}
+                          selectedTaskIds={selectionState.selectedTaskIds}
+                          onTaskSelect={selectionState.handleTaskSelect}
+                          onBulkEdit={selectionState.handleBulkEdit}
+                          onBeginWorkout={dialogState.handleBeginWorkout}
                           tags={tags}
-                          onTagsChange={handleTaskTagsChange}
+                          onTagsChange={taskOps.handleTaskTagsChange}
                           onCreateTag={createTag}
                         />
                       </Box>
@@ -3070,14 +1120,14 @@ export default function DailyTasksApp() {
                             onDateChange={date => {
                               const d = new Date(date);
                               d.setHours(0, 0, 0, 0);
-                              setSelectedDate(d);
+                              viewState.setSelectedDate(d);
                             }}
                             onPrevious={() => navigateCalendar(-1)}
                             onNext={() => navigateCalendar(1)}
                             onToday={() => {
                               const today = new Date();
                               today.setHours(0, 0, 0, 0);
-                              setSelectedDate(today);
+                              viewState.setSelectedDate(today);
                             }}
                             title={getCalendarTitle()}
                             showDatePicker={false}
@@ -3103,8 +1153,8 @@ export default function DailyTasksApp() {
                               <TagFilter
                                 tags={tags}
                                 selectedTagIds={calendarSelectedTagIds}
-                                onTagSelect={handleCalendarTagSelect}
-                                onTagDeselect={handleCalendarTagDeselect}
+                                onTagSelect={viewState.handleCalendarTagSelect}
+                                onTagDeselect={viewState.handleCalendarTagDeselect}
                                 onCreateTag={createTag}
                               />
                             </HStack>
@@ -3150,12 +1200,12 @@ export default function DailyTasksApp() {
                                   <CalendarDayView
                                     date={selectedDate}
                                     tasks={filteredTasks}
-                                    onTaskClick={handleEditTask}
-                                    onTaskTimeChange={handleTaskTimeChange}
-                                    onTaskDurationChange={handleTaskDurationChange}
-                                    onCreateTask={handleCreateTaskFromCalendar}
+                                    onTaskClick={taskOps.handleEditTask}
+                                    onTaskTimeChange={taskOps.handleTaskTimeChange}
+                                    onTaskDurationChange={taskOps.handleTaskDurationChange}
+                                    onCreateTask={taskOps.handleCreateTaskFromCalendar}
                                     onDropTimeChange={time => {
-                                      dropTimeRef.current = time;
+                                      dragAndDrop.dropTimeRef.current = time;
                                     }}
                                     createDroppableId={createDroppableId}
                                     createDraggableId={createDraggableId}
@@ -3164,36 +1214,36 @@ export default function DailyTasksApp() {
                                     getCompletionForDate={getCompletionForDate}
                                     showCompleted={showCompletedTasksCalendar.day}
                                     tags={tags}
-                                    onTagsChange={handleTaskTagsChange}
+                                    onTagsChange={taskOps.handleTaskTagsChange}
                                     onCreateTag={createTag}
                                     showStatusTasks={_showStatusTasks.day}
                                     zoom={calendarZoom.day}
-                                    onEdit={handleEditTask}
-                                    onEditWorkout={handleEditWorkout}
-                                    onOutcomeChange={handleOutcomeChange}
-                                    onDuplicate={handleDuplicateTask}
-                                    onDelete={handleDeleteTask}
+                                    onEdit={taskOps.handleEditTask}
+                                    onEditWorkout={taskOps.handleEditWorkout}
+                                    onOutcomeChange={completionHandlers.handleOutcomeChange}
+                                    onDuplicate={taskOps.handleDuplicateTask}
+                                    onDelete={taskOps.handleDeleteTask}
                                   />
                                 )}
                                 {calendarView === "week" && selectedDate && (
                                   <CalendarWeekView
                                     date={selectedDate}
                                     tasks={filteredTasks}
-                                    onTaskClick={handleEditTask}
+                                    onTaskClick={taskOps.handleEditTask}
                                     onDayClick={d => {
-                                      setSelectedDate(d);
+                                      viewState.setSelectedDate(d);
                                       setCalendarView("day");
                                     }}
-                                    onTaskTimeChange={handleTaskTimeChange}
-                                    onTaskDurationChange={handleTaskDurationChange}
-                                    onCreateTask={handleCreateTaskFromCalendar}
+                                    onTaskTimeChange={taskOps.handleTaskTimeChange}
+                                    onTaskDurationChange={taskOps.handleTaskDurationChange}
+                                    onCreateTask={taskOps.handleCreateTaskFromCalendar}
                                     onDropTimeChange={time => {
-                                      dropTimeRef.current = time;
+                                      dragAndDrop.dropTimeRef.current = time;
                                     }}
                                     createDroppableId={createDroppableId}
                                     createDraggableId={createDraggableId}
                                     tags={tags}
-                                    onTagsChange={handleTaskTagsChange}
+                                    onTagsChange={taskOps.handleTaskTagsChange}
                                     onCreateTag={createTag}
                                     isCompletedOnDate={isCompletedOnDate}
                                     getOutcomeOnDate={getOutcomeOnDate}
@@ -3201,11 +1251,11 @@ export default function DailyTasksApp() {
                                     showCompleted={showCompletedTasksCalendar.week}
                                     showStatusTasks={_showStatusTasks.week}
                                     zoom={calendarZoom.week}
-                                    onEdit={handleEditTask}
-                                    onEditWorkout={handleEditWorkout}
-                                    onOutcomeChange={handleOutcomeChange}
-                                    onDuplicate={handleDuplicateTask}
-                                    onDelete={handleDeleteTask}
+                                    onEdit={taskOps.handleEditTask}
+                                    onEditWorkout={taskOps.handleEditWorkout}
+                                    onOutcomeChange={completionHandlers.handleOutcomeChange}
+                                    onDuplicate={taskOps.handleDuplicateTask}
+                                    onDelete={taskOps.handleDeleteTask}
                                   />
                                 )}
                                 {calendarView === "month" && selectedDate && (
@@ -3213,7 +1263,7 @@ export default function DailyTasksApp() {
                                     date={selectedDate}
                                     tasks={filteredTasks}
                                     onDayClick={d => {
-                                      setSelectedDate(d);
+                                      viewState.setSelectedDate(d);
                                       setCalendarView("day");
                                     }}
                                     isCompletedOnDate={isCompletedOnDate}
@@ -3222,11 +1272,11 @@ export default function DailyTasksApp() {
                                     zoom={calendarZoom.month}
                                     tags={tags}
                                     onCreateTag={createTag}
-                                    onEdit={handleEditTask}
-                                    onEditWorkout={handleEditWorkout}
-                                    onOutcomeChange={handleOutcomeChange}
-                                    onDuplicate={handleDuplicateTask}
-                                    onDelete={handleDeleteTask}
+                                    onEdit={taskOps.handleEditTask}
+                                    onEditWorkout={taskOps.handleEditWorkout}
+                                    onOutcomeChange={completionHandlers.handleOutcomeChange}
+                                    onDuplicate={taskOps.handleDuplicateTask}
+                                    onDelete={taskOps.handleDeleteTask}
                                   />
                                 )}
                                 {calendarView === "year" && selectedDate && (
@@ -3234,18 +1284,18 @@ export default function DailyTasksApp() {
                                     date={selectedDate}
                                     tasks={filteredTasks}
                                     onDayClick={d => {
-                                      setSelectedDate(d);
+                                      viewState.setSelectedDate(d);
                                       setCalendarView("day");
                                     }}
                                     isCompletedOnDate={isCompletedOnDate}
                                     getOutcomeOnDate={getOutcomeOnDate}
                                     showCompleted={showCompletedTasksCalendar.year}
                                     zoom={calendarZoom.year}
-                                    onEdit={handleEditTask}
-                                    onEditWorkout={handleEditWorkout}
-                                    onOutcomeChange={handleOutcomeChange}
-                                    onDuplicate={handleDuplicateTask}
-                                    onDelete={handleDeleteTask}
+                                    onEdit={taskOps.handleEditTask}
+                                    onEditWorkout={taskOps.handleEditWorkout}
+                                    onOutcomeChange={completionHandlers.handleOutcomeChange}
+                                    onDuplicate={taskOps.handleDuplicateTask}
+                                    onDelete={taskOps.handleDeleteTask}
                                   />
                                 )}
                               </>
@@ -3274,31 +1324,31 @@ export default function DailyTasksApp() {
                   >
                     <KanbanView
                       tasks={tasks}
-                      onTaskClick={handleEditTask}
+                      onTaskClick={taskOps.handleEditTask}
                       onCreateTask={({ status }) => {
-                        setDefaultSectionId(sections[0]?.id);
-                        setEditingTask({ status });
-                        openTaskDialog();
+                        dialogState.setDefaultSectionId(sections[0]?.id);
+                        dialogState.setEditingTask({ status });
+                        dialogState.openTaskDialog();
                       }}
-                      onCreateTaskInline={handleCreateKanbanTaskInline}
+                      onCreateTaskInline={taskOps.handleCreateKanbanTaskInline}
                       createDraggableId={createDraggableId}
                       isCompletedOnDate={isCompletedOnDate}
                       getOutcomeOnDate={getOutcomeOnDate}
-                      onOutcomeChange={handleOutcomeChange}
-                      onEdit={handleEditTask}
-                      onDuplicate={handleDuplicateTask}
-                      onDelete={handleDeleteTask}
+                      onOutcomeChange={completionHandlers.handleOutcomeChange}
+                      onEdit={taskOps.handleEditTask}
+                      onDuplicate={taskOps.handleDuplicateTask}
+                      onDelete={taskOps.handleDeleteTask}
                       onStatusChange={handleStatusChange}
                       tags={tags}
-                      onTagsChange={handleTaskTagsChange}
+                      onTagsChange={taskOps.handleTaskTagsChange}
                       onCreateTag={createTag}
-                      recentlyCompletedTasks={recentlyCompletedTasks}
+                      recentlyCompletedTasks={completionHandlers.recentlyCompletedTasks}
                       viewDate={viewDate}
-                      selectedTaskIds={selectedTaskIds}
-                      onSelect={handleTaskSelect}
-                      onBulkEdit={handleBulkEdit}
-                      onBeginWorkout={handleBeginWorkout}
-                      onEditWorkout={handleEditWorkout}
+                      selectedTaskIds={selectionState.selectedTaskIds}
+                      onSelect={selectionState.handleTaskSelect}
+                      onBulkEdit={selectionState.handleBulkEdit}
+                      onBeginWorkout={dialogState.handleBeginWorkout}
+                      onEditWorkout={taskOps.handleEditWorkout}
                     />
                   </Box>
                 ) : mainTabIndex === 2 ? (
@@ -3342,12 +1392,12 @@ export default function DailyTasksApp() {
                     updateCompletion={updateCompletion}
                     getCompletionForDate={getCompletionForDate}
                     updateTask={updateTask}
-                    onEdit={handleEditTask}
-                    onEditWorkout={handleEditWorkout}
-                    onDuplicate={handleDuplicateTask}
-                    onDelete={handleDeleteTask}
+                    onEdit={taskOps.handleEditTask}
+                    onEditWorkout={taskOps.handleEditWorkout}
+                    onDuplicate={taskOps.handleDuplicateTask}
+                    onDelete={taskOps.handleDeleteTask}
                     tags={tags}
-                    onTagsChange={handleTaskTagsChange}
+                    onTagsChange={taskOps.handleTaskTagsChange}
                     onCreateTag={createTag}
                   />
                 ) : (
@@ -3357,9 +1407,11 @@ export default function DailyTasksApp() {
                     {mainTabIndex === 0 && backlogOpen && (
                       <>
                         <Box
-                          w={`${isResizing && resizeType === "backlog" ? localBacklogWidth : backlogWidth}px`}
+                          w={`${resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? resizeHandlers.localBacklogWidth : backlogWidth}px`}
                           h="100%"
-                          transition={isResizing && resizeType === "backlog" ? "none" : "width 0.3s"}
+                          transition={
+                            resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? "none" : "width 0.3s"
+                          }
                           overflow="hidden"
                           borderRightWidth="1px"
                           borderColor={borderColor}
@@ -3376,32 +1428,32 @@ export default function DailyTasksApp() {
                               onClose={null}
                               backlogTasks={backlogTasks}
                               sections={sections}
-                              onDeleteTask={handleDeleteTask}
-                              onEditTask={handleEditTask}
-                              onEditWorkout={handleEditWorkout}
-                              onUpdateTaskTitle={handleUpdateTaskTitle}
-                              onDuplicateTask={handleDuplicateTask}
-                              onAddTask={handleAddTaskToBacklog}
-                              onCreateBacklogTaskInline={handleCreateBacklogTaskInline}
-                              onCreateSubtask={handleCreateSubtask}
-                              onToggleExpand={handleToggleExpand}
-                              onToggleSubtask={handleToggleSubtask}
-                              onToggleTask={handleToggleTask}
+                              onDeleteTask={taskOps.handleDeleteTask}
+                              onEditTask={taskOps.handleEditTask}
+                              onEditWorkout={taskOps.handleEditWorkout}
+                              onUpdateTaskTitle={taskOps.handleUpdateTaskTitle}
+                              onDuplicateTask={taskOps.handleDuplicateTask}
+                              onAddTask={taskOps.handleAddTaskToBacklog}
+                              onCreateBacklogTaskInline={taskOps.handleCreateBacklogTaskInline}
+                              onCreateSubtask={taskOps.handleCreateSubtask}
+                              onToggleExpand={taskOps.handleToggleExpand}
+                              onToggleSubtask={completionHandlers.handleToggleSubtask}
+                              onToggleTask={completionHandlers.handleToggleTask}
                               createDraggableId={createDraggableId}
                               viewDate={today}
                               tags={tags}
-                              onTagsChange={handleTaskTagsChange}
+                              onTagsChange={taskOps.handleTaskTagsChange}
                               onCreateTag={createTag}
-                              onOutcomeChange={handleOutcomeChange}
+                              onOutcomeChange={completionHandlers.handleOutcomeChange}
                               getOutcomeOnDate={getOutcomeOnDate}
                               hasRecordOnDate={hasRecordOnDate}
-                              onCompleteWithNote={handleCompleteWithNote}
-                              onSkipTask={handleNotCompletedTask}
+                              onCompleteWithNote={completionHandlers.handleCompleteWithNote}
+                              onSkipTask={completionHandlers.handleNotCompletedTask}
                               getCompletionForDate={getCompletionForDate}
-                              selectedTaskIds={selectedTaskIds}
-                              onSelect={handleTaskSelect}
-                              onBulkEdit={handleBulkEdit}
-                              onBeginWorkout={handleBeginWorkout}
+                              selectedTaskIds={selectionState.selectedTaskIds}
+                              onSelect={selectionState.handleTaskSelect}
+                              onBulkEdit={selectionState.handleBulkEdit}
+                              onBeginWorkout={dialogState.handleBeginWorkout}
                             />
                           )}
                           {/* Resize handle between backlog and today */}
@@ -3412,10 +1464,14 @@ export default function DailyTasksApp() {
                             bottom={0}
                             w="4px"
                             cursor="col-resize"
-                            bg={isResizing && resizeType === "backlog" ? "blue.400" : "transparent"}
+                            bg={
+                              resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
+                                ? "blue.400"
+                                : "transparent"
+                            }
                             _hover={{ bg: "blue.300" }}
                             transition="background-color 0.2s"
-                            onMouseDown={handleBacklogResizeStart}
+                            onMouseDown={resizeHandlers.handleBacklogResizeStart}
                             zIndex={10}
                             sx={{ userSelect: "none" }}
                             display={{ base: "none", md: "block" }}
@@ -3432,11 +1488,13 @@ export default function DailyTasksApp() {
                           <Box
                             w={
                               showCalendar
-                                ? `${isResizing && resizeType === "today" ? localTodayViewWidth : todayViewWidth}px`
+                                ? `${resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? resizeHandlers.localTodayViewWidth : todayViewWidth}px`
                                 : "100%"
                             }
                             h="100%"
-                            transition={isResizing && resizeType === "today" ? "none" : "width 0.3s"}
+                            transition={
+                              resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? "none" : "width 0.3s"
+                            }
                             overflow="hidden"
                             borderRightWidth={showCalendar ? "1px" : "0"}
                             borderColor={borderColor}
@@ -3517,8 +1575,8 @@ export default function DailyTasksApp() {
                                       <TagFilter
                                         tags={tags}
                                         selectedTagIds={todaySelectedTagIds}
-                                        onTagSelect={handleTodayTagSelect}
-                                        onTagDeselect={handleTodayTagDeselect}
+                                        onTagSelect={viewState.handleTodayTagSelect}
+                                        onTagDeselect={viewState.handleTodayTagDeselect}
                                         onCreateTag={createTag}
                                       />
                                     </HStack>
@@ -3526,7 +1584,7 @@ export default function DailyTasksApp() {
                                 </Box>
                                 {/* Scrollable Sections Container */}
                                 <Box
-                                  ref={todayScrollContainerRef}
+                                  ref={todayScrollContainerRefCallback}
                                   flex={1}
                                   overflowY="auto"
                                   minH={0}
@@ -3536,17 +1594,17 @@ export default function DailyTasksApp() {
                                   <Section
                                     sections={computedSections}
                                     tasksBySection={tasksBySection}
-                                    onToggleTask={handleToggleTask}
-                                    onToggleSubtask={handleToggleSubtask}
-                                    onToggleExpand={handleToggleExpand}
-                                    onEditTask={handleEditTask}
-                                    onEditWorkout={handleEditWorkout}
-                                    onUpdateTaskTitle={handleUpdateTaskTitle}
-                                    onDeleteTask={handleDeleteTask}
-                                    onDuplicateTask={handleDuplicateTask}
-                                    onAddTask={handleAddTask}
-                                    onCreateTaskInline={handleCreateTaskInline}
-                                    onCreateSubtask={handleCreateSubtask}
+                                    onToggleTask={completionHandlers.handleToggleTask}
+                                    onToggleSubtask={completionHandlers.handleToggleSubtask}
+                                    onToggleExpand={taskOps.handleToggleExpand}
+                                    onEditTask={taskOps.handleEditTask}
+                                    onEditWorkout={taskOps.handleEditWorkout}
+                                    onUpdateTaskTitle={taskOps.handleUpdateTaskTitle}
+                                    onDeleteTask={taskOps.handleDeleteTask}
+                                    onDuplicateTask={taskOps.handleDuplicateTask}
+                                    onAddTask={taskOps.handleAddTask}
+                                    onCreateTaskInline={taskOps.handleCreateTaskInline}
+                                    onCreateSubtask={taskOps.handleCreateSubtask}
                                     onEditSection={handleEditSection}
                                     onDeleteSection={handleDeleteSection}
                                     onAddSection={handleAddSection}
@@ -3554,18 +1612,18 @@ export default function DailyTasksApp() {
                                     createDroppableId={createDroppableId}
                                     createDraggableId={createDraggableId}
                                     viewDate={todayViewDate || today}
-                                    onOutcomeChange={handleOutcomeChange}
+                                    onOutcomeChange={completionHandlers.handleOutcomeChange}
                                     getOutcomeOnDate={getOutcomeOnDate}
                                     hasRecordOnDate={hasRecordOnDate}
-                                    onCompleteWithNote={handleCompleteWithNote}
-                                    onSkipTask={handleNotCompletedTask}
+                                    onCompleteWithNote={completionHandlers.handleCompleteWithNote}
+                                    onSkipTask={completionHandlers.handleNotCompletedTask}
                                     getCompletionForDate={getCompletionForDate}
-                                    selectedTaskIds={selectedTaskIds}
-                                    onTaskSelect={handleTaskSelect}
-                                    onBulkEdit={handleBulkEdit}
-                                    onBeginWorkout={handleBeginWorkout}
+                                    selectedTaskIds={selectionState.selectedTaskIds}
+                                    onTaskSelect={selectionState.handleTaskSelect}
+                                    onBulkEdit={selectionState.handleBulkEdit}
+                                    onBeginWorkout={dialogState.handleBeginWorkout}
                                     tags={tags}
-                                    onTagsChange={handleTaskTagsChange}
+                                    onTagsChange={taskOps.handleTaskTagsChange}
                                     onCreateTag={createTag}
                                   />
                                 </Box>
@@ -3580,10 +1638,14 @@ export default function DailyTasksApp() {
                                 bottom={0}
                                 w="4px"
                                 cursor="col-resize"
-                                bg={isResizing && resizeType === "today" ? "blue.400" : "transparent"}
+                                bg={
+                                  resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
+                                    ? "blue.400"
+                                    : "transparent"
+                                }
                                 _hover={{ bg: "blue.300" }}
                                 transition="background-color 0.2s"
-                                onMouseDown={handleTodayResizeStart}
+                                onMouseDown={resizeHandlers.handleTodayResizeStart}
                                 zIndex={10}
                                 sx={{ userSelect: "none" }}
                                 display={{ base: "none", md: "block" }}
@@ -3718,14 +1780,14 @@ export default function DailyTasksApp() {
                               onDateChange={date => {
                                 const d = new Date(date);
                                 d.setHours(0, 0, 0, 0);
-                                setSelectedDate(d);
+                                viewState.setSelectedDate(d);
                               }}
                               onPrevious={() => navigateCalendar(-1)}
                               onNext={() => navigateCalendar(1)}
                               onToday={() => {
                                 const today = new Date();
                                 today.setHours(0, 0, 0, 0);
-                                setSelectedDate(today);
+                                viewState.setSelectedDate(today);
                               }}
                               title={getCalendarTitle()}
                               showDatePicker={false}
@@ -3771,8 +1833,8 @@ export default function DailyTasksApp() {
                                 <TagFilter
                                   tags={tags}
                                   selectedTagIds={calendarSelectedTagIds}
-                                  onTagSelect={handleCalendarTagSelect}
-                                  onTagDeselect={handleCalendarTagDeselect}
+                                  onTagSelect={viewState.handleCalendarTagSelect}
+                                  onTagDeselect={viewState.handleCalendarTagDeselect}
                                   onCreateTag={createTag}
                                 />
                               </HStack>
@@ -3826,12 +1888,12 @@ export default function DailyTasksApp() {
                                         <CalendarDayView
                                           date={selectedDate}
                                           tasks={filteredTasks}
-                                          onTaskClick={handleEditTask}
-                                          onTaskTimeChange={handleTaskTimeChange}
-                                          onTaskDurationChange={handleTaskDurationChange}
-                                          onCreateTask={handleCreateTaskFromCalendar}
+                                          onTaskClick={taskOps.handleEditTask}
+                                          onTaskTimeChange={taskOps.handleTaskTimeChange}
+                                          onTaskDurationChange={taskOps.handleTaskDurationChange}
+                                          onCreateTask={taskOps.handleCreateTaskFromCalendar}
                                           onDropTimeChange={time => {
-                                            dropTimeRef.current = time;
+                                            dragAndDrop.dropTimeRef.current = time;
                                           }}
                                           createDroppableId={createDroppableId}
                                           createDraggableId={createDraggableId}
@@ -3840,44 +1902,44 @@ export default function DailyTasksApp() {
                                           showCompleted={showCompletedTasksCalendar.day}
                                           zoom={calendarZoom.day}
                                           tags={tags}
-                                          onTagsChange={handleTaskTagsChange}
+                                          onTagsChange={taskOps.handleTaskTagsChange}
                                           onCreateTag={createTag}
-                                          onEdit={handleEditTask}
-                                          onEditWorkout={handleEditWorkout}
-                                          onOutcomeChange={handleOutcomeChange}
-                                          onDuplicate={handleDuplicateTask}
-                                          onDelete={handleDeleteTask}
+                                          onEdit={taskOps.handleEditTask}
+                                          onEditWorkout={taskOps.handleEditWorkout}
+                                          onOutcomeChange={completionHandlers.handleOutcomeChange}
+                                          onDuplicate={taskOps.handleDuplicateTask}
+                                          onDelete={taskOps.handleDeleteTask}
                                         />
                                       )}
                                       {calendarView === "week" && selectedDate && (
                                         <CalendarWeekView
                                           date={selectedDate}
                                           tasks={filteredTasks}
-                                          onTaskClick={handleEditTask}
+                                          onTaskClick={taskOps.handleEditTask}
                                           onDayClick={d => {
-                                            setSelectedDate(d);
+                                            viewState.setSelectedDate(d);
                                             setCalendarView("day");
                                           }}
-                                          onTaskTimeChange={handleTaskTimeChange}
-                                          onTaskDurationChange={handleTaskDurationChange}
-                                          onCreateTask={handleCreateTaskFromCalendar}
+                                          onTaskTimeChange={taskOps.handleTaskTimeChange}
+                                          onTaskDurationChange={taskOps.handleTaskDurationChange}
+                                          onCreateTask={taskOps.handleCreateTaskFromCalendar}
                                           onDropTimeChange={time => {
-                                            dropTimeRef.current = time;
+                                            dragAndDrop.dropTimeRef.current = time;
                                           }}
                                           createDroppableId={createDroppableId}
                                           createDraggableId={createDraggableId}
                                           tags={tags}
-                                          onTagsChange={handleTaskTagsChange}
+                                          onTagsChange={taskOps.handleTaskTagsChange}
                                           onCreateTag={createTag}
                                           isCompletedOnDate={isCompletedOnDate}
                                           getOutcomeOnDate={getOutcomeOnDate}
                                           showCompleted={showCompletedTasksCalendar.week}
                                           zoom={calendarZoom.week}
-                                          onEdit={handleEditTask}
-                                          onEditWorkout={handleEditWorkout}
-                                          onOutcomeChange={handleOutcomeChange}
-                                          onDuplicate={handleDuplicateTask}
-                                          onDelete={handleDeleteTask}
+                                          onEdit={taskOps.handleEditTask}
+                                          onEditWorkout={taskOps.handleEditWorkout}
+                                          onOutcomeChange={completionHandlers.handleOutcomeChange}
+                                          onDuplicate={taskOps.handleDuplicateTask}
+                                          onDelete={taskOps.handleDeleteTask}
                                         />
                                       )}
                                       {calendarView === "month" && selectedDate && (
@@ -3885,7 +1947,7 @@ export default function DailyTasksApp() {
                                           date={selectedDate}
                                           tasks={filteredTasks}
                                           onDayClick={d => {
-                                            setSelectedDate(d);
+                                            viewState.setSelectedDate(d);
                                             setCalendarView("day");
                                           }}
                                           isCompletedOnDate={isCompletedOnDate}
@@ -3894,11 +1956,11 @@ export default function DailyTasksApp() {
                                           zoom={calendarZoom.month}
                                           tags={tags}
                                           onCreateTag={createTag}
-                                          onEdit={handleEditTask}
-                                          onEditWorkout={handleEditWorkout}
-                                          onOutcomeChange={handleOutcomeChange}
-                                          onDuplicate={handleDuplicateTask}
-                                          onDelete={handleDeleteTask}
+                                          onEdit={taskOps.handleEditTask}
+                                          onEditWorkout={taskOps.handleEditWorkout}
+                                          onOutcomeChange={completionHandlers.handleOutcomeChange}
+                                          onDuplicate={taskOps.handleDuplicateTask}
+                                          onDelete={taskOps.handleDeleteTask}
                                         />
                                       )}
                                       {calendarView === "year" && selectedDate && (
@@ -3906,18 +1968,18 @@ export default function DailyTasksApp() {
                                           date={selectedDate}
                                           tasks={filteredTasks}
                                           onDayClick={d => {
-                                            setSelectedDate(d);
+                                            viewState.setSelectedDate(d);
                                             setCalendarView("day");
                                           }}
                                           isCompletedOnDate={isCompletedOnDate}
                                           getOutcomeOnDate={getOutcomeOnDate}
                                           showCompleted={showCompletedTasksCalendar.year}
                                           zoom={calendarZoom.year}
-                                          onEdit={handleEditTask}
-                                          onEditWorkout={handleEditWorkout}
-                                          onOutcomeChange={handleOutcomeChange}
-                                          onDuplicate={handleDuplicateTask}
-                                          onDelete={handleDeleteTask}
+                                          onEdit={taskOps.handleEditTask}
+                                          onEditWorkout={taskOps.handleEditWorkout}
+                                          onOutcomeChange={completionHandlers.handleOutcomeChange}
+                                          onDuplicate={taskOps.handleDuplicateTask}
+                                          onDelete={taskOps.handleDeleteTask}
                                         />
                                       )}
                                     </>
@@ -3941,11 +2003,11 @@ export default function DailyTasksApp() {
           dropAnimation={null}
           style={{
             cursor: "grabbing",
-            marginLeft: `${dragState.offset.x}px`,
-            marginTop: `${dragState.offset.y}px`,
+            marginLeft: `${dragAndDrop.dragState.offset.x}px`,
+            marginTop: `${dragAndDrop.dragState.offset.y}px`,
           }}
         >
-          {dragState.activeTask ? (
+          {dragAndDrop.dragState.activeTask ? (
             <Box
               px={4}
               py={2}
@@ -3960,10 +2022,10 @@ export default function DailyTasksApp() {
               transform="rotate(2deg)"
             >
               <Text fontSize="sm" fontWeight="semibold" color={dragOverlayText} isTruncated>
-                {dragState.activeTask.title}
+                {dragAndDrop.dragState.activeTask.title}
               </Text>
             </Box>
-          ) : dragState.activeId?.startsWith("section-") ? (
+          ) : dragAndDrop.dragState.activeId?.startsWith("section-") ? (
             <Box
               px={4}
               py={3}
@@ -3975,7 +2037,7 @@ export default function DailyTasksApp() {
               opacity={0.9}
             >
               <Text fontSize="sm" fontWeight="semibold" color={dragOverlayText}>
-                {sections.find(s => `section-${s.id}` === dragState.activeId)?.name || "Section"}
+                {sections.find(s => `section-${s.id}` === dragAndDrop.dragState.activeId)?.name || "Section"}
               </Text>
             </Box>
           ) : null}
@@ -3984,61 +2046,61 @@ export default function DailyTasksApp() {
 
       {/* Dialogs */}
       <TaskDialog
-        isOpen={taskDialogOpen}
+        isOpen={dialogState.taskDialogOpen}
         onClose={() => {
-          closeTaskDialog();
-          setEditingTask(null);
-          setDefaultSectionId(null);
-          setDefaultTime(null);
-          setDefaultDate(null);
+          dialogState.closeTaskDialog();
+          dialogState.setEditingTask(null);
+          dialogState.setDefaultSectionId(null);
+          dialogState.setDefaultTime(null);
+          dialogState.setDefaultDate(null);
         }}
-        task={editingTask}
+        task={dialogState.editingTask}
         sections={sections}
-        onSave={handleSaveTask}
-        defaultSectionId={defaultSectionId}
-        defaultTime={defaultTime}
-        defaultDate={defaultDate}
+        onSave={taskOps.handleSaveTask}
+        defaultSectionId={dialogState.defaultSectionId}
+        defaultTime={dialogState.defaultTime}
+        defaultDate={dialogState.defaultDate}
         tags={tags}
         onCreateTag={createTag}
         onDeleteTag={deleteTag}
         allTasks={tasks}
       />
       <SectionDialog
-        isOpen={sectionDialogOpen}
+        isOpen={dialogState.sectionDialogOpen}
         onClose={() => {
-          closeSectionDialog();
-          setEditingSection(null);
+          dialogState.closeSectionDialog();
+          dialogState.setEditingSection(null);
         }}
-        section={editingSection}
+        section={dialogState.editingSection}
         onSave={handleSaveSection}
       />
       <TagEditor
-        isOpen={tagEditorOpen}
-        onClose={() => setTagEditorOpen(false)}
+        isOpen={dialogState.tagEditorOpen}
+        onClose={() => dialogState.setTagEditorOpen(false)}
         tags={tags}
         onCreateTag={createTag}
         onUpdateTag={updateTag}
         onDeleteTag={deleteTag}
       />
       <BulkEditDialog
-        isOpen={bulkEditDialogOpen}
+        isOpen={selectionState.bulkEditDialogOpen}
         onClose={() => {
-          setBulkEditDialogOpen(false);
+          selectionState.setBulkEditDialogOpen(false);
         }}
-        onSave={handleBulkEditSave}
+        onSave={selectionState.handleBulkEditSave}
         sections={sections}
         tags={tags}
         onCreateTag={createTag}
         onDeleteTag={deleteTag}
-        selectedCount={selectedTaskIds.size}
-        selectedTasks={tasks.filter(t => selectedTaskIds.has(t.id))}
+        selectedCount={selectionState.selectedTaskIds.size}
+        selectedTasks={tasks.filter(t => selectionState.selectedTaskIds.has(t.id))}
       />
       <WorkoutModal
-        task={workoutModalTask}
-        isOpen={workoutModalOpen}
+        task={dialogState.workoutModalTask}
+        isOpen={dialogState.workoutModalOpen}
         onClose={() => {
-          setWorkoutModalOpen(false);
-          setWorkoutModalTask(null);
+          dialogState.setWorkoutModalOpen(false);
+          dialogState.setWorkoutModalTask(null);
         }}
         onCompleteTask={async (taskId, date) => {
           // When workout is 100% complete, create a TaskCompletion record
@@ -4049,12 +2111,12 @@ export default function DailyTasksApp() {
         currentDate={viewDate}
       />
       <WorkoutBuilder
-        key={editingWorkoutTask?.id || "new"}
-        isOpen={Boolean(editingWorkoutTask)}
-        onClose={() => setEditingWorkoutTask(null)}
-        taskId={editingWorkoutTask?.id}
+        key={dialogState.editingWorkoutTask?.id || "new"}
+        isOpen={Boolean(dialogState.editingWorkoutTask)}
+        onClose={() => dialogState.setEditingWorkoutTask(null)}
+        taskId={dialogState.editingWorkoutTask?.id}
         onSaveComplete={() => {
-          setEditingWorkoutTask(null);
+          dialogState.setEditingWorkoutTask(null);
           // Refresh tasks to get updated workout program status
           fetchTasks(true);
         }}
