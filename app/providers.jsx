@@ -9,6 +9,7 @@ import { ToastContainer } from "@/components/ToastContainer";
 import { store } from "@/lib/store";
 import { initDB } from "@/lib/db/indexedDB";
 import { syncManager } from "@/lib/sync/syncManager";
+import { ThemeInitializer } from "@/hooks/useTheme";
 
 // Create a custom system that matches Chakra v2 colors and styling
 const system = createSystem(defaultConfig, {
@@ -32,6 +33,7 @@ const system = createSystem(defaultConfig, {
           900: { value: "#171923" }, // Dark mode main background (v2 style)
         },
         // Blue palette (Chakra v2 values)
+        // Note: Button recipes use CSS variables for theme support
         blue: {
           50: { value: "#EBF8FF" },
           100: { value: "#BEE3F8" },
@@ -176,13 +178,13 @@ const system = createSystem(defaultConfig, {
         variants: {
           variant: {
             solid: {
-              bg: { _light: "blue.500", _dark: "blue.600" },
+              bg: { _light: "var(--theme-primary, blue.500)", _dark: "var(--theme-primary, blue.600)" },
               color: "white",
               _hover: {
-                bg: { _light: "blue.600", _dark: "blue.700" },
+                bg: { _light: "var(--theme-primaryHover, blue.600)", _dark: "var(--theme-primaryHover, blue.700)" },
               },
               _active: {
-                bg: { _light: "blue.700", _dark: "blue.800" },
+                bg: { _light: "var(--theme-primaryActive, blue.700)", _dark: "var(--theme-primaryActive, blue.800)" },
               },
             },
             outline: {
@@ -215,10 +217,10 @@ const system = createSystem(defaultConfig, {
         variants: {
           variant: {
             solid: {
-              bg: { _light: "blue.500", _dark: "blue.600" },
+              bg: { _light: "var(--theme-primary, blue.500)", _dark: "var(--theme-primary, blue.600)" },
               color: "white",
               _hover: {
-                bg: { _light: "blue.600", _dark: "blue.700" },
+                bg: { _light: "var(--theme-primaryHover, blue.600)", _dark: "var(--theme-primaryHover, blue.700)" },
               },
             },
             outline: {
@@ -258,8 +260,8 @@ const system = createSystem(defaultConfig, {
             fontSize: { base: "14px", md: "inherit" },
             _focus: {
               bg: "transparent",
-              borderColor: "blue.400",
-              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+              borderColor: "var(--theme-focus, blue.400)",
+              boxShadow: "0 0 0 1px var(--theme-focus, var(--chakra-colors-blue-400))",
               outline: "none",
             },
             _focusVisible: {
@@ -293,7 +295,7 @@ const system = createSystem(defaultConfig, {
   },
   globalCss: {
     "html, body": {
-      bg: { _light: "gray.50", _dark: "gray.900" },
+      bg: "var(--chakra-colors-bg-canvas)",
       color: { _light: "gray.900", _dark: "gray.100" },
       // Mobile viewport optimization
       "@media (max-width: 768px)": {
@@ -462,8 +464,8 @@ const system = createSystem(defaultConfig, {
     },
     "[data-part='trigger']:not([data-scope='tabs']):focus, [data-part='trigger']:not([data-scope='tabs']):focus-visible":
       {
-        borderColor: "var(--chakra-colors-blue-400) !important",
-        boxShadow: "0 0 0 1px var(--chakra-colors-blue-400) !important",
+        borderColor: "var(--theme-focus, var(--chakra-colors-blue-400)) !important",
+        boxShadow: "0 0 0 1px var(--theme-focus, var(--chakra-colors-blue-400)) !important",
         outline: "none",
       },
     // Remove borders from Tabs components
@@ -534,6 +536,7 @@ export function Providers({ children }) {
       <ChakraProvider value={system}>
         <AuthProvider>
           <PreferencesProvider>
+            <ThemeInitializer />
             <OfflineInitializer>
               {children}
               <ToastContainer />

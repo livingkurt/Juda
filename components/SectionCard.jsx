@@ -18,7 +18,7 @@ import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 
 const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDraggableId, viewDate }) => {
-  const { mode, dnd } = useSemanticColors();
+  const { mode, dnd, icon } = useSemanticColors();
 
   const bgColor = mode.bg.surface;
   const borderColor = mode.border.default;
@@ -159,7 +159,7 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
             >
               <GripVertical size={14} stroke="currentColor" />
             </Box>
-            <Box as="span" color={mode.status.warning}>
+            <Box as="span" color={icon.primary}>
               <IconComponent size={14} stroke="currentColor" />
             </Box>
             <Heading size={{ base: "sm", md: "md" }} color={textColor} noOfLines={1}>

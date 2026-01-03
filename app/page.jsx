@@ -22,6 +22,7 @@ import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { AuthPage } from "@/components/AuthPage";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { ThemeSelector } from "@/components/ThemeSelector";
 import { DndContext, DragOverlay, pointerWithin, closestCenter } from "@dnd-kit/core";
 import {
   Calendar,
@@ -934,6 +935,7 @@ export default function DailyTasksApp() {
                   <TagIcon size={16} stroke="currentColor" />
                 </Box>
               </IconButton>
+              <ThemeSelector />
               <IconButton
                 onClick={toggleColorMode}
                 variant="ghost"

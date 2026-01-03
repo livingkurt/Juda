@@ -4,6 +4,7 @@ import { memo } from "react";
 import { Box } from "@chakra-ui/react";
 import { getTaskDisplayColor } from "@/lib/utils";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useTheme } from "@/hooks/useTheme";
 
 /**
  * Minimal task display for year view cells
@@ -16,8 +17,9 @@ export const TaskCardMini = memo(function TaskCardMini({
   outcome = null,
   onClick,
 }) {
-  const { mode } = useSemanticColors();
-  const taskColor = getTaskDisplayColor(task);
+  const { mode, colorMode } = useSemanticColors();
+  const { theme } = useTheme();
+  const taskColor = getTaskDisplayColor(task, theme, colorMode);
   const hasOutcome = isCompleted || outcome === "not_completed";
 
   const fontSize = {

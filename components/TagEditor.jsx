@@ -3,45 +3,50 @@
 import { useState } from "react";
 import { Box, Button, Dialog, HStack, IconButton, Input, SimpleGrid, Text, VStack, Portal } from "@chakra-ui/react";
 import { Edit2, Plus, Trash2, X, Check, Tag as TagIcon } from "lucide-react";
-import { TASK_COLORS } from "@/lib/constants";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { TagChip } from "./TagChip";
 
 export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onDeleteTag }) => {
   const { mode, interactive } = useSemanticColors();
+  const { tagColors, canonicalColors } = useThemeColors();
   const bgColor = mode.bg.surface;
   const borderColor = mode.border.default;
   const hoverBg = mode.bg.muted;
 
   const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState(TASK_COLORS[0]);
+  const [newTagColorIndex, setNewTagColorIndex] = useState(0);
   const [editingTagId, setEditingTagId] = useState(null);
   const [editingName, setEditingName] = useState("");
-  const [editingColor, setEditingColor] = useState("");
+  const [editingColorIndex, setEditingColorIndex] = useState(0);
 
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return;
-    await onCreateTag(newTagName.trim(), newTagColor);
+    // Store canonical color (not theme color)
+    await onCreateTag(newTagName.trim(), canonicalColors[newTagColorIndex]);
     setNewTagName("");
-    setNewTagColor(TASK_COLORS[0]);
+    setNewTagColorIndex(0);
   };
 
   const startEditing = tag => {
     setEditingTagId(tag.id);
     setEditingName(tag.name);
-    setEditingColor(tag.color);
+    // Find the index of this color in canonical colors
+    const colorIndex = canonicalColors.findIndex(c => c.toLowerCase() === tag.color.toLowerCase());
+    setEditingColorIndex(colorIndex >= 0 ? colorIndex : 0);
   };
 
   const cancelEditing = () => {
     setEditingTagId(null);
     setEditingName("");
-    setEditingColor("");
+    setEditingColorIndex(0);
   };
 
   const saveEditing = async () => {
     if (!editingName.trim()) return;
     await onUpdateTag(editingTagId, {
       name: editingName.trim(),
-      color: editingColor,
+      color: canonicalColors[editingColorIndex],
     });
     cancelEditing();
   };
@@ -85,18 +90,18 @@ export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onD
                     Color
                   </Text>
                   <SimpleGrid columns={10} gap={1}>
-                    {TASK_COLORS.map(color => (
+                    {tagColors.map((themeColor, index) => (
                       <Box
-                        key={color}
+                        key={index}
                         w={6}
                         h={6}
                         borderRadius="md"
-                        bg={color}
+                        bg={themeColor}
                         cursor="pointer"
-                        borderWidth={newTagColor === color ? "2px" : "1px"}
-                        borderColor={newTagColor === color ? interactive.primary : mode.border.input}
+                        borderWidth={newTagColorIndex === index ? "2px" : "1px"}
+                        borderColor={newTagColorIndex === index ? interactive.primary : mode.border.input}
                         _hover={{ transform: "scale(1.1)" }}
-                        onClick={() => setNewTagColor(color)}
+                        onClick={() => setNewTagColorIndex(index)}
                         transition="all 0.15s"
                       />
                     ))}
@@ -136,18 +141,17 @@ export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onD
                                 autoFocus
                               />
                               <SimpleGrid columns={10} gap={1}>
-                                {TASK_COLORS.map(color => (
+                                {tagColors.map((themeColor, index) => (
                                   <Box
-                                    key={color}
+                                    key={index}
                                     w={5}
                                     h={5}
                                     borderRadius="sm"
-                                    bg={color}
+                                    bg={themeColor}
                                     cursor="pointer"
-                                    borderWidth={editingColor === color ? "2px" : "1px"}
-                                    borderColor={editingColor === color ? "blue.500" : "gray.300"}
-                                    _dark={{ borderColor: editingColor === color ? "blue.400" : "gray.600" }}
-                                    onClick={() => setEditingColor(color)}
+                                    borderWidth={editingColorIndex === index ? "2px" : "1px"}
+                                    borderColor={editingColorIndex === index ? interactive.primary : borderColor}
+                                    onClick={() => setEditingColorIndex(index)}
                                   />
                                 ))}
                               </SimpleGrid>
@@ -162,10 +166,7 @@ export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onD
                             </VStack>
                           ) : (
                             <HStack justify="space-between">
-                              <HStack>
-                                <Box w={4} h={4} borderRadius="full" bg={tag.color} />
-                                <Text fontSize="sm">{tag.name}</Text>
-                              </HStack>
+                              <TagChip tag={tag} size="sm" />
                               <HStack spacing={1}>
                                 <IconButton
                                   size="xs"

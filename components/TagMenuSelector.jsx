@@ -3,15 +3,16 @@
 import { useState, useRef } from "react";
 import { Box, HStack, VStack, Menu, Button, Input, Text, Checkbox, Portal } from "@chakra-ui/react";
 import { Tag as TagIcon, Plus, Search } from "lucide-react";
-import { TASK_COLORS } from "@/lib/constants";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { TagChip } from "./TagChip";
 
 export const TagMenuSelector = ({ task }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [selectedColor, setSelectedColor] = useState(TASK_COLORS[0]);
+  const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   const searchInputRef = useRef(null);
 
   // Use hooks directly (they use Redux internally)
@@ -25,6 +26,7 @@ export const TagMenuSelector = ({ task }) => {
   const [hasChanges, setHasChanges] = useState(false);
 
   const { mode, interactive } = useSemanticColors();
+  const { tagColors, canonicalColors } = useThemeColors();
   const bgColor = mode.bg.surface;
   const borderColor = mode.border.default;
   const hoverBg = mode.bg.surfaceHover;
@@ -50,18 +52,22 @@ export const TagMenuSelector = ({ task }) => {
     setHasChanges(true);
   };
 
-  const handleCreateAndAssign = async color => {
+  const handleCreateAndAssign = async colorIndex => {
     if (!searchQuery.trim()) return;
 
     try {
-      const newTag = await createTagMutation({ name: searchQuery.trim(), color }).unwrap();
+      // Store canonical color (not theme color)
+      const newTag = await createTagMutation({
+        name: searchQuery.trim(),
+        color: canonicalColors[colorIndex],
+      }).unwrap();
       // Add the new tag to the local state
       setSelectedTagIds([...currentTagIds, newTag.id]);
       setHasChanges(true);
       // Reset search and color picker
       setSearchQuery("");
       setShowColorPicker(false);
-      setSelectedColor(TASK_COLORS[0]);
+      setSelectedColorIndex(0);
     } catch (err) {
       console.error("Failed to create tag:", err);
     }
@@ -151,22 +157,22 @@ export const TagMenuSelector = ({ task }) => {
                     Choose a color:
                   </Text>
                   <HStack spacing={1} flexWrap="wrap" justify="center">
-                    {TASK_COLORS.map(color => (
+                    {tagColors.map((themeColor, index) => (
                       <Button
-                        key={color}
+                        key={index}
                         w={8}
                         h={8}
                         minW={8}
                         borderRadius="md"
-                        bg={color}
+                        bg={themeColor}
                         onClick={e => {
                           e.stopPropagation();
-                          handleCreateAndAssign(color);
+                          handleCreateAndAssign(index);
                         }}
                         onMouseDown={e => e.stopPropagation()}
-                        borderWidth={selectedColor === color ? "2px" : "0px"}
+                        borderWidth={selectedColorIndex === index ? "2px" : "0px"}
                         borderColor="white"
-                        boxShadow={selectedColor === color ? `0 0 0 2px ${interactive.primary}` : "none"}
+                        boxShadow={selectedColorIndex === index ? `0 0 0 2px ${interactive.primary}` : "none"}
                         _hover={{ transform: "scale(1.1)" }}
                         transition="transform 0.1s"
                       />
@@ -197,10 +203,7 @@ export const TagMenuSelector = ({ task }) => {
                           <Checkbox.Control />
                           <Checkbox.Indicator />
                         </Checkbox.Root>
-                        <Box w={3} h={3} borderRadius="full" bg={tag.color} flexShrink={0} />
-                        <Text fontSize="sm" noOfLines={1}>
-                          {tag.name}
-                        </Text>
+                        <TagChip tag={tag} size="xs" />
                       </HStack>
                     </HStack>
                   </Menu.Item>

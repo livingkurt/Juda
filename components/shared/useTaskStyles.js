@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import { getTaskDisplayColor } from "@/lib/utils";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useTheme } from "@/hooks/useTheme";
+import { useColorModeSync } from "@/hooks/useColorModeSync";
 
 /**
  * Hook to compute task display styles based on state
@@ -18,9 +20,12 @@ import { useSemanticColors } from "@/hooks/useSemanticColors";
 export function useTaskStyles(task, options = {}) {
   const { isCompleted = false, outcome = null, isDragging = false, isSelected = false } = options;
   const { mode, selection } = useSemanticColors();
+  const { theme } = useTheme();
+  const { colorMode } = useColorModeSync();
 
   return useMemo(() => {
-    const taskColor = getTaskDisplayColor(task);
+    // Get theme-aware task color
+    const taskColor = getTaskDisplayColor(task, theme, colorMode);
     const isNotCompleted = outcome === "not_completed";
     const hasOutcome = isCompleted || isNotCompleted;
 
@@ -78,7 +83,7 @@ export function useTaskStyles(task, options = {}) {
       isDragging,
       isSelected,
     };
-  }, [task, isCompleted, outcome, isDragging, isSelected, mode, selection]);
+  }, [task, isCompleted, outcome, isDragging, isSelected, mode, selection, theme, colorMode]);
 }
 
 /**

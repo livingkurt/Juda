@@ -2,9 +2,14 @@
 
 import { memo } from "react";
 import { Tag } from "@chakra-ui/react";
+import { useTheme } from "@/hooks/useTheme";
+import { useColorModeSync } from "@/hooks/useColorModeSync";
+import { mapColorToTheme } from "@/lib/themes";
 
 /**
  * Reusable TagChip component for displaying tags consistently across the app
+ * Automatically maps stored tag colors to the current theme's palette
+ *
  * @param {Object} tag - Tag object with {id, name, color}
  * @param {string} size - Size variant: "xs" | "sm" | "md" | "lg" | {base: "xs", md: "sm"}
  * @param {boolean} showClose - Whether to show a close button
@@ -12,10 +17,18 @@ import { Tag } from "@chakra-ui/react";
  * @param {Object} props - Additional props to pass to Tag.Root
  */
 export const TagChip = memo(function TagChip({ tag, size = "sm", showClose = false, onClose, ...props }) {
+  const { theme } = useTheme();
+  const { colorMode } = useColorModeSync();
+
+  // Map the stored tag color to the current theme's palette
+  const mode = colorMode || "dark";
+  const themePalette = theme.colors[mode].tagColors;
+  const displayColor = mapColorToTheme(tag.color, themePalette);
+
   // Default styling - consistent across all tag displays
   const defaultProps = {
     borderRadius: "full",
-    bg: tag.color,
+    bg: displayColor, // Use theme-mapped color
     color: "white",
     textTransform: "uppercase",
     fontSize: size === "sm" ? "xs" : size === "xs" ? "2xs" : "sm",

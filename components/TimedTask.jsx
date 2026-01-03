@@ -10,9 +10,11 @@ import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { useTheme } from "@/hooks/useTheme";
 
 export const TimedTask = ({ task, createDraggableId, date, getTaskStyle, internalDrag, handleInternalDragStart }) => {
-  const { mode } = useSemanticColors();
+  const { mode, colorMode } = useSemanticColors();
+  const { theme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Use hooks directly (they use Redux internally)
@@ -34,7 +36,7 @@ export const TimedTask = ({ task, createDraggableId, date, getTaskStyle, interna
   const isWorkoutTask = task.completionType === "workout";
 
   // Get task color from first tag, or use neutral gray if no tags
-  const taskColor = getTaskDisplayColor(task);
+  const taskColor = getTaskDisplayColor(task, theme, colorMode);
 
   // Diagonal stripe pattern for not completed tasks
   const notCompletedPattern = isNotCompleted

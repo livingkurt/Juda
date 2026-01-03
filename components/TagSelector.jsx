@@ -3,9 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Box, HStack, VStack, Menu, Button, Input, Text, IconButton, Wrap, WrapItem } from "@chakra-ui/react";
 import { Tag as TagIcon, Plus, Trash2 } from "lucide-react";
-import { TASK_COLORS } from "@/lib/constants";
 import { TagChip } from "./TagChip";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export const TagSelector = ({
   tags = [],
@@ -16,13 +16,14 @@ export const TagSelector = ({
   inline = false,
 }) => {
   const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState(TASK_COLORS[0]);
+  const [newTagColorIndex, setNewTagColorIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const onOpen = () => setIsOpen(true);
   const onClose = () => setIsOpen(false);
   const inputRef = useRef(null);
 
   const { mode, interactive } = useSemanticColors();
+  const { tagColors, canonicalColors } = useThemeColors();
   const bgColor = mode.bg.surface;
   const borderColor = mode.border.default;
   const hoverBg = mode.bg.surfaceHover;
@@ -48,10 +49,11 @@ export const TagSelector = ({
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return;
     try {
-      const newTag = await onCreateTag(newTagName.trim(), newTagColor);
+      // Store canonical color (not theme color)
+      const newTag = await onCreateTag(newTagName.trim(), canonicalColors[newTagColorIndex]);
       onTagsChange([...selectedTagIds, newTag.id]);
       setNewTagName("");
-      setNewTagColor(TASK_COLORS[0]);
+      setNewTagColorIndex(0);
     } catch (err) {
       console.error("Failed to create tag:", err);
     }
@@ -91,18 +93,18 @@ export const TagSelector = ({
                   onKeyDown={handleKeyDown}
                 />
                 <HStack spacing={1} flexWrap="wrap">
-                  {TASK_COLORS.map(c => (
+                  {tagColors.map((themeColor, index) => (
                     <Button
-                      key={c}
+                      key={index}
                       w={6}
                       h={6}
                       minW={6}
                       borderRadius="full"
-                      bg={c}
-                      onClick={() => setNewTagColor(c)}
-                      borderWidth={newTagColor === c ? "2px" : "0px"}
+                      bg={themeColor}
+                      onClick={() => setNewTagColorIndex(index)}
+                      borderWidth={newTagColorIndex === index ? "2px" : "0px"}
                       borderColor="white"
-                      boxShadow={newTagColor === c ? `0 0 0 2px ${interactive.primary}` : "none"}
+                      boxShadow={newTagColorIndex === index ? `0 0 0 2px ${interactive.primary}` : "none"}
                       _hover={{ transform: "scale(1.1)" }}
                     />
                   ))}
@@ -124,10 +126,7 @@ export const TagSelector = ({
                 {availableTags.map(tag => (
                   <Menu.Item key={tag.id} onClick={() => handleAddTag(tag.id)} _hover={{ bg: hoverBg }}>
                     <HStack justify="space-between" w="full">
-                      <HStack>
-                        <Box w={3} h={3} borderRadius="full" bg={tag.color} />
-                        <Text>{tag.name}</Text>
-                      </HStack>
+                      <TagChip tag={tag} size="xs" />
                       <IconButton
                         size="xs"
                         variant="ghost"
@@ -193,18 +192,18 @@ export const TagSelector = ({
                   onKeyDown={handleKeyDown}
                 />
                 <HStack spacing={1} flexWrap="wrap">
-                  {TASK_COLORS.map(c => (
+                  {tagColors.map((themeColor, index) => (
                     <Button
-                      key={c}
+                      key={index}
                       w={6}
                       h={6}
                       minW={6}
                       borderRadius="full"
-                      bg={c}
-                      onClick={() => setNewTagColor(c)}
-                      borderWidth={newTagColor === c ? "2px" : "0px"}
+                      bg={themeColor}
+                      onClick={() => setNewTagColorIndex(index)}
+                      borderWidth={newTagColorIndex === index ? "2px" : "0px"}
                       borderColor="white"
-                      boxShadow={newTagColor === c ? `0 0 0 2px ${interactive.primary}` : "none"}
+                      boxShadow={newTagColorIndex === index ? `0 0 0 2px ${interactive.primary}` : "none"}
                       _hover={{ transform: "scale(1.1)" }}
                     />
                   ))}
@@ -226,10 +225,7 @@ export const TagSelector = ({
                 {availableTags.map(tag => (
                   <Menu.Item key={tag.id} onClick={() => handleAddTag(tag.id)} _hover={{ bg: hoverBg }}>
                     <HStack justify="space-between" w="full">
-                      <HStack>
-                        <Box w={3} h={3} borderRadius="full" bg={tag.color} />
-                        <Text>{tag.name}</Text>
-                      </HStack>
+                      <TagChip tag={tag} size="xs" />
                       <IconButton
                         size="xs"
                         variant="ghost"

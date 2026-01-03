@@ -44,6 +44,7 @@ import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
+import { useTheme } from "@/hooks/useTheme";
 
 export const TaskItem = ({
   task,
@@ -99,7 +100,8 @@ export const TaskItem = ({
   const isToday = variant === "today";
   const isSubtask = variant === "subtask";
 
-  const { mode } = useSemanticColors();
+  const { mode, colorMode } = useSemanticColors();
+  const { theme } = useTheme();
 
   const bgColor = mode.bg.surface;
   const hoverBg = mode.bg.surfaceHover;
@@ -299,7 +301,7 @@ export const TaskItem = ({
   };
 
   // Get task color from first tag, or use neutral gray if no tags
-  const taskColor = getTaskDisplayColor(task);
+  const taskColor = getTaskDisplayColor(task, theme, colorMode);
 
   return (
     <Box ref={setNodeRef} style={style} w="100%" maxW="100%" data-task-id={task.id}>

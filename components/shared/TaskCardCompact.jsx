@@ -6,6 +6,7 @@ import { getTaskDisplayColor } from "@/lib/utils";
 import { TaskContextMenu } from "../TaskContextMenu";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { useTheme } from "@/hooks/useTheme";
 
 /**
  * Compact task card for calendar month view
@@ -19,7 +20,8 @@ export const TaskCardCompact = memo(function TaskCardCompact({
   outcome = null,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { mode } = useSemanticColors();
+  const { mode, colorMode } = useSemanticColors();
+  const { theme } = useTheme();
 
   // Use hooks directly (they use Redux internally)
   const { getOutcomeOnDate } = useCompletionHelpers();
@@ -28,7 +30,7 @@ export const TaskCardCompact = memo(function TaskCardCompact({
   const actualOutcome = outcome !== null ? outcome : getOutcomeOnDate(task.id, date);
   const actualIsCompleted = isCompleted !== undefined ? isCompleted : actualOutcome === "completed";
 
-  const taskColor = getTaskDisplayColor(task);
+  const taskColor = getTaskDisplayColor(task, theme, colorMode);
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
   const isWorkoutTask = task.completionType === "workout";
   const isNotCompleted = actualOutcome === "not_completed";
