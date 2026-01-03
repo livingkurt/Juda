@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, memo } from "react";
 import { Box, Card, Heading, Text, Flex, HStack, VStack, IconButton, Menu, Input } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -17,7 +17,7 @@ import { useSectionExpansion } from "@/hooks/useSectionExpansion";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 
-export const SectionCard = ({ section, hoveredDroppable, droppableId, createDraggableId, viewDate }) => {
+const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDraggableId, viewDate }) => {
   const { mode, dnd } = useSemanticColors();
 
   const bgColor = mode.bg.surface;
@@ -329,3 +329,6 @@ export const SectionCard = ({ section, hoveredDroppable, droppableId, createDrag
     </Card.Root>
   );
 };
+
+// Memoize to prevent unnecessary re-renders
+export const SectionCard = memo(SectionCardComponent);

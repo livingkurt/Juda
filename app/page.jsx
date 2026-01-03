@@ -1636,6 +1636,10 @@ export default function DailyTasksApp() {
                             ? "none"
                             : "width 0.3s ease-in-out"
                         }
+                        style={{
+                          willChange:
+                            resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? "width" : "auto",
+                        }}
                         overflow="hidden"
                         borderRightWidth={backlogOpen ? "1px" : "0px"}
                         borderColor={borderColor}
@@ -1688,6 +1692,10 @@ export default function DailyTasksApp() {
                             transition={
                               resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? "none" : "width 0.3s"
                             }
+                            style={{
+                              willChange:
+                                resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? "width" : "auto",
+                            }}
                             overflow="hidden"
                             borderRightWidth={showCalendar ? "1px" : "0"}
                             borderColor={borderColor}

@@ -45,7 +45,13 @@ export const Collapse = ({ in: isOpen, children, duration = 300, easing = "ease-
   }, [isOpen, duration]);
 
   return (
-    <Box ref={contentRef} overflow="hidden" height={height} transition={`height ${duration}ms ${easing}`}>
+    <Box
+      ref={contentRef}
+      overflow="hidden"
+      height={height}
+      transition={`height ${duration}ms ${easing}`}
+      style={{ willChange: isOpen ? "height" : "auto" }}
+    >
       {children}
     </Box>
   );

@@ -86,11 +86,15 @@ export function useResizeHandlers({
         cancelAnimationFrame(rafRef.current);
       }
 
-      // Save to preferences
-      if (resizeType === "backlog") {
-        setBacklogWidth(localBacklogWidth);
-      } else if (resizeType === "today") {
-        setTodayViewWidth(localTodayViewWidth);
+      // Save to preferences using refs to avoid dependency
+      const currentResizeType = resizeType;
+      const currentBacklogWidth = localBacklogWidth;
+      const currentTodayWidth = localTodayViewWidth;
+
+      if (currentResizeType === "backlog") {
+        setBacklogWidth(currentBacklogWidth);
+      } else if (currentResizeType === "today") {
+        setTodayViewWidth(currentTodayWidth);
       }
 
       setIsResizing(false);
@@ -109,7 +113,10 @@ export function useResizeHandlers({
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [isResizing, resizeType, localBacklogWidth, localTodayViewWidth, setBacklogWidth, setTodayViewWidth]);
+    // Remove width dependencies to prevent re-renders during resize
+    // localBacklogWidth and localTodayViewWidth are intentionally excluded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isResizing, resizeType, setBacklogWidth, setTodayViewWidth]);
 
   return {
     isResizing,
