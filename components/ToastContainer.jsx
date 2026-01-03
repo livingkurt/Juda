@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Box, Text, HStack, IconButton } from "@chakra-ui/react";
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
 import { subscribeToToasts } from "@/hooks/useToast";
@@ -9,24 +9,40 @@ import { useSemanticColors } from "@/hooks/useSemanticColors";
 export function ToastContainer() {
   const { mode, status } = useSemanticColors();
   const [toasts, setToasts] = useState([]);
+  const timeoutsRef = useRef({});
 
   useEffect(() => {
     const handleToast = toastData => {
       setToasts(prev => [...prev, toastData]);
 
-      // Auto-remove after duration
+      // Auto-remove after duration with cleanup
       const duration = toastData.duration || 3000;
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         setToasts(prev => prev.filter(t => t.id !== toastData.id));
+        delete timeoutsRef.current[toastData.id];
       }, duration);
+
+      // Store timeout for cleanup
+      timeoutsRef.current[toastData.id] = timeoutId;
     };
 
     const unsubscribe = subscribeToToasts(handleToast);
-    return unsubscribe;
+
+    // Cleanup all timeouts on unmount
+    return () => {
+      unsubscribe();
+      Object.values(timeoutsRef.current).forEach(clearTimeout);
+      timeoutsRef.current = {};
+    };
   }, []);
 
   const removeToast = id => {
     setToasts(prev => prev.filter(t => t.id !== id));
+    // Clear timeout if manually removed
+    if (timeoutsRef.current[id]) {
+      clearTimeout(timeoutsRef.current[id]);
+      delete timeoutsRef.current[id];
+    }
   };
 
   const getStatusIcon = status => {
