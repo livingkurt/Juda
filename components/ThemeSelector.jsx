@@ -25,6 +25,13 @@ export function ThemeSelector() {
           minW={{ base: "28px", md: "40px" }}
           h={{ base: "28px", md: "40px" }}
           p={{ base: 0, md: 2 }}
+          border="none"
+          outline="none"
+          boxShadow="none"
+          _hover={{ border: "none", outline: "none" }}
+          _active={{ border: "none", outline: "none" }}
+          _focus={{ border: "none", outline: "none", boxShadow: "none" }}
+          _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
         >
           <Box as="span" color="currentColor">
             <Palette size={16} stroke="currentColor" />

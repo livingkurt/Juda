@@ -178,13 +178,19 @@ const system = createSystem(defaultConfig, {
         variants: {
           variant: {
             solid: {
-              bg: { _light: "var(--theme-primary, blue.500)", _dark: "var(--theme-primary, blue.600)" },
+              bg: { _light: "var(--theme-buttonPrimary, blue.600)", _dark: "var(--theme-buttonPrimary, blue.600)" },
               color: "white",
               _hover: {
-                bg: { _light: "var(--theme-primaryHover, blue.600)", _dark: "var(--theme-primaryHover, blue.700)" },
+                bg: {
+                  _light: "var(--theme-buttonPrimaryHover, blue.700)",
+                  _dark: "var(--theme-buttonPrimaryHover, blue.500)",
+                },
               },
               _active: {
-                bg: { _light: "var(--theme-primaryActive, blue.700)", _dark: "var(--theme-primaryActive, blue.800)" },
+                bg: {
+                  _light: "var(--theme-buttonPrimaryActive, blue.800)",
+                  _dark: "var(--theme-buttonPrimaryActive, blue.400)",
+                },
               },
             },
             outline: {
@@ -217,10 +223,13 @@ const system = createSystem(defaultConfig, {
         variants: {
           variant: {
             solid: {
-              bg: { _light: "var(--theme-primary, blue.500)", _dark: "var(--theme-primary, blue.600)" },
+              bg: { _light: "var(--theme-buttonPrimary, blue.600)", _dark: "var(--theme-buttonPrimary, blue.600)" },
               color: "white",
               _hover: {
-                bg: { _light: "var(--theme-primaryHover, blue.600)", _dark: "var(--theme-primaryHover, blue.700)" },
+                bg: {
+                  _light: "var(--theme-buttonPrimaryHover, blue.700)",
+                  _dark: "var(--theme-buttonPrimaryHover, blue.500)",
+                },
               },
             },
             outline: {
