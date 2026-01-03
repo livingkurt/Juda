@@ -28,6 +28,7 @@
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@reduxjs/toolkit": "^2.11.2",
+    "@serwist/next": "^9.4.2",
     "@tiptap/extension-highlight": "^3.14.0",
     "@tiptap/extension-link": "^3.14.0",
     "@tiptap/extension-placeholder": "^3.14.0",
@@ -41,6 +42,7 @@
     "drizzle-kit": "^0.31.8",
     "drizzle-orm": "^0.45.1",
     "framer-motion": "^12.0.0",
+    "idb": "^8.0.3",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.562.0",
     "next": "^16.1.1",
@@ -48,7 +50,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-redux": "^9.2.0",
-    "recharts": "^3.6.0"
+    "recharts": "^3.6.0",
+    "serwist": "^9.4.2"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.23.0",

@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect } from "react";
 import { Provider as ReduxProvider } from "react-redux";
 import { ChakraProvider, createSystem, defaultConfig } from "@chakra-ui/react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PreferencesProvider } from "@/contexts/PreferencesContext";
 import { ToastContainer } from "@/components/ToastContainer";
 import { store } from "@/lib/store";
+import { initDB } from "@/lib/db/indexedDB";
+import { syncManager } from "@/lib/sync/syncManager";
 
 // Create a custom system that matches Chakra v2 colors and styling
 const system = createSystem(defaultConfig, {
@@ -493,14 +496,48 @@ const system = createSystem(defaultConfig, {
   },
 });
 
+// Initialize offline database
+function OfflineInitializer({ children }) {
+  useEffect(() => {
+    // Initialize IndexedDB
+    initDB().catch(console.error);
+
+    // Register for background sync
+    syncManager.registerBackgroundSync();
+
+    // Register service worker update handler
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready.then(registration => {
+        registration.addEventListener("updatefound", () => {
+          const newWorker = registration.installing;
+          const handleStateChange = () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              // New service worker available - auto-reload after a short delay
+              setTimeout(() => {
+                newWorker.postMessage({ type: "SKIP_WAITING" });
+                window.location.reload();
+              }, 1000);
+            }
+          };
+          newWorker?.addEventListener("statechange", handleStateChange);
+        });
+      });
+    }
+  }, []);
+
+  return children;
+}
+
 export function Providers({ children }) {
   return (
     <ReduxProvider store={store}>
       <ChakraProvider value={system}>
         <AuthProvider>
           <PreferencesProvider>
-            {children}
-            <ToastContainer />
+            <OfflineInitializer>
+              {children}
+              <ToastContainer />
+            </OfflineInitializer>
           </PreferencesProvider>
         </AuthProvider>
       </ChakraProvider>

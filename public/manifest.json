@@ -1,0 +1,34 @@
+{
+  "name": "Juda - Task Manager",
+  "short_name": "Juda",
+  "description": "Your daily task and habit tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#171923",
+  "theme_color": "#3182CE",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Add Task",
+      "short_name": "Add",
+      "description": "Create a new task",
+      "url": "/?action=add-task",
+      "icons": [{ "src": "/icon.png", "sizes": "96x96" }]
+    }
+  ]
+}

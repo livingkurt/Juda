@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/useToast";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { AuthPage } from "@/components/AuthPage";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { DndContext, DragOverlay, pointerWithin, closestCenter } from "@dnd-kit/core";
 import {
   Calendar,
@@ -2136,6 +2137,7 @@ export default function DailyTasksApp() {
           fetchTasks(true);
         }}
       />
+      <OfflineIndicator />
     </Box>
   );
 }
