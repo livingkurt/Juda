@@ -825,19 +825,42 @@ export default function DailyTasksApp() {
   // Legacy useMemo blocks removed - now using taskFilters hook
 
   // Progress calculation - check completion records for the selected date
+  // Shows complete, not completed, and unchecked as separate segments
   // Memoized to avoid recalculating on every render
-  const { totalTasks, completedTasks, progressPercent } = useMemo(() => {
+  const { totalTasks, completedTasks, completedPercent, notCompletedPercent, uncheckedPercent } = useMemo(() => {
     const total = filteredTodaysTasks.length;
+
+    // Count completed tasks (outcome === "completed" or completion without outcome)
     const completed = filteredTodaysTasks.filter(t => {
-      // Check if task is completed on the selected date via completion record
+      // Task is completed if outcome is "completed" or has completion record without outcome
       const isCompletedOnViewDate = isCompletedOnDate(t.id, viewDate);
       // Also check subtasks completion
       const allSubtasksComplete = t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed);
       return isCompletedOnViewDate || allSubtasksComplete;
     }).length;
-    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-    return { totalTasks: total, completedTasks: completed, progressPercent: percent };
-  }, [filteredTodaysTasks, isCompletedOnDate, viewDate]);
+
+    // Count not completed tasks (outcome === "not_completed")
+    const notCompleted = filteredTodaysTasks.filter(t => {
+      const outcome = getOutcomeOnDate(t.id, viewDate);
+      return outcome === "not_completed";
+    }).length;
+
+    // Unchecked tasks are those without any completion record (outcome === null)
+    const unchecked = total - completed - notCompleted;
+
+    // Calculate percentages based on total tasks (all three add up to 100%)
+    const completedPct = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const notCompletedPct = total > 0 ? Math.round((notCompleted / total) * 100) : 0;
+    const uncheckedPct = total > 0 ? Math.round((unchecked / total) * 100) : 0;
+
+    return {
+      totalTasks: total,
+      completedTasks: completed,
+      completedPercent: completedPct,
+      notCompletedPercent: notCompletedPct,
+      uncheckedPercent: uncheckedPct,
+    };
+  }, [filteredTodaysTasks, isCompletedOnDate, getOutcomeOnDate, viewDate]);
 
   // Section handlers - some still needed for dialogs
   const handleSaveSection = sectionOps.handleSaveSection;
@@ -1087,18 +1110,49 @@ export default function DailyTasksApp() {
                           })} Progress`}
                     </Text>
                     <Text>
-                      {completedTasks}/{totalTasks} ({progressPercent}%)
+                      {completedTasks}/{totalTasks} ({completedPercent}%)
                     </Text>
                   </Flex>
-                  <Box h={2} bg={progressBarBg} borderRadius="full" overflow="hidden">
-                    <Box
-                      h="full"
-                      bgGradient="to-r"
-                      gradientFrom={colorMode === "dark" ? "#48BB78" : "#38A169"}
-                      gradientTo={colorMode === "dark" ? "#4299E1" : "#3182CE"}
-                      transition="width 0.3s ease-in-out"
-                      width={`${progressPercent}%`}
-                    />
+                  <Box
+                    h={2}
+                    bg={progressBarBg}
+                    borderRadius="full"
+                    overflow="hidden"
+                    position="relative"
+                    display="flex"
+                  >
+                    {/* Completed segment */}
+                    {completedPercent > 0 && (
+                      <Box
+                        h="full"
+                        bgGradient="to-r"
+                        gradientFrom={colorMode === "dark" ? "#48BB78" : "#38A169"}
+                        gradientTo={colorMode === "dark" ? "#4299E1" : "#3182CE"}
+                        transition="width 0.3s ease-in-out"
+                        width={`${completedPercent}%`}
+                      />
+                    )}
+                    {/* Not completed segment */}
+                    {notCompletedPercent > 0 && (
+                      <Box
+                        h="full"
+                        bgGradient="to-r"
+                        gradientFrom={colorMode === "dark" ? "#E53E3E" : "#C53030"}
+                        gradientTo={colorMode === "dark" ? "#FC8181" : "#E53E3E"}
+                        transition="width 0.3s ease-in-out"
+                        width={`${notCompletedPercent}%`}
+                      />
+                    )}
+                    {/* Unchecked segment - translucent background */}
+                    {uncheckedPercent > 0 && (
+                      <Box
+                        h="full"
+                        bg={progressBarBg}
+                        opacity={0.5}
+                        transition="width 0.3s ease-in-out"
+                        width={`${uncheckedPercent}%`}
+                      />
+                    )}
                   </Box>
                 </Box>
               )}
@@ -1266,18 +1320,49 @@ export default function DailyTasksApp() {
                                   })} Progress`}
                             </Text>
                             <Text>
-                              {completedTasks}/{totalTasks} ({progressPercent}%)
+                              {completedTasks}/{totalTasks} ({completedPercent}%)
                             </Text>
                           </Flex>
-                          <Box h={2} bg={progressBarBg} borderRadius="full" overflow="hidden">
-                            <Box
-                              h="full"
-                              bgGradient="to-r"
-                              gradientFrom="blue.500"
-                              gradientTo="green.500"
-                              transition="width 0.3s ease-in-out"
-                              width={`${progressPercent}%`}
-                            />
+                          <Box
+                            h={2}
+                            bg={progressBarBg}
+                            borderRadius="full"
+                            overflow="hidden"
+                            position="relative"
+                            display="flex"
+                          >
+                            {/* Completed segment */}
+                            {completedPercent > 0 && (
+                              <Box
+                                h="full"
+                                bgGradient="to-r"
+                                gradientFrom={colorMode === "dark" ? "#48BB78" : "#38A169"}
+                                gradientTo={colorMode === "dark" ? "#4299E1" : "#3182CE"}
+                                transition="width 0.3s ease-in-out"
+                                width={`${completedPercent}%`}
+                              />
+                            )}
+                            {/* Not completed segment */}
+                            {notCompletedPercent > 0 && (
+                              <Box
+                                h="full"
+                                bgGradient="to-r"
+                                gradientFrom={colorMode === "dark" ? "#E53E3E" : "#C53030"}
+                                gradientTo={colorMode === "dark" ? "#FC8181" : "#E53E3E"}
+                                transition="width 0.3s ease-in-out"
+                                width={`${notCompletedPercent}%`}
+                              />
+                            )}
+                            {/* Unchecked segment - translucent background */}
+                            {uncheckedPercent > 0 && (
+                              <Box
+                                h="full"
+                                bg={progressBarBg}
+                                opacity={0.5}
+                                transition="width 0.3s ease-in-out"
+                                width={`${uncheckedPercent}%`}
+                              />
+                            )}
                           </Box>
                         </Box>
 
