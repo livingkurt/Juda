@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useSelector } from "react-redux";
+import { useRef, useCallback, useEffect, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
 import { useToast } from "@/hooks/useToast";
 import { useGetTasksQuery, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
@@ -14,6 +14,11 @@ import {
 } from "@/lib/store/api/completionsApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
+import {
+  addRecentlyCompletedTask,
+  removeRecentlyCompletedTask,
+  clearRecentlyCompletedTasks,
+} from "@/lib/store/slices/uiSlice";
 
 /**
  * Handles task completion, outcomes, and recently completed tracking
@@ -25,10 +30,12 @@ export function useCompletionHandlers({
   setAutoCollapsedSections,
   checkAndAutoCollapseSection,
 } = {}) {
+  const dispatch = useDispatch();
   const { toast } = useToast();
 
   // Get state from Redux
   const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const recentlyCompletedTasksArray = useSelector(state => state.ui.recentlyCompletedTasks);
 
   // Compute dates
   const today = useMemo(() => {
@@ -57,6 +64,9 @@ export function useCompletionHandlers({
 
   // Completion helpers
   const { isCompletedOnDate } = useCompletionHelpers();
+
+  // Convert array to Set for efficient lookups (maintaining backward compatibility)
+  const recentlyCompletedTasks = useMemo(() => new Set(recentlyCompletedTasksArray), [recentlyCompletedTasksArray]);
 
   // Wrapper functions
   const updateTask = useCallback(
@@ -101,11 +111,10 @@ export function useCompletionHandlers({
     [batchDeleteCompletionsMutation]
   );
 
-  // Track recently completed tasks (for delayed hiding)
-  const [recentlyCompletedTasks, setRecentlyCompletedTasks] = useState(new Set());
+  // Track timeouts for recently completed tasks
   const recentlyCompletedTimeoutsRef = useRef({});
 
-  // Cleanup timeouts when component unmounts or when showCompletedTasks changes
+  // Cleanup timeouts when component unmounts
   useEffect(() => {
     return () => {
       Object.values(recentlyCompletedTimeoutsRef.current).forEach(timeout => {
@@ -118,31 +127,30 @@ export function useCompletionHandlers({
   // Clear recently completed tasks when showCompletedTasks is turned on
   useEffect(() => {
     if (showCompletedTasks) {
-      setRecentlyCompletedTasks(new Set());
+      dispatch(clearRecentlyCompletedTasks());
       Object.values(recentlyCompletedTimeoutsRef.current).forEach(timeout => {
         clearTimeout(timeout);
       });
       recentlyCompletedTimeoutsRef.current = {};
     }
-  }, [showCompletedTasks]);
+  }, [showCompletedTasks, dispatch]);
 
   // Remove from recently completed
-  const removeFromRecentlyCompleted = useCallback(taskId => {
-    setRecentlyCompletedTasks(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(taskId);
-      return newSet;
-    });
-    if (recentlyCompletedTimeoutsRef.current[taskId]) {
-      clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
-      delete recentlyCompletedTimeoutsRef.current[taskId];
-    }
-  }, []);
+  const removeFromRecentlyCompleted = useCallback(
+    taskId => {
+      dispatch(removeRecentlyCompletedTask(taskId));
+      if (recentlyCompletedTimeoutsRef.current[taskId]) {
+        clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
+        delete recentlyCompletedTimeoutsRef.current[taskId];
+      }
+    },
+    [dispatch]
+  );
 
   // Add to recently completed with timeout
   const addToRecentlyCompleted = useCallback(
     (taskId, sectionId) => {
-      setRecentlyCompletedTasks(prev => new Set(prev).add(taskId));
+      dispatch(addRecentlyCompletedTask(taskId));
 
       if (recentlyCompletedTimeoutsRef.current[taskId]) {
         clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
@@ -161,7 +169,7 @@ export function useCompletionHandlers({
         }
       }, 2000);
     },
-    [removeFromRecentlyCompleted, checkAndAutoCollapseSection]
+    [dispatch, removeFromRecentlyCompleted, checkAndAutoCollapseSection]
   );
 
   // Collect subtask completions for batch operations

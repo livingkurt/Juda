@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, memo, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useState, useMemo, memo, useRef, useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Box, Flex, VStack, HStack, Text, IconButton, Badge, Input } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -15,6 +15,7 @@ import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useDialogState } from "@/hooks/useDialogState";
+import { setKanbanSearchTerm, setKanbanSelectedTagIds } from "@/lib/store/slices/uiSlice";
 
 // Kanban column component
 const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, createDraggableId }) {
@@ -233,8 +234,11 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
 
 // Main Kanban View component
 export const KanbanView = memo(function KanbanView({ createDraggableId }) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTagIds, setSelectedTagIds] = useState([]);
+  const dispatch = useDispatch();
+
+  // Get search/filter state from Redux
+  const searchTerm = useSelector(state => state.ui.kanbanSearchTerm);
+  const selectedTagIds = useSelector(state => state.ui.kanbanSelectedTagIds);
 
   // Use hooks directly (they use Redux internally)
   const completionHandlers = useCompletionHandlers();
@@ -292,13 +296,19 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
     [filteredTasks]
   );
 
-  const handleTagSelect = tagId => {
-    setSelectedTagIds(prev => [...prev, tagId]);
-  };
+  const handleTagSelect = useCallback(
+    tagId => {
+      dispatch(setKanbanSelectedTagIds([...selectedTagIds, tagId]));
+    },
+    [dispatch, selectedTagIds]
+  );
 
-  const handleTagDeselect = tagId => {
-    setSelectedTagIds(prev => prev.filter(id => id !== tagId));
-  };
+  const handleTagDeselect = useCallback(
+    tagId => {
+      dispatch(setKanbanSelectedTagIds(selectedTagIds.filter(id => id !== tagId)));
+    },
+    [dispatch, selectedTagIds]
+  );
 
   const columns = [
     { id: "todo", title: "Todo", color: "gray.400" },
@@ -312,7 +322,7 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
       <Box mb={4}>
         <HStack spacing={4} align="center">
           <Box flex={1} maxW="300px">
-            <TaskSearchInput onSearchChange={setSearchTerm} />
+            <TaskSearchInput onSearchChange={term => dispatch(setKanbanSearchTerm(term))} />
           </Box>
           <TagFilter
             tags={tags}

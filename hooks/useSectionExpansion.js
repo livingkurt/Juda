@@ -1,10 +1,24 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useMemo, useRef, useCallback, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  addAutoCollapsedSection,
+  setAutoCollapsedSections as setAutoCollapsedSectionsAction,
+  setManuallyExpandedSections as setManuallyExpandedSectionsAction,
+} from "@/lib/store/slices/sectionExpansionSlice";
 
 export function useSectionExpansion({ sections, showCompletedTasks, tasksBySection }) {
-  // Track sections that are auto-collapsed (not manually collapsed by user)
-  const [autoCollapsedSections, setAutoCollapsedSections] = useState(new Set());
-  // Track sections that were manually expanded after being auto-collapsed (to prevent re-collapsing)
-  const [manuallyExpandedSections, setManuallyExpandedSections] = useState(new Set());
+  const dispatch = useDispatch();
+
+  // Get from Redux instead of useState
+  const autoCollapsedSectionsArray = useSelector(state => state.sectionExpansion.autoCollapsedSections);
+  const manuallyExpandedSectionsArray = useSelector(state => state.sectionExpansion.manuallyExpandedSections);
+
+  // Convert arrays to Sets for efficient lookups (maintaining backward compatibility)
+  const autoCollapsedSections = useMemo(() => new Set(autoCollapsedSectionsArray), [autoCollapsedSectionsArray]);
+  const manuallyExpandedSections = useMemo(
+    () => new Set(manuallyExpandedSectionsArray),
+    [manuallyExpandedSectionsArray]
+  );
 
   // Helper function to check if a section should be auto-collapsed after task completion/not completed
   // Using useRef to store the latest check function to avoid stale closures in setTimeout
@@ -30,14 +44,10 @@ export function useSectionExpansion({ sections, showCompletedTasks, tasksBySecti
 
       // Auto-collapse if no visible tasks remain
       if (visibleTasks.length === 0) {
-        setAutoCollapsedSections(prev => {
-          const newSet = new Set(prev);
-          newSet.add(sectionId);
-          return newSet;
-        });
+        dispatch(addAutoCollapsedSection(sectionId));
       }
     };
-  }, [showCompletedTasks, tasksBySection, manuallyExpandedSections]);
+  }, [showCompletedTasks, tasksBySection, manuallyExpandedSections, dispatch]);
 
   // Sort sections by order
   const sortedSections = useMemo(() => {
@@ -57,6 +67,37 @@ export function useSectionExpansion({ sections, showCompletedTasks, tasksBySecti
       };
     });
   }, [sortedSections, autoCollapsedSections]);
+
+  // Wrapper functions to maintain backward compatibility with existing code
+  const setAutoCollapsedSections = useCallback(
+    updater => {
+      if (typeof updater === "function") {
+        // Handle function updater (prev => newSet)
+        const newSet = updater(autoCollapsedSections);
+        dispatch(setAutoCollapsedSectionsAction(Array.from(newSet)));
+      } else {
+        // Handle direct value (Set or Array)
+        const array = updater instanceof Set ? Array.from(updater) : updater;
+        dispatch(setAutoCollapsedSectionsAction(array));
+      }
+    },
+    [dispatch, autoCollapsedSections]
+  );
+
+  const setManuallyExpandedSections = useCallback(
+    updater => {
+      if (typeof updater === "function") {
+        // Handle function updater (prev => newSet)
+        const newSet = updater(manuallyExpandedSections);
+        dispatch(setManuallyExpandedSectionsAction(Array.from(newSet)));
+      } else {
+        // Handle direct value (Set or Array)
+        const array = updater instanceof Set ? Array.from(updater) : updater;
+        dispatch(setManuallyExpandedSectionsAction(array));
+      }
+    },
+    [dispatch, manuallyExpandedSections]
+  );
 
   return {
     autoCollapsedSections,

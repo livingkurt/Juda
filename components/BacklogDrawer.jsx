@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo, useCallback, memo, useRef } from "react";
+import { useMemo, useCallback, memo, useRef, useState } from "react";
 import { Box, VStack, HStack, Flex, Text, IconButton, Badge, Heading, Input } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
@@ -14,8 +14,13 @@ import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
+import {
+  setBacklogSearchTerm as setBacklogSearchTermAction,
+  setBacklogSelectedTagIds,
+} from "@/lib/store/slices/uiSlice";
 
 const BacklogDrawerComponent = ({ createDraggableId }) => {
+  const dispatch = useDispatch();
   const { mode, dnd } = useSemanticColors();
 
   const bgColor = mode.bg.surface;
@@ -28,6 +33,10 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   // Get Redux state directly
   const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
   const viewDate = todayViewDateISO ? new Date(todayViewDateISO) : new Date();
+
+  // Get search/filter state from Redux
+  const searchTerm = useSelector(state => state.ui.backlogSearchTerm);
+  const selectedTagIds = useSelector(state => state.ui.backlogSelectedTagIds);
 
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
@@ -42,8 +51,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
 
   const backlogTasks = taskFilters.backlogTasks;
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTagIds, setSelectedTagIds] = useState([]);
+  // Local UI state (not shared)
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [inlineInputValue, setInlineInputValue] = useState("");
   const [isInlineInputActive, setIsInlineInputActive] = useState(false);
@@ -67,13 +75,19 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     return result;
   }, [backlogTasks, searchTerm, selectedTagIds]);
 
-  const handleTagSelect = useCallback(tagId => {
-    setSelectedTagIds(prev => [...prev, tagId]);
-  }, []);
+  const handleTagSelect = useCallback(
+    tagId => {
+      dispatch(setBacklogSelectedTagIds([...selectedTagIds, tagId]));
+    },
+    [dispatch, selectedTagIds]
+  );
 
-  const handleTagDeselect = useCallback(tagId => {
-    setSelectedTagIds(prev => prev.filter(id => id !== tagId));
-  }, []);
+  const handleTagDeselect = useCallback(
+    tagId => {
+      dispatch(setBacklogSelectedTagIds(selectedTagIds.filter(id => id !== tagId)));
+    },
+    [dispatch, selectedTagIds]
+  );
 
   const handleInlineInputClick = () => {
     setIsInlineInputActive(true);
@@ -154,7 +168,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
         </Badge>
         <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
           <Box flex={1} minW={0}>
-            <TaskSearchInput onSearchChange={setSearchTerm} />
+            <TaskSearchInput onSearchChange={term => dispatch(setBacklogSearchTermAction(term))} />
           </Box>
           <TagFilter
             tags={tags}
