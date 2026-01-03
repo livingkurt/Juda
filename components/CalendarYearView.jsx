@@ -5,6 +5,7 @@ import { Box, Flex, VStack, Text, Menu, Portal } from "@chakra-ui/react";
 import { shouldShowOnDate, getTaskDisplayColor } from "@/lib/utils";
 import { MONTH_OPTIONS } from "@/lib/constants";
 import { Calendar } from "lucide-react";
+import { TaskCardMini } from "./shared/TaskCardMini";
 import { TaskContextMenu } from "./TaskContextMenu";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
@@ -259,28 +260,16 @@ export const CalendarYearView = ({
                       {valid && (
                         <VStack spacing={zoom >= 1.0 ? 0.5 : 0.25} align="stretch" flex={1} overflow="hidden">
                           {visibleTasks.map(task => {
-                            const taskColor = getTaskDisplayColor(task);
+                            const targetDate = new Date(year, monthIndex, day);
+                            targetDate.setHours(0, 0, 0, 0);
                             return (
-                              <Box
+                              <TaskCardMini
                                 key={task.id}
-                                fontSize={{
-                                  base: zoom >= 1.5 ? "2xs" : zoom >= 1.0 ? "3xs" : "4xs",
-                                  md: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
-                                }}
-                                px={zoom >= 1.0 ? 0.5 : 0.25}
-                                py={zoom >= 1.0 ? 0.5 : 0.25}
-                                borderRadius="md"
-                                isTruncated
-                                color={taskColor ? "white" : undefined}
-                                bg={taskColor || mode.task.neutral}
-                                title={task.title}
-                                lineHeight={zoom >= 1.5 ? 1.2 : zoom >= 1.0 ? 1.1 : 1}
-                                overflow="hidden"
-                                textOverflow="ellipsis"
-                                whiteSpace="nowrap"
-                              >
-                                {task.title}
-                              </Box>
+                                task={task}
+                                zoom={zoom}
+                                isCompleted={isCompletedOnDate(task.id, targetDate)}
+                                outcome={getOutcomeOnDate ? getOutcomeOnDate(task.id, targetDate) : null}
+                              />
                             );
                           })}
                           {remainingCount > 0 && (

@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Box, Flex, SimpleGrid, Menu, Portal } from "@chakra-ui/react";
-import { shouldShowOnDate, getTaskDisplayColor } from "@/lib/utils";
+import { Box, Flex, SimpleGrid } from "@chakra-ui/react";
+import { shouldShowOnDate } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
-import { TaskContextMenu } from "./TaskContextMenu";
+import { TaskCardCompact } from "./shared/TaskCardCompact";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const CalendarMonthView = ({
@@ -21,7 +20,6 @@ export const CalendarMonthView = ({
   onDuplicate,
   onDelete,
 }) => {
-  const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
   const { mode, calendar } = useSemanticColors();
 
   const bgColor = mode.bg.surface;
@@ -130,65 +128,23 @@ export const CalendarMonthView = ({
                     {day.getDate()}
                   </Box>
                   {dayTasks.map(task => {
-                    const isMenuOpen = openMenuTaskId === task.id;
-                    const isRecurring = task.recurrence && task.recurrence.type !== "none";
-                    const isWorkoutTask = task.completionType === "workout";
+                    const isCompleted = isCompletedOnDate(task.id, day);
                     const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
 
                     return (
-                      <Menu.Root
+                      <TaskCardCompact
                         key={task.id}
-                        open={isMenuOpen}
-                        onOpenChange={isOpen => {
-                          if (isOpen) {
-                            setOpenMenuTaskId(task.id);
-                          } else {
-                            setOpenMenuTaskId(null);
-                          }
-                        }}
-                      >
-                        <Menu.Trigger asChild>
-                          <Box
-                            fontSize={{
-                              base: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
-                              md: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
-                            }}
-                            px={1}
-                            py={0.5}
-                            borderRadius="md"
-                            isTruncated
-                            color={getTaskDisplayColor(task) ? "white" : undefined}
-                            mb={0.5}
-                            bg={getTaskDisplayColor(task) || mode.task.neutral}
-                            cursor="pointer"
-                            _hover={{ opacity: 0.8 }}
-                            onClick={e => {
-                              e.stopPropagation();
-                            }}
-                          >
-                            {task.title}
-                          </Box>
-                        </Menu.Trigger>
-                        <Portal>
-                          <Menu.Positioner>
-                            <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-                              <TaskContextMenu
-                                task={task}
-                                date={day}
-                                isRecurring={isRecurring}
-                                isWorkoutTask={isWorkoutTask}
-                                outcome={outcome}
-                                onEdit={onEdit}
-                                onEditWorkout={onEditWorkout}
-                                onOutcomeChange={onOutcomeChange}
-                                onDuplicate={onDuplicate}
-                                onDelete={onDelete}
-                                onClose={() => setOpenMenuTaskId(null)}
-                              />
-                            </Menu.Content>
-                          </Menu.Positioner>
-                        </Portal>
-                      </Menu.Root>
+                        task={task}
+                        date={day}
+                        zoom={zoom}
+                        isCompleted={isCompleted}
+                        outcome={outcome}
+                        onEdit={onEdit}
+                        onEditWorkout={onEditWorkout}
+                        onDuplicate={onDuplicate}
+                        onDelete={onDelete}
+                        onOutcomeChange={onOutcomeChange}
+                      />
                     );
                   })}
                 </Box>

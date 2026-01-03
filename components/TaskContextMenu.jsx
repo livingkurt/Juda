@@ -1,7 +1,8 @@
 "use client";
 
 import { HStack, Box, Text, Menu } from "@chakra-ui/react";
-import { Edit2, Check, X, Circle, Copy, Trash2, Dumbbell } from "lucide-react";
+import { Edit2, Check, X, Circle, Copy, Trash2, Dumbbell, Clock } from "lucide-react";
+import { TagMenuSelector } from "./TagMenuSelector";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const TaskContextMenu = ({
@@ -10,21 +11,32 @@ export const TaskContextMenu = ({
   isRecurring,
   isWorkoutTask,
   outcome,
-  onEditTask,
+  onEdit,
   onEditWorkout,
   onOutcomeChange,
-  onDuplicateTask,
-  onDeleteTask,
+  onDuplicate,
+  onDelete,
   onClose,
+  tags,
+  onTagsChange,
+  onCreateTag,
+  onStatusChange,
 }) => {
   const { mode } = useSemanticColors();
+
+  // Support both naming conventions
+  const handleEdit = onEdit;
+  const handleDuplicate = onDuplicate;
+  const handleDelete = onDelete;
+
   return (
     <>
-      {onEditTask && (
+      {/* Edit - always show if handler provided */}
+      {handleEdit && (
         <Menu.Item
           onClick={e => {
             e.stopPropagation();
-            onEditTask(task);
+            handleEdit(task);
             onClose?.();
           }}
         >
@@ -136,12 +148,87 @@ export const TaskContextMenu = ({
           <Menu.Separator />
         </>
       )}
-
-      {onDuplicateTask && (
+      {/* Status options for non-recurring tasks */}
+      {onStatusChange && !isRecurring && (
+        <>
+          <Menu.Separator />
+          <Menu.Item
+            onClick={e => {
+              e.stopPropagation();
+              onStatusChange(task.id, "todo");
+              onClose?.();
+            }}
+            disabled={task.status === "todo"}
+          >
+            <HStack gap={2}>
+              <Box
+                as="span"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                w="14px"
+                h="14px"
+                flexShrink={0}
+              >
+                <Circle size={14} />
+              </Box>
+              <Text>Set to Todo</Text>
+            </HStack>
+          </Menu.Item>
+          <Menu.Item
+            onClick={e => {
+              e.stopPropagation();
+              onStatusChange(task.id, "in_progress");
+              onClose?.();
+            }}
+            disabled={task.status === "in_progress"}
+          >
+            <HStack gap={2}>
+              <Box
+                as="span"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                w="14px"
+                h="14px"
+                flexShrink={0}
+              >
+                <Clock size={14} />
+              </Box>
+              <Text>Set to In Progress</Text>
+            </HStack>
+          </Menu.Item>
+          <Menu.Item
+            onClick={e => {
+              e.stopPropagation();
+              onStatusChange(task.id, "complete");
+              onClose?.();
+            }}
+            disabled={task.status === "complete"}
+          >
+            <HStack gap={2}>
+              <Box
+                as="span"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                w="14px"
+                h="14px"
+                flexShrink={0}
+              >
+                <Check size={14} />
+              </Box>
+              <Text>Set to Complete</Text>
+            </HStack>
+          </Menu.Item>
+          <Menu.Separator />
+        </>
+      )}
+      {handleDuplicate && (
         <Menu.Item
           onClick={e => {
             e.stopPropagation();
-            onDuplicateTask(task.id);
+            handleDuplicate(task.id);
             onClose?.();
           }}
         >
@@ -154,11 +241,16 @@ export const TaskContextMenu = ({
         </Menu.Item>
       )}
 
-      {onDeleteTask && (
+      {/* Tags submenu */}
+      {tags && onTagsChange && onCreateTag && (
+        <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
+      )}
+
+      {handleDelete && (
         <Menu.Item
           onClick={e => {
             e.stopPropagation();
-            onDeleteTask(task.id);
+            handleDelete(task.id);
             onClose?.();
           }}
           color={mode.status.error}

@@ -22,9 +22,6 @@ import {
   ChevronRight,
   Clock,
   Edit2,
-  Trash2,
-  Copy,
-  AlertCircle,
   MoreVertical,
   Check,
   X,
@@ -33,9 +30,10 @@ import {
   CheckCircle,
   Dumbbell,
 } from "lucide-react";
-import { formatTime, isOverdue, getRecurrenceLabel, getTaskDisplayColor } from "@/lib/utils";
+import { formatTime, getTaskDisplayColor, isOverdue } from "@/lib/utils";
 import { TagChip } from "./TagChip";
-import { TagMenuSelector } from "./TagMenuSelector";
+import { TaskBadges } from "./shared/TaskBadges";
+import { TaskContextMenu } from "./TaskContextMenu";
 import { useWorkoutProgress } from "@/hooks/useWorkoutProgress";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
@@ -77,7 +75,7 @@ export const TaskItem = ({
   const isToday = variant === "today";
   const isSubtask = variant === "subtask";
 
-  const { mode, badges } = useSemanticColors();
+  const { mode } = useSemanticColors();
 
   const bgColor = mode.bg.surface;
   const hoverBg = mode.bg.surfaceHover;
@@ -615,24 +613,6 @@ export const TaskItem = ({
             {/* Badges - show for backlog and today variants */}
             {(isBacklog || isToday) && (
               <HStack spacing={{ base: 1, md: 2 }} mt={{ base: 0.5, md: 1 }} align="center" flexWrap="wrap">
-                {/* Overdue badge - hide if task is in_progress */}
-                {task.status !== "in_progress" &&
-                  isOverdue(task, viewDate, hasRecordOnDate ? hasRecordOnDate(task.id, viewDate) : task.completed) && (
-                    <Badge
-                      size={{ base: "xs", md: "sm" }}
-                      colorPalette={badges.overdue.colorPalette}
-                      fontSize={{ base: "3xs", md: "2xs" }}
-                      py={{ base: 0, md: 1 }}
-                      px={{ base: 1, md: 2 }}
-                    >
-                      <HStack spacing={{ base: 0.5, md: 1 }} align="center">
-                        <Box as="span" color="currentColor">
-                          <AlertCircle size={10} stroke="currentColor" />
-                        </Box>
-                        <Text as="span">Overdue</Text>
-                      </HStack>
-                    </Badge>
-                  )}
                 {/* Status badge - only show for non-recurring tasks */}
                 {!isRecurring && task.status && (
                   <Badge
@@ -664,40 +644,15 @@ export const TaskItem = ({
                     </HStack>
                   </Badge>
                 )}
-                {task.recurrence && task.recurrence.type !== "none" && (
-                  <Badge
-                    size={{ base: "xs", md: "sm" }}
-                    colorPalette={badges.recurring.colorPalette}
-                    fontSize={{ base: "3xs", md: "2xs" }}
-                    py={{ base: 0, md: 1 }}
-                    px={{ base: 1, md: 2 }}
-                  >
-                    {getRecurrenceLabel(task.recurrence) || "Recurring"}
-                  </Badge>
-                )}
-                {task.recurrence?.endDate && (
-                  <Badge
-                    size={{ base: "xs", md: "sm" }}
-                    colorPalette={badges.noTime.colorPalette}
-                    fontSize={{ base: "3xs", md: "2xs" }}
-                    py={{ base: 0, md: 1 }}
-                    px={{ base: 1, md: 2 }}
-                  >
-                    Ends{" "}
-                    {new Date(task.recurrence.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  </Badge>
-                )}
-                {!task.time && !isBacklog && (
-                  <Badge
-                    size={{ base: "xs", md: "sm" }}
-                    colorPalette={badges.noTime.colorPalette}
-                    fontSize={{ base: "3xs", md: "2xs" }}
-                    py={{ base: 0, md: 1 }}
-                    px={{ base: 1, md: 2 }}
-                  >
-                    No time
-                  </Badge>
-                )}
+                {/* Shared task badges component */}
+                <TaskBadges
+                  task={task}
+                  viewDate={viewDate}
+                  size={variant === "kanban" ? "xs" : "sm"}
+                  showNoTime={!isBacklog}
+                  showEndDate={true}
+                  hasRecordOnDate={hasRecordOnDate}
+                />
                 {/* Tags inline with badges */}
                 {task.tags && task.tags.length > 0 && (
                   <>
@@ -821,174 +776,24 @@ export const TaskItem = ({
                       <Menu.Separator />
                     </>
                   )}
-                  <Menu.Item
-                    onClick={e => {
-                      e.stopPropagation();
-                      onEdit?.(task);
-                      setActionMenuOpen(false);
-                    }}
-                  >
-                    <HStack gap={2}>
-                      <Box
-                        as="span"
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        w="14px"
-                        h="14px"
-                        flexShrink={0}
-                      >
-                        <Edit2 size={14} />
-                      </Box>
-                      <Text>Edit</Text>
-                    </HStack>
-                  </Menu.Item>
-                  {/* Edit Workout option for workout-type tasks */}
-                  {isWorkoutTask && onEditWorkout && (
-                    <Menu.Item
-                      onClick={e => {
-                        e.stopPropagation();
-                        onEditWorkout(task);
-                        setActionMenuOpen(false);
-                      }}
-                    >
-                      <HStack gap={2}>
-                        <Box
-                          as="span"
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="center"
-                          w="14px"
-                          h="14px"
-                          flexShrink={0}
-                        >
-                          <Dumbbell size={14} />
-                        </Box>
-                        <Text>Edit Workout</Text>
-                      </HStack>
-                    </Menu.Item>
-                  )}
-                  {/* Not Completed option for recurring tasks in today view */}
-                  {isToday && !taskIsOverdue && onOutcomeChange && isRecurring && (
-                    <Menu.Item
-                      onClick={e => {
-                        e.stopPropagation();
-                        onOutcomeChange(task.id, viewDate, "not_completed");
-                        setActionMenuOpen(false);
-                      }}
-                    >
-                      <HStack gap={2}>
-                        <Box
-                          as="span"
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="center"
-                          w="14px"
-                          h="14px"
-                          flexShrink={0}
-                        >
-                          <X size={14} />
-                        </Box>
-                        <Text>Not Completed</Text>
-                      </HStack>
-                    </Menu.Item>
-                  )}
-                  {onDuplicate && (
-                    <Menu.Item
-                      onClick={e => {
-                        e.stopPropagation();
-                        onDuplicate(task.id);
-                        setActionMenuOpen(false);
-                      }}
-                    >
-                      <HStack gap={2}>
-                        <Box
-                          as="span"
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="center"
-                          w="14px"
-                          h="14px"
-                          flexShrink={0}
-                        >
-                          <Copy size={14} />
-                        </Box>
-                        <Text>Duplicate</Text>
-                      </HStack>
-                    </Menu.Item>
-                  )}
-                  {/* Tags submenu */}
-                  {tags && onTagsChange && onCreateTag ? (
-                    <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
-                  ) : null}
-                  {/* Status options for non-recurring tasks */}
-                  {onStatusChange && !isRecurring && (
-                    <>
-                      <Menu.Separator />
-                      <Menu.Item
-                        onClick={e => {
-                          e.stopPropagation();
-                          onStatusChange(task.id, "todo");
-                          setActionMenuOpen(false);
-                        }}
-                        disabled={task.status === "todo"}
-                      >
-                        <HStack gap={2}>
-                          <Circle size={14} />
-                          <Text>Set to Todo</Text>
-                        </HStack>
-                      </Menu.Item>
-                      <Menu.Item
-                        onClick={e => {
-                          e.stopPropagation();
-                          onStatusChange(task.id, "in_progress");
-                          setActionMenuOpen(false);
-                        }}
-                        disabled={task.status === "in_progress"}
-                      >
-                        <HStack gap={2}>
-                          <Clock size={14} />
-                          <Text>Set to In Progress</Text>
-                        </HStack>
-                      </Menu.Item>
-                      <Menu.Item
-                        onClick={e => {
-                          e.stopPropagation();
-                          onStatusChange(task.id, "complete");
-                          setActionMenuOpen(false);
-                        }}
-                        disabled={task.status === "complete"}
-                      >
-                        <HStack gap={2}>
-                          <Check size={14} />
-                          <Text>Set to Complete</Text>
-                        </HStack>
-                      </Menu.Item>
-                    </>
-                  )}
-                  <Menu.Item
-                    color={mode.status.error}
-                    onClick={e => {
-                      e.stopPropagation();
-                      isSubtask ? onDelete?.(parentTaskId, task.id) : onDelete?.(task.id);
-                      setActionMenuOpen(false);
-                    }}
-                  >
-                    <HStack gap={2}>
-                      <Box
-                        as="span"
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        w="14px"
-                        h="14px"
-                        flexShrink={0}
-                      >
-                        <Trash2 size={14} />
-                      </Box>
-                      <Text>Delete</Text>
-                    </HStack>
-                  </Menu.Item>
+                  {/* Shared context menu for common actions */}
+                  <TaskContextMenu
+                    task={task}
+                    date={viewDate}
+                    isRecurring={isRecurring}
+                    isWorkoutTask={isWorkoutTask}
+                    outcome={outcome}
+                    onEdit={onEdit}
+                    onEditWorkout={onEditWorkout}
+                    onDuplicate={onDuplicate}
+                    onDelete={isSubtask ? taskId => onDelete?.(parentTaskId, taskId) : onDelete}
+                    onOutcomeChange={onOutcomeChange}
+                    onClose={() => setActionMenuOpen(false)}
+                    tags={tags}
+                    onTagsChange={onTagsChange}
+                    onCreateTag={onCreateTag}
+                    onStatusChange={onStatusChange}
+                  />
                 </Menu.Content>
               </Menu.Positioner>
             </Portal>

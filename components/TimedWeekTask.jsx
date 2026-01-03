@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Text, Menu, HStack, Portal } from "@chakra-ui/react";
+import { Box, Text, Menu, Portal } from "@chakra-ui/react";
 import { useDraggable } from "@dnd-kit/core";
 import { getTaskDisplayColor } from "@/lib/utils";
-import { Edit2, X, Copy, Trash2, Check, Circle, Dumbbell } from "lucide-react";
 import { TagMenuSelector } from "./TagMenuSelector";
+import { TaskContextMenu } from "./TaskContextMenu";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const TimedWeekTask = ({
@@ -118,188 +118,22 @@ export const TimedWeekTask = ({
         <Portal>
           <Menu.Positioner>
             <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-              {onEdit && (
-                <Menu.Item
-                  onClick={e => {
-                    e.stopPropagation();
-                    onEdit(task);
-                    setMenuOpen(false);
-                  }}
-                >
-                  <HStack gap={2}>
-                    <Box
-                      as="span"
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                      w="14px"
-                      h="14px"
-                      flexShrink={0}
-                    >
-                      <Edit2 size={14} />
-                    </Box>
-                    <Text>Edit</Text>
-                  </HStack>
-                </Menu.Item>
-              )}
-              {/* Edit Workout option for workout-type tasks */}
-              {isWorkoutTask && onEditWorkout && (
-                <Menu.Item
-                  onClick={e => {
-                    e.stopPropagation();
-                    onEditWorkout(task);
-                    setMenuOpen(false);
-                  }}
-                >
-                  <HStack gap={2}>
-                    <Box
-                      as="span"
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                      w="14px"
-                      h="14px"
-                      flexShrink={0}
-                    >
-                      <Dumbbell size={14} />
-                    </Box>
-                    <Text>Edit Workout</Text>
-                  </HStack>
-                </Menu.Item>
-              )}
-              {/* Completion options for recurring tasks */}
-              {isRecurring && onOutcomeChange && (
-                <>
-                  {outcome !== null && (
-                    <>
-                      <Menu.Item
-                        onClick={e => {
-                          e.stopPropagation();
-                          onOutcomeChange(task.id, day, null);
-                          setMenuOpen(false);
-                        }}
-                      >
-                        <HStack gap={2}>
-                          <Box
-                            as="span"
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="center"
-                            w="14px"
-                            h="14px"
-                            flexShrink={0}
-                          >
-                            <Circle size={14} />
-                          </Box>
-                          <Text>Uncheck</Text>
-                        </HStack>
-                      </Menu.Item>
-                      <Menu.Separator />
-                    </>
-                  )}
-                  {outcome !== "completed" && (
-                    <Menu.Item
-                      onClick={e => {
-                        e.stopPropagation();
-                        onOutcomeChange(task.id, day, "completed");
-                        setMenuOpen(false);
-                      }}
-                    >
-                      <HStack gap={2}>
-                        <Box
-                          as="span"
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="center"
-                          w="14px"
-                          h="14px"
-                          flexShrink={0}
-                        >
-                          <Check size={14} />
-                        </Box>
-                        <Text>Complete</Text>
-                      </HStack>
-                    </Menu.Item>
-                  )}
-                  {outcome !== "not_completed" && (
-                    <Menu.Item
-                      onClick={e => {
-                        e.stopPropagation();
-                        onOutcomeChange(task.id, day, "not_completed");
-                        setMenuOpen(false);
-                      }}
-                    >
-                      <HStack gap={2}>
-                        <Box
-                          as="span"
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="center"
-                          w="14px"
-                          h="14px"
-                          flexShrink={0}
-                        >
-                          <X size={14} />
-                        </Box>
-                        <Text>Not Completed</Text>
-                      </HStack>
-                    </Menu.Item>
-                  )}
-                  <Menu.Separator />
-                </>
-              )}
-              {onDuplicate && (
-                <Menu.Item
-                  onClick={e => {
-                    e.stopPropagation();
-                    onDuplicate(task.id);
-                    setMenuOpen(false);
-                  }}
-                >
-                  <HStack gap={2}>
-                    <Box
-                      as="span"
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                      w="14px"
-                      h="14px"
-                      flexShrink={0}
-                    >
-                      <Copy size={14} />
-                    </Box>
-                    <Text>Duplicate</Text>
-                  </HStack>
-                </Menu.Item>
-              )}
+              <TaskContextMenu
+                task={task}
+                date={day}
+                isRecurring={isRecurring}
+                isWorkoutTask={isWorkoutTask}
+                outcome={outcome}
+                onEdit={onEdit}
+                onEditWorkout={onEditWorkout}
+                onDuplicate={onDuplicate}
+                onDelete={onDelete}
+                onOutcomeChange={onOutcomeChange}
+                onClose={() => setMenuOpen(false)}
+              />
               {/* Tags submenu */}
               {tags && onTagsChange && onCreateTag && (
                 <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
-              )}
-              {onDelete && (
-                <Menu.Item
-                  color="red.500"
-                  onClick={e => {
-                    e.stopPropagation();
-                    onDelete(task.id);
-                    setMenuOpen(false);
-                  }}
-                >
-                  <HStack gap={2}>
-                    <Box
-                      as="span"
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                      w="14px"
-                      h="14px"
-                      flexShrink={0}
-                    >
-                      <Trash2 size={14} />
-                    </Box>
-                    <Text>Delete</Text>
-                  </HStack>
-                </Menu.Item>
               )}
             </Menu.Content>
           </Menu.Positioner>

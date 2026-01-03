@@ -123,7 +123,6 @@ export const DashboardView = () => {
   }, []);
 
   // Resolved colors for Recharts (must be strings)
-  const bgColor = mode.bg.surface;
   const borderColor = mode.border.default;
   const textColor = mode.text.primary;
   const mutedText = mode.text.secondary;
