@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import {
   Box,
   Button,
@@ -43,7 +43,6 @@ import {
 } from "lucide-react";
 import { Section } from "@/components/Section";
 import { TaskDialog } from "@/components/TaskDialog";
-import { BulkEditDialog } from "@/components/BulkEditDialog";
 import { SectionDialog } from "@/components/SectionDialog";
 import { BacklogDrawer } from "@/components/BacklogDrawer";
 import { useTasks } from "@/hooks/useTasks";
@@ -76,11 +75,50 @@ import { DateNavigation } from "@/components/DateNavigation";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
 import { TagFilter } from "@/components/TagFilter";
 import { NotesView } from "@/components/NotesView";
-import { TagEditor } from "@/components/TagEditor";
 import { Tag as TagIcon } from "lucide-react";
-import WorkoutModal from "@/components/WorkoutModal";
-import WorkoutBuilder from "@/components/WorkoutBuilder";
 import { SelectDropdown } from "@/components/SelectDropdown";
+import dynamic from "next/dynamic";
+import { Spinner, Center } from "@chakra-ui/react";
+
+// Lazy load heavy components that aren't immediately visible
+const BulkEditDialog = dynamic(
+  () => import("@/components/BulkEditDialog").then(mod => ({ default: mod.BulkEditDialog })),
+  {
+    loading: () => (
+      <Center p={8}>
+        <Spinner size="lg" />
+      </Center>
+    ),
+    ssr: false,
+  }
+);
+
+const TagEditor = dynamic(() => import("@/components/TagEditor").then(mod => ({ default: mod.TagEditor })), {
+  loading: () => (
+    <Center p={8}>
+      <Spinner size="lg" />
+    </Center>
+  ),
+  ssr: false,
+});
+
+const WorkoutModal = dynamic(() => import("@/components/WorkoutModal"), {
+  loading: () => (
+    <Center p={8}>
+      <Spinner size="lg" />
+    </Center>
+  ),
+  ssr: false,
+});
+
+const WorkoutBuilder = dynamic(() => import("@/components/WorkoutBuilder"), {
+  loading: () => (
+    <Center p={8}>
+      <Spinner size="lg" />
+    </Center>
+  ),
+  ssr: false,
+});
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
@@ -478,6 +516,20 @@ export default function DailyTasksApp() {
   const backlogTasks = taskFilters.backlogTasks;
   const noteTasks = taskFilters.noteTasks;
 
+  // Memoized section lookup map for O(1) access instead of O(n) find
+  const sectionsById = useMemo(() => {
+    const map = new Map();
+    sections.forEach(section => {
+      map.set(section.id, section);
+    });
+    return map;
+  }, [sections]);
+
+  // Memoized selected tasks for BulkEditDialog to avoid creating new array on every render
+  const selectedTasksForBulkEdit = useMemo(() => {
+    return tasks.filter(t => selectionState.selectedTaskIds.has(t.id));
+  }, [tasks, selectionState.selectedTaskIds]);
+
   // Extract drag and drop handlers (after taskFilters so backlogTasks and tasksBySection are available)
   const dragAndDrop = useDragAndDrop({
     tasks,
@@ -499,15 +551,19 @@ export default function DailyTasksApp() {
   // Legacy useMemo blocks removed - now using taskFilters hook
 
   // Progress calculation - check completion records for the selected date
-  const totalTasks = filteredTodaysTasks.length;
-  const completedTasks = filteredTodaysTasks.filter(t => {
-    // Check if task is completed on the selected date via completion record
-    const isCompletedOnViewDate = isCompletedOnDate(t.id, viewDate);
-    // Also check subtasks completion
-    const allSubtasksComplete = t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed);
-    return isCompletedOnViewDate || allSubtasksComplete;
-  }).length;
-  const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  // Memoized to avoid recalculating on every render
+  const { totalTasks, completedTasks, progressPercent } = useMemo(() => {
+    const total = filteredTodaysTasks.length;
+    const completed = filteredTodaysTasks.filter(t => {
+      // Check if task is completed on the selected date via completion record
+      const isCompletedOnViewDate = isCompletedOnDate(t.id, viewDate);
+      // Also check subtasks completion
+      const allSubtasksComplete = t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed);
+      return isCompletedOnViewDate || allSubtasksComplete;
+    }).length;
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { totalTasks: total, completedTasks: completed, progressPercent: percent };
+  }, [filteredTodaysTasks, isCompletedOnDate, viewDate]);
 
   // Use statusHandlers.handleStatusChange instead of local handleStatusChange
   const handleStatusChange = statusHandlers.handleStatusChange;
@@ -2037,7 +2093,10 @@ export default function DailyTasksApp() {
               opacity={0.9}
             >
               <Text fontSize="sm" fontWeight="semibold" color={dragOverlayText}>
-                {sections.find(s => `section-${s.id}` === dragAndDrop.dragState.activeId)?.name || "Section"}
+                {(() => {
+                  const sectionId = dragAndDrop.dragState.activeId?.replace("section-", "");
+                  return sectionsById.get(sectionId)?.name || "Section";
+                })()}
               </Text>
             </Box>
           ) : null}
@@ -2093,7 +2152,7 @@ export default function DailyTasksApp() {
         onCreateTag={createTag}
         onDeleteTag={deleteTag}
         selectedCount={selectionState.selectedTaskIds.size}
-        selectedTasks={tasks.filter(t => selectionState.selectedTaskIds.has(t.id))}
+        selectedTasks={selectedTasksForBulkEdit}
       />
       <WorkoutModal
         task={dialogState.workoutModalTask}

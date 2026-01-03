@@ -1,10 +1,11 @@
 "use client";
 
+import { memo } from "react";
 import { Box, Button, IconButton, Text, Flex, Input, Badge } from "@chakra-ui/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
-export const DateNavigation = ({
+export const DateNavigation = memo(function DateNavigation({
   selectedDate,
   onDateChange,
   onPrevious,
@@ -14,7 +15,7 @@ export const DateNavigation = ({
   showDatePicker = true,
   showDateDisplay = true,
   rightContent,
-}) => {
+}) {
   const { mode, badges } = useSemanticColors();
 
   const bgColor = mode.bg.surface;
@@ -135,4 +136,4 @@ export const DateNavigation = ({
       </Flex>
     </Box>
   );
-};
+});

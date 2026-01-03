@@ -1,8 +1,20 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useAuthFetch } from "./useAuthFetch.js";
 import { useAuth } from "@/hooks/useAuth";
+
+// Helper function to normalize date to UTC midnight for consistent comparison
+const normalizeDate = date => {
+  const d = date ? new Date(date) : new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+};
+
+// Helper function to create lookup key from taskId and date
+const createLookupKey = (taskId, date) => {
+  const normalized = normalizeDate(date);
+  return `${taskId}|${normalized.toISOString()}`;
+};
 
 export const useCompletions = () => {
   const [completions, setCompletions] = useState([]);
@@ -10,6 +22,28 @@ export const useCompletions = () => {
   const [error, setError] = useState(null);
   const authFetch = useAuthFetch();
   const { isAuthenticated } = useAuth();
+
+  // Memoized lookup maps for O(1) access instead of O(n) array searches
+  const completionsByTaskAndDate = useMemo(() => {
+    const map = new Map();
+    completions.forEach(completion => {
+      const key = createLookupKey(completion.taskId, completion.date);
+      map.set(key, completion);
+    });
+    return map;
+  }, [completions]);
+
+  // Map of taskId -> Set of dates (for hasAnyCompletion)
+  const completionsByTask = useMemo(() => {
+    const map = new Map();
+    completions.forEach(completion => {
+      if (!map.has(completion.taskId)) {
+        map.set(completion.taskId, new Set());
+      }
+      map.get(completion.taskId).add(normalizeDate(completion.date).toISOString());
+    });
+    return map;
+  }, [completions]);
 
   const fetchCompletions = useCallback(
     async (filters = {}) => {
@@ -278,30 +312,13 @@ export const useCompletions = () => {
     }
   };
 
-  // Get the full completion object for a task on a specific date
+  // Get the full completion object for a task on a specific date (O(1) lookup)
   const getCompletionForDate = useCallback(
     (taskId, date) => {
-      const checkDate = new Date(date);
-      const utcCheckDate = new Date(
-        Date.UTC(checkDate.getUTCFullYear(), checkDate.getUTCMonth(), checkDate.getUTCDate(), 0, 0, 0, 0)
-      );
-      return completions.find(c => {
-        const completionDate = new Date(c.date);
-        const utcCompletionDate = new Date(
-          Date.UTC(
-            completionDate.getUTCFullYear(),
-            completionDate.getUTCMonth(),
-            completionDate.getUTCDate(),
-            0,
-            0,
-            0,
-            0
-          )
-        );
-        return c.taskId === taskId && utcCompletionDate.getTime() === utcCheckDate.getTime();
-      });
+      const key = createLookupKey(taskId, date);
+      return completionsByTaskAndDate.get(key) || null;
     },
-    [completions]
+    [completionsByTaskAndDate]
   );
 
   const deleteCompletion = async (taskId, date) => {
@@ -463,94 +480,42 @@ export const useCompletions = () => {
     }
   };
 
-  // Check if a task is completed on a specific date (only counts 'completed' outcome)
+  // Check if a task is completed on a specific date (only counts 'completed' outcome) - O(1) lookup
   const isCompletedOnDate = useCallback(
     (taskId, date) => {
-      const checkDate = new Date(date);
-      const utcCheckDate = new Date(
-        Date.UTC(checkDate.getUTCFullYear(), checkDate.getUTCMonth(), checkDate.getUTCDate(), 0, 0, 0, 0)
-      );
-      return completions.some(c => {
-        const completionDate = new Date(c.date);
-        const utcCompletionDate = new Date(
-          Date.UTC(
-            completionDate.getUTCFullYear(),
-            completionDate.getUTCMonth(),
-            completionDate.getUTCDate(),
-            0,
-            0,
-            0,
-            0
-          )
-        );
-        return (
-          c.taskId === taskId && utcCompletionDate.getTime() === utcCheckDate.getTime() && c.outcome === "completed"
-        );
-      });
+      const key = createLookupKey(taskId, date);
+      const completion = completionsByTaskAndDate.get(key);
+      return completion?.outcome === "completed" || (completion && !completion.outcome);
     },
-    [completions]
+    [completionsByTaskAndDate]
   );
 
-  // Check if a task has any record on a specific date (regardless of outcome)
+  // Check if a task has any record on a specific date (regardless of outcome) - O(1) lookup
   const hasRecordOnDate = useCallback(
     (taskId, date) => {
-      const checkDate = new Date(date);
-      const utcCheckDate = new Date(
-        Date.UTC(checkDate.getUTCFullYear(), checkDate.getUTCMonth(), checkDate.getUTCDate(), 0, 0, 0, 0)
-      );
-      return completions.some(c => {
-        const completionDate = new Date(c.date);
-        const utcCompletionDate = new Date(
-          Date.UTC(
-            completionDate.getUTCFullYear(),
-            completionDate.getUTCMonth(),
-            completionDate.getUTCDate(),
-            0,
-            0,
-            0,
-            0
-          )
-        );
-        return c.taskId === taskId && utcCompletionDate.getTime() === utcCheckDate.getTime();
-      });
+      const key = createLookupKey(taskId, date);
+      return completionsByTaskAndDate.has(key);
     },
-    [completions]
+    [completionsByTaskAndDate]
   );
 
-  // Get the outcome for a task on a specific date
+  // Get the outcome for a task on a specific date - O(1) lookup
   const getOutcomeOnDate = useCallback(
     (taskId, date) => {
-      const checkDate = new Date(date);
-      const utcCheckDate = new Date(
-        Date.UTC(checkDate.getUTCFullYear(), checkDate.getUTCMonth(), checkDate.getUTCDate(), 0, 0, 0, 0)
-      );
-      const record = completions.find(c => {
-        const completionDate = new Date(c.date);
-        const utcCompletionDate = new Date(
-          Date.UTC(
-            completionDate.getUTCFullYear(),
-            completionDate.getUTCMonth(),
-            completionDate.getUTCDate(),
-            0,
-            0,
-            0,
-            0
-          )
-        );
-        return c.taskId === taskId && utcCompletionDate.getTime() === utcCheckDate.getTime();
-      });
-      return record?.outcome || null;
+      const key = createLookupKey(taskId, date);
+      const completion = completionsByTaskAndDate.get(key);
+      return completion?.outcome || null;
     },
-    [completions]
+    [completionsByTaskAndDate]
   );
 
-  // Check if a task has ANY completion record (regardless of date)
+  // Check if a task has ANY completion record (regardless of date) - O(1) lookup
   // Used for one-time tasks to determine if they should stay hidden from backlog
   const hasAnyCompletion = useCallback(
     taskId => {
-      return completions.some(c => c.taskId === taskId);
+      return completionsByTask.has(taskId);
     },
-    [completions]
+    [completionsByTask]
   );
 
   return {

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { memo, useState, useEffect } from "react";
 import { Input, InputGroup, Box } from "@chakra-ui/react";
 import { Search } from "lucide-react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
-export const TaskSearchInput = ({ onSearchChange, placeholder = "Search tasks..." }) => {
+export const TaskSearchInput = memo(function TaskSearchInput({ onSearchChange, placeholder = "Search tasks..." }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -51,4 +51,4 @@ export const TaskSearchInput = ({ onSearchChange, placeholder = "Search tasks...
       />
     </InputGroup>
   );
-};
+});

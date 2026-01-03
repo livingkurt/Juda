@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Tag } from "@chakra-ui/react";
 
 /**
@@ -10,7 +11,7 @@ import { Tag } from "@chakra-ui/react";
  * @param {Function} onClose - Callback when close button is clicked
  * @param {Object} props - Additional props to pass to Tag.Root
  */
-export const TagChip = ({ tag, size = "sm", showClose = false, onClose, ...props }) => {
+export const TagChip = memo(function TagChip({ tag, size = "sm", showClose = false, onClose, ...props }) {
   // Default styling - consistent across all tag displays
   const defaultProps = {
     borderRadius: "full",
@@ -62,4 +63,4 @@ export const TagChip = ({ tag, size = "sm", showClose = false, onClose, ...props
       {showClose && onClose && <Tag.CloseTrigger onClick={() => onClose(tag.id)} />}
     </Tag.Root>
   );
-};
+});
