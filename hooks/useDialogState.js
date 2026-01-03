@@ -1,73 +1,106 @@
-import { useState, useCallback } from "react";
+"use client";
 
+import { useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  openTaskDialog as openTaskDialogAction,
+  closeTaskDialog as closeTaskDialogAction,
+  openSectionDialog as openSectionDialogAction,
+  closeSectionDialog as closeSectionDialogAction,
+  setTagEditorOpen,
+  openWorkoutModal,
+  closeWorkoutModal,
+  setEditingTask,
+  setEditingSection,
+  setEditingWorkoutTask,
+  setDefaultSectionId,
+  setDefaultTime,
+  setDefaultDate,
+} from "@/lib/store/slices/uiSlice";
+
+/**
+ * Dialog state management using Redux directly
+ */
 export function useDialogState() {
-  // Task dialog state
-  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
-  const openTaskDialog = useCallback(() => setTaskDialogOpen(true), []);
-  const closeTaskDialog = useCallback(() => setTaskDialogOpen(false), []);
+  const dispatch = useDispatch();
 
-  // Section dialog state
-  const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
-  const openSectionDialog = useCallback(() => setSectionDialogOpen(true), []);
-  const closeSectionDialog = useCallback(() => setSectionDialogOpen(false), []);
+  // Get state from Redux
+  const taskDialogOpen = useSelector(state => state.ui.taskDialogOpen);
+  const sectionDialogOpen = useSelector(state => state.ui.sectionDialogOpen);
+  const tagEditorOpen = useSelector(state => state.ui.tagEditorOpen);
+  const workoutModalOpen = useSelector(state => state.ui.workoutModalOpen);
+  const workoutModalTask = useSelector(state => state.ui.workoutModalTask);
+  const editingTask = useSelector(state => state.ui.editingTask);
+  const editingSection = useSelector(state => state.ui.editingSection);
+  const editingWorkoutTask = useSelector(state => state.ui.editingWorkoutTask);
+  const defaultSectionId = useSelector(state => state.ui.defaultSectionId);
+  const defaultTime = useSelector(state => state.ui.defaultTime);
+  const defaultDate = useSelector(state => state.ui.defaultDate);
 
-  // Tag editor state
-  const [tagEditorOpen, setTagEditorOpen] = useState(false);
+  // Task dialog actions
+  const openTaskDialog = useCallback(() => dispatch(openTaskDialogAction()), [dispatch]);
+  const closeTaskDialog = useCallback(() => dispatch(closeTaskDialogAction()), [dispatch]);
 
-  // Workout modal state
-  const [workoutModalOpen, setWorkoutModalOpen] = useState(false);
-  const [workoutModalTask, setWorkoutModalTask] = useState(null);
+  // Section dialog actions
+  const openSectionDialog = useCallback(() => dispatch(openSectionDialogAction()), [dispatch]);
+  const closeSectionDialog = useCallback(() => dispatch(closeSectionDialogAction()), [dispatch]);
 
-  // Task editing state
-  const [editingTask, setEditingTask] = useState(null);
-  const [editingSection, setEditingSection] = useState(null);
-  const [defaultSectionId, setDefaultSectionId] = useState(null);
-  const [defaultTime, setDefaultTime] = useState(null);
-  const [defaultDate, setDefaultDate] = useState(null);
-  const [editingWorkoutTask, setEditingWorkoutTask] = useState(null);
+  // Workout modal actions
+  const handleBeginWorkout = useCallback(
+    task => {
+      dispatch(openWorkoutModal(task));
+    },
+    [dispatch]
+  );
 
-  // Workout handler
-  const handleBeginWorkout = useCallback(task => {
-    setWorkoutModalTask(task);
-    setWorkoutModalOpen(true);
-  }, []);
+  const handleCloseWorkoutModal = useCallback(() => {
+    dispatch(closeWorkoutModal());
+  }, [dispatch]);
+
+  // Setter wrappers for dispatch
+  const handleSetTagEditorOpen = useCallback(value => dispatch(setTagEditorOpen(value)), [dispatch]);
+  const handleSetEditingTask = useCallback(task => dispatch(setEditingTask(task)), [dispatch]);
+  const handleSetEditingSection = useCallback(section => dispatch(setEditingSection(section)), [dispatch]);
+  const handleSetEditingWorkoutTask = useCallback(task => dispatch(setEditingWorkoutTask(task)), [dispatch]);
+  const handleSetDefaultSectionId = useCallback(id => dispatch(setDefaultSectionId(id)), [dispatch]);
+  const handleSetDefaultTime = useCallback(time => dispatch(setDefaultTime(time)), [dispatch]);
+  const handleSetDefaultDate = useCallback(date => dispatch(setDefaultDate(date)), [dispatch]);
 
   return {
     // Task dialog
     taskDialogOpen,
-    setTaskDialogOpen,
     openTaskDialog,
     closeTaskDialog,
 
     // Section dialog
     sectionDialogOpen,
-    setSectionDialogOpen,
     openSectionDialog,
     closeSectionDialog,
 
     // Tag editor
     tagEditorOpen,
-    setTagEditorOpen,
+    setTagEditorOpen: handleSetTagEditorOpen,
 
     // Workout modal
     workoutModalOpen,
-    setWorkoutModalOpen,
     workoutModalTask,
-    setWorkoutModalTask,
     handleBeginWorkout,
+    closeWorkoutModal: handleCloseWorkoutModal,
+    setWorkoutModalOpen: value => dispatch(value ? openWorkoutModal(null) : closeWorkoutModal()),
+    setWorkoutModalTask: task => dispatch(openWorkoutModal(task)),
 
     // Task editing state
     editingTask,
-    setEditingTask,
+    setEditingTask: handleSetEditingTask,
     editingSection,
-    setEditingSection,
-    defaultSectionId,
-    setDefaultSectionId,
-    defaultTime,
-    setDefaultTime,
-    defaultDate,
-    setDefaultDate,
+    setEditingSection: handleSetEditingSection,
     editingWorkoutTask,
-    setEditingWorkoutTask,
+    setEditingWorkoutTask: handleSetEditingWorkoutTask,
+    defaultSectionId,
+    setDefaultSectionId: handleSetDefaultSectionId,
+    defaultTime,
+    setDefaultTime: handleSetDefaultTime,
+    defaultDate,
+    setDefaultDate: handleSetDefaultDate,
   };
 }

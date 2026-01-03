@@ -11,7 +11,6 @@ export const DayHeaderColumn = ({
   dayIndex,
   untimedTasks,
   isToday,
-  onTaskClick,
   onDayClick,
   createDroppableId,
   createDraggableId,
@@ -19,16 +18,6 @@ export const DayHeaderColumn = ({
   dropHighlight,
   hourTextColor,
   hoverBg,
-  isCompletedOnDate,
-  getOutcomeOnDate,
-  onEdit,
-  onEditWorkout,
-  onOutcomeChange,
-  onDuplicate,
-  onDelete,
-  tags,
-  onTagsChange,
-  onCreateTag,
 }) => {
   const { mode, calendar, interactive } = useSemanticColors();
   const untimedDroppableId = createDroppableId.calendarWeekUntimed(day);
@@ -95,23 +84,7 @@ export const DayHeaderColumn = ({
       >
         <VStack align="stretch" spacing={1}>
           {untimedTasks.map(task => (
-            <UntimedWeekTask
-              key={task.id}
-              task={task}
-              onTaskClick={onTaskClick}
-              createDraggableId={createDraggableId}
-              day={day}
-              isCompletedOnDate={isCompletedOnDate}
-              getOutcomeOnDate={getOutcomeOnDate}
-              onEdit={onEdit}
-              onEditWorkout={onEditWorkout}
-              onOutcomeChange={onOutcomeChange}
-              onDuplicate={onDuplicate}
-              onDelete={onDelete}
-              tags={tags}
-              onTagsChange={onTagsChange}
-              onCreateTag={onCreateTag}
-            />
+            <UntimedWeekTask key={task.id} task={task} createDraggableId={createDraggableId} day={day} />
           ))}
         </VStack>
       </Box>

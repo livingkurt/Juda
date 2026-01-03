@@ -4,57 +4,44 @@ import { HStack, Box, Text, Menu } from "@chakra-ui/react";
 import { Edit2, Check, X, Circle, Copy, Trash2, Dumbbell, Clock } from "lucide-react";
 import { TagMenuSelector } from "./TagMenuSelector";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
+import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 
-export const TaskContextMenu = ({
-  task,
-  date,
-  isRecurring,
-  isWorkoutTask,
-  outcome,
-  onEdit,
-  onEditWorkout,
-  onOutcomeChange,
-  onDuplicate,
-  onDelete,
-  onClose,
-  tags,
-  onTagsChange,
-  onCreateTag,
-  onStatusChange,
-}) => {
+export const TaskContextMenu = ({ task, date, isRecurring, isWorkoutTask, outcome, onClose }) => {
   const { mode } = useSemanticColors();
 
-  // Support both naming conventions
-  const handleEdit = onEdit;
-  const handleDuplicate = onDuplicate;
-  const handleDelete = onDelete;
+  // Use hooks directly (they use Redux internally)
+  const taskOps = useTaskOperations();
+  const completionHandlers = useCompletionHandlers();
+  const statusHandlers = useStatusHandlers({
+    addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
+  });
 
   return (
     <>
-      {/* Edit - always show if handler provided */}
-      {handleEdit && (
-        <Menu.Item
-          onClick={e => {
-            e.stopPropagation();
-            handleEdit(task);
-            onClose?.();
-          }}
-        >
-          <HStack gap={2}>
-            <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-              <Edit2 size={14} />
-            </Box>
-            <Text>Edit</Text>
-          </HStack>
-        </Menu.Item>
-      )}
+      {/* Edit - always show */}
+      <Menu.Item
+        onClick={e => {
+          e.stopPropagation();
+          taskOps.handleEditTask(task);
+          onClose?.();
+        }}
+      >
+        <HStack gap={2}>
+          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+            <Edit2 size={14} />
+          </Box>
+          <Text>Edit</Text>
+        </HStack>
+      </Menu.Item>
 
       {/* Edit Workout option for workout-type tasks */}
-      {isWorkoutTask && onEditWorkout && (
+      {isWorkoutTask && (
         <Menu.Item
           onClick={e => {
             e.stopPropagation();
-            onEditWorkout(task);
+            taskOps.handleEditWorkout(task);
             onClose?.();
           }}
         >
@@ -68,14 +55,14 @@ export const TaskContextMenu = ({
       )}
 
       {/* Completion options for recurring tasks */}
-      {isRecurring && onOutcomeChange && date && (
+      {isRecurring && date && (
         <>
           {outcome !== null && (
             <>
               <Menu.Item
                 onClick={e => {
                   e.stopPropagation();
-                  onOutcomeChange(task.id, date, null);
+                  completionHandlers.handleOutcomeChange(task.id, date, null);
                   onClose?.();
                 }}
               >
@@ -101,7 +88,7 @@ export const TaskContextMenu = ({
             <Menu.Item
               onClick={e => {
                 e.stopPropagation();
-                onOutcomeChange(task.id, date, "completed");
+                completionHandlers.handleOutcomeChange(task.id, date, "completed");
                 onClose?.();
               }}
             >
@@ -125,7 +112,7 @@ export const TaskContextMenu = ({
             <Menu.Item
               onClick={e => {
                 e.stopPropagation();
-                onOutcomeChange(task.id, date, "not_completed");
+                completionHandlers.handleOutcomeChange(task.id, date, "not_completed");
                 onClose?.();
               }}
             >
@@ -149,13 +136,13 @@ export const TaskContextMenu = ({
         </>
       )}
       {/* Status options for non-recurring tasks */}
-      {onStatusChange && !isRecurring && (
+      {!isRecurring && (
         <>
           <Menu.Separator />
           <Menu.Item
             onClick={e => {
               e.stopPropagation();
-              onStatusChange(task.id, "todo");
+              statusHandlers.handleStatusChange(task.id, "todo");
               onClose?.();
             }}
             disabled={task.status === "todo"}
@@ -178,7 +165,7 @@ export const TaskContextMenu = ({
           <Menu.Item
             onClick={e => {
               e.stopPropagation();
-              onStatusChange(task.id, "in_progress");
+              statusHandlers.handleStatusChange(task.id, "in_progress");
               onClose?.();
             }}
             disabled={task.status === "in_progress"}
@@ -201,7 +188,7 @@ export const TaskContextMenu = ({
           <Menu.Item
             onClick={e => {
               e.stopPropagation();
-              onStatusChange(task.id, "complete");
+              statusHandlers.handleStatusChange(task.id, "complete");
               onClose?.();
             }}
             disabled={task.status === "complete"}
@@ -224,45 +211,39 @@ export const TaskContextMenu = ({
           <Menu.Separator />
         </>
       )}
-      {handleDuplicate && (
-        <Menu.Item
-          onClick={e => {
-            e.stopPropagation();
-            handleDuplicate(task.id);
-            onClose?.();
-          }}
-        >
-          <HStack gap={2}>
-            <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-              <Copy size={14} />
-            </Box>
-            <Text>Duplicate</Text>
-          </HStack>
-        </Menu.Item>
-      )}
+      <Menu.Item
+        onClick={e => {
+          e.stopPropagation();
+          taskOps.handleDuplicateTask(task.id);
+          onClose?.();
+        }}
+      >
+        <HStack gap={2}>
+          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+            <Copy size={14} />
+          </Box>
+          <Text>Duplicate</Text>
+        </HStack>
+      </Menu.Item>
 
       {/* Tags submenu */}
-      {tags && onTagsChange && onCreateTag && (
-        <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
-      )}
+      <TagMenuSelector task={task} />
 
-      {handleDelete && (
-        <Menu.Item
-          onClick={e => {
-            e.stopPropagation();
-            handleDelete(task.id);
-            onClose?.();
-          }}
-          color={mode.status.error}
-        >
-          <HStack gap={2}>
-            <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-              <Trash2 size={14} />
-            </Box>
-            <Text>Delete</Text>
-          </HStack>
-        </Menu.Item>
-      )}
+      <Menu.Item
+        onClick={e => {
+          e.stopPropagation();
+          taskOps.handleDeleteTask(task.id);
+          onClose?.();
+        }}
+        color={mode.status.error}
+      >
+        <HStack gap={2}>
+          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+            <Trash2 size={14} />
+          </Box>
+          <Text>Delete</Text>
+        </HStack>
+      </Menu.Item>
     </>
   );
 };

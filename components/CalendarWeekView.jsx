@@ -2,40 +2,46 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Box, Flex } from "@chakra-ui/react";
+import { useDispatch } from "react-redux";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate } from "@/lib/utils";
 import { HOUR_HEIGHT_WEEK, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { DayHeaderColumn } from "./DayHeaderColumn";
 import { TimedColumn } from "./TimedColumn";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
+import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { usePreferencesContext } from "@/hooks/usePreferencesContext";
+import { useViewState } from "@/hooks/useViewState";
+import { setCalendarView } from "@/lib/store/slices/uiSlice";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_WEEK;
 
-export const CalendarWeekView = ({
-  date,
-  tasks,
-  onTaskClick,
-  onDayClick,
-  onTaskTimeChange,
-  onTaskDurationChange,
-  onCreateTask,
-  onDropTimeChange,
-  createDroppableId,
-  createDraggableId,
-  isCompletedOnDate,
-  getOutcomeOnDate,
-  getCompletionForDate,
-  showCompleted = true,
-  showStatusTasks = true,
-  zoom = 1.0,
-  onEdit,
-  onEditWorkout,
-  onOutcomeChange,
-  onDuplicate,
-  onDelete,
-  tags,
-  onTagsChange,
-  onCreateTag,
-}) => {
+export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, onDropTimeChange }) => {
+  const dispatch = useDispatch();
+  const viewState = useViewState();
+
+  // Get preferences
+  const { preferences } = usePreferencesContext();
+  const zoom = preferences.calendarZoom?.week || 1.0;
+  const showStatusTasks = preferences.showStatusTasks?.week !== false;
+  const showCompletedTasksCalendar = preferences.showCompletedTasksCalendar || {};
+  const showCompleted = showCompletedTasksCalendar.week !== false;
+
+  // Use hooks directly (they use Redux internally)
+  const taskOps = useTaskOperations();
+  const completionHandlers = useCompletionHandlers();
+  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
+
+  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
+  const taskFilters = useTaskFilters({
+    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+  });
+
+  // Get all tasks
+  const tasks = taskFilters.tasks;
+
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
   const { mode, calendar, dnd } = useSemanticColors();
 
@@ -209,9 +215,9 @@ export const CalendarWeekView = ({
 
     if (hasMoved) {
       if (type === "move") {
-        onTaskTimeChange(taskId, minutesToTime(currentMinutes));
+        taskOps.handleTaskTimeChange(taskId, minutesToTime(currentMinutes));
       } else {
-        onTaskDurationChange(taskId, currentDuration);
+        taskOps.handleTaskDurationChange(taskId, currentDuration);
       }
     } else {
       // Find and click task
@@ -221,9 +227,9 @@ export const CalendarWeekView = ({
         if (task) break;
       }
       if (!task) task = tasks.find(t => t.id === taskId);
-      if (task) setTimeout(() => onTaskClick(task), 100);
+      if (task) setTimeout(() => taskOps.handleEditTask(task), 100);
     }
-  }, [internalDrag, onTaskTimeChange, onTaskDurationChange, weekDays, tasks, onTaskClick, getTasksForDay]);
+  }, [internalDrag, taskOps, weekDays, tasks, getTasksForDay]);
 
   useEffect(() => {
     if (!internalDrag.taskId) return;
@@ -245,7 +251,7 @@ export const CalendarWeekView = ({
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const minutes = snapToIncrement((y / HOUR_HEIGHT) * 60, 15);
-    onCreateTask(minutesToTime(minutes), day);
+    taskOps.handleCreateTaskFromCalendar(minutesToTime(minutes), day);
   };
 
   const handleDropTimeCalculation = (e, rect) => {
@@ -256,6 +262,14 @@ export const CalendarWeekView = ({
       onDropTimeChange(minutesToTime(snappedMinutes));
     }
   };
+
+  const handleDayClick = useCallback(
+    d => {
+      viewState.setSelectedDate(d);
+      dispatch(setCalendarView("day"));
+    },
+    [viewState, dispatch]
+  );
 
   // Sync horizontal scroll between header and main container
   useEffect(() => {
@@ -284,7 +298,7 @@ export const CalendarWeekView = ({
   }, []);
 
   return (
-    <Flex direction="column" h="full" w="100%" maxW="100%" overflow="hidden">
+    <Flex direction="column" flex={1} minH={0} w="100%" maxW="100%" overflow="hidden">
       {/* Week header - syncs horizontal scroll with main container */}
       <Box
         ref={headerRef}
@@ -319,24 +333,13 @@ export const CalendarWeekView = ({
                 dayIndex={i}
                 untimedTasks={untimedTasksForDay}
                 isToday={isToday}
-                onTaskClick={onTaskClick}
-                onDayClick={onDayClick}
+                onDayClick={handleDayClick}
                 createDroppableId={createDroppableId}
                 createDraggableId={createDraggableId}
                 borderColor={borderColor}
                 dropHighlight={dropHighlight}
                 hourTextColor={hourTextColor}
                 hoverBg={hoverBg}
-                isCompletedOnDate={isCompletedOnDate}
-                getOutcomeOnDate={getOutcomeOnDate}
-                onEdit={onEdit}
-                onEditWorkout={onEditWorkout}
-                onOutcomeChange={onOutcomeChange}
-                onDuplicate={onDuplicate}
-                onDelete={onDelete}
-                tags={tags}
-                onTagsChange={onTagsChange}
-                onCreateTag={onCreateTag}
               />
             );
           })}
@@ -399,7 +402,6 @@ export const CalendarWeekView = ({
                   dayIndex={i}
                   timedTasks={dayTasks}
                   allTasks={tasks}
-                  onTaskClick={onTaskClick}
                   handleColumnClick={handleColumnClick}
                   handleDropTimeCalculation={handleDropTimeCalculation}
                   createDroppableId={createDroppableId}
@@ -409,19 +411,8 @@ export const CalendarWeekView = ({
                   handleInternalDragStart={handleInternalDragStart}
                   borderColor={borderColor}
                   dropHighlight={dropHighlight}
-                  isCompletedOnDate={isCompletedOnDate}
-                  getOutcomeOnDate={getOutcomeOnDate}
-                  getCompletionForDate={getCompletionForDate}
                   showStatusTasks={showStatusTasks}
                   hourHeight={HOUR_HEIGHT}
-                  onEdit={onEdit}
-                  onEditWorkout={onEditWorkout}
-                  onOutcomeChange={onOutcomeChange}
-                  onDuplicate={onDuplicate}
-                  onDelete={onDelete}
-                  tags={tags}
-                  onTagsChange={onTagsChange}
-                  onCreateTag={onCreateTag}
                   isToday={isTodayColumn}
                 />
               );

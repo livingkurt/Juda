@@ -1,25 +1,41 @@
 "use client";
 
+import { useMemo, useCallback } from "react";
+import { useDispatch } from "react-redux";
 import { Box, Flex, SimpleGrid } from "@chakra-ui/react";
 import { shouldShowOnDate } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 import { TaskCardCompact } from "./shared/TaskCardCompact";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { usePreferencesContext } from "@/hooks/usePreferencesContext";
+import { useViewState } from "@/hooks/useViewState";
+import { setCalendarView } from "@/lib/store/slices/uiSlice";
 
-export const CalendarMonthView = ({
-  date,
-  tasks,
-  onDayClick,
-  isCompletedOnDate,
-  getOutcomeOnDate,
-  showCompleted = true,
-  zoom = 1.0,
-  onEdit,
-  onEditWorkout,
-  onOutcomeChange,
-  onDuplicate,
-  onDelete,
-}) => {
+export const CalendarMonthView = ({ date }) => {
+  const dispatch = useDispatch();
+  const viewState = useViewState();
+
+  // Get preferences
+  const { preferences } = usePreferencesContext();
+  const zoom = preferences.calendarZoom?.month || 1.0;
+  const showCompletedTasksCalendar = preferences.showCompletedTasksCalendar || {};
+  const showCompleted = showCompletedTasksCalendar.month !== false;
+
+  // Use hooks directly (they use Redux internally)
+  const completionHandlers = useCompletionHandlers();
+  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
+
+  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
+  const taskFilters = useTaskFilters({
+    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+  });
+
+  // Get all tasks
+  const tasks = taskFilters.tasks;
+
   const { mode, calendar } = useSemanticColors();
 
   const bgColor = mode.bg.surface;
@@ -32,25 +48,37 @@ export const CalendarMonthView = ({
 
   const year = date.getFullYear();
   const month = date.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  const startDate = new Date(firstDay);
-  startDate.setDate(startDate.getDate() - firstDay.getDay());
 
-  const weeks = [];
-  const current = new Date(startDate);
-  while (current <= lastDay || weeks.length < 6) {
-    const week = [];
-    for (let i = 0; i < 7; i++) {
-      week.push(new Date(current));
-      current.setDate(current.getDate() + 1);
+  const weeks = useMemo(() => {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+    const result = [];
+    const current = new Date(startDate);
+    while (current <= lastDay || result.length < 6) {
+      const week = [];
+      for (let i = 0; i < 7; i++) {
+        week.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+      }
+      result.push(week);
+      if (result.length >= 6) break;
     }
-    weeks.push(week);
-    if (weeks.length >= 6) break;
-  }
+    return result;
+  }, [year, month]);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  const handleDayClick = useCallback(
+    d => {
+      viewState.setSelectedDate(d);
+      dispatch(setCalendarView("day"));
+    },
+    [viewState, dispatch]
+  );
 
   return (
     <Flex direction="column" h="full" w="100%" maxW="100%" overflow="hidden">
@@ -103,7 +131,7 @@ export const CalendarMonthView = ({
                   onClick={e => {
                     // Only navigate to day if clicking on the cell background, not a task
                     if (e.target === e.currentTarget || e.target.tagName === "SPAN") {
-                      onDayClick(day);
+                      handleDayClick(day);
                     }
                   }}
                 >
@@ -139,11 +167,6 @@ export const CalendarMonthView = ({
                         zoom={zoom}
                         isCompleted={isCompleted}
                         outcome={outcome}
-                        onEdit={onEdit}
-                        onEditWorkout={onEditWorkout}
-                        onDuplicate={onDuplicate}
-                        onDelete={onDelete}
-                        onOutcomeChange={onOutcomeChange}
                       />
                     );
                   })}

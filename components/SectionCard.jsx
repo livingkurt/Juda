@@ -9,42 +9,14 @@ import { Plus, MoreVertical, GripVertical, Sun, ChevronDown, ChevronUp } from "l
 import { TaskItem } from "./TaskItem";
 import { SECTION_ICONS } from "@/lib/constants";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
+import { useSectionOperations } from "@/hooks/useSectionOperations";
+import { useSectionExpansion } from "@/hooks/useSectionExpansion";
+import { usePreferencesContext } from "@/hooks/usePreferencesContext";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
 
-export const SectionCard = ({
-  section,
-  tasks,
-  onToggleTask,
-  onToggleSubtask,
-  onToggleExpand,
-  onEditTask,
-  onEditWorkout,
-  onUpdateTaskTitle,
-  onDeleteTask,
-  onDuplicateTask,
-  onAddTask,
-  onCreateTaskInline,
-  onCreateSubtask,
-  onEdit: onEditSection,
-  onDelete: onDeleteSection,
-  onToggleSectionExpand,
-  hoveredDroppable,
-  droppableId,
-  createDraggableId,
-  viewDate,
-  onOutcomeChange,
-  getOutcomeOnDate,
-  hasRecordOnDate,
-  onCompleteWithNote,
-  onSkipTask,
-  getCompletionForDate,
-  selectedTaskIds,
-  onTaskSelect,
-  onBulkEdit,
-  onBeginWorkout,
-  tags,
-  onTagsChange,
-  onCreateTag,
-}) => {
+export const SectionCard = ({ section, hoveredDroppable, droppableId, createDraggableId, viewDate }) => {
   const { mode, dnd } = useSemanticColors();
 
   const bgColor = mode.bg.surface;
@@ -56,6 +28,30 @@ export const SectionCard = ({
   const [inlineInputValue, setInlineInputValue] = useState("");
   const [isInlineInputActive, setIsInlineInputActive] = useState(false);
   const inlineInputRef = useRef(null);
+
+  // Use hooks directly (they use Redux internally)
+  const taskOps = useTaskOperations();
+  const completionHandlers = useCompletionHandlers(); // Can be called without section expansion callbacks
+  const { preferences } = usePreferencesContext();
+  const showCompletedTasks = preferences.showCompletedTasks;
+
+  // Get section expansion for toggle functionality
+  const taskFilters = useTaskFilters({
+    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+  });
+  const sectionExpansion = useSectionExpansion({
+    sections: taskOps.sections,
+    showCompletedTasks,
+    tasksBySection: taskFilters.tasksBySection,
+  });
+  const sectionOps = useSectionOperations({
+    autoCollapsedSections: sectionExpansion.autoCollapsedSections,
+    setAutoCollapsedSections: sectionExpansion.setAutoCollapsedSections,
+    setManuallyExpandedSections: sectionExpansion.setManuallyExpandedSections,
+  });
+
+  // Get tasks for this section from Redux
+  const tasks = taskFilters.tasksBySection[section.id] || [];
 
   const IconComponent = SECTION_ICONS.find(i => i.value === section.icon)?.Icon || Sun;
   const completedCount = tasks.filter(
@@ -108,8 +104,8 @@ export const SectionCard = ({
   };
 
   const handleInlineInputBlur = async () => {
-    if (inlineInputValue.trim() && onCreateTaskInline) {
-      await onCreateTaskInline(section.id, inlineInputValue);
+    if (inlineInputValue.trim()) {
+      await taskOps.handleCreateTaskInline(section.id, inlineInputValue);
       setInlineInputValue("");
     }
     setIsInlineInputActive(false);
@@ -118,11 +114,9 @@ export const SectionCard = ({
   const handleInlineInputKeyDown = async e => {
     if (e.key === "Enter" && inlineInputValue.trim()) {
       e.preventDefault();
-      if (onCreateTaskInline) {
-        await onCreateTaskInline(section.id, inlineInputValue);
-        setInlineInputValue("");
-        setIsInlineInputActive(false);
-      }
+      await taskOps.handleCreateTaskInline(section.id, inlineInputValue);
+      setInlineInputValue("");
+      setIsInlineInputActive(false);
     } else if (e.key === "Escape") {
       setInlineInputValue("");
       setIsInlineInputActive(false);
@@ -176,7 +170,7 @@ export const SectionCard = ({
           </Flex>
           <HStack spacing={{ base: 0, md: 1 }} flexShrink={0}>
             <IconButton
-              onClick={() => onToggleSectionExpand && onToggleSectionExpand(section.id)}
+              onClick={() => sectionOps.handleToggleSectionExpand(section.id)}
               size={{ base: "xs", md: "sm" }}
               variant="ghost"
               aria-label={section.expanded !== false ? "Collapse section" : "Expand section"}
@@ -193,7 +187,7 @@ export const SectionCard = ({
               </Box>
             </IconButton>
             <IconButton
-              onClick={() => onAddTask(section.id)}
+              onClick={() => taskOps.handleAddTask(section.id)}
               size={{ base: "xs", md: "sm" }}
               variant="ghost"
               aria-label="Add task"
@@ -227,8 +221,8 @@ export const SectionCard = ({
               </Menu.Trigger>
               <Menu.Positioner>
                 <Menu.Content>
-                  <Menu.Item onClick={() => onEditSection(section)}>Edit</Menu.Item>
-                  <Menu.Item onClick={() => onDeleteSection(section.id)} color="red.500">
+                  <Menu.Item onClick={() => sectionOps.handleEditSection(section)}>Edit</Menu.Item>
+                  <Menu.Item onClick={() => sectionOps.handleDeleteSection(section.id)} color="red.500">
                     Delete
                   </Menu.Item>
                 </Menu.Content>
@@ -295,32 +289,9 @@ export const SectionCard = ({
                       variant="today"
                       index={index}
                       containerId={droppableId}
-                      onToggle={onToggleTask}
-                      onToggleSubtask={onToggleSubtask}
-                      onToggleExpand={onToggleExpand}
-                      onEdit={onEditTask}
-                      onEditWorkout={onEditWorkout}
-                      onUpdateTitle={onUpdateTaskTitle}
-                      onDelete={onDeleteTask}
-                      onDuplicate={onDuplicateTask}
                       hoveredDroppable={hoveredDroppable}
                       draggableId={task.draggableId}
                       viewDate={viewDate}
-                      onOutcomeChange={onOutcomeChange}
-                      getOutcomeOnDate={getOutcomeOnDate}
-                      hasRecordOnDate={hasRecordOnDate}
-                      onCompleteWithNote={onCompleteWithNote}
-                      onSkipTask={onSkipTask}
-                      getCompletionForDate={getCompletionForDate}
-                      isSelected={selectedTaskIds?.has(task.id)}
-                      onSelect={onTaskSelect}
-                      selectedCount={selectedTaskIds?.size || 0}
-                      onBulkEdit={onBulkEdit}
-                      onBeginWorkout={onBeginWorkout}
-                      tags={tags}
-                      onTagsChange={onTagsChange}
-                      onCreateTag={onCreateTag}
-                      onCreateSubtask={onCreateSubtask}
                     />
                   ))}
                   <Input

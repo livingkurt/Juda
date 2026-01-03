@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, memo, useRef } from "react";
+import { useSelector } from "react-redux";
 import { Box, Flex, VStack, HStack, Text, IconButton, Badge, Input } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -9,32 +10,14 @@ import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
+import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
+import { useDialogState } from "@/hooks/useDialogState";
 
 // Kanban column component
-const KanbanColumn = memo(function KanbanColumn({
-  id,
-  title,
-  tasks,
-  color,
-  onTaskClick,
-  onAddTask,
-  onCreateTaskInline,
-  createDraggableId,
-  getOutcomeOnDate,
-  onOutcomeChange,
-  onDuplicate,
-  onDelete,
-  onStatusChange,
-  recentlyCompletedTasks,
-  viewDate,
-  selectedTaskIds,
-  onSelect,
-  onBulkEdit,
-  onEditWorkout,
-  tags,
-  onTagsChange,
-  onCreateTag,
-}) {
+const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, createDraggableId }) {
   const { setNodeRef, isOver, active } = useDroppable({
     id: `kanban-column|${id}`,
     data: { type: "KANBAN_COLUMN", status: id },
@@ -52,6 +35,18 @@ const KanbanColumn = memo(function KanbanColumn({
   const dropHighlight = dnd.dropTarget;
   const textColor = mode.text.primary;
   const mutedText = mode.text.secondary;
+
+  // Use hooks directly
+  const taskOps = useTaskOperations();
+  const completionHandlers = useCompletionHandlers();
+  const dialogState = useDialogState();
+
+  // Get viewDate from Redux
+  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const viewDate = todayViewDateISO ? new Date(todayViewDateISO) : new Date();
+
+  // Get recentlyCompletedTasks from completionHandlers
+  const recentlyCompletedTasks = completionHandlers.recentlyCompletedTasks;
 
   const [inlineInputValue, setInlineInputValue] = useState("");
   const [isInlineInputActive, setIsInlineInputActive] = useState(false);
@@ -78,8 +73,8 @@ const KanbanColumn = memo(function KanbanColumn({
   };
 
   const handleInlineInputBlur = async () => {
-    if (inlineInputValue.trim() && onCreateTaskInline) {
-      await onCreateTaskInline(id, inlineInputValue);
+    if (inlineInputValue.trim()) {
+      await taskOps.handleCreateKanbanTaskInline(id, inlineInputValue);
       setInlineInputValue("");
     }
     setIsInlineInputActive(false);
@@ -88,16 +83,20 @@ const KanbanColumn = memo(function KanbanColumn({
   const handleInlineInputKeyDown = async e => {
     if (e.key === "Enter" && inlineInputValue.trim()) {
       e.preventDefault();
-      if (onCreateTaskInline) {
-        await onCreateTaskInline(id, inlineInputValue);
-        setInlineInputValue("");
-        setIsInlineInputActive(false);
-      }
+      await taskOps.handleCreateKanbanTaskInline(id, inlineInputValue);
+      setInlineInputValue("");
+      setIsInlineInputActive(false);
     } else if (e.key === "Escape") {
       setInlineInputValue("");
       setIsInlineInputActive(false);
       inlineInputRef.current?.blur();
     }
+  };
+
+  const handleAddTask = () => {
+    dialogState.setDefaultSectionId(taskOps.sections[0]?.id);
+    dialogState.setEditingTask({ status: id });
+    dialogState.openTaskDialog();
   };
 
   return (
@@ -113,7 +112,7 @@ const KanbanColumn = memo(function KanbanColumn({
             {visibleTasks.length}
           </Badge>
         </HStack>
-        <IconButton size="xs" variant="ghost" onClick={() => onAddTask(id)} aria-label={`Add task to ${title}`}>
+        <IconButton size="xs" variant="ghost" onClick={handleAddTask} aria-label={`Add task to ${title}`}>
           <Box as="span" color="currentColor">
             <Plus size={16} stroke="currentColor" />
           </Box>
@@ -143,21 +142,7 @@ const KanbanColumn = memo(function KanbanColumn({
                 variant="kanban"
                 containerId={`kanban-column|${id}`}
                 draggableId={createDraggableId.kanban(task.id, id)}
-                onEdit={() => onTaskClick(task)}
-                onDelete={() => onDelete(task.id)}
-                onDuplicate={() => onDuplicate(task.id)}
                 viewDate={viewDate}
-                onOutcomeChange={onOutcomeChange}
-                getOutcomeOnDate={getOutcomeOnDate}
-                onStatusChange={onStatusChange}
-                isSelected={selectedTaskIds?.has(task.id)}
-                onSelect={onSelect}
-                selectedCount={selectedTaskIds?.size || 0}
-                onBulkEdit={onBulkEdit}
-                onEditWorkout={onEditWorkout}
-                tags={tags}
-                onTagsChange={onTagsChange}
-                onCreateTag={onCreateTag}
               />
             ))}
             {/* Drop placeholder - shows when dragging over to indicate drop zone */}
@@ -247,36 +232,24 @@ const KanbanColumn = memo(function KanbanColumn({
 });
 
 // Main Kanban View component
-export const KanbanView = memo(function KanbanView({
-  tasks,
-  onTaskClick,
-  onCreateTask,
-  onCreateTaskInline,
-  createDraggableId,
-  isCompletedOnDate,
-  getOutcomeOnDate,
-  onOutcomeChange,
-  onEdit,
-  onDuplicate,
-  onDelete,
-  onStatusChange,
-  tags,
-  onTagsChange,
-  onCreateTag,
-  recentlyCompletedTasks,
-  viewDate = new Date(),
-  selectedTaskIds,
-  onSelect,
-  onBulkEdit,
-  onEditWorkout,
-}) {
+export const KanbanView = memo(function KanbanView({ createDraggableId }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState([]);
+
+  // Use hooks directly (they use Redux internally)
+  const completionHandlers = useCompletionHandlers();
+  const { data: tags = [] } = useGetTagsQuery();
+  const [createTagMutation] = useCreateTagMutation();
+
+  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
+  const taskFilters = useTaskFilters({
+    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+  });
 
   // Filter tasks: non-recurring only, exclude notes
   // Memoize to prevent unnecessary recalculations
   const kanbanTasks = useMemo(() => {
-    return tasks.filter(task => {
+    return taskFilters.tasks.filter(task => {
       // Exclude notes
       if (task.completionType === "note") return false;
       // Exclude recurring tasks
@@ -285,7 +258,7 @@ export const KanbanView = memo(function KanbanView({
       if (task.parentId) return false;
       return true;
     });
-  }, [tasks]);
+  }, [taskFilters.tasks]);
 
   // Apply search and tag filters
   const filteredTasks = useMemo(() => {
@@ -319,10 +292,6 @@ export const KanbanView = memo(function KanbanView({
     [filteredTasks]
   );
 
-  const handleAddTask = status => {
-    onCreateTask({ status });
-  };
-
   const handleTagSelect = tagId => {
     setSelectedTagIds(prev => [...prev, tagId]);
   };
@@ -350,7 +319,9 @@ export const KanbanView = memo(function KanbanView({
             selectedTagIds={selectedTagIds}
             onTagSelect={handleTagSelect}
             onTagDeselect={handleTagDeselect}
-            onCreateTag={onCreateTag}
+            onCreateTag={async (name, color) => {
+              return await createTagMutation({ name, color }).unwrap();
+            }}
           />
         </HStack>
       </Box>
@@ -364,26 +335,7 @@ export const KanbanView = memo(function KanbanView({
             title={column.title}
             color={column.color}
             tasks={tasksByStatus[column.id]}
-            onTaskClick={onTaskClick}
-            onAddTask={handleAddTask}
-            onCreateTaskInline={onCreateTaskInline}
             createDraggableId={createDraggableId}
-            isCompletedOnDate={isCompletedOnDate}
-            getOutcomeOnDate={getOutcomeOnDate}
-            onOutcomeChange={onOutcomeChange}
-            onEdit={onEdit}
-            onDuplicate={onDuplicate}
-            onDelete={onDelete}
-            onStatusChange={onStatusChange}
-            recentlyCompletedTasks={recentlyCompletedTasks}
-            viewDate={viewDate}
-            selectedTaskIds={selectedTaskIds}
-            onSelect={onSelect}
-            onBulkEdit={onBulkEdit}
-            onEditWorkout={onEditWorkout}
-            tags={tags}
-            onTagsChange={onTagsChange}
-            onCreateTag={onCreateTag}
           />
         ))}
       </Flex>

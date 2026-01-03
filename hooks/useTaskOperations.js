@@ -1,48 +1,151 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { formatLocalDate } from "@/lib/utils";
-
-/**
- * Task operation handlers (edit, delete, duplicate, etc.)
- */
-export function useTaskOperations({
-  tasks,
-  sections,
-  updateTask,
-  deleteTask,
-  duplicateTask,
-  saveTask,
-  createTask,
-  fetchTasks,
-  batchUpdateTaskTags,
-  toast,
-  // Dialog state setters
+import { useToast } from "@/hooks/useToast";
+import {
+  useGetTasksQuery,
+  useCreateTaskMutation,
+  useUpdateTaskMutation,
+  useDeleteTaskMutation,
+} from "@/lib/store/api/tasksApi";
+import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
+import { useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
+import {
+  openTaskDialog,
   setEditingTask,
   setEditingWorkoutTask,
   setDefaultSectionId,
   setDefaultTime,
   setDefaultDate,
-  openTaskDialog,
-  viewDate,
-}) {
-  // Edit task
+} from "@/lib/store/slices/uiSlice";
+
+/**
+ * Task operation handlers (edit, delete, duplicate, etc.)
+ * Uses Redux directly - no prop drilling needed
+ */
+export function useTaskOperations() {
+  const dispatch = useDispatch();
+  const { toast } = useToast();
+
+  // Get viewDate from Redux (or compute today if not set)
+  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const viewDate = useMemo(() => {
+    return todayViewDateISO ? new Date(todayViewDateISO) : new Date();
+  }, [todayViewDateISO]);
+
+  // RTK Query hooks
+  const { data: tasks = [], refetch: fetchTasks } = useGetTasksQuery();
+  const { data: sections = [] } = useGetSectionsQuery();
+  const [createTaskMutation] = useCreateTaskMutation();
+  const [updateTaskMutation] = useUpdateTaskMutation();
+  const [deleteTaskMutation] = useDeleteTaskMutation();
+  const [updateTaskTagsMutation] = useUpdateTaskTagsMutation();
+
+  // Wrapper functions for mutations
+  const createTask = useCallback(
+    async taskData => {
+      return await createTaskMutation(taskData).unwrap();
+    },
+    [createTaskMutation]
+  );
+
+  const updateTask = useCallback(
+    async (id, taskData) => {
+      return await updateTaskMutation({ id, ...taskData }).unwrap();
+    },
+    [updateTaskMutation]
+  );
+
+  const deleteTask = useCallback(
+    async id => {
+      return await deleteTaskMutation(id).unwrap();
+    },
+    [deleteTaskMutation]
+  );
+
+  const batchUpdateTaskTags = useCallback(
+    async (taskId, tagIds) => {
+      return await updateTaskTagsMutation({ taskId, tagIds }).unwrap();
+    },
+    [updateTaskTagsMutation]
+  );
+
+  // Duplicate task
+  const duplicateTask = useCallback(
+    async taskId => {
+      // Find task in tasks array (including subtasks)
+      const findTask = (taskList, id) => {
+        for (const task of taskList) {
+          if (task.id === id) return task;
+          if (task.subtasks && task.subtasks.length > 0) {
+            const found = findTask(task.subtasks, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      const taskToDuplicate = findTask(tasks, taskId);
+      if (!taskToDuplicate) {
+        throw new Error("Task not found");
+      }
+
+      const duplicatedTaskData = {
+        title: `Copy of ${taskToDuplicate.title}`,
+        sectionId: taskToDuplicate.sectionId,
+        time: taskToDuplicate.time,
+        duration: taskToDuplicate.duration,
+        recurrence: taskToDuplicate.recurrence,
+        parentId: taskToDuplicate.parentId,
+        order: taskToDuplicate.order,
+      };
+
+      return await createTaskMutation(duplicatedTaskData).unwrap();
+    },
+    [tasks, createTaskMutation]
+  );
+
+  // Save task (create or update with tags and subtasks)
+  const saveTask = useCallback(
+    async taskData => {
+      const { tagIds, subtasks: _subtasksData, ...taskFields } = taskData;
+
+      let savedTask;
+      if (taskData.id) {
+        savedTask = await updateTaskMutation({ id: taskData.id, ...taskFields }).unwrap();
+      } else {
+        savedTask = await createTaskMutation(taskFields).unwrap();
+      }
+
+      // Handle tag assignments if tagIds provided
+      if (tagIds !== undefined) {
+        await updateTaskTagsMutation({ taskId: savedTask.id, tagIds }).unwrap();
+      }
+
+      return savedTask;
+    },
+    [createTaskMutation, updateTaskMutation, updateTaskTagsMutation]
+  );
+
+  // Edit task - opens dialog with task data
   const handleEditTask = useCallback(
     task => {
-      setEditingTask(task);
-      setDefaultSectionId(null);
-      setDefaultTime(null);
-      openTaskDialog();
+      dispatch(setEditingTask(task));
+      dispatch(setDefaultSectionId(null));
+      dispatch(setDefaultTime(null));
+      dispatch(openTaskDialog());
     },
-    [setEditingTask, setDefaultSectionId, setDefaultTime, openTaskDialog]
+    [dispatch]
   );
 
   // Edit workout
   const handleEditWorkout = useCallback(
     task => {
-      setEditingWorkoutTask(task);
+      dispatch(setEditingWorkoutTask(task));
     },
-    [setEditingWorkoutTask]
+    [dispatch]
   );
 
   // Update task title (inline edit)
@@ -62,7 +165,7 @@ export function useTaskOperations({
     [deleteTask]
   );
 
-  // Duplicate task
+  // Duplicate task with toast
   const handleDuplicateTask = useCallback(
     async taskId => {
       try {
@@ -90,42 +193,42 @@ export function useTaskOperations({
   const handleSaveTask = useCallback(
     async taskData => {
       await saveTask(taskData);
-      setEditingTask(null);
+      dispatch(setEditingTask(null));
     },
-    [saveTask, setEditingTask]
+    [saveTask, dispatch]
   );
 
   // Add task to specific section
   const handleAddTask = useCallback(
     sectionId => {
-      setEditingTask(null);
-      setDefaultSectionId(sectionId);
-      setDefaultTime(null);
-      setDefaultDate(formatLocalDate(viewDate || new Date()));
-      openTaskDialog();
+      dispatch(setEditingTask(null));
+      dispatch(setDefaultSectionId(sectionId));
+      dispatch(setDefaultTime(null));
+      dispatch(setDefaultDate(formatLocalDate(viewDate || new Date())));
+      dispatch(openTaskDialog());
     },
-    [setEditingTask, setDefaultSectionId, setDefaultTime, setDefaultDate, openTaskDialog, viewDate]
+    [dispatch, viewDate]
   );
 
   // Add task to backlog
   const handleAddTaskToBacklog = useCallback(() => {
-    setEditingTask(null);
-    setDefaultSectionId(sections[0]?.id);
-    setDefaultTime(null);
-    setDefaultDate(null);
-    openTaskDialog();
-  }, [setEditingTask, setDefaultSectionId, setDefaultTime, setDefaultDate, openTaskDialog, sections]);
+    dispatch(setEditingTask(null));
+    dispatch(setDefaultSectionId(sections[0]?.id));
+    dispatch(setDefaultTime(null));
+    dispatch(setDefaultDate(null));
+    dispatch(openTaskDialog());
+  }, [dispatch, sections]);
 
   // Create task from calendar
   const handleCreateTaskFromCalendar = useCallback(
     (time, day) => {
-      setDefaultTime(time);
-      setDefaultDate(day ? formatLocalDate(day) : null);
-      setDefaultSectionId(sections[0]?.id);
-      setEditingTask(null);
-      openTaskDialog();
+      dispatch(setDefaultTime(time));
+      dispatch(setDefaultDate(day ? formatLocalDate(day) : null));
+      dispatch(setDefaultSectionId(sections[0]?.id));
+      dispatch(setEditingTask(null));
+      dispatch(openTaskDialog());
     },
-    [setDefaultTime, setDefaultDate, setDefaultSectionId, setEditingTask, openTaskDialog, sections]
+    [dispatch, sections]
   );
 
   // Task time/duration changes
@@ -169,7 +272,7 @@ export function useTaskOperations({
       if (!title.trim()) return;
 
       try {
-        const taskDate = viewDate || new Date();
+        const taskDate = new Date(viewDate || new Date());
         taskDate.setHours(0, 0, 0, 0);
         const now = new Date();
 
@@ -222,7 +325,7 @@ export function useTaskOperations({
           order: 999,
         });
 
-        await fetchTasks(true);
+        await fetchTasks();
 
         toast({
           title: "Subtask created",
@@ -314,6 +417,21 @@ export function useTaskOperations({
   );
 
   return {
+    // Data
+    tasks,
+    sections,
+    viewDate,
+
+    // Raw operations (for other hooks to use)
+    createTask,
+    updateTask,
+    deleteTask,
+    duplicateTask,
+    saveTask,
+    batchUpdateTaskTags,
+    fetchTasks,
+
+    // Handler functions
     handleEditTask,
     handleEditWorkout,
     handleUpdateTaskTitle,

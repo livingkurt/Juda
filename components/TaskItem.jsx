@@ -36,41 +36,64 @@ import { TaskBadges } from "./shared/TaskBadges";
 import { TaskContextMenu } from "./TaskContextMenu";
 import { useWorkoutProgress } from "@/hooks/useWorkoutProgress";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
+import { useSelectionState } from "@/hooks/useSelectionState";
+import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 
 export const TaskItem = ({
   task,
   variant = "today", // "today", "backlog", "subtask", or "kanban"
   containerId, // Container ID for sortable context
-  onToggle,
-  onToggleSubtask,
-  onToggleExpand,
-  onEdit,
-  onEditWorkout, // Handler for editing workout structure
-  onUpdateTitle,
-  onDelete,
-  onDuplicate,
   draggableId,
   textColor: textColorProp, // Optional override
   mutedTextColor: mutedTextColorProp, // Optional override
   gripColor: gripColorProp, // Optional override
   viewDate, // Date being viewed (for overdue calculation)
   parentTaskId, // For subtask variant
-  onOutcomeChange, // Handler for outcome changes
-  getOutcomeOnDate, // Function to get outcome for a task on a date
-  hasRecordOnDate, // Function to check if task has any record on a date
-  onCompleteWithNote, // (taskId, note) => void - for text completion
-  getCompletionForDate, // (taskId, date) => completion object
-  onStatusChange, // Handler for status changes (kanban)
   isSelected, // Whether this task is selected for bulk edit
-  onSelect, // Handler for task selection (taskId, event) => void
   selectedCount, // Number of tasks currently selected
-  onBulkEdit, // Handler to open bulk edit dialog
-  onBeginWorkout, // Handler for beginning workout (workout-type tasks)
-  tags, // All available tags
-  onTagsChange, // (taskId, newTagIds) => void
-  onCreateTag, // (name, color) => Promise<newTag>
-  onCreateSubtask, // (parentTaskId, subtaskTitle) => void - for creating subtasks inline
+  hoveredDroppable: _hoveredDroppable, // For drag and drop highlighting (unused for now)
 }) => {
+  // Use hooks directly (they use Redux internally)
+  const taskOps = useTaskOperations();
+  const completionHandlers = useCompletionHandlers();
+  const selectionState = useSelectionState();
+  const { data: tags = [] } = useGetTagsQuery();
+  const [createTagMutation] = useCreateTagMutation();
+  const { getOutcomeOnDate, hasRecordOnDate, getCompletionForDate } = useCompletionHelpers();
+  const dialogState = useDialogState();
+  const statusHandlers = useStatusHandlers({
+    addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
+  });
+
+  // Extract handlers from hooks
+  const onToggle = completionHandlers.handleToggleTask;
+  const onToggleSubtask = completionHandlers.handleToggleSubtask;
+  const onToggleExpand = taskOps.handleToggleExpand;
+  const onEdit = taskOps.handleEditTask;
+  const onEditWorkout = taskOps.handleEditWorkout;
+  const onUpdateTitle = taskOps.handleUpdateTaskTitle;
+  const onDelete = taskOps.handleDeleteTask;
+  const onDuplicate = taskOps.handleDuplicateTask;
+  const onOutcomeChange = completionHandlers.handleOutcomeChange;
+  const onCompleteWithNote = completionHandlers.handleCompleteWithNote;
+  const onSelect = selectionState.handleTaskSelect;
+  const onBulkEdit = selectionState.handleBulkEdit;
+  const onBeginWorkout = dialogState.handleBeginWorkout;
+  const onTagsChange = taskOps.handleTaskTagsChange;
+  const onCreateTag = async (name, color) => {
+    return await createTagMutation({ name, color }).unwrap();
+  };
+  const onCreateSubtask = taskOps.handleCreateSubtask;
+
+  // Compute selection state from Redux (use props if provided, otherwise use Redux)
+  const isSelectedComputed = isSelected !== undefined ? isSelected : selectionState.selectedTaskIds.has(task.id);
+  const selectedCountComputed = selectedCount !== undefined ? selectedCount : selectionState.selectedCount;
+
   const isBacklog = variant === "backlog";
   const isToday = variant === "today";
   const isSubtask = variant === "subtask";
@@ -291,15 +314,15 @@ export const TaskItem = ({
     <Box ref={setNodeRef} style={style} w="100%" maxW="100%" data-task-id={task.id}>
       <Box
         borderRadius="lg"
-        bg={isSelected ? mode.selection.bg : bgColor}
+        bg={isSelectedComputed ? mode.selection.bg : bgColor}
         transition="box-shadow 0.2s, border-color 0.2s, background-color 0.2s"
-        borderColor={isSelected ? mode.selection.border : taskColor || mode.border.default}
+        borderColor={isSelectedComputed ? mode.selection.border : taskColor || mode.border.default}
         borderWidth="2px"
         borderStyle="solid"
         w="100%"
         maxW="100%"
         overflow="hidden"
-        boxShadow={isSelected ? `0 0 0 2px ${mode.selection.border}` : "none"}
+        boxShadow={isSelectedComputed ? `0 0 0 2px ${mode.selection.border}` : "none"}
       >
         <Flex
           align="center"
@@ -749,7 +772,7 @@ export const TaskItem = ({
               <Menu.Positioner>
                 <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
                   {/* Show Bulk Edit option if multiple tasks are selected */}
-                  {selectedCount > 0 && onBulkEdit && (
+                  {selectedCountComputed > 0 && onBulkEdit && (
                     <>
                       <Menu.Item
                         onClick={e => {
@@ -770,7 +793,7 @@ export const TaskItem = ({
                           >
                             <Edit2 size={14} />
                           </Box>
-                          <Text>Bulk Edit ({selectedCount} selected)</Text>
+                          <Text>Bulk Edit ({selectedCountComputed} selected)</Text>
                         </HStack>
                       </Menu.Item>
                       <Menu.Separator />
@@ -792,7 +815,7 @@ export const TaskItem = ({
                     tags={tags}
                     onTagsChange={onTagsChange}
                     onCreateTag={onCreateTag}
-                    onStatusChange={onStatusChange}
+                    onStatusChange={statusHandlers.handleStatusChange}
                   />
                 </Menu.Content>
               </Menu.Positioner>

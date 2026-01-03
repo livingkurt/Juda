@@ -1,47 +1,43 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  setMainTabIndex as setMainTabIndexAction,
+  setMobileActiveView as setMobileActiveViewAction,
+  setSelectedDate as setSelectedDateAction,
+  setTodayViewDate as setTodayViewDateAction,
+  setCalendarView as setCalendarViewAction,
+  setTodaySearchTerm as setTodaySearchTermAction,
+  setTodaySelectedTagIds as setTodaySelectedTagIdsAction,
+  addTodaySelectedTag,
+  removeTodaySelectedTag,
+  setCalendarSearchTerm as setCalendarSearchTermAction,
+  setCalendarSelectedTagIds as setCalendarSelectedTagIdsAction,
+  addCalendarSelectedTag,
+  removeCalendarSelectedTag,
+} from "@/lib/store/slices/uiSlice";
 
 /**
- * Manages view state: active tabs, dates, zoom, filters
+ * Manages view state using Redux directly
  */
-export function useViewState(preferences = {}) {
-  const {
-    showCompletedTasks = true,
-    calendarView: defaultCalendarView = "day",
-    calendarZoom: defaultZoom = 1.0,
-  } = preferences;
+export function useViewState() {
+  const dispatch = useDispatch();
 
-  // Tab state
-  const [mainTabIndex, setMainTabIndex] = useState(0); // 0 = Tasks, 1 = Kanban, 2 = Notes, 3 = History
+  // Get state from Redux
+  const mainTabIndex = useSelector(state => state.ui.mainTabIndex);
+  const mobileActiveView = useSelector(state => state.ui.mobileActiveView);
+  const selectedDateISO = useSelector(state => state.ui.selectedDate);
+  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const calendarView = useSelector(state => state.ui.calendarView);
+  const todaySearchTerm = useSelector(state => state.ui.todaySearchTerm);
+  const todaySelectedTagIds = useSelector(state => state.ui.todaySelectedTagIds);
+  const calendarSearchTerm = useSelector(state => state.ui.calendarSearchTerm);
+  const calendarSelectedTagIds = useSelector(state => state.ui.calendarSelectedTagIds);
 
-  // Date state - use lazy initializer to avoid hydration mismatch
-  const [selectedDate, setSelectedDate] = useState(() => {
-    if (typeof window === "undefined") return null;
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    return now;
-  });
-  const [todayViewDate, setTodayViewDate] = useState(() => {
-    if (typeof window === "undefined") return null;
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    return now;
-  });
-
-  // Calendar view state
-  const [calendarView, setCalendarView] = useState(defaultCalendarView);
-  const [zoom, setZoom] = useState(defaultZoom);
-  const [showCompleted, setShowCompleted] = useState(showCompletedTasks);
-
-  // Search and filter state
-  const [todaySearchTerm, setTodaySearchTerm] = useState("");
-  const [todaySelectedTagIds, setTodaySelectedTagIds] = useState([]);
-  const [calendarSearchTerm, setCalendarSearchTerm] = useState("");
-  const [calendarSelectedTagIds, setCalendarSelectedTagIds] = useState([]);
-
-  // Mobile view state
-  const [mobileActiveView, setMobileActiveView] = useState("today");
+  // Convert ISO strings to Date objects
+  const selectedDate = useMemo(() => (selectedDateISO ? new Date(selectedDateISO) : null), [selectedDateISO]);
+  const todayViewDate = useMemo(() => (todayViewDateISO ? new Date(todayViewDateISO) : null), [todayViewDateISO]);
 
   // Today reference (stable)
   const today = useMemo(() => {
@@ -55,107 +51,97 @@ export function useViewState(preferences = {}) {
     return todayViewDate || today;
   }, [todayViewDate, today]);
 
+  // Setter wrappers
+  const setMainTabIndex = useCallback(index => dispatch(setMainTabIndexAction(index)), [dispatch]);
+  const setMobileActiveView = useCallback(view => dispatch(setMobileActiveViewAction(view)), [dispatch]);
+  const setSelectedDate = useCallback(date => dispatch(setSelectedDateAction(date)), [dispatch]);
+  const setTodayViewDate = useCallback(date => dispatch(setTodayViewDateAction(date)), [dispatch]);
+  const setCalendarView = useCallback(view => dispatch(setCalendarViewAction(view)), [dispatch]);
+  const setTodaySearchTerm = useCallback(term => dispatch(setTodaySearchTermAction(term)), [dispatch]);
+  const setTodaySelectedTagIds = useCallback(ids => dispatch(setTodaySelectedTagIdsAction(ids)), [dispatch]);
+  const setCalendarSearchTerm = useCallback(term => dispatch(setCalendarSearchTermAction(term)), [dispatch]);
+  const setCalendarSelectedTagIds = useCallback(ids => dispatch(setCalendarSelectedTagIdsAction(ids)), [dispatch]);
+
   // Navigation helpers
   const goToToday = useCallback(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    setSelectedDate(now);
-    setTodayViewDate(now);
-  }, []);
+    dispatch(setSelectedDateAction(now));
+    dispatch(setTodayViewDateAction(now));
+  }, [dispatch]);
 
   const goToPreviousDay = useCallback(() => {
-    setSelectedDate(prev => {
-      if (!prev) return prev;
-      const newDate = new Date(prev);
-      newDate.setDate(newDate.getDate() - 1);
-      return newDate;
-    });
-  }, []);
+    if (!selectedDate) return;
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() - 1);
+    dispatch(setSelectedDateAction(newDate));
+  }, [dispatch, selectedDate]);
 
   const goToNextDay = useCallback(() => {
-    setSelectedDate(prev => {
-      if (!prev) return prev;
-      const newDate = new Date(prev);
-      newDate.setDate(newDate.getDate() + 1);
-      return newDate;
-    });
-  }, []);
+    if (!selectedDate) return;
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + 1);
+    dispatch(setSelectedDateAction(newDate));
+  }, [dispatch, selectedDate]);
 
   // Calendar navigation
   const navigateCalendar = useCallback(
     dir => {
-      if (calendarView === "kanban") return; // Kanban view doesn't have date navigation
-      setSelectedDate(prev => {
-        if (!prev) return prev;
-        const d = new Date(prev);
-        if (calendarView === "day") d.setDate(d.getDate() + dir);
-        else if (calendarView === "week") d.setDate(d.getDate() + dir * 7);
-        else if (calendarView === "month") d.setMonth(d.getMonth() + dir);
-        else if (calendarView === "year") d.setFullYear(d.getFullYear() + dir);
-        else d.setMonth(d.getMonth() + dir);
-        d.setHours(0, 0, 0, 0);
-        return d;
-      });
+      if (calendarView === "kanban") return;
+      if (!selectedDate) return;
+      const d = new Date(selectedDate);
+      if (calendarView === "day") d.setDate(d.getDate() + dir);
+      else if (calendarView === "week") d.setDate(d.getDate() + dir * 7);
+      else if (calendarView === "month") d.setMonth(d.getMonth() + dir);
+      else if (calendarView === "year") d.setFullYear(d.getFullYear() + dir);
+      else d.setMonth(d.getMonth() + dir);
+      d.setHours(0, 0, 0, 0);
+      dispatch(setSelectedDateAction(d));
     },
-    [calendarView]
+    [dispatch, calendarView, selectedDate]
   );
 
   // Today View navigation
-  const navigateTodayView = useCallback(dir => {
-    setTodayViewDate(prev => {
-      if (!prev) return prev;
-      const d = new Date(prev);
+  const navigateTodayView = useCallback(
+    dir => {
+      const d = new Date(todayViewDate || today);
       d.setDate(d.getDate() + dir);
       d.setHours(0, 0, 0, 0);
-      return d;
-    });
-  }, []);
+      dispatch(setTodayViewDateAction(d));
+    },
+    [dispatch, todayViewDate, today]
+  );
 
   const handleTodayViewToday = useCallback(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    setTodayViewDate(now);
-  }, []);
+    dispatch(setTodayViewDateAction(now));
+  }, [dispatch]);
 
-  const handleTodayViewDateChange = useCallback(date => {
-    setTodayViewDate(date);
-  }, []);
-
-  // Zoom helpers
-  const zoomIn = useCallback(() => {
-    setZoom(prev => Math.min(prev + 0.25, 2.0));
-  }, []);
-
-  const zoomOut = useCallback(() => {
-    setZoom(prev => Math.max(prev - 0.25, 0.5));
-  }, []);
+  const handleTodayViewDateChange = useCallback(
+    date => {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      dispatch(setTodayViewDateAction(d));
+    },
+    [dispatch]
+  );
 
   // Tag filter helpers
-  const handleTodayTagSelect = useCallback(tagId => {
-    setTodaySelectedTagIds(prev => [...prev, tagId]);
-  }, []);
-
-  const handleTodayTagDeselect = useCallback(tagId => {
-    setTodaySelectedTagIds(prev => prev.filter(id => id !== tagId));
-  }, []);
-
-  const handleCalendarTagSelect = useCallback(tagId => {
-    setCalendarSelectedTagIds(prev => [...prev, tagId]);
-  }, []);
-
-  const handleCalendarTagDeselect = useCallback(tagId => {
-    setCalendarSelectedTagIds(prev => prev.filter(id => id !== tagId));
-  }, []);
+  const handleTodayTagSelect = useCallback(tagId => dispatch(addTodaySelectedTag(tagId)), [dispatch]);
+  const handleTodayTagDeselect = useCallback(tagId => dispatch(removeTodaySelectedTag(tagId)), [dispatch]);
+  const handleCalendarTagSelect = useCallback(tagId => dispatch(addCalendarSelectedTag(tagId)), [dispatch]);
+  const handleCalendarTagDeselect = useCallback(tagId => dispatch(removeCalendarSelectedTag(tagId)), [dispatch]);
 
   const clearTodayFilters = useCallback(() => {
-    setTodaySearchTerm("");
-    setTodaySelectedTagIds([]);
-  }, []);
+    dispatch(setTodaySearchTermAction(""));
+    dispatch(setTodaySelectedTagIdsAction([]));
+  }, [dispatch]);
 
   const clearCalendarFilters = useCallback(() => {
-    setCalendarSearchTerm("");
-    setCalendarSelectedTagIds([]);
-  }, []);
+    dispatch(setCalendarSearchTermAction(""));
+    dispatch(setCalendarSelectedTagIdsAction([]));
+  }, [dispatch]);
 
   // Get calendar title based on current view and date
   const getCalendarTitle = useCallback(() => {
@@ -214,12 +200,6 @@ export function useViewState(preferences = {}) {
     // Calendar view
     calendarView,
     setCalendarView,
-    zoom,
-    setZoom,
-    zoomIn,
-    zoomOut,
-    showCompleted,
-    setShowCompleted,
 
     // Search/filter - Today
     todaySearchTerm,

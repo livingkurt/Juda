@@ -5,40 +5,17 @@ import { Box, VStack, HStack, Flex, Text, IconButton, Badge, Heading, Input } fr
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
+import { useSelector } from "react-redux";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
+import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 
-const BacklogDrawerComponent = ({
-  backlogTasks,
-  onEditTask,
-  onEditWorkout,
-  onUpdateTaskTitle,
-  onDeleteTask,
-  onDuplicateTask,
-  onAddTask,
-  onCreateBacklogTaskInline,
-  onCreateSubtask,
-  onToggleExpand,
-  onToggleSubtask,
-  onToggleTask,
-  createDraggableId,
-  viewDate,
-  tags = [],
-  onTagsChange,
-  onCreateTag,
-  onOutcomeChange,
-  getOutcomeOnDate,
-  hasRecordOnDate,
-  onCompleteWithNote,
-  onSkipTask,
-  getCompletionForDate,
-  selectedTaskIds,
-  onTaskSelect,
-  onBulkEdit,
-  onBeginWorkout,
-}) => {
+const BacklogDrawerComponent = ({ createDraggableId }) => {
   const { mode, dnd } = useSemanticColors();
 
   const bgColor = mode.bg.surface;
@@ -47,6 +24,23 @@ const BacklogDrawerComponent = ({
   const mutedText = mode.text.secondary;
   const dropHighlight = dnd.dropTarget;
   const gripColor = mode.text.muted;
+
+  // Get Redux state directly
+  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const viewDate = todayViewDateISO ? new Date(todayViewDateISO) : new Date();
+
+  // Use hooks directly (they use Redux internally)
+  const taskOps = useTaskOperations();
+  const completionHandlers = useCompletionHandlers();
+  const { data: tags = [] } = useGetTagsQuery();
+  const [createTagMutation] = useCreateTagMutation();
+
+  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
+  const taskFilters = useTaskFilters({
+    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+  });
+
+  const backlogTasks = taskFilters.backlogTasks;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState([]);
@@ -89,8 +83,8 @@ const BacklogDrawerComponent = ({
   };
 
   const handleInlineInputBlur = async () => {
-    if (inlineInputValue.trim() && onCreateBacklogTaskInline) {
-      await onCreateBacklogTaskInline(inlineInputValue);
+    if (inlineInputValue.trim()) {
+      await taskOps.handleCreateBacklogTaskInline(inlineInputValue);
       setInlineInputValue("");
     }
     setIsInlineInputActive(false);
@@ -99,11 +93,9 @@ const BacklogDrawerComponent = ({
   const handleInlineInputKeyDown = async e => {
     if (e.key === "Enter" && inlineInputValue.trim()) {
       e.preventDefault();
-      if (onCreateBacklogTaskInline) {
-        await onCreateBacklogTaskInline(inlineInputValue);
-        setInlineInputValue("");
-        setIsInlineInputActive(false);
-      }
+      await taskOps.handleCreateBacklogTaskInline(inlineInputValue);
+      setInlineInputValue("");
+      setIsInlineInputActive(false);
     } else if (e.key === "Escape") {
       setInlineInputValue("");
       setIsInlineInputActive(false);
@@ -142,7 +134,7 @@ const BacklogDrawerComponent = ({
           </Heading>
           <HStack spacing={2} flexShrink={0}>
             <IconButton
-              onClick={onAddTask}
+              onClick={taskOps.handleAddTaskToBacklog}
               size="sm"
               variant="ghost"
               colorPalette="blue"
@@ -169,7 +161,9 @@ const BacklogDrawerComponent = ({
             selectedTagIds={selectedTagIds}
             onTagSelect={handleTagSelect}
             onTagDeselect={handleTagDeselect}
-            onCreateTag={onCreateTag}
+            onCreateTag={async (name, color) => {
+              return await createTagMutation({ name, color }).unwrap();
+            }}
             compact
           />
         </HStack>
@@ -180,9 +174,9 @@ const BacklogDrawerComponent = ({
             value={newTaskTitle}
             onChange={e => setNewTaskTitle(e.target.value)}
             onKeyDown={e => {
-              if (e.key === "Enter" && newTaskTitle.trim() && onCreateBacklogTaskInline) {
+              if (e.key === "Enter" && newTaskTitle.trim()) {
                 e.preventDefault();
-                onCreateBacklogTaskInline(newTaskTitle.trim());
+                taskOps.handleCreateBacklogTaskInline(newTaskTitle.trim());
                 setNewTaskTitle("");
               }
             }}
@@ -242,34 +236,11 @@ const BacklogDrawerComponent = ({
                     task={task}
                     variant="backlog"
                     containerId="backlog"
-                    onEdit={onEditTask}
-                    onEditWorkout={onEditWorkout}
-                    onUpdateTitle={onUpdateTaskTitle}
-                    onDelete={onDeleteTask}
-                    onDuplicate={onDuplicateTask}
-                    onToggleExpand={onToggleExpand}
-                    onToggleSubtask={onToggleSubtask}
-                    onToggle={onToggleTask}
                     textColor={textColor}
                     mutedTextColor={mutedText}
                     gripColor={gripColor}
                     draggableId={task.draggableId}
                     viewDate={viewDate}
-                    onOutcomeChange={onOutcomeChange}
-                    getOutcomeOnDate={getOutcomeOnDate}
-                    hasRecordOnDate={hasRecordOnDate}
-                    onCompleteWithNote={onCompleteWithNote}
-                    onSkipTask={onSkipTask}
-                    getCompletionForDate={getCompletionForDate}
-                    onCreateSubtask={onCreateSubtask}
-                    isSelected={selectedTaskIds?.has(task.id)}
-                    onSelect={onTaskSelect}
-                    selectedCount={selectedTaskIds?.size || 0}
-                    onBulkEdit={onBulkEdit}
-                    onBeginWorkout={onBeginWorkout}
-                    tags={tags}
-                    onTagsChange={onTagsChange}
-                    onCreateTag={onCreateTag}
                   />
                 ))}
                 <Input
@@ -301,9 +272,9 @@ const BacklogDrawerComponent = ({
             </SortableContext>
           </Box>
         ) : (
-          <VStack align="stretch" spacing={2}>
-            <Text fontSize="sm" color={mutedText} textAlign="center" py={8}>
-              {isOver ? "Drop here to add to backlog" : "No items in backlog"}
+          <VStack align="stretch" spacing={{ base: 1, md: 2 }}>
+            <Text fontSize={{ base: "xs", md: "sm" }} textAlign="center" py={{ base: 4, md: 8 }} color={mutedText}>
+              {isOver ? "Drop here" : "No tasks"}
             </Text>
             <Input
               ref={inlineInputRef}
@@ -337,50 +308,4 @@ const BacklogDrawerComponent = ({
   );
 };
 
-BacklogDrawerComponent.displayName = "BacklogDrawer";
-
-// Custom comparison function to prevent rerenders when backlogTasks contents haven't changed
-const areBacklogTasksEqual = (prevProps, nextProps) => {
-  // Compare backlogTasks by IDs and length
-  if (prevProps.backlogTasks.length !== nextProps.backlogTasks.length) {
-    return false;
-  }
-
-  const prevIds = prevProps.backlogTasks
-    .map(t => t.id)
-    .sort()
-    .join(",");
-  const nextIds = nextProps.backlogTasks
-    .map(t => t.id)
-    .sort()
-    .join(",");
-
-  if (prevIds !== nextIds) {
-    return false;
-  }
-
-  // Compare other props that might affect rendering
-  return (
-    prevProps.viewDate?.getTime() === nextProps.viewDate?.getTime() &&
-    prevProps.tags.length === nextProps.tags.length &&
-    prevProps.onEditTask === nextProps.onEditTask &&
-    prevProps.onUpdateTaskTitle === nextProps.onUpdateTaskTitle &&
-    prevProps.onDeleteTask === nextProps.onDeleteTask &&
-    prevProps.onDuplicateTask === nextProps.onDuplicateTask &&
-    prevProps.onAddTask === nextProps.onAddTask &&
-    prevProps.onCreateBacklogTaskInline === nextProps.onCreateBacklogTaskInline &&
-    prevProps.onToggleExpand === nextProps.onToggleExpand &&
-    prevProps.onToggleSubtask === nextProps.onToggleSubtask &&
-    prevProps.onToggleTask === nextProps.onToggleTask &&
-    prevProps.createDraggableId === nextProps.createDraggableId &&
-    prevProps.onCreateTag === nextProps.onCreateTag &&
-    prevProps.onOutcomeChange === nextProps.onOutcomeChange &&
-    prevProps.getOutcomeOnDate === nextProps.getOutcomeOnDate &&
-    prevProps.hasRecordOnDate === nextProps.hasRecordOnDate &&
-    prevProps.onCompleteWithNote === nextProps.onCompleteWithNote &&
-    prevProps.onSkipTask === nextProps.onSkipTask &&
-    prevProps.getCompletionForDate === nextProps.getCompletionForDate
-  );
-};
-
-export const BacklogDrawer = memo(BacklogDrawerComponent, areBacklogTasksEqual);
+export const BacklogDrawer = memo(BacklogDrawerComponent);

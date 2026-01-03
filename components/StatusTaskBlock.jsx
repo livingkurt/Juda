@@ -4,17 +4,19 @@ import { memo } from "react";
 import { Box, Text, HStack } from "@chakra-ui/react";
 import { Clock, PlayCircle } from "lucide-react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
 
 export const StatusTaskBlock = memo(function StatusTaskBlock({
   task,
   top,
   height,
   isInProgress,
-  onTaskClick,
   startedAt,
   completedAt,
 }) {
   const { mode, status } = useSemanticColors();
+  const taskOps = useTaskOperations();
+
   const bgColor = isInProgress ? status.infoBg : status.successBg;
   const borderColor = isInProgress ? status.info : status.success;
 
@@ -40,7 +42,7 @@ export const StatusTaskBlock = memo(function StatusTaskBlock({
       px={2}
       py={1}
       cursor="pointer"
-      onClick={() => onTaskClick(task)}
+      onClick={() => taskOps.handleEditTask(task)}
       overflow="hidden"
       opacity={isInProgress ? 1 : 0.8}
       _hover={{ opacity: 1 }}

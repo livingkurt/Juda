@@ -7,13 +7,14 @@ import { TimedWeekTask } from "./TimedWeekTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
 import { CurrentTimeLine } from "./CurrentTimeLine";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
 export const TimedColumn = ({
   day,
   dayIndex,
   timedTasks,
   allTasks = [],
-  onTaskClick,
   handleColumnClick,
   handleDropTimeCalculation,
   createDroppableId,
@@ -23,20 +24,9 @@ export const TimedColumn = ({
   handleInternalDragStart,
   borderColor,
   dropHighlight,
-  isCompletedOnDate,
-  getOutcomeOnDate,
-  getCompletionForDate,
   showStatusTasks = true,
   hourHeight = 48,
-  onEdit,
-  onEditWorkout,
-  onOutcomeChange,
-  onDuplicate,
-  onDelete,
   isToday = false,
-  tags,
-  onTagsChange,
-  onCreateTag,
 }) => {
   const { calendar } = useSemanticColors();
   const timedDroppableId = createDroppableId.calendarWeek(day);
@@ -44,6 +34,14 @@ export const TimedColumn = ({
     id: timedDroppableId,
     data: { type: "TASK", date: day, isUntimed: false },
   });
+
+  // Use hooks directly (they use Redux internally)
+  const { getCompletionForDate } = useCompletionHelpers();
+
+  // Get preferences
+  const { preferences } = usePreferencesContext();
+  const showStatusTasksPref = preferences.showStatusTasks !== false;
+  const actualShowStatusTasks = showStatusTasks && showStatusTasksPref;
 
   return (
     <Box
@@ -83,27 +81,16 @@ export const TimedColumn = ({
         <TimedWeekTask
           key={task.id}
           task={task}
-          onTaskClick={onTaskClick}
           createDraggableId={createDraggableId}
           day={day}
           getTaskStyle={getTaskStyle}
           internalDrag={internalDrag}
           handleInternalDragStart={handleInternalDragStart}
-          isCompletedOnDate={isCompletedOnDate}
-          getOutcomeOnDate={getOutcomeOnDate}
-          onEdit={onEdit}
-          onEditWorkout={onEditWorkout}
-          onOutcomeChange={onOutcomeChange}
-          onDuplicate={onDuplicate}
-          onDelete={onDelete}
-          tags={tags}
-          onTagsChange={onTagsChange}
-          onCreateTag={onCreateTag}
         />
       ))}
 
       {/* Render status task blocks (in-progress and completed with time tracking) */}
-      {showStatusTasks &&
+      {actualShowStatusTasks &&
         getCompletionForDate &&
         allTasks
           .filter(task => {
@@ -159,7 +146,6 @@ export const TimedColumn = ({
                 top={top}
                 height={height}
                 isInProgress={isInProgress}
-                onTaskClick={onTaskClick}
                 startedAt={startedAt}
                 completedAt={completedAt}
               />

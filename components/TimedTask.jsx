@@ -7,36 +7,28 @@ import { formatTime, getTaskDisplayColor } from "@/lib/utils";
 import { TagMenuSelector } from "./TagMenuSelector";
 import { TaskContextMenu } from "./TaskContextMenu";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 
-export const TimedTask = ({
-  task,
-  createDraggableId,
-  date,
-  getTaskStyle,
-  internalDrag,
-  handleInternalDragStart,
-  isCompletedOnDate,
-  getOutcomeOnDate,
-  onEdit,
-  onEditWorkout,
-  onOutcomeChange,
-  onDuplicate,
-  onDelete,
-  tags,
-  onTagsChange,
-  onCreateTag,
-}) => {
+export const TimedTask = ({ task, createDraggableId, date, getTaskStyle, internalDrag, handleInternalDragStart }) => {
   const { mode } = useSemanticColors();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Use hooks directly (they use Redux internally)
+  const taskOps = useTaskOperations();
+  const { data: tags = [] } = useGetTagsQuery();
+  const [createTagMutation] = useCreateTagMutation();
+  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
+
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: createDraggableId.calendarTimed(task.id, date),
     data: { task, type: "TASK" },
   });
 
-  const [menuOpen, setMenuOpen] = useState(false);
-
   const isNoDuration = task.duration === 0;
-  const isCompleted = isCompletedOnDate ? isCompletedOnDate(task.id, date) : false;
-  const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, date) : null;
+  const isCompleted = isCompletedOnDate(task.id, date);
+  const outcome = getOutcomeOnDate(task.id, date);
   const isNotCompleted = outcome === "not_completed";
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
   const isWorkoutTask = task.completionType === "workout";
@@ -133,17 +125,17 @@ export const TimedTask = ({
                 isRecurring={isRecurring}
                 isWorkoutTask={isWorkoutTask}
                 outcome={outcome}
-                onEdit={onEdit}
-                onEditWorkout={onEditWorkout}
-                onDuplicate={onDuplicate}
-                onDelete={onDelete}
-                onOutcomeChange={onOutcomeChange}
                 onClose={() => setMenuOpen(false)}
               />
               {/* Tags submenu */}
-              {tags && onTagsChange && onCreateTag && (
-                <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
-              )}
+              <TagMenuSelector
+                task={task}
+                tags={tags}
+                onTagsChange={taskOps.handleTaskTagsChange}
+                onCreateTag={async (name, color) => {
+                  return await createTagMutation({ name, color }).unwrap();
+                }}
+              />
             </Menu.Content>
           </Menu.Positioner>
         </Portal>

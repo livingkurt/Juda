@@ -75,19 +75,32 @@ import {
   useUpdateTaskTagsMutation,
 } from "@/lib/store/api/tagsApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
-import { useViewState } from "@/hooks/useViewState";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  setBacklogOpen,
+  setShowDashboard,
+  setShowCalendar,
+  setNotesSidebarOpen,
+  setNotesListOpen,
+  setBacklogWidth,
+  setTodayViewWidth,
+  setNotesSidebarWidth,
+  setNotesListWidth,
+  openTaskDialog,
+} from "@/lib/store/slices/uiSlice";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useResizeHandlers } from "@/hooks/useResizeHandlers";
-import { useSelectionState } from "@/hooks/useSelectionState";
-import { useDialogState } from "@/hooks/useDialogState";
 import { useMobileDetection } from "@/hooks/useMobileDetection";
 import { useSectionOperations } from "@/hooks/useSectionOperations";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { useSectionExpansion } from "@/hooks/useSectionExpansion";
+import { useViewState } from "@/hooks/useViewState";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useSelectionState } from "@/hooks/useSelectionState";
 import { getGreeting } from "@/lib/utils";
 import { createDroppableId, createDraggableId, extractTaskId } from "@/lib/dragHelpers";
 import { CalendarDayView } from "@/components/CalendarDayView";
@@ -179,7 +192,7 @@ const customCollisionDetection = args => {
 export default function DailyTasksApp() {
   const { isAuthenticated, loading: authLoading, initialized: authInitialized, logout } = useAuth();
   const { colorMode, toggleColorMode } = useColorModeSync();
-  const { toast } = useToast();
+  const { toast: _toast } = useToast();
   const { mode, interactive, dnd } = useSemanticColors();
 
   const bgColor = mode.bg.canvas;
@@ -233,10 +246,10 @@ export default function DailyTasksApp() {
     completions,
     loading: completionsLoading,
     isCompletedOnDate,
-    hasRecordOnDate,
+    hasRecordOnDate: _hasRecordOnDate,
     getOutcomeOnDate,
     getCompletionForDate,
-    hasAnyCompletion,
+    hasAnyCompletion: _hasAnyCompletion,
   } = useCompletionHelpers();
 
   // Wrapper functions to match old API
@@ -261,42 +274,42 @@ export default function DailyTasksApp() {
     [deleteTaskMutation]
   );
 
-  const batchReorderTasks = useCallback(
+  const _batchReorderTasks = useCallback(
     async updates => {
       return await batchReorderTasksMutation(updates).unwrap();
     },
     [batchReorderTasksMutation]
   );
 
-  const batchUpdateTasks = useCallback(
+  const _batchUpdateTasks = useCallback(
     async (taskIds, updates) => {
       return await batchUpdateTasksMutation({ taskIds, updates }).unwrap();
     },
     [batchUpdateTasksMutation]
   );
 
-  const createSection = useCallback(
+  const _createSection = useCallback(
     async sectionData => {
       return await createSectionMutation(sectionData).unwrap();
     },
     [createSectionMutation]
   );
 
-  const updateSection = useCallback(
+  const _updateSection = useCallback(
     async (id, sectionData) => {
       return await updateSectionMutation({ id, ...sectionData }).unwrap();
     },
     [updateSectionMutation]
   );
 
-  const deleteSection = useCallback(
+  const _deleteSection = useCallback(
     async id => {
       return await deleteSectionMutation(id).unwrap();
     },
     [deleteSectionMutation]
   );
 
-  const reorderSections = useCallback(
+  const _reorderSections = useCallback(
     async newSections => {
       return await reorderSectionsMutation(newSections).unwrap();
     },
@@ -324,7 +337,7 @@ export default function DailyTasksApp() {
     [deleteTagMutation]
   );
 
-  const batchUpdateTaskTags = useCallback(
+  const _batchUpdateTaskTags = useCallback(
     async (taskId, tagIds) => {
       return await updateTaskTagsMutation({ taskId, tagIds }).unwrap();
     },
@@ -352,14 +365,14 @@ export default function DailyTasksApp() {
     [updateCompletionMutation]
   );
 
-  const batchCreateCompletions = useCallback(
+  const _batchCreateCompletions = useCallback(
     async completionsToCreate => {
       return await batchCreateCompletionsMutation(completionsToCreate).unwrap();
     },
     [batchCreateCompletionsMutation]
   );
 
-  const batchDeleteCompletions = useCallback(
+  const _batchDeleteCompletions = useCallback(
     async completionsToDelete => {
       return await batchDeleteCompletionsMutation(completionsToDelete).unwrap();
     },
@@ -372,7 +385,7 @@ export default function DailyTasksApp() {
   }, []);
 
   // Complex task operations
-  const saveTask = useCallback(
+  const _saveTask = useCallback(
     async taskData => {
       const { tagIds, subtasks: subtasksData, ...taskFields } = taskData;
 
@@ -426,7 +439,7 @@ export default function DailyTasksApp() {
     [updateTaskMutation, fetchTasks]
   );
 
-  const duplicateTask = useCallback(
+  const _duplicateTask = useCallback(
     async taskId => {
       // Find task in tasks array (including subtasks)
       const findTask = (taskList, id) => {
@@ -506,46 +519,35 @@ export default function DailyTasksApp() {
   // Use synced color mode
   // const { colorMode, toggleColorMode } = useColorModeSync(); // Already imported above
 
-  // Destructure preferences for easier access
+  // Get UI state from Redux
+  const dispatch = useDispatch();
+
+  // Use state hooks that use Redux directly
+  const viewState = useViewState();
+  const dialogState = useDialogState();
+  const selectionState = useSelectionState();
+
+  // Panel visibility and width from Redux
+  const backlogOpen = useSelector(state => state.ui.backlogOpen);
+  const showDashboard = useSelector(state => state.ui.showDashboard);
+  const showCalendar = useSelector(state => state.ui.showCalendar);
+  const notesSidebarOpen = useSelector(state => state.ui.notesSidebarOpen);
+  const notesListOpen = useSelector(state => state.ui.notesListOpen);
+  const backlogWidth = useSelector(state => state.ui.backlogWidth);
+  const todayViewWidth = useSelector(state => state.ui.todayViewWidth);
+  const notesSidebarWidth = useSelector(state => state.ui.notesSidebarWidth);
+  const notesListWidth = useSelector(state => state.ui.notesListWidth);
+
+  // Get user preferences (not UI state) from PreferencesContext
   const {
-    showDashboard,
-    showCalendar,
-    showKanban: _showKanban,
-    backlogOpen,
-    backlogWidth,
-    todayViewWidth,
-    calendarView,
-    calendarZoom,
     showCompletedTasks,
     showRecurringTasks,
     showCompletedTasksCalendar,
     showStatusTasks: _showStatusTasks,
-    notesSidebarOpen,
-    notesSidebarWidth,
-    notesListOpen,
-    notesListWidth,
+    calendarZoom,
   } = preferences;
 
-  // Create setter functions that update preferences
-  const setShowDashboard = useCallback(value => updatePreference("showDashboard", value), [updatePreference]);
-  const setShowCalendar = useCallback(value => updatePreference("showCalendar", value), [updatePreference]);
-  const _setShowKanban = useCallback(value => updatePreference("showKanban", value), [updatePreference]);
-  const setBacklogOpen = useCallback(value => updatePreference("backlogOpen", value), [updatePreference]);
-  const setBacklogWidth = useCallback(value => updatePreference("backlogWidth", value), [updatePreference]);
-  const setTodayViewWidth = useCallback(value => updatePreference("todayViewWidth", value), [updatePreference]);
-  const setCalendarView = useCallback(value => updatePreference("calendarView", value), [updatePreference]);
-
-  // Reset calendarView if it was set to "kanban" (from old implementation)
-  useEffect(() => {
-    if (calendarView === "kanban") {
-      setCalendarView("week");
-    }
-  }, [calendarView, setCalendarView]);
   const setShowCompletedTasks = useCallback(value => updatePreference("showCompletedTasks", value), [updatePreference]);
-  const setNotesSidebarOpen = useCallback(value => updatePreference("notesSidebarOpen", value), [updatePreference]);
-  const setNotesSidebarWidth = useCallback(value => updatePreference("notesSidebarWidth", value), [updatePreference]);
-  const setNotesListOpen = useCallback(value => updatePreference("notesListOpen", value), [updatePreference]);
-  const setNotesListWidth = useCallback(value => updatePreference("notesListWidth", value), [updatePreference]);
 
   // For nested preferences
   const setCalendarZoom = updater => {
@@ -587,26 +589,42 @@ export default function DailyTasksApp() {
 
   const isLoading = tasksLoading || sectionsLoading || tagsLoading || completionsLoading || !prefsInitialized;
 
-  // Extract view state using hook
-  const viewState = useViewState({
-    showCompletedTasks,
+  // Extract commonly used values from viewState
+  const {
+    today,
+    selectedDate,
+    todayViewDate,
+    viewDate,
+    mainTabIndex,
+    setMainTabIndex,
+    mobileActiveView,
+    setMobileActiveView,
     calendarView,
-    calendarZoom,
-  });
+    setCalendarView,
+    todaySearchTerm,
+    setTodaySearchTerm,
+    todaySelectedTagIds,
+    calendarSearchTerm,
+    setCalendarSearchTerm,
+    calendarSelectedTagIds,
+    navigateCalendar,
+    navigateTodayView,
+    handleTodayViewToday,
+    handleTodayViewDateChange,
+    getCalendarTitle,
+  } = viewState;
 
-  // Extract selection state
-  const selectionState = useSelectionState({ batchUpdateTasks });
+  // Date values already extracted from viewState above
+
+  // dialogState and selectionState values accessed directly via dialogState.* and selectionState.* when needed
 
   // Extract resize handlers
   const resizeHandlers = useResizeHandlers({
     backlogWidth,
     todayViewWidth,
-    setBacklogWidth,
-    setTodayViewWidth,
+    setBacklogWidth: width => dispatch(setBacklogWidth(width)),
+    setTodayViewWidth: width => dispatch(setTodayViewWidth(width)),
   });
-
-  // Extract dialog state
-  const dialogState = useDialogState();
 
   // Extract mobile detection
   const isMobile = useMobileDetection();
@@ -622,12 +640,86 @@ export default function DailyTasksApp() {
   // Determine if we should show mobile layout
   const showMobileLayout = isMobile;
 
+  // Sync Redux UI state with preferences on mount
+  useEffect(() => {
+    if (prefsInitialized) {
+      // Initialize Redux state from preferences
+      dispatch(setBacklogOpen(preferences.backlogOpen ?? true));
+      dispatch(setShowDashboard(preferences.showDashboard ?? true));
+      dispatch(setShowCalendar(preferences.showCalendar ?? true));
+      dispatch(setNotesSidebarOpen(preferences.notesSidebarOpen ?? true));
+      dispatch(setNotesListOpen(preferences.notesListOpen ?? true));
+      dispatch(setBacklogWidth(preferences.backlogWidth ?? 500));
+      dispatch(setTodayViewWidth(preferences.todayViewWidth ?? 600));
+      dispatch(setNotesSidebarWidth(preferences.notesSidebarWidth ?? 280));
+      dispatch(setNotesListWidth(preferences.notesListWidth ?? 300));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefsInitialized, dispatch]); // Only run once when preferences are loaded
+
+  // Sync Redux UI state changes back to preferences
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("backlogOpen", backlogOpen);
+    }
+  }, [backlogOpen, prefsInitialized, updatePreference]);
+
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("showDashboard", showDashboard);
+    }
+  }, [showDashboard, prefsInitialized, updatePreference]);
+
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("showCalendar", showCalendar);
+    }
+  }, [showCalendar, prefsInitialized, updatePreference]);
+
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("notesSidebarOpen", notesSidebarOpen);
+    }
+  }, [notesSidebarOpen, prefsInitialized, updatePreference]);
+
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("notesListOpen", notesListOpen);
+    }
+  }, [notesListOpen, prefsInitialized, updatePreference]);
+
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("backlogWidth", backlogWidth);
+    }
+  }, [backlogWidth, prefsInitialized, updatePreference]);
+
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("todayViewWidth", todayViewWidth);
+    }
+  }, [todayViewWidth, prefsInitialized, updatePreference]);
+
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("notesSidebarWidth", notesSidebarWidth);
+    }
+  }, [notesSidebarWidth, prefsInitialized, updatePreference]);
+
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("notesListWidth", notesListWidth);
+    }
+  }, [notesListWidth, prefsInitialized, updatePreference]);
+
   // Load completions on mount
   useEffect(() => {
     fetchCompletions();
   }, [fetchCompletions]);
 
   // Cleanup and state management for recently completed tasks is now handled by completionHandlers hook
+
+  // Navigation helpers are now provided by viewState hook
 
   // Keyboard shortcut: CMD+E (or CTRL+E) to open task dialog
   useEffect(() => {
@@ -638,7 +730,7 @@ export default function DailyTasksApp() {
       const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
       if ((e.metaKey || e.ctrlKey) && e.key === "e" && !isInput) {
         e.preventDefault();
-        dialogState.openTaskDialog();
+        dispatch(openTaskDialog());
       }
     };
 
@@ -646,85 +738,21 @@ export default function DailyTasksApp() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [dialogState]);
+  }, [dispatch]);
 
-  // Extract task operations
-  const taskOps = useTaskOperations({
-    tasks,
-    sections,
-    updateTask,
-    deleteTask,
-    duplicateTask,
-    saveTask,
-    createTask,
-    fetchTasks,
-    batchUpdateTaskTags,
-    toast,
-    setEditingTask: dialogState.setEditingTask,
-    setEditingWorkoutTask: dialogState.setEditingWorkoutTask,
-    setDefaultSectionId: dialogState.setDefaultSectionId,
-    setDefaultTime: dialogState.setDefaultTime,
-    setDefaultDate: dialogState.setDefaultDate,
-    openTaskDialog: dialogState.openTaskDialog,
-    viewDate: viewState.viewDate,
-  });
+  // Extract task operations (uses Redux directly inside the hook)
+  const taskOps = useTaskOperations();
 
-  // Destructure view state for easier access
-  const {
-    today,
-    selectedDate,
-    todayViewDate,
-    viewDate,
-    mainTabIndex,
-    setMainTabIndex,
-    todaySearchTerm,
-    setTodaySearchTerm,
-    todaySelectedTagIds,
-    calendarSearchTerm,
-    setCalendarSearchTerm,
-    calendarSelectedTagIds,
-    mobileActiveView,
-    setMobileActiveView,
-  } = viewState;
-
-  // Completion handlers are available via completionHandlers object
-  // e.g., completionHandlers.handleToggleTask, completionHandlers.recentlyCompletedTasks
-
-  // Initialize completion handlers early (before tasksBySection which uses recentlyCompletedTasks)
-
+  // Initialize completion handlers (uses Redux directly, just needs sectionExpansion callbacks)
   const completionHandlers = useCompletionHandlers({
-    tasks,
-    sections,
-    updateTask,
-    createCompletion,
-    deleteCompletion,
-    batchCreateCompletions,
-    batchDeleteCompletions,
-    isCompletedOnDate,
-    showCompletedTasks,
-    today: viewState.today,
-    viewDate: viewState.viewDate,
     autoCollapsedSections: sectionExpansionInitial.autoCollapsedSections,
     setAutoCollapsedSections: sectionExpansionInitial.setAutoCollapsedSections,
-    updateSection,
     checkAndAutoCollapseSection: sectionExpansionInitial.checkAndAutoCollapseSection,
-    toast,
   });
 
-  // Extract task filters
+  // Extract task filters (uses Redux directly, just needs recentlyCompletedTasks from completionHandlers)
   const taskFilters = useTaskFilters({
-    tasks,
-    sections,
-    viewDate: viewState.viewDate,
-    today: viewState.today,
-    todaySearchTerm: viewState.todaySearchTerm,
-    todaySelectedTagIds: viewState.todaySelectedTagIds,
-    showCompletedTasks,
     recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
-    isCompletedOnDate,
-    getOutcomeOnDate,
-    hasRecordOnDate,
-    hasAnyCompletion,
   });
 
   // Recreate section expansion with actual tasksBySection
@@ -735,29 +763,16 @@ export default function DailyTasksApp() {
     tasksBySection: taskFilters.tasksBySection,
   });
 
-  // Extract status handlers
+  // Extract status handlers (uses Redux directly, just needs addToRecentlyCompleted callback)
   const statusHandlers = useStatusHandlers({
-    tasks,
-    updateTask,
-    createCompletion,
-    showCompletedTasks,
     addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
   });
 
-  // Extract section operations
+  // Extract section operations (uses Redux directly, just needs sectionExpansion callbacks)
   const sectionOps = useSectionOperations({
-    sections,
-    createSection,
-    updateSection,
-    deleteSection,
-    editingSection: dialogState.editingSection,
-    setEditingSection: dialogState.setEditingSection,
-    openSectionDialog: dialogState.openSectionDialog,
-    closeSectionDialog: dialogState.closeSectionDialog,
     autoCollapsedSections: sectionExpansion.autoCollapsedSections,
     setAutoCollapsedSections: sectionExpansion.setAutoCollapsedSections,
     setManuallyExpandedSections: sectionExpansion.setManuallyExpandedSections,
-    toast,
   });
 
   // Extract auto-scroll
@@ -798,22 +813,12 @@ export default function DailyTasksApp() {
     return tasks.filter(t => selectionState.selectedTaskIds.has(t.id));
   }, [tasks, selectionState.selectedTaskIds]);
 
-  // Extract drag and drop handlers (after taskFilters so backlogTasks and tasksBySection are available)
+  // Extract drag and drop handlers (uses Redux directly, just needs computed values and callbacks)
   const dragAndDrop = useDragAndDrop({
-    tasks,
-    sections,
-    updateTask,
-    reorderTask,
-    reorderSections,
-    today: viewState.today,
-    viewDate: viewState.viewDate,
-    selectedDate: viewState.selectedDate,
-    calendarView: viewState.calendarView,
     backlogTasks,
     tasksBySection,
-    batchReorderTasks,
     handleStatusChange: statusHandlers.handleStatusChange,
-    toast,
+    reorderTask,
   });
 
   // Legacy useMemo blocks removed - now using taskFilters hook
@@ -833,25 +838,10 @@ export default function DailyTasksApp() {
     return { totalTasks: total, completedTasks: completed, progressPercent: percent };
   }, [filteredTodaysTasks, isCompletedOnDate, viewDate]);
 
-  // Use statusHandlers.handleStatusChange instead of local handleStatusChange
-  const handleStatusChange = statusHandlers.handleStatusChange;
-
-  // Section handlers - now using sectionOps hook
-  const handleEditSection = sectionOps.handleEditSection;
-  const handleAddSection = sectionOps.handleAddSection;
+  // Section handlers - some still needed for dialogs
   const handleSaveSection = sectionOps.handleSaveSection;
-  const handleDeleteSection = sectionOps.handleDeleteSection;
-  const handleToggleSectionExpand = sectionOps.handleToggleSectionExpand;
 
-  // Calendar navigation - now using viewState helpers
-  const navigateCalendar = viewState.navigateCalendar;
-  const navigateTodayView = viewState.navigateTodayView;
-  const handleTodayViewToday = viewState.handleTodayViewToday;
-  const handleTodayViewDateChange = viewState.handleTodayViewDateChange;
-  const getCalendarTitle = viewState.getCalendarTitle;
-
-  // Computed sections - now using sectionExpansion hook
-  const computedSections = sectionExpansion.computedSections;
+  // Navigation helpers already destructured from viewState above
 
   // Drag handlers are now in useDragAndDrop hook
   const handleDragOver = dragAndDrop.handleDragOver;
@@ -1031,7 +1021,7 @@ export default function DailyTasksApp() {
                       size="sm"
                       variant={backlogOpen ? "solid" : "outline"}
                       colorPalette={backlogOpen ? "blue" : "gray"}
-                      onClick={() => setBacklogOpen(!backlogOpen)}
+                      onClick={() => dispatch(setBacklogOpen(!backlogOpen))}
                     >
                       <Box as="span" color="currentColor">
                         <List size={14} stroke="currentColor" />
@@ -1061,7 +1051,7 @@ export default function DailyTasksApp() {
                     size="sm"
                     variant={showDashboard ? "solid" : "outline"}
                     colorPalette={showDashboard ? "blue" : "gray"}
-                    onClick={() => setShowDashboard(!showDashboard)}
+                    onClick={() => dispatch(setShowDashboard(!showDashboard))}
                   >
                     <Box as="span" color="currentColor">
                       <LayoutDashboard size={14} stroke="currentColor" />
@@ -1072,7 +1062,7 @@ export default function DailyTasksApp() {
                     size="sm"
                     variant={showCalendar ? "solid" : "outline"}
                     colorPalette={showCalendar ? "blue" : "gray"}
-                    onClick={() => setShowCalendar(!showCalendar)}
+                    onClick={() => dispatch(setShowCalendar(!showCalendar))}
                   >
                     <Box as="span" color="currentColor">
                       <Calendar size={14} stroke="currentColor" />
@@ -1138,7 +1128,7 @@ export default function DailyTasksApp() {
                     borderBottomWidth={mobileActiveView === "backlog" ? "2px" : "0"}
                     borderBottomColor={interactive.primary}
                     color={mobileActiveView === "backlog" ? interactive.primary : textColor}
-                    onClick={() => setMobileActiveView("backlog")}
+                    onClick={() => dispatch(setMobileActiveView("backlog"))}
                     py={2}
                     position="relative"
                     fontSize="sm"
@@ -1193,34 +1183,7 @@ export default function DailyTasksApp() {
                 {/* Kanban Tab - Mobile */}
                 {mainTabIndex === 1 && (
                   <Box h="100%" overflow="hidden" display="flex" flexDirection="column">
-                    <KanbanView
-                      tasks={tasks}
-                      onTaskClick={taskOps.handleEditTask}
-                      onCreateTask={({ status }) => {
-                        dialogState.setDefaultSectionId(sections[0]?.id);
-                        dialogState.setEditingTask({ status });
-                        dialogState.openTaskDialog();
-                      }}
-                      onCreateTaskInline={taskOps.handleCreateKanbanTaskInline}
-                      createDraggableId={createDraggableId}
-                      isCompletedOnDate={isCompletedOnDate}
-                      getOutcomeOnDate={getOutcomeOnDate}
-                      onOutcomeChange={completionHandlers.handleOutcomeChange}
-                      onEdit={taskOps.handleEditTask}
-                      onDuplicate={taskOps.handleDuplicateTask}
-                      onDelete={taskOps.handleDeleteTask}
-                      onStatusChange={handleStatusChange}
-                      tags={tags}
-                      onTagsChange={taskOps.handleTaskTagsChange}
-                      onCreateTag={createTag}
-                      recentlyCompletedTasks={completionHandlers.recentlyCompletedTasks}
-                      viewDate={viewDate}
-                      selectedTaskIds={selectionState.selectedTaskIds}
-                      onSelect={selectionState.handleTaskSelect}
-                      onBulkEdit={selectionState.handleBulkEdit}
-                      onBeginWorkout={dialogState.handleBeginWorkout}
-                      onEditWorkout={taskOps.handleEditWorkout}
-                    />
+                    <KanbanView createDraggableId={createDraggableId} />
                   </Box>
                 )}
 
@@ -1245,12 +1208,12 @@ export default function DailyTasksApp() {
                       }}
                       sidebarOpen={notesSidebarOpen}
                       sidebarWidth={notesSidebarWidth}
-                      onSidebarToggle={() => setNotesSidebarOpen(!notesSidebarOpen)}
-                      onSidebarResize={setNotesSidebarWidth}
+                      onSidebarToggle={() => dispatch(setNotesSidebarOpen(!notesSidebarOpen))}
+                      onSidebarResize={width => dispatch(setNotesSidebarWidth(width))}
                       noteListOpen={notesListOpen}
                       noteListWidth={notesListWidth}
-                      onNoteListToggle={() => setNotesListOpen(!notesListOpen)}
-                      onNoteListResize={setNotesListWidth}
+                      onNoteListToggle={() => dispatch(setNotesListOpen(!notesListOpen))}
+                      onNoteListResize={width => dispatch(setNotesListWidth(width))}
                     />
                   </Box>
                 )}
@@ -1283,41 +1246,7 @@ export default function DailyTasksApp() {
                   <>
                     {mobileActiveView === "backlog" && (
                       <Box h="100%" overflow="auto">
-                        {isLoading ? (
-                          <BacklogSkeleton />
-                        ) : (
-                          <BacklogDrawer
-                            onClose={() => setMobileActiveView("today")}
-                            backlogTasks={backlogTasks}
-                            sections={sections}
-                            onDeleteTask={taskOps.handleDeleteTask}
-                            onEditTask={taskOps.handleEditTask}
-                            onEditWorkout={taskOps.handleEditWorkout}
-                            onUpdateTaskTitle={taskOps.handleUpdateTaskTitle}
-                            onDuplicateTask={taskOps.handleDuplicateTask}
-                            onAddTask={taskOps.handleAddTaskToBacklog}
-                            onCreateBacklogTaskInline={taskOps.handleCreateBacklogTaskInline}
-                            onCreateSubtask={taskOps.handleCreateSubtask}
-                            onToggleExpand={taskOps.handleToggleExpand}
-                            onToggleSubtask={completionHandlers.handleToggleSubtask}
-                            onToggleTask={completionHandlers.handleToggleTask}
-                            createDraggableId={createDraggableId}
-                            viewDate={today}
-                            tags={tags}
-                            onTagsChange={taskOps.handleTaskTagsChange}
-                            onCreateTag={createTag}
-                            onOutcomeChange={completionHandlers.handleOutcomeChange}
-                            getOutcomeOnDate={getOutcomeOnDate}
-                            hasRecordOnDate={hasRecordOnDate}
-                            onCompleteWithNote={completionHandlers.handleCompleteWithNote}
-                            onSkipTask={completionHandlers.handleNotCompletedTask}
-                            getCompletionForDate={getCompletionForDate}
-                            selectedTaskIds={selectionState.selectedTaskIds}
-                            onSelect={selectionState.handleTaskSelect}
-                            onBulkEdit={selectionState.handleBulkEdit}
-                            onBeginWorkout={dialogState.handleBeginWorkout}
-                          />
-                        )}
+                        {isLoading ? <BacklogSkeleton /> : <BacklogDrawer createDraggableId={createDraggableId} />}
                       </Box>
                     )}
 
@@ -1400,41 +1329,7 @@ export default function DailyTasksApp() {
                         </Box>
 
                         {/* Sections */}
-                        <Section
-                          sections={computedSections}
-                          tasksBySection={tasksBySection}
-                          onToggleTask={completionHandlers.handleToggleTask}
-                          onToggleSubtask={completionHandlers.handleToggleSubtask}
-                          onToggleExpand={taskOps.handleToggleExpand}
-                          onEditTask={taskOps.handleEditTask}
-                          onEditWorkout={taskOps.handleEditWorkout}
-                          onUpdateTaskTitle={taskOps.handleUpdateTaskTitle}
-                          onDeleteTask={taskOps.handleDeleteTask}
-                          onDuplicateTask={taskOps.handleDuplicateTask}
-                          onAddTask={taskOps.handleAddTask}
-                          onCreateTaskInline={taskOps.handleCreateTaskInline}
-                          onCreateSubtask={taskOps.handleCreateSubtask}
-                          onEditSection={handleEditSection}
-                          onDeleteSection={handleDeleteSection}
-                          onAddSection={handleAddSection}
-                          onToggleSectionExpand={handleToggleSectionExpand}
-                          createDroppableId={createDroppableId}
-                          createDraggableId={createDraggableId}
-                          viewDate={viewDate}
-                          onOutcomeChange={completionHandlers.handleOutcomeChange}
-                          getOutcomeOnDate={getOutcomeOnDate}
-                          hasRecordOnDate={hasRecordOnDate}
-                          onCompleteWithNote={completionHandlers.handleCompleteWithNote}
-                          onSkipTask={completionHandlers.handleNotCompletedTask}
-                          getCompletionForDate={getCompletionForDate}
-                          selectedTaskIds={selectionState.selectedTaskIds}
-                          onTaskSelect={selectionState.handleTaskSelect}
-                          onBulkEdit={selectionState.handleBulkEdit}
-                          onBeginWorkout={dialogState.handleBeginWorkout}
-                          tags={tags}
-                          onTagsChange={taskOps.handleTaskTagsChange}
-                          onCreateTag={createTag}
-                        />
+                        <Section createDroppableId={createDroppableId} createDraggableId={createDraggableId} />
                       </Box>
                     )}
 
@@ -1489,7 +1384,7 @@ export default function DailyTasksApp() {
                         </Box>
 
                         {/* Calendar View */}
-                        <Box flex={1} overflow="auto">
+                        <Box flex={1} overflow="hidden" display="flex" flexDirection="column" minH={0}>
                           {(() => {
                             // Filter tasks based on recurring preference for current view
                             let filteredTasks = showRecurringTasks[calendarView]
@@ -1526,86 +1421,24 @@ export default function DailyTasksApp() {
                                 {calendarView === "day" && selectedDate && (
                                   <CalendarDayView
                                     date={selectedDate}
-                                    tasks={filteredTasks}
-                                    onTaskClick={taskOps.handleEditTask}
-                                    onTaskTimeChange={taskOps.handleTaskTimeChange}
-                                    onTaskDurationChange={taskOps.handleTaskDurationChange}
-                                    onCreateTask={taskOps.handleCreateTaskFromCalendar}
+                                    createDroppableId={createDroppableId}
+                                    createDraggableId={createDraggableId}
                                     onDropTimeChange={time => {
                                       dragAndDrop.dropTimeRef.current = time;
                                     }}
-                                    createDroppableId={createDroppableId}
-                                    createDraggableId={createDraggableId}
-                                    isCompletedOnDate={isCompletedOnDate}
-                                    getOutcomeOnDate={getOutcomeOnDate}
-                                    getCompletionForDate={getCompletionForDate}
-                                    showCompleted={showCompletedTasksCalendar.day}
-                                    tags={tags}
-                                    onTagsChange={taskOps.handleTaskTagsChange}
-                                    onCreateTag={createTag}
-                                    showStatusTasks={_showStatusTasks.day}
-                                    zoom={calendarZoom.day}
-                                    onEdit={taskOps.handleEditTask}
-                                    onEditWorkout={taskOps.handleEditWorkout}
-                                    onOutcomeChange={completionHandlers.handleOutcomeChange}
-                                    onDuplicate={taskOps.handleDuplicateTask}
-                                    onDelete={taskOps.handleDeleteTask}
                                   />
                                 )}
                                 {calendarView === "week" && selectedDate && (
                                   <CalendarWeekView
                                     date={selectedDate}
-                                    tasks={filteredTasks}
-                                    onTaskClick={taskOps.handleEditTask}
-                                    onDayClick={d => {
-                                      viewState.setSelectedDate(d);
-                                      setCalendarView("day");
-                                    }}
-                                    onTaskTimeChange={taskOps.handleTaskTimeChange}
-                                    onTaskDurationChange={taskOps.handleTaskDurationChange}
-                                    onCreateTask={taskOps.handleCreateTaskFromCalendar}
+                                    createDroppableId={createDroppableId}
+                                    createDraggableId={createDraggableId}
                                     onDropTimeChange={time => {
                                       dragAndDrop.dropTimeRef.current = time;
                                     }}
-                                    createDroppableId={createDroppableId}
-                                    createDraggableId={createDraggableId}
-                                    tags={tags}
-                                    onTagsChange={taskOps.handleTaskTagsChange}
-                                    onCreateTag={createTag}
-                                    isCompletedOnDate={isCompletedOnDate}
-                                    getOutcomeOnDate={getOutcomeOnDate}
-                                    getCompletionForDate={getCompletionForDate}
-                                    showCompleted={showCompletedTasksCalendar.week}
-                                    showStatusTasks={_showStatusTasks.week}
-                                    zoom={calendarZoom.week}
-                                    onEdit={taskOps.handleEditTask}
-                                    onEditWorkout={taskOps.handleEditWorkout}
-                                    onOutcomeChange={completionHandlers.handleOutcomeChange}
-                                    onDuplicate={taskOps.handleDuplicateTask}
-                                    onDelete={taskOps.handleDeleteTask}
                                   />
                                 )}
-                                {calendarView === "month" && selectedDate && (
-                                  <CalendarMonthView
-                                    date={selectedDate}
-                                    tasks={filteredTasks}
-                                    onDayClick={d => {
-                                      viewState.setSelectedDate(d);
-                                      setCalendarView("day");
-                                    }}
-                                    isCompletedOnDate={isCompletedOnDate}
-                                    getOutcomeOnDate={getOutcomeOnDate}
-                                    showCompleted={showCompletedTasksCalendar.month}
-                                    zoom={calendarZoom.month}
-                                    tags={tags}
-                                    onCreateTag={createTag}
-                                    onEdit={taskOps.handleEditTask}
-                                    onEditWorkout={taskOps.handleEditWorkout}
-                                    onOutcomeChange={completionHandlers.handleOutcomeChange}
-                                    onDuplicate={taskOps.handleDuplicateTask}
-                                    onDelete={taskOps.handleDeleteTask}
-                                  />
-                                )}
+                                {calendarView === "month" && selectedDate && <CalendarMonthView date={selectedDate} />}
                                 {calendarView === "year" && selectedDate && (
                                   <CalendarYearView
                                     date={selectedDate}
@@ -1649,34 +1482,7 @@ export default function DailyTasksApp() {
                     px={{ base: 2, md: 4 }}
                     py={{ base: 3, md: 6 }}
                   >
-                    <KanbanView
-                      tasks={tasks}
-                      onTaskClick={taskOps.handleEditTask}
-                      onCreateTask={({ status }) => {
-                        dialogState.setDefaultSectionId(sections[0]?.id);
-                        dialogState.setEditingTask({ status });
-                        dialogState.openTaskDialog();
-                      }}
-                      onCreateTaskInline={taskOps.handleCreateKanbanTaskInline}
-                      createDraggableId={createDraggableId}
-                      isCompletedOnDate={isCompletedOnDate}
-                      getOutcomeOnDate={getOutcomeOnDate}
-                      onOutcomeChange={completionHandlers.handleOutcomeChange}
-                      onEdit={taskOps.handleEditTask}
-                      onDuplicate={taskOps.handleDuplicateTask}
-                      onDelete={taskOps.handleDeleteTask}
-                      onStatusChange={handleStatusChange}
-                      tags={tags}
-                      onTagsChange={taskOps.handleTaskTagsChange}
-                      onCreateTag={createTag}
-                      recentlyCompletedTasks={completionHandlers.recentlyCompletedTasks}
-                      viewDate={viewDate}
-                      selectedTaskIds={selectionState.selectedTaskIds}
-                      onSelect={selectionState.handleTaskSelect}
-                      onBulkEdit={selectionState.handleBulkEdit}
-                      onBeginWorkout={dialogState.handleBeginWorkout}
-                      onEditWorkout={taskOps.handleEditWorkout}
-                    />
+                    <KanbanView createDraggableId={createDraggableId} />
                   </Box>
                 ) : mainTabIndex === 2 ? (
                   /* Notes Tab Content */
@@ -1700,12 +1506,12 @@ export default function DailyTasksApp() {
                       }}
                       sidebarOpen={notesSidebarOpen}
                       sidebarWidth={notesSidebarWidth}
-                      onSidebarToggle={() => setNotesSidebarOpen(!notesSidebarOpen)}
-                      onSidebarResize={setNotesSidebarWidth}
+                      onSidebarToggle={() => dispatch(setNotesSidebarOpen(!notesSidebarOpen))}
+                      onSidebarResize={width => dispatch(setNotesSidebarWidth(width))}
                       noteListOpen={notesListOpen}
                       noteListWidth={notesListWidth}
-                      onNoteListToggle={() => setNotesListOpen(!notesListOpen)}
-                      onNoteListResize={setNotesListWidth}
+                      onNoteListToggle={() => dispatch(setNotesListOpen(!notesListOpen))}
+                      onNoteListResize={width => dispatch(setNotesListWidth(width))}
                     />
                   </Box>
                 ) : mainTabIndex === 3 ? (
@@ -1748,41 +1554,7 @@ export default function DailyTasksApp() {
                           flexDirection="column"
                           position="relative"
                         >
-                          {isLoading ? (
-                            <BacklogSkeleton />
-                          ) : (
-                            <BacklogDrawer
-                              onClose={null}
-                              backlogTasks={backlogTasks}
-                              sections={sections}
-                              onDeleteTask={taskOps.handleDeleteTask}
-                              onEditTask={taskOps.handleEditTask}
-                              onEditWorkout={taskOps.handleEditWorkout}
-                              onUpdateTaskTitle={taskOps.handleUpdateTaskTitle}
-                              onDuplicateTask={taskOps.handleDuplicateTask}
-                              onAddTask={taskOps.handleAddTaskToBacklog}
-                              onCreateBacklogTaskInline={taskOps.handleCreateBacklogTaskInline}
-                              onCreateSubtask={taskOps.handleCreateSubtask}
-                              onToggleExpand={taskOps.handleToggleExpand}
-                              onToggleSubtask={completionHandlers.handleToggleSubtask}
-                              onToggleTask={completionHandlers.handleToggleTask}
-                              createDraggableId={createDraggableId}
-                              viewDate={today}
-                              tags={tags}
-                              onTagsChange={taskOps.handleTaskTagsChange}
-                              onCreateTag={createTag}
-                              onOutcomeChange={completionHandlers.handleOutcomeChange}
-                              getOutcomeOnDate={getOutcomeOnDate}
-                              hasRecordOnDate={hasRecordOnDate}
-                              onCompleteWithNote={completionHandlers.handleCompleteWithNote}
-                              onSkipTask={completionHandlers.handleNotCompletedTask}
-                              getCompletionForDate={getCompletionForDate}
-                              selectedTaskIds={selectionState.selectedTaskIds}
-                              onSelect={selectionState.handleTaskSelect}
-                              onBulkEdit={selectionState.handleBulkEdit}
-                              onBeginWorkout={dialogState.handleBeginWorkout}
-                            />
-                          )}
+                          {isLoading ? <BacklogSkeleton /> : <BacklogDrawer createDraggableId={createDraggableId} />}
                           {/* Resize handle between backlog and today */}
                           <Box
                             position="absolute"
@@ -1919,39 +1691,8 @@ export default function DailyTasksApp() {
                                   maxW="100%"
                                 >
                                   <Section
-                                    sections={computedSections}
-                                    tasksBySection={tasksBySection}
-                                    onToggleTask={completionHandlers.handleToggleTask}
-                                    onToggleSubtask={completionHandlers.handleToggleSubtask}
-                                    onToggleExpand={taskOps.handleToggleExpand}
-                                    onEditTask={taskOps.handleEditTask}
-                                    onEditWorkout={taskOps.handleEditWorkout}
-                                    onUpdateTaskTitle={taskOps.handleUpdateTaskTitle}
-                                    onDeleteTask={taskOps.handleDeleteTask}
-                                    onDuplicateTask={taskOps.handleDuplicateTask}
-                                    onAddTask={taskOps.handleAddTask}
-                                    onCreateTaskInline={taskOps.handleCreateTaskInline}
-                                    onCreateSubtask={taskOps.handleCreateSubtask}
-                                    onEditSection={handleEditSection}
-                                    onDeleteSection={handleDeleteSection}
-                                    onAddSection={handleAddSection}
-                                    onToggleSectionExpand={handleToggleSectionExpand}
                                     createDroppableId={createDroppableId}
                                     createDraggableId={createDraggableId}
-                                    viewDate={todayViewDate || today}
-                                    onOutcomeChange={completionHandlers.handleOutcomeChange}
-                                    getOutcomeOnDate={getOutcomeOnDate}
-                                    hasRecordOnDate={hasRecordOnDate}
-                                    onCompleteWithNote={completionHandlers.handleCompleteWithNote}
-                                    onSkipTask={completionHandlers.handleNotCompletedTask}
-                                    getCompletionForDate={getCompletionForDate}
-                                    selectedTaskIds={selectionState.selectedTaskIds}
-                                    onTaskSelect={selectionState.handleTaskSelect}
-                                    onBulkEdit={selectionState.handleBulkEdit}
-                                    onBeginWorkout={dialogState.handleBeginWorkout}
-                                    tags={tags}
-                                    onTagsChange={taskOps.handleTaskTagsChange}
-                                    onCreateTag={createTag}
                                   />
                                 </Box>
                               </>
@@ -2172,7 +1913,7 @@ export default function DailyTasksApp() {
                           ) : (
                             <>
                               {/* Calendar content */}
-                              <Box flex={1} overflow="hidden" display="flex" flexDirection="column" minH={0}>
+                              <Box flex={1} overflow="hidden" display="flex" flexDirection="column" minH={0} h="100%">
                                 {(() => {
                                   // Filter tasks based on recurring preference for current view
                                   let filteredTasks = showRecurringTasks[calendarView]
@@ -2214,81 +1955,25 @@ export default function DailyTasksApp() {
                                       {calendarView === "day" && selectedDate && (
                                         <CalendarDayView
                                           date={selectedDate}
-                                          tasks={filteredTasks}
-                                          onTaskClick={taskOps.handleEditTask}
-                                          onTaskTimeChange={taskOps.handleTaskTimeChange}
-                                          onTaskDurationChange={taskOps.handleTaskDurationChange}
-                                          onCreateTask={taskOps.handleCreateTaskFromCalendar}
+                                          createDroppableId={createDroppableId}
+                                          createDraggableId={createDraggableId}
                                           onDropTimeChange={time => {
                                             dragAndDrop.dropTimeRef.current = time;
                                           }}
-                                          createDroppableId={createDroppableId}
-                                          createDraggableId={createDraggableId}
-                                          isCompletedOnDate={isCompletedOnDate}
-                                          getOutcomeOnDate={getOutcomeOnDate}
-                                          showCompleted={showCompletedTasksCalendar.day}
-                                          zoom={calendarZoom.day}
-                                          tags={tags}
-                                          onTagsChange={taskOps.handleTaskTagsChange}
-                                          onCreateTag={createTag}
-                                          onEdit={taskOps.handleEditTask}
-                                          onEditWorkout={taskOps.handleEditWorkout}
-                                          onOutcomeChange={completionHandlers.handleOutcomeChange}
-                                          onDuplicate={taskOps.handleDuplicateTask}
-                                          onDelete={taskOps.handleDeleteTask}
                                         />
                                       )}
                                       {calendarView === "week" && selectedDate && (
                                         <CalendarWeekView
                                           date={selectedDate}
-                                          tasks={filteredTasks}
-                                          onTaskClick={taskOps.handleEditTask}
-                                          onDayClick={d => {
-                                            viewState.setSelectedDate(d);
-                                            setCalendarView("day");
-                                          }}
-                                          onTaskTimeChange={taskOps.handleTaskTimeChange}
-                                          onTaskDurationChange={taskOps.handleTaskDurationChange}
-                                          onCreateTask={taskOps.handleCreateTaskFromCalendar}
+                                          createDroppableId={createDroppableId}
+                                          createDraggableId={createDraggableId}
                                           onDropTimeChange={time => {
                                             dragAndDrop.dropTimeRef.current = time;
                                           }}
-                                          createDroppableId={createDroppableId}
-                                          createDraggableId={createDraggableId}
-                                          tags={tags}
-                                          onTagsChange={taskOps.handleTaskTagsChange}
-                                          onCreateTag={createTag}
-                                          isCompletedOnDate={isCompletedOnDate}
-                                          getOutcomeOnDate={getOutcomeOnDate}
-                                          showCompleted={showCompletedTasksCalendar.week}
-                                          zoom={calendarZoom.week}
-                                          onEdit={taskOps.handleEditTask}
-                                          onEditWorkout={taskOps.handleEditWorkout}
-                                          onOutcomeChange={completionHandlers.handleOutcomeChange}
-                                          onDuplicate={taskOps.handleDuplicateTask}
-                                          onDelete={taskOps.handleDeleteTask}
                                         />
                                       )}
                                       {calendarView === "month" && selectedDate && (
-                                        <CalendarMonthView
-                                          date={selectedDate}
-                                          tasks={filteredTasks}
-                                          onDayClick={d => {
-                                            viewState.setSelectedDate(d);
-                                            setCalendarView("day");
-                                          }}
-                                          isCompletedOnDate={isCompletedOnDate}
-                                          getOutcomeOnDate={getOutcomeOnDate}
-                                          showCompleted={showCompletedTasksCalendar.month}
-                                          zoom={calendarZoom.month}
-                                          tags={tags}
-                                          onCreateTag={createTag}
-                                          onEdit={taskOps.handleEditTask}
-                                          onEditWorkout={taskOps.handleEditWorkout}
-                                          onOutcomeChange={completionHandlers.handleOutcomeChange}
-                                          onDuplicate={taskOps.handleDuplicateTask}
-                                          onDelete={taskOps.handleDeleteTask}
-                                        />
+                                        <CalendarMonthView date={selectedDate} />
                                       )}
                                       {calendarView === "year" && selectedDate && (
                                         <CalendarYearView

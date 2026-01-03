@@ -1,29 +1,106 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useSelector } from "react-redux";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
+import { useToast } from "@/hooks/useToast";
+import { useGetTasksQuery, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useGetSectionsQuery, useUpdateSectionMutation } from "@/lib/store/api/sectionsApi";
+import {
+  useCreateCompletionMutation,
+  useDeleteCompletionMutation,
+  useBatchCreateCompletionsMutation,
+  useBatchDeleteCompletionsMutation,
+} from "@/lib/store/api/completionsApi";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
 /**
  * Handles task completion, outcomes, and recently completed tracking
+ * Uses Redux directly - no prop drilling needed
  */
 export function useCompletionHandlers({
-  tasks,
-  sections,
-  updateTask,
-  createCompletion,
-  deleteCompletion,
-  batchCreateCompletions,
-  batchDeleteCompletions,
-  isCompletedOnDate,
-  showCompletedTasks,
-  today,
-  viewDate,
+  // These are passed from parent because they're managed by useSectionExpansion hook
   autoCollapsedSections,
   setAutoCollapsedSections,
-  updateSection,
   checkAndAutoCollapseSection,
-  toast,
-}) {
+} = {}) {
+  const { toast } = useToast();
+
+  // Get state from Redux
+  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+
+  // Compute dates
+  const today = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return now;
+  }, []);
+
+  const viewDate = useMemo(() => {
+    return todayViewDateISO ? new Date(todayViewDateISO) : today;
+  }, [todayViewDateISO, today]);
+
+  // Get preferences
+  const { preferences } = usePreferencesContext();
+  const showCompletedTasks = preferences.showCompletedTasks;
+
+  // RTK Query hooks
+  const { data: tasks = [] } = useGetTasksQuery();
+  const { data: sections = [] } = useGetSectionsQuery();
+  const [updateTaskMutation] = useUpdateTaskMutation();
+  const [updateSectionMutation] = useUpdateSectionMutation();
+  const [createCompletionMutation] = useCreateCompletionMutation();
+  const [deleteCompletionMutation] = useDeleteCompletionMutation();
+  const [batchCreateCompletionsMutation] = useBatchCreateCompletionsMutation();
+  const [batchDeleteCompletionsMutation] = useBatchDeleteCompletionsMutation();
+
+  // Completion helpers
+  const { isCompletedOnDate } = useCompletionHelpers();
+
+  // Wrapper functions
+  const updateTask = useCallback(
+    async (id, taskData) => {
+      return await updateTaskMutation({ id, ...taskData }).unwrap();
+    },
+    [updateTaskMutation]
+  );
+
+  const updateSection = useCallback(
+    async (id, sectionData) => {
+      return await updateSectionMutation({ id, ...sectionData }).unwrap();
+    },
+    [updateSectionMutation]
+  );
+
+  const createCompletion = useCallback(
+    async (taskId, date, options = {}) => {
+      return await createCompletionMutation({ taskId, date, ...options }).unwrap();
+    },
+    [createCompletionMutation]
+  );
+
+  const deleteCompletion = useCallback(
+    async (taskId, date) => {
+      return await deleteCompletionMutation({ taskId, date }).unwrap();
+    },
+    [deleteCompletionMutation]
+  );
+
+  const batchCreateCompletions = useCallback(
+    async completionsToCreate => {
+      return await batchCreateCompletionsMutation(completionsToCreate).unwrap();
+    },
+    [batchCreateCompletionsMutation]
+  );
+
+  const batchDeleteCompletions = useCallback(
+    async completionsToDelete => {
+      return await batchDeleteCompletionsMutation(completionsToDelete).unwrap();
+    },
+    [batchDeleteCompletionsMutation]
+  );
+
   // Track recently completed tasks (for delayed hiding)
   const [recentlyCompletedTasks, setRecentlyCompletedTasks] = useState(new Set());
   const recentlyCompletedTimeoutsRef = useRef({});
@@ -141,11 +218,11 @@ export function useCompletionHandlers({
         const section = sections.find(s => s.id === task.sectionId);
         if (section) {
           sectionWasManuallyCollapsed = section.expanded === false;
-          sectionWasAutoCollapsed = autoCollapsedSections.has(section.id);
+          sectionWasAutoCollapsed = autoCollapsedSections?.has(section.id) || false;
           wasSectionCollapsed = sectionWasManuallyCollapsed || sectionWasAutoCollapsed;
 
           if (wasSectionCollapsed) {
-            if (sectionWasAutoCollapsed) {
+            if (sectionWasAutoCollapsed && setAutoCollapsedSections) {
               setAutoCollapsedSections(prev => {
                 const newSet = new Set(prev);
                 newSet.delete(section.id);
@@ -238,7 +315,7 @@ export function useCompletionHandlers({
               console.error("Error restoring section state:", err);
             });
           }
-          if (sectionWasAutoCollapsed) {
+          if (sectionWasAutoCollapsed && setAutoCollapsedSections) {
             setAutoCollapsedSections(prev => {
               const newSet = new Set(prev);
               newSet.add(sectionIdToRestore);
@@ -442,6 +519,8 @@ export function useCompletionHandlers({
   return {
     // State
     recentlyCompletedTasks,
+    today,
+    viewDate,
 
     // Handlers
     handleToggleTask,

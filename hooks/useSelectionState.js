@@ -1,64 +1,75 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useToast } from "@/hooks/useToast";
+import { useBatchUpdateTasksMutation } from "@/lib/store/api/tasksApi";
+import {
+  setSelectedTaskIds,
+  toggleTaskSelection,
+  clearSelection as clearSelectionAction,
+  openBulkEditDialog,
+  closeBulkEditDialog,
+} from "@/lib/store/slices/uiSlice";
 
 /**
- * Manages task selection for bulk operations
+ * Manages task selection for bulk operations using Redux directly
  */
-export function useSelectionState({ batchUpdateTasks } = {}) {
+export function useSelectionState() {
+  const dispatch = useDispatch();
   const { toast } = useToast();
-  const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
-  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
+
+  // Get state from Redux
+  const selectedTaskIdsArray = useSelector(state => state.ui.selectedTaskIds);
+  const bulkEditDialogOpen = useSelector(state => state.ui.bulkEditDialogOpen);
+
+  // Convert array to Set for efficient lookups
+  const selectedTaskIds = useMemo(() => new Set(selectedTaskIdsArray), [selectedTaskIdsArray]);
+
+  // RTK Query mutation
+  const [batchUpdateTasksMutation] = useBatchUpdateTasksMutation();
 
   // Handle task selection (cmd/ctrl+click)
-  const handleTaskSelect = useCallback((taskId, event) => {
-    const isMultiSelect = event?.metaKey || event?.ctrlKey;
+  const handleTaskSelect = useCallback(
+    (taskId, event) => {
+      const isMultiSelect = event?.metaKey || event?.ctrlKey;
 
-    if (isMultiSelect) {
-      setSelectedTaskIds(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(taskId)) {
-          newSet.delete(taskId);
-        } else {
-          newSet.add(taskId);
-        }
-        return newSet;
-      });
-    } else {
-      // Single click without modifier - select only this task
-      setSelectedTaskIds(new Set([taskId]));
-    }
-  }, []);
+      if (isMultiSelect) {
+        dispatch(toggleTaskSelection(taskId));
+      } else {
+        // Single click without modifier - select only this task
+        dispatch(setSelectedTaskIds([taskId]));
+      }
+    },
+    [dispatch]
+  );
 
   // Clear selection
   const clearSelection = useCallback(() => {
-    setSelectedTaskIds(new Set());
-  }, []);
+    dispatch(clearSelectionAction());
+  }, [dispatch]);
 
   // Open bulk edit dialog
   const handleBulkEdit = useCallback(() => {
     if (selectedTaskIds.size > 0) {
-      setBulkEditDialogOpen(true);
+      dispatch(openBulkEditDialog());
     }
-  }, [selectedTaskIds.size]);
+  }, [dispatch, selectedTaskIds.size]);
 
   // Close bulk edit dialog
-  const closeBulkEditDialog = useCallback(() => {
-    setBulkEditDialogOpen(false);
-    clearSelection();
-  }, [clearSelection]);
+  const handleCloseBulkEditDialog = useCallback(() => {
+    dispatch(closeBulkEditDialog());
+    dispatch(clearSelectionAction());
+  }, [dispatch]);
 
   // Handle bulk edit save
   const handleBulkEditSave = useCallback(
     async updates => {
-      if (!batchUpdateTasks) {
-        console.warn("batchUpdateTasks not provided to useSelectionState");
-        return;
-      }
-
       try {
-        await batchUpdateTasks(Array.from(selectedTaskIds), updates);
+        await batchUpdateTasksMutation({
+          taskIds: Array.from(selectedTaskIds),
+          updates,
+        }).unwrap();
 
         toast({
           title: `Updated ${selectedTaskIds.size} task(s)`,
@@ -66,7 +77,7 @@ export function useSelectionState({ batchUpdateTasks } = {}) {
           duration: 2000,
         });
 
-        closeBulkEditDialog();
+        handleCloseBulkEditDialog();
       } catch (err) {
         console.error("Bulk edit error:", err);
         toast({
@@ -77,18 +88,18 @@ export function useSelectionState({ batchUpdateTasks } = {}) {
         });
       }
     },
-    [selectedTaskIds, batchUpdateTasks, toast, closeBulkEditDialog]
+    [selectedTaskIds, batchUpdateTasksMutation, toast, handleCloseBulkEditDialog]
   );
 
   return {
     selectedTaskIds,
-    setSelectedTaskIds,
+    setSelectedTaskIds: ids => dispatch(setSelectedTaskIds(Array.isArray(ids) ? ids : Array.from(ids))),
     bulkEditDialogOpen,
-    setBulkEditDialogOpen,
+    setBulkEditDialogOpen: open => dispatch(open ? openBulkEditDialog() : closeBulkEditDialog()),
     handleTaskSelect,
     clearSelection,
     handleBulkEdit,
-    closeBulkEditDialog,
+    closeBulkEditDialog: handleCloseBulkEditDialog,
     handleBulkEditSave,
     selectedCount: selectedTaskIds.size,
   };

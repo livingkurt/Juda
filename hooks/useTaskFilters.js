@@ -1,20 +1,50 @@
-import { useMemo } from "react";
-import { shouldShowOnDate, hasFutureDateTime } from "@/lib/utils";
+"use client";
 
-export function useTaskFilters({
-  tasks,
-  sections,
-  viewDate,
-  today,
-  todaySearchTerm,
-  todaySelectedTagIds,
-  showCompletedTasks,
-  recentlyCompletedTasks,
-  isCompletedOnDate,
-  getOutcomeOnDate,
-  hasRecordOnDate,
-  hasAnyCompletion,
-}) {
+import { useMemo } from "react";
+import { useSelector } from "react-redux";
+import { shouldShowOnDate, hasFutureDateTime } from "@/lib/utils";
+import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { usePreferencesContext } from "@/hooks/usePreferencesContext";
+
+/**
+ * Task filtering logic using Redux directly
+ *
+ * @param {Object} options
+ * @param {Set} options.recentlyCompletedTasks - Set of recently completed task IDs (from useCompletionHandlers)
+ */
+export function useTaskFilters({ recentlyCompletedTasks } = {}) {
+  // Get state from Redux
+  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const todaySearchTerm = useSelector(state => state.ui.todaySearchTerm);
+  const todaySelectedTagIds = useSelector(state => state.ui.todaySelectedTagIds);
+
+  // Compute dates
+  const today = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return now;
+  }, []);
+
+  const viewDate = useMemo(() => {
+    return todayViewDateISO ? new Date(todayViewDateISO) : today;
+  }, [todayViewDateISO, today]);
+
+  // Get preferences
+  const { preferences } = usePreferencesContext();
+  const showCompletedTasks = preferences.showCompletedTasks;
+
+  // RTK Query hooks
+  const { data: tasks = [] } = useGetTasksQuery();
+  const { data: sections = [] } = useGetSectionsQuery();
+
+  // Completion helpers
+  const { isCompletedOnDate, getOutcomeOnDate, hasRecordOnDate, hasAnyCompletion } = useCompletionHelpers();
+
+  // Default empty set if not provided - wrap in useMemo for stable reference
+  const recentlyCompleted = useMemo(() => recentlyCompletedTasks || new Set(), [recentlyCompletedTasks]);
+
   // Today's tasks: tasks that should show on the selected date
   const todaysTasks = useMemo(
     () =>
@@ -86,7 +116,7 @@ export function useTaskFilters({
           // Check if task has any outcome (completed or not completed)
           const hasOutcome = t.outcome !== null && t.outcome !== undefined;
           // Keep task visible if it's recently completed (within delay period)
-          if (isCompleted && recentlyCompletedTasks.has(t.id)) {
+          if (isCompleted && recentlyCompleted.has(t.id)) {
             return true;
           }
           // Hide if completed or has any outcome (not completed)
@@ -96,16 +126,9 @@ export function useTaskFilters({
       grouped[s.id] = sectionTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
     });
     return grouped;
-  }, [filteredTodaysTasks, sections, showCompletedTasks, recentlyCompletedTasks]);
+  }, [filteredTodaysTasks, sections, showCompletedTasks, recentlyCompleted]);
 
-  // Tasks for backlog: tasks without recurrence that don't show on any date
-  // Excludes:
-  // - Tasks that show on today's date (shouldShowOnDate)
-  // - Tasks with future dates/times
-  // - One-time tasks (type: "none") that have been completed on ANY date
-  // - Recurring tasks (daily, weekly, monthly, interval) - these only show on their scheduled dates
-  // - Tasks completed/not completed on today (always hidden, but with delay for visual feedback)
-  // Note: Backlog is always relative to today, not the selected date in Today View
+  // Tasks for backlog
   const backlogTasks = useMemo(() => {
     return tasks
       .filter(task => {
@@ -118,14 +141,13 @@ export function useTaskFilters({
         // they should stay on that date's calendar view, not reappear in backlog
         if (task.recurrence?.type === "none" && hasAnyCompletion(task.id)) {
           // Keep task visible if it's recently completed (within delay period)
-          if (recentlyCompletedTasks.has(task.id)) {
+          if (recentlyCompleted.has(task.id)) {
             return true;
           }
           return false;
         }
 
         // For recurring tasks (daily, weekly, monthly, interval), they should NEVER appear in backlog
-        // Recurring tasks only show on their scheduled dates, not in backlog
         if (task.recurrence?.type && task.recurrence.type !== "none") {
           return false;
         }
@@ -134,11 +156,9 @@ export function useTaskFilters({
         if (task.completionType === "note") return false;
 
         // For tasks without recurrence (null), check if completed today
-        // These are true backlog items that haven't been scheduled yet
         const outcome = getOutcomeOnDate(task.id, today);
         if (outcome !== null) {
-          // Keep task visible if it's recently completed (within delay period)
-          if (recentlyCompletedTasks.has(task.id)) {
+          if (recentlyCompleted.has(task.id)) {
             return true;
           }
           return false;
@@ -148,9 +168,7 @@ export function useTaskFilters({
       .sort((a, b) => (a.order || 0) - (b.order || 0))
       .map(task => ({
         ...task,
-        // Add completion status from records for display
         completed: isCompletedOnDate(task.id, today),
-        // Also update subtasks with completion status
         subtasks: task.subtasks
           ? task.subtasks.map(subtask => ({
               ...subtask,
@@ -158,7 +176,7 @@ export function useTaskFilters({
             }))
           : undefined,
       }));
-  }, [tasks, today, isCompletedOnDate, getOutcomeOnDate, hasAnyCompletion, recentlyCompletedTasks]);
+  }, [tasks, today, isCompletedOnDate, getOutcomeOnDate, hasAnyCompletion, recentlyCompleted]);
 
   // Filter tasks that are notes (completionType === "note")
   const noteTasks = useMemo(() => {
@@ -166,6 +184,13 @@ export function useTaskFilters({
   }, [tasks]);
 
   return {
+    // Data
+    tasks,
+    sections,
+    today,
+    viewDate,
+
+    // Filtered results
     todaysTasks,
     filteredTodaysTasks,
     tasksBySection,

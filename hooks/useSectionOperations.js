@@ -1,33 +1,74 @@
-import { useCallback } from "react";
+"use client";
 
+import { useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useToast } from "@/hooks/useToast";
+import {
+  useGetSectionsQuery,
+  useCreateSectionMutation,
+  useUpdateSectionMutation,
+  useDeleteSectionMutation,
+} from "@/lib/store/api/sectionsApi";
+import { openSectionDialog, closeSectionDialog, setEditingSection } from "@/lib/store/slices/uiSlice";
+
+/**
+ * Section operation handlers
+ * Uses Redux directly - no prop drilling needed
+ */
 export function useSectionOperations({
-  sections,
-  createSection,
-  updateSection,
-  deleteSection,
-  editingSection,
-  setEditingSection,
-  openSectionDialog,
-  closeSectionDialog,
+  // These are passed from parent because they're managed by useSectionExpansion hook
   autoCollapsedSections,
   setAutoCollapsedSections,
   setManuallyExpandedSections,
-  toast,
-}) {
+} = {}) {
+  const dispatch = useDispatch();
+  const { toast } = useToast();
+
+  // Get state from Redux
+  const editingSection = useSelector(state => state.ui.editingSection);
+
+  // RTK Query hooks
+  const { data: sections = [] } = useGetSectionsQuery();
+  const [createSectionMutation] = useCreateSectionMutation();
+  const [updateSectionMutation] = useUpdateSectionMutation();
+  const [deleteSectionMutation] = useDeleteSectionMutation();
+
+  // Wrapper functions
+  const createSection = useCallback(
+    async sectionData => {
+      return await createSectionMutation(sectionData).unwrap();
+    },
+    [createSectionMutation]
+  );
+
+  const updateSection = useCallback(
+    async (id, sectionData) => {
+      return await updateSectionMutation({ id, ...sectionData }).unwrap();
+    },
+    [updateSectionMutation]
+  );
+
+  const deleteSection = useCallback(
+    async id => {
+      return await deleteSectionMutation(id).unwrap();
+    },
+    [deleteSectionMutation]
+  );
+
   // Edit section
   const handleEditSection = useCallback(
     section => {
-      setEditingSection(section);
-      openSectionDialog();
+      dispatch(setEditingSection(section));
+      dispatch(openSectionDialog());
     },
-    [setEditingSection, openSectionDialog]
+    [dispatch]
   );
 
   // Add section
   const handleAddSection = useCallback(() => {
-    setEditingSection(null);
-    openSectionDialog();
-  }, [setEditingSection, openSectionDialog]);
+    dispatch(setEditingSection(null));
+    dispatch(openSectionDialog());
+  }, [dispatch]);
 
   // Save section
   const handleSaveSection = useCallback(
@@ -37,10 +78,10 @@ export function useSectionOperations({
       } else {
         await createSection(sectionData);
       }
-      setEditingSection(null);
-      closeSectionDialog();
+      dispatch(setEditingSection(null));
+      dispatch(closeSectionDialog());
     },
-    [editingSection, updateSection, createSection, setEditingSection, closeSectionDialog]
+    [editingSection, updateSection, createSection, dispatch]
   );
 
   // Delete section
@@ -67,22 +108,26 @@ export function useSectionOperations({
       const section = sections.find(s => s.id === sectionId);
       if (!section) return;
 
-      const isCurrentlyCollapsed = section.expanded === false || autoCollapsedSections.has(section.id);
+      const isCurrentlyCollapsed = section.expanded === false || autoCollapsedSections?.has(section.id) || false;
       const willBeExpanded = !isCurrentlyCollapsed;
 
       // If user is expanding a section that was auto-collapsed, mark it as manually expanded
-      if (willBeExpanded && autoCollapsedSections.has(section.id)) {
-        setManuallyExpandedSections(prev => {
-          const newSet = new Set(prev);
-          newSet.add(sectionId);
-          return newSet;
-        });
+      if (willBeExpanded && autoCollapsedSections?.has(section.id)) {
+        if (setManuallyExpandedSections) {
+          setManuallyExpandedSections(prev => {
+            const newSet = new Set(prev);
+            newSet.add(sectionId);
+            return newSet;
+          });
+        }
         // Clear auto-collapse state
-        setAutoCollapsedSections(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(sectionId);
-          return newSet;
-        });
+        if (setAutoCollapsedSections) {
+          setAutoCollapsedSections(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(sectionId);
+            return newSet;
+          });
+        }
       }
 
       // Update manual expanded state
@@ -92,6 +137,16 @@ export function useSectionOperations({
   );
 
   return {
+    // Data
+    sections,
+    editingSection,
+
+    // Raw operations
+    createSection,
+    updateSection,
+    deleteSection,
+
+    // Handler functions
     handleEditSection,
     handleAddSection,
     handleSaveSection,

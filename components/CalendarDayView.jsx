@@ -10,33 +10,42 @@ import { TimedTask } from "./TimedTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
 import { CurrentTimeLine } from "./CurrentTimeLine";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_DAY;
 
-export const CalendarDayView = ({
-  date,
-  tasks,
-  onTaskClick,
-  onTaskTimeChange,
-  onTaskDurationChange,
-  onCreateTask,
-  onDropTimeChange,
-  createDroppableId,
-  createDraggableId,
-  isCompletedOnDate,
-  getOutcomeOnDate,
-  getCompletionForDate,
-  showStatusTasks = true,
-  zoom = 1.0,
-  onEdit,
-  onEditWorkout,
-  onOutcomeChange,
-  onDuplicate,
-  onDelete,
-  tags,
-  onTagsChange,
-  onCreateTag,
-}) => {
+export const CalendarDayView = ({ date, createDroppableId, createDraggableId, onDropTimeChange }) => {
+  // Get preferences
+  const { preferences } = usePreferencesContext();
+  const zoom = preferences.calendarZoom?.day || 1.0;
+  const showStatusTasks = preferences.showStatusTasks?.day !== false;
+
+  // Use hooks directly (they use Redux internally)
+  const taskOps = useTaskOperations();
+  const completionHandlers = useCompletionHandlers();
+  const { getCompletionForDate } = useCompletionHelpers();
+
+  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
+  const taskFilters = useTaskFilters({
+    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+  });
+
+  // Get all tasks (for status blocks and filtering)
+  const tasks = taskFilters.tasks;
+
+  // Filter tasks by date (search/tag filtering is now done in parent)
+  const dayTasks = useMemo(() => {
+    return tasks.filter(t => t.time && shouldShowOnDate(t, date));
+  }, [tasks, date]);
+
+  const untimedTasks = useMemo(() => {
+    return tasks.filter(t => !t.time && shouldShowOnDate(t, date));
+  }, [tasks, date]);
+
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
   const { mode, calendar, dnd } = useSemanticColors();
 
@@ -47,15 +56,6 @@ export const CalendarDayView = ({
   const hourBorderColor = calendar.gridLine;
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
-
-  // Filter tasks by date (search/tag filtering is now done in parent)
-  const dayTasks = useMemo(() => {
-    return tasks.filter(t => t.time && shouldShowOnDate(t, date));
-  }, [tasks, date]);
-
-  const untimedTasks = useMemo(() => {
-    return tasks.filter(t => !t.time && shouldShowOnDate(t, date));
-  }, [tasks, date]);
 
   const containerRef = useRef(null);
 
@@ -176,18 +176,18 @@ export const CalendarDayView = ({
 
     if (hasMoved) {
       if (type === "move") {
-        onTaskTimeChange(taskId, minutesToTime(currentMinutes));
+        taskOps.handleTaskTimeChange(taskId, minutesToTime(currentMinutes));
       } else {
-        onTaskDurationChange(taskId, currentDuration);
+        taskOps.handleTaskDurationChange(taskId, currentDuration);
       }
     } else {
       // Click without drag - open task editor
       const task = dayTasks.find(t => t.id === taskId);
       if (task) {
-        setTimeout(() => onTaskClick(task), 100);
+        setTimeout(() => taskOps.handleEditTask(task), 100);
       }
     }
-  }, [internalDrag, onTaskTimeChange, onTaskDurationChange, dayTasks, onTaskClick]);
+  }, [internalDrag, taskOps, dayTasks]);
 
   useEffect(() => {
     if (!internalDrag.taskId) return;
@@ -210,7 +210,7 @@ export const CalendarDayView = ({
     const rect = containerRef.current.getBoundingClientRect();
     const y = e.clientY - rect.top + containerRef.current.scrollTop;
     const minutes = snapToIncrement((y / HOUR_HEIGHT) * 60, 15);
-    onCreateTask(minutesToTime(minutes), date);
+    taskOps.handleCreateTaskFromCalendar(minutesToTime(minutes), date);
   };
 
   // Calculate drop time from mouse position
@@ -238,7 +238,7 @@ export const CalendarDayView = ({
   });
 
   return (
-    <Flex direction="column" h="full" w="100%" maxW="100%" overflow="hidden">
+    <Flex direction="column" flex={1} minH={0} w="100%" maxW="100%" overflow="hidden">
       {/* Day header */}
       <Box
         textAlign="center"
@@ -277,23 +277,7 @@ export const CalendarDayView = ({
               All Day
             </Text>
             {untimedTasks.map(task => (
-              <UntimedTask
-                key={task.id}
-                task={task}
-                onTaskClick={onTaskClick}
-                createDraggableId={createDraggableId}
-                date={date}
-                isCompletedOnDate={isCompletedOnDate}
-                getOutcomeOnDate={getOutcomeOnDate}
-                onEdit={onEdit}
-                onEditWorkout={onEditWorkout}
-                onOutcomeChange={onOutcomeChange}
-                onDuplicate={onDuplicate}
-                onDelete={onDelete}
-                tags={tags}
-                onTagsChange={onTagsChange}
-                onCreateTag={onCreateTag}
-              />
+              <UntimedTask key={task.id} task={task} createDraggableId={createDraggableId} date={date} />
             ))}
             {isOverUntimed && untimedTasks.length === 0 && (
               <Text fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} textAlign="center" py={2}>
@@ -358,22 +342,11 @@ export const CalendarDayView = ({
               <TimedTask
                 key={task.id}
                 task={task}
-                onTaskClick={onTaskClick}
                 createDraggableId={createDraggableId}
                 date={date}
                 getTaskStyle={getTaskStyle}
                 internalDrag={internalDrag}
                 handleInternalDragStart={handleInternalDragStart}
-                isCompletedOnDate={isCompletedOnDate}
-                getOutcomeOnDate={getOutcomeOnDate}
-                onEdit={onEdit}
-                onEditWorkout={onEditWorkout}
-                onOutcomeChange={onOutcomeChange}
-                onDuplicate={onDuplicate}
-                onDelete={onDelete}
-                tags={tags}
-                onTagsChange={onTagsChange}
-                onCreateTag={onCreateTag}
               />
             ))}
 
@@ -434,7 +407,6 @@ export const CalendarDayView = ({
                       top={top}
                       height={height}
                       isInProgress={isInProgress}
-                      onTaskClick={onTaskClick}
                       startedAt={startedAt}
                       completedAt={completedAt}
                     />

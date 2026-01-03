@@ -4,48 +4,65 @@ import { Box, Button } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
+import { useSelector } from "react-redux";
 import { SectionCard } from "./SectionCard";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
+import { useSectionOperations } from "@/hooks/useSectionOperations";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
+import { useSectionExpansion } from "@/hooks/useSectionExpansion";
+import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
 // Main Section component that renders all sections
-export const Section = ({
-  sections,
-  tasksBySection,
-  onToggleTask,
-  onToggleSubtask,
-  onToggleExpand,
-  onEditTask,
-  onEditWorkout,
-  onUpdateTaskTitle,
-  onDeleteTask,
-  onDuplicateTask,
-  onAddTask,
-  onCreateTaskInline,
-  onCreateSubtask,
-  onEditSection,
-  onDeleteSection,
-  onAddSection,
-  onToggleSectionExpand,
-  hoveredDroppable,
-  createDroppableId,
-  createDraggableId,
-  viewDate,
-  onOutcomeChange,
-  getOutcomeOnDate,
-  hasRecordOnDate,
-  onCompleteWithNote,
-  onSkipTask,
-  getCompletionForDate,
-  selectedTaskIds,
-  onTaskSelect,
-  onBulkEdit,
-  onBeginWorkout,
-  tags,
-  onTagsChange,
-  onCreateTag,
-}) => {
+export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId }) => {
   const { dnd } = useSemanticColors();
   const dropHighlight = dnd.dropTarget;
+
+  // Get Redux state directly
+  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const viewDate = todayViewDateISO ? new Date(todayViewDateISO) : new Date();
+
+  // Get preferences
+  const { preferences } = usePreferencesContext();
+  const showCompletedTasks = preferences.showCompletedTasks;
+
+  // Use hooks directly (they use Redux internally)
+  // Call hooks in the correct order (matching page.jsx pattern)
+  const taskOps = useTaskOperations();
+
+  // Initialize section expansion early (will be updated when tasksBySection is available)
+  const sectionExpansionInitial = useSectionExpansion({
+    sections: taskOps.sections,
+    showCompletedTasks,
+    tasksBySection: {},
+  });
+
+  // Initialize completion handlers (needs sectionExpansionInitial callbacks)
+  const completionHandlers = useCompletionHandlers({
+    autoCollapsedSections: sectionExpansionInitial.autoCollapsedSections,
+    setAutoCollapsedSections: sectionExpansionInitial.setAutoCollapsedSections,
+    checkAndAutoCollapseSection: sectionExpansionInitial.checkAndAutoCollapseSection,
+  });
+
+  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
+  const taskFilters = useTaskFilters({
+    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+  });
+
+  // Recreate section expansion with actual tasksBySection
+  const sectionExpansion = useSectionExpansion({
+    sections: taskOps.sections,
+    showCompletedTasks,
+    tasksBySection: taskFilters.tasksBySection,
+  });
+
+  // Update section ops with section expansion callbacks
+  const sectionOps = useSectionOperations({
+    autoCollapsedSections: sectionExpansion.autoCollapsedSections,
+    setAutoCollapsedSections: sectionExpansion.setAutoCollapsedSections,
+    setManuallyExpandedSections: sectionExpansion.setManuallyExpandedSections,
+  });
 
   // Use droppable for section reordering
   const { setNodeRef, isOver } = useDroppable({
@@ -54,50 +71,26 @@ export const Section = ({
   });
 
   return (
-    <SortableContext id="sections" items={sections.map(s => `section-${s.id}`)} strategy={verticalListSortingStrategy}>
+    <SortableContext
+      id="sections"
+      items={taskOps.sections.map(s => `section-${s.id}`)}
+      strategy={verticalListSortingStrategy}
+    >
       <Box ref={setNodeRef} bg={isOver ? dropHighlight : "transparent"} borderRadius="md" w="100%" maxW="100%">
-        {sections.map((section, index) => (
+        {taskOps.sections.map((section, index) => (
           <SectionCard
             key={section.id}
             section={section}
             index={index}
-            tasks={tasksBySection[section.id] || []}
-            onToggleTask={onToggleTask}
-            onToggleSubtask={onToggleSubtask}
-            onToggleExpand={onToggleExpand}
-            onEditTask={onEditTask}
-            onEditWorkout={onEditWorkout}
-            onUpdateTaskTitle={onUpdateTaskTitle}
-            onDeleteTask={onDeleteTask}
-            onDuplicateTask={onDuplicateTask}
-            onAddTask={onAddTask}
-            onCreateTaskInline={onCreateTaskInline}
-            onCreateSubtask={onCreateSubtask}
-            onEdit={onEditSection}
-            onDelete={onDeleteSection}
-            onToggleSectionExpand={onToggleSectionExpand}
             hoveredDroppable={hoveredDroppable}
             droppableId={createDroppableId.todaySection(section.id)}
             createDraggableId={createDraggableId}
             viewDate={viewDate}
-            onOutcomeChange={onOutcomeChange}
-            getOutcomeOnDate={getOutcomeOnDate}
-            hasRecordOnDate={hasRecordOnDate}
-            onCompleteWithNote={onCompleteWithNote}
-            onSkipTask={onSkipTask}
-            getCompletionForDate={getCompletionForDate}
-            selectedTaskIds={selectedTaskIds}
-            onTaskSelect={onTaskSelect}
-            onBulkEdit={onBulkEdit}
-            onBeginWorkout={onBeginWorkout}
-            tags={tags}
-            onTagsChange={onTagsChange}
-            onCreateTag={onCreateTag}
           />
         ))}
         <Button
           variant="outline"
-          onClick={onAddSection}
+          onClick={sectionOps.handleAddSection}
           w="full"
           py={{ base: 4, md: 6 }}
           borderStyle="dashed"

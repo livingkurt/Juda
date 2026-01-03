@@ -5,17 +5,19 @@ import { Box, HStack, VStack, Menu, Button, Input, Text, Checkbox, Portal } from
 import { Tag as TagIcon, Plus, Search } from "lucide-react";
 import { TASK_COLORS } from "@/lib/constants";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
 
-export const TagMenuSelector = ({
-  task,
-  tags = [],
-  onTagsChange, // (taskId, newTagIds) => void
-  onCreateTag, // (name, color) => Promise<newTag>
-}) => {
+export const TagMenuSelector = ({ task }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [selectedColor, setSelectedColor] = useState(TASK_COLORS[0]);
   const searchInputRef = useRef(null);
+
+  // Use hooks directly (they use Redux internally)
+  const { data: tags = [] } = useGetTagsQuery();
+  const [createTagMutation] = useCreateTagMutation();
+  const taskOps = useTaskOperations();
 
   // Local state for selected tags (optimistic updates)
   const initialTagIds = task.tags?.map(t => t.id) || [];
@@ -52,7 +54,7 @@ export const TagMenuSelector = ({
     if (!searchQuery.trim()) return;
 
     try {
-      const newTag = await onCreateTag(searchQuery.trim(), color);
+      const newTag = await createTagMutation({ name: searchQuery.trim(), color }).unwrap();
       // Add the new tag to the local state
       setSelectedTagIds([...currentTagIds, newTag.id]);
       setHasChanges(true);
@@ -69,7 +71,7 @@ export const TagMenuSelector = ({
   const handleOpenChange = ({ open }) => {
     if (!open && hasChanges) {
       // Menu is closing and we have changes - save them
-      onTagsChange(task.id, selectedTagIds);
+      taskOps.handleTaskTagsChange(task.id, selectedTagIds);
       setHasChanges(false);
     } else if (!open && !hasChanges) {
       // Menu is closing without changes - reset to initial state

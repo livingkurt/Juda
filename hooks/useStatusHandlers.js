@@ -1,7 +1,43 @@
+"use client";
+
 import { useCallback } from "react";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
+import { useGetTasksQuery, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useCreateCompletionMutation } from "@/lib/store/api/completionsApi";
+import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
-export function useStatusHandlers({ tasks, updateTask, createCompletion, showCompletedTasks, addToRecentlyCompleted }) {
+/**
+ * Handles task status changes (todo/in_progress/complete)
+ * Uses Redux directly - no prop drilling needed
+ */
+export function useStatusHandlers({
+  // This is passed from parent because it's managed by useCompletionHandlers hook
+  addToRecentlyCompleted,
+} = {}) {
+  // RTK Query hooks
+  const { data: tasks = [] } = useGetTasksQuery();
+  const [updateTaskMutation] = useUpdateTaskMutation();
+  const [createCompletionMutation] = useCreateCompletionMutation();
+
+  // Get preferences
+  const { preferences } = usePreferencesContext();
+  const showCompletedTasks = preferences.showCompletedTasks;
+
+  // Wrapper functions
+  const updateTask = useCallback(
+    async (id, taskData) => {
+      return await updateTaskMutation({ id, ...taskData }).unwrap();
+    },
+    [updateTaskMutation]
+  );
+
+  const createCompletion = useCallback(
+    async (taskId, date, options = {}) => {
+      return await createCompletionMutation({ taskId, date, ...options }).unwrap();
+    },
+    [createCompletionMutation]
+  );
+
   const handleStatusChange = useCallback(
     async (taskId, newStatus) => {
       const task = tasks.find(t => t.id === taskId);
@@ -67,7 +103,7 @@ export function useStatusHandlers({ tasks, updateTask, createCompletion, showCom
         updates.startedAt = null;
 
         // Add to recently completed for visual feedback
-        if (!showCompletedTasks) {
+        if (!showCompletedTasks && addToRecentlyCompleted) {
           addToRecentlyCompleted(taskId, task.sectionId);
         }
       }

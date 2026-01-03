@@ -5,6 +5,7 @@ import { Box, Menu, Portal } from "@chakra-ui/react";
 import { getTaskDisplayColor } from "@/lib/utils";
 import { TaskContextMenu } from "../TaskContextMenu";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 
 /**
  * Compact task card for calendar month view
@@ -16,21 +17,22 @@ export const TaskCardCompact = memo(function TaskCardCompact({
   zoom = 1.0,
   isCompleted = false,
   outcome = null,
-  // Handlers
-  onEdit,
-  onEditWorkout,
-  onDuplicate,
-  onDelete,
-  onOutcomeChange,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { mode } = useSemanticColors();
 
+  // Use hooks directly (they use Redux internally)
+  const { getOutcomeOnDate } = useCompletionHelpers();
+
+  // Get outcome from Redux if not provided
+  const actualOutcome = outcome !== null ? outcome : getOutcomeOnDate(task.id, date);
+  const actualIsCompleted = isCompleted !== undefined ? isCompleted : actualOutcome === "completed";
+
   const taskColor = getTaskDisplayColor(task);
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
   const isWorkoutTask = task.completionType === "workout";
-  const isNotCompleted = outcome === "not_completed";
-  const hasOutcome = isCompleted || isNotCompleted;
+  const isNotCompleted = actualOutcome === "not_completed";
+  const hasOutcome = actualIsCompleted || isNotCompleted;
 
   // Responsive font sizes based on zoom
   const fontSize = {
@@ -56,7 +58,7 @@ export const TaskCardCompact = memo(function TaskCardCompact({
           bg={taskColor || mode.task.neutral}
           cursor="pointer"
           opacity={hasOutcome ? 0.6 : 1}
-          textDecoration={isCompleted ? "line-through" : "none"}
+          textDecoration={actualIsCompleted ? "line-through" : "none"}
           _hover={{ opacity: 0.8 }}
           onClick={e => e.stopPropagation()}
         >
@@ -72,12 +74,7 @@ export const TaskCardCompact = memo(function TaskCardCompact({
               date={date}
               isRecurring={isRecurring}
               isWorkoutTask={isWorkoutTask}
-              outcome={outcome}
-              onEdit={onEdit}
-              onEditWorkout={onEditWorkout}
-              onDuplicate={onDuplicate}
-              onDelete={onDelete}
-              onOutcomeChange={onOutcomeChange}
+              outcome={actualOutcome}
               onClose={() => setMenuOpen(false)}
             />
           </Menu.Content>
