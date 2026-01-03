@@ -19,7 +19,7 @@ import { useState, useEffect, useMemo } from "react";
 import { EXERCISE_TYPES, WORKOUT_SECTION_TYPES } from "@/lib/constants";
 import WeekdaySelector from "./WeekdaySelector";
 import { SelectDropdown } from "./SelectDropdown";
-import { useWorkoutProgram } from "@/hooks/useWorkoutProgram";
+import { useGetWorkoutProgramQuery, useSaveWorkoutProgramMutation } from "@/lib/store/api/workoutProgramsApi";
 import { useToast } from "@/hooks/useToast";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
@@ -35,7 +35,14 @@ function generateCuid() {
  * Allows users to build multi-week workout programs with sections, days, and exercises
  */
 export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete }) {
-  const { fetchWorkoutProgram, saveWorkoutProgram, loading: programLoading } = useWorkoutProgram();
+  const { data: existingProgram, isLoading: programLoading } = useGetWorkoutProgramQuery(taskId, {
+    skip: !taskId,
+  });
+  const [saveWorkoutProgramMutation] = useSaveWorkoutProgramMutation();
+
+  const saveWorkoutProgram = async (taskId, programData) => {
+    return await saveWorkoutProgramMutation({ taskId, ...programData }).unwrap();
+  };
   const { toast } = useToast();
   const [sections, setSections] = useState([]);
   const [expandedSections, setExpandedSections] = useState({});
@@ -113,62 +120,44 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
     );
   };
 
-  // Load existing workout program on open
+  // Load existing workout program from Redux query
+  // This effect synchronizes external state (Redux) with local editing state
   useEffect(() => {
-    if (isOpen && taskId) {
-      fetchWorkoutProgram(taskId)
-        .then(program => {
-          if (program) {
-            setName(program.name || "");
-            setNumberOfWeeks(program.numberOfWeeks || 0);
-            setSections(program.sections || []);
+    if (isOpen && existingProgram) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setName(existingProgram.name || "");
 
-            // Expand first section and day by default
-            if (program.sections?.length > 0) {
-              const firstSectionId = program.sections[0].id;
-              setExpandedSections({ [firstSectionId]: true });
-              if (program.sections[0].days?.length > 0) {
-                setExpandedDays({ [program.sections[0].days[0].id]: true });
-              }
-            }
-          } else {
-            // Initialize with defaults for new workout
-            const defaultSection = {
-              id: generateCuid(),
-              name: "Workout",
-              type: "workout",
-              days: [],
-            };
-            setName("");
-            setSections([defaultSection]);
-            setExpandedSections({ [defaultSection.id]: true });
-            setNumberOfWeeks(0);
-          }
-        })
-        .catch(err => {
-          console.error("Failed to load workout program:", err);
-          toast({
-            title: "Failed to load workout",
-            description: err.message,
-            status: "error",
-            duration: 3000,
-          });
-        });
-    } else if (isOpen && !taskId) {
-      // Initialize with defaults if no taskId
+      setNumberOfWeeks(existingProgram.numberOfWeeks || 0);
+
+      setSections(existingProgram.sections || []);
+
+      // Expand first section and day by default
+      if (existingProgram.sections?.length > 0) {
+        const firstSectionId = existingProgram.sections[0].id;
+
+        setExpandedSections({ [firstSectionId]: true });
+        if (existingProgram.sections[0].days?.length > 0) {
+          setExpandedDays({ [existingProgram.sections[0].days[0].id]: true });
+        }
+      }
+    } else if (isOpen && !existingProgram && !programLoading) {
+      // Initialize with defaults for new workout
       const defaultSection = {
         id: generateCuid(),
         name: "Workout",
         type: "workout",
         days: [],
       };
+
       setName("");
+
       setSections([defaultSection]);
+
       setExpandedSections({ [defaultSection.id]: true });
+
       setNumberOfWeeks(0);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, taskId]);
+  }, [isOpen, existingProgram, programLoading]);
 
   const addSection = () => {
     const newSection = {

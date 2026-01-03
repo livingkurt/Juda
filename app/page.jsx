@@ -45,10 +45,36 @@ import { Section } from "@/components/Section";
 import { TaskDialog } from "@/components/TaskDialog";
 import { SectionDialog } from "@/components/SectionDialog";
 import { BacklogDrawer } from "@/components/BacklogDrawer";
-import { useTasks } from "@/hooks/useTasks";
-import { useSections } from "@/hooks/useSections";
-import { useCompletions } from "@/hooks/useCompletions";
-import { useTags } from "@/hooks/useTags";
+import {
+  useGetTasksQuery,
+  useCreateTaskMutation,
+  useUpdateTaskMutation,
+  useDeleteTaskMutation,
+  useBatchReorderTasksMutation,
+  useBatchUpdateTasksMutation,
+} from "@/lib/store/api/tasksApi";
+import {
+  useGetSectionsQuery,
+  useCreateSectionMutation,
+  useUpdateSectionMutation,
+  useDeleteSectionMutation,
+  useReorderSectionsMutation,
+} from "@/lib/store/api/sectionsApi";
+import {
+  useCreateCompletionMutation,
+  useDeleteCompletionMutation,
+  useUpdateCompletionMutation,
+  useBatchCreateCompletionsMutation,
+  useBatchDeleteCompletionsMutation,
+} from "@/lib/store/api/completionsApi";
+import {
+  useGetTagsQuery,
+  useCreateTagMutation,
+  useUpdateTagMutation,
+  useDeleteTagMutation,
+  useUpdateTaskTagsMutation,
+} from "@/lib/store/api/tagsApi";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useViewState } from "@/hooks/useViewState";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -166,50 +192,292 @@ export default function DailyTasksApp() {
   const dragOverlayBorder = dnd.dropTargetBorder;
   const dragOverlayText = interactive.primary;
 
+  // Redux RTK Query hooks - skip queries until authenticated
   const {
-    tasks,
-    createTask,
-    updateTask,
-    deleteTask,
-    reorderTask,
-    duplicateTask,
-    saveTask,
-    batchReorderTasks,
-    batchUpdateTasks,
-    updateTagInTasks,
-    removeTagFromTasks,
+    data: tasks = [],
+    isLoading: tasksLoading,
     refetch: fetchTasks,
-    loading: tasksLoading,
-  } = useTasks();
-  const {
-    sections,
-    createSection,
-    updateSection,
-    deleteSection,
-    reorderSections,
-    loading: sectionsLoading,
-  } = useSections();
+  } = useGetTasksQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const [createTaskMutation] = useCreateTaskMutation();
+  const [updateTaskMutation] = useUpdateTaskMutation();
+  const [deleteTaskMutation] = useDeleteTaskMutation();
+  const [batchReorderTasksMutation] = useBatchReorderTasksMutation();
+  const [batchUpdateTasksMutation] = useBatchUpdateTasksMutation();
+
+  const { data: sections = [], isLoading: sectionsLoading } = useGetSectionsQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const [createSectionMutation] = useCreateSectionMutation();
+  const [updateSectionMutation] = useUpdateSectionMutation();
+  const [deleteSectionMutation] = useDeleteSectionMutation();
+  const [reorderSectionsMutation] = useReorderSectionsMutation();
+
+  const { data: tags = [], isLoading: tagsLoading } = useGetTagsQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const [createTagMutation] = useCreateTagMutation();
+  const [updateTagMutation] = useUpdateTagMutation();
+  const [deleteTagMutation] = useDeleteTagMutation();
+  const [updateTaskTagsMutation] = useUpdateTaskTagsMutation();
+
+  const [createCompletionMutation] = useCreateCompletionMutation();
+  const [deleteCompletionMutation] = useDeleteCompletionMutation();
+  const [updateCompletionMutation] = useUpdateCompletionMutation();
+  const [batchCreateCompletionsMutation] = useBatchCreateCompletionsMutation();
+  const [batchDeleteCompletionsMutation] = useBatchDeleteCompletionsMutation();
+
+  // Completion helpers
   const {
     completions,
-    createCompletion,
-    deleteCompletion,
-    updateCompletion,
-    batchCreateCompletions,
-    batchDeleteCompletions,
+    loading: completionsLoading,
     isCompletedOnDate,
     hasRecordOnDate,
     getOutcomeOnDate,
     getCompletionForDate,
     hasAnyCompletion,
-    fetchCompletions,
-  } = useCompletions();
-  const {
-    tags,
-    createTag,
-    updateTag: updateTagOriginal,
-    deleteTag: deleteTagOriginal,
-    batchUpdateTaskTags,
-  } = useTags();
+  } = useCompletionHelpers();
+
+  // Wrapper functions to match old API
+  const createTask = useCallback(
+    async taskData => {
+      return await createTaskMutation(taskData).unwrap();
+    },
+    [createTaskMutation]
+  );
+
+  const updateTask = useCallback(
+    async (id, taskData) => {
+      return await updateTaskMutation({ id, ...taskData }).unwrap();
+    },
+    [updateTaskMutation]
+  );
+
+  const deleteTask = useCallback(
+    async id => {
+      return await deleteTaskMutation(id).unwrap();
+    },
+    [deleteTaskMutation]
+  );
+
+  const batchReorderTasks = useCallback(
+    async updates => {
+      return await batchReorderTasksMutation(updates).unwrap();
+    },
+    [batchReorderTasksMutation]
+  );
+
+  const batchUpdateTasks = useCallback(
+    async (taskIds, updates) => {
+      return await batchUpdateTasksMutation({ taskIds, updates }).unwrap();
+    },
+    [batchUpdateTasksMutation]
+  );
+
+  const createSection = useCallback(
+    async sectionData => {
+      return await createSectionMutation(sectionData).unwrap();
+    },
+    [createSectionMutation]
+  );
+
+  const updateSection = useCallback(
+    async (id, sectionData) => {
+      return await updateSectionMutation({ id, ...sectionData }).unwrap();
+    },
+    [updateSectionMutation]
+  );
+
+  const deleteSection = useCallback(
+    async id => {
+      return await deleteSectionMutation(id).unwrap();
+    },
+    [deleteSectionMutation]
+  );
+
+  const reorderSections = useCallback(
+    async newSections => {
+      return await reorderSectionsMutation(newSections).unwrap();
+    },
+    [reorderSectionsMutation]
+  );
+
+  const createTag = useCallback(
+    async (name, color) => {
+      return await createTagMutation({ name, color }).unwrap();
+    },
+    [createTagMutation]
+  );
+
+  const updateTagOriginal = useCallback(
+    async (id, updates) => {
+      return await updateTagMutation({ id, ...updates }).unwrap();
+    },
+    [updateTagMutation]
+  );
+
+  const deleteTagOriginal = useCallback(
+    async id => {
+      return await deleteTagMutation(id).unwrap();
+    },
+    [deleteTagMutation]
+  );
+
+  const batchUpdateTaskTags = useCallback(
+    async (taskId, tagIds) => {
+      return await updateTaskTagsMutation({ taskId, tagIds }).unwrap();
+    },
+    [updateTaskTagsMutation]
+  );
+
+  const createCompletion = useCallback(
+    async (taskId, date, options) => {
+      return await createCompletionMutation({ taskId, date, ...options }).unwrap();
+    },
+    [createCompletionMutation]
+  );
+
+  const deleteCompletion = useCallback(
+    async (taskId, date) => {
+      return await deleteCompletionMutation({ taskId, date }).unwrap();
+    },
+    [deleteCompletionMutation]
+  );
+
+  const updateCompletion = useCallback(
+    async (taskId, date, updates) => {
+      return await updateCompletionMutation({ taskId, date, ...updates }).unwrap();
+    },
+    [updateCompletionMutation]
+  );
+
+  const batchCreateCompletions = useCallback(
+    async completionsToCreate => {
+      return await batchCreateCompletionsMutation(completionsToCreate).unwrap();
+    },
+    [batchCreateCompletionsMutation]
+  );
+
+  const batchDeleteCompletions = useCallback(
+    async completionsToDelete => {
+      return await batchDeleteCompletionsMutation(completionsToDelete).unwrap();
+    },
+    [batchDeleteCompletionsMutation]
+  );
+
+  const fetchCompletions = useCallback(() => {
+    // RTK Query handles refetching automatically
+    return Promise.resolve();
+  }, []);
+
+  // Complex task operations
+  const saveTask = useCallback(
+    async taskData => {
+      const { tagIds, subtasks: subtasksData, ...taskFields } = taskData;
+
+      try {
+        let savedTask;
+
+        if (taskData.id) {
+          // Update existing task
+          savedTask = await updateTaskMutation({ id: taskData.id, ...taskFields }).unwrap();
+        } else {
+          // Create new task
+          savedTask = await createTaskMutation(taskFields).unwrap();
+        }
+
+        // Handle subtasks if provided
+        if (subtasksData !== undefined) {
+          // This would require batch operations - for now, refetch
+          await fetchTasks();
+        }
+
+        // Handle tag assignments if tagIds provided
+        if (tagIds !== undefined) {
+          await updateTaskTagsMutation({ taskId: savedTask.id, tagIds }).unwrap();
+        }
+
+        return savedTask;
+      } catch (err) {
+        console.error("Error saving task:", err);
+        throw err;
+      }
+    },
+    [createTaskMutation, updateTaskMutation, updateTaskTagsMutation, fetchTasks]
+  );
+
+  const reorderTask = useCallback(
+    async (taskId, sourceSectionId, targetSectionId, newOrder) => {
+      try {
+        // Update task with new section and order
+        await updateTaskMutation({
+          id: taskId,
+          sectionId: targetSectionId,
+          order: newOrder,
+        }).unwrap();
+        // Refresh to get correct order from server
+        await fetchTasks();
+      } catch (err) {
+        console.error("Error reordering task:", err);
+        throw err;
+      }
+    },
+    [updateTaskMutation, fetchTasks]
+  );
+
+  const duplicateTask = useCallback(
+    async taskId => {
+      // Find task in tasks array (including subtasks)
+      const findTask = (taskList, id) => {
+        for (const task of taskList) {
+          if (task.id === id) return task;
+          if (task.subtasks && task.subtasks.length > 0) {
+            const found = findTask(task.subtasks, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      const taskToDuplicate = findTask(tasks, taskId);
+
+      if (!taskToDuplicate) {
+        throw new Error("Task not found");
+      }
+
+      try {
+        // Create a copy of the task with "Copy of" prefix
+        const duplicatedTaskData = {
+          title: `Copy of ${taskToDuplicate.title}`,
+          sectionId: taskToDuplicate.sectionId,
+          time: taskToDuplicate.time,
+          duration: taskToDuplicate.duration,
+          recurrence: taskToDuplicate.recurrence,
+          parentId: taskToDuplicate.parentId,
+          order: taskToDuplicate.order,
+        };
+
+        const newTask = await createTaskMutation(duplicatedTaskData).unwrap();
+        return newTask;
+      } catch (err) {
+        console.error("Error duplicating task:", err);
+        throw err;
+      }
+    },
+    [tasks, createTaskMutation]
+  );
+
+  // Tag update helpers that also update task references
+  const updateTagInTasks = useCallback((_tagId, _updatedTag) => {
+    // RTK Query will automatically update tasks when tags change
+    // due to cache invalidation
+  }, []);
+
+  const removeTagFromTasks = useCallback(_tagId => {
+    // RTK Query will automatically update tasks when tags change
+    // due to cache invalidation
+  }, []);
 
   // Wrapper around updateTag that also updates tag references in tasks
   const updateTag = useCallback(
@@ -317,7 +585,7 @@ export default function DailyTasksApp() {
   //   }
   // };
 
-  const isLoading = tasksLoading || sectionsLoading || !prefsInitialized;
+  const isLoading = tasksLoading || sectionsLoading || tagsLoading || completionsLoading || !prefsInitialized;
 
   // Extract view state using hook
   const viewState = useViewState({
@@ -599,8 +867,11 @@ export default function DailyTasksApp() {
     return <AuthPage />;
   }
 
-  // User is authenticated - show loading while data/preferences load
-  if (isLoading && tasks.length === 0 && sections.length === 0) {
+  // User is authenticated - show loading while data loads OR if we have no data yet
+  // When queries are skipped, isLoading is false, so we also check if we have any data
+  // This prevents showing empty UI while queries are starting after login
+  const hasData = tasks.length > 0 || sections.length > 0;
+  if (isLoading || !hasData) {
     return <PageSkeleton showBacklog={false} showDashboard={false} showCalendar={false} />;
   }
 

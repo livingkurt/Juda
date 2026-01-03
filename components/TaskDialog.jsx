@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   Box,
   Button,
@@ -26,7 +26,7 @@ import { TagChip } from "./TagChip";
 import WorkoutBuilder from "./WorkoutBuilder";
 import WeekdaySelector from "./WeekdaySelector";
 import { SelectDropdown } from "./SelectDropdown";
-import { useWorkoutProgram } from "@/hooks/useWorkoutProgram";
+import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Internal component that resets when key changes
@@ -123,45 +123,14 @@ function TaskDialogForm({
   const [completionType, setCompletionType] = useState(task?.completionType || "checkbox");
   const [content, setContent] = useState(task?.content || "");
   const [workoutBuilderOpen, setWorkoutBuilderOpen] = useState(false);
-  const { fetchWorkoutProgram } = useWorkoutProgram();
-  const [hasWorkoutProgram, setHasWorkoutProgram] = useState(false);
-  const [workoutProgramWeeks, setWorkoutProgramWeeks] = useState(0);
+  const { data: workoutProgram } = useGetWorkoutProgramQuery(task?.id, {
+    skip: !task?.id,
+  });
+  // Derive workout program status from Redux query
+  const hasWorkoutProgram = Boolean(workoutProgram);
+  const workoutProgramWeeks = workoutProgram?.numberOfWeeks || 0;
 
-  // Check if workout program exists
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!task?.id || completionType !== "workout") {
-      // Use setTimeout to avoid synchronous setState warning
-      setTimeout(() => {
-        if (!cancelled) {
-          setHasWorkoutProgram(false);
-          setWorkoutProgramWeeks(0);
-        }
-      }, 0);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    fetchWorkoutProgram(task.id)
-      .then(program => {
-        if (!cancelled) {
-          setHasWorkoutProgram(Boolean(program));
-          setWorkoutProgramWeeks(program?.numberOfWeeks || 0);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setHasWorkoutProgram(false);
-          setWorkoutProgramWeeks(0);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [task?.id, completionType, fetchWorkoutProgram]);
+  // Workout program status is now derived from workoutProgram query data
 
   // Calculate total weeks from recurrence dates
   const totalWeeks = useMemo(() => {
@@ -1091,16 +1060,7 @@ function TaskDialogForm({
           onClose={() => setWorkoutBuilderOpen(false)}
           taskId={task.id}
           onSaveComplete={() => {
-            // Refresh workout program status
-            fetchWorkoutProgram(task.id)
-              .then(program => {
-                setHasWorkoutProgram(Boolean(program));
-                setWorkoutProgramWeeks(program?.numberOfWeeks || 0);
-              })
-              .catch(() => {
-                setHasWorkoutProgram(false);
-                setWorkoutProgramWeeks(0);
-              });
+            // Redux query will automatically refetch and update workoutProgram
             setWorkoutBuilderOpen(false);
           }}
         />

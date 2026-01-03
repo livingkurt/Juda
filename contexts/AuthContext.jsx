@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AuthContext } from "./AuthContextDefinition";
+import { injectAuthFunctions } from "@/lib/store/api/baseApi";
 
 export function AuthProvider({ children }) {
   // Use a unified state object to prevent race conditions and flashes
@@ -16,6 +17,13 @@ export function AuthProvider({ children }) {
   const refreshingRef = useRef(false);
   // Ref for refresh interval
   const refreshIntervalRef = useRef(null);
+  // Ref to always have the latest token available (for callbacks that might have stale closures)
+  const accessTokenRef = useRef(null);
+
+  // Keep the ref in sync with state
+  useEffect(() => {
+    accessTokenRef.current = authState.accessToken;
+  }, [authState.accessToken]);
 
   // Refresh access token
   const refreshAccessToken = useCallback(async () => {
@@ -30,6 +38,7 @@ export function AuthProvider({ children }) {
       });
 
       if (!response.ok) {
+        accessTokenRef.current = null;
         setAuthState(prev => ({
           ...prev,
           user: null,
@@ -39,6 +48,8 @@ export function AuthProvider({ children }) {
       }
 
       const data = await response.json();
+      // Update ref IMMEDIATELY
+      accessTokenRef.current = data.accessToken;
       setAuthState(prev => ({
         ...prev,
         user: data.user,
@@ -47,6 +58,7 @@ export function AuthProvider({ children }) {
       return data.accessToken;
     } catch (error) {
       console.error("Failed to refresh token:", error);
+      accessTokenRef.current = null;
       setAuthState(prev => ({
         ...prev,
         user: null,
@@ -69,6 +81,8 @@ export function AuthProvider({ children }) {
 
         if (response.ok) {
           const data = await response.json();
+          // Update ref IMMEDIATELY
+          accessTokenRef.current = data.accessToken;
           // SET EVERYTHING AT ONCE
           setAuthState({
             user: data.user,
@@ -77,6 +91,7 @@ export function AuthProvider({ children }) {
             initialized: true,
           });
         } else {
+          accessTokenRef.current = null;
           setAuthState({
             user: null,
             accessToken: null,
@@ -86,6 +101,7 @@ export function AuthProvider({ children }) {
         }
       } catch (error) {
         console.error("Auth init error:", error);
+        accessTokenRef.current = null;
         setAuthState({
           user: null,
           accessToken: null,
@@ -169,6 +185,10 @@ export function AuthProvider({ children }) {
       }
 
       const data = await response.json();
+
+      // Update ref IMMEDIATELY before state (so it's available for any queries that fire)
+      accessTokenRef.current = data.accessToken;
+
       setAuthState({
         user: data.user,
         accessToken: data.accessToken,
@@ -200,6 +220,10 @@ export function AuthProvider({ children }) {
       }
 
       const data = await response.json();
+
+      // Update ref IMMEDIATELY before state (so it's available for any queries that fire)
+      accessTokenRef.current = data.accessToken;
+
       setAuthState({
         user: data.user,
         accessToken: data.accessToken,
@@ -225,6 +249,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
+      accessTokenRef.current = null;
       setAuthState({
         user: null,
         accessToken: null,
@@ -235,12 +260,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Get current access token (with auto-refresh if needed)
+  // Uses ref to always get the latest token, avoiding stale closure issues
   const getAccessToken = useCallback(async () => {
-    if (authState.accessToken) {
-      return authState.accessToken;
+    // Use ref to always get the current token (avoids stale closure)
+    if (accessTokenRef.current) {
+      return accessTokenRef.current;
     }
     return refreshAccessToken();
-  }, [authState.accessToken, refreshAccessToken]);
+  }, [refreshAccessToken]);
 
   const value = {
     ...authState,
@@ -251,6 +278,15 @@ export function AuthProvider({ children }) {
     getAccessToken,
     refreshAccessToken,
   };
+
+  // Inject auth functions into Redux base API
+  useEffect(() => {
+    injectAuthFunctions({
+      getAccessToken,
+      refreshAccessToken,
+      logout,
+    });
+  }, [getAccessToken, refreshAccessToken, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

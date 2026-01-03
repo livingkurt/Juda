@@ -3,7 +3,7 @@
 import { Box, Button, Flex, Text, VStack, HStack, Badge, Progress, Dialog } from "@chakra-ui/react";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import WorkoutDaySection from "./WorkoutDaySection";
-import { useWorkoutProgram } from "@/hooks/useWorkoutProgram";
+import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
 import { useAuthFetch } from "@/hooks/useAuthFetch";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
@@ -14,7 +14,9 @@ import { useSemanticColors } from "@/hooks/useSemanticColors";
  */
 export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, currentDate = new Date() }) {
   const { mode } = useSemanticColors();
-  const { fetchWorkoutProgram } = useWorkoutProgram();
+  const { data: workoutProgram } = useGetWorkoutProgramQuery(task?.id, {
+    skip: !task?.id,
+  });
   const authFetch = useAuthFetch();
   const [completionData, setCompletionData] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -54,21 +56,14 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
   // Determine current day of week
   const currentDayOfWeek = currentDate.getDay();
 
-  // Load workout program from API
+  // Load workout program from Redux query
   useEffect(() => {
-    if (isOpen && task?.id) {
-      fetchWorkoutProgram(task.id)
-        .then(program => {
-          setWorkoutData(program);
-        })
-        .catch(err => {
-          console.error("Failed to load workout program:", err);
-          setWorkoutData(null);
-        });
+    if (isOpen && workoutProgram) {
+      setWorkoutData(workoutProgram);
     } else if (!isOpen) {
       setWorkoutData(null);
     }
-  }, [isOpen, task?.id, fetchWorkoutProgram]);
+  }, [isOpen, workoutProgram]);
 
   // Load set completions from database when modal opens
   useEffect(() => {

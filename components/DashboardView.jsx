@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Box, Heading, Text, Table, HStack, VStack, Card, Badge, Tabs, createListCollection } from "@chakra-ui/react";
-import { useCompletions } from "@/hooks/useCompletions";
-import { useTasks } from "@/hooks/useTasks";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useCreateCompletionMutation, useDeleteCompletionMutation } from "@/lib/store/api/completionsApi";
+import { useAuth } from "@/hooks/useAuth";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { shouldShowOnDate } from "@/lib/utils";
@@ -47,14 +49,27 @@ const resolveColor = (colorObj, colorMode) => {
 
 export const DashboardView = () => {
   const { mode } = useSemanticColors();
-  const {
-    completions,
-    fetchCompletions,
-    createCompletion,
-    deleteCompletion,
-    loading: completionsLoading,
-  } = useCompletions();
-  const { tasks, loading: tasksLoading } = useTasks();
+  const { isAuthenticated } = useAuth();
+  const { completions, loading: completionsLoading } = useCompletionHelpers();
+  const { data: tasks = [], isLoading: tasksLoading } = useGetTasksQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const [createCompletionMutation] = useCreateCompletionMutation();
+  const [deleteCompletionMutation] = useDeleteCompletionMutation();
+
+  // Wrapper functions to match old API
+  const createCompletion = async (taskId, date, options) => {
+    return await createCompletionMutation({ taskId, date, ...options }).unwrap();
+  };
+
+  const deleteCompletion = async (taskId, date) => {
+    return await deleteCompletionMutation({ taskId, date }).unwrap();
+  };
+
+  const fetchCompletions = useCallback(() => {
+    // RTK Query handles refetching automatically
+    return Promise.resolve();
+  }, []);
   const { colorMode } = useColorModeSync();
   const [dateRange, setDateRange] = useState("30"); // days
   const [selectedTask, setSelectedTask] = useState("all");

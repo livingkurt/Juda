@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   Box,
   Flex,
@@ -27,8 +27,9 @@ import {
   PanelLeft,
   ArrowLeft,
 } from "lucide-react";
-import { useFolders } from "@/hooks/useFolders";
-import { useSmartFolders } from "@/hooks/useSmartFolders";
+import { useGetFoldersQuery, useCreateFolderMutation } from "@/lib/store/api/foldersApi.js";
+import { useGetSmartFoldersQuery, useCreateSmartFolderMutation } from "@/lib/store/api/smartFoldersApi.js";
+import { useAuth } from "@/hooks/useAuth";
 import { NoteEditor } from "./NoteEditor";
 import { promptUser } from "@/lib/prompt";
 
@@ -46,8 +47,59 @@ export const NotesView = ({
   onNoteListToggle,
   onNoteListResize,
 }) => {
-  const { folders, createFolder } = useFolders();
-  const { smartFolders, createSmartFolder, filterNotesBySmartFolder } = useSmartFolders();
+  const { isAuthenticated } = useAuth();
+  const { data: folders = [] } = useGetFoldersQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const [createFolderMutation] = useCreateFolderMutation();
+  const { data: smartFolders = [] } = useGetSmartFoldersQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const [createSmartFolderMutation] = useCreateSmartFolderMutation();
+
+  // Wrapper functions to match old API
+  const createFolder = async folderData => {
+    return await createFolderMutation(folderData).unwrap();
+  };
+
+  const createSmartFolder = async folderData => {
+    return await createSmartFolderMutation(folderData).unwrap();
+  };
+
+  // Smart folder filtering function (moved from hook)
+  const filterNotesBySmartFolder = useCallback((notes, smartFolder) => {
+    if (!smartFolder || !smartFolder.filters) return notes;
+
+    return notes.filter(note => {
+      // Apply each filter
+      const filters = smartFolder.filters;
+
+      // Title filter
+      if (filters.title && !note.title.toLowerCase().includes(filters.title.toLowerCase())) {
+        return false;
+      }
+
+      // Folder filter
+      if (filters.folderId && note.folderId !== filters.folderId) {
+        return false;
+      }
+
+      // Date range filter
+      if (filters.dateFrom) {
+        const noteDate = new Date(note.createdAt);
+        const fromDate = new Date(filters.dateFrom);
+        if (noteDate < fromDate) return false;
+      }
+
+      if (filters.dateTo) {
+        const noteDate = new Date(note.createdAt);
+        const toDate = new Date(filters.dateTo);
+        if (noteDate > toDate) return false;
+      }
+
+      return true;
+    });
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState(null); // null = "All Notes"
