@@ -1623,46 +1623,54 @@ export default function DailyTasksApp() {
                   /* Tasks Tab Content (mainTabIndex === 0) */
                   <Box w="full" h="full" display="flex" maxW="100%" overflow="hidden">
                     {/* Backlog Section - only show on Tasks tab */}
-                    {mainTabIndex === 0 && backlogOpen && (
-                      <>
-                        <Box
-                          w={`${resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? resizeHandlers.localBacklogWidth : backlogWidth}px`}
-                          h="100%"
-                          transition={
-                            resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? "none" : "width 0.3s"
-                          }
-                          overflow="hidden"
-                          borderRightWidth="1px"
-                          borderColor={borderColor}
-                          bg={bgColor}
-                          flexShrink={0}
-                          display="flex"
-                          flexDirection="column"
-                          position="relative"
-                        >
-                          {isLoading ? <BacklogSkeleton /> : <BacklogDrawer createDraggableId={createDraggableId} />}
-                          {/* Resize handle between backlog and today */}
-                          <Box
-                            position="absolute"
-                            right={0}
-                            top={0}
-                            bottom={0}
-                            w="4px"
-                            cursor="col-resize"
-                            bg={
-                              resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
-                                ? "blue.400"
-                                : "transparent"
-                            }
-                            _hover={{ bg: "blue.300" }}
-                            transition="background-color 0.2s"
-                            onMouseDown={resizeHandlers.handleBacklogResizeStart}
-                            zIndex={10}
-                            sx={{ userSelect: "none" }}
-                            display={{ base: "none", md: "block" }}
-                          />
-                        </Box>
-                      </>
+                    {mainTabIndex === 0 && (
+                      <Box
+                        w={
+                          backlogOpen
+                            ? `${resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? resizeHandlers.localBacklogWidth : backlogWidth}px`
+                            : "0px"
+                        }
+                        h="100%"
+                        transition={
+                          resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
+                            ? "none"
+                            : "width 0.3s ease-in-out"
+                        }
+                        overflow="hidden"
+                        borderRightWidth={backlogOpen ? "1px" : "0px"}
+                        borderColor={borderColor}
+                        bg={bgColor}
+                        flexShrink={0}
+                        display="flex"
+                        flexDirection="column"
+                        position="relative"
+                      >
+                        {backlogOpen && (
+                          <>
+                            {isLoading ? <BacklogSkeleton /> : <BacklogDrawer createDraggableId={createDraggableId} />}
+                            {/* Resize handle between backlog and today */}
+                            <Box
+                              position="absolute"
+                              right={0}
+                              top={0}
+                              bottom={0}
+                              w="4px"
+                              cursor="col-resize"
+                              bg={
+                                resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
+                                  ? "blue.400"
+                                  : "transparent"
+                              }
+                              _hover={{ bg: "blue.300" }}
+                              transition="background-color 0.2s"
+                              onMouseDown={resizeHandlers.handleBacklogResizeStart}
+                              zIndex={10}
+                              sx={{ userSelect: "none" }}
+                              display={{ base: "none", md: "block" }}
+                            />
+                          </>
+                        )}
+                      </Box>
                     )}
 
                     {/* Today and Calendar Section */}

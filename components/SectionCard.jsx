@@ -7,6 +7,7 @@ import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { Plus, MoreVertical, GripVertical, Sun, ChevronDown, ChevronUp } from "lucide-react";
 import { TaskItem } from "./TaskItem";
+import { Collapse } from "./Collapse";
 import { SECTION_ICONS } from "@/lib/constants";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -231,7 +232,7 @@ export const SectionCard = ({ section, hoveredDroppable, droppableId, createDrag
           </HStack>
         </Flex>
       </Card.Header>
-      {section.expanded !== false && (
+      <Collapse in={section.expanded !== false}>
         <Card.Body pt={{ base: 1, md: 2 }} pb={{ base: 2, md: 3 }} px={{ base: 2, md: 4 }}>
           <Box
             ref={setDropNodeRef}
@@ -324,7 +325,7 @@ export const SectionCard = ({ section, hoveredDroppable, droppableId, createDrag
             )}
           </Box>
         </Card.Body>
-      )}
+      </Collapse>
     </Card.Root>
   );
 };
