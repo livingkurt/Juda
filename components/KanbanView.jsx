@@ -22,13 +22,13 @@ const KanbanColumn = memo(function KanbanColumn({
   createDraggableId,
   getOutcomeOnDate,
   onOutcomeChange,
-  onDuplicateTask,
-  onDeleteTask,
+  onDuplicate,
+  onDelete,
   onStatusChange,
   recentlyCompletedTasks,
   viewDate,
   selectedTaskIds,
-  onTaskSelect,
+  onSelect,
   onBulkEdit,
   onEditWorkout,
   tags,
@@ -144,14 +144,14 @@ const KanbanColumn = memo(function KanbanColumn({
                 containerId={`kanban-column|${id}`}
                 draggableId={createDraggableId.kanban(task.id, id)}
                 onEdit={() => onTaskClick(task)}
-                onDelete={() => onDeleteTask(task.id)}
-                onDuplicate={() => onDuplicateTask(task.id)}
+                onDelete={() => onDelete(task.id)}
+                onDuplicate={() => onDuplicate(task.id)}
                 viewDate={viewDate}
                 onOutcomeChange={onOutcomeChange}
                 getOutcomeOnDate={getOutcomeOnDate}
                 onStatusChange={onStatusChange}
                 isSelected={selectedTaskIds?.has(task.id)}
-                onSelect={onTaskSelect}
+                onSelect={onSelect}
                 selectedCount={selectedTaskIds?.size || 0}
                 onBulkEdit={onBulkEdit}
                 onEditWorkout={onEditWorkout}
@@ -256,9 +256,9 @@ export const KanbanView = memo(function KanbanView({
   isCompletedOnDate,
   getOutcomeOnDate,
   onOutcomeChange,
-  onEditTask,
-  onDuplicateTask,
-  onDeleteTask,
+  onEdit,
+  onDuplicate,
+  onDelete,
   onStatusChange,
   tags,
   onTagsChange,
@@ -266,7 +266,7 @@ export const KanbanView = memo(function KanbanView({
   recentlyCompletedTasks,
   viewDate = new Date(),
   selectedTaskIds,
-  onTaskSelect,
+  onSelect,
   onBulkEdit,
   onEditWorkout,
 }) {
@@ -371,14 +371,14 @@ export const KanbanView = memo(function KanbanView({
             isCompletedOnDate={isCompletedOnDate}
             getOutcomeOnDate={getOutcomeOnDate}
             onOutcomeChange={onOutcomeChange}
-            onEditTask={onEditTask}
-            onDuplicateTask={onDuplicateTask}
-            onDeleteTask={onDeleteTask}
+            onEdit={onEdit}
+            onDuplicate={onDuplicate}
+            onDelete={onDelete}
             onStatusChange={onStatusChange}
             recentlyCompletedTasks={recentlyCompletedTasks}
             viewDate={viewDate}
             selectedTaskIds={selectedTaskIds}
-            onTaskSelect={onTaskSelect}
+            onSelect={onSelect}
             onBulkEdit={onBulkEdit}
             onEditWorkout={onEditWorkout}
             tags={tags}

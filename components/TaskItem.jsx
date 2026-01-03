@@ -47,17 +47,13 @@ export const TaskItem = ({
   onToggleSubtask,
   onToggleExpand,
   onEdit,
-  onEditTask, // Alternative prop name for backlog variant
   onEditWorkout, // Handler for editing workout structure
   onUpdateTitle,
-  onUpdateTaskTitle, // Alternative prop name for backlog variant
   onDelete,
-  onDeleteTask, // Alternative prop name for backlog variant
   onDuplicate,
-  onDuplicateTask, // Alternative prop name for backlog variant
   draggableId,
   textColor: textColorProp, // Optional override
-  mutedText: mutedTextProp, // Optional override
+  mutedTextColor: mutedTextColorProp, // Optional override
   gripColor: gripColorProp, // Optional override
   viewDate, // Date being viewed (for overdue calculation)
   parentTaskId, // For subtask variant
@@ -77,12 +73,6 @@ export const TaskItem = ({
   onCreateTag, // (name, color) => Promise<newTag>
   onCreateSubtask, // (parentTaskId, subtaskTitle) => void - for creating subtasks inline
 }) => {
-  // Normalize prop names - support both naming conventions
-  const handleEdit = onEdit || onEditTask;
-  const handleUpdateTitle = onUpdateTitle || onUpdateTaskTitle;
-  const handleDelete = onDelete || onDeleteTask;
-  const handleDuplicate = onDuplicate || onDuplicateTask;
-
   const isBacklog = variant === "backlog";
   const isToday = variant === "today";
   const isSubtask = variant === "subtask";
@@ -96,7 +86,7 @@ export const TaskItem = ({
   const gripColorDefault = mode.text.muted;
 
   const textColor = textColorProp || textColorDefault;
-  const mutedText = mutedTextProp || mutedTextDefault;
+  const mutedText = mutedTextColorProp || mutedTextDefault;
   const gripColor = gripColorProp || gripColorDefault;
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -127,8 +117,8 @@ export const TaskItem = ({
   };
 
   const handleTitleBlur = async () => {
-    if (editedTitle.trim() && editedTitle !== task.title && handleUpdateTitle) {
-      await handleUpdateTitle(task.id, editedTitle);
+    if (editedTitle.trim() && editedTitle !== task.title && onUpdateTitle) {
+      await onUpdateTitle(task.id, editedTitle);
     } else if (!editedTitle.trim()) {
       setEditedTitle(task.title);
     }
@@ -138,8 +128,8 @@ export const TaskItem = ({
   const handleTitleKeyDown = async e => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (editedTitle.trim() && editedTitle !== task.title && handleUpdateTitle) {
-        await handleUpdateTitle(task.id, editedTitle);
+      if (editedTitle.trim() && editedTitle !== task.title && onUpdateTitle) {
+        await onUpdateTitle(task.id, editedTitle);
       }
       setIsEditingTitle(false);
       titleInputRef.current?.blur();
@@ -834,7 +824,7 @@ export const TaskItem = ({
                   <Menu.Item
                     onClick={e => {
                       e.stopPropagation();
-                      handleEdit(task);
+                      onEdit?.(task);
                       setActionMenuOpen(false);
                     }}
                   >
@@ -903,11 +893,11 @@ export const TaskItem = ({
                       </HStack>
                     </Menu.Item>
                   )}
-                  {handleDuplicate && (
+                  {onDuplicate && (
                     <Menu.Item
                       onClick={e => {
                         e.stopPropagation();
-                        handleDuplicate(task.id);
+                        onDuplicate(task.id);
                         setActionMenuOpen(false);
                       }}
                     >
@@ -980,7 +970,7 @@ export const TaskItem = ({
                     color={mode.status.error}
                     onClick={e => {
                       e.stopPropagation();
-                      isSubtask ? handleDelete(parentTaskId, task.id) : handleDelete(task.id);
+                      isSubtask ? onDelete?.(parentTaskId, task.id) : onDelete?.(task.id);
                       setActionMenuOpen(false);
                     }}
                   >
@@ -1024,11 +1014,11 @@ export const TaskItem = ({
                     parentTaskId={task.id}
                     draggableId={`subtask-${task.id}-${subtask.id}`}
                     onToggle={onToggleSubtask}
-                    onEdit={handleEdit ? () => handleEdit(subtask) : undefined}
-                    onDuplicate={handleDuplicate}
-                    onDelete={handleDelete ? async (parentId, subtaskId) => handleDelete(subtaskId) : undefined}
+                    onEdit={onEdit ? () => onEdit(subtask) : undefined}
+                    onDuplicate={onDuplicate}
+                    onDelete={onDelete ? async (parentId, subtaskId) => onDelete(subtaskId) : undefined}
                     textColor={textColor}
-                    mutedText={mutedText}
+                    mutedTextColor={mutedText}
                     gripColor={gripColor}
                     viewDate={viewDate}
                     onOutcomeChange={onOutcomeChange}

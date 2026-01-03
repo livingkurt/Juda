@@ -16,11 +16,11 @@ export const CalendarYearView = ({
   getOutcomeOnDate,
   showCompleted = true,
   zoom = 1.0,
-  onEditTask,
+  onEdit,
   onEditWorkout,
   onOutcomeChange,
-  onDuplicateTask,
-  onDeleteTask,
+  onDuplicate,
+  onDelete,
 }) => {
   const [openMenuDate, setOpenMenuDate] = useState(null);
   const { mode, calendar } = useSemanticColors();
@@ -396,11 +396,11 @@ export const CalendarYearView = ({
                                           isRecurring={isRecurring}
                                           isWorkoutTask={isWorkoutTask}
                                           outcome={outcome}
-                                          onEditTask={onEditTask}
+                                          onEdit={onEdit}
                                           onEditWorkout={onEditWorkout}
                                           onOutcomeChange={onOutcomeChange}
-                                          onDuplicateTask={onDuplicateTask}
-                                          onDeleteTask={onDeleteTask}
+                                          onDuplicate={onDuplicate}
+                                          onDelete={onDelete}
                                           onClose={() => setOpenMenuDate(null)}
                                         />
                                       </Menu.Content>

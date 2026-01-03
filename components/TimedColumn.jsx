@@ -28,11 +28,11 @@ export const TimedColumn = ({
   getCompletionForDate,
   showStatusTasks = true,
   hourHeight = 48,
-  onEditTask,
+  onEdit,
   onEditWorkout,
   onOutcomeChange,
-  onDuplicateTask,
-  onDeleteTask,
+  onDuplicate,
+  onDelete,
   isToday = false,
   tags,
   onTagsChange,
@@ -91,11 +91,11 @@ export const TimedColumn = ({
           handleInternalDragStart={handleInternalDragStart}
           isCompletedOnDate={isCompletedOnDate}
           getOutcomeOnDate={getOutcomeOnDate}
-          onEditTask={onEditTask}
+          onEdit={onEdit}
           onEditWorkout={onEditWorkout}
           onOutcomeChange={onOutcomeChange}
-          onDuplicateTask={onDuplicateTask}
-          onDeleteTask={onDeleteTask}
+          onDuplicate={onDuplicate}
+          onDelete={onDelete}
           tags={tags}
           onTagsChange={onTagsChange}
           onCreateTag={onCreateTag}

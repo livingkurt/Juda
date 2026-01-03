@@ -21,11 +21,11 @@ export const DayHeaderColumn = ({
   hoverBg,
   isCompletedOnDate,
   getOutcomeOnDate,
-  onEditTask,
+  onEdit,
   onEditWorkout,
   onOutcomeChange,
-  onDuplicateTask,
-  onDeleteTask,
+  onDuplicate,
+  onDelete,
   tags,
   onTagsChange,
   onCreateTag,
@@ -103,11 +103,11 @@ export const DayHeaderColumn = ({
               day={day}
               isCompletedOnDate={isCompletedOnDate}
               getOutcomeOnDate={getOutcomeOnDate}
-              onEditTask={onEditTask}
+              onEdit={onEdit}
               onEditWorkout={onEditWorkout}
               onOutcomeChange={onOutcomeChange}
-              onDuplicateTask={onDuplicateTask}
-              onDeleteTask={onDeleteTask}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
               tags={tags}
               onTagsChange={onTagsChange}
               onCreateTag={onCreateTag}

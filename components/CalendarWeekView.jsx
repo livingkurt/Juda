@@ -27,11 +27,11 @@ export const CalendarWeekView = ({
   showCompleted = true,
   showStatusTasks = true,
   zoom = 1.0,
-  onEditTask,
+  onEdit,
   onEditWorkout,
   onOutcomeChange,
-  onDuplicateTask,
-  onDeleteTask,
+  onDuplicate,
+  onDelete,
   tags,
   onTagsChange,
   onCreateTag,
@@ -329,11 +329,11 @@ export const CalendarWeekView = ({
                 hoverBg={hoverBg}
                 isCompletedOnDate={isCompletedOnDate}
                 getOutcomeOnDate={getOutcomeOnDate}
-                onEditTask={onEditTask}
+                onEdit={onEdit}
                 onEditWorkout={onEditWorkout}
                 onOutcomeChange={onOutcomeChange}
-                onDuplicateTask={onDuplicateTask}
-                onDeleteTask={onDeleteTask}
+                onDuplicate={onDuplicate}
+                onDelete={onDelete}
                 tags={tags}
                 onTagsChange={onTagsChange}
                 onCreateTag={onCreateTag}
@@ -414,11 +414,11 @@ export const CalendarWeekView = ({
                   getCompletionForDate={getCompletionForDate}
                   showStatusTasks={showStatusTasks}
                   hourHeight={HOUR_HEIGHT}
-                  onEditTask={onEditTask}
+                  onEdit={onEdit}
                   onEditWorkout={onEditWorkout}
                   onOutcomeChange={onOutcomeChange}
-                  onDuplicateTask={onDuplicateTask}
-                  onDeleteTask={onDeleteTask}
+                  onDuplicate={onDuplicate}
+                  onDelete={onDelete}
                   tags={tags}
                   onTagsChange={onTagsChange}
                   onCreateTag={onCreateTag}

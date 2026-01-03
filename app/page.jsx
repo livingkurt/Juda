@@ -2829,9 +2829,9 @@ export default function DailyTasksApp() {
                       isCompletedOnDate={isCompletedOnDate}
                       getOutcomeOnDate={getOutcomeOnDate}
                       onOutcomeChange={handleOutcomeChange}
-                      onEditTask={handleEditTask}
-                      onDuplicateTask={handleDuplicateTask}
-                      onDeleteTask={handleDeleteTask}
+                      onEdit={handleEditTask}
+                      onDuplicate={handleDuplicateTask}
+                      onDelete={handleDeleteTask}
                       onStatusChange={handleStatusChange}
                       tags={tags}
                       onTagsChange={handleTaskTagsChange}
@@ -2839,7 +2839,7 @@ export default function DailyTasksApp() {
                       recentlyCompletedTasks={recentlyCompletedTasks}
                       viewDate={viewDate}
                       selectedTaskIds={selectedTaskIds}
-                      onTaskSelect={handleTaskSelect}
+                      onSelect={handleTaskSelect}
                       onBulkEdit={handleBulkEdit}
                       onBeginWorkout={handleBeginWorkout}
                       onEditWorkout={handleEditWorkout}
@@ -2890,10 +2890,10 @@ export default function DailyTasksApp() {
                       updateCompletion={updateCompletion}
                       getCompletionForDate={getCompletionForDate}
                       updateTask={updateTask}
-                      onEditTask={handleEditTask}
+                      onEdit={handleEditTask}
                       onEditWorkout={handleEditWorkout}
-                      onDuplicateTask={handleDuplicateTask}
-                      onDeleteTask={handleDeleteTask}
+                      onDuplicate={handleDuplicateTask}
+                      onDelete={handleDeleteTask}
                       tags={tags}
                       onTagsChange={handleTaskTagsChange}
                       onCreateTag={createTag}
@@ -2913,11 +2913,11 @@ export default function DailyTasksApp() {
                             onClose={() => setMobileActiveView("today")}
                             backlogTasks={backlogTasks}
                             sections={sections}
-                            onDeleteTask={handleDeleteTask}
-                            onEditTask={handleEditTask}
+                            onDelete={handleDeleteTask}
+                            onEdit={handleEditTask}
                             onEditWorkout={handleEditWorkout}
-                            onUpdateTaskTitle={handleUpdateTaskTitle}
-                            onDuplicateTask={handleDuplicateTask}
+                            onUpdateTitle={handleUpdateTaskTitle}
+                            onDuplicate={handleDuplicateTask}
                             onAddTask={handleAddTaskToBacklog}
                             onCreateBacklogTaskInline={handleCreateBacklogTaskInline}
                             onCreateSubtask={handleCreateSubtask}
@@ -2936,7 +2936,7 @@ export default function DailyTasksApp() {
                             onSkipTask={handleNotCompletedTask}
                             getCompletionForDate={getCompletionForDate}
                             selectedTaskIds={selectedTaskIds}
-                            onTaskSelect={handleTaskSelect}
+                            onSelect={handleTaskSelect}
                             onBulkEdit={handleBulkEdit}
                             onBeginWorkout={handleBeginWorkout}
                           />
@@ -3029,11 +3029,11 @@ export default function DailyTasksApp() {
                           onToggleTask={handleToggleTask}
                           onToggleSubtask={handleToggleSubtask}
                           onToggleExpand={handleToggleExpand}
-                          onEditTask={handleEditTask}
+                          onEdit={handleEditTask}
                           onEditWorkout={handleEditWorkout}
-                          onUpdateTaskTitle={handleUpdateTaskTitle}
-                          onDeleteTask={handleDeleteTask}
-                          onDuplicateTask={handleDuplicateTask}
+                          onUpdateTitle={handleUpdateTaskTitle}
+                          onDelete={handleDeleteTask}
+                          onDuplicate={handleDuplicateTask}
                           onAddTask={handleAddTask}
                           onCreateTaskInline={handleCreateTaskInline}
                           onCreateSubtask={handleCreateSubtask}
@@ -3051,7 +3051,7 @@ export default function DailyTasksApp() {
                           onSkipTask={handleNotCompletedTask}
                           getCompletionForDate={getCompletionForDate}
                           selectedTaskIds={selectedTaskIds}
-                          onTaskSelect={handleTaskSelect}
+                          onSelect={handleTaskSelect}
                           onBulkEdit={handleBulkEdit}
                           onBeginWorkout={handleBeginWorkout}
                           tags={tags}
@@ -3168,11 +3168,11 @@ export default function DailyTasksApp() {
                                     onCreateTag={createTag}
                                     showStatusTasks={_showStatusTasks.day}
                                     zoom={calendarZoom.day}
-                                    onEditTask={handleEditTask}
+                                    onEdit={handleEditTask}
                                     onEditWorkout={handleEditWorkout}
                                     onOutcomeChange={handleOutcomeChange}
-                                    onDuplicateTask={handleDuplicateTask}
-                                    onDeleteTask={handleDeleteTask}
+                                    onDuplicate={handleDuplicateTask}
+                                    onDelete={handleDeleteTask}
                                   />
                                 )}
                                 {calendarView === "week" && selectedDate && (
@@ -3201,11 +3201,11 @@ export default function DailyTasksApp() {
                                     showCompleted={showCompletedTasksCalendar.week}
                                     showStatusTasks={_showStatusTasks.week}
                                     zoom={calendarZoom.week}
-                                    onEditTask={handleEditTask}
+                                    onEdit={handleEditTask}
                                     onEditWorkout={handleEditWorkout}
                                     onOutcomeChange={handleOutcomeChange}
-                                    onDuplicateTask={handleDuplicateTask}
-                                    onDeleteTask={handleDeleteTask}
+                                    onDuplicate={handleDuplicateTask}
+                                    onDelete={handleDeleteTask}
                                   />
                                 )}
                                 {calendarView === "month" && selectedDate && (
@@ -3222,11 +3222,11 @@ export default function DailyTasksApp() {
                                     zoom={calendarZoom.month}
                                     tags={tags}
                                     onCreateTag={createTag}
-                                    onEditTask={handleEditTask}
+                                    onEdit={handleEditTask}
                                     onEditWorkout={handleEditWorkout}
                                     onOutcomeChange={handleOutcomeChange}
-                                    onDuplicateTask={handleDuplicateTask}
-                                    onDeleteTask={handleDeleteTask}
+                                    onDuplicate={handleDuplicateTask}
+                                    onDelete={handleDeleteTask}
                                   />
                                 )}
                                 {calendarView === "year" && selectedDate && (
@@ -3241,11 +3241,11 @@ export default function DailyTasksApp() {
                                     getOutcomeOnDate={getOutcomeOnDate}
                                     showCompleted={showCompletedTasksCalendar.year}
                                     zoom={calendarZoom.year}
-                                    onEditTask={handleEditTask}
+                                    onEdit={handleEditTask}
                                     onEditWorkout={handleEditWorkout}
                                     onOutcomeChange={handleOutcomeChange}
-                                    onDuplicateTask={handleDuplicateTask}
-                                    onDeleteTask={handleDeleteTask}
+                                    onDuplicate={handleDuplicateTask}
+                                    onDelete={handleDeleteTask}
                                   />
                                 )}
                               </>
@@ -3285,9 +3285,9 @@ export default function DailyTasksApp() {
                       isCompletedOnDate={isCompletedOnDate}
                       getOutcomeOnDate={getOutcomeOnDate}
                       onOutcomeChange={handleOutcomeChange}
-                      onEditTask={handleEditTask}
-                      onDuplicateTask={handleDuplicateTask}
-                      onDeleteTask={handleDeleteTask}
+                      onEdit={handleEditTask}
+                      onDuplicate={handleDuplicateTask}
+                      onDelete={handleDeleteTask}
                       onStatusChange={handleStatusChange}
                       tags={tags}
                       onTagsChange={handleTaskTagsChange}
@@ -3295,7 +3295,7 @@ export default function DailyTasksApp() {
                       recentlyCompletedTasks={recentlyCompletedTasks}
                       viewDate={viewDate}
                       selectedTaskIds={selectedTaskIds}
-                      onTaskSelect={handleTaskSelect}
+                      onSelect={handleTaskSelect}
                       onBulkEdit={handleBulkEdit}
                       onBeginWorkout={handleBeginWorkout}
                       onEditWorkout={handleEditWorkout}
@@ -3342,10 +3342,10 @@ export default function DailyTasksApp() {
                     updateCompletion={updateCompletion}
                     getCompletionForDate={getCompletionForDate}
                     updateTask={updateTask}
-                    onEditTask={handleEditTask}
+                    onEdit={handleEditTask}
                     onEditWorkout={handleEditWorkout}
-                    onDuplicateTask={handleDuplicateTask}
-                    onDeleteTask={handleDeleteTask}
+                    onDuplicate={handleDuplicateTask}
+                    onDelete={handleDeleteTask}
                     tags={tags}
                     onTagsChange={handleTaskTagsChange}
                     onCreateTag={createTag}
@@ -3376,11 +3376,11 @@ export default function DailyTasksApp() {
                               onClose={null}
                               backlogTasks={backlogTasks}
                               sections={sections}
-                              onDeleteTask={handleDeleteTask}
-                              onEditTask={handleEditTask}
+                              onDelete={handleDeleteTask}
+                              onEdit={handleEditTask}
                               onEditWorkout={handleEditWorkout}
-                              onUpdateTaskTitle={handleUpdateTaskTitle}
-                              onDuplicateTask={handleDuplicateTask}
+                              onUpdateTitle={handleUpdateTaskTitle}
+                              onDuplicate={handleDuplicateTask}
                               onAddTask={handleAddTaskToBacklog}
                               onCreateBacklogTaskInline={handleCreateBacklogTaskInline}
                               onCreateSubtask={handleCreateSubtask}
@@ -3399,7 +3399,7 @@ export default function DailyTasksApp() {
                               onSkipTask={handleNotCompletedTask}
                               getCompletionForDate={getCompletionForDate}
                               selectedTaskIds={selectedTaskIds}
-                              onTaskSelect={handleTaskSelect}
+                              onSelect={handleTaskSelect}
                               onBulkEdit={handleBulkEdit}
                               onBeginWorkout={handleBeginWorkout}
                             />
@@ -3539,11 +3539,11 @@ export default function DailyTasksApp() {
                                     onToggleTask={handleToggleTask}
                                     onToggleSubtask={handleToggleSubtask}
                                     onToggleExpand={handleToggleExpand}
-                                    onEditTask={handleEditTask}
+                                    onEdit={handleEditTask}
                                     onEditWorkout={handleEditWorkout}
-                                    onUpdateTaskTitle={handleUpdateTaskTitle}
-                                    onDeleteTask={handleDeleteTask}
-                                    onDuplicateTask={handleDuplicateTask}
+                                    onUpdateTitle={handleUpdateTaskTitle}
+                                    onDelete={handleDeleteTask}
+                                    onDuplicate={handleDuplicateTask}
                                     onAddTask={handleAddTask}
                                     onCreateTaskInline={handleCreateTaskInline}
                                     onCreateSubtask={handleCreateSubtask}
@@ -3561,7 +3561,7 @@ export default function DailyTasksApp() {
                                     onSkipTask={handleNotCompletedTask}
                                     getCompletionForDate={getCompletionForDate}
                                     selectedTaskIds={selectedTaskIds}
-                                    onTaskSelect={handleTaskSelect}
+                                    onSelect={handleTaskSelect}
                                     onBulkEdit={handleBulkEdit}
                                     onBeginWorkout={handleBeginWorkout}
                                     tags={tags}
@@ -3842,11 +3842,11 @@ export default function DailyTasksApp() {
                                           tags={tags}
                                           onTagsChange={handleTaskTagsChange}
                                           onCreateTag={createTag}
-                                          onEditTask={handleEditTask}
+                                          onEdit={handleEditTask}
                                           onEditWorkout={handleEditWorkout}
                                           onOutcomeChange={handleOutcomeChange}
-                                          onDuplicateTask={handleDuplicateTask}
-                                          onDeleteTask={handleDeleteTask}
+                                          onDuplicate={handleDuplicateTask}
+                                          onDelete={handleDeleteTask}
                                         />
                                       )}
                                       {calendarView === "week" && selectedDate && (
@@ -3873,11 +3873,11 @@ export default function DailyTasksApp() {
                                           getOutcomeOnDate={getOutcomeOnDate}
                                           showCompleted={showCompletedTasksCalendar.week}
                                           zoom={calendarZoom.week}
-                                          onEditTask={handleEditTask}
+                                          onEdit={handleEditTask}
                                           onEditWorkout={handleEditWorkout}
                                           onOutcomeChange={handleOutcomeChange}
-                                          onDuplicateTask={handleDuplicateTask}
-                                          onDeleteTask={handleDeleteTask}
+                                          onDuplicate={handleDuplicateTask}
+                                          onDelete={handleDeleteTask}
                                         />
                                       )}
                                       {calendarView === "month" && selectedDate && (
@@ -3894,11 +3894,11 @@ export default function DailyTasksApp() {
                                           zoom={calendarZoom.month}
                                           tags={tags}
                                           onCreateTag={createTag}
-                                          onEditTask={handleEditTask}
+                                          onEdit={handleEditTask}
                                           onEditWorkout={handleEditWorkout}
                                           onOutcomeChange={handleOutcomeChange}
-                                          onDuplicateTask={handleDuplicateTask}
-                                          onDeleteTask={handleDeleteTask}
+                                          onDuplicate={handleDuplicateTask}
+                                          onDelete={handleDeleteTask}
                                         />
                                       )}
                                       {calendarView === "year" && selectedDate && (
@@ -3913,11 +3913,11 @@ export default function DailyTasksApp() {
                                           getOutcomeOnDate={getOutcomeOnDate}
                                           showCompleted={showCompletedTasksCalendar.year}
                                           zoom={calendarZoom.year}
-                                          onEditTask={handleEditTask}
+                                          onEdit={handleEditTask}
                                           onEditWorkout={handleEditWorkout}
                                           onOutcomeChange={handleOutcomeChange}
-                                          onDuplicateTask={handleDuplicateTask}
-                                          onDeleteTask={handleDeleteTask}
+                                          onDuplicate={handleDuplicateTask}
+                                          onDelete={handleDeleteTask}
                                         />
                                       )}
                                     </>

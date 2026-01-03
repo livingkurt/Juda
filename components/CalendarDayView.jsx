@@ -28,11 +28,11 @@ export const CalendarDayView = ({
   getCompletionForDate,
   showStatusTasks = true,
   zoom = 1.0,
-  onEditTask,
+  onEdit,
   onEditWorkout,
   onOutcomeChange,
-  onDuplicateTask,
-  onDeleteTask,
+  onDuplicate,
+  onDelete,
   tags,
   onTagsChange,
   onCreateTag,
@@ -285,11 +285,11 @@ export const CalendarDayView = ({
                 date={date}
                 isCompletedOnDate={isCompletedOnDate}
                 getOutcomeOnDate={getOutcomeOnDate}
-                onEditTask={onEditTask}
+                onEdit={onEdit}
                 onEditWorkout={onEditWorkout}
                 onOutcomeChange={onOutcomeChange}
-                onDuplicateTask={onDuplicateTask}
-                onDeleteTask={onDeleteTask}
+                onDuplicate={onDuplicate}
+                onDelete={onDelete}
                 tags={tags}
                 onTagsChange={onTagsChange}
                 onCreateTag={onCreateTag}
@@ -366,11 +366,11 @@ export const CalendarDayView = ({
                 handleInternalDragStart={handleInternalDragStart}
                 isCompletedOnDate={isCompletedOnDate}
                 getOutcomeOnDate={getOutcomeOnDate}
-                onEditTask={onEditTask}
+                onEdit={onEdit}
                 onEditWorkout={onEditWorkout}
                 onOutcomeChange={onOutcomeChange}
-                onDuplicateTask={onDuplicateTask}
-                onDeleteTask={onDeleteTask}
+                onDuplicate={onDuplicate}
+                onDelete={onDelete}
                 tags={tags}
                 onTagsChange={onTagsChange}
                 onCreateTag={onCreateTag}

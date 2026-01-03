@@ -15,11 +15,11 @@ export const CalendarMonthView = ({
   getOutcomeOnDate,
   showCompleted = true,
   zoom = 1.0,
-  onEditTask,
+  onEdit,
   onEditWorkout,
   onOutcomeChange,
-  onDuplicateTask,
-  onDeleteTask,
+  onDuplicate,
+  onDelete,
 }) => {
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
   const { mode, calendar } = useSemanticColors();
@@ -178,11 +178,11 @@ export const CalendarMonthView = ({
                                 isRecurring={isRecurring}
                                 isWorkoutTask={isWorkoutTask}
                                 outcome={outcome}
-                                onEditTask={onEditTask}
+                                onEdit={onEdit}
                                 onEditWorkout={onEditWorkout}
                                 onOutcomeChange={onOutcomeChange}
-                                onDuplicateTask={onDuplicateTask}
-                                onDeleteTask={onDeleteTask}
+                                onDuplicate={onDuplicate}
+                                onDelete={onDelete}
                                 onClose={() => setOpenMenuTaskId(null)}
                               />
                             </Menu.Content>

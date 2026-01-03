@@ -199,16 +199,7 @@ const getCompletionForTaskDate = (completions, taskId, date) => {
 };
 
 // Task column header with menu
-const TaskColumnHeader = ({
-  task,
-  onEditTask,
-  onEditWorkout,
-  onDuplicateTask,
-  onDeleteTask,
-  tags,
-  onTagsChange,
-  onCreateTag,
-}) => {
+const TaskColumnHeader = ({ task, onEdit, onEditWorkout, onDuplicate, onDelete, tags, onTagsChange, onCreateTag }) => {
   const { mode } = useSemanticColors();
   const [menuOpen, setMenuOpen] = useState(false);
   const isWorkoutTask = task.completionType === "workout";
@@ -245,11 +236,11 @@ const TaskColumnHeader = ({
       <Portal>
         <Menu.Positioner>
           <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-            {onEditTask && (
+            {onEdit && (
               <Menu.Item
                 onClick={e => {
                   e.stopPropagation();
-                  onEditTask(task);
+                  onEdit(task);
                   setMenuOpen(false);
                 }}
               >
@@ -294,11 +285,11 @@ const TaskColumnHeader = ({
                 </HStack>
               </Menu.Item>
             )}
-            {onDuplicateTask && (
+            {onDuplicate && (
               <Menu.Item
                 onClick={e => {
                   e.stopPropagation();
-                  onDuplicateTask(task.id);
+                  onDuplicate(task.id);
                   setMenuOpen(false);
                 }}
               >
@@ -322,12 +313,12 @@ const TaskColumnHeader = ({
             {tags && onTagsChange && onCreateTag && (
               <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
             )}
-            {onDeleteTask && (
+            {onDelete && (
               <Menu.Item
                 color={mode.status.error}
                 onClick={e => {
                   e.stopPropagation();
-                  onDeleteTask(task.id);
+                  onDelete(task.id);
                   setMenuOpen(false);
                 }}
               >
@@ -707,10 +698,10 @@ export const RecurringTableView = ({
   updateCompletion,
   getCompletionForDate,
   updateTask,
-  onEditTask,
+  onEdit,
   onEditWorkout,
-  onDuplicateTask,
-  onDeleteTask,
+  onDuplicate,
+  onDelete,
   tags,
   onTagsChange,
   onCreateTag,
@@ -1161,10 +1152,10 @@ export const RecurringTableView = ({
                   >
                     <TaskColumnHeader
                       task={task}
-                      onEditTask={onEditTask}
+                      onEdit={onEdit}
                       onEditWorkout={onEditWorkout}
-                      onDuplicateTask={onDuplicateTask}
-                      onDeleteTask={onDeleteTask}
+                      onDuplicate={onDuplicate}
+                      onDelete={onDelete}
                       tags={tags}
                       onTagsChange={onTagsChange}
                       onCreateTag={onCreateTag}

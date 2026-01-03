@@ -17,11 +17,11 @@ export const TimedTask = ({
   handleInternalDragStart,
   isCompletedOnDate,
   getOutcomeOnDate,
-  onEditTask,
+  onEdit,
   onEditWorkout,
   onOutcomeChange,
-  onDuplicateTask,
-  onDeleteTask,
+  onDuplicate,
+  onDelete,
   tags,
   onTagsChange,
   onCreateTag,
@@ -127,11 +127,11 @@ export const TimedTask = ({
         <Portal>
           <Menu.Positioner>
             <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-              {onEditTask && (
+              {onEdit && (
                 <Menu.Item
                   onClick={e => {
                     e.stopPropagation();
-                    onEditTask(task);
+                    onEdit(task);
                     setMenuOpen(false);
                   }}
                 >
@@ -257,11 +257,11 @@ export const TimedTask = ({
                   <Menu.Separator />
                 </>
               )}
-              {onDuplicateTask && (
+              {onDuplicate && (
                 <Menu.Item
                   onClick={e => {
                     e.stopPropagation();
-                    onDuplicateTask(task.id);
+                    onDuplicate(task.id);
                     setMenuOpen(false);
                   }}
                 >
@@ -285,12 +285,12 @@ export const TimedTask = ({
               {tags && onTagsChange && onCreateTag && (
                 <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
               )}
-              {onDeleteTask && (
+              {onDelete && (
                 <Menu.Item
                   color="red.500"
                   onClick={e => {
                     e.stopPropagation();
-                    onDeleteTask(task.id);
+                    onDelete(task.id);
                     setMenuOpen(false);
                   }}
                 >
