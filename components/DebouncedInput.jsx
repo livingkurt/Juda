@@ -1,37 +1,28 @@
 "use client";
 
-import { useState, useEffect, useCallback, memo } from "react";
+import { useState, useEffect, memo } from "react";
 import { Input } from "@chakra-ui/react";
 
 /**
  * Input that debounces onChange to reduce re-renders
  * Useful for search inputs and other fields that trigger expensive operations
  *
- * Note: This component manages its own internal state and only calls onChange
- * after the user stops typing for debounceMs milliseconds.
+ * Note: This component is uncontrolled - it manages its own state internally.
+ * The value prop is only used for initial state. If you need to reset the value
+ * from the parent, use a key prop to force remount:
+ *
+ * <DebouncedInput key={resetKey} value={initialValue} onChange={handleChange} />
  */
 export const DebouncedInput = memo(function DebouncedInput({
-  value: externalValue,
+  value: initialValue = "",
   onChange,
   debounceMs = 300,
   ...props
 }) {
-  // Initialize with external value, but manage internally
-  const [internalValue, setInternalValue] = useState(externalValue || "");
+  // Uncontrolled - only use initialValue for initial state
+  const [internalValue, setInternalValue] = useState(initialValue);
 
-  // Sync internal value when external value changes (e.g., from parent reset)
-  // This is necessary for controlled component behavior
-  // Use setTimeout to avoid synchronous setState warning
-  useEffect(() => {
-    if (externalValue !== undefined) {
-      const timeoutId = setTimeout(() => {
-        setInternalValue(externalValue);
-      }, 0);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [externalValue]);
-
-  // Debounced callback - fires onChange after user stops typing
+  // Debounce the onChange callback
   useEffect(() => {
     const handler = setTimeout(() => {
       onChange(internalValue);
@@ -40,9 +31,5 @@ export const DebouncedInput = memo(function DebouncedInput({
     return () => clearTimeout(handler);
   }, [internalValue, debounceMs, onChange]);
 
-  const handleChange = useCallback(e => {
-    setInternalValue(e.target.value);
-  }, []);
-
-  return <Input value={internalValue} onChange={handleChange} {...props} />;
+  return <Input value={internalValue} onChange={e => setInternalValue(e.target.value)} {...props} />;
 });

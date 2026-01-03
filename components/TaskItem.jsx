@@ -114,16 +114,12 @@ export const TaskItem = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(task.title);
   const titleInputRef = useRef(null);
-  const [noteInput, setNoteInput] = useState("");
-  const noteInputRef = useRef(null);
+
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const newSubtaskInputRef = useRef(null);
 
-  useEffect(() => {
-    setEditedTitle(task.title);
-  }, [task.title]);
-
+  // Focus and select text when entering edit mode
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
       titleInputRef.current.focus();
@@ -134,6 +130,8 @@ export const TaskItem = ({
   const handleTitleClick = e => {
     e.stopPropagation();
     if (!isEditingTitle) {
+      // Sync with current task title when starting edit
+      setEditedTitle(task.title);
       setIsEditingTitle(true);
     }
   };
@@ -190,6 +188,12 @@ export const TaskItem = ({
   const isNotCompleted = existingCompletion?.outcome === "not_completed" || false;
   const savedNote = existingCompletion?.note || "";
 
+  // For text task notes - use a key to force remount when data changes
+  // This avoids the setState-in-effect pattern while still syncing with external data
+  const noteInputKey = `${task.id}-${viewDate?.toISOString()}-${savedNote}`;
+  const [noteInput, setNoteInput] = useState(savedNote);
+  const noteInputRef = useRef(null);
+
   // For workout tasks, only mark complete if outcome is explicitly "completed" (not "in_progress")
   const isWorkoutTaskCompleted = isWorkoutTask && existingCompletion?.outcome === "completed";
 
@@ -214,20 +218,6 @@ export const TaskItem = ({
     isTextTask &&
     (existingCompletion?.outcome === "completed" ||
       (existingCompletion && existingCompletion.outcome !== "not_completed" && existingCompletion.note));
-
-  // Initialize noteInput from saved note - update whenever savedNote or existingCompletion changes
-  useEffect(() => {
-    if (isTextTask && viewDate) {
-      const currentNote = existingCompletion?.note || "";
-      // Only update if different to avoid unnecessary re-renders
-      if (currentNote !== noteInput) {
-        setNoteInput(currentNote);
-      }
-    } else if (!isTextTask) {
-      setNoteInput("");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTextTask, existingCompletion?.note, viewDate]);
 
   // Get outcome for today view tasks, subtasks, and backlog items
   const outcome =
@@ -592,6 +582,7 @@ export const TaskItem = ({
             {isTextTask && (isToday || isBacklog) && (
               <Box w="full" mt={2}>
                 <Input
+                  key={noteInputKey}
                   ref={noteInputRef}
                   value={noteInput}
                   onChange={e => setNoteInput(e.target.value)}

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
 /**
  * Handles resizable panel logic
+ * Works directly with preference values to avoid sync issues
  */
 export function useResizeHandlers({
   backlogWidth: initialBacklogWidth,
@@ -13,20 +14,9 @@ export function useResizeHandlers({
 }) {
   const [isResizing, setIsResizing] = useState(false);
   const [resizeType, setResizeType] = useState(null);
-  const [localBacklogWidth, setLocalBacklogWidth] = useState(initialBacklogWidth);
-  const [localTodayViewWidth, setLocalTodayViewWidth] = useState(initialTodayViewWidth);
 
   const resizeStartRef = useRef(null);
   const rafRef = useRef(null);
-
-  // Sync local widths with preference widths
-  useEffect(() => {
-    setLocalBacklogWidth(initialBacklogWidth);
-  }, [initialBacklogWidth]);
-
-  useEffect(() => {
-    setLocalTodayViewWidth(initialTodayViewWidth);
-  }, [initialTodayViewWidth]);
 
   // Start backlog resize
   const handleBacklogResizeStart = useCallback(
@@ -36,10 +26,10 @@ export function useResizeHandlers({
       setResizeType("backlog");
       resizeStartRef.current = {
         startX: e.clientX,
-        startWidth: localBacklogWidth,
+        startWidth: initialBacklogWidth,
       };
     },
-    [localBacklogWidth]
+    [initialBacklogWidth]
   );
 
   // Start today panel resize
@@ -50,13 +40,14 @@ export function useResizeHandlers({
       setResizeType("today");
       resizeStartRef.current = {
         startX: e.clientX,
-        startWidth: localTodayViewWidth,
+        startWidth: initialTodayViewWidth,
       };
     },
-    [localTodayViewWidth]
+    [initialTodayViewWidth]
   );
 
   // Handle mouse move during resize
+  // Directly updates preference values during drag for smooth resizing
   useEffect(() => {
     if (!isResizing || !resizeType) return;
 
@@ -73,10 +64,10 @@ export function useResizeHandlers({
 
         if (resizeType === "backlog") {
           const newWidth = Math.max(300, Math.min(800, resizeStartRef.current.startWidth + deltaX));
-          setLocalBacklogWidth(newWidth);
+          setBacklogWidth(newWidth);
         } else if (resizeType === "today") {
           const newWidth = Math.max(300, Math.min(1200, resizeStartRef.current.startWidth + deltaX));
-          setLocalTodayViewWidth(newWidth);
+          setTodayViewWidth(newWidth);
         }
       });
     };
@@ -84,17 +75,6 @@ export function useResizeHandlers({
     const handleMouseUp = () => {
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
-      }
-
-      // Save to preferences using refs to avoid dependency
-      const currentResizeType = resizeType;
-      const currentBacklogWidth = localBacklogWidth;
-      const currentTodayWidth = localTodayViewWidth;
-
-      if (currentResizeType === "backlog") {
-        setBacklogWidth(currentBacklogWidth);
-      } else if (currentResizeType === "today") {
-        setTodayViewWidth(currentTodayWidth);
       }
 
       setIsResizing(false);
@@ -113,15 +93,12 @@ export function useResizeHandlers({
         cancelAnimationFrame(rafRef.current);
       }
     };
-    // Remove width dependencies to prevent re-renders during resize
-    // localBacklogWidth and localTodayViewWidth are intentionally excluded
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isResizing, resizeType, setBacklogWidth, setTodayViewWidth]);
 
   return {
     isResizing,
-    localBacklogWidth,
-    localTodayViewWidth,
+    backlogWidth: initialBacklogWidth,
+    todayViewWidth: initialTodayViewWidth,
     handleBacklogResizeStart,
     handleTodayResizeStart,
   };

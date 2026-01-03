@@ -1625,11 +1625,7 @@ export default function DailyTasksApp() {
                     {/* Backlog Section - only show on Tasks tab */}
                     {mainTabIndex === 0 && (
                       <Box
-                        w={
-                          backlogOpen
-                            ? `${resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? resizeHandlers.localBacklogWidth : backlogWidth}px`
-                            : "0px"
-                        }
+                        w={backlogOpen ? `${resizeHandlers.backlogWidth}px` : "0px"}
                         h="100%"
                         transition={
                           resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
@@ -1683,11 +1679,7 @@ export default function DailyTasksApp() {
                       {showDashboard && (
                         <>
                           <Box
-                            w={
-                              showCalendar
-                                ? `${resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? resizeHandlers.localTodayViewWidth : todayViewWidth}px`
-                                : "100%"
-                            }
+                            w={showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%"}
                             h="100%"
                             transition={
                               resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? "none" : "width 0.3s"
