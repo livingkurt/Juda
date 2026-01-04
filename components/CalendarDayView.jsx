@@ -5,8 +5,7 @@ import { Box, Text, Flex, VStack } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate, calculateTaskPositions } from "@/lib/utils";
 import { HOUR_HEIGHT_DAY, DRAG_THRESHOLD } from "@/lib/calendarConstants";
-import { UntimedTask } from "./UntimedTask";
-import { TimedTask } from "./TimedTask";
+import { CalendarTask } from "./CalendarTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
 import { CurrentTimeLine } from "./CurrentTimeLine";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
@@ -279,7 +278,13 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
             <Box px={{ base: 2, md: 4 }} pb={1} maxH="100px" overflowY="auto" flexShrink={0}>
               <VStack align="stretch" spacing={1}>
                 {untimedTasks.map(task => (
-                  <UntimedTask key={task.id} task={task} createDraggableId={createDraggableId} date={date} />
+                  <CalendarTask
+                    key={task.id}
+                    task={task}
+                    createDraggableId={createDraggableId}
+                    date={date}
+                    variant="untimed"
+                  />
                 ))}
                 {isOverUntimed && untimedTasks.length === 0 && (
                   <Text fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} textAlign="center" py={2}>
@@ -343,11 +348,12 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
           >
             {/* Render positioned tasks */}
             {calculateTaskPositions(dayTasks).map(task => (
-              <TimedTask
+              <CalendarTask
                 key={task.id}
                 task={task}
                 createDraggableId={createDraggableId}
                 date={date}
+                variant="timed"
                 getTaskStyle={getTaskStyle}
                 internalDrag={internalDrag}
                 handleInternalDragStart={handleInternalDragStart}

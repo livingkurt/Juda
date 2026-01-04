@@ -3,7 +3,7 @@
 import { Box } from "@chakra-ui/react";
 import { useDroppable } from "@dnd-kit/core";
 import { calculateTaskPositions } from "@/lib/utils";
-import { TimedWeekTask } from "./TimedWeekTask";
+import { CalendarTask } from "./CalendarTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
 import { CurrentTimeLine } from "./CurrentTimeLine";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
@@ -78,11 +78,12 @@ export const TimedColumn = ({
 
       {/* Render tasks */}
       {calculateTaskPositions(timedTasks).map(task => (
-        <TimedWeekTask
+        <CalendarTask
           key={task.id}
           task={task}
           createDraggableId={createDraggableId}
-          day={day}
+          date={day}
+          variant="timed-week"
           getTaskStyle={getTaskStyle}
           internalDrag={internalDrag}
           handleInternalDragStart={handleInternalDragStart}
