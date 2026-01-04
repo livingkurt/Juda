@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Box, VStack, Heading, Text, Select, Portal, createListCollection } from "@chakra-ui/react";
+import { Box, VStack, Heading, Text, createListCollection } from "@chakra-ui/react";
 import { BookOpen } from "lucide-react";
 import { DateNavigation } from "./DateNavigation";
 import { JournalDayEntry } from "./JournalDayEntry";
@@ -9,6 +9,7 @@ import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useSelector, useDispatch } from "react-redux";
 import { setJournalView, setJournalSelectedDate } from "@/lib/store/slices/uiSlice";
 import { shouldShowOnDate } from "@/lib/utils";
+import { useMobileDetection } from "@/hooks/useMobileDetection";
 
 export const JournalView = ({
   tasks,
@@ -22,6 +23,7 @@ export const JournalView = ({
   const journalView = useSelector(state => state.ui.journalView);
   const journalSelectedDateISO = useSelector(state => state.ui.journalSelectedDate);
   const { mode } = useSemanticColors();
+  const isMobile = useMobileDetection();
 
   // Parse selected date from ISO string (avoid hydration issues by checking window)
   const selectedDate = useMemo(() => {
@@ -214,38 +216,12 @@ export const JournalView = ({
             onToday={handleToday}
             showDatePicker={true}
             showDateDisplay={false}
-            twoRowLayout={true}
-            rightContent={
-              <Select.Root
-                collection={viewCollection}
-                value={[journalView]}
-                onValueChange={({ value }) => dispatch(setJournalView(value[0]))}
-                size="sm"
-                w={24}
-              >
-                <Select.HiddenSelect />
-                <Select.Control>
-                  <Select.Trigger>
-                    <Select.ValueText placeholder="View" />
-                  </Select.Trigger>
-                  <Select.IndicatorGroup>
-                    <Select.Indicator />
-                  </Select.IndicatorGroup>
-                </Select.Control>
-                <Portal>
-                  <Select.Positioner>
-                    <Select.Content>
-                      {viewCollection.items.map(item => (
-                        <Select.Item item={item} key={item.value}>
-                          {item.label}
-                          <Select.ItemIndicator />
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Positioner>
-                </Portal>
-              </Select.Root>
-            }
+            twoRowLayout={isMobile}
+            showViewSelector={true}
+            viewCollection={viewCollection}
+            selectedView={journalView}
+            onViewChange={value => dispatch(setJournalView(value))}
+            viewSelectorWidth={24}
           />
         </VStack>
       </Box>

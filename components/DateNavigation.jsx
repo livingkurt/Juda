@@ -4,6 +4,7 @@ import { memo } from "react";
 import { Box, Button, IconButton, Text, Flex, Input, Badge, VStack } from "@chakra-ui/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { SelectDropdown } from "./SelectDropdown";
 
 export const DateNavigation = memo(function DateNavigation({
   selectedDate,
@@ -14,8 +15,13 @@ export const DateNavigation = memo(function DateNavigation({
   title,
   showDatePicker = true,
   showDateDisplay = true,
-  rightContent,
   twoRowLayout = false,
+  // View selector props
+  showViewSelector = false,
+  viewCollection = null,
+  selectedView = null,
+  onViewChange = null,
+  viewSelectorWidth = 24,
 }) {
   const { mode, badges } = useSemanticColors();
 
@@ -97,12 +103,22 @@ export const DateNavigation = memo(function DateNavigation({
             {/* Spacer */}
             <Box flex={1} />
             {/* View Selector on the right */}
-            {rightContent}
+            {showViewSelector && viewCollection && selectedView && onViewChange && (
+              <SelectDropdown
+                collection={viewCollection}
+                value={[selectedView]}
+                onValueChange={({ value }) => onViewChange(value[0])}
+                placeholder="View"
+                size="sm"
+                w={viewSelectorWidth}
+                showIndicator={true}
+              />
+            )}
           </Flex>
 
-          {/* Second Row: Full-Width Date Picker */}
+          {/* Second Row: Centered Date Picker */}
           {showDatePicker && (
-            <Box w="100%">
+            <Box w="100%" display="flex" justifyContent="center">
               <Input
                 type="date"
                 value={formatDateInput(selectedDate)}
@@ -110,8 +126,13 @@ export const DateNavigation = memo(function DateNavigation({
                 size="sm"
                 variant="outline"
                 cursor="pointer"
-                w="100%"
+                w="auto"
+                minW="150px"
                 textAlign="center"
+                borderWidth="1px"
+                borderColor={borderColor}
+                _hover={{ borderColor: mode.border.hover }}
+                _focus={{ borderColor: mode.border.focus, boxShadow: `0 0 0 1px ${mode.border.focus}` }}
                 sx={{
                   "&::-webkit-calendar-picker-indicator": {
                     cursor: "pointer",
@@ -127,7 +148,6 @@ export const DateNavigation = memo(function DateNavigation({
 
   return (
     <Box
-      mb={4}
       p={{ base: 2, md: 4 }}
       borderRadius="lg"
       bg={isToday ? bgColor : warningBg}
@@ -152,8 +172,10 @@ export const DateNavigation = memo(function DateNavigation({
             <ChevronRight size={14} stroke="currentColor" />
           </Box>
         </IconButton>
+        {/* Spacer to center date picker when view selector is shown */}
+        {showViewSelector && showDatePicker && <Box flex={1} />}
         {showDatePicker && (
-          <Box position="relative" flex={1} minW={{ base: "120px", md: "200px" }}>
+          <Box display="flex" justifyContent="center" alignItems="center" flexShrink={0}>
             <Input
               type="date"
               value={formatDateInput(selectedDate)}
@@ -161,6 +183,13 @@ export const DateNavigation = memo(function DateNavigation({
               size="sm"
               variant="outline"
               cursor="pointer"
+              w="auto"
+              minW="150px"
+              textAlign="center"
+              borderWidth="1px"
+              borderColor={borderColor}
+              _hover={{ borderColor: mode.border.hover }}
+              _focus={{ borderColor: mode.border.focus, boxShadow: `0 0 0 1px ${mode.border.focus}` }}
               sx={{
                 "&::-webkit-calendar-picker-indicator": {
                   cursor: "pointer",
@@ -199,9 +228,20 @@ export const DateNavigation = memo(function DateNavigation({
             )}
           </Flex>
         )}
-        {/* Spacer to push rightContent to the end */}
-        {rightContent && <Box flex={{ base: "0 0 auto", md: 1 }} />}
-        {rightContent}
+        {/* Spacer to push view selector to the end */}
+        {showViewSelector && <Box flex={1} />}
+        {/* View Selector on the right */}
+        {showViewSelector && viewCollection && selectedView && onViewChange && (
+          <SelectDropdown
+            collection={viewCollection}
+            value={[selectedView]}
+            onValueChange={({ value }) => onViewChange(value[0])}
+            placeholder="View"
+            size="sm"
+            w={viewSelectorWidth}
+            showIndicator={true}
+          />
+        )}
       </Flex>
     </Box>
   );

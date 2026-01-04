@@ -4,8 +4,6 @@ import { useEffect, useCallback, useMemo } from "react";
 import {
   Box,
   Button,
-  Select,
-  Portal,
   HStack,
   Text,
   Flex,
@@ -119,7 +117,6 @@ import { TaskSearchInput } from "@/components/TaskSearchInput";
 import { TagFilter } from "@/components/TagFilter";
 import { NotesView } from "@/components/NotesView";
 import { Tag as TagIcon } from "lucide-react";
-import { SelectDropdown } from "@/components/SelectDropdown";
 import dynamic from "next/dynamic";
 import { Spinner, Center } from "@chakra-ui/react";
 
@@ -1494,17 +1491,11 @@ export default function DailyTasksApp() {
                             title={getCalendarTitle()}
                             showDatePicker={false}
                             showDateDisplay={false}
-                            rightContent={
-                              <SelectDropdown
-                                collection={calendarViewCollection}
-                                value={[calendarView]}
-                                onValueChange={({ value }) => setCalendarView(value[0])}
-                                placeholder="View"
-                                size="sm"
-                                w={20}
-                                showIndicator={true}
-                              />
-                            }
+                            showViewSelector={true}
+                            viewCollection={calendarViewCollection}
+                            selectedView={calendarView}
+                            onViewChange={value => setCalendarView(value)}
+                            viewSelectorWidth={20}
                           />
                           {/* Search and Tag Filter */}
                           <Box px={2} py={2} w="100%" maxW="100%">
@@ -2024,37 +2015,11 @@ export default function DailyTasksApp() {
                               title={getCalendarTitle()}
                               showDatePicker={false}
                               showDateDisplay={false}
-                              rightContent={
-                                <Select.Root
-                                  collection={calendarViewCollection}
-                                  value={[calendarView]}
-                                  onValueChange={({ value }) => setCalendarView(value[0])}
-                                  size="sm"
-                                  w={24}
-                                >
-                                  <Select.HiddenSelect />
-                                  <Select.Control>
-                                    <Select.Trigger>
-                                      <Select.ValueText placeholder="View" />
-                                    </Select.Trigger>
-                                    <Select.IndicatorGroup>
-                                      <Select.Indicator />
-                                    </Select.IndicatorGroup>
-                                  </Select.Control>
-                                  <Portal>
-                                    <Select.Positioner>
-                                      <Select.Content>
-                                        {calendarViewCollection.items.map(item => (
-                                          <Select.Item item={item} key={item.value}>
-                                            {item.label}
-                                            <Select.ItemIndicator />
-                                          </Select.Item>
-                                        ))}
-                                      </Select.Content>
-                                    </Select.Positioner>
-                                  </Portal>
-                                </Select.Root>
-                              }
+                              showViewSelector={true}
+                              viewCollection={calendarViewCollection}
+                              selectedView={calendarView}
+                              onViewChange={value => setCalendarView(value)}
+                              viewSelectorWidth={24}
                             />
                             {/* Search and Tag Filter */}
                             <Box mt={3} w="100%" maxW="100%">
