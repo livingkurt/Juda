@@ -101,6 +101,7 @@ export const JournalDayEntry = ({
       p={{ base: 3, md: 4 }}
       mb={{ base: 3, md: 4 }}
       opacity={isCurrentYear ? 1 : 0.7}
+      pb={{ base: 0.5, md: 0.5 }}
     >
       <VStack align="stretch" spacing={{ base: 2, md: 3 }}>
         {/* Header with title and expand/collapse button */}
@@ -149,7 +150,7 @@ export const JournalDayEntry = ({
             </IconButton>
           )}
           <Text
-            fontSize={{ base: "xs", md: "sm" }}
+            fontSize={{ base: "md", md: "lg" }}
             fontWeight="medium"
             color={isCurrentYear ? textColor : dimmedText}
             flex={1}
@@ -171,8 +172,8 @@ export const JournalDayEntry = ({
                   onBlur={handleBlur}
                   placeholder="Enter your journal entry..."
                   size="sm"
+                  lineHeight={{ base: "1.6", md: "1.4" }}
                   variant="filled"
-                  minH="40px"
                   resize="none"
                   overflow="visible"
                   rows={1}
