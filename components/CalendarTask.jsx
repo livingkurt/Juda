@@ -100,90 +100,90 @@ export const CalendarTask = ({
   // Show time text for timed tasks with sufficient duration
   const showTimeText = isTimed && (task.duration || 30) >= 45;
 
-  // Render timed task (absolute positioned with resize handle)
-  if (isTimed) {
-    return (
-      <Box
-        ref={setNodeRef}
-        position="absolute"
-        left={task.left}
-        width={task.width}
-        ml={1}
-        mr={1}
-        borderRadius="md"
-        color={taskColor ? "white" : mode.task.neutralText}
-        overflow="hidden"
-        cursor="grab"
-        _hover={{ shadow: isWeek ? "md" : "lg" }}
-        bg={isNoDuration ? mode.text.muted : taskColor || mode.task.neutral}
-        borderWidth={isNoDuration ? "2px" : "0"}
-        borderColor={isNoDuration ? taskColor || mode.border.default : "transparent"}
-        minH={isNoDuration ? "24px" : undefined}
-        style={style}
-        boxShadow={internalDrag?.taskId === task.id ? "xl" : "none"}
-        zIndex={internalDrag?.taskId === task.id ? 50 : "auto"}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Task content - drag handle for cross-container DnD */}
-        <Menu.Root open={menuOpen} onOpenChange={({ open }) => setMenuOpen(open)}>
-          <Menu.Trigger asChild>
-            <Box
-              {...attributes}
-              {...listeners}
-              position="absolute"
-              inset={0}
-              {...contentPadding}
-              cursor="grab"
-              onClick={e => {
-                e.stopPropagation();
-                setMenuOpen(true);
-              }}
-            >
-              <Box display="flex" alignItems="center" justifyContent="space-between" h="100%">
-                <Box flex={1} minW={0}>
-                  <Text
-                    fontSize={titleFontSize}
-                    fontWeight="medium"
-                    isTruncated
-                    textDecoration={isCompleted || isNotCompleted ? "line-through" : "none"}
-                  >
-                    {task.title}
+  // Single unified render - timed tasks use absolute positioning, untimed use default
+  return (
+    <Box
+      ref={setNodeRef}
+      position={isTimed ? "absolute" : undefined}
+      left={isTimed ? task.left : undefined}
+      width={isTimed ? task.width : undefined}
+      ml={isTimed ? 1 : undefined}
+      mr={isTimed ? 1 : undefined}
+      borderRadius="md"
+      color={taskColor ? "white" : mode.task.neutralText}
+      overflow={isTimed ? "hidden" : undefined}
+      cursor="grab"
+      _hover={{ shadow: isWeek ? "md" : "lg" }}
+      bg={isNoDuration ? mode.text.muted : taskColor || mode.task.neutral}
+      borderWidth={isNoDuration ? "2px" : "0"}
+      borderColor={isNoDuration ? taskColor || mode.border.default : "transparent"}
+      minH={isNoDuration ? "24px" : undefined}
+      style={style}
+      boxShadow={internalDrag?.taskId === task.id ? "xl" : "none"}
+      zIndex={internalDrag?.taskId === task.id ? 50 : "auto"}
+      onClick={e => e.stopPropagation()}
+    >
+      {/* Task content - drag handle for cross-container DnD */}
+      <Menu.Root open={menuOpen} onOpenChange={({ open }) => setMenuOpen(open)}>
+        <Menu.Trigger asChild>
+          <Box
+            {...attributes}
+            {...listeners}
+            position={isTimed ? "absolute" : undefined}
+            inset={isTimed ? 0 : undefined}
+            {...contentPadding}
+            cursor="grab"
+            onClick={e => {
+              e.stopPropagation();
+              setMenuOpen(true);
+            }}
+          >
+            <Box display="flex" alignItems="center" justifyContent="space-between" h={isTimed ? "100%" : undefined}>
+              <Box flex={1} minW={0}>
+                <Text
+                  fontSize={titleFontSize}
+                  fontWeight="medium"
+                  isTruncated
+                  textDecoration={isCompleted || isNotCompleted ? "line-through" : "none"}
+                >
+                  {task.title}
+                </Text>
+                {showTimeText && (
+                  <Text fontSize={timeFontSize} opacity={0.8}>
+                    {formatTime(task.time)}
                   </Text>
-                  {showTimeText && (
-                    <Text fontSize={timeFontSize} opacity={0.8}>
-                      {formatTime(task.time)}
-                    </Text>
-                  )}
-                </Box>
+                )}
               </Box>
             </Box>
-          </Menu.Trigger>
-          <Portal>
-            <Menu.Positioner>
-              <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-                <TaskContextMenu
-                  task={task}
-                  date={date}
-                  isRecurring={isRecurring}
-                  isWorkoutTask={isWorkoutTask}
-                  outcome={outcome}
-                  onClose={() => setMenuOpen(false)}
-                />
-                {/* Tags submenu */}
-                <TagMenuSelector
-                  task={task}
-                  tags={tags}
-                  onTagsChange={taskOps.handleTaskTagsChange}
-                  onCreateTag={async (name, color) => {
-                    return await createTagMutation({ name, color }).unwrap();
-                  }}
-                />
-              </Menu.Content>
-            </Menu.Positioner>
-          </Portal>
-        </Menu.Root>
+          </Box>
+        </Menu.Trigger>
+        <Portal>
+          <Menu.Positioner>
+            <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+              <TaskContextMenu
+                task={task}
+                date={date}
+                isRecurring={isRecurring}
+                isWorkoutTask={isWorkoutTask}
+                outcome={outcome}
+                onClose={() => setMenuOpen(false)}
+              />
+              {/* Tags submenu */}
+              <TagMenuSelector
+                task={task}
+                tags={tags}
+                onTagsChange={taskOps.handleTaskTagsChange}
+                onCreateTag={async (name, color) => {
+                  return await createTagMutation({ name, color }).unwrap();
+                }}
+              />
+            </Menu.Content>
+          </Menu.Positioner>
+        </Portal>
+      </Menu.Root>
 
-        {/* Resize handle */}
+      {/* Resize handle - only for timed tasks */}
+      {isTimed && (
         <Box
           position="absolute"
           bottom={0}
@@ -204,65 +204,7 @@ export const CalendarTask = ({
         >
           {!isWeek && <Box w={8} h={1} borderRadius="full" bg="whiteAlpha.500" />}
         </Box>
-      </Box>
-    );
-  }
-
-  // Render untimed task (simple layout)
-  return (
-    <Menu.Root open={menuOpen} onOpenChange={({ open }) => setMenuOpen(open)}>
-      <Menu.Trigger asChild>
-        <Box
-          ref={setNodeRef}
-          style={style}
-          {...attributes}
-          {...listeners}
-          {...contentPadding}
-          borderRadius="md"
-          bg={isNoDuration ? mode.text.muted : taskColor || mode.task.neutral}
-          borderWidth={isNoDuration ? "2px" : "0"}
-          borderColor={isNoDuration ? taskColor || mode.border.default : "transparent"}
-          minH={isNoDuration ? "24px" : undefined}
-          color={taskColor ? "white" : mode.task.neutralText}
-          cursor="grab"
-          onClick={e => {
-            e.stopPropagation();
-            setMenuOpen(true);
-          }}
-        >
-          <Text
-            fontSize={titleFontSize}
-            fontWeight="medium"
-            textDecoration={isCompleted || isNotCompleted ? "line-through" : "none"}
-            isTruncated
-          >
-            {task.title}
-          </Text>
-        </Box>
-      </Menu.Trigger>
-      <Portal>
-        <Menu.Positioner>
-          <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-            <TaskContextMenu
-              task={task}
-              date={date}
-              isRecurring={isRecurring}
-              isWorkoutTask={isWorkoutTask}
-              outcome={outcome}
-              onClose={() => setMenuOpen(false)}
-            />
-            {/* Tags submenu */}
-            <TagMenuSelector
-              task={task}
-              tags={tags}
-              onTagsChange={taskOps.handleTaskTagsChange}
-              onCreateTag={async (name, color) => {
-                return await createTagMutation({ name, color }).unwrap();
-              }}
-            />
-          </Menu.Content>
-        </Menu.Positioner>
-      </Portal>
-    </Menu.Root>
+      )}
+    </Box>
   );
 };
