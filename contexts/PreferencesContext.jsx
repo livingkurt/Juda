@@ -51,7 +51,13 @@ export function PreferencesProvider({ children }) {
         try {
           await updatePreferencesMutation(updatesToSave).unwrap();
         } catch (error) {
-          console.error("Error saving preferences:", error);
+          // RTK Query errors can be complex objects - log them properly
+          console.error("Error saving preferences:", {
+            message: error?.message || "Unknown error",
+            status: error?.status,
+            data: error?.data,
+            error: error,
+          });
         }
       }, 500);
     },

@@ -53,17 +53,53 @@ export const CalendarSkeleton = () => {
 };
 
 // Full page loading (replaces PageSkeleton)
+// Uses plain HTML to avoid hydration mismatches during SSR
 export const PageSkeleton = () => {
   return (
-    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden">
+    <div
+      style={{
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
       {/* Main content */}
-      <Flex as="main" flex={1} align="center" justify="center" direction="column" gap={4}>
-        <LoadingSpinner size="xl" />
-        <Box fontSize="sm" fontWeight="medium">
+      <main
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          gap: "1rem",
+        }}
+      >
+        <div
+          style={{
+            width: "3rem",
+            height: "3rem",
+            border: "4px solid rgba(59, 130, 246, 0.2)",
+            borderTopColor: "#3b82f6",
+            borderRadius: "50%",
+            animation: "spin 0.65s linear infinite",
+          }}
+        />
+        <div
+          style={{
+            fontSize: "0.875rem",
+            fontWeight: 500,
+          }}
+        >
           Loading...
-        </Box>
-      </Flex>
-    </Box>
+        </div>
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </main>
+    </div>
   );
 };
 
