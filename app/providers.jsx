@@ -5,7 +5,7 @@ import { Provider as ReduxProvider } from "react-redux";
 import { ChakraProvider, createSystem, defaultConfig } from "@chakra-ui/react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PreferencesProvider } from "@/contexts/PreferencesContext";
-import { ToastContainer } from "@/components/ToastContainer";
+import { Toaster } from "@/components/ui/toaster";
 import { store } from "@/lib/store";
 import { initDB } from "@/lib/db/indexedDB";
 import { syncManager } from "@/lib/sync/syncManager";
@@ -561,7 +561,7 @@ export function Providers({ children }) {
             <OfflineInitializer>
               <SSESyncProvider>
                 {children}
-                <ToastContainer />
+                <Toaster />
               </SSESyncProvider>
             </OfflineInitializer>
           </PreferencesProvider>

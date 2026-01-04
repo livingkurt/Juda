@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Box, Text, Textarea, VStack, HStack, IconButton } from "@chakra-ui/react";
+import { Box, Text, Textarea, VStack, HStack, IconButton, Collapsible } from "@chakra-ui/react";
 import { Plus, ChevronDown, ChevronRight } from "lucide-react";
-import { Collapse } from "./Collapse";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrentYear, onSave }) => {
@@ -141,50 +140,52 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
         </HStack>
 
         {/* Collapsible content */}
-        <Collapse in={expanded}>
-          {isCurrentYear ? (
-            <>
-              {showTextarea ? (
-                <Textarea
-                  ref={textareaRef}
-                  value={noteInput}
-                  onChange={e => setNoteInput(e.target.value)}
-                  onInput={handleInput}
-                  onBlur={handleBlur}
-                  placeholder="Enter your journal entry..."
-                  size="sm"
-                  lineHeight={{ base: "1.6", md: "1.4" }}
-                  variant="filled"
-                  resize="none"
-                  overflow="visible"
-                  rows={1}
-                  bg={mode.bg.muted}
-                  color={textColor}
-                  _focus={{
-                    bg: mode.bg.surface,
-                    borderColor: mode.border.focus,
-                  }}
-                />
-              ) : (
-                <Text fontSize="xs" color={dimmedText} fontStyle="italic">
-                  No entry for this day
-                </Text>
-              )}
-            </>
-          ) : (
-            <>
-              {hasEntry ? (
-                <Text fontSize={{ base: "xs", md: "sm" }} color={dimmedText} whiteSpace="pre-wrap" lineHeight="1.6">
-                  {completion.note}
-                </Text>
-              ) : (
-                <Text fontSize="xs" color={dimmedText} fontStyle="italic">
-                  No entry for this day
-                </Text>
-              )}
-            </>
-          )}
-        </Collapse>
+        <Collapsible.Root open={expanded}>
+          <Collapsible.Content>
+            {isCurrentYear ? (
+              <>
+                {showTextarea ? (
+                  <Textarea
+                    ref={textareaRef}
+                    value={noteInput}
+                    onChange={e => setNoteInput(e.target.value)}
+                    onInput={handleInput}
+                    onBlur={handleBlur}
+                    placeholder="Enter your journal entry..."
+                    size="sm"
+                    lineHeight={{ base: "1.6", md: "1.4" }}
+                    variant="filled"
+                    resize="none"
+                    overflow="visible"
+                    rows={1}
+                    bg={mode.bg.muted}
+                    color={textColor}
+                    _focus={{
+                      bg: mode.bg.surface,
+                      borderColor: mode.border.focus,
+                    }}
+                  />
+                ) : (
+                  <Text fontSize="xs" color={dimmedText} fontStyle="italic">
+                    No entry for this day
+                  </Text>
+                )}
+              </>
+            ) : (
+              <>
+                {hasEntry ? (
+                  <Text fontSize={{ base: "xs", md: "sm" }} color={dimmedText} whiteSpace="pre-wrap" lineHeight="1.6">
+                    {completion.note}
+                  </Text>
+                ) : (
+                  <Text fontSize="xs" color={dimmedText} fontStyle="italic">
+                    No entry for this day
+                  </Text>
+                )}
+              </>
+            )}
+          </Collapsible.Content>
+        </Collapsible.Root>
       </VStack>
     </Box>
   );

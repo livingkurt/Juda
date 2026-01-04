@@ -15,6 +15,7 @@ import {
   Menu,
   Portal,
   Button,
+  Collapsible,
 } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -35,7 +36,6 @@ import { formatTime, getTaskDisplayColor, isOverdue } from "@/lib/utils";
 import { TagChip } from "./TagChip";
 import { TaskBadges } from "./shared/TaskBadges";
 import { TaskContextMenu } from "./TaskContextMenu";
-import { Collapse } from "./Collapse";
 import { useWorkoutProgress } from "@/hooks/useWorkoutProgress";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -904,71 +904,73 @@ export const TaskItem = ({
 
         {/* Expanded subtasks */}
         {onToggleSubtask && (
-          <Collapse in={task.expanded}>
-            <Box pl={{ base: 8, md: 16 }} pr={{ base: 2, md: 3 }} pb={{ base: 2, md: 3 }}>
-              <VStack align="stretch" spacing={{ base: 1.5, md: 2 }}>
-                {task.subtasks &&
-                  task.subtasks.length > 0 &&
-                  task.subtasks.map(subtask => (
-                    <TaskItem
-                      key={subtask.id}
-                      task={{
-                        ...subtask,
-                        // Pass parent's recurrence so subtask can show outcome menu
-                        parentRecurrence: task.recurrence,
+          <Collapsible.Root open={task.expanded}>
+            <Collapsible.Content>
+              <Box pl={{ base: 8, md: 16 }} pr={{ base: 2, md: 3 }} pb={{ base: 2, md: 3 }}>
+                <VStack align="stretch" spacing={{ base: 1.5, md: 2 }}>
+                  {task.subtasks &&
+                    task.subtasks.length > 0 &&
+                    task.subtasks.map(subtask => (
+                      <TaskItem
+                        key={subtask.id}
+                        task={{
+                          ...subtask,
+                          // Pass parent's recurrence so subtask can show outcome menu
+                          parentRecurrence: task.recurrence,
+                        }}
+                        variant="subtask"
+                        containerId={`subtask-${task.id}`}
+                        parentTaskId={task.id}
+                        draggableId={`subtask-${task.id}-${subtask.id}`}
+                        onToggle={onToggleSubtask}
+                        onEdit={onEdit ? () => onEdit(subtask) : undefined}
+                        onDuplicate={onDuplicate}
+                        onDelete={onDelete ? async (parentId, subtaskId) => onDelete(subtaskId) : undefined}
+                        textColor={textColor}
+                        mutedTextColor={mutedText}
+                        gripColor={gripColor}
+                        viewDate={viewDate}
+                        onOutcomeChange={onOutcomeChange}
+                        getOutcomeOnDate={getOutcomeOnDate}
+                        hasRecordOnDate={hasRecordOnDate}
+                      />
+                    ))}
+                  {/* New subtask input */}
+                  {onCreateSubtask && (
+                    <Input
+                      ref={newSubtaskInputRef}
+                      value={newSubtaskTitle}
+                      onChange={e => setNewSubtaskTitle(e.target.value)}
+                      onKeyDown={handleNewSubtaskKeyDown}
+                      onBlur={handleCreateSubtask}
+                      onClick={e => e.stopPropagation()}
+                      onMouseDown={e => e.stopPropagation()}
+                      onPointerDown={e => e.stopPropagation()}
+                      placeholder="New subtask..."
+                      variant="unstyled"
+                      fontSize={{ base: "sm", md: "md" }}
+                      color={textColor}
+                      px={2}
+                      py={2}
+                      minH="auto"
+                      h="auto"
+                      bg="transparent"
+                      _placeholder={{
+                        color: mutedText,
                       }}
-                      variant="subtask"
-                      containerId={`subtask-${task.id}`}
-                      parentTaskId={task.id}
-                      draggableId={`subtask-${task.id}-${subtask.id}`}
-                      onToggle={onToggleSubtask}
-                      onEdit={onEdit ? () => onEdit(subtask) : undefined}
-                      onDuplicate={onDuplicate}
-                      onDelete={onDelete ? async (parentId, subtaskId) => onDelete(subtaskId) : undefined}
-                      textColor={textColor}
-                      mutedTextColor={mutedText}
-                      gripColor={gripColor}
-                      viewDate={viewDate}
-                      onOutcomeChange={onOutcomeChange}
-                      getOutcomeOnDate={getOutcomeOnDate}
-                      hasRecordOnDate={hasRecordOnDate}
+                      _focus={{
+                        outline: "none",
+                        bg: "transparent",
+                      }}
+                      _hover={{
+                        bg: "transparent",
+                      }}
                     />
-                  ))}
-                {/* New subtask input */}
-                {onCreateSubtask && (
-                  <Input
-                    ref={newSubtaskInputRef}
-                    value={newSubtaskTitle}
-                    onChange={e => setNewSubtaskTitle(e.target.value)}
-                    onKeyDown={handleNewSubtaskKeyDown}
-                    onBlur={handleCreateSubtask}
-                    onClick={e => e.stopPropagation()}
-                    onMouseDown={e => e.stopPropagation()}
-                    onPointerDown={e => e.stopPropagation()}
-                    placeholder="New subtask..."
-                    variant="unstyled"
-                    fontSize={{ base: "sm", md: "md" }}
-                    color={textColor}
-                    px={2}
-                    py={2}
-                    minH="auto"
-                    h="auto"
-                    bg="transparent"
-                    _placeholder={{
-                      color: mutedText,
-                    }}
-                    _focus={{
-                      outline: "none",
-                      bg: "transparent",
-                    }}
-                    _hover={{
-                      bg: "transparent",
-                    }}
-                  />
-                )}
-              </VStack>
-            </Box>
-          </Collapse>
+                  )}
+                </VStack>
+              </Box>
+            </Collapsible.Content>
+          </Collapsible.Root>
         )}
       </Box>
     </Box>

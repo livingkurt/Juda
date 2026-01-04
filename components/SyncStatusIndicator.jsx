@@ -5,13 +5,6 @@ import { Box, HStack, Text } from "@chakra-ui/react";
 import { useDispatch, useSelector } from "react-redux";
 import { selectConnectionStatus, selectRecentSyncs, clearRecentSync } from "@/lib/store/slices/syncSlice";
 import { Wifi, WifiOff, RefreshCw, Check, AlertCircle } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
-
-const spinAnimation = {
-  animation: "spin 1s linear infinite",
-};
-
-const MotionBox = motion(Box);
 
 export function SyncStatusIndicator() {
   const dispatch = useDispatch();
@@ -63,67 +56,88 @@ export function SyncStatusIndicator() {
 
   return (
     <Box position="fixed" bottom={4} left="50%" transform="translateX(-50%)" zIndex={1000}>
-      <AnimatePresence mode="popLayout">
-        {/* Connection status badge */}
-        {showConnectionStatus && (
-          <MotionBox
-            key="connection-status"
-            initial={{ opacity: 0, y: 20, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.9 }}
-            transition={{ duration: 0.2 }}
+      {/* Connection status badge */}
+      {showConnectionStatus && (
+        <Box
+          animation="slideUp 0.2s ease-out"
+          css={{
+            "@keyframes slideUp": {
+              from: {
+                opacity: 0,
+                transform: "translateY(20px) scale(0.9)",
+              },
+              to: {
+                opacity: 1,
+                transform: "translateY(0) scale(1)",
+              },
+            },
+          }}
+        >
+          <HStack
+            bg="bg.panel"
+            borderRadius="full"
+            px={4}
+            py={2}
+            shadow="lg"
+            borderWidth={1}
+            borderColor="border.default"
+            gap={2}
           >
-            <HStack
-              bg="bg.panel"
-              borderRadius="full"
-              px={4}
-              py={2}
-              shadow="lg"
-              borderWidth={1}
-              borderColor="border.default"
-              gap={2}
-            >
-              <Box
-                as={connectionDisplay.icon}
-                color={connectionDisplay.color}
-                css={connectionStatus === "reconnecting" ? spinAnimation : undefined}
-              />
-              <Text fontSize="sm" color="fg.muted">
-                {connectionDisplay.text}
-              </Text>
-            </HStack>
-          </MotionBox>
-        )}
+            <Box
+              as={connectionDisplay.icon}
+              color={connectionDisplay.color}
+              animation={connectionStatus === "reconnecting" ? "spin 1s linear infinite" : undefined}
+              css={{
+                "@keyframes spin": {
+                  from: { transform: "rotate(0deg)" },
+                  to: { transform: "rotate(360deg)" },
+                },
+              }}
+            />
+            <Text fontSize="sm" color="fg.muted">
+              {connectionDisplay.text}
+            </Text>
+          </HStack>
+        </Box>
+      )}
 
-        {/* Recent sync toasts */}
-        {recentSyncs.map(sync => (
-          <MotionBox
-            key={sync.id}
-            initial={{ opacity: 0, y: 20, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.9 }}
-            transition={{ duration: 0.2 }}
-            mt={2}
+      {/* Recent sync toasts */}
+      {recentSyncs.map(sync => (
+        <Box
+          key={sync.id}
+          mt={2}
+          animation="slideUp 0.2s ease-out"
+          css={{
+            "@keyframes slideUp": {
+              from: {
+                opacity: 0,
+                transform: "translateY(20px) scale(0.9)",
+              },
+              to: {
+                opacity: 1,
+                transform: "translateY(0) scale(1)",
+              },
+            },
+          }}
+        >
+          <HStack
+            bg="bg.panel"
+            borderRadius="full"
+            px={4}
+            py={2}
+            shadow="md"
+            borderWidth={1}
+            borderColor="green.500"
+            borderColorOpacity={0.3}
+            gap={2}
           >
-            <HStack
-              bg="bg.panel"
-              borderRadius="full"
-              px={4}
-              py={2}
-              shadow="md"
-              borderWidth={1}
-              borderColor="green.500"
-              borderColorOpacity={0.3}
-              gap={2}
-            >
-              <Box as={Check} color="green.500" boxSize={4} />
-              <Text fontSize="sm" color="fg.muted">
-                {getSyncText(sync)}
-              </Text>
-            </HStack>
-          </MotionBox>
-        ))}
-      </AnimatePresence>
+            <Box as={Check} color="green.500" boxSize={4} />
+            <Text fontSize="sm" color="fg.muted">
+              {getSyncText(sync)}
+            </Text>
+          </HStack>
+        </Box>
+      ))}
     </Box>
   );
 }

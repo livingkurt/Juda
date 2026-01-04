@@ -1,99 +1,69 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { Box } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
-const itemVariants = {
-  initial: {
-    opacity: 0,
-    height: 0,
-    scale: 0.95,
-    y: -10,
-  },
-  animate: {
-    opacity: 1,
-    height: "auto",
-    scale: 1,
-    y: 0,
-    transition: {
-      duration: 0.25,
-      ease: [0.4, 0, 0.2, 1],
-      height: { duration: 0.25 },
-      opacity: { duration: 0.2, delay: 0.05 },
-    },
-  },
-  exit: {
-    opacity: 0,
-    height: 0,
-    scale: 0.95,
-    y: -10,
-    transition: {
-      duration: 0.2,
-      ease: [0.4, 0, 1, 1],
-      height: { duration: 0.2, delay: 0.05 },
-      opacity: { duration: 0.15 },
-    },
-  },
-};
-
-const updateVariants = {
-  highlight: {
-    backgroundColor: ["rgba(59, 130, 246, 0)", "rgba(59, 130, 246, 0.1)", "rgba(59, 130, 246, 0)"],
-    transition: { duration: 0.6, ease: "easeInOut" },
-  },
-};
-
 /**
- * Wrapper for animated list items that handles enter/exit animations
+ * Wrapper for animated list items using CSS animations instead of framer-motion
  */
 export const SyncAnimatedItem = forwardRef(function SyncAnimatedItem({ children, itemKey, layoutId, ...props }, ref) {
   return (
-    <motion.div
+    <Box
       ref={ref}
       key={itemKey}
-      layoutId={layoutId}
-      variants={itemVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      layout
+      data-layout-id={layoutId}
+      animation="slideIn 0.25s ease-out"
+      css={{
+        "@keyframes slideIn": {
+          from: {
+            opacity: 0,
+            transform: "translateY(-10px) scale(0.95)",
+          },
+          to: {
+            opacity: 1,
+            transform: "translateY(0) scale(1)",
+          },
+        },
+      }}
       {...props}
     >
       {children}
-    </motion.div>
+    </Box>
   );
 });
 
 /**
- * Container for animated lists with AnimatePresence
+ * Container for animated lists
  */
 export function SyncAnimatedList({ items, renderItem, keyExtractor, emptyState = null }) {
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
+    <>
       {items.length === 0 && emptyState}
       {items.map((item, index) => (
         <SyncAnimatedItem key={keyExtractor(item)} itemKey={keyExtractor(item)} layoutId={keyExtractor(item)}>
           {renderItem(item, index)}
         </SyncAnimatedItem>
       ))}
-    </AnimatePresence>
+    </>
   );
 }
 
 /**
- * Wrapper that flashes briefly when updated
+ * Wrapper that flashes briefly when updated using CSS animations
  */
 export function SyncUpdateHighlight({ children, updateKey }) {
   return (
-    <motion.div key={updateKey} variants={updateVariants} animate="highlight">
+    <Box
+      key={updateKey}
+      animation="pulse 0.6s ease-in-out"
+      css={{
+        "@keyframes pulse": {
+          "0%, 100%": { backgroundColor: "transparent" },
+          "50%": { backgroundColor: "rgba(59, 130, 246, 0.1)" },
+        },
+      }}
+    >
       {children}
-    </motion.div>
+    </Box>
   );
-}
-
-/**
- * Hook to create motion-compatible Chakra components
- */
-export function createMotionComponent(Component) {
-  return motion(Component);
 }

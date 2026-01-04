@@ -41,7 +41,6 @@
     "cookie": "^1.1.1",
     "drizzle-kit": "^0.31.8",
     "drizzle-orm": "^0.45.1",
-    "framer-motion": "^12.0.0",
     "idb": "^8.0.3",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.562.0",
