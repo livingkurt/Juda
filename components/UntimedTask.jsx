@@ -69,8 +69,8 @@ export const UntimedTask = ({ task, createDraggableId, date }) => {
           style={style}
           {...attributes}
           {...listeners}
-          p={2}
-          borderRadius="md"
+          p={1}
+          borderRadius="sm"
           bg={taskColor || mode.task.neutral}
           color={taskColor ? "white" : mode.task.neutralText}
           cursor="grab"
@@ -81,9 +81,10 @@ export const UntimedTask = ({ task, createDraggableId, date }) => {
           }}
         >
           <Text
-            fontSize={{ base: "xs", md: "sm" }}
+            fontSize={{ base: "2xs", md: "xs" }}
             fontWeight="medium"
             textDecoration={isCompleted || isNotCompleted ? "line-through" : "none"}
+            noOfLines={1}
           >
             {task.title}
           </Text>

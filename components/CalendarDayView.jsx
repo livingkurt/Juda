@@ -250,19 +250,14 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
         w="100%"
         maxW="100%"
       >
-        <Text fontSize={{ base: "xl", md: "2xl" }} fontWeight="bold">
-          {date.getDate()}
-        </Text>
-        <Text fontSize={{ base: "xs", md: "sm" }} color={hourTextColor}>
-          {date.toLocaleDateString("en-US", { weekday: "long", month: "long" })}
+        <Text fontSize={{ base: "lg", md: "xl" }} fontWeight="bold">
+          {date.toLocaleDateString("en-US", { day: "numeric", weekday: "long", month: "long" })}
         </Text>
       </Box>
 
       {/* Untimed tasks area */}
       <Box
         ref={setUntimedRef}
-        px={{ base: 2, md: 4 }}
-        py={2}
         borderBottomWidth="1px"
         borderColor={borderColor}
         bg={isOverUntimed ? dropHighlight : bgColor}
@@ -270,20 +265,29 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
         transition="background-color 0.2s"
         w="100%"
         maxW="100%"
+        flexShrink={0}
       >
         {(untimedTasks.length > 0 || isOverUntimed) && (
-          <VStack align="stretch" spacing={2}>
-            <Text fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} fontWeight="medium">
-              All Day
-            </Text>
-            {untimedTasks.map(task => (
-              <UntimedTask key={task.id} task={task} createDraggableId={createDraggableId} date={date} />
-            ))}
-            {isOverUntimed && untimedTasks.length === 0 && (
-              <Text fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} textAlign="center" py={2}>
-                Drop here for all-day task
+          <VStack align="stretch" spacing={0}>
+            {/* All Day header - fixed, not scrollable */}
+            <Box px={{ base: 2, md: 4 }} pt={1} pb={0.5} flexShrink={0}>
+              <Text fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} fontWeight="medium">
+                All Day
               </Text>
-            )}
+            </Box>
+            {/* Scrollable tasks container */}
+            <Box px={{ base: 2, md: 4 }} pb={1} maxH="100px" overflowY="auto" flexShrink={0}>
+              <VStack align="stretch" spacing={1}>
+                {untimedTasks.map(task => (
+                  <UntimedTask key={task.id} task={task} createDraggableId={createDraggableId} date={date} />
+                ))}
+                {isOverUntimed && untimedTasks.length === 0 && (
+                  <Text fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} textAlign="center" py={2}>
+                    Drop here for all-day task
+                  </Text>
+                )}
+              </VStack>
+            </Box>
           </VStack>
         )}
       </Box>

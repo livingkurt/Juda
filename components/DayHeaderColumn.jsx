@@ -74,15 +74,18 @@ export const DayHeaderColumn = ({
       {/* Untimed tasks for this day */}
       <Box
         ref={setNodeRef}
-        px={1}
-        py={1}
+        px={0.5}
+        py={0.5}
         borderTopWidth="1px"
         borderColor={borderColor}
         bg={isOver ? dropHighlight : isToday ? calendar.todayBg : "transparent"}
-        minH={untimedTasks.length > 0 || isOver ? "40px" : "0"}
+        minH={untimedTasks.length > 0 || isOver ? "auto" : "0"}
+        maxH="80px"
+        overflowY="auto"
         transition="background-color 0.2s"
+        flexShrink={0}
       >
-        <VStack align="stretch" spacing={1}>
+        <VStack align="stretch" spacing={0.5}>
           {untimedTasks.map(task => (
             <UntimedWeekTask key={task.id} task={task} createDraggableId={createDraggableId} day={day} />
           ))}

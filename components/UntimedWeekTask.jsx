@@ -69,21 +69,21 @@ export const UntimedWeekTask = ({ task, createDraggableId, day }) => {
           style={style}
           {...attributes}
           {...listeners}
-          p={1}
-          borderRadius="sm"
+          p={0.5}
+          borderRadius="xs"
           bg={taskColor || mode.task.neutral}
           color={taskColor ? "white" : mode.task.neutralText}
           cursor="grab"
-          boxShadow="sm"
+          boxShadow="xs"
           onClick={e => {
             e.stopPropagation();
             setMenuOpen(true);
           }}
         >
           <Text
-            fontSize={{ base: "3xs", md: "2xs" }}
+            fontSize={{ base: "4xs", md: "3xs" }}
             fontWeight="medium"
-            noOfLines={2}
+            noOfLines={1}
             textDecoration={isCompleted || isNotCompleted ? "line-through" : "none"}
           >
             {task.title}
