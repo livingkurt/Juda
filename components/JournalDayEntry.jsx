@@ -6,15 +6,7 @@ import { Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { Collapse } from "./Collapse";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
-export const JournalDayEntry = ({
-  task,
-  date,
-  year: _year,
-  completion,
-  isCurrentYear,
-  journalType = "daily", // "yearly" | "monthly" | "weekly" | "daily"
-  onSave,
-}) => {
+export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrentYear, onSave }) => {
   const { mode } = useSemanticColors();
   // Initialize state from props - component will remount when completion changes (via key prop)
   const [noteInput, setNoteInput] = useState(completion?.note || "");
@@ -65,24 +57,6 @@ export const JournalDayEntry = ({
   const textColor = mode.text.primary;
   const dimmedText = mode.text.muted;
 
-  // Optional: Color accent based on journal type
-  const getAccentColor = type => {
-    switch (type) {
-      case "yearly":
-        return "yellow.500";
-      case "monthly":
-        return "blue.500";
-      case "weekly":
-        return "purple.500";
-      case "daily":
-      default:
-        return "transparent";
-    }
-  };
-
-  const accentColor = getAccentColor(journalType);
-  const showAccent = journalType !== "daily";
-
   // Check if task existed in this year (simplified - assumes task exists if it's recurring or created before year end)
   const taskExistedThisYear = true; // For now, assume all journal tasks exist in all years
 
@@ -95,8 +69,8 @@ export const JournalDayEntry = ({
       borderRadius="lg"
       borderWidth="1px"
       borderColor={borderColor}
-      borderLeftWidth={showAccent ? "4px" : "1px"}
-      borderLeftColor={showAccent ? accentColor : borderColor}
+      borderLeftWidth={"1px"}
+      borderLeftColor={borderColor}
       bg={bgColor}
       p={{ base: 3, md: 4 }}
       mb={{ base: 3, md: 4 }}
