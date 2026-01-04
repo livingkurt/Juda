@@ -133,7 +133,7 @@ export const JournalView = ({
     }
 
     return (
-      <VStack align="stretch" spacing={6}>
+      <VStack align="stretch" spacing={{ base: 8, md: 6 }}>
         {years.map(year => {
           const yearDate = new Date(selectedDate);
           yearDate.setFullYear(year);
@@ -141,7 +141,7 @@ export const JournalView = ({
 
           return (
             <Box key={year}>
-              <Heading size="md" mb={4} color={textColor}>
+              <Heading size={{ base: "lg", md: "md" }} mb={{ base: 3, md: 4 }} color={textColor} fontWeight="bold">
                 {year}
               </Heading>
               {journalTasks
@@ -203,55 +203,65 @@ export const JournalView = ({
   return (
     <Box h="100%" overflow="hidden" display="flex" flexDirection="column" bg={bgColor}>
       {/* Header with Date Navigation */}
-      <Box p={{ base: 2, md: 4 }} borderBottomWidth="1px" borderColor={mode.border.default} flexShrink={0}>
-        <DateNavigation
-          selectedDate={selectedDate}
-          onDateChange={handleDateChange}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-          onToday={handleToday}
-          title={selectedDate.toLocaleDateString("en-US", {
-            month: "long",
-            day: "numeric",
-          })}
-          showDatePicker={true}
-          showDateDisplay={true}
-          rightContent={
-            <Select.Root
-              collection={viewCollection}
-              value={[journalView]}
-              onValueChange={({ value }) => dispatch(setJournalView(value[0]))}
-              size="sm"
-              w={24}
-            >
-              <Select.HiddenSelect />
-              <Select.Control>
-                <Select.Trigger>
-                  <Select.ValueText placeholder="View" />
-                </Select.Trigger>
-                <Select.IndicatorGroup>
-                  <Select.Indicator />
-                </Select.IndicatorGroup>
-              </Select.Control>
-              <Portal>
-                <Select.Positioner>
-                  <Select.Content>
-                    {viewCollection.items.map(item => (
-                      <Select.Item item={item} key={item.value}>
-                        {item.label}
-                        <Select.ItemIndicator />
-                      </Select.Item>
-                    ))}
-                  </Select.Content>
-                </Select.Positioner>
-              </Portal>
-            </Select.Root>
-          }
-        />
+      <Box p={{ base: 3, md: 4 }} borderBottomWidth="1px" borderColor={mode.border.default} flexShrink={0}>
+        <VStack align="stretch" spacing={3}>
+          {/* Date Navigation Controls */}
+          <DateNavigation
+            selectedDate={selectedDate}
+            onDateChange={handleDateChange}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            onToday={handleToday}
+            showDatePicker={true}
+            showDateDisplay={false}
+            twoRowLayout={true}
+            rightContent={
+              <Select.Root
+                collection={viewCollection}
+                value={[journalView]}
+                onValueChange={({ value }) => dispatch(setJournalView(value[0]))}
+                size="sm"
+                w={24}
+              >
+                <Select.HiddenSelect />
+                <Select.Control>
+                  <Select.Trigger>
+                    <Select.ValueText placeholder="View" />
+                  </Select.Trigger>
+                  <Select.IndicatorGroup>
+                    <Select.Indicator />
+                  </Select.IndicatorGroup>
+                </Select.Control>
+                <Portal>
+                  <Select.Positioner>
+                    <Select.Content>
+                      {viewCollection.items.map(item => (
+                        <Select.Item item={item} key={item.value}>
+                          {item.label}
+                          <Select.ItemIndicator />
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Positioner>
+                </Portal>
+              </Select.Root>
+            }
+          />
+        </VStack>
       </Box>
 
       {/* Content Area */}
-      <Box flex={1} overflowY="auto" p={{ base: 2, md: 4 }}>
+      <Box flex={1} overflowY="auto" p={{ base: 3, md: 4 }}>
+        {/* Large Date Display */}
+        <Box textAlign="center" py={2}>
+          <Text fontSize={{ base: "2xl", md: "3xl" }} fontWeight="bold" color={textColor}>
+            {selectedDate.toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}
+          </Text>
+        </Box>
         {journalView === "day" && renderDayView()}
         {journalView === "week" && renderWeekView()}
         {journalView === "month" && renderMonthView()}

@@ -62,12 +62,12 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
       borderWidth="1px"
       borderColor={borderColor}
       bg={bgColor}
-      p={4}
-      mb={4}
+      p={{ base: 3, md: 4 }}
+      mb={{ base: 3, md: 4 }}
       opacity={isCurrentYear ? 1 : 0.7}
     >
-      <VStack align="stretch" spacing={3}>
-        <Text fontSize="sm" fontWeight="medium" color={isCurrentYear ? textColor : dimmedText}>
+      <VStack align="stretch" spacing={{ base: 2, md: 3 }}>
+        <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" color={isCurrentYear ? textColor : dimmedText}>
           {task.title}
         </Text>
 
@@ -110,7 +110,7 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
         ) : (
           <>
             {hasEntry ? (
-              <Text fontSize="sm" color={dimmedText} whiteSpace="pre-wrap">
+              <Text fontSize={{ base: "xs", md: "sm" }} color={dimmedText} whiteSpace="pre-wrap" lineHeight="1.6">
                 {completion.note}
               </Text>
             ) : (
