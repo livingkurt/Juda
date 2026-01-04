@@ -67,7 +67,7 @@ export const SyncAnimatedItem = forwardRef(function SyncAnimatedItem({ children,
 /**
  * Container for animated lists with AnimatePresence
  */
-export function SyncAnimatedList({ items, renderItem, keyExtractor, emptyState = null, ...props }) {
+export function SyncAnimatedList({ items, renderItem, keyExtractor, emptyState = null }) {
   return (
     <AnimatePresence mode="popLayout" initial={false}>
       {items.length === 0 && emptyState}

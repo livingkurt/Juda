@@ -215,8 +215,19 @@ export const TaskItem = ({
     if (isEditingTitle && titleInputRef.current) {
       titleInputRef.current.focus();
       titleInputRef.current.select();
+      // Auto-expand textarea to fit content
+      titleInputRef.current.style.height = "auto";
+      titleInputRef.current.style.height = `${titleInputRef.current.scrollHeight}px`;
     }
   }, [isEditingTitle]);
+
+  // Auto-expand textarea when content changes
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.style.height = "auto";
+      titleInputRef.current.style.height = `${titleInputRef.current.scrollHeight}px`;
+    }
+  }, [editedTitle, isEditingTitle]);
 
   const handleTitleClick = e => {
     e.stopPropagation();
@@ -237,7 +248,8 @@ export const TaskItem = ({
   };
 
   const handleTitleKeyDown = async e => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      // Cmd/Ctrl+Enter to save
       e.preventDefault();
       if (editedTitle.trim() && editedTitle !== task.title && onUpdateTitle) {
         await onUpdateTitle(task.id, editedTitle);
@@ -249,6 +261,7 @@ export const TaskItem = ({
       setIsEditingTitle(false);
       titleInputRef.current?.blur();
     }
+    // Allow normal Enter for new lines
   };
 
   const handleCreateSubtask = async () => {
@@ -367,9 +380,12 @@ export const TaskItem = ({
   const isDialogSubtask = containerId === "task-dialog-subtasks";
   const isDragDisabled = isSubtask && !isDialogSubtask;
 
+  // Also disable drag when editing title to prevent interference with text input
+  const isDragDisabledDuringEdit = isDragDisabled || isEditingTitle;
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: draggableId,
-    disabled: isDragDisabled,
+    disabled: isDragDisabledDuringEdit,
     data: {
       type: "TASK",
       containerId: containerId,
@@ -405,10 +421,10 @@ export const TaskItem = ({
           gap={{ base: 1.5, md: 2 }}
           p={{ base: 2, md: 3 }}
           _hover={{ bg: hoverBg }}
-          _active={{ cursor: isDragDisabled ? "default" : "grabbing" }}
-          {...(isDragDisabled ? {} : attributes)}
-          {...(isDragDisabled ? {} : listeners)}
-          cursor={isDragDisabled ? "default" : "grab"}
+          _active={{ cursor: isDragDisabledDuringEdit ? "default" : "grabbing" }}
+          {...(isDragDisabledDuringEdit ? {} : attributes)}
+          {...(isDragDisabledDuringEdit ? {} : listeners)}
+          cursor={isDragDisabledDuringEdit ? "default" : "grab"}
           w="100%"
           maxW="100%"
           overflow="hidden"
@@ -609,10 +625,16 @@ export const TaskItem = ({
           <Box flex={1} minW={0} overflow="hidden">
             <Flex align="center" gap={0} w="100%" maxW="100%">
               {isEditingTitle ? (
-                <Input
+                <Textarea
                   ref={titleInputRef}
                   value={editedTitle}
                   onChange={e => setEditedTitle(e.target.value)}
+                  onInput={e => {
+                    // Auto-expand textarea when typing
+                    const textarea = e.target;
+                    textarea.style.height = "auto";
+                    textarea.style.height = `${textarea.scrollHeight}px`;
+                  }}
                   onBlur={handleTitleBlur}
                   onKeyDown={handleTitleKeyDown}
                   onClick={e => e.stopPropagation()}
@@ -626,8 +648,23 @@ export const TaskItem = ({
                   py={0}
                   minH="auto"
                   h="auto"
+                  lineHeight="1.5"
+                  bg="transparent"
+                  resize="none"
+                  overflow="hidden"
+                  rows={1}
+                  _hover={{
+                    bg: "transparent",
+                  }}
                   _focus={{
                     outline: "none",
+                    bg: "transparent",
+                    boxShadow: "none",
+                  }}
+                  _focusVisible={{
+                    outline: "none",
+                    bg: "transparent",
+                    boxShadow: "none",
                   }}
                   w="100%"
                 />
