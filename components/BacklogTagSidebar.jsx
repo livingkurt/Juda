@@ -38,27 +38,15 @@ export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect,
   }, [tags, isOpen]);
 
   const handleTagClick = useCallback(
-    (tagId, event) => {
-      const isMultiSelect = event.metaKey || event.ctrlKey;
+    tagId => {
       const isSelected = selectedTagIds.includes(tagId);
 
       if (isSelected) {
-        if (isMultiSelect) {
-          // Remove from selection
-          onTagDeselect(tagId);
-        } else {
-          // Single click on selected tag - clear all filters
-          selectedTagIds.forEach(id => onTagDeselect(id));
-        }
+        // Toggle off - remove from selection
+        onTagDeselect(tagId);
       } else {
-        if (isMultiSelect) {
-          // Add to selection
-          onTagSelect(tagId);
-        } else {
-          // Replace selection with this tag only
-          selectedTagIds.forEach(id => onTagDeselect(id));
-          onTagSelect(tagId);
-        }
+        // Toggle on - add to selection
+        onTagSelect(tagId);
       }
     },
     [selectedTagIds, onTagSelect, onTagDeselect]
@@ -116,7 +104,7 @@ export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect,
           cursor="pointer"
           bg={selectedTagIds.includes(UNTAGGED_ID) ? activeBg : "transparent"}
           _hover={{ bg: selectedTagIds.includes(UNTAGGED_ID) ? activeBg : hoverBg }}
-          onClick={e => handleTagClick(UNTAGGED_ID, e)}
+          onClick={() => handleTagClick(UNTAGGED_ID)}
           borderRadius="md"
           transition="background-color 0.15s"
           title={isOpen ? undefined : "Untagged"}
@@ -163,7 +151,7 @@ export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect,
                 cursor="pointer"
                 bg={isSelected ? activeBg : "transparent"}
                 _hover={{ bg: isSelected ? activeBg : hoverBg }}
-                onClick={e => handleTagClick(tag.id, e)}
+                onClick={() => handleTagClick(tag.id)}
                 borderRadius="md"
                 transition="background-color 0.15s"
                 title={isOpen ? undefined : tag.name}
