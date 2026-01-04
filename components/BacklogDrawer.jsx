@@ -9,14 +9,17 @@ import { useDispatch, useSelector } from "react-redux";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
+import { BacklogTagSidebar } from "./BacklogTagSidebar";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
+import { useMobileDetection } from "@/hooks/useMobileDetection";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import {
   setBacklogSearchTerm as setBacklogSearchTermAction,
   setBacklogSelectedTagIds,
+  toggleBacklogTagSidebarOpen,
 } from "@/lib/store/slices/uiSlice";
 
 const BacklogDrawerComponent = ({ createDraggableId }) => {
@@ -37,6 +40,10 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   // Get search/filter state from Redux
   const searchTerm = useSelector(state => state.ui.backlogSearchTerm);
   const selectedTagIds = useSelector(state => state.ui.backlogSelectedTagIds);
+  const sidebarOpen = useSelector(state => state.ui.backlogTagSidebarOpen);
+
+  // Mobile detection
+  const isMobile = useMobileDetection();
 
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
@@ -50,6 +57,20 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   });
 
   const backlogTasks = taskFilters.backlogTasks;
+
+  // Filter tags to only show those used by backlog tasks
+  const backlogTags = useMemo(() => {
+    // Extract all tag IDs used by backlog tasks
+    const tagIdsInBacklog = new Set();
+    backlogTasks.forEach(task => {
+      task.tags?.forEach(tag => {
+        tagIdsInBacklog.add(tag.id);
+      });
+    });
+
+    // Filter tags to only include those used in backlog
+    return tags.filter(tag => tagIdsInBacklog.has(tag.id));
+  }, [tags, backlogTasks]);
 
   // Local UI state (not shared)
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -77,7 +98,9 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
 
   const handleTagSelect = useCallback(
     tagId => {
-      dispatch(setBacklogSelectedTagIds([...selectedTagIds, tagId]));
+      if (!selectedTagIds.includes(tagId)) {
+        dispatch(setBacklogSelectedTagIds([...selectedTagIds, tagId]));
+      }
     },
     [dispatch, selectedTagIds]
   );
@@ -89,6 +112,10 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     [dispatch, selectedTagIds]
   );
 
+  const handleSidebarToggle = useCallback(() => {
+    dispatch(toggleBacklogTagSidebarOpen());
+  }, [dispatch]);
+
   const handleInlineInputClick = () => {
     setIsInlineInputActive(true);
     setTimeout(() => {
@@ -98,7 +125,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
 
   const handleInlineInputBlur = async () => {
     if (inlineInputValue.trim()) {
-      await taskOps.handleCreateBacklogTaskInline(inlineInputValue);
+      await taskOps.handleCreateBacklogTaskInline(inlineInputValue, selectedTagIds);
       setInlineInputValue("");
     }
     setIsInlineInputActive(false);
@@ -107,7 +134,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   const handleInlineInputKeyDown = async e => {
     if (e.key === "Enter" && inlineInputValue.trim()) {
       e.preventDefault();
-      await taskOps.handleCreateBacklogTaskInline(inlineInputValue);
+      await taskOps.handleCreateBacklogTaskInline(inlineInputValue, selectedTagIds);
       setInlineInputValue("");
       setIsInlineInputActive(false);
     } else if (e.key === "Escape") {
@@ -129,194 +156,212 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   }));
 
   return (
-    <Box h="100%" display="flex" flexDirection="column" bg={bgColor} w="100%" maxW="100%" overflow="hidden">
-      {/* Header */}
-      <Box
-        px={{ base: 2, md: 4 }}
-        pt={{ base: 3, md: 6 }}
-        pb={4}
-        mb={4}
-        borderBottomWidth="1px"
-        borderColor={borderColor}
-        flexShrink={0}
-        w="100%"
-        maxW="100%"
-      >
-        <Flex align="center" justify="space-between" mb={2} gap={2}>
-          <Heading size="md" flexShrink={0}>
-            Backlog
-          </Heading>
-          <HStack spacing={2} flexShrink={0}>
-            <IconButton
-              onClick={taskOps.handleAddTaskToBacklog}
-              size="sm"
-              variant="ghost"
-              colorPalette="blue"
-              aria-label="Add task to backlog"
-            >
-              <Box as="span" color="currentColor">
-                <Plus size={16} stroke="currentColor" />
-              </Box>
-            </IconButton>
-          </HStack>
-        </Flex>
-        <Badge colorPalette="blue" mb={2}>
-          {filteredTasks.length} task{filteredTasks.length !== 1 ? "s" : ""}
-          {(searchTerm || selectedTagIds.length > 0) &&
-            filteredTasks.length !== backlogTasks.length &&
-            ` of ${backlogTasks.length}`}
-        </Badge>
-        <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
-          <Box flex={1} minW={0}>
-            <TaskSearchInput onSearchChange={term => dispatch(setBacklogSearchTermAction(term))} />
-          </Box>
-          <TagFilter
-            tags={tags}
-            selectedTagIds={selectedTagIds}
-            onTagSelect={handleTagSelect}
-            onTagDeselect={handleTagDeselect}
-            onCreateTag={async (name, color) => {
-              return await createTagMutation({ name, color }).unwrap();
-            }}
-            compact
-          />
-        </HStack>
-        {/* New Task Input */}
-        <Box mt={2} w="100%" maxW="100%">
-          <Input
-            placeholder="New Task..."
-            value={newTaskTitle}
-            onChange={e => setNewTaskTitle(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === "Enter" && newTaskTitle.trim()) {
-                e.preventDefault();
-                taskOps.handleCreateBacklogTaskInline(newTaskTitle.trim());
-                setNewTaskTitle("");
-              }
-            }}
-            bg="transparent"
-            borderWidth="0"
-            borderColor="transparent"
-            color={textColor}
-            _placeholder={{ color: mutedText }}
-            _focus={{
-              borderWidth: "0",
-              borderColor: "transparent",
-              boxShadow: "none",
-              outline: "none",
-            }}
-            _focusVisible={{
-              borderWidth: "0",
-              borderColor: "transparent",
-              boxShadow: "none",
-              outline: "none",
-            }}
-          />
-        </Box>
-      </Box>
+    <Box h="100%" display="flex" flexDirection="row" bg={bgColor} w="100%" maxW="100%" overflow="hidden">
+      {/* Tag Sidebar - Desktop Only */}
+      {!isMobile && (
+        <BacklogTagSidebar
+          tags={backlogTags}
+          selectedTagIds={selectedTagIds}
+          onTagSelect={handleTagSelect}
+          onTagDeselect={handleTagDeselect}
+          isOpen={sidebarOpen}
+          onToggle={handleSidebarToggle}
+        />
+      )}
 
-      {/* Droppable area for tasks */}
-      <Box
-        ref={setNodeRef}
-        flex={1}
-        minH={0}
-        overflowY="auto"
-        p={tasksWithIds.length === 0 ? { base: 3, md: 4 } : { base: 2, md: 2 }}
-        bg={isOver ? dropHighlight : "transparent"}
-        borderRadius="md"
-        transition="background-color 0.2s, padding 0.2s"
-        borderWidth={isOver ? "2px" : "0px"}
-        borderColor={isOver ? dnd.dropTargetBorder : "transparent"}
-        borderStyle="dashed"
-        mx={isOver ? { base: 1, md: 2 } : 0}
-        w="100%"
-        maxW="100%"
-      >
-        {/* Unscheduled Tasks */}
-        {tasksWithIds.length > 0 ? (
-          <Box>
-            <Text fontSize="xs" fontWeight="semibold" color={mutedText} mb={2} ml={2} textTransform="uppercase">
-              Unscheduled Tasks
-            </Text>
-            <SortableContext
-              id="backlog"
-              items={tasksWithIds.map(t => t.draggableId)}
-              strategy={verticalListSortingStrategy}
-            >
-              <VStack align="stretch" spacing={2} px={{ base: 1, md: 2 }} w="100%" maxW="100%">
-                {tasksWithIds.map(task => (
-                  <TaskItem
-                    key={task.id}
-                    task={task}
-                    variant="backlog"
-                    containerId="backlog"
-                    textColor={textColor}
-                    mutedTextColor={mutedText}
-                    gripColor={gripColor}
-                    draggableId={task.draggableId}
-                    viewDate={viewDate}
-                  />
-                ))}
-                <Input
-                  ref={inlineInputRef}
-                  value={inlineInputValue}
-                  onChange={e => setInlineInputValue(e.target.value)}
-                  onBlur={handleInlineInputBlur}
-                  onKeyDown={handleInlineInputKeyDown}
-                  onClick={handleInlineInputClick}
-                  placeholder="New task..."
-                  size="sm"
-                  variant="unstyled"
-                  bg="transparent"
-                  borderWidth="0px"
-                  px={2}
-                  py={1}
-                  fontSize="sm"
-                  color={isInlineInputActive ? textColor : mutedText}
-                  _focus={{
-                    outline: "none",
-                    color: textColor,
-                  }}
-                  _placeholder={{ color: mutedText }}
-                  _hover={{
-                    color: textColor,
-                  }}
-                />
-              </VStack>
-            </SortableContext>
-          </Box>
-        ) : (
-          <VStack align="stretch" spacing={{ base: 1, md: 2 }}>
-            <Text fontSize={{ base: "xs", md: "sm" }} textAlign="center" py={{ base: 4, md: 8 }} color={mutedText}>
-              {isOver ? "Drop here" : "No tasks"}
-            </Text>
+      {/* Main Content */}
+      <Box h="100%" display="flex" flexDirection="column" flex={1} minW={0} overflow="hidden">
+        {/* Header */}
+        <Box
+          px={{ base: 2, md: 4 }}
+          pt={{ base: 3, md: 6 }}
+          pb={4}
+          mb={4}
+          borderBottomWidth="1px"
+          borderColor={borderColor}
+          flexShrink={0}
+          w="100%"
+          maxW="100%"
+        >
+          <Flex align="center" justify="space-between" mb={2} gap={2}>
+            <Heading size="md" flexShrink={0}>
+              Backlog
+            </Heading>
+            <HStack spacing={2} flexShrink={0}>
+              <IconButton
+                onClick={taskOps.handleAddTaskToBacklog}
+                size="sm"
+                variant="ghost"
+                colorPalette="blue"
+                aria-label="Add task to backlog"
+              >
+                <Box as="span" color="currentColor">
+                  <Plus size={16} stroke="currentColor" />
+                </Box>
+              </IconButton>
+            </HStack>
+          </Flex>
+          <Badge colorPalette="blue" mb={2}>
+            {filteredTasks.length} task{filteredTasks.length !== 1 ? "s" : ""}
+            {(searchTerm || selectedTagIds.length > 0) &&
+              filteredTasks.length !== backlogTasks.length &&
+              ` of ${backlogTasks.length}`}
+          </Badge>
+          <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
+            <Box flex={1} minW={0}>
+              <TaskSearchInput onSearchChange={term => dispatch(setBacklogSearchTermAction(term))} />
+            </Box>
+            {/* TagFilter - Mobile Only */}
+            {isMobile && (
+              <TagFilter
+                tags={tags}
+                selectedTagIds={selectedTagIds}
+                onTagSelect={handleTagSelect}
+                onTagDeselect={handleTagDeselect}
+                onCreateTag={async (name, color) => {
+                  return await createTagMutation({ name, color }).unwrap();
+                }}
+                compact
+              />
+            )}
+          </HStack>
+          {/* New Task Input */}
+          <Box mt={2} w="100%" maxW="100%">
             <Input
-              ref={inlineInputRef}
-              value={inlineInputValue}
-              onChange={e => setInlineInputValue(e.target.value)}
-              onBlur={handleInlineInputBlur}
-              onKeyDown={handleInlineInputKeyDown}
-              onClick={handleInlineInputClick}
-              placeholder="New task..."
-              size="sm"
-              variant="unstyled"
-              bg="transparent"
-              borderWidth="0px"
-              px={2}
-              py={1}
-              fontSize="sm"
-              color={isInlineInputActive ? textColor : mutedText}
-              _focus={{
-                outline: "none",
-                color: textColor,
+              placeholder="New Task..."
+              value={newTaskTitle}
+              onChange={e => setNewTaskTitle(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && newTaskTitle.trim()) {
+                  e.preventDefault();
+                  taskOps.handleCreateBacklogTaskInline(newTaskTitle.trim(), selectedTagIds);
+                  setNewTaskTitle("");
+                }
               }}
+              bg="transparent"
+              borderWidth="0"
+              borderColor="transparent"
+              color={textColor}
               _placeholder={{ color: mutedText }}
-              _hover={{
-                color: textColor,
+              _focus={{
+                borderWidth: "0",
+                borderColor: "transparent",
+                boxShadow: "none",
+                outline: "none",
+              }}
+              _focusVisible={{
+                borderWidth: "0",
+                borderColor: "transparent",
+                boxShadow: "none",
+                outline: "none",
               }}
             />
-          </VStack>
-        )}
+          </Box>
+        </Box>
+
+        {/* Droppable area for tasks */}
+        <Box
+          ref={setNodeRef}
+          flex={1}
+          minH={0}
+          overflowY="auto"
+          p={tasksWithIds.length === 0 ? { base: 3, md: 4 } : { base: 2, md: 2 }}
+          bg={isOver ? dropHighlight : "transparent"}
+          borderRadius="md"
+          transition="background-color 0.2s, padding 0.2s"
+          borderWidth={isOver ? "2px" : "0px"}
+          borderColor={isOver ? dnd.dropTargetBorder : "transparent"}
+          borderStyle="dashed"
+          mx={isOver ? { base: 1, md: 2 } : 0}
+          w="100%"
+          maxW="100%"
+        >
+          {/* Unscheduled Tasks */}
+          {tasksWithIds.length > 0 ? (
+            <Box>
+              <Text fontSize="xs" fontWeight="semibold" color={mutedText} mb={2} ml={2} textTransform="uppercase">
+                Unscheduled Tasks
+              </Text>
+              <SortableContext
+                id="backlog"
+                items={tasksWithIds.map(t => t.draggableId)}
+                strategy={verticalListSortingStrategy}
+              >
+                <VStack align="stretch" spacing={2} px={{ base: 1, md: 2 }} w="100%" maxW="100%">
+                  {tasksWithIds.map(task => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      variant="backlog"
+                      containerId="backlog"
+                      textColor={textColor}
+                      mutedTextColor={mutedText}
+                      gripColor={gripColor}
+                      draggableId={task.draggableId}
+                      viewDate={viewDate}
+                    />
+                  ))}
+                  <Input
+                    ref={inlineInputRef}
+                    value={inlineInputValue}
+                    onChange={e => setInlineInputValue(e.target.value)}
+                    onBlur={handleInlineInputBlur}
+                    onKeyDown={handleInlineInputKeyDown}
+                    onClick={handleInlineInputClick}
+                    placeholder="New task..."
+                    size="sm"
+                    variant="unstyled"
+                    bg="transparent"
+                    borderWidth="0px"
+                    px={2}
+                    py={1}
+                    fontSize="sm"
+                    color={isInlineInputActive ? textColor : mutedText}
+                    _focus={{
+                      outline: "none",
+                      color: textColor,
+                    }}
+                    _placeholder={{ color: mutedText }}
+                    _hover={{
+                      color: textColor,
+                    }}
+                  />
+                </VStack>
+              </SortableContext>
+            </Box>
+          ) : (
+            <VStack align="stretch" spacing={{ base: 1, md: 2 }}>
+              <Text fontSize={{ base: "xs", md: "sm" }} textAlign="center" py={{ base: 4, md: 8 }} color={mutedText}>
+                {isOver ? "Drop here" : "No tasks"}
+              </Text>
+              <Input
+                ref={inlineInputRef}
+                value={inlineInputValue}
+                onChange={e => setInlineInputValue(e.target.value)}
+                onBlur={handleInlineInputBlur}
+                onKeyDown={handleInlineInputKeyDown}
+                onClick={handleInlineInputClick}
+                placeholder="New task..."
+                size="sm"
+                variant="unstyled"
+                bg="transparent"
+                borderWidth="0px"
+                px={2}
+                py={1}
+                fontSize="sm"
+                color={isInlineInputActive ? textColor : mutedText}
+                _focus={{
+                  outline: "none",
+                  color: textColor,
+                }}
+                _placeholder={{ color: mutedText }}
+                _hover={{
+                  color: textColor,
+                }}
+              />
+            </VStack>
+          )}
+        </Box>
       </Box>
     </Box>
   );

@@ -347,11 +347,11 @@ export function useTaskOperations() {
 
   // Create backlog task inline
   const handleCreateBacklogTaskInline = useCallback(
-    async title => {
+    async (title, tagIds = []) => {
       if (!title.trim()) return;
 
       try {
-        await createTask({
+        const newTask = await createTask({
           title: title.trim(),
           sectionId: sections[0]?.id,
           time: null,
@@ -361,6 +361,11 @@ export function useTaskOperations() {
           subtasks: [],
           order: 999,
         });
+
+        // Apply tags if provided
+        if (tagIds && tagIds.length > 0) {
+          await batchUpdateTaskTags(newTask.id, tagIds);
+        }
       } catch (error) {
         toast({
           title: "Failed to create task",
@@ -371,7 +376,7 @@ export function useTaskOperations() {
         });
       }
     },
-    [createTask, sections, toast]
+    [createTask, sections, batchUpdateTaskTags, toast]
   );
 
   // Create kanban task inline

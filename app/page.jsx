@@ -84,6 +84,7 @@ import {
   setNotesSidebarOpen,
   setNotesListOpen,
   setBacklogWidth,
+  setBacklogTagSidebarOpen,
   setTodayViewWidth,
   setNotesSidebarWidth,
   setNotesListWidth,
@@ -536,6 +537,7 @@ export default function DailyTasksApp() {
 
   // Panel visibility and width from Redux
   const backlogOpen = useSelector(state => state.ui.backlogOpen);
+  const backlogTagSidebarOpen = useSelector(state => state.ui.backlogTagSidebarOpen);
   const showDashboard = useSelector(state => state.ui.showDashboard);
   const showCalendar = useSelector(state => state.ui.showCalendar);
   const notesSidebarOpen = useSelector(state => state.ui.notesSidebarOpen);
@@ -655,6 +657,7 @@ export default function DailyTasksApp() {
     if (prefsInitialized) {
       // Initialize Redux state from preferences
       dispatch(setBacklogOpen(preferences.backlogOpen ?? true));
+      dispatch(setBacklogTagSidebarOpen(preferences.backlogTagSidebarOpen ?? true));
       dispatch(setShowDashboard(preferences.showDashboard ?? true));
       dispatch(setShowCalendar(preferences.showCalendar ?? true));
       dispatch(setNotesSidebarOpen(preferences.notesSidebarOpen ?? true));
@@ -673,6 +676,12 @@ export default function DailyTasksApp() {
       updatePreference("backlogOpen", backlogOpen);
     }
   }, [backlogOpen, prefsInitialized, updatePreference]);
+
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("backlogTagSidebarOpen", backlogTagSidebarOpen);
+    }
+  }, [backlogTagSidebarOpen, prefsInitialized, updatePreference]);
 
   useEffect(() => {
     if (prefsInitialized) {

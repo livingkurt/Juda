@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tasks, sections } from "@/lib/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { tasks, sections, taskTags, tags } from "@/lib/schema";
+import { eq, and, asc, inArray } from "drizzle-orm";
 import {
   withApi,
   Errors,
@@ -39,7 +39,8 @@ export const GET = withApi(async (request, { userId }) => {
 export const POST = withApi(async (request, { userId, getBody }) => {
   const clientId = getClientIdFromRequest(request);
   const body = await getBody();
-  const { title, sectionId, parentId, time, duration, recurrence, order, completionType, content, folderId } = body;
+  const { title, sectionId, parentId, time, duration, recurrence, order, completionType, content, folderId, tagIds } =
+    body;
 
   const section = await db.query.sections.findFirst({
     where: and(eq(sections.id, sectionId), eq(sections.userId, userId)),
@@ -49,26 +50,50 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     throw Errors.notFound("Section");
   }
 
-  const [task] = await db
-    .insert(tasks)
-    .values({
-      userId,
-      title,
-      sectionId,
-      parentId: parentId || null,
-      time: time || null,
-      duration: duration ?? 30,
-      recurrence: recurrence || null,
-      order: order ?? 0,
-      completionType: completionType || "checkbox",
-      content: content || null,
-      folderId: folderId || null,
-    })
-    .returning();
+  // Create task and assign tags in a transaction
+  const result = await db.transaction(async tx => {
+    const [task] = await tx
+      .insert(tasks)
+      .values({
+        userId,
+        title,
+        sectionId,
+        parentId: parentId || null,
+        time: time || null,
+        duration: duration ?? 30,
+        recurrence: recurrence || null,
+        order: order ?? 0,
+        completionType: completionType || "checkbox",
+        content: content || null,
+        folderId: folderId || null,
+      })
+      .returning();
+
+    // Assign tags if provided
+    if (tagIds && Array.isArray(tagIds) && tagIds.length > 0) {
+      // Verify all tags belong to the user
+      const userTags = await tx.query.tags.findMany({
+        where: and(inArray(tags.id, tagIds), eq(tags.userId, userId)),
+      });
+
+      if (userTags.length !== tagIds.length) {
+        throw Errors.notFound("One or more tags");
+      }
+
+      // Create task-tag relations
+      const tagAssignments = tagIds.map(tagId => ({
+        taskId: task.id,
+        tagId,
+      }));
+      await tx.insert(taskTags).values(tagAssignments);
+    }
+
+    return task;
+  });
 
   // Fetch the full task with relations for broadcast
   const taskWithRelations = await db.query.tasks.findFirst({
-    where: eq(tasks.id, task.id),
+    where: eq(tasks.id, result.id),
     with: {
       section: true,
       taskTags: {
