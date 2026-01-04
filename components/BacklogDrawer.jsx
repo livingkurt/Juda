@@ -9,7 +9,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
-import { BacklogTagSidebar } from "./BacklogTagSidebar";
+import { BacklogTagSidebar, UNTAGGED_ID } from "./BacklogTagSidebar";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
@@ -90,7 +90,21 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
 
     // Filter by tags
     if (selectedTagIds.length > 0) {
-      result = result.filter(task => task.tags?.some(tag => selectedTagIds.includes(tag.id)));
+      const hasUntaggedFilter = selectedTagIds.includes(UNTAGGED_ID);
+      const regularTagIds = selectedTagIds.filter(id => id !== UNTAGGED_ID);
+
+      if (hasUntaggedFilter && regularTagIds.length > 0) {
+        // Show tasks that are untagged OR have one of the selected tags
+        result = result.filter(
+          task => !task.tags || task.tags.length === 0 || task.tags.some(tag => regularTagIds.includes(tag.id))
+        );
+      } else if (hasUntaggedFilter) {
+        // Show only untagged tasks
+        result = result.filter(task => !task.tags || task.tags.length === 0);
+      } else if (regularTagIds.length > 0) {
+        // Show only tasks with selected tags
+        result = result.filter(task => task.tags?.some(tag => regularTagIds.includes(tag.id)));
+      }
     }
 
     return result;

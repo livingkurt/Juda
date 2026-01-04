@@ -8,6 +8,9 @@ import { useTheme } from "@/hooks/useTheme";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { mapColorToTheme } from "@/lib/themes";
 
+// Special identifier for untagged items
+export const UNTAGGED_ID = "__UNTAGGED__";
+
 export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect, onTagDeselect, isOpen, onToggle }) => {
   const { mode } = useSemanticColors();
   const { theme } = useTheme();
@@ -20,10 +23,11 @@ export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect,
   const hoverBg = mode.bg.surfaceHover;
   const activeBg = mode.bg.surfaceActive || hoverBg;
 
-  // Calculate sidebar width based on longest tag name
+  // Calculate sidebar width based on longest tag name (including "Untagged")
   const sidebarWidth = useMemo(() => {
     if (!isOpen) return "40px"; // Collapsed width
-    const maxTagLength = Math.max(...tags.map(t => t.name.length), 0);
+    const tagLengths = tags.map(t => t.name.length);
+    const maxTagLength = Math.max(...tagLengths, "Untagged".length, 0);
     const minWidth = 80;
     const maxWidth = 250;
     // Account for: left padding (8px) + dot (12px) + spacing (8px) + text + right padding (8px)
@@ -105,6 +109,43 @@ export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect,
 
       {/* Tag List */}
       <VStack align="stretch" spacing={0} flex={1} overflowY="auto" overflowX="hidden" py={1} px={isOpen ? 2 : 1}>
+        {/* Untagged option */}
+        <Box
+          px={isOpen ? 2 : 1}
+          py={1.5}
+          cursor="pointer"
+          bg={selectedTagIds.includes(UNTAGGED_ID) ? activeBg : "transparent"}
+          _hover={{ bg: selectedTagIds.includes(UNTAGGED_ID) ? activeBg : hoverBg }}
+          onClick={e => handleTagClick(UNTAGGED_ID, e)}
+          borderRadius="md"
+          transition="background-color 0.15s"
+          title={isOpen ? undefined : "Untagged"}
+        >
+          <HStack spacing={isOpen ? 2 : 0} justify={isOpen ? "flex-start" : "center"}>
+            <Box
+              w={"12px"}
+              h={"12px"}
+              borderRadius="full"
+              bg="transparent"
+              borderWidth="1.5px"
+              borderColor={selectedTagIds.includes(UNTAGGED_ID) ? textColor : mutedText}
+              flexShrink={0}
+            />
+            {isOpen && (
+              <Text
+                fontSize="sm"
+                fontWeight={selectedTagIds.includes(UNTAGGED_ID) ? "semibold" : "normal"}
+                color={selectedTagIds.includes(UNTAGGED_ID) ? textColor : mutedText}
+                noOfLines={1}
+                flex={1}
+                minW={0}
+              >
+                Untagged
+              </Text>
+            )}
+          </HStack>
+        </Box>
+
         {tags.length === 0 ? (
           <Text fontSize="xs" color={mutedText} textAlign="center" py={4} px={2}>
             {isOpen ? "No tags" : ""}
