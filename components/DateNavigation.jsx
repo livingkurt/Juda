@@ -68,7 +68,6 @@ export const DateNavigation = memo(function DateNavigation({
   if (twoRowLayout) {
     return (
       <Box
-        mb={4}
         p={{ base: 2, md: 4 }}
         borderRadius="lg"
         bg={isToday ? bgColor : warningBg}
