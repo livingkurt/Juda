@@ -62,9 +62,10 @@ export const JournalView = ({
   );
 
   const handleDateChange = date => {
-    const d = new Date(date);
+    const d = date instanceof Date ? date : new Date(date);
     d.setHours(0, 0, 0, 0);
-    dispatch(setJournalSelectedDate(d));
+    // Convert to ISO string for Redux (must be serializable)
+    dispatch(setJournalSelectedDate(d.toISOString()));
   };
 
   const handlePrevious = () => {
@@ -151,7 +152,7 @@ export const JournalView = ({
 
                   return (
                     <JournalDayEntry
-                      key={`${task.id}-${year}`}
+                      key={`${task.id}-${year}-${completion?.note || "empty"}`}
                       task={task}
                       date={yearDate}
                       year={year}

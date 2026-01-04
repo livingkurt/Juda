@@ -71,9 +71,10 @@ export const CalendarSkeleton = () => {
 
 // Full page loading (replaces PageSkeleton)
 export const PageSkeleton = () => {
-  const { mode } = useSemanticColors();
-  const bgColor = mode.bg.canvas;
-  const textColor = mode.text.secondary;
+  // Use stable colors that don't depend on client-side state to avoid hydration mismatch
+  // These will be the same on server and client
+  const bgColor = { _light: "gray.50", _dark: "gray.900" };
+  const textColor = { _light: "gray.600", _dark: "gray.400" };
 
   return (
     <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg={bgColor} suppressHydrationWarning>

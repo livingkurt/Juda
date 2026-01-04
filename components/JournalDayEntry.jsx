@@ -5,17 +5,12 @@ import { Box, Text, Textarea, Button, VStack } from "@chakra-ui/react";
 import { Plus } from "lucide-react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
-export const JournalDayEntry = ({ task, date, year, completion, isCurrentYear, onSave, onDelete }) => {
+export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrentYear, onSave }) => {
   const { mode } = useSemanticColors();
+  // Initialize state from props - component will remount when completion changes (via key prop)
   const [noteInput, setNoteInput] = useState(completion?.note || "");
-  const [showTextarea, setShowTextarea] = useState(!!completion?.note);
+  const [showTextarea, setShowTextarea] = useState(Boolean(completion?.note));
   const textareaRef = useRef(null);
-
-  // Sync with external completion data
-  useEffect(() => {
-    setNoteInput(completion?.note || "");
-    setShowTextarea(!!completion?.note);
-  }, [completion?.note]);
 
   // Auto-expand textarea on mount and when content changes
   useEffect(() => {
@@ -48,17 +43,10 @@ export const JournalDayEntry = ({ task, date, year, completion, isCurrentYear, o
     }, 0);
   };
 
-  const handleDelete = () => {
-    if (completion) {
-      onDelete(task.id, date);
-    }
-  };
-
   const hasEntry = completion?.note && completion.note.trim().length > 0;
   const bgColor = mode.bg.surface;
   const borderColor = mode.border.default;
   const textColor = mode.text.primary;
-  const mutedText = mode.text.secondary;
   const dimmedText = mode.text.muted;
 
   // Check if task existed in this year (simplified - assumes task exists if it's recurring or created before year end)
@@ -136,4 +124,3 @@ export const JournalDayEntry = ({ task, date, year, completion, isCurrentYear, o
     </Box>
   );
 };
-
