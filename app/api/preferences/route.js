@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { userPreferences } from "@/lib/schema";
 import { eq } from "drizzle-orm";
-import { withApi } from "@/lib/apiHelpers";
+import { withApi, withBroadcast, getClientIdFromRequest, ENTITY_TYPES } from "@/lib/apiHelpers";
 import { mergeWithDefaults } from "@/lib/defaultPreferences";
+
+const preferencesBroadcast = withBroadcast(ENTITY_TYPES.PREFERENCES);
 
 export const GET = withApi(async (request, { userId }) => {
   const prefs = await db.query.userPreferences.findFirst({
@@ -16,19 +18,21 @@ export const GET = withApi(async (request, { userId }) => {
 });
 
 export const PUT = withApi(async (request, { userId, getBody }) => {
+  const clientId = getClientIdFromRequest(request);
   const updates = await getBody();
 
   const existing = await db.query.userPreferences.findFirst({
     where: eq(userPreferences.userId, userId),
   });
 
+  let finalPrefs;
   if (existing) {
     const currentPrefs = existing.preferences || {};
     const newPrefs = deepMerge(currentPrefs, updates);
 
     await db.update(userPreferences).set({ preferences: newPrefs }).where(eq(userPreferences.userId, userId));
 
-    return NextResponse.json(mergeWithDefaults(newPrefs));
+    finalPrefs = mergeWithDefaults(newPrefs);
   } else {
     const newPrefs = mergeWithDefaults(updates);
 
@@ -37,8 +41,13 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
       preferences: newPrefs,
     });
 
-    return NextResponse.json(newPrefs);
+    finalPrefs = newPrefs;
   }
+
+  // Broadcast to other clients
+  preferencesBroadcast.onUpdate(userId, finalPrefs, clientId);
+
+  return NextResponse.json(finalPrefs);
 });
 
 function deepMerge(target, source) {

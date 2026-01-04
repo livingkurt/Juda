@@ -2,7 +2,16 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tags } from "@/lib/schema";
 import { eq, and, asc } from "drizzle-orm";
-import { withApi, Errors, validateRequired } from "@/lib/apiHelpers";
+import {
+  withApi,
+  Errors,
+  validateRequired,
+  withBroadcast,
+  getClientIdFromRequest,
+  ENTITY_TYPES,
+} from "@/lib/apiHelpers";
+
+const tagBroadcast = withBroadcast(ENTITY_TYPES.TAG);
 
 export const GET = withApi(async (request, { userId }) => {
   const allTags = await db.query.tags.findMany({
@@ -13,6 +22,7 @@ export const GET = withApi(async (request, { userId }) => {
 });
 
 export const POST = withApi(async (request, { userId, getBody }) => {
+  const clientId = getClientIdFromRequest(request);
   const body = await getBody();
   const { name, color } = body;
 
@@ -29,10 +39,14 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     })
     .returning();
 
+  // Broadcast to other clients
+  tagBroadcast.onCreate(userId, tag, clientId);
+
   return NextResponse.json(tag, { status: 201 });
 });
 
 export const PUT = withApi(async (request, { userId, getBody }) => {
+  const clientId = getClientIdFromRequest(request);
   const body = await getBody();
   validateRequired(body, ["id"]);
 
@@ -60,13 +74,20 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     throw Errors.notFound("Tag");
   }
 
+  // Broadcast to other clients
+  tagBroadcast.onUpdate(userId, updatedTag, clientId);
+
   return NextResponse.json(updatedTag);
 });
 
 export const DELETE = withApi(async (request, { userId, getRequiredParam }) => {
+  const clientId = getClientIdFromRequest(request);
   const id = getRequiredParam("id");
 
   await db.delete(tags).where(and(eq(tags.id, id), eq(tags.userId, userId)));
+
+  // Broadcast to other clients
+  tagBroadcast.onDelete(userId, id, clientId);
 
   return NextResponse.json({ success: true });
 });

@@ -10,6 +10,8 @@ import { store } from "@/lib/store";
 import { initDB } from "@/lib/db/indexedDB";
 import { syncManager } from "@/lib/sync/syncManager";
 import { ThemeInitializer } from "@/hooks/useTheme";
+import { useSSESync } from "@/hooks/useSSESync";
+import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 
 // Create a custom system that matches Chakra v2 colors and styling
 const system = createSystem(defaultConfig, {
@@ -539,6 +541,16 @@ function OfflineInitializer({ children }) {
   return children;
 }
 
+function SSESyncProvider({ children }) {
+  useSSESync();
+  return (
+    <>
+      {children}
+      <SyncStatusIndicator />
+    </>
+  );
+}
+
 export function Providers({ children }) {
   return (
     <ReduxProvider store={store}>
@@ -547,8 +559,10 @@ export function Providers({ children }) {
           <PreferencesProvider>
             <ThemeInitializer />
             <OfflineInitializer>
-              {children}
-              <ToastContainer />
+              <SSESyncProvider>
+                {children}
+                <ToastContainer />
+              </SSESyncProvider>
             </OfflineInitializer>
           </PreferencesProvider>
         </AuthProvider>

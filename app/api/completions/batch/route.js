@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { taskCompletions, tasks } from "@/lib/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { withApi, Errors } from "@/lib/apiHelpers";
+import { withApi, Errors, withBroadcast, getClientIdFromRequest, ENTITY_TYPES } from "@/lib/apiHelpers";
+
+const completionBroadcast = withBroadcast(ENTITY_TYPES.COMPLETION);
 
 export const POST = withApi(async (request, { userId, getBody }) => {
+  const clientId = getClientIdFromRequest(request);
   const body = await getBody();
   const { completions: completionsToCreate } = body;
 
@@ -61,6 +64,9 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     return [...existingCompletions, ...newCompletions];
   });
 
+  // Broadcast batch create to other clients
+  completionBroadcast.onBatchCreate(userId, createdCompletions, clientId);
+
   return NextResponse.json(
     { success: true, completions: createdCompletions, count: createdCompletions.length },
     { status: 201 }
@@ -68,6 +74,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
 });
 
 export const DELETE = withApi(async (request, { userId, getBody }) => {
+  const clientId = getClientIdFromRequest(request);
   const body = await getBody();
   const { completions: completionsToDelete } = body;
 
@@ -99,6 +106,17 @@ export const DELETE = withApi(async (request, { userId, getBody }) => {
     return { taskId, date: utcDate };
   });
 
+  // Fetch completion IDs before deletion for broadcast
+  const completionIds = [];
+  for (const { taskId, date } of normalizedCompletions) {
+    const completion = await db.query.taskCompletions.findFirst({
+      where: and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, date)),
+    });
+    if (completion) {
+      completionIds.push(completion.id);
+    }
+  }
+
   let deletedCount = 0;
   await db.transaction(async tx => {
     const results = await Promise.all(
@@ -111,6 +129,11 @@ export const DELETE = withApi(async (request, { userId, getBody }) => {
     );
     deletedCount = results.reduce((sum, result) => sum + result.length, 0);
   });
+
+  // Broadcast batch delete to other clients
+  if (completionIds.length > 0) {
+    completionBroadcast.onBatchDelete(userId, completionIds, clientId);
+  }
 
   return NextResponse.json({ success: true, deletedCount });
 });

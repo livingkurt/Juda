@@ -2,7 +2,17 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, sections } from "@/lib/schema";
 import { eq, and, asc } from "drizzle-orm";
-import { withApi, Errors, validateRequired, validateEnum } from "@/lib/apiHelpers";
+import {
+  withApi,
+  Errors,
+  validateRequired,
+  validateEnum,
+  withBroadcast,
+  getClientIdFromRequest,
+  ENTITY_TYPES,
+} from "@/lib/apiHelpers";
+
+const taskBroadcast = withBroadcast(ENTITY_TYPES.TASK);
 
 export const GET = withApi(async (request, { userId }) => {
   const allTasks = await db.query.tasks.findMany({
@@ -27,6 +37,7 @@ export const GET = withApi(async (request, { userId }) => {
 });
 
 export const POST = withApi(async (request, { userId, getBody }) => {
+  const clientId = getClientIdFromRequest(request);
   const body = await getBody();
   const { title, sectionId, parentId, time, duration, recurrence, order, completionType, content, folderId } = body;
 
@@ -55,10 +66,32 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     })
     .returning();
 
-  return NextResponse.json(task, { status: 201 });
+  // Fetch the full task with relations for broadcast
+  const taskWithRelations = await db.query.tasks.findFirst({
+    where: eq(tasks.id, task.id),
+    with: {
+      section: true,
+      taskTags: {
+        with: {
+          tag: true,
+        },
+      },
+    },
+  });
+
+  const taskWithTags = {
+    ...taskWithRelations,
+    tags: taskWithRelations.taskTags?.map(tt => tt.tag) || [],
+  };
+
+  // Broadcast to other clients (exclude the one that made this request)
+  taskBroadcast.onCreate(userId, taskWithTags, clientId);
+
+  return NextResponse.json(taskWithTags, { status: 201 });
 });
 
 export const PUT = withApi(async (request, { userId, getBody }) => {
+  const clientId = getClientIdFromRequest(request);
   const body = await getBody();
   const {
     id,
@@ -156,13 +189,20 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     tags: taskWithRelations.taskTags?.map(tt => tt.tag) || [],
   };
 
+  // Broadcast to other clients
+  taskBroadcast.onUpdate(userId, taskWithTags, clientId);
+
   return NextResponse.json(taskWithTags);
 });
 
 export const DELETE = withApi(async (request, { userId, getRequiredParam }) => {
+  const clientId = getClientIdFromRequest(request);
   const id = getRequiredParam("id");
 
   await db.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
+
+  // Broadcast to other clients
+  taskBroadcast.onDelete(userId, id, clientId);
 
   return NextResponse.json({ success: true });
 });

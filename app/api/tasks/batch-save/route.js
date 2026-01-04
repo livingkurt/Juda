@@ -3,11 +3,16 @@ import { db } from "@/lib/db";
 import { tasks, sections } from "@/lib/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authMiddleware";
+import { withBroadcast, getClientIdFromRequest, ENTITY_TYPES } from "@/lib/apiHelpers";
+
+const taskBroadcast = withBroadcast(ENTITY_TYPES.TASK);
 
 // POST - Create or update multiple tasks at once (for subtasks management)
 export async function POST(request) {
   const userId = getAuthenticatedUserId(request);
   if (!userId) return unauthorizedResponse();
+
+  const clientId = getClientIdFromRequest(request);
 
   try {
     const body = await request.json();
@@ -102,6 +107,44 @@ export async function POST(request) {
       }
     });
 
+    // Fetch full task data with relations for broadcasting
+    const allTaskIds = [...createdTasks.map(t => t.id), ...updatedTasks.map(t => t.id)];
+    const allTasksWithRelations =
+      allTaskIds.length > 0
+        ? await db.query.tasks.findMany({
+            where: and(inArray(tasks.id, allTaskIds), eq(tasks.userId, userId)),
+            with: {
+              section: true,
+              taskTags: {
+                with: {
+                  tag: true,
+                },
+              },
+            },
+          })
+        : [];
+
+    const allTasksWithTags = allTasksWithRelations.map(task => ({
+      ...task,
+      tags: task.taskTags?.map(tt => tt.tag) || [],
+    }));
+
+    // Broadcast batch create/update to other clients
+    if (createdTasks.length > 0) {
+      taskBroadcast.onBatchCreate(
+        userId,
+        allTasksWithTags.filter(t => createdTasks.some(ct => ct.id === t.id)),
+        clientId
+      );
+    }
+    if (updatedTasks.length > 0) {
+      taskBroadcast.onBatchUpdate(
+        userId,
+        allTasksWithTags.filter(t => updatedTasks.some(ut => ut.id === t.id)),
+        clientId
+      );
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -122,6 +165,8 @@ export async function POST(request) {
 export async function DELETE(request) {
   const userId = getAuthenticatedUserId(request);
   if (!userId) return unauthorizedResponse();
+
+  const clientId = getClientIdFromRequest(request);
 
   try {
     const body = await request.json();
@@ -145,6 +190,9 @@ export async function DELETE(request) {
       .delete(tasks)
       .where(and(inArray(tasks.id, taskIds), eq(tasks.userId, userId)))
       .returning();
+
+    // Broadcast batch delete to other clients
+    taskBroadcast.onBatchDelete(userId, taskIds, clientId);
 
     return NextResponse.json({ success: true, deletedCount: result.length });
   } catch (error) {

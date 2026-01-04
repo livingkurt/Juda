@@ -2,7 +2,17 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { taskCompletions, tasks } from "@/lib/schema";
 import { eq, and, gte, lte, desc, inArray } from "drizzle-orm";
-import { withApi, Errors, validateRequired, validateEnum } from "@/lib/apiHelpers";
+import {
+  withApi,
+  Errors,
+  validateRequired,
+  validateEnum,
+  withBroadcast,
+  getClientIdFromRequest,
+  ENTITY_TYPES,
+} from "@/lib/apiHelpers";
+
+const completionBroadcast = withBroadcast(ENTITY_TYPES.COMPLETION);
 
 export const GET = withApi(async (request, { userId, getSearchParams }) => {
   const searchParams = getSearchParams();
@@ -38,6 +48,7 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
 });
 
 export const POST = withApi(async (request, { userId, getBody }) => {
+  const clientId = getClientIdFromRequest(request);
   const body = await getBody();
   const { taskId, date, outcome = "completed", note, time, startedAt, completedAt } = body;
 
@@ -72,6 +83,10 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       .set(updateData)
       .where(eq(taskCompletions.id, existing.id))
       .returning();
+
+    // Broadcast to other clients
+    completionBroadcast.onUpdate(userId, updated, clientId);
+
     return NextResponse.json(updated);
   }
 
@@ -88,10 +103,14 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     })
     .returning();
 
+  // Broadcast to other clients
+  completionBroadcast.onCreate(userId, completion, clientId);
+
   return NextResponse.json(completion, { status: 201 });
 });
 
 export const DELETE = withApi(async (request, { userId, getSearchParams }) => {
+  const clientId = getClientIdFromRequest(request);
   const searchParams = getSearchParams();
   const taskId = searchParams.get("taskId");
   const date = searchParams.get("date");
@@ -122,10 +141,14 @@ export const DELETE = withApi(async (request, { userId, getSearchParams }) => {
     throw Errors.notFound("Completion");
   }
 
+  // Broadcast to other clients
+  completionBroadcast.onDelete(userId, result[0].id, clientId);
+
   return NextResponse.json({ success: true });
 });
 
 export const PUT = withApi(async (request, { userId, getBody }) => {
+  const clientId = getClientIdFromRequest(request);
   const body = await getBody();
   const { taskId, date, outcome, note, time } = body;
 
@@ -160,6 +183,10 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
       .set(updateData)
       .where(eq(taskCompletions.id, existing.id))
       .returning();
+
+    // Broadcast to other clients
+    completionBroadcast.onUpdate(userId, updated, clientId);
+
     return NextResponse.json(updated);
   } else {
     const [created] = await db
@@ -172,11 +199,16 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
         time: time || null,
       })
       .returning();
+
+    // Broadcast to other clients
+    completionBroadcast.onCreate(userId, created, clientId);
+
     return NextResponse.json(created, { status: 201 });
   }
 });
 
 export const PATCH = withApi(async (request, { userId, getBody }) => {
+  const clientId = getClientIdFromRequest(request);
   const body = await getBody();
   const { taskId, date, outcome } = body;
 
@@ -205,6 +237,9 @@ export const PATCH = withApi(async (request, { userId, getBody }) => {
   if (!updated) {
     throw Errors.notFound("Record");
   }
+
+  // Broadcast to other clients
+  completionBroadcast.onUpdate(userId, updated, clientId);
 
   return NextResponse.json(updated);
 });

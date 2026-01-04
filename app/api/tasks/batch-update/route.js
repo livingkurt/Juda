@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, sections, taskTags, tags } from "@/lib/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { withApi, Errors, validateEnum } from "@/lib/apiHelpers";
+import { withApi, Errors, validateEnum, withBroadcast, getClientIdFromRequest, ENTITY_TYPES } from "@/lib/apiHelpers";
+
+const taskBroadcast = withBroadcast(ENTITY_TYPES.TASK);
 
 export const POST = withApi(async (request, { userId, getBody }) => {
   const body = await getBody();
@@ -128,6 +130,10 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     ...task,
     tags: task.taskTags?.map(tt => tt.tag) || [],
   }));
+
+  // Broadcast batch update to other clients
+  const clientId = getClientIdFromRequest(request);
+  taskBroadcast.onBatchUpdate(userId, tasksWithTags, clientId);
 
   return NextResponse.json(
     {

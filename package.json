@@ -45,6 +45,7 @@
     "idb": "^8.0.3",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.562.0",
+    "nanoid": "^5.1.6",
     "next": "^16.1.1",
     "postgres": "^3.4.7",
     "react": "^19.0.0",

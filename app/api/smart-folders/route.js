@@ -2,7 +2,16 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { smartFolders } from "@/lib/schema";
 import { eq, asc, and } from "drizzle-orm";
-import { withApi, Errors, validateRequired } from "@/lib/apiHelpers";
+import {
+  withApi,
+  Errors,
+  validateRequired,
+  withBroadcast,
+  getClientIdFromRequest,
+  ENTITY_TYPES,
+} from "@/lib/apiHelpers";
+
+const smartFolderBroadcast = withBroadcast(ENTITY_TYPES.SMART_FOLDER);
 
 export const GET = withApi(async (request, { userId }) => {
   const folders = await db.query.smartFolders.findMany({
@@ -13,6 +22,7 @@ export const GET = withApi(async (request, { userId }) => {
 });
 
 export const POST = withApi(async (request, { userId, getBody }) => {
+  const clientId = getClientIdFromRequest(request);
   const { name, icon, color, filters, order } = await getBody();
 
   if (!name?.trim()) {
@@ -31,10 +41,14 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     })
     .returning();
 
+  // Broadcast to other clients
+  smartFolderBroadcast.onCreate(userId, folder, clientId);
+
   return NextResponse.json(folder, { status: 201 });
 });
 
 export const PUT = withApi(async (request, { userId, getBody }) => {
+  const clientId = getClientIdFromRequest(request);
   const body = await getBody();
   validateRequired(body, ["id"]);
 
@@ -54,10 +68,14 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     .where(and(eq(smartFolders.id, id), eq(smartFolders.userId, userId)))
     .returning();
 
+  // Broadcast to other clients
+  smartFolderBroadcast.onUpdate(userId, folder, clientId);
+
   return NextResponse.json(folder);
 });
 
 export const DELETE = withApi(async (request, { userId, getRequiredParam }) => {
+  const clientId = getClientIdFromRequest(request);
   const id = getRequiredParam("id");
 
   const existingFolder = await db.query.smartFolders.findFirst({
@@ -69,6 +87,9 @@ export const DELETE = withApi(async (request, { userId, getRequiredParam }) => {
   }
 
   await db.delete(smartFolders).where(and(eq(smartFolders.id, id), eq(smartFolders.userId, userId)));
+
+  // Broadcast to other clients
+  smartFolderBroadcast.onDelete(userId, id, clientId);
 
   return NextResponse.json({ success: true });
 });

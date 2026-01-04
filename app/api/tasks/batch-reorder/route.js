@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { withApi, Errors } from "@/lib/apiHelpers";
+import { withApi, Errors, withBroadcast, getClientIdFromRequest, ENTITY_TYPES } from "@/lib/apiHelpers";
+
+const taskBroadcast = withBroadcast(ENTITY_TYPES.TASK);
 
 export const PUT = withApi(async (request, { userId, getBody }) => {
+  const clientId = getClientIdFromRequest(request);
   const body = await getBody();
   const { updates } = body;
 
@@ -39,6 +42,10 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
       )
     );
   });
+
+  // Broadcast reorder to other clients
+  const items = updates.map(u => ({ id: u.id, order: u.order }));
+  taskBroadcast.onReorder(userId, { items }, clientId);
 
   return NextResponse.json({ success: true, updatedCount: updates.length });
 });
