@@ -42,6 +42,7 @@ import {
   CheckSquare,
   Clock,
   Columns,
+  BookOpen,
 } from "lucide-react";
 import { Section } from "@/components/Section";
 import { TaskDialog } from "@/components/TaskDialog";
@@ -110,6 +111,7 @@ import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
 import { CalendarYearView } from "@/components/CalendarYearView";
 import { RecurringTableView } from "@/components/RecurringTableView";
+import { JournalView } from "@/components/JournalView";
 import { KanbanView } from "@/components/KanbanView";
 import { PageSkeleton, SectionSkeleton, BacklogSkeleton, CalendarSkeleton } from "@/components/Skeletons";
 import { DateNavigation } from "@/components/DateNavigation";
@@ -801,6 +803,18 @@ export default function DailyTasksApp() {
   const backlogTasks = taskFilters.backlogTasks;
   const noteTasks = taskFilters.noteTasks;
 
+  // Filter journal tasks (completionType: "text" + "Journal" tag)
+  const journalTasks = useMemo(() => {
+    const journalTag = tags.find(t => t.name.toLowerCase() === "journal");
+    if (!journalTag) return [];
+
+    return tasks.filter(
+      task =>
+        task.completionType === "text" &&
+        task.tags?.some(tag => tag.id === journalTag.id || tag.name?.toLowerCase() === "journal")
+    );
+  }, [tasks, tags]);
+
   // Memoized section lookup map for O(1) access instead of O(n) find
   const sectionsById = useMemo(() => {
     const map = new Map();
@@ -1007,6 +1021,28 @@ export default function DailyTasksApp() {
                   px={{ base: 2, md: 3 }}
                 >
                   <HStack spacing={{ base: 1, md: 2 }}>
+                    <BookOpen size={14} />
+                    <Text>Journal</Text>
+                    {journalTasks.length > 0 && (
+                      <Badge
+                        colorScheme="orange"
+                        borderRadius="full"
+                        fontSize={{ base: "2xs", md: "xs" }}
+                        px={{ base: 1, md: 1.5 }}
+                        py={0}
+                      >
+                        {journalTasks.length}
+                      </Badge>
+                    )}
+                  </HStack>
+                </Tabs.Trigger>
+                <Tabs.Trigger
+                  value="3"
+                  fontSize={{ base: "sm", md: "md" }}
+                  py={{ base: 1.5, md: 2 }}
+                  px={{ base: 2, md: 3 }}
+                >
+                  <HStack spacing={{ base: 1, md: 2 }}>
                     <StickyNote size={14} />
                     <Text>Notes</Text>
                     {noteTasks.length > 0 && (
@@ -1023,7 +1059,7 @@ export default function DailyTasksApp() {
                   </HStack>
                 </Tabs.Trigger>
                 <Tabs.Trigger
-                  value="3"
+                  value="4"
                   fontSize={{ base: "sm", md: "md" }}
                   py={{ base: 1.5, md: 2 }}
                   px={{ base: 2, md: 3 }}
@@ -1244,8 +1280,24 @@ export default function DailyTasksApp() {
                   </Box>
                 )}
 
-                {/* Notes Tab - Mobile */}
+                {/* Journal Tab - Mobile */}
                 {mainTabIndex === 2 && (
+                  <Box h="100%" overflow="hidden">
+                    <JournalView
+                      tasks={tasks}
+                      tags={tags}
+                      completions={completions}
+                      getCompletionForDate={getCompletionForDate}
+                      createCompletion={createCompletion}
+                      updateCompletion={updateCompletion}
+                      deleteCompletion={deleteCompletion}
+                      updateTask={updateTask}
+                    />
+                  </Box>
+                )}
+
+                {/* Notes Tab - Mobile */}
+                {mainTabIndex === 3 && (
                   <Box h="100%" overflow="hidden">
                     <NotesView
                       notes={noteTasks}
@@ -1276,7 +1328,7 @@ export default function DailyTasksApp() {
                 )}
 
                 {/* History Tab - Mobile */}
-                {mainTabIndex === 3 && (
+                {mainTabIndex === 4 && (
                   <Box h="100%" overflow="hidden">
                     <RecurringTableView
                       tasks={tasks}
@@ -1559,7 +1611,7 @@ export default function DailyTasksApp() {
           ) : (
             /* ========== DESKTOP LAYOUT (existing code) ========== */
             <Box display="flex" flex={1} h="100%" minH={0} overflow="hidden">
-              <Box flex={1} minH={0} h="100%" overflow={mainTabIndex === 2 ? "hidden" : "auto"}>
+              <Box flex={1} minH={0} h="100%" overflow={mainTabIndex === 2 || mainTabIndex === 3 ? "hidden" : "auto"}>
                 {mainTabIndex === 1 ? (
                   /* Kanban Tab Content */
                   <Box
@@ -1573,6 +1625,20 @@ export default function DailyTasksApp() {
                     <KanbanView createDraggableId={createDraggableId} />
                   </Box>
                 ) : mainTabIndex === 2 ? (
+                  /* Journal Tab Content */
+                  <Box h="100%" overflow="hidden">
+                    <JournalView
+                      tasks={tasks}
+                      tags={tags}
+                      completions={completions}
+                      getCompletionForDate={getCompletionForDate}
+                      createCompletion={createCompletion}
+                      updateCompletion={updateCompletion}
+                      deleteCompletion={deleteCompletion}
+                      updateTask={updateTask}
+                    />
+                  </Box>
+                ) : mainTabIndex === 3 ? (
                   /* Notes Tab Content */
                   <Box h="100%" overflow="hidden">
                     <NotesView
@@ -1602,25 +1668,27 @@ export default function DailyTasksApp() {
                       onNoteListResize={width => dispatch(setNotesListWidth(width))}
                     />
                   </Box>
-                ) : mainTabIndex === 3 ? (
+                ) : mainTabIndex === 4 ? (
                   /* History Tab Content */
-                  <RecurringTableView
-                    tasks={tasks}
-                    sections={sections}
-                    completions={completions}
-                    createCompletion={createCompletion}
-                    deleteCompletion={deleteCompletion}
-                    updateCompletion={updateCompletion}
-                    getCompletionForDate={getCompletionForDate}
-                    updateTask={updateTask}
-                    onEdit={taskOps.handleEditTask}
-                    onEditWorkout={taskOps.handleEditWorkout}
-                    onDuplicate={taskOps.handleDuplicateTask}
-                    onDelete={taskOps.handleDeleteTask}
-                    tags={tags}
-                    onTagsChange={taskOps.handleTaskTagsChange}
-                    onCreateTag={createTag}
-                  />
+                  <Box h="100%" overflow="hidden">
+                    <RecurringTableView
+                      tasks={tasks}
+                      sections={sections}
+                      completions={completions}
+                      createCompletion={createCompletion}
+                      deleteCompletion={deleteCompletion}
+                      updateCompletion={updateCompletion}
+                      getCompletionForDate={getCompletionForDate}
+                      updateTask={updateTask}
+                      onEdit={taskOps.handleEditTask}
+                      onEditWorkout={taskOps.handleEditWorkout}
+                      onDuplicate={taskOps.handleDuplicateTask}
+                      onDelete={taskOps.handleDeleteTask}
+                      tags={tags}
+                      onTagsChange={taskOps.handleTaskTagsChange}
+                      onCreateTag={createTag}
+                    />
+                  </Box>
                 ) : (
                   /* Tasks Tab Content (mainTabIndex === 0) */
                   <Box w="full" h="full" display="flex" maxW="100%" overflow="hidden">

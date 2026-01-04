@@ -10,6 +10,7 @@ import {
   IconButton,
   VStack,
   Input,
+  Textarea,
   Badge,
   Menu,
   Portal,
@@ -583,15 +584,26 @@ export const TaskItem = ({
             {/* Text Input for text-type tasks */}
             {isTextTask && (isToday || isBacklog) && (
               <Box w="full" mt={2}>
-                <Input
+                <Textarea
                   key={noteInputKey}
                   ref={noteInputRef}
                   value={noteInput}
                   onChange={e => setNoteInput(e.target.value)}
+                  onInput={e => {
+                    // Auto-expand textarea
+                    const textarea = e.target;
+                    textarea.style.height = "auto";
+                    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+                  }}
                   placeholder="Enter response to complete..."
                   size="sm"
                   variant="filled"
                   disabled={isNotCompleted}
+                  minH="40px"
+                  maxH="200px"
+                  resize="none"
+                  overflow="hidden"
+                  rows={1}
                   onClick={e => e.stopPropagation()}
                   onMouseDown={e => e.stopPropagation()}
                   onBlur={() => {
@@ -604,7 +616,8 @@ export const TaskItem = ({
                     }
                   }}
                   onKeyDown={e => {
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      // Cmd/Ctrl+Enter to save
                       e.preventDefault();
                       if (noteInput.trim()) {
                         onCompleteWithNote?.(task.id, noteInput.trim());
