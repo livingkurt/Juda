@@ -200,7 +200,7 @@ export default function DailyTasksApp() {
   const { isAuthenticated, loading: authLoading, initialized: authInitialized, logout } = useAuth();
   const { colorMode, toggleColorMode } = useColorModeSync();
   const { toast: _toast } = useToast();
-  const { mode, interactive, dnd } = useSemanticColors();
+  const { mode, interactive, dnd, icon } = useSemanticColors();
 
   const bgColor = mode.bg.canvas;
   const headerBg = mode.bg.surface;
@@ -925,7 +925,7 @@ export default function DailyTasksApp() {
         <Box w="full" px={{ base: 3, md: 4 }} py={{ base: 2, md: 4 }}>
           <Flex align="center" justify="space-between">
             <Flex align="center" gap={{ base: 2, md: 3 }}>
-              <Box as="span" color={mode.status.warning}>
+              <Box as="span" color={icon.primary}>
                 <GreetingIcon size={20} stroke="currentColor" />
               </Box>
               <Box>
