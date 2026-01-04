@@ -47,6 +47,75 @@ import { useDialogState } from "@/hooks/useDialogState";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { useTheme } from "@/hooks/useTheme";
 
+// Small component to handle text input with state that resets on date change
+const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote, mode }) => {
+  const [noteInput, setNoteInput] = useState(savedNote);
+  const noteInputRef = useRef(null);
+
+  // Sync with savedNote when it changes (e.g., after save or date change)
+  useEffect(() => {
+    setNoteInput(savedNote);
+  }, [savedNote]);
+
+  return (
+    <>
+      <Textarea
+        ref={noteInputRef}
+        value={noteInput}
+        onChange={e => setNoteInput(e.target.value)}
+        onInput={e => {
+          // Auto-expand textarea
+          const textarea = e.target;
+          textarea.style.height = "auto";
+          textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+        }}
+        placeholder="Enter response to complete..."
+        size="sm"
+        variant="filled"
+        disabled={isNotCompleted}
+        minH="40px"
+        maxH="200px"
+        resize="none"
+        overflow="hidden"
+        rows={1}
+        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
+        onBlur={() => {
+          // Save on blur if note has content
+          if (noteInput.trim() && noteInput.trim() !== savedNote) {
+            onCompleteWithNote?.(taskId, noteInput.trim());
+          } else if (!noteInput.trim() && savedNote) {
+            // If cleared, reset to saved note
+            setNoteInput(savedNote);
+          }
+        }}
+        onKeyDown={e => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            // Cmd/Ctrl+Enter to save
+            e.preventDefault();
+            if (noteInput.trim()) {
+              onCompleteWithNote?.(taskId, noteInput.trim());
+              noteInputRef.current?.blur();
+            }
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            // Reset to saved note if editing was cancelled
+            setNoteInput(savedNote);
+            noteInputRef.current?.blur();
+          }
+          e.stopPropagation();
+        }}
+        bg={isNotCompleted ? mode.bg.muted : undefined}
+      />
+      {isNotCompleted && (
+        <Text fontSize="xs" color={mode.text.muted} mt={1}>
+          Not Completed
+        </Text>
+      )}
+    </>
+  );
+};
+
 export const TaskItem = ({
   task,
   variant = "today", // "today", "backlog", "subtask", or "kanban"
@@ -190,12 +259,6 @@ export const TaskItem = ({
   const isWorkoutTask = task.completionType === "workout";
   const isNotCompleted = existingCompletion?.outcome === "not_completed" || false;
   const savedNote = existingCompletion?.note || "";
-
-  // For text task notes - use a key to force remount when data changes
-  // This avoids the setState-in-effect pattern while still syncing with external data
-  const noteInputKey = `${task.id}-${viewDate?.toISOString()}-${savedNote}`;
-  const [noteInput, setNoteInput] = useState(savedNote);
-  const noteInputRef = useRef(null);
 
   // For workout tasks, only mark complete if outcome is explicitly "completed" (not "in_progress")
   const isWorkoutTaskCompleted = isWorkoutTask && existingCompletion?.outcome === "completed";
@@ -404,9 +467,9 @@ export const TaskItem = ({
                       }
                       size="md"
                       onCheckedChange={() => {
-                        // For text tasks, complete when checkbox is checked
-                        if (isTextTask && !isTextTaskCompleted && noteInput.trim()) {
-                          onCompleteWithNote?.(task.id, noteInput.trim());
+                        // For text tasks, complete when checkbox is checked (if there's a saved note)
+                        if (isTextTask && !isTextTaskCompleted && savedNote.trim()) {
+                          onCompleteWithNote?.(task.id, savedNote.trim());
                           return;
                         }
                         // If overdue OR has outcome set, prevent default toggle
@@ -583,61 +646,14 @@ export const TaskItem = ({
             </Flex>
             {/* Text Input for text-type tasks */}
             {isTextTask && (isToday || isBacklog) && (
-              <Box w="full" mt={2}>
-                <Textarea
-                  key={noteInputKey}
-                  ref={noteInputRef}
-                  value={noteInput}
-                  onChange={e => setNoteInput(e.target.value)}
-                  onInput={e => {
-                    // Auto-expand textarea
-                    const textarea = e.target;
-                    textarea.style.height = "auto";
-                    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
-                  }}
-                  placeholder="Enter response to complete..."
-                  size="sm"
-                  variant="filled"
-                  disabled={isNotCompleted}
-                  minH="40px"
-                  maxH="200px"
-                  resize="none"
-                  overflow="hidden"
-                  rows={1}
-                  onClick={e => e.stopPropagation()}
-                  onMouseDown={e => e.stopPropagation()}
-                  onBlur={() => {
-                    // Save on blur if note has content
-                    if (noteInput.trim() && noteInput.trim() !== savedNote) {
-                      onCompleteWithNote?.(task.id, noteInput.trim());
-                    } else if (!noteInput.trim() && savedNote) {
-                      // If cleared, reset to saved note
-                      setNoteInput(savedNote);
-                    }
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                      // Cmd/Ctrl+Enter to save
-                      e.preventDefault();
-                      if (noteInput.trim()) {
-                        onCompleteWithNote?.(task.id, noteInput.trim());
-                        noteInputRef.current?.blur();
-                      }
-                    } else if (e.key === "Escape") {
-                      e.preventDefault();
-                      // Reset to saved note if editing was cancelled
-                      setNoteInput(savedNote);
-                      noteInputRef.current?.blur();
-                    }
-                    e.stopPropagation();
-                  }}
-                  bg={isNotCompleted ? mode.bg.muted : undefined}
+              <Box w="full" mt={2} key={`text-input-${task.id}-${viewDate?.toISOString()}`}>
+                <TextInputTask
+                  taskId={task.id}
+                  savedNote={savedNote}
+                  isNotCompleted={isNotCompleted}
+                  onCompleteWithNote={onCompleteWithNote}
+                  mode={mode}
                 />
-                {isNotCompleted && (
-                  <Text fontSize="xs" color={mode.text.muted} mt={1}>
-                    Not Completed
-                  </Text>
-                )}
               </Box>
             )}
             {/* Badges - show for backlog and today variants */}
