@@ -50,12 +50,23 @@ import { useTheme } from "@/hooks/useTheme";
 // Small component to handle text input with state that resets on date change
 const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote, mode }) => {
   const [noteInput, setNoteInput] = useState(savedNote);
+  const [isFocused, setIsFocused] = useState(false);
   const noteInputRef = useRef(null);
 
   // Sync with savedNote when it changes (e.g., after save or date change)
   useEffect(() => {
     setNoteInput(savedNote);
   }, [savedNote]);
+
+  // Adjust height when content or focus changes
+  useEffect(() => {
+    if (noteInputRef.current) {
+      const textarea = noteInputRef.current;
+      textarea.style.height = "auto";
+      // Always show all content, expand infinitely
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [noteInput, isFocused]);
 
   return (
     <>
@@ -64,23 +75,14 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote, 
         value={noteInput}
         onChange={e => setNoteInput(e.target.value)}
         onInput={e => {
-          // Auto-expand textarea
+          // Auto-expand textarea when typing - expand infinitely
           const textarea = e.target;
           textarea.style.height = "auto";
-          textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+          textarea.style.height = `${textarea.scrollHeight}px`;
         }}
-        placeholder="Enter response to complete..."
-        size="sm"
-        variant="filled"
-        disabled={isNotCompleted}
-        minH="40px"
-        maxH="200px"
-        resize="none"
-        overflow="hidden"
-        rows={1}
-        onClick={e => e.stopPropagation()}
-        onMouseDown={e => e.stopPropagation()}
+        onFocus={() => setIsFocused(true)}
         onBlur={() => {
+          setIsFocused(false);
           // Save on blur if note has content
           if (noteInput.trim() && noteInput.trim() !== savedNote) {
             onCompleteWithNote?.(taskId, noteInput.trim());
@@ -89,6 +91,15 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote, 
             setNoteInput(savedNote);
           }
         }}
+        placeholder="Enter response to complete..."
+        size="sm"
+        variant="unstyled"
+        disabled={isNotCompleted}
+        resize="none"
+        overflow="hidden"
+        rows={1}
+        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
         onKeyDown={e => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
             // Cmd/Ctrl+Enter to save
@@ -105,7 +116,15 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote, 
           }
           e.stopPropagation();
         }}
-        bg={isNotCompleted ? mode.bg.muted : undefined}
+        bg="transparent"
+        px={0}
+        py={1}
+        fontSize="sm"
+        color={mode.text.primary}
+        _disabled={{
+          opacity: 0.5,
+          cursor: "not-allowed",
+        }}
       />
       {isNotCompleted && (
         <Text fontSize="xs" color={mode.text.muted} mt={1}>
