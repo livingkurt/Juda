@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Box, Text, Textarea, VStack, HStack, IconButton } from "@chakra-ui/react";
 import { Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { Collapse } from "./Collapse";
@@ -12,8 +12,15 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
   const [noteInput, setNoteInput] = useState(completion?.note || "");
   const [showTextarea, setShowTextarea] = useState(Boolean(completion?.note));
   const hasEntry = completion?.note && completion.note.trim().length > 0;
-  // Expanded by default if there's an entry, collapsed if not
-  const [expanded, setExpanded] = useState(hasEntry);
+
+  // Check if this is a Daily Journal (not a reflection type)
+  const isDailyJournal = useMemo(() => {
+    const tagNames = (task.tags || []).map(t => (t.name || "").toLowerCase());
+    return tagNames.includes("daily journal");
+  }, [task.tags]);
+
+  // Expanded by default only for Daily Journal if there's an entry, collapsed for all reflection types
+  const [expanded, setExpanded] = useState(isDailyJournal && hasEntry);
   const textareaRef = useRef(null);
 
   // Auto-expand textarea on mount and when content changes - show all text
