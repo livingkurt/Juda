@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 /**
  * Handles resizable panel logic
  * Works directly with preference values to avoid sync issues
+ * Supports both mouse and touch events for desktop and iPad
  */
 export function useResizeHandlers({
   backlogWidth: initialBacklogWidth,
@@ -18,40 +19,50 @@ export function useResizeHandlers({
   const resizeStartRef = useRef(null);
   const rafRef = useRef(null);
 
-  // Start backlog resize
+  // Helper to get X coordinate from mouse or touch event
+  const getClientX = e => {
+    if (e.touches && e.touches.length > 0) {
+      return e.touches[0].clientX;
+    }
+    return e.clientX;
+  };
+
+  // Start backlog resize (works for both mouse and touch)
   const handleBacklogResizeStart = useCallback(
     e => {
       e.preventDefault();
       setIsResizing(true);
       setResizeType("backlog");
+      const clientX = getClientX(e);
       resizeStartRef.current = {
-        startX: e.clientX,
+        startX: clientX,
         startWidth: initialBacklogWidth,
       };
     },
     [initialBacklogWidth]
   );
 
-  // Start today panel resize
+  // Start today panel resize (works for both mouse and touch)
   const handleTodayResizeStart = useCallback(
     e => {
       e.preventDefault();
       setIsResizing(true);
       setResizeType("today");
+      const clientX = getClientX(e);
       resizeStartRef.current = {
-        startX: e.clientX,
+        startX: clientX,
         startWidth: initialTodayViewWidth,
       };
     },
     [initialTodayViewWidth]
   );
 
-  // Handle mouse move during resize
+  // Handle mouse move and touch move during resize
   // Directly updates preference values during drag for smooth resizing
   useEffect(() => {
     if (!isResizing || !resizeType) return;
 
-    const handleMouseMove = e => {
+    const handleMove = e => {
       if (!resizeStartRef.current) return;
 
       if (rafRef.current) {
@@ -60,7 +71,8 @@ export function useResizeHandlers({
 
       rafRef.current = requestAnimationFrame(() => {
         if (!resizeStartRef.current) return;
-        const deltaX = e.clientX - resizeStartRef.current.startX;
+        const clientX = getClientX(e);
+        const deltaX = clientX - resizeStartRef.current.startX;
 
         if (resizeType === "backlog") {
           const newWidth = Math.max(300, Math.min(800, resizeStartRef.current.startWidth + deltaX));
@@ -72,7 +84,7 @@ export function useResizeHandlers({
       });
     };
 
-    const handleMouseUp = () => {
+    const handleEnd = () => {
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
       }
@@ -83,12 +95,19 @@ export function useResizeHandlers({
       rafRef.current = null;
     };
 
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
+    // Add both mouse and touch event listeners
+    document.addEventListener("mousemove", handleMove);
+    document.addEventListener("mouseup", handleEnd);
+    document.addEventListener("touchmove", handleMove, { passive: false });
+    document.addEventListener("touchend", handleEnd);
+    document.addEventListener("touchcancel", handleEnd);
 
     return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("mousemove", handleMove);
+      document.removeEventListener("mouseup", handleEnd);
+      document.removeEventListener("touchmove", handleMove);
+      document.removeEventListener("touchend", handleEnd);
+      document.removeEventListener("touchcancel", handleEnd);
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
       }

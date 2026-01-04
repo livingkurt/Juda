@@ -1815,7 +1815,7 @@ export default function DailyTasksApp() {
                                 right={0}
                                 top={0}
                                 bottom={0}
-                                w="4px"
+                                w={{ md: "12px", lg: "4px" }}
                                 cursor="col-resize"
                                 bg={
                                   resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
@@ -1825,8 +1825,9 @@ export default function DailyTasksApp() {
                                 _hover={{ bg: "blue.300" }}
                                 transition="background-color 0.2s"
                                 onMouseDown={resizeHandlers.handleBacklogResizeStart}
+                                onTouchStart={resizeHandlers.handleBacklogResizeStart}
                                 zIndex={10}
-                                sx={{ userSelect: "none" }}
+                                sx={{ userSelect: "none", touchAction: "none" }}
                                 display={{ base: "none", md: "block" }}
                               />
                             </>
@@ -1961,7 +1962,7 @@ export default function DailyTasksApp() {
                                   right={0}
                                   top={0}
                                   bottom={0}
-                                  w="4px"
+                                  w={{ md: "12px", lg: "4px" }}
                                   cursor="col-resize"
                                   bg={
                                     resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
@@ -1971,8 +1972,9 @@ export default function DailyTasksApp() {
                                   _hover={{ bg: "blue.300" }}
                                   transition="background-color 0.2s"
                                   onMouseDown={resizeHandlers.handleTodayResizeStart}
+                                  onTouchStart={resizeHandlers.handleTodayResizeStart}
                                   zIndex={10}
-                                  sx={{ userSelect: "none" }}
+                                  sx={{ userSelect: "none", touchAction: "none" }}
                                   display={{ base: "none", md: "block" }}
                                 />
                               )}
