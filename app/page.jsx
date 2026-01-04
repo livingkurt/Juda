@@ -809,17 +809,18 @@ export default function DailyTasksApp() {
   const backlogTasks = taskFilters.backlogTasks;
   const noteTasks = taskFilters.noteTasks;
 
-  // Filter journal tasks (completionType: "text" + "Journal" tag)
+  // Filter journal tasks (completionType: "text" + any journal-related tag)
   const journalTasks = useMemo(() => {
-    const journalTag = tags.find(t => t.name.toLowerCase() === "journal");
-    if (!journalTag) return [];
+    const journalTagNames = ["daily journal", "yearly reflection", "monthly reflection", "weekly reflection"];
 
-    return tasks.filter(
-      task =>
-        task.completionType === "text" &&
-        task.tags?.some(tag => tag.id === journalTag.id || tag.name?.toLowerCase() === "journal")
-    );
-  }, [tasks, tags]);
+    return tasks.filter(task => {
+      if (task.completionType !== "text") return false;
+      return task.tags?.some(tag => {
+        const tagName = (tag.name || "").toLowerCase();
+        return journalTagNames.includes(tagName);
+      });
+    });
+  }, [tasks]);
 
   // Memoized section lookup map for O(1) access instead of O(n) find
   const sectionsById = useMemo(() => {

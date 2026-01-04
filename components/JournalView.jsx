@@ -11,9 +11,12 @@ import { setJournalView, setJournalSelectedDate } from "@/lib/store/slices/uiSli
 import { shouldShowOnDate } from "@/lib/utils";
 import { useMobileDetection } from "@/hooks/useMobileDetection";
 
+// Define journal-related tag names (case-insensitive matching)
+const JOURNAL_TAG_NAMES = ["daily journal", "yearly reflection", "monthly reflection", "weekly reflection"];
+
 export const JournalView = ({
   tasks,
-  tags,
+  tags: _tags,
   getCompletionForDate,
   createCompletion,
   updateCompletion,
@@ -41,17 +44,37 @@ export const JournalView = ({
     return date;
   }, [journalSelectedDateISO]);
 
-  // Filter journal tasks (completionType: "text" + "Journal" tag)
-  const journalTasks = useMemo(() => {
-    const journalTag = tags.find(t => t.name.toLowerCase() === "daily journal");
-    if (!journalTag) return [];
+  // Helper to get the journal type for a task (for ordering and styling)
+  const getJournalType = task => {
+    const tagNames = (task.tags || []).map(t => (t.name || "").toLowerCase());
 
-    return tasks.filter(
-      task =>
-        task.completionType === "text" &&
-        task.tags?.some(tag => tag.id === journalTag.id || tag.name?.toLowerCase() === "daily journal")
-    );
-  }, [tasks, tags]);
+    if (tagNames.includes("yearly reflection")) return "yearly";
+    if (tagNames.includes("monthly reflection")) return "monthly";
+    if (tagNames.includes("weekly reflection")) return "weekly";
+    if (tagNames.includes("daily journal")) return "daily";
+    return "daily"; // fallback
+  };
+
+  // Sort order priority (for display within each year)
+  const JOURNAL_TYPE_ORDER = {
+    yearly: 0,
+    monthly: 1,
+    weekly: 2,
+    daily: 3,
+  };
+
+  // Filter journal tasks (completionType: "text" + any journal-related tag)
+  const journalTasks = useMemo(() => {
+    return tasks.filter(task => {
+      if (task.completionType !== "text") return false;
+
+      // Check if task has any journal-related tag
+      return task.tags?.some(tag => {
+        const tagName = (tag.name || "").toLowerCase();
+        return JOURNAL_TAG_NAMES.includes(tagName);
+      });
+    });
+  }, [tasks]);
 
   // Get entries for the selected date across all years (5-year journal)
   const currentYear = useMemo(() => {
@@ -127,7 +150,8 @@ export const JournalView = ({
             <Box as={BookOpen} size={48} color={mutedText} />
             <Text color={mutedText}>No journal tasks found</Text>
             <Text fontSize="sm" color={mutedText}>
-              Create a task with completion type &quot;text&quot; and add the &quot;Journal&quot; tag to get started.
+              Create a task with completion type &quot;text&quot; and add one of these tags: &quot;Daily Journal&quot;,
+              &quot;Weekly Reflection&quot;, &quot;Monthly Reflection&quot;, or &quot;Yearly Reflection&quot;
             </Text>
           </VStack>
         </Box>
@@ -148,9 +172,15 @@ export const JournalView = ({
               </Heading>
               {journalTasks
                 .filter(task => shouldShowOnDate(task, yearDate))
+                .sort((a, b) => {
+                  const typeA = getJournalType(a);
+                  const typeB = getJournalType(b);
+                  return JOURNAL_TYPE_ORDER[typeA] - JOURNAL_TYPE_ORDER[typeB];
+                })
                 .map(task => {
                   const completion = getCompletionForDate(task.id, yearDate);
                   const isCurrentYear = year === currentYear;
+                  const journalType = getJournalType(task);
 
                   return (
                     <JournalDayEntry
@@ -160,6 +190,7 @@ export const JournalView = ({
                       year={year}
                       completion={completion}
                       isCurrentYear={isCurrentYear}
+                      journalType={journalType}
                       onSave={handleSave}
                       onDelete={handleDelete}
                     />
