@@ -125,6 +125,20 @@ export const TagMenuSelector = ({ task }) => {
                   autoFocus
                   onClick={e => e.stopPropagation()}
                   onMouseDown={e => e.stopPropagation()}
+                  bg="transparent"
+                  _hover={{
+                    bg: "transparent",
+                  }}
+                  _focus={{
+                    outline: "none",
+                    bg: "transparent",
+                    boxShadow: "none",
+                  }}
+                  _focusVisible={{
+                    outline: "none",
+                    bg: "transparent",
+                    boxShadow: "none",
+                  }}
                 />
               </HStack>
             </Box>
