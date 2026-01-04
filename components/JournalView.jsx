@@ -43,13 +43,13 @@ export const JournalView = ({
 
   // Filter journal tasks (completionType: "text" + "Journal" tag)
   const journalTasks = useMemo(() => {
-    const journalTag = tags.find(t => t.name.toLowerCase() === "journal");
+    const journalTag = tags.find(t => t.name.toLowerCase() === "daily journal");
     if (!journalTag) return [];
 
     return tasks.filter(
       task =>
         task.completionType === "text" &&
-        task.tags?.some(tag => tag.id === journalTag.id || tag.name?.toLowerCase() === "journal")
+        task.tags?.some(tag => tag.id === journalTag.id || tag.name?.toLowerCase() === "daily journal")
     );
   }, [tasks, tags]);
 
