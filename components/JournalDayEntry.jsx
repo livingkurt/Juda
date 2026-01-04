@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Box, Text, Textarea, VStack, HStack, IconButton, Collapsible } from "@chakra-ui/react";
 import { Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
@@ -22,21 +22,6 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
   const [expanded, setExpanded] = useState(isDailyJournal && hasEntry);
   const textareaRef = useRef(null);
 
-  // Auto-expand textarea on mount and when content changes - show all text
-  useEffect(() => {
-    if (textareaRef.current && showTextarea) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [noteInput, showTextarea]);
-
-  // Auto-expand textarea - show all text
-  const handleInput = e => {
-    const textarea = e.target;
-    textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
-  };
-
   const handleBlur = () => {
     if (isCurrentYear && noteInput.trim() && noteInput.trim() !== (completion?.note || "")) {
       onSave(task.id, date, noteInput.trim());
@@ -51,7 +36,7 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
     setExpanded(true);
     setTimeout(() => {
       textareaRef.current?.focus();
-    }, 0);
+    }, 10);
   };
 
   const handleToggleExpand = () => {
@@ -85,7 +70,7 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
     >
       <VStack align="stretch" spacing={{ base: 2, md: 3 }}>
         {/* Header with title and expand/collapse button */}
-        <HStack spacing={2} cursor="pointer" onClick={handleToggleExpand} _hover={{ opacity: 0.8 }} align="center">
+        <HStack spacing={2} align="center">
           {isCurrentYear && !hasEntry ? (
             <IconButton
               onClick={e => {
@@ -134,6 +119,9 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
             fontWeight="medium"
             color={isCurrentYear ? textColor : dimmedText}
             flex={1}
+            cursor="pointer"
+            onClick={handleToggleExpand}
+            _hover={{ opacity: 0.8 }}
           >
             {task.title}
           </Text>
@@ -149,17 +137,18 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
                     ref={textareaRef}
                     value={noteInput}
                     onChange={e => setNoteInput(e.target.value)}
-                    onInput={handleInput}
                     onBlur={handleBlur}
                     placeholder="Enter your journal entry..."
                     size="sm"
                     lineHeight={{ base: "1.6", md: "1.4" }}
                     variant="filled"
                     resize="none"
-                    overflow="visible"
-                    rows={1}
+                    minH="80px"
                     bg={mode.bg.muted}
                     color={textColor}
+                    css={{
+                      fieldSizing: "content",
+                    }}
                     _focus={{
                       bg: mode.bg.surface,
                       borderColor: mode.border.focus,

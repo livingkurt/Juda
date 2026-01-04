@@ -184,7 +184,7 @@ export const JournalView = ({
 
                   return (
                     <JournalDayEntry
-                      key={`${task.id}-${year}-${completion?.note || "empty"}`}
+                      key={`${task.id}-${year}`}
                       task={task}
                       date={yearDate}
                       year={year}
