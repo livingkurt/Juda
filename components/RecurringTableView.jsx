@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useDeferredValue, useEffect } from "react";
 import {
   Box,
   Table,
@@ -26,6 +26,7 @@ import { CellEditorPopover } from "./CellEditorPopover";
 import WorkoutModal from "./WorkoutModal";
 import { TagMenuSelector } from "./TagMenuSelector";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { LoadingSpinner } from "./Skeletons";
 
 // Flatten tasks including subtasks
 const flattenTasks = tasks => {
@@ -711,6 +712,24 @@ export const RecurringTableView = ({
   const [customStartDate, setCustomStartDate] = useState(null);
   const [customEndDate, setCustomEndDate] = useState(null);
   const [useCustomRange, setUseCustomRange] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Defer heavy data processing to prevent blocking the UI
+  const deferredTasks = useDeferredValue(tasks);
+  const deferredSections = useDeferredValue(sections);
+  const deferredCompletions = useDeferredValue(completions);
+
+  // Mark initial load as complete after skeleton has time to render
+  useEffect(() => {
+    // Use double requestAnimationFrame to ensure skeleton paints before we start heavy work
+    const frame1 = requestAnimationFrame(() => {
+      const frame2 = requestAnimationFrame(() => {
+        setIsInitialLoad(false);
+      });
+      return () => cancelAnimationFrame(frame2);
+    });
+    return () => cancelAnimationFrame(frame1);
+  }, []);
 
   const rangeCollection = useMemo(
     () =>
@@ -726,11 +745,14 @@ export const RecurringTableView = ({
     []
   );
 
-  // Get recurring tasks
-  const recurringTasks = useMemo(() => getRecurringTasks(tasks), [tasks]);
+  // Get recurring tasks - use deferred values to prevent blocking
+  const recurringTasks = useMemo(() => getRecurringTasks(deferredTasks), [deferredTasks]);
 
-  // Group tasks by section
-  const groupedTasks = useMemo(() => groupTasksBySection(recurringTasks, sections), [recurringTasks, sections]);
+  // Group tasks by section - use deferred values
+  const groupedTasks = useMemo(
+    () => groupTasksBySection(recurringTasks, deferredSections),
+    [recurringTasks, deferredSections]
+  );
 
   // Generate dates for current range and page
   const dates = useMemo(() => {
@@ -760,7 +782,7 @@ export const RecurringTableView = ({
 
     // If this is an off-schedule completion with a time, add the date to additionalDates
     if (!data.isScheduled && data.time) {
-      const task = tasks.find(t => t.id === taskId);
+      const task = deferredTasks.find(t => t.id === taskId);
       if (task) {
         // Normalize date to UTC to avoid timezone issues
         const d = new Date(date);
@@ -801,7 +823,7 @@ export const RecurringTableView = ({
   // Handle cell delete
   const handleCellDelete = async (taskId, date) => {
     // Check if this was an off-schedule completion
-    const task = tasks.find(t => t.id === taskId);
+    const task = deferredTasks.find(t => t.id === taskId);
     if (task && task.recurrence?.additionalDates) {
       // Normalize date to UTC to avoid timezone issues
       const d = new Date(date);
@@ -841,7 +863,7 @@ export const RecurringTableView = ({
   const handleSaveWorkoutProgress = async (taskId, date, workoutCompletion) => {
     try {
       // Find the task to update its workoutData
-      const task = tasks.find(t => t.id === taskId);
+      const task = deferredTasks.find(t => t.id === taskId);
       if (!task) return;
 
       const updatedWorkoutData = {
@@ -866,6 +888,18 @@ export const RecurringTableView = ({
   const headerBg = mode.bg.muted;
   const sectionHeaderBg = calendar.todayBg;
   const todayRowBg = calendar.todayBg;
+
+  // Show loading spinner on initial load only - deferred values will update automatically
+  const isPending = isInitialLoad;
+
+  // Show loading spinner while data is loading
+  if (isPending) {
+    return (
+      <Box h="100%" display="flex" alignItems="center" justifyContent="center" overflow="hidden">
+        <LoadingSpinner size="xl" />
+      </Box>
+    );
+  }
 
   if (recurringTasks.length === 0) {
     return (
@@ -1195,7 +1229,7 @@ export const RecurringTableView = ({
                   {groupedTasks.map(({ section: _section, tasks: sectionTasks }) =>
                     sectionTasks.map(task => {
                       const isScheduled = shouldShowOnDate(task, date);
-                      const completion = getCompletionForTaskDate(completions, task.id, date);
+                      const completion = getCompletionForTaskDate(deferredCompletions, task.id, date);
                       return (
                         <Table.Cell
                           key={task.id}

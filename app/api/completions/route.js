@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { taskCompletions, tasks } from "@/lib/schema";
-import { eq, and, gte, lte, desc, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, desc, inArray, sql } from "drizzle-orm";
 import {
   withApi,
   Errors,
@@ -19,6 +19,9 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
   const taskId = searchParams.get("taskId");
   const startDate = searchParams.get("startDate");
   const endDate = searchParams.get("endDate");
+  const page = parseInt(searchParams.get("page") || "1");
+  const limit = parseInt(searchParams.get("limit") || "1000"); // Default to 1000, can be increased if needed
+  const offset = (page - 1) * limit;
 
   const userTasks = await db.query.tasks.findMany({
     where: eq(tasks.userId, userId),
@@ -27,7 +30,16 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
   const userTaskIds = userTasks.map(t => t.id);
 
   if (userTaskIds.length === 0) {
-    return NextResponse.json([]);
+    return NextResponse.json({
+      completions: [],
+      pagination: {
+        page: 1,
+        limit,
+        totalCount: 0,
+        totalPages: 0,
+        hasMore: false,
+      },
+    });
   }
 
   const conditions = [];
@@ -39,12 +51,30 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
   if (startDate) conditions.push(gte(taskCompletions.date, new Date(startDate)));
   if (endDate) conditions.push(lte(taskCompletions.date, new Date(endDate)));
 
+  // Get total count for pagination
+  const [{ count: totalCount }] = await db
+    .select({ count: sql`count(*)` })
+    .from(taskCompletions)
+    .where(and(...conditions));
+
+  // Get paginated results
   const completions = await db.query.taskCompletions.findMany({
     where: and(...conditions),
     orderBy: [desc(taskCompletions.date)],
+    limit,
+    offset,
   });
 
-  return NextResponse.json(completions);
+  return NextResponse.json({
+    completions,
+    pagination: {
+      page,
+      limit,
+      totalCount: Number(totalCount),
+      totalPages: Math.ceil(Number(totalCount) / limit),
+      hasMore: offset + completions.length < Number(totalCount),
+    },
+  });
 });
 
 export const POST = withApi(async (request, { userId, getBody }) => {

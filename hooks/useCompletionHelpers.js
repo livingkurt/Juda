@@ -23,12 +23,20 @@ const createLookupKey = (taskId, date) => {
 export function useCompletionHelpers() {
   const { isAuthenticated } = useAuth();
   const {
-    data: completions = [],
+    data: completionsData,
     isLoading,
     error,
   } = useGetCompletionsQuery(undefined, {
     skip: !isAuthenticated,
   });
+
+  // Extract completions array from paginated response
+  const completions = useMemo(() => {
+    if (!completionsData) return [];
+    // Handle both old format (array) and new format (object with completions array)
+    if (Array.isArray(completionsData)) return completionsData;
+    return completionsData.completions || [];
+  }, [completionsData]);
 
   // Memoized lookup maps for O(1) access instead of O(n) array searches
   const completionsByTaskAndDate = useMemo(() => {

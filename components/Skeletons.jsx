@@ -71,20 +71,49 @@ export const CalendarSkeleton = () => {
 
 // Full page loading (replaces PageSkeleton)
 export const PageSkeleton = () => {
-  // Use stable colors that don't depend on client-side state to avoid hydration mismatch
-  // These will be the same on server and client
-  const bgColor = { _light: "gray.50", _dark: "gray.900" };
-  const textColor = { _light: "gray.600", _dark: "gray.400" };
-
   return (
-    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg={bgColor} suppressHydrationWarning>
+    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden">
       {/* Main content */}
       <Flex as="main" flex={1} align="center" justify="center" direction="column" gap={4}>
         <LoadingSpinner size="xl" />
-        <Box color={textColor} fontSize="sm" fontWeight="medium" suppressHydrationWarning>
-          Loading...
+        <Box fontSize="sm" fontWeight="medium">
+          Loading...``
         </Box>
       </Flex>
+    </Box>
+  );
+};
+
+// Table skeleton for History tab
+export const TableSkeleton = () => {
+  const { mode } = useSemanticColors();
+  const bgColor = mode.bg.surface;
+  const skeletonColor = mode.bg.muted;
+  const borderColor = mode.border.default;
+  const headerBg = mode.bg.muted;
+
+  return (
+    <Box>
+      <Box overflow="hidden" borderRadius="md" borderWidth="1px" borderColor={borderColor}>
+        {/* Table header */}
+        <Flex bg={headerBg} p={3} gap={4} borderBottomWidth="1px" borderColor={borderColor}>
+          <Box h="20px" flex={1} bg={skeletonColor} borderRadius="sm" opacity={0.6} />
+          <Box h="20px" flex={1} bg={skeletonColor} borderRadius="sm" opacity={0.6} />
+          <Box h="20px" flex={1} bg={skeletonColor} borderRadius="sm" opacity={0.6} />
+          <Box h="20px" flex={1} bg={skeletonColor} borderRadius="sm" opacity={0.6} />
+          <Box h="20px" w="120px" bg={skeletonColor} borderRadius="sm" opacity={0.6} />
+        </Flex>
+        {/* Table rows */}
+        {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+          <Flex key={i} p={3} gap={4} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor}>
+            <Box h="18px" flex={1} bg={skeletonColor} borderRadius="sm" opacity={0.4} />
+            <Box h="18px" flex={1} bg={skeletonColor} borderRadius="sm" opacity={0.4} />
+            <Box h="18px" flex={0.7} bg={skeletonColor} borderRadius="sm" opacity={0.4} />
+            <Box h="18px" flex={0.5} bg={skeletonColor} borderRadius="sm" opacity={0.4} />
+            <Box h="18px" w="100px" bg={skeletonColor} borderRadius="sm" opacity={0.4} />
+          </Flex>
+        ))}
+      </Box>
     </Box>
   );
 };
