@@ -74,11 +74,15 @@ export const TagSelector = ({
   if (inline) {
     return (
       <>
-        <Button size="small" variant="text" onClick={handleMenuOpen}>
-          <Label fontSize="small" />
+        <Button size="small" variant="text" onClick={handleMenuOpen} startIcon={<Label fontSize="small" />}>
           Add
         </Button>
-        <Menu anchorEl={anchorEl} open={isOpen} onClose={handleMenuClose}>
+        <Menu
+          anchorEl={anchorEl}
+          open={isOpen}
+          onClose={handleMenuClose}
+          PaperProps={{ sx: { minWidth: "250px", maxHeight: "350px", overflowY: "auto" } }}
+        >
           <Box sx={{ p: 2, minWidth: "250px", maxHeight: "350px", overflowY: "auto" }}>
             {/* Create new tag section */}
             <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 2, display: "block" }}>

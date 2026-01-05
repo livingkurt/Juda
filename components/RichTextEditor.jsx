@@ -180,6 +180,7 @@ export const RichTextEditor = ({
         sx={{
           flex: 1,
           overflow: "auto",
+          p: 1,
           "& .ProseMirror": {
             outline: "none",
             minHeight: "100%",

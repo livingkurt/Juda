@@ -12,7 +12,6 @@ import {
   Stack,
   Typography,
   Box,
-  Grid,
   FormControl,
   InputLabel,
   Select,
@@ -28,6 +27,7 @@ import {
   Chip,
   InputAdornment,
 } from "@mui/material";
+import GLGrid from "./GLGrid";
 import { Close, Add, Delete, DragIndicator, Search } from "@mui/icons-material";
 import { DatePicker, TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
@@ -320,366 +320,131 @@ function TaskDialogForm({
           </DialogTitle>
 
           <DialogContent dividers sx={{ p: 2, overflowY: "auto" }}>
-            <Stack spacing={2.5}>
+            <GLGrid container spacing={2}>
               {/* Task Name */}
-              <TextField
-                fullWidth
-                size="small"
-                label="Task Name"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                autoFocus
-                onKeyDown={e => {
-                  if (e.key === "Enter" && title.trim()) {
-                    e.preventDefault();
-                    handleSave();
-                  }
-                }}
-              />
+              <GLGrid item xs={12}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Task Name"
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && title.trim()) {
+                      e.preventDefault();
+                      handleSave();
+                    }
+                  }}
+                />
+              </GLGrid>
+
+              {/* Tags */}
+              <GLGrid item xs={12}>
+                <Box>
+                  <Typography variant="body2" fontWeight={500} gutterBottom>
+                    Tags
+                  </Typography>
+                  <Box
+                    sx={{
+                      border: 1,
+                      borderColor: "#575c64",
+                      borderRadius: 1,
+                      p: 1.5,
+                      minHeight: 48,
+                    }}
+                  >
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+                      {/* Tags */}
+                      {Array.isArray(tags) &&
+                        tags
+                          .filter(t => selectedTagIds.includes(t.id))
+                          .map(tag => <TagChip key={tag.id} tag={tag} size="sm" />)}
+                      {/* Add Tag button */}
+                      <TagSelector
+                        tags={tags}
+                        selectedTagIds={selectedTagIds}
+                        onTagsChange={setSelectedTagIds}
+                        onCreateTag={onCreateTag}
+                        onDeleteTag={onDeleteTag}
+                        inline
+                      />
+                    </Stack>
+                  </Box>
+                </Box>
+              </GLGrid>
 
               {/* Section */}
-              <FormControl fullWidth size="small">
-                <InputLabel>Section</InputLabel>
-                <Select value={sectionId} onChange={e => setSectionId(e.target.value)} label="Section">
-                  {sections.map(section => (
-                    <MenuItem key={section.id} value={section.id}>
-                      {section.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              {/* Date & Time Grid */}
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <DatePicker
-                    label="Date"
-                    value={dateValue}
-                    onChange={newDate => {
-                      const dateStr = newDate ? newDate.format("YYYY-MM-DD") : "";
-                      setDate(dateStr);
-                    }}
-                    slotProps={{
-                      textField: { size: "small", fullWidth: true },
-                    }}
-                  />
-                  {date && (
-                    <Button size="small" variant="text" sx={{ mt: 0.5 }} onClick={() => setDate("")}>
-                      Clear date
-                    </Button>
-                  )}
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TimePicker
-                    label="Time"
-                    value={timeValue}
-                    onChange={newTime => {
-                      const timeStr = newTime ? newTime.format("HH:mm") : "";
-                      setTime(timeStr);
-                    }}
-                    slotProps={{
-                      textField: { size: "small", fullWidth: true },
-                    }}
-                  />
-                  {time && (
-                    <Button size="small" variant="text" sx={{ mt: 0.5 }} onClick={() => setTime("")}>
-                      Clear time
-                    </Button>
-                  )}
-                </Grid>
-              </Grid>
-
-              {/* Duration */}
-              <FormControl fullWidth size="small">
-                <InputLabel>Duration</InputLabel>
-                <Select
-                  value={duration.toString()}
-                  onChange={e => setDuration(parseInt(e.target.value))}
-                  label="Duration"
-                >
-                  {DURATION_OPTIONS.map(d => (
-                    <MenuItem key={d.value} value={d.value.toString()}>
-                      {d.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              {/* Completion Type */}
-              <FormControl fullWidth size="small">
-                <InputLabel>Completion Type</InputLabel>
-                <Select
-                  value={completionType}
-                  onChange={e => setCompletionType(e.target.value)}
-                  label="Completion Type"
-                >
-                  {COMPLETION_TYPES.map(ct => (
-                    <MenuItem key={ct.value} value={ct.value}>
-                      {ct.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              {completionType === "note" && (
-                <Typography variant="caption" color="text.secondary">
-                  Notes appear in the Notes tab, not in Backlog/Today/Calendar
-                </Typography>
-              )}
-              {completionType === "workout" && (
-                <Box>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<FitnessCenter fontSize="small" />}
-                    onClick={() => setWorkoutBuilderOpen(true)}
-                    sx={{ mb: 1 }}
-                  >
-                    {hasWorkoutProgram ? "Edit Workout Structure" : "Configure Workout"}
-                  </Button>
-                  {hasWorkoutProgram && (
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      {title || "Workout"} - {workoutProgramWeeks > 0 ? workoutProgramWeeks : totalWeeks} weeks
-                    </Typography>
-                  )}
-                </Box>
-              )}
-
-              {/* Status field - only show for non-recurring tasks */}
-              {recurrenceType === "none" && (
+              <GLGrid item xs={12}>
                 <FormControl fullWidth size="small">
-                  <InputLabel>Status</InputLabel>
-                  <Select value={status || "todo"} onChange={e => setStatus(e.target.value)} label="Status">
-                    <MenuItem value="todo">Todo</MenuItem>
-                    <MenuItem value="in_progress">In Progress</MenuItem>
-                    <MenuItem value="complete">Complete</MenuItem>
+                  <InputLabel>Section</InputLabel>
+                  <Select value={sectionId} onChange={e => setSectionId(e.target.value)} label="Section">
+                    {sections.map(section => (
+                      <MenuItem key={section.id} value={section.id}>
+                        {section.name}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
-              )}
+              </GLGrid>
 
-              {/* Note Content Editor */}
-              <Box>
-                <Typography variant="body2" fontWeight={500} gutterBottom>
-                  Note Content
-                </Typography>
-                <Box
-                  sx={{
-                    border: 1,
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    overflow: "hidden",
-                    height: "400px",
+              {/* Date & Time */}
+              <GLGrid item xs={12} sm={6}>
+                <DatePicker
+                  label="Date"
+                  value={dateValue}
+                  onChange={newDate => {
+                    const dateStr = newDate ? newDate.format("YYYY-MM-DD") : "";
+                    setDate(dateStr);
                   }}
-                >
-                  <RichTextEditor
-                    content={content}
-                    onChange={setContent}
-                    placeholder="Start writing your note..."
-                    showToolbar={true}
-                  />
-                </Box>
-              </Box>
+                  slotProps={{
+                    textField: { size: "small", fullWidth: true },
+                  }}
+                />
+                {date && (
+                  <Button size="small" variant="text" sx={{ mt: 0.5 }} onClick={() => setDate("")}>
+                    Clear date
+                  </Button>
+                )}
+              </GLGrid>
+              <GLGrid item xs={12} sm={6}>
+                <TimePicker
+                  label="Time"
+                  value={timeValue}
+                  onChange={newTime => {
+                    const timeStr = newTime ? newTime.format("HH:mm") : "";
+                    setTime(timeStr);
+                  }}
+                  slotProps={{
+                    textField: { size: "small", fullWidth: true },
+                  }}
+                />
+                {time && (
+                  <Button size="small" variant="text" sx={{ mt: 0.5 }} onClick={() => setTime("")}>
+                    Clear time
+                  </Button>
+                )}
+              </GLGrid>
 
-              {/* Recurrence */}
-              <FormControl fullWidth size="small">
-                <InputLabel>Recurrence</InputLabel>
-                <Select value={recurrenceType} onChange={e => setRecurrenceType(e.target.value)} label="Recurrence">
-                  <MenuItem value="none">None (One-time task)</MenuItem>
-                  <MenuItem value="daily">Every day</MenuItem>
-                  <MenuItem value="weekly">Specific days</MenuItem>
-                  <MenuItem value="monthly">Monthly</MenuItem>
-                  <MenuItem value="yearly">Yearly</MenuItem>
-                </Select>
-              </FormControl>
-
-              {/* Weekly recurrence */}
-              {recurrenceType === "weekly" && (
-                <WeekdaySelector selectedDays={selectedDays} onChange={setSelectedDays} size="sm" />
-              )}
-
-              {/* Monthly recurrence */}
-              {recurrenceType === "monthly" && (
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                  <Stack spacing={2}>
-                    <FormControl size="small" fullWidth>
-                      <InputLabel>Pattern Type</InputLabel>
-                      <Select value={monthlyMode} onChange={e => setMonthlyMode(e.target.value)} label="Pattern Type">
-                        <MenuItem value="dayOfMonth">On specific day(s) of month</MenuItem>
-                        <MenuItem value="weekPattern">On a specific weekday pattern</MenuItem>
-                      </Select>
-                    </FormControl>
-
-                    {monthlyMode === "dayOfMonth" && (
-                      <Box>
-                        <Typography variant="body2" fontWeight={500} gutterBottom>
-                          Select day(s) of month
-                        </Typography>
-                        <Grid container spacing={0.5}>
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                            <Grid item xs={1.7} key={day}>
-                              <Chip
-                                label={day}
-                                onClick={() =>
-                                  setSelectedDayOfMonth(prev =>
-                                    prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
-                                  )
-                                }
-                                color={selectedDayOfMonth.includes(day) ? "primary" : "default"}
-                                variant={selectedDayOfMonth.includes(day) ? "filled" : "outlined"}
-                                size="small"
-                                sx={{ width: "100%" }}
-                              />
-                            </Grid>
-                          ))}
-                        </Grid>
-                      </Box>
-                    )}
-
-                    {monthlyMode === "weekPattern" && (
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <FormControl size="small" sx={{ width: 120 }}>
-                          <InputLabel>Ordinal</InputLabel>
-                          <Select
-                            value={monthlyOrdinal.toString()}
-                            onChange={e => setMonthlyOrdinal(Number(e.target.value))}
-                            label="Ordinal"
-                          >
-                            {ORDINAL_OPTIONS.map(opt => (
-                              <MenuItem key={opt.value} value={opt.value.toString()}>
-                                {opt.label}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        <FormControl size="small" sx={{ flex: 1 }}>
-                          <InputLabel>Day of Week</InputLabel>
-                          <Select
-                            value={monthlyDayOfWeek.toString()}
-                            onChange={e => setMonthlyDayOfWeek(Number(e.target.value))}
-                            label="Day of Week"
-                          >
-                            {DAYS_OF_WEEK.map(day => (
-                              <MenuItem key={day.value} value={day.value.toString()}>
-                                {day.label}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Stack>
-                    )}
-
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Typography variant="body2">Every</Typography>
-                      <TextField
-                        type="number"
-                        size="small"
-                        value={monthlyInterval}
-                        onChange={e => setMonthlyInterval(Math.max(1, parseInt(e.target.value) || 1))}
-                        inputProps={{ min: 1, max: 12 }}
-                        sx={{ width: 70 }}
-                      />
-                      <Typography variant="body2">month(s)</Typography>
-                    </Stack>
-                  </Stack>
-                </Paper>
-              )}
-
-              {/* Yearly recurrence */}
-              {recurrenceType === "yearly" && (
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                  <Stack spacing={2}>
-                    <FormControl size="small" fullWidth>
-                      <InputLabel>Pattern Type</InputLabel>
-                      <Select value={yearlyMode} onChange={e => setYearlyMode(e.target.value)} label="Pattern Type">
-                        <MenuItem value="dayOfMonth">On specific date</MenuItem>
-                        <MenuItem value="weekPattern">On a specific weekday pattern</MenuItem>
-                      </Select>
-                    </FormControl>
-
-                    <Stack direction="row" spacing={1}>
-                      <FormControl size="small" sx={{ flex: 1 }}>
-                        <InputLabel>Month</InputLabel>
-                        <Select
-                          value={yearlyMonth.toString()}
-                          onChange={e => setYearlyMonth(Number(e.target.value))}
-                          label="Month"
-                        >
-                          {MONTH_OPTIONS.map(opt => (
-                            <MenuItem key={opt.value} value={opt.value.toString()}>
-                              {opt.label}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                      {yearlyMode === "dayOfMonth" && (
-                        <FormControl size="small" sx={{ width: 80 }}>
-                          <InputLabel>Day</InputLabel>
-                          <Select
-                            value={yearlyDayOfMonth.toString()}
-                            onChange={e => setYearlyDayOfMonth(Number(e.target.value))}
-                            label="Day"
-                          >
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                              <MenuItem key={day} value={day.toString()}>
-                                {day}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      )}
-                    </Stack>
-
-                    {yearlyMode === "weekPattern" && (
-                      <Stack direction="row" spacing={1}>
-                        <FormControl size="small" sx={{ width: 120 }}>
-                          <InputLabel>Ordinal</InputLabel>
-                          <Select
-                            value={yearlyOrdinal.toString()}
-                            onChange={e => setYearlyOrdinal(Number(e.target.value))}
-                            label="Ordinal"
-                          >
-                            {ORDINAL_OPTIONS.map(opt => (
-                              <MenuItem key={opt.value} value={opt.value.toString()}>
-                                {opt.label}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        <FormControl size="small" sx={{ flex: 1 }}>
-                          <InputLabel>Day of Week</InputLabel>
-                          <Select
-                            value={yearlyDayOfWeek.toString()}
-                            onChange={e => setYearlyDayOfWeek(Number(e.target.value))}
-                            label="Day of Week"
-                          >
-                            {DAYS_OF_WEEK.map(day => (
-                              <MenuItem key={day.value} value={day.value.toString()}>
-                                {day.label}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Stack>
-                    )}
-
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Typography variant="body2">Every</Typography>
-                      <TextField
-                        type="number"
-                        size="small"
-                        value={yearlyInterval}
-                        onChange={e => setYearlyInterval(Math.max(1, parseInt(e.target.value) || 1))}
-                        inputProps={{ min: 1, max: 10 }}
-                        sx={{ width: 70 }}
-                      />
-                      <Typography variant="body2">year(s)</Typography>
-                    </Stack>
-                  </Stack>
-                </Paper>
-              )}
-
-              {/* End Date - only show for recurring tasks */}
+              {/* Duration & End Date */}
+              <GLGrid item xs={12} sm={recurrenceType !== "none" ? 6 : 12}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Duration</InputLabel>
+                  <Select
+                    value={duration.toString()}
+                    onChange={e => setDuration(parseInt(e.target.value))}
+                    label="Duration"
+                  >
+                    {DURATION_OPTIONS.map(d => (
+                      <MenuItem key={d.value} value={d.value.toString()}>
+                        {d.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </GLGrid>
               {recurrenceType !== "none" && (
-                <Box>
+                <GLGrid item xs={12} sm={6}>
                   <DatePicker
                     label="End Date (Optional)"
                     value={endDateValue}
@@ -696,230 +461,497 @@ function TaskDialogForm({
                       Clear end date
                     </Button>
                   )}
-                </Box>
+                </GLGrid>
               )}
 
-              {/* Tags */}
-              <Box>
-                <Typography variant="body2" fontWeight={500} gutterBottom>
-                  Tags
-                </Typography>
-                <Box
-                  sx={{
-                    border: 1,
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    p: 2,
-                    minHeight: 48,
-                  }}
-                >
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    {/* Tags */}
-                    {Array.isArray(tags) &&
-                      tags
-                        .filter(t => selectedTagIds.includes(t.id))
-                        .map(tag => <TagChip key={tag.id} tag={tag} size="sm" />)}
-                    {/* Add Tag button */}
-                    <TagSelector
-                      tags={tags}
-                      selectedTagIds={selectedTagIds}
-                      onTagsChange={setSelectedTagIds}
-                      onCreateTag={onCreateTag}
-                      onDeleteTag={onDeleteTag}
-                      inline
-                    />
-                  </Stack>
-                </Box>
-              </Box>
-
-              {/* Subtasks */}
-              <Box>
-                <Typography variant="body2" fontWeight={500} gutterBottom>
-                  Subtasks ({subtasks.length})
-                </Typography>
-                <Tabs value={subtaskTabIndex} onChange={(e, newValue) => setSubtaskTabIndex(newValue)}>
-                  <Tab label={`Manage (${subtasks.length})`} />
-                  <Tab label="Add Existing" />
-                </Tabs>
-
-                {/* Manage Subtasks Tab */}
-                {subtaskTabIndex === 0 && (
-                  <Box sx={{ mt: 2 }}>
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragStart={handleDragStart}
-                      onDragEnd={handleDragEnd}
-                      onDragCancel={handleDragCancel}
+              {/* Completion Type */}
+              <GLGrid item xs={12}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Completion Type</InputLabel>
+                  <Select
+                    value={completionType}
+                    onChange={e => setCompletionType(e.target.value)}
+                    label="Completion Type"
+                  >
+                    {COMPLETION_TYPES.map(ct => (
+                      <MenuItem key={ct.value} value={ct.value}>
+                        {ct.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </GLGrid>
+              {completionType === "note" && (
+                <GLGrid item xs={12}>
+                  <Typography variant="caption" color="text.secondary">
+                    Notes appear in the Notes tab, not in Backlog/Today/Calendar
+                  </Typography>
+                </GLGrid>
+              )}
+              {completionType === "workout" && (
+                <GLGrid item xs={12}>
+                  <Box>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<FitnessCenter fontSize="small" />}
+                      onClick={() => setWorkoutBuilderOpen(true)}
+                      sx={{ mb: 1 }}
                     >
-                      <SortableContext
-                        items={subtasks.map(st => `subtask-${st.id}`)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        <List dense>
-                          {subtasks.map((st, index) => (
-                            <ListItem key={st.id} divider={index < subtasks.length - 1} sx={{ py: 1 }}>
-                              <DragIndicator sx={{ mr: 1, color: "text.disabled", cursor: "grab" }} />
-                              <ListItemText primary={st.title} secondary={st.time || undefined} />
-                              <ListItemSecondaryAction>
-                                <IconButton
-                                  edge="end"
-                                  size="small"
-                                  onClick={() => {
-                                    setEditingSubtask(st);
-                                    setSubtaskTitle(st.title);
-                                    setSubtaskTime(st.time || "");
-                                    setSubtaskDuration(st.duration || 30);
-                                  }}
-                                  sx={{ mr: 1 }}
-                                >
-                                  <Edit fontSize="small" />
-                                </IconButton>
-                                <IconButton
-                                  edge="end"
-                                  size="small"
-                                  onClick={() => {
-                                    setSubtasks(subtasks.filter(s => s.id !== st.id));
-                                  }}
-                                >
-                                  <Delete fontSize="small" />
-                                </IconButton>
-                              </ListItemSecondaryAction>
-                            </ListItem>
-                          ))}
-                        </List>
-                      </SortableContext>
-                      <DragOverlay>
-                        {activeSubtask ? (
-                          <TaskItem
-                            task={activeSubtask}
-                            variant="subtask"
-                            containerId="task-dialog-subtasks"
-                            draggableId={`subtask-${activeSubtask.id}`}
-                          />
-                        ) : null}
-                      </DragOverlay>
-                    </DndContext>
-                    <Divider sx={{ my: 2 }} />
-                    <Stack direction="row" spacing={1}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        value={newSubtask}
-                        onChange={e => setNewSubtask(e.target.value)}
-                        placeholder="Create new subtask"
-                        onKeyDown={e => {
-                          if (e.key === "Enter" && newSubtask.trim()) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setSubtasks([
-                              ...subtasks,
-                              {
-                                id: Date.now().toString(),
-                                title: newSubtask.trim(),
-                                completed: false,
-                                time: null,
-                                duration: 30,
-                                order: subtasks.length,
-                              },
-                            ]);
-                            setNewSubtask("");
-                          }
-                        }}
-                      />
-                      <IconButton
-                        onClick={() => {
-                          if (newSubtask.trim()) {
-                            setSubtasks([
-                              ...subtasks,
-                              {
-                                id: Date.now().toString(),
-                                title: newSubtask.trim(),
-                                completed: false,
-                                time: null,
-                                duration: 30,
-                                order: subtasks.length,
-                              },
-                            ]);
-                            setNewSubtask("");
-                          }
-                        }}
-                        size="small"
-                        color="primary"
-                      >
-                        <Add />
-                      </IconButton>
-                    </Stack>
+                      {hasWorkoutProgram ? "Edit Workout Structure" : "Configure Workout"}
+                    </Button>
+                    {hasWorkoutProgram && (
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {title || "Workout"} - {workoutProgramWeeks > 0 ? workoutProgramWeeks : totalWeeks} weeks
+                      </Typography>
+                    )}
                   </Box>
-                )}
+                </GLGrid>
+              )}
 
-                {/* Add Existing Task Tab */}
-                {subtaskTabIndex === 1 && (
-                  <Box sx={{ mt: 2 }}>
+              {/* Status field - only show for non-recurring tasks */}
+              {recurrenceType === "none" && (
+                <GLGrid item xs={12}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Status</InputLabel>
+                    <Select value={status || "todo"} onChange={e => setStatus(e.target.value)} label="Status">
+                      <MenuItem value="todo">Todo</MenuItem>
+                      <MenuItem value="in_progress">In Progress</MenuItem>
+                      <MenuItem value="complete">Complete</MenuItem>
+                    </Select>
+                  </FormControl>
+                </GLGrid>
+              )}
+
+              {/* Note Content Editor */}
+              <GLGrid item xs={12}>
+                <Box>
+                  <Typography variant="body2" fontWeight={500} gutterBottom>
+                    Note Content
+                  </Typography>
+                  <Box
+                    sx={{
+                      border: 1,
+                      borderColor: "divider",
+                      borderRadius: 1,
+                      overflow: "hidden",
+                      height: "400px",
+                    }}
+                  >
+                    <RichTextEditor
+                      content={content}
+                      onChange={setContent}
+                      placeholder="Start writing your note..."
+                      showToolbar={false}
+                    />
+                  </Box>
+                </Box>
+              </GLGrid>
+
+              {/* Recurrence */}
+              <GLGrid item xs={12}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Recurrence</InputLabel>
+                  <Select value={recurrenceType} onChange={e => setRecurrenceType(e.target.value)} label="Recurrence">
+                    <MenuItem value="none">None (One-time task)</MenuItem>
+                    <MenuItem value="daily">Every day</MenuItem>
+                    <MenuItem value="weekly">Specific days</MenuItem>
+                    <MenuItem value="monthly">Monthly</MenuItem>
+                    <MenuItem value="yearly">Yearly</MenuItem>
+                  </Select>
+                </FormControl>
+              </GLGrid>
+
+              {/* Weekly recurrence */}
+              {recurrenceType === "weekly" && (
+                <GLGrid item xs={12}>
+                  <WeekdaySelector selectedDays={selectedDays} onChange={setSelectedDays} size="sm" />
+                </GLGrid>
+              )}
+
+              {/* Monthly recurrence */}
+              {recurrenceType === "monthly" && (
+                <GLGrid item xs={12}>
+                  <Paper variant="outlined" sx={{ p: 2 }}>
                     <Stack spacing={2}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        placeholder="Search for tasks to add as subtasks..."
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Search fontSize="small" />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                      {searchQuery.trim() && (
-                        <Box sx={{ maxHeight: 200, overflowY: "auto" }}>
-                          {filteredTasks.length > 0 ? (
-                            <List dense>
-                              {filteredTasks.map(t => (
-                                <ListItem
-                                  key={t.id}
-                                  button
-                                  onClick={() => addExistingTaskAsSubtask(t)}
-                                  sx={{ "&:hover": { opacity: 0.8 } }}
-                                >
-                                  <TaskItem
-                                    task={t}
-                                    variant="subtask"
-                                    containerId="task-dialog-search"
-                                    draggableId={`dialog-search-${t.id}`}
-                                  />
-                                  <ListItemSecondaryAction>
-                                    <IconButton
-                                      edge="end"
-                                      size="small"
-                                      onClick={e => {
-                                        e.stopPropagation();
-                                        addExistingTaskAsSubtask(t);
-                                      }}
-                                    >
-                                      <Add />
-                                    </IconButton>
-                                  </ListItemSecondaryAction>
-                                </ListItem>
-                              ))}
-                            </List>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
-                              No tasks found
-                            </Typography>
-                          )}
+                      <FormControl size="small" fullWidth>
+                        <InputLabel>Pattern Type</InputLabel>
+                        <Select value={monthlyMode} onChange={e => setMonthlyMode(e.target.value)} label="Pattern Type">
+                          <MenuItem value="dayOfMonth">On specific day(s) of month</MenuItem>
+                          <MenuItem value="weekPattern">On a specific weekday pattern</MenuItem>
+                        </Select>
+                      </FormControl>
+
+                      {monthlyMode === "dayOfMonth" && (
+                        <Box>
+                          <Typography variant="body2" fontWeight={500} gutterBottom>
+                            Select day(s) of month
+                          </Typography>
+                          <GLGrid container spacing={0.5}>
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                              <GLGrid item xs={1.7} key={day}>
+                                <Chip
+                                  label={day}
+                                  onClick={() =>
+                                    setSelectedDayOfMonth(prev =>
+                                      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+                                    )
+                                  }
+                                  color={selectedDayOfMonth.includes(day) ? "primary" : "default"}
+                                  variant={selectedDayOfMonth.includes(day) ? "filled" : "outlined"}
+                                  size="small"
+                                  sx={{ width: "100%" }}
+                                />
+                              </GLGrid>
+                            ))}
+                          </GLGrid>
                         </Box>
                       )}
-                      {!searchQuery.trim() && (
-                        <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
-                          Type to search for existing tasks
-                        </Typography>
+
+                      {monthlyMode === "weekPattern" && (
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <FormControl size="small" sx={{ width: 120 }}>
+                            <InputLabel>Ordinal</InputLabel>
+                            <Select
+                              value={monthlyOrdinal.toString()}
+                              onChange={e => setMonthlyOrdinal(Number(e.target.value))}
+                              label="Ordinal"
+                            >
+                              {ORDINAL_OPTIONS.map(opt => (
+                                <MenuItem key={opt.value} value={opt.value.toString()}>
+                                  {opt.label}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          <FormControl size="small" sx={{ flex: 1 }}>
+                            <InputLabel>Day of Week</InputLabel>
+                            <Select
+                              value={monthlyDayOfWeek.toString()}
+                              onChange={e => setMonthlyDayOfWeek(Number(e.target.value))}
+                              label="Day of Week"
+                            >
+                              {DAYS_OF_WEEK.map(day => (
+                                <MenuItem key={day.value} value={day.value.toString()}>
+                                  {day.label}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Stack>
                       )}
+
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="body2">Every</Typography>
+                        <TextField
+                          type="number"
+                          size="small"
+                          value={monthlyInterval}
+                          onChange={e => setMonthlyInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                          inputProps={{ min: 1, max: 12 }}
+                          sx={{ width: 70 }}
+                        />
+                        <Typography variant="body2">month(s)</Typography>
+                      </Stack>
                     </Stack>
-                  </Box>
-                )}
-              </Box>
-            </Stack>
+                  </Paper>
+                </GLGrid>
+              )}
+
+              {/* Yearly recurrence */}
+              {recurrenceType === "yearly" && (
+                <GLGrid item xs={12}>
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    <Stack spacing={2}>
+                      <FormControl size="small" fullWidth>
+                        <InputLabel>Pattern Type</InputLabel>
+                        <Select value={yearlyMode} onChange={e => setYearlyMode(e.target.value)} label="Pattern Type">
+                          <MenuItem value="dayOfMonth">On specific date</MenuItem>
+                          <MenuItem value="weekPattern">On a specific weekday pattern</MenuItem>
+                        </Select>
+                      </FormControl>
+
+                      <Stack direction="row" spacing={1}>
+                        <FormControl size="small" sx={{ flex: 1 }}>
+                          <InputLabel>Month</InputLabel>
+                          <Select
+                            value={yearlyMonth.toString()}
+                            onChange={e => setYearlyMonth(Number(e.target.value))}
+                            label="Month"
+                          >
+                            {MONTH_OPTIONS.map(opt => (
+                              <MenuItem key={opt.value} value={opt.value.toString()}>
+                                {opt.label}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        {yearlyMode === "dayOfMonth" && (
+                          <FormControl size="small" sx={{ width: 80 }}>
+                            <InputLabel>Day</InputLabel>
+                            <Select
+                              value={yearlyDayOfMonth.toString()}
+                              onChange={e => setYearlyDayOfMonth(Number(e.target.value))}
+                              label="Day"
+                            >
+                              {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                <MenuItem key={day} value={day.toString()}>
+                                  {day}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        )}
+                      </Stack>
+
+                      {yearlyMode === "weekPattern" && (
+                        <Stack direction="row" spacing={1}>
+                          <FormControl size="small" sx={{ width: 120 }}>
+                            <InputLabel>Ordinal</InputLabel>
+                            <Select
+                              value={yearlyOrdinal.toString()}
+                              onChange={e => setYearlyOrdinal(Number(e.target.value))}
+                              label="Ordinal"
+                            >
+                              {ORDINAL_OPTIONS.map(opt => (
+                                <MenuItem key={opt.value} value={opt.value.toString()}>
+                                  {opt.label}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          <FormControl size="small" sx={{ flex: 1 }}>
+                            <InputLabel>Day of Week</InputLabel>
+                            <Select
+                              value={yearlyDayOfWeek.toString()}
+                              onChange={e => setYearlyDayOfWeek(Number(e.target.value))}
+                              label="Day of Week"
+                            >
+                              {DAYS_OF_WEEK.map(day => (
+                                <MenuItem key={day.value} value={day.value.toString()}>
+                                  {day.label}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Stack>
+                      )}
+
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="body2">Every</Typography>
+                        <TextField
+                          type="number"
+                          size="small"
+                          value={yearlyInterval}
+                          onChange={e => setYearlyInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                          inputProps={{ min: 1, max: 10 }}
+                          sx={{ width: 70 }}
+                        />
+                        <Typography variant="body2">year(s)</Typography>
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                </GLGrid>
+              )}
+
+              {/* Subtasks */}
+              <GLGrid item xs={12}>
+                <Box>
+                  <Typography variant="body2" fontWeight={500} gutterBottom>
+                    Subtasks ({subtasks.length})
+                  </Typography>
+                  <Paper variant="outlined" sx={{ mt: 1 }}>
+                    <Tabs value={subtaskTabIndex} onChange={(e, newValue) => setSubtaskTabIndex(newValue)}>
+                      <Tab label={`Manage (${subtasks.length})`} />
+                      <Tab label="Add Existing" />
+                    </Tabs>
+
+                    {/* Manage Subtasks Tab */}
+                    {subtaskTabIndex === 0 && (
+                      <Box sx={{ p: 2 }}>
+                        {subtasks.length > 0 ? (
+                          <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragStart={handleDragStart}
+                            onDragEnd={handleDragEnd}
+                            onDragCancel={handleDragCancel}
+                          >
+                            <SortableContext
+                              items={subtasks.map(st => `subtask-${st.id}`)}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              <List dense sx={{ mb: 2 }}>
+                                {subtasks.map((st, index) => (
+                                  <ListItem key={st.id} divider={index < subtasks.length - 1} sx={{ py: 1, px: 0 }}>
+                                    <DragIndicator sx={{ mr: 1, color: "text.disabled", cursor: "grab" }} />
+                                    <ListItemText primary={st.title} secondary={st.time || undefined} />
+                                    <ListItemSecondaryAction>
+                                      <IconButton
+                                        edge="end"
+                                        size="small"
+                                        onClick={() => {
+                                          setEditingSubtask(st);
+                                          setSubtaskTitle(st.title);
+                                          setSubtaskTime(st.time || "");
+                                          setSubtaskDuration(st.duration || 30);
+                                        }}
+                                        sx={{ mr: 1 }}
+                                      >
+                                        <Edit fontSize="small" />
+                                      </IconButton>
+                                      <IconButton
+                                        edge="end"
+                                        size="small"
+                                        onClick={() => {
+                                          setSubtasks(subtasks.filter(s => s.id !== st.id));
+                                        }}
+                                      >
+                                        <Delete fontSize="small" />
+                                      </IconButton>
+                                    </ListItemSecondaryAction>
+                                  </ListItem>
+                                ))}
+                              </List>
+                            </SortableContext>
+                            <DragOverlay>
+                              {activeSubtask ? (
+                                <TaskItem
+                                  task={activeSubtask}
+                                  variant="subtask"
+                                  containerId="task-dialog-subtasks"
+                                  draggableId={`subtask-${activeSubtask.id}`}
+                                />
+                              ) : null}
+                            </DragOverlay>
+                          </DndContext>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
+                            No subtasks yet
+                          </Typography>
+                        )}
+                        <Divider sx={{ my: 1.5 }} />
+                        <Stack direction="row" spacing={1}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            value={newSubtask}
+                            onChange={e => setNewSubtask(e.target.value)}
+                            placeholder="Create new subtask"
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && newSubtask.trim()) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSubtasks([
+                                  ...subtasks,
+                                  {
+                                    id: Date.now().toString(),
+                                    title: newSubtask.trim(),
+                                    completed: false,
+                                    time: null,
+                                    duration: 30,
+                                    order: subtasks.length,
+                                  },
+                                ]);
+                                setNewSubtask("");
+                              }
+                            }}
+                          />
+                          <IconButton
+                            onClick={() => {
+                              if (newSubtask.trim()) {
+                                setSubtasks([
+                                  ...subtasks,
+                                  {
+                                    id: Date.now().toString(),
+                                    title: newSubtask.trim(),
+                                    completed: false,
+                                    time: null,
+                                    duration: 30,
+                                    order: subtasks.length,
+                                  },
+                                ]);
+                                setNewSubtask("");
+                              }
+                            }}
+                            size="small"
+                            color="primary"
+                          >
+                            <Add />
+                          </IconButton>
+                        </Stack>
+                      </Box>
+                    )}
+
+                    {/* Add Existing Task Tab */}
+                    {subtaskTabIndex === 1 && (
+                      <Box sx={{ p: 2 }}>
+                        <Stack spacing={2}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Search for tasks to add as subtasks..."
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <Search fontSize="small" />
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                          {searchQuery.trim() && (
+                            <Box sx={{ maxHeight: 200, overflowY: "auto" }}>
+                              {filteredTasks.length > 0 ? (
+                                <List dense>
+                                  {filteredTasks.map(t => (
+                                    <ListItem
+                                      key={t.id}
+                                      button
+                                      onClick={() => addExistingTaskAsSubtask(t)}
+                                      sx={{ "&:hover": { opacity: 0.8 } }}
+                                    >
+                                      <TaskItem
+                                        task={t}
+                                        variant="subtask"
+                                        containerId="task-dialog-search"
+                                        draggableId={`dialog-search-${t.id}`}
+                                      />
+                                      <ListItemSecondaryAction>
+                                        <IconButton
+                                          edge="end"
+                                          size="small"
+                                          onClick={e => {
+                                            e.stopPropagation();
+                                            addExistingTaskAsSubtask(t);
+                                          }}
+                                        >
+                                          <Add />
+                                        </IconButton>
+                                      </ListItemSecondaryAction>
+                                    </ListItem>
+                                  ))}
+                                </List>
+                              ) : (
+                                <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
+                                  No tasks found
+                                </Typography>
+                              )}
+                            </Box>
+                          )}
+                          {!searchQuery.trim() && (
+                            <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
+                              Type to search for existing tasks
+                            </Typography>
+                          )}
+                        </Stack>
+                      </Box>
+                    )}
+                  </Paper>
+                </Box>
+              </GLGrid>
+            </GLGrid>
           </DialogContent>
 
           <DialogActions>
@@ -944,8 +976,8 @@ function TaskDialogForm({
               onChange={e => setSubtaskTitle(e.target.value)}
               placeholder="Subtask title"
             />
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
+            <GLGrid container spacing={2}>
+              <GLGrid item xs={6}>
                 <TimePicker
                   label="Time"
                   value={subtaskTimeValue}
@@ -957,8 +989,8 @@ function TaskDialogForm({
                     textField: { size: "small", fullWidth: true },
                   }}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </GLGrid>
+              <GLGrid item xs={6}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Duration</InputLabel>
                   <Select
@@ -973,8 +1005,8 @@ function TaskDialogForm({
                     ))}
                   </Select>
                 </FormControl>
-              </Grid>
-            </Grid>
+              </GLGrid>
+            </GLGrid>
           </Stack>
         </DialogContent>
         <DialogActions>
