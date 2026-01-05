@@ -61,24 +61,53 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
       }}
     >
       {/* Header */}
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={2}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={exercise.type !== "distance" ? 1 : 2}>
         <Box>
           <Typography variant="subtitle1" fontWeight={600}>
             {exercise.name}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-            {getTargetDisplay()}
-          </Typography>
         </Box>
 
-        <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
-          {isDeload && <Chip label="Deload" size="small" color="info" sx={{ height: 20 }} />}
-          {isTest && <Chip label="Test" size="small" color="warning" sx={{ height: 20 }} />}
-          {exercise.goal && (
-            <Chip label={exercise.goal} size="small" color="primary" variant="outlined" sx={{ height: 24 }} />
+        <Stack direction="row" spacing={1} alignItems="center">
+          {exercise.type !== "distance" && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              {Array.from({ length: exercise.sets }, (_, i) => {
+                const setNumber = i + 1;
+                const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
+                const outcome = setData.outcome || null;
+                const isComplete = isSetComplete(setData);
+
+                return (
+                  <Stack key={setNumber} direction="row" spacing={0.5} alignItems="center">
+                    <Typography variant="caption" fontWeight={600} sx={{ minWidth: 45 }}>
+                      Set {setNumber}
+                    </Typography>
+                    <OutcomeCheckbox
+                      outcome={outcome}
+                      onOutcomeChange={newOutcome => onSetToggle?.(exercise.id, setNumber, newOutcome)}
+                      isChecked={isComplete}
+                      size="sm"
+                    />
+                  </Stack>
+                );
+              })}
+            </Stack>
           )}
+          <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
+            {isDeload && <Chip label="Deload" size="small" color="info" sx={{ height: 20 }} />}
+            {isTest && <Chip label="Test" size="small" color="warning" sx={{ height: 20 }} />}
+            {exercise.goal && (
+              <Chip label={exercise.goal} size="small" color="primary" variant="outlined" sx={{ height: 24 }} />
+            )}
+          </Stack>
         </Stack>
       </Stack>
+
+      {exercise.type !== "distance" && (
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
+          {getTargetDisplay()}
+        </Typography>
+      )}
 
       {/* Sets - Column Layout */}
       {exercise.type === "distance" ? (
@@ -152,54 +181,32 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
           })}
         </Box>
       ) : (
-        // Reps/Time exercise - column layout with Set 1, Set 2, Set 3 headers
+        // Reps/Time exercise - reps inputs below checkboxes, right-aligned
         <Box>
-          <Stack direction="row" spacing={1} mb={1}>
-            {Array.from({ length: exercise.sets }, (_, i) => {
-              const setNumber = i + 1;
-              return (
-                <Box key={setNumber} sx={{ flex: 1, textAlign: "center" }}>
-                  <Typography variant="caption" fontWeight={600}>
-                    Set {setNumber}
-                  </Typography>
-                </Box>
-              );
-            })}
-          </Stack>
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={1} justifyContent="flex-end">
             {Array.from({ length: exercise.sets }, (_, i) => {
               const setNumber = i + 1;
               const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
-              const outcome = setData.outcome || null;
-              const isComplete = isSetComplete(setData);
 
               return (
-                <Box key={setNumber} sx={{ flex: 1 }}>
-                  <Stack spacing={1} alignItems="center">
-                    <OutcomeCheckbox
-                      outcome={outcome}
-                      onOutcomeChange={newOutcome => onSetToggle?.(exercise.id, setNumber, newOutcome)}
-                      isChecked={isComplete}
-                      size="sm"
-                    />
-                    <TextField
-                      size="small"
-                      placeholder="Reps"
-                      value={setData.actualValue || ""}
-                      onChange={e => onActualValueChange?.(exercise.id, setNumber, "actualValue", e.target.value)}
-                      sx={{
-                        width: "100%",
-                        "& input": {
-                          fontSize: "0.75rem",
-                          textAlign: "center",
-                          py: 0.5,
-                        },
-                      }}
-                      inputProps={{
-                        style: { textAlign: "center" },
-                      }}
-                    />
-                  </Stack>
+                <Box key={setNumber} sx={{ width: 80 }}>
+                  <TextField
+                    size="small"
+                    placeholder="Reps"
+                    value={setData.actualValue || ""}
+                    onChange={e => onActualValueChange?.(exercise.id, setNumber, "actualValue", e.target.value)}
+                    sx={{
+                      width: "100%",
+                      "& input": {
+                        fontSize: "0.75rem",
+                        textAlign: "right",
+                        py: 0.5,
+                      },
+                    }}
+                    inputProps={{
+                      style: { textAlign: "right" },
+                    }}
+                  />
                 </Box>
               );
             })}

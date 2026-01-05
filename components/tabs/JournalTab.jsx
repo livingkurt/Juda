@@ -102,9 +102,22 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
   };
 
   // Check if a task should appear on a specific date for a specific year
+  // For journal entries, show if either:
+  // 1. The recurrence pattern matches the date, OR
+  // 2. There's a completion entry for that date (allows flexibility for journal entries)
   const shouldShowTaskOnDate = (task, date, year) => {
     const targetDate = dayjs(date).year(year).toDate();
-    return checkTaskShouldShowOnDate(task, targetDate);
+    const dateStr = dayjs(date).year(year).format("YYYY-MM-DD");
+
+    // Check if recurrence pattern matches
+    const matchesRecurrence = checkTaskShouldShowOnDate(task, targetDate);
+
+    // For journal entries, also check if there's a completion for this date
+    // This allows yearly reflections to show on the date they were written, not just the scheduled date
+    const completion = getCompletionForDate?.(task.id, dateStr);
+    const hasCompletion = completion?.note && completion.note.trim().length > 0;
+
+    return matchesRecurrence || hasCompletion;
   };
 
   // Format display date

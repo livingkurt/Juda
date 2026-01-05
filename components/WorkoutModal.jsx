@@ -11,13 +11,12 @@ import {
   Typography,
   Button,
   IconButton,
-  Tabs,
-  Tab,
   LinearProgress,
   Divider,
   CircularProgress,
+  Paper,
 } from "@mui/material";
-import { Close, FitnessCenter, Check, ChevronLeft, ChevronRight } from "@mui/icons-material";
+import { Close, FitnessCenter, Check } from "@mui/icons-material";
 import WorkoutDaySection from "./WorkoutDaySection";
 import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
 import { useAuthFetch } from "@/hooks/useAuthFetch";
@@ -55,7 +54,6 @@ export default function WorkoutModal() {
   };
 
   const [completionData, setCompletionData] = useState({});
-  const [activeTab, setActiveTab] = useState(0); // 0: Warmup, 1: Workout, 2: Cool Down
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingCompletions, setIsLoadingCompletions] = useState(false);
 
@@ -83,23 +81,12 @@ export default function WorkoutModal() {
   // Get current day of week (0-6)
   const currentDayOfWeek = currentDate.getDay();
 
-  // Get sections from workout program, organized by type
+  // Get sections from workout program
   const sections = useMemo(() => workoutProgram?.sections || [], [workoutProgram?.sections]);
 
-  // Organize sections by type (warmup, workout, cooldown)
-  const sectionsByType = useMemo(() => {
-    const organized = {
-      warmup: sections.find(s => s.type === "warmup"),
-      workout: sections.find(s => s.type === "workout"),
-      cooldown: sections.find(s => s.type === "cooldown"),
-    };
-    return organized;
-  }, [sections]);
-
-  // Get current day for active section type
+  // Get current day for a section
   const getCurrentDayForSection = useCallback(
-    sectionType => {
-      const section = sectionsByType[sectionType];
+    section => {
       if (!section?.days) return null;
 
       // Find day matching current day of week
@@ -110,8 +97,18 @@ export default function WorkoutModal() {
       // If no match, return first day (fallback)
       return matchingDay || section.days[0] || null;
     },
-    [sectionsByType, currentDayOfWeek]
+    [currentDayOfWeek]
   );
+
+  // Helper to get section type label
+  const getSectionTypeLabel = type => {
+    const labels = {
+      warmup: "Warmup",
+      workout: "Workout",
+      cooldown: "Cool Down",
+    };
+    return labels[type] || type;
+  };
 
   // Helper function to check if a set is complete
   const isSetComplete = (setData, exerciseType) => {
@@ -155,13 +152,6 @@ export default function WorkoutModal() {
 
     return total > 0 ? Math.round((completed / total) * 100) : 0;
   }, [sections, processDayExercises]);
-
-  // Reset active tab when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setActiveTab(0); // Start with Warmup tab
-    }
-  }, [isOpen]);
 
   // Load existing completion data
   useEffect(() => {
@@ -430,81 +420,52 @@ export default function WorkoutModal() {
 
       <Divider />
 
-      {/* Section Type Tabs: Warmup, Workout, Cool Down */}
-      <Box sx={{ borderBottom: 1, borderColor: "divider", px: 2 }}>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <IconButton size="small" disabled>
-            <ChevronLeft />
-          </IconButton>
-          <Tabs
-            value={activeTab}
-            onChange={(e, v) => setActiveTab(v)}
-            variant="scrollable"
-            scrollButtons={false}
-            sx={{ flex: 1 }}
-          >
-            <Tab label="Warmup" disabled={!sectionsByType.warmup} />
-            <Tab label="Workout" disabled={!sectionsByType.workout} />
-            <Tab label="Cool Down" disabled={!sectionsByType.cooldown} />
-          </Tabs>
-          <IconButton size="small" disabled>
-            <ChevronRight />
-          </IconButton>
-        </Stack>
-      </Box>
-
       <DialogContent sx={{ p: 2, overflow: "auto" }}>
         {programLoading || isLoadingCompletions ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
+        ) : sections.length === 0 ? (
+          <Box sx={{ textAlign: "center", py: 8 }}>
+            <Typography color="text.secondary">No workout sections defined.</Typography>
+          </Box>
         ) : (
-          (() => {
-            const tabTypes = ["warmup", "workout", "cooldown"];
-            const activeSectionType = tabTypes[activeTab];
-            const activeSection = sectionsByType[activeSectionType];
-            const currentDay = getCurrentDayForSection(activeSectionType);
+          <Stack spacing={4}>
+            {sections.map(section => {
+              const currentDay = getCurrentDayForSection(section);
 
-            if (!activeSection) {
+              if (!currentDay) {
+                return (
+                  <Paper key={section.id} variant="outlined" sx={{ p: 2 }}>
+                    <Typography variant="h6" fontWeight={600} mb={1}>
+                      {section.name || getSectionTypeLabel(section.type)}
+                    </Typography>
+                    <Typography color="text.secondary">No workout day found for today.</Typography>
+                  </Paper>
+                );
+              }
+
               return (
-                <Box sx={{ textAlign: "center", py: 8 }}>
-                  <Typography color="text.secondary">
-                    No{" "}
-                    {activeSectionType === "warmup"
-                      ? "Warmup"
-                      : activeSectionType === "workout"
-                        ? "Workout"
-                        : "Cool Down"}{" "}
-                    section defined.
+                <Paper key={section.id} variant="outlined" sx={{ p: 2 }}>
+                  <Typography variant="h6" fontWeight={600} mb={2}>
+                    {section.name || getSectionTypeLabel(section.type)}
                   </Typography>
-                </Box>
+                  <WorkoutDaySection
+                    day={currentDay}
+                    completionData={completionData[section.id]?.days?.[currentDay.id] || {}}
+                    onSetToggle={(dayId, exerciseId, setNumber, outcome) => {
+                      handleSetToggle(section.id, dayId, exerciseId, setNumber, outcome);
+                    }}
+                    onActualValueChange={(dayId, exerciseId, setNumber, field, value) => {
+                      handleActualValueChange(section.id, dayId, exerciseId, setNumber, field, value);
+                    }}
+                    currentWeek={currentWeek}
+                    isCurrentDay={true}
+                  />
+                </Paper>
               );
-            }
-
-            if (!currentDay) {
-              return (
-                <Box sx={{ textAlign: "center", py: 8 }}>
-                  <Typography color="text.secondary">No workout day found for today.</Typography>
-                </Box>
-              );
-            }
-
-            return (
-              <WorkoutDaySection
-                key={currentDay.id}
-                day={currentDay}
-                completionData={completionData[activeSection.id]?.days?.[currentDay.id] || {}}
-                onSetToggle={(dayId, exerciseId, setNumber, outcome) => {
-                  handleSetToggle(activeSection.id, dayId, exerciseId, setNumber, outcome);
-                }}
-                onActualValueChange={(dayId, exerciseId, setNumber, field, value) => {
-                  handleActualValueChange(activeSection.id, dayId, exerciseId, setNumber, field, value);
-                }}
-                currentWeek={currentWeek}
-                isCurrentDay={true}
-              />
-            );
-          })()
+            })}
+          </Stack>
         )}
       </DialogContent>
 

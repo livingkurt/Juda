@@ -165,23 +165,8 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
                   placeholder="Enter your journal entry..."
                   size="small"
                   multiline
-                  rows={4}
                   variant="filled"
                   fullWidth
-                  sx={{
-                    "& .MuiFilledInput-root": {
-                      bgcolor: "action.hover",
-                      "&:hover": {
-                        bgcolor: "action.hover",
-                      },
-                      "&.Mui-focused": {
-                        bgcolor: "background.paper",
-                      },
-                    },
-                    minHeight: { xs: "120px", md: "80px" },
-                    maxHeight: { xs: "400px", md: "600px" },
-                    scrollMarginTop: "100px",
-                  }}
                 />
               ) : (
                 <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic" }}>
@@ -194,11 +179,14 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
               {hasEntry ? (
                 <Typography
                   variant="body2"
+                  component="div"
                   sx={{
                     color: "text.secondary",
                     whiteSpace: "pre-wrap",
                     lineHeight: 1.6,
                     fontSize: { xs: "0.75rem", md: "0.875rem" },
+                    wordBreak: "break-word",
+                    overflowWrap: "break-word",
                   }}
                 >
                   {completion.note}
