@@ -1,20 +1,19 @@
 "use client";
 
 import { useMemo, useCallback, memo, useRef, useState } from "react";
-import { Box, VStack, HStack, Flex, Text, IconButton, Badge, Heading, Input } from "@chakra-ui/react";
+import { Box, Stack, Typography, IconButton, Chip, TextField, useMediaQuery } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
+import { Add } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
 import { BacklogTagSidebar, UNTAGGED_ID } from "./BacklogTagSidebar";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
-import { useMobileDetection } from "@/hooks/useMobileDetection";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import {
   setBacklogSearchTerm as setBacklogSearchTermAction,
@@ -24,14 +23,8 @@ import {
 
 const BacklogDrawerComponent = ({ createDraggableId }) => {
   const dispatch = useDispatch();
-  const { mode, dnd } = useSemanticColors();
-
-  const bgColor = mode.bg.surface;
-  const borderColor = mode.border.default;
-  const textColor = mode.text.primary;
-  const mutedText = mode.text.secondary;
-  const dropHighlight = dnd.dropTarget;
-  const gripColor = mode.text.muted;
+  const muiTheme = useTheme();
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   // Get Redux state directly
   const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
@@ -41,9 +34,6 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   const searchTerm = useSelector(state => state.ui.backlogSearchTerm);
   const selectedTagIds = useSelector(state => state.ui.backlogSelectedTagIds);
   const sidebarOpen = useSelector(state => state.ui.backlogTagSidebarOpen);
-
-  // Mobile detection
-  const isMobile = useMobileDetection();
 
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
@@ -170,7 +160,17 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   }));
 
   return (
-    <Box h="100%" display="flex" flexDirection="row" bg={bgColor} w="100%" maxW="100%" overflow="hidden">
+    <Box
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "row",
+        width: "100%",
+        maxWidth: "100%",
+        overflow: "hidden",
+        bgcolor: "background.default",
+      }}
+    >
       {/* Tag Sidebar - Desktop Only */}
       {!isMobile && (
         <BacklogTagSidebar
@@ -184,45 +184,55 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
       )}
 
       {/* Main Content */}
-      <Box h="100%" display="flex" flexDirection="column" flex={1} minW={0} overflow="hidden">
+      <Box
+        sx={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+          minWidth: 0,
+          overflow: "hidden",
+        }}
+      >
         {/* Header */}
         <Box
-          px={{ base: 2, md: 4 }}
-          pt={{ base: 3, md: 6 }}
-          pb={4}
-          mb={4}
-          borderBottomWidth="1px"
-          borderColor={borderColor}
-          flexShrink={0}
-          w="100%"
-          maxW="100%"
+          sx={{
+            px: { xs: 1, md: 2 },
+            pt: { xs: 1.5, md: 2 },
+            pb: 1.5,
+            mb: 1.5,
+            borderBottom: 1,
+            borderColor: "divider",
+            flexShrink: 0,
+            width: "100%",
+            maxWidth: "100%",
+          }}
         >
-          <Flex align="center" justify="space-between" mb={2} gap={2}>
-            <Heading size="md" flexShrink={0}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 1 }}>
+            <Typography variant="h6" sx={{ flexShrink: 0, fontWeight: 600 }}>
               Backlog
-            </Heading>
-            <HStack spacing={2} flexShrink={0}>
-              <IconButton
-                onClick={taskOps.handleAddTaskToBacklog}
-                size="sm"
-                variant="ghost"
-                colorPalette="blue"
-                aria-label="Add task to backlog"
-              >
-                <Box as="span" color="currentColor">
-                  <Plus size={16} stroke="currentColor" />
-                </Box>
-              </IconButton>
-            </HStack>
-          </Flex>
-          <Badge colorPalette="blue" mb={2}>
-            {filteredTasks.length} task{filteredTasks.length !== 1 ? "s" : ""}
-            {(searchTerm || selectedTagIds.length > 0) &&
-              filteredTasks.length !== backlogTasks.length &&
-              ` of ${backlogTasks.length}`}
-          </Badge>
-          <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
-            <Box flex={1} minW={0}>
+            </Typography>
+            <IconButton onClick={taskOps.handleAddTaskToBacklog} size="small" aria-label="Add task to backlog">
+              <Add fontSize="small" />
+            </IconButton>
+          </Stack>
+          <Chip
+            label={`${filteredTasks.length} task${filteredTasks.length !== 1 ? "s" : ""}${
+              (searchTerm || selectedTagIds.length > 0) && filteredTasks.length !== backlogTasks.length
+                ? ` of ${backlogTasks.length}`
+                : ""
+            }`}
+            size="small"
+            color="primary"
+            sx={{ mb: 1 }}
+          />
+          <Stack
+            direction="row"
+            spacing={{ xs: 1, md: 2 }}
+            alignItems="center"
+            sx={{ width: "100%", maxWidth: "100%" }}
+          >
+            <Box sx={{ flex: 1, minWidth: 0 }}>
               <TaskSearchInput onSearchChange={term => dispatch(setBacklogSearchTermAction(term))} />
             </Box>
             {/* TagFilter - Mobile Only */}
@@ -238,10 +248,11 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                 compact
               />
             )}
-          </HStack>
+          </Stack>
           {/* New Task Input */}
-          <Box mt={2} w="100%" maxW="100%">
-            <Input
+          <Box sx={{ mt: 1, width: "100%", maxWidth: "100%" }}>
+            <TextField
+              fullWidth
               placeholder="New Task..."
               value={newTaskTitle}
               onChange={e => setNewTaskTitle(e.target.value)}
@@ -252,22 +263,12 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                   setNewTaskTitle("");
                 }
               }}
-              bg="transparent"
-              borderWidth="0"
-              borderColor="transparent"
-              color={textColor}
-              _placeholder={{ color: mutedText }}
-              _focus={{
-                borderWidth: "0",
-                borderColor: "transparent",
-                boxShadow: "none",
-                outline: "none",
-              }}
-              _focusVisible={{
-                borderWidth: "0",
-                borderColor: "transparent",
-                boxShadow: "none",
-                outline: "none",
+              variant="standard"
+              InputProps={{
+                disableUnderline: true,
+                sx: {
+                  fontSize: "0.875rem",
+                },
               }}
             />
           </Box>
@@ -276,104 +277,109 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
         {/* Droppable area for tasks */}
         <Box
           ref={setNodeRef}
-          flex={1}
-          minH={0}
-          overflowY="auto"
-          p={tasksWithIds.length === 0 ? { base: 3, md: 4 } : { base: 2, md: 2 }}
-          bg={isOver ? dropHighlight : "transparent"}
-          borderRadius="md"
-          transition="background-color 0.2s, padding 0.2s"
-          borderWidth={isOver ? "2px" : "0px"}
-          borderColor={isOver ? dnd.dropTargetBorder : "transparent"}
-          borderStyle="dashed"
-          mx={isOver ? { base: 1, md: 2 } : 0}
-          w="100%"
-          maxW="100%"
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            p: tasksWithIds.length === 0 ? { xs: 1.5, md: 2 } : { xs: 0.5, md: 1 },
+            bgcolor: isOver ? "action.hover" : "transparent",
+            borderRadius: 1,
+            transition: "background-color 0.2s, padding 0.2s",
+            borderWidth: isOver ? 2 : 0,
+            borderColor: isOver ? "primary.main" : "transparent",
+            borderStyle: "dashed",
+            mx: isOver ? { xs: 0.5, md: 1 } : 0,
+            width: "100%",
+            maxWidth: "100%",
+          }}
         >
           {/* Unscheduled Tasks */}
           {tasksWithIds.length > 0 ? (
             <Box>
-              <Text fontSize="xs" fontWeight="semibold" color={mutedText} mb={2} ml={2} textTransform="uppercase">
+              <Typography
+                variant="caption"
+                sx={{
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  color: "text.secondary",
+                  mb: 1,
+                  ml: 1,
+                  textTransform: "uppercase",
+                }}
+              >
                 Unscheduled Tasks
-              </Text>
+              </Typography>
               <SortableContext
                 id="backlog"
                 items={tasksWithIds.map(t => t.draggableId)}
                 strategy={verticalListSortingStrategy}
               >
-                <VStack align="stretch" spacing={2} px={{ base: 1, md: 2 }} w="100%" maxW="100%">
+                <Stack spacing={1} sx={{ px: { xs: 0.5, md: 1 }, width: "100%", maxWidth: "100%" }}>
                   {tasksWithIds.map(task => (
                     <TaskItem
                       key={task.id}
                       task={task}
                       variant="backlog"
                       containerId="backlog"
-                      textColor={textColor}
-                      mutedTextColor={mutedText}
-                      gripColor={gripColor}
                       draggableId={task.draggableId}
                       viewDate={viewDate}
                     />
                   ))}
-                  <Input
-                    ref={inlineInputRef}
+                  <TextField
+                    inputRef={inlineInputRef}
+                    fullWidth
+                    size="small"
+                    variant="standard"
+                    placeholder="New task..."
                     value={inlineInputValue}
                     onChange={e => setInlineInputValue(e.target.value)}
                     onBlur={handleInlineInputBlur}
                     onKeyDown={handleInlineInputKeyDown}
                     onClick={handleInlineInputClick}
-                    placeholder="New task..."
-                    size="sm"
-                    variant="unstyled"
-                    bg="transparent"
-                    borderWidth="0px"
-                    px={2}
-                    py={1}
-                    fontSize="sm"
-                    color={isInlineInputActive ? textColor : mutedText}
-                    _focus={{
-                      outline: "none",
-                      color: textColor,
-                    }}
-                    _placeholder={{ color: mutedText }}
-                    _hover={{
-                      color: textColor,
+                    InputProps={{
+                      disableUnderline: !isInlineInputActive,
+                      sx: {
+                        fontSize: "0.875rem",
+                        color: isInlineInputActive ? "text.primary" : "text.secondary",
+                      },
                     }}
                   />
-                </VStack>
+                </Stack>
               </SortableContext>
             </Box>
           ) : (
-            <VStack align="stretch" spacing={{ base: 1, md: 2 }}>
-              <Text fontSize={{ base: "xs", md: "sm" }} textAlign="center" py={{ base: 4, md: 8 }} color={mutedText}>
+            <Stack spacing={1}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: { xs: "0.75rem", md: "0.875rem" },
+                  textAlign: "center",
+                  py: { xs: 2, md: 4 },
+                  color: "text.secondary",
+                }}
+              >
                 {isOver ? "Drop here" : "No tasks"}
-              </Text>
-              <Input
-                ref={inlineInputRef}
+              </Typography>
+              <TextField
+                inputRef={inlineInputRef}
+                fullWidth
+                size="small"
+                variant="standard"
+                placeholder="New task..."
                 value={inlineInputValue}
                 onChange={e => setInlineInputValue(e.target.value)}
                 onBlur={handleInlineInputBlur}
                 onKeyDown={handleInlineInputKeyDown}
                 onClick={handleInlineInputClick}
-                placeholder="New task..."
-                size="sm"
-                variant="unstyled"
-                bg="transparent"
-                borderWidth="0px"
-                px={2}
-                py={1}
-                fontSize="sm"
-                color={isInlineInputActive ? textColor : mutedText}
-                _focus={{
-                  outline: "none",
-                  color: textColor,
-                }}
-                _placeholder={{ color: mutedText }}
-                _hover={{
-                  color: textColor,
+                InputProps={{
+                  disableUnderline: !isInlineInputActive,
+                  sx: {
+                    fontSize: "0.875rem",
+                    color: isInlineInputActive ? "text.primary" : "text.secondary",
+                  },
                 }}
               />
-            </VStack>
+            </Stack>
           )}
         </Box>
       </Box>
@@ -382,3 +388,5 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
 };
 
 export const BacklogDrawer = memo(BacklogDrawerComponent);
+
+export default BacklogDrawer;

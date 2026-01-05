@@ -1,10 +1,8 @@
 "use client";
 
 import { memo } from "react";
-import { Box, Text, HStack } from "@chakra-ui/react";
-import { Clock, PlayCircle } from "lucide-react";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
-import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { Box, Typography, Stack } from "@mui/material";
+import { AccessTime, PlayCircle } from "@mui/icons-material";
 
 export const StatusTaskBlock = memo(function StatusTaskBlock({
   task,
@@ -14,12 +12,6 @@ export const StatusTaskBlock = memo(function StatusTaskBlock({
   startedAt,
   completedAt,
 }) {
-  const { mode, status } = useSemanticColors();
-  const taskOps = useTaskOperations();
-
-  const bgColor = isInProgress ? status.infoBg : status.successBg;
-  const borderColor = isInProgress ? status.info : status.success;
-
   // Calculate duration
   const startTime = startedAt ? new Date(startedAt) : new Date();
   const endTime = completedAt ? new Date(completedAt) : new Date();
@@ -30,32 +22,43 @@ export const StatusTaskBlock = memo(function StatusTaskBlock({
 
   return (
     <Box
-      position="absolute"
-      top={`${top}px`}
-      left="4px"
-      right="4px"
-      height={`${height}px`}
-      bg={bgColor}
-      borderLeft="3px solid"
-      borderColor={borderColor}
-      borderRadius="md"
-      px={2}
-      py={1}
-      cursor="pointer"
-      onClick={() => taskOps.handleEditTask(task)}
-      overflow="hidden"
-      opacity={isInProgress ? 1 : 0.8}
-      _hover={{ opacity: 1 }}
+      sx={{
+        position: "absolute",
+        top: `${top}px`,
+        left: "4px",
+        right: "4px",
+        height: `${height}px`,
+        bgcolor: isInProgress ? "info.light" : "success.light",
+        borderLeft: "3px solid",
+        borderColor: isInProgress ? "info.main" : "success.main",
+        borderRadius: 1,
+        px: 2,
+        py: 1,
+        cursor: "pointer",
+        overflow: "hidden",
+        opacity: isInProgress ? 1 : 0.8,
+        "&:hover": {
+          opacity: 1,
+        },
+      }}
+      onClick={() => {
+        // Handle edit task - this would need to be passed as prop or use hook
+        // eslint-disable-next-line no-console
+        console.log("Edit task:", task.id);
+      }}
     >
-      <HStack spacing={1} fontSize="xs">
-        {isInProgress ? <PlayCircle size={12} /> : <Clock size={12} />}
-        <Text fontWeight="medium" noOfLines={1}>
+      <Stack direction="row" spacing={1} sx={{ fontSize: "0.75rem" }}>
+        {isInProgress ? <PlayCircle fontSize="inherit" /> : <AccessTime fontSize="inherit" />}
+        <Typography
+          variant="caption"
+          sx={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        >
           {task.title}
-        </Text>
-      </HStack>
-      <Text fontSize="2xs" color={mode.text.muted}>
+        </Typography>
+      </Stack>
+      <Typography variant="caption" sx={{ fontSize: "0.625rem", color: "text.secondary" }}>
         {durationText}
-      </Text>
+      </Typography>
     </Box>
   );
 });

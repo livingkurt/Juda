@@ -1,324 +1,218 @@
 "use client";
 
-import { Box, Text, Flex, Input, HStack, VStack, Badge } from "@chakra-ui/react";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { memo } from "react";
+import { Box, Stack, Typography, Paper, TextField, Chip, Grid } from "@mui/material";
 import { OutcomeCheckbox } from "./OutcomeCheckbox";
 
 /**
- * WorkoutExerciseCard - Displays a single exercise with set tracking
+ * WorkoutExerciseCard - Displays a single exercise with its sets
  *
- * @param {Object} exercise - Exercise data
- * @param {Array} completedSets - Array of SetCompletion objects
- * @param {Function} onSetToggle - Callback when a set is toggled
+ * @param {Object} exercise - Exercise data with sets, type, targetValue
+ * @param {Object} completionData - Set completion data { sets: [...] }
+ * @param {Function} onSetToggle - (exerciseId, setNumber, outcome) => void
  * @param {number} currentWeek - Current week number for progression
+ * @param {Function} onActualValueChange - (exerciseId, setNumber, field, value) => void
  */
-export default function WorkoutExerciseCard({
+const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
   exercise,
-  completedSets = [],
+  completionData = {},
   onSetToggle,
   currentWeek = 1,
-  actualValue = null,
-  onActualValueChange = null,
+  onActualValueChange,
 }) {
-  const { mode } = useSemanticColors();
-
   // Get target value for current week
-  const weeklyTarget = exercise.weeklyProgression?.find(w => w.week === currentWeek);
-  const targetValue = weeklyTarget?.targetValue ?? exercise.targetValue;
-  const isDeload = weeklyTarget?.isDeload ?? false;
-  const isTest = weeklyTarget?.isTest ?? false;
+  const weekProgression = exercise.weeklyProgression?.find(p => p.week === currentWeek);
+  const targetValue = weekProgression?.targetValue || exercise.targetValue || 0;
+  const isDeload = weekProgression?.isDeload;
+  const isTest = weekProgression?.isTest;
 
-  // Helper to get exercise label
-  const getExerciseLabel = () => {
+  // Check if a set is complete
+  const isSetComplete = setData => {
+    if (setData?.outcome !== undefined) {
+      return setData.outcome === "completed";
+    }
+    if (exercise.type === "distance") {
+      return Boolean(setData?.time && setData?.distance && setData?.pace);
+    }
+    return Boolean(setData?.completed);
+  };
+
+  // Count completed sets
+  const completedSets = completionData.sets?.filter(s => isSetComplete(s)).length || 0;
+
+  // Format target display
+  const getTargetDisplay = () => {
     if (exercise.type === "time") {
-      return exercise.unit === "mins" ? "Time (minutes)" : "Time (seconds)";
+      return `${exercise.sets} x ${targetValue} ${exercise.unit || "secs"}`;
     }
     if (exercise.type === "distance") {
-      return "Distance (miles)";
+      return `${exercise.sets} x ${targetValue} ${exercise.unit || "miles"}`;
     }
-    return "Reps";
+    return `${exercise.sets} x ${targetValue} reps`;
   };
 
-  // Format display based on exercise type
-  const getDisplayText = () => {
-    if (isTest) {
-      return `${exercise.sets} sets - Test Week`;
-    }
-    if (targetValue === null) {
-      return `${exercise.sets} sets - Max Effort`;
-    }
-    return `${exercise.sets} x ${targetValue} ${exercise.unit}`;
-  };
-
-  // Get outcome for a set
-  const getSetOutcome = setNumber => {
-    const setData = completedSets.find(s => s.setNumber === setNumber);
-    return setData?.outcome || null;
-  };
-
-  // Get actual value for a set
-  const getSetActualValue = setNumber => {
-    const setData = completedSets.find(s => s.setNumber === setNumber);
-    return setData?.actualValue ?? "";
-  };
-
-  // Handle outcome change (completed/not_completed/null)
-  const handleOutcomeChange = (setNumber, outcome) => {
-    const existingSet = completedSets.find(s => s.setNumber === setNumber) || {};
-
-    // When marking as completed, automatically set actualValue to targetValue if not already set
-    const updatedData = {
-      ...existingSet,
-      setNumber,
-      outcome: outcome,
-    };
-
-    // Auto-fill actualValue with targetValue when completing (only for reps/time exercises)
-    if (outcome === "completed" && (exercise.type === "reps" || exercise.type === "time")) {
-      // Only set if there's no existing actualValue
-      if (!existingSet.actualValue && targetValue) {
-        updatedData.actualValue = parseInt(targetValue, 10);
-      }
-    }
-
-    // Clear actualValue when marking as not_completed or unchecking (didn't contribute anything)
-    if (outcome === "not_completed" || outcome === null) {
-      updatedData.actualValue = null;
-    }
-
-    onSetToggle(exercise.id, setNumber, updatedData);
-  };
-
-  // Handle actual value change
-  const handleActualValueChange = (setNumber, value) => {
-    const existingSet = completedSets.find(s => s.setNumber === setNumber) || {};
-    const parsedValue = value === "" ? null : parseInt(value, 10);
-
-    onSetToggle(exercise.id, setNumber, {
-      ...existingSet,
-      setNumber,
-      actualValue: parsedValue,
-    });
-  };
-
-  const handleValueChange = (setNumber, field, value) => {
-    const existingSet = completedSets.find(s => s.setNumber === setNumber) || {};
-
-    onSetToggle(exercise.id, setNumber, {
-      ...existingSet,
-      setNumber,
-      [field]: value,
-    });
-  };
-
-  const renderSetInput = setNumber => {
-    const outcome = getSetOutcome(setNumber);
-    const actualValue = getSetActualValue(setNumber);
-    const isNotCompleted = outcome === "not_completed";
-
-    if (exercise.type === "distance") {
-      // Running exercise - show time, distance, pace inputs
-      const setData = completedSets.find(s => s.setNumber === setNumber) || {};
-      return (
-        <VStack gap={2} w="full" align="stretch">
-          <HStack>
-            <Text fontSize="xs" color={mode.text.secondary} minW="50px">
-              Time:
-            </Text>
-            <Input
-              size="sm"
-              placeholder="08:05"
-              value={setData.time || ""}
-              onChange={e => handleValueChange(setNumber, "time", e.target.value)}
-              bg={mode.bg.surface}
-            />
-          </HStack>
-          <HStack>
-            <Text fontSize="xs" color={mode.text.secondary} minW="50px">
-              Miles:
-            </Text>
-            <Input
-              size="sm"
-              type="number"
-              step="0.01"
-              placeholder="1.02"
-              value={setData.distance || ""}
-              onChange={e => handleValueChange(setNumber, "distance", parseFloat(e.target.value) || "")}
-              bg={mode.bg.surface}
-            />
-          </HStack>
-          <HStack>
-            <Text fontSize="xs" color={mode.text.secondary} minW="50px">
-              Pace:
-            </Text>
-            <Input
-              size="sm"
-              placeholder="7:55"
-              value={setData.pace || ""}
-              onChange={e => handleValueChange(setNumber, "pace", e.target.value)}
-              bg={mode.bg.surface}
-            />
-          </HStack>
-        </VStack>
-      );
-    }
-
-    // Reps or time - outcome checkbox + actual value input
-    return (
-      <HStack gap={2} align="flex-start">
-        {/* Set label on the left */}
-        <Text fontSize="md" color={mode.text.secondary} minW="40px">
-          Set {setNumber}
-        </Text>
-
-        {/* Checkbox and input stacked vertically */}
-        <VStack gap={1} align="stretch">
-          {/* Outcome checkbox */}
-          <OutcomeCheckbox
-            outcome={outcome}
-            onOutcomeChange={newOutcome => handleOutcomeChange(setNumber, newOutcome)}
-            size="md"
-          />
-
-          {/* Actual value input below checkbox */}
-          <Input
-            size="sm"
-            type="number"
-            placeholder={exercise.type === "reps" ? "Reps" : "Secs"}
-            value={actualValue}
-            onChange={e => handleActualValueChange(setNumber, e.target.value)}
-            disabled={isNotCompleted}
-            bg={mode.bg.surface}
-            w="100px"
-            opacity={isNotCompleted ? 0.5 : 1}
-            borderRadius="md"
-            borderColor={mode.border.default}
-            borderWidth="1px"
-            _hover={{
-              borderColor: mode.border.hover,
-            }}
-            _focus={{
-              borderColor: mode.border.focus,
-            }}
-          />
-        </VStack>
-      </HStack>
-    );
-  };
-
-  // For distance exercises, show expanded layout
-  if (exercise.type === "distance") {
-    return (
-      <Box p={3} bg={mode.bg.muted} borderRadius="md" borderWidth="1px" borderColor={mode.border.default}>
-        <VStack align="stretch" gap={2}>
-          {/* Exercise header */}
-          <Flex justify="space-between" align="center">
-            <HStack gap={2}>
-              <Text fontWeight="semibold" fontSize="md">
-                {exercise.name}
-              </Text>
-              <Text fontSize="md" color={mode.text.secondary}>
-                {getDisplayText()}
-              </Text>
-              {isDeload && (
-                <Badge colorPalette="orange" size="sm">
-                  Deload
-                </Badge>
-              )}
-              {isTest && (
-                <Badge colorPalette="purple" size="sm">
-                  TEST
-                </Badge>
-              )}
-            </HStack>
-            {exercise.goal && (
-              <Badge colorPalette="blue" size="sm">
-                {exercise.goal}
-              </Badge>
-            )}
-          </Flex>
-
-          {/* Distance inputs */}
-          {renderSetInput(1)}
-        </VStack>
-      </Box>
-    );
-  }
-
-  // For reps/time exercises, show compact horizontal layout
   return (
-    <Box p={3} bg={mode.bg.muted} borderRadius="md" borderWidth="1px" borderColor={mode.border.default}>
-      <VStack align="stretch" gap={2}>
-        {/* Top row: Exercise name and set inputs */}
-        <Flex
-          direction={{ base: "column", md: "row" }}
-          align={{ base: "flex-start", md: "center" }}
-          justify="space-between"
-          gap={3}
-        >
-          <Text fontWeight="semibold" fontSize="md" flexShrink={1} minW={0}>
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2,
+        bgcolor: completedSets === exercise.sets ? "success.dark" : "background.paper",
+        transition: "background-color 0.3s",
+      }}
+    >
+      {/* Header */}
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={2}>
+        <Box>
+          <Typography variant="subtitle1" fontWeight={600}>
             {exercise.name}
-          </Text>
-          <Flex
-            direction={{ base: "column", md: "row" }}
-            gap={2}
-            flexShrink={0}
-            align={{ base: "flex-start", md: "center" }}
-          >
-            {Array.from({ length: exercise.sets }, (_, i) => i + 1).map(setNumber => (
-              <Box key={setNumber} flexShrink={0}>
-                {renderSetInput(setNumber)}
-              </Box>
-            ))}
-          </Flex>
-        </Flex>
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+            {getTargetDisplay()}
+          </Typography>
+        </Box>
 
-        {/* Bottom row: Reps info and badges */}
-        <HStack gap={2}>
-          <Text fontSize="sm" color={mode.text.secondary}>
-            {getDisplayText()}
-          </Text>
-          {isDeload && (
-            <Badge colorPalette="orange" size="sm">
-              Deload
-            </Badge>
-          )}
-          {isTest && (
-            <Badge colorPalette="purple" size="sm">
-              TEST
-            </Badge>
-          )}
+        <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
+          {isDeload && <Chip label="Deload" size="small" color="info" sx={{ height: 20 }} />}
+          {isTest && <Chip label="Test" size="small" color="warning" sx={{ height: 20 }} />}
           {exercise.goal && (
-            <Badge colorPalette="blue" size="sm">
-              {exercise.goal}
-            </Badge>
+            <Chip label={exercise.goal} size="small" color="primary" variant="outlined" sx={{ height: 24 }} />
           )}
-        </HStack>
+        </Stack>
+      </Stack>
 
-        {/* Actual value input for test weeks */}
-        {isTest && onActualValueChange && (
-          <Box>
-            <HStack gap={2} align="flex-end">
-              <Text fontSize="xs" color={mode.text.secondary} minW="80px">
-                Actual {getExerciseLabel()}:
-              </Text>
-              <Input
-                type="number"
-                step={exercise.type === "distance" ? "0.01" : "1"}
-                size="sm"
-                placeholder={`Enter actual ${getExerciseLabel().toLowerCase()}`}
-                value={actualValue ?? ""}
-                onChange={e => {
-                  const value = e.target.value === "" ? null : parseFloat(e.target.value) || 0;
-                  onActualValueChange(exercise.id, value);
+      {/* Sets - Column Layout */}
+      {exercise.type === "distance" ? (
+        // Distance exercise - full width with time, distance, pace inputs
+        <Box>
+          {Array.from({ length: exercise.sets }, (_, i) => {
+            const setNumber = i + 1;
+            const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
+            const outcome = setData.outcome || null;
+            const isComplete = isSetComplete(setData);
+
+            return (
+              <Paper
+                key={setNumber}
+                variant="outlined"
+                sx={{
+                  p: 1.5,
+                  mb: 1,
+                  bgcolor: isComplete ? "success.dark" : "background.default",
                 }}
-                bg={mode.bg.surface}
-                flex={1}
-              />
-            </HStack>
-          </Box>
-        )}
-      </VStack>
-    </Box>
+              >
+                <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                  <Typography variant="caption" fontWeight={600} sx={{ minWidth: 60 }}>
+                    Set {setNumber}
+                  </Typography>
+                  <OutcomeCheckbox
+                    outcome={outcome}
+                    onOutcomeChange={newOutcome => onSetToggle?.(exercise.id, setNumber, newOutcome)}
+                    isChecked={isComplete}
+                    size="sm"
+                  />
+                </Stack>
+                <Grid container spacing={1}>
+                  <Grid item xs={4}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      label="Time"
+                      placeholder="08:05"
+                      value={setData.time || ""}
+                      onChange={e => onActualValueChange?.(exercise.id, setNumber, "time", e.target.value)}
+                      sx={{ "& input": { fontSize: "0.75rem" } }}
+                    />
+                  </Grid>
+                  <Grid item xs={4}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      label="Distance"
+                      type="number"
+                      placeholder={String(targetValue)}
+                      value={setData.distance || ""}
+                      onChange={e => onActualValueChange?.(exercise.id, setNumber, "distance", e.target.value)}
+                      sx={{ "& input": { fontSize: "0.75rem" } }}
+                    />
+                  </Grid>
+                  <Grid item xs={4}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      label="Pace"
+                      placeholder="7:55"
+                      value={setData.pace || ""}
+                      onChange={e => onActualValueChange?.(exercise.id, setNumber, "pace", e.target.value)}
+                      sx={{ "& input": { fontSize: "0.75rem" } }}
+                    />
+                  </Grid>
+                </Grid>
+              </Paper>
+            );
+          })}
+        </Box>
+      ) : (
+        // Reps/Time exercise - column layout with Set 1, Set 2, Set 3 headers
+        <Box>
+          <Stack direction="row" spacing={1} mb={1}>
+            {Array.from({ length: exercise.sets }, (_, i) => {
+              const setNumber = i + 1;
+              return (
+                <Box key={setNumber} sx={{ flex: 1, textAlign: "center" }}>
+                  <Typography variant="caption" fontWeight={600}>
+                    Set {setNumber}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            {Array.from({ length: exercise.sets }, (_, i) => {
+              const setNumber = i + 1;
+              const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
+              const outcome = setData.outcome || null;
+              const isComplete = isSetComplete(setData);
+
+              return (
+                <Box key={setNumber} sx={{ flex: 1 }}>
+                  <Stack spacing={1} alignItems="center">
+                    <OutcomeCheckbox
+                      outcome={outcome}
+                      onOutcomeChange={newOutcome => onSetToggle?.(exercise.id, setNumber, newOutcome)}
+                      isChecked={isComplete}
+                      size="sm"
+                    />
+                    <TextField
+                      size="small"
+                      placeholder="Reps"
+                      value={setData.actualValue || ""}
+                      onChange={e => onActualValueChange?.(exercise.id, setNumber, "actualValue", e.target.value)}
+                      sx={{
+                        width: "100%",
+                        "& input": {
+                          fontSize: "0.75rem",
+                          textAlign: "center",
+                          py: 0.5,
+                        },
+                      }}
+                      inputProps={{
+                        style: { textAlign: "center" },
+                      }}
+                    />
+                  </Stack>
+                </Box>
+              );
+            })}
+          </Stack>
+        </Box>
+      )}
+
+      {/* Progress indicator */}
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: "block" }}>
+        {completedSets} / {exercise.sets} sets
+      </Typography>
+    </Paper>
   );
-}
+});
+
+export default WorkoutExerciseCard;

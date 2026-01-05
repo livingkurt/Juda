@@ -1,40 +1,29 @@
 "use client";
 
-import { useLayoutEffect, useMemo } from "react";
-import { usePreferencesContext } from "@/hooks/usePreferencesContext";
+import { useMemo } from "react";
+import { useTheme } from "@mui/material/styles";
+import { useColorMode } from "@/hooks/useColorMode";
 
+/**
+ * Hook to sync color mode from Material UI theme
+ * Provides color mode value compatible with existing code
+ *
+ * @returns {Object} Color mode state
+ * @returns {string} colorMode - Current color mode ("light" or "dark")
+ */
 export function useColorModeSync() {
-  const { preferences, updatePreference, initialized } = usePreferencesContext();
+  const { mode } = useColorMode();
+  const muiTheme = useTheme();
 
-  // Derive color mode from preferences instead of storing in state
-  const colorMode = useMemo(() => {
-    return preferences?.colorMode || "dark";
-  }, [preferences?.colorMode]);
+  return useMemo(() => {
+    // Get mode from Material UI theme or color mode context
+    const currentMode = mode || muiTheme.palette.mode || "dark";
 
-  // Sync DOM with color mode whenever it changes
-  useLayoutEffect(() => {
-    if (!initialized) return;
-
-    // Update document class and colorScheme for CSS-based theming (Chakra v3)
-    document.documentElement.classList.remove("light", "dark");
-    document.documentElement.classList.add(colorMode);
-    document.documentElement.style.colorScheme = colorMode;
-  }, [initialized, colorMode]);
-
-  // Save color mode changes to preferences
-  // The DOM update will happen automatically via the useLayoutEffect above
-  const toggleColorModeWithSync = () => {
-    const newMode = colorMode === "dark" ? "light" : "dark";
-    updatePreference("colorMode", newMode);
-  };
-
-  const setColorMode = mode => {
-    updatePreference("colorMode", mode);
-  };
-
-  return {
-    colorMode,
-    toggleColorMode: toggleColorModeWithSync,
-    setColorMode,
-  };
+    return {
+      colorMode: currentMode,
+      mode: currentMode,
+      isDark: currentMode === "dark",
+      isLight: currentMode === "light",
+    };
+  }, [mode, muiTheme.palette.mode]);
 }

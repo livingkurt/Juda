@@ -1,18 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, Dialog, HStack, IconButton, Input, SimpleGrid, Text, VStack, Portal } from "@chakra-ui/react";
-import { Edit2, Plus, Trash2, X, Check, Tag as TagIcon } from "lucide-react";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Stack,
+  IconButton,
+  TextField,
+  Grid,
+  Typography,
+  useTheme,
+} from "@mui/material";
+import { Edit, Add, Delete, Close, Check, Label } from "@mui/icons-material";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { TagChip } from "./TagChip";
 
 export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onDeleteTag }) => {
-  const { mode, interactive } = useSemanticColors();
   const { tagColors, canonicalColors } = useThemeColors();
-  const bgColor = mode.bg.surface;
-  const borderColor = mode.border.default;
-  const hoverBg = mode.bg.muted;
+  const theme = useTheme();
 
   const [newTagName, setNewTagName] = useState("");
   const [newTagColorIndex, setNewTagColorIndex] = useState(0);
@@ -59,145 +67,158 @@ export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onD
   };
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={e => !e.open && onClose()}>
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content bg={bgColor} maxW="500px" w="90vw">
-            <Dialog.Header>
-              <HStack>
-                <TagIcon size={20} />
-                <Text>Manage Tags</Text>
-              </HStack>
-            </Dialog.Header>
-            <Dialog.CloseTrigger />
-            <Dialog.Body pb={6}>
-              <VStack spacing={4} align="stretch">
-                {/* Create new tag section */}
-                <Box p={3} borderWidth="1px" borderColor={borderColor} borderRadius="md">
-                  <Text fontSize="sm" fontWeight="medium" mb={2}>
-                    Create New Tag
-                  </Text>
-                  <Input
-                    placeholder="Tag name"
-                    value={newTagName}
-                    onChange={e => setNewTagName(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && handleCreateTag()}
-                    size="sm"
-                    mb={2}
+    <Dialog open={isOpen} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Label fontSize="medium" />
+          <Typography>Manage Tags</Typography>
+        </Stack>
+        <IconButton onClick={onClose} sx={{ position: "absolute", right: 8, top: 8 }} size="small">
+          <Close />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={3}>
+          {/* Create new tag section */}
+          <Box
+            sx={{
+              p: 3,
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 1,
+            }}
+          >
+            <Typography variant="body2" fontWeight={500} mb={2}>
+              Create New Tag
+            </Typography>
+            <TextField
+              placeholder="Tag name"
+              value={newTagName}
+              onChange={e => setNewTagName(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleCreateTag()}
+              size="small"
+              fullWidth
+              sx={{ mb: 2 }}
+            />
+            <Typography variant="caption" color="text.secondary" mb={1} display="block">
+              Color
+            </Typography>
+            <Grid container spacing={0.5} sx={{ mb: 2 }}>
+              {tagColors.map((themeColor, index) => (
+                <Grid item key={index}>
+                  <Box
+                    sx={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 1,
+                      bgcolor: themeColor,
+                      cursor: "pointer",
+                      border: newTagColorIndex === index ? `2px solid ${theme.palette.primary.main}` : "1px solid",
+                      borderColor: newTagColorIndex === index ? "primary.main" : "divider",
+                      "&:hover": {
+                        transform: "scale(1.1)",
+                      },
+                      transition: "all 0.15s",
+                    }}
+                    onClick={() => setNewTagColorIndex(index)}
                   />
-                  <Text fontSize="xs" color={mode.text.secondary} mb={1}>
-                    Color
-                  </Text>
-                  <SimpleGrid columns={10} gap={1}>
-                    {tagColors.map((themeColor, index) => (
-                      <Box
-                        key={index}
-                        w={6}
-                        h={6}
-                        borderRadius="md"
-                        bg={themeColor}
-                        cursor="pointer"
-                        borderWidth={newTagColorIndex === index ? "2px" : "1px"}
-                        borderColor={newTagColorIndex === index ? interactive.primary : mode.border.input}
-                        _hover={{ transform: "scale(1.1)" }}
-                        onClick={() => setNewTagColorIndex(index)}
-                        transition="all 0.15s"
-                      />
-                    ))}
-                  </SimpleGrid>
-                  <Button size="sm" colorPalette="blue" mt={3} onClick={handleCreateTag} disabled={!newTagName.trim()}>
-                    <Plus size={14} />
-                    Create Tag
-                  </Button>
-                </Box>
+                </Grid>
+              ))}
+            </Grid>
+            <Button size="small" variant="contained" onClick={handleCreateTag} disabled={!newTagName.trim()}>
+              <Add fontSize="small" />
+              Create Tag
+            </Button>
+          </Box>
 
-                {/* Existing tags list */}
-                <Box>
-                  <Text fontSize="sm" fontWeight="medium" mb={2}>
-                    Existing Tags ({tags.length})
-                  </Text>
-                  <VStack spacing={2} align="stretch" maxH="300px" overflowY="auto">
-                    {tags.length === 0 ? (
-                      <Text fontSize="sm" color={mode.text.secondary} textAlign="center" py={4}>
-                        No tags yet. Create your first tag above.
-                      </Text>
-                    ) : (
-                      tags.map(tag => (
-                        <Box
-                          key={tag.id}
-                          p={2}
-                          borderWidth="1px"
-                          borderColor={borderColor}
-                          borderRadius="md"
-                          _hover={{ bg: hoverBg }}
-                        >
-                          {editingTagId === tag.id ? (
-                            <VStack spacing={2} align="stretch">
-                              <Input
-                                value={editingName}
-                                onChange={e => setEditingName(e.target.value)}
-                                size="sm"
-                                autoFocus
+          {/* Existing tags list */}
+          <Box>
+            <Typography variant="body2" fontWeight={500} mb={2}>
+              Existing Tags ({tags.length})
+            </Typography>
+            <Stack spacing={2} sx={{ maxHeight: "300px", overflowY: "auto" }}>
+              {tags.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>
+                  No tags yet. Create your first tag above.
+                </Typography>
+              ) : (
+                tags.map(tag => (
+                  <Box
+                    key={tag.id}
+                    sx={{
+                      p: 2,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                      "&:hover": {
+                        bgcolor: "action.hover",
+                      },
+                    }}
+                  >
+                    {editingTagId === tag.id ? (
+                      <Stack spacing={2}>
+                        <TextField
+                          value={editingName}
+                          onChange={e => setEditingName(e.target.value)}
+                          size="small"
+                          autoFocus
+                          fullWidth
+                        />
+                        <Grid container spacing={0.5}>
+                          {tagColors.map((themeColor, index) => (
+                            <Grid item key={index}>
+                              <Box
+                                sx={{
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: 0.5,
+                                  bgcolor: themeColor,
+                                  cursor: "pointer",
+                                  border:
+                                    editingColorIndex === index
+                                      ? `2px solid ${theme.palette.primary.main}`
+                                      : "1px solid",
+                                  borderColor: editingColorIndex === index ? "primary.main" : "divider",
+                                }}
+                                onClick={() => setEditingColorIndex(index)}
                               />
-                              <SimpleGrid columns={10} gap={1}>
-                                {tagColors.map((themeColor, index) => (
-                                  <Box
-                                    key={index}
-                                    w={5}
-                                    h={5}
-                                    borderRadius="sm"
-                                    bg={themeColor}
-                                    cursor="pointer"
-                                    borderWidth={editingColorIndex === index ? "2px" : "1px"}
-                                    borderColor={editingColorIndex === index ? interactive.primary : borderColor}
-                                    onClick={() => setEditingColorIndex(index)}
-                                  />
-                                ))}
-                              </SimpleGrid>
-                              <HStack justify="flex-end" spacing={1}>
-                                <IconButton size="xs" variant="ghost" onClick={cancelEditing} aria-label="Cancel">
-                                  <X size={14} />
-                                </IconButton>
-                                <IconButton size="xs" colorPalette="blue" onClick={saveEditing} aria-label="Save">
-                                  <Check size={14} />
-                                </IconButton>
-                              </HStack>
-                            </VStack>
-                          ) : (
-                            <HStack justify="space-between">
-                              <TagChip tag={tag} size="sm" />
-                              <HStack spacing={1}>
-                                <IconButton
-                                  size="xs"
-                                  variant="ghost"
-                                  onClick={() => startEditing(tag)}
-                                  aria-label="Edit tag"
-                                >
-                                  <Edit2 size={14} />
-                                </IconButton>
-                                <IconButton
-                                  size="xs"
-                                  variant="ghost"
-                                  colorPalette="red"
-                                  onClick={() => handleDelete(tag.id)}
-                                  aria-label="Delete tag"
-                                >
-                                  <Trash2 size={14} />
-                                </IconButton>
-                              </HStack>
-                            </HStack>
-                          )}
-                        </Box>
-                      ))
+                            </Grid>
+                          ))}
+                        </Grid>
+                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                          <IconButton size="small" onClick={cancelEditing} aria-label="Cancel">
+                            <Close fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" color="primary" onClick={saveEditing} aria-label="Save">
+                            <Check fontSize="small" />
+                          </IconButton>
+                        </Stack>
+                      </Stack>
+                    ) : (
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <TagChip tag={tag} size="sm" />
+                        <Stack direction="row" spacing={1}>
+                          <IconButton size="small" onClick={() => startEditing(tag)} aria-label="Edit tag">
+                            <Edit fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDelete(tag.id)}
+                            aria-label="Delete tag"
+                          >
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </Stack>
+                      </Stack>
                     )}
-                  </VStack>
-                </Box>
-              </VStack>
-            </Dialog.Body>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+                  </Box>
+                ))
+              )}
+            </Stack>
+          </Box>
+        </Stack>
+      </DialogContent>
+    </Dialog>
   );
 };

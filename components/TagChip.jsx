@@ -1,79 +1,47 @@
 "use client";
 
 import { memo } from "react";
-import { Tag } from "@chakra-ui/react";
-import { useTheme } from "@/hooks/useTheme";
-import { useColorModeSync } from "@/hooks/useColorModeSync";
-import { mapColorToTheme } from "@/lib/themes";
+import { Chip } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 
 /**
  * Reusable TagChip component for displaying tags consistently across the app
  * Automatically maps stored tag colors to the current theme's palette
  *
  * @param {Object} tag - Tag object with {id, name, color}
- * @param {string} size - Size variant: "xs" | "sm" | "md" | "lg" | {base: "xs", md: "sm"}
+ * @param {string} size - Size variant: "xs" | "sm" | "md" | "lg"
  * @param {boolean} showClose - Whether to show a close button
  * @param {Function} onClose - Callback when close button is clicked
- * @param {Object} props - Additional props to pass to Tag.Root
+ * @param {Object} props - Additional props to pass to Chip
  */
 export const TagChip = memo(function TagChip({ tag, size = "sm", showClose = false, onClose, ...props }) {
-  const { theme } = useTheme();
-  const { colorMode } = useColorModeSync();
+  const theme = useTheme();
 
-  // Map the stored tag color to the current theme's palette
-  const mode = colorMode || "dark";
-  const themePalette = theme.colors[mode].tagColors;
-  const displayColor = mapColorToTheme(tag.color, themePalette);
+  // Use the tag color directly, or map to theme palette if needed
+  const displayColor = tag.color || theme.palette.primary.main;
 
-  // Default styling - consistent across all tag displays
-  const defaultProps = {
-    borderRadius: "full",
-    bg: displayColor, // Use theme-mapped color
-    color: "white",
-    textTransform: "uppercase",
-    fontSize: size === "sm" ? "xs" : size === "xs" ? "2xs" : "sm",
-    fontWeight: "bold",
-    py: size === "sm" ? 1 : size === "xs" ? 0.5 : 1.5,
-    px: size === "sm" ? 2.5 : size === "xs" ? 1.5 : 3,
-    variant: "solid",
-  };
-
-  // Handle responsive size objects
-  const getSizeValue = (sizeObj, key) => {
-    if (typeof sizeObj === "string") return sizeObj;
-    return sizeObj[key] || sizeObj.base || "sm";
-  };
-
-  // Handle responsive fontSize
-  const fontSize =
-    typeof size === "object"
-      ? {
-          base: getSizeValue(size, "base") === "sm" ? "xs" : "2xs",
-          md: getSizeValue(size, "md") === "sm" ? "xs" : "2xs",
-        }
-      : defaultProps.fontSize;
-
-  // Handle responsive padding
-  const py =
-    typeof size === "object"
-      ? {
-          base: getSizeValue(size, "base") === "sm" ? 1 : 0.5,
-          md: getSizeValue(size, "md") === "sm" ? 1 : 0.5,
-        }
-      : defaultProps.py;
-
-  const px =
-    typeof size === "object"
-      ? {
-          base: getSizeValue(size, "base") === "sm" ? 2.5 : 1.5,
-          md: getSizeValue(size, "md") === "sm" ? 2.5 : 2,
-        }
-      : defaultProps.px;
+  // Map size to MUI size prop
+  const muiSize = size === "xs" ? "small" : size === "sm" ? "small" : size === "md" ? "medium" : "medium";
 
   return (
-    <Tag.Root size={size} {...defaultProps} fontSize={fontSize} py={py} px={px} {...props}>
-      <Tag.Label>{tag.name}</Tag.Label>
-      {showClose && onClose && <Tag.CloseTrigger onClick={() => onClose(tag.id)} />}
-    </Tag.Root>
+    <Chip
+      label={tag.name}
+      size={muiSize}
+      onDelete={showClose && onClose ? () => onClose(tag.id) : undefined}
+      sx={{
+        bgcolor: displayColor,
+        color: "white",
+        textTransform: "uppercase",
+        fontWeight: "bold",
+        borderRadius: "9999px",
+        height: size === "xs" ? 18 : size === "sm" ? 20 : 24,
+        "& .MuiChip-label": {
+          fontSize: size === "xs" ? "0.625rem" : size === "sm" ? "0.75rem" : "0.875rem",
+          px: size === "xs" ? 0.75 : size === "sm" ? 1 : 1.25,
+          whiteSpace: "nowrap",
+        },
+      }}
+      {...props}
+    />
   );
 });

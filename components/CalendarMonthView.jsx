@@ -2,11 +2,10 @@
 
 import { useMemo, useCallback } from "react";
 import { useDispatch } from "react-redux";
-import { Box, Flex, SimpleGrid } from "@chakra-ui/react";
+import { Box, Grid } from "@mui/material";
 import { shouldShowOnDate } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 import { TaskCardCompact } from "./shared/TaskCardCompact";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
@@ -35,16 +34,6 @@ export const CalendarMonthView = ({ date }) => {
 
   // Get all tasks
   const tasks = taskFilters.tasks;
-
-  const { mode, calendar } = useSemanticColors();
-
-  const bgColor = mode.bg.surface;
-  const borderColor = mode.border.default;
-  const hoverBg = mode.bg.surfaceHover;
-  const textColor = mode.text.primary;
-  const mutedText = mode.text.secondary;
-  const dayHeaderColor = mode.text.muted;
-  const nonCurrentMonthBg = mode.bg.subtle;
 
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -81,24 +70,40 @@ export const CalendarMonthView = ({ date }) => {
   );
 
   return (
-    <Flex direction="column" h="full" w="100%" maxW="100%" overflow="hidden">
-      <SimpleGrid columns={7} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor} w="100%" maxW="100%">
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        width: "100%",
+        maxWidth: "100%",
+        overflow: "hidden",
+      }}
+    >
+      <Grid
+        container
+        sx={{ borderBottom: 1, borderColor: "divider", bgcolor: "background.paper", width: "100%", maxWidth: "100%" }}
+      >
         {DAYS_OF_WEEK.map(day => (
-          <Box
+          <Grid
+            item
+            xs
             key={day.value}
-            textAlign="center"
-            py={2}
-            fontSize={{ base: "xs", md: "sm" }}
-            fontWeight="medium"
-            color={dayHeaderColor}
+            sx={{
+              textAlign: "center",
+              py: 2,
+              fontSize: { xs: "0.75rem", md: "0.875rem" },
+              fontWeight: 500,
+              color: "text.secondary",
+            }}
           >
             {day.label}
-          </Box>
+          </Grid>
         ))}
-      </SimpleGrid>
-      <Box flex={1}>
+      </Grid>
+      <Box sx={{ flex: 1 }}>
         {weeks.map((week, wi) => (
-          <SimpleGrid key={wi} columns={7} borderBottomWidth="1px" borderColor={borderColor}>
+          <Grid container key={wi} sx={{ borderBottom: wi < 5 ? 1 : 0, borderColor: "divider" }}>
             {week.map((day, di) => {
               const isCurrentMonth = day.getMonth() === month;
               const isToday = day.toDateString() === today.toDateString();
@@ -114,20 +119,29 @@ export const CalendarMonthView = ({ date }) => {
               }
               dayTasks = dayTasks.slice(0, 3);
               return (
-                <Box
+                <Grid
+                  item
+                  xs
                   key={di}
-                  borderTopWidth={isToday ? "1.5px" : "1px"}
-                  borderBottomWidth={isToday ? "1.5px" : "1px"}
-                  borderLeftWidth={isToday ? "1.5px" : "1px"}
-                  borderRightWidth={isToday ? "1.5px" : "1px"}
-                  borderColor={isToday ? calendar.today : borderColor}
-                  p={1}
-                  minH={`${80 * zoom}px`}
-                  cursor="pointer"
-                  _hover={{
-                    bg: isToday ? calendar.todayBg : hoverBg,
+                  sx={{
+                    borderTop: isToday ? 1.5 : 1,
+                    borderBottom: isToday ? 1.5 : 1,
+                    borderLeft: isToday ? 1.5 : 1,
+                    borderRight: isToday ? 1.5 : 1,
+                    borderColor: isToday ? "primary.main" : "divider",
+                    p: 1,
+                    minHeight: `${80 * zoom}px`,
+                    cursor: "pointer",
+                    bgcolor: isToday
+                      ? "action.selected"
+                      : !isCurrentMonth
+                        ? "action.disabledBackground"
+                        : "transparent",
+                    opacity: isCurrentMonth ? 1 : 0.4,
+                    "&:hover": {
+                      bgcolor: isToday ? "action.selected" : "action.hover",
+                    },
                   }}
-                  bg={isToday ? calendar.todayBg : !isCurrentMonth ? nonCurrentMonthBg : "transparent"}
                   onClick={e => {
                     // Only navigate to day if clicking on the cell background, not a task
                     if (e.target === e.currentTarget || e.target.tagName === "SPAN") {
@@ -136,22 +150,24 @@ export const CalendarMonthView = ({ date }) => {
                   }}
                 >
                   <Box
-                    as="span"
-                    fontSize={{
-                      base: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
-                      md: zoom >= 1.5 ? "md" : zoom >= 1.0 ? "sm" : "xs",
+                    component="span"
+                    sx={{
+                      fontSize: {
+                        xs: zoom >= 1.5 ? "0.875rem" : zoom >= 1.0 ? "0.75rem" : "0.625rem",
+                        md: zoom >= 1.5 ? "1rem" : zoom >= 1.0 ? "0.875rem" : "0.75rem",
+                      },
+                      mb: 1,
+                      display: "inline-block",
+                      bgcolor: isToday ? "primary.main" : "transparent",
+                      color: isToday ? "primary.contrastText" : !isCurrentMonth ? "text.secondary" : "text.primary",
+                      borderRadius: "50%",
+                      width: 24 * zoom,
+                      height: 24 * zoom,
+                      lineHeight: `${24 * zoom}px`,
+                      textAlign: "center",
+                      fontWeight: isToday ? 600 : 400,
+                      boxShadow: isToday ? 1 : "none",
                     }}
-                    mb={1}
-                    display="inline-block"
-                    bg={isToday ? calendar.today : "transparent"}
-                    color={isToday ? mode.text.inverse : !isCurrentMonth ? mutedText : textColor}
-                    borderRadius="full"
-                    w={6 * zoom}
-                    h={6 * zoom}
-                    lineHeight={`${24 * zoom}px`}
-                    textAlign="center"
-                    fontWeight={isToday ? "semibold" : "normal"}
-                    boxShadow={isToday ? "sm" : "none"}
                   >
                     {day.getDate()}
                   </Box>
@@ -170,12 +186,14 @@ export const CalendarMonthView = ({ date }) => {
                       />
                     );
                   })}
-                </Box>
+                </Grid>
               );
             })}
-          </SimpleGrid>
+          </Grid>
         ))}
       </Box>
-    </Flex>
+    </Box>
   );
 };
+
+export default CalendarMonthView;

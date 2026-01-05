@@ -1,9 +1,18 @@
 "use client";
 
-import { HStack, Box, Text, Menu } from "@chakra-ui/react";
-import { Edit2, Check, X, Circle, Copy, Trash2, Dumbbell, Clock, Unlink } from "lucide-react";
+import { Menu, MenuItem, ListItemIcon, ListItemText, Divider } from "@mui/material";
+import {
+  Edit,
+  Check,
+  Close,
+  RadioButtonUnchecked,
+  ContentCopy,
+  Delete,
+  FitnessCenter,
+  AccessTime,
+  LinkOff,
+} from "@mui/icons-material";
 import { TagMenuSelector } from "./TagMenuSelector";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
@@ -18,9 +27,9 @@ export const TaskContextMenu = ({
   isSubtask,
   onClose,
   onRemoveFromParent,
+  anchorEl,
+  open,
 }) => {
-  const { mode } = useSemanticColors();
-
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
   const completionHandlers = useCompletionHandlers();
@@ -47,261 +56,195 @@ export const TaskContextMenu = ({
     }
   };
 
+  if (!open || !anchorEl) return null;
+
   return (
-    <>
+    <Menu
+      anchorEl={anchorEl}
+      open={open}
+      onClose={onClose}
+      onClick={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
+    >
       {/* Edit - always show */}
-      <Menu.Item
+      <MenuItem
         onClick={e => {
           e.stopPropagation();
           taskOps.handleEditTask(task);
           onClose?.();
         }}
       >
-        <HStack gap={2}>
-          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-            <Edit2 size={14} />
-          </Box>
-          <Text>Edit</Text>
-        </HStack>
-      </Menu.Item>
+        <ListItemIcon>
+          <Edit fontSize="small" />
+        </ListItemIcon>
+        <ListItemText>Edit</ListItemText>
+      </MenuItem>
 
       {/* Remove from Parent - only show for subtasks */}
-      {isSubtask && (
-        <>
-          <Menu.Item
-            onClick={e => {
-              e.stopPropagation();
-              handleRemoveFromParent();
-            }}
-            color={mode.text.primary}
-          >
-            <HStack gap={2}>
-              <Box
-                as="span"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                w="14px"
-                h="14px"
-                flexShrink={0}
-              >
-                <Unlink size={14} />
-              </Box>
-              <Text>Remove from Parent</Text>
-            </HStack>
-          </Menu.Item>
-          <Menu.Separator />
-        </>
-      )}
+      {isSubtask && [
+        <MenuItem
+          key="remove-from-parent"
+          onClick={e => {
+            e.stopPropagation();
+            handleRemoveFromParent();
+          }}
+        >
+          <ListItemIcon>
+            <LinkOff fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Remove from Parent</ListItemText>
+        </MenuItem>,
+        <Divider key="divider-remove-parent" />,
+      ]}
 
       {/* Edit Workout option for workout-type tasks */}
       {isWorkoutTask && (
-        <Menu.Item
+        <MenuItem
           onClick={e => {
             e.stopPropagation();
             taskOps.handleEditWorkout(task);
             onClose?.();
           }}
         >
-          <HStack gap={2}>
-            <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-              <Dumbbell size={14} />
-            </Box>
-            <Text>Edit Workout</Text>
-          </HStack>
-        </Menu.Item>
+          <ListItemIcon>
+            <FitnessCenter fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit Workout</ListItemText>
+        </MenuItem>
       )}
 
       {/* Completion options for recurring tasks */}
-      {isRecurring && date && (
-        <>
-          {outcome !== null && (
-            <>
-              <Menu.Item
-                onClick={e => {
-                  e.stopPropagation();
-                  completionHandlers.handleOutcomeChange(task.id, date, null);
-                  onClose?.();
-                }}
-              >
-                <HStack gap={2}>
-                  <Box
-                    as="span"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    w="14px"
-                    h="14px"
-                    flexShrink={0}
-                  >
-                    <Circle size={14} />
-                  </Box>
-                  <Text>Uncheck</Text>
-                </HStack>
-              </Menu.Item>
-              <Menu.Separator />
-            </>
-          )}
-          {outcome !== "completed" && (
-            <Menu.Item
+      {isRecurring &&
+        date &&
+        [
+          outcome !== null && (
+            <MenuItem
+              key="uncheck-recurring"
+              onClick={e => {
+                e.stopPropagation();
+                completionHandlers.handleOutcomeChange(task.id, date, null);
+                onClose?.();
+              }}
+            >
+              <ListItemIcon>
+                <RadioButtonUnchecked fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Uncheck</ListItemText>
+            </MenuItem>
+          ),
+          outcome !== null && <Divider key="divider-uncheck-recurring" />,
+          outcome !== "completed" && (
+            <MenuItem
+              key="complete-recurring"
               onClick={e => {
                 e.stopPropagation();
                 completionHandlers.handleOutcomeChange(task.id, date, "completed");
                 onClose?.();
               }}
             >
-              <HStack gap={2}>
-                <Box
-                  as="span"
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  w="14px"
-                  h="14px"
-                  flexShrink={0}
-                >
-                  <Check size={14} />
-                </Box>
-                <Text>Complete</Text>
-              </HStack>
-            </Menu.Item>
-          )}
-          {outcome !== "not_completed" && (
-            <Menu.Item
+              <ListItemIcon>
+                <Check fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Complete</ListItemText>
+            </MenuItem>
+          ),
+          outcome !== "not_completed" && (
+            <MenuItem
+              key="not-completed-recurring"
               onClick={e => {
                 e.stopPropagation();
                 completionHandlers.handleOutcomeChange(task.id, date, "not_completed");
                 onClose?.();
               }}
             >
-              <HStack gap={2}>
-                <Box
-                  as="span"
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  w="14px"
-                  h="14px"
-                  flexShrink={0}
-                >
-                  <X size={14} />
-                </Box>
-                <Text>Not Completed</Text>
-              </HStack>
-            </Menu.Item>
-          )}
-          <Menu.Separator />
-        </>
-      )}
+              <ListItemIcon>
+                <Close fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Not Completed</ListItemText>
+            </MenuItem>
+          ),
+          <Divider key="divider-recurring-end" />,
+        ].filter(Boolean)}
+
       {/* Status options for non-recurring tasks */}
-      {!isRecurring && (
-        <>
-          <Menu.Separator />
-          <Menu.Item
-            onClick={e => {
-              e.stopPropagation();
-              statusHandlers.handleStatusChange(task.id, "todo");
-              onClose?.();
-            }}
-            disabled={task.status === "todo"}
-          >
-            <HStack gap={2}>
-              <Box
-                as="span"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                w="14px"
-                h="14px"
-                flexShrink={0}
-              >
-                <Circle size={14} />
-              </Box>
-              <Text>Set to Todo</Text>
-            </HStack>
-          </Menu.Item>
-          <Menu.Item
-            onClick={e => {
-              e.stopPropagation();
-              statusHandlers.handleStatusChange(task.id, "in_progress");
-              onClose?.();
-            }}
-            disabled={task.status === "in_progress"}
-          >
-            <HStack gap={2}>
-              <Box
-                as="span"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                w="14px"
-                h="14px"
-                flexShrink={0}
-              >
-                <Clock size={14} />
-              </Box>
-              <Text>Set to In Progress</Text>
-            </HStack>
-          </Menu.Item>
-          <Menu.Item
-            onClick={e => {
-              e.stopPropagation();
-              statusHandlers.handleStatusChange(task.id, "complete");
-              onClose?.();
-            }}
-            disabled={task.status === "complete"}
-          >
-            <HStack gap={2}>
-              <Box
-                as="span"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                w="14px"
-                h="14px"
-                flexShrink={0}
-              >
-                <Check size={14} />
-              </Box>
-              <Text>Set to Complete</Text>
-            </HStack>
-          </Menu.Item>
-          <Menu.Separator />
-        </>
-      )}
-      <Menu.Item
+      {!isRecurring && [
+        <Divider key="divider-status-start" />,
+        <MenuItem
+          key="status-todo"
+          onClick={e => {
+            e.stopPropagation();
+            statusHandlers.handleStatusChange(task.id, "todo");
+            onClose?.();
+          }}
+          disabled={task.status === "todo"}
+        >
+          <ListItemIcon>
+            <RadioButtonUnchecked fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Set to Todo</ListItemText>
+        </MenuItem>,
+        <MenuItem
+          key="status-in-progress"
+          onClick={e => {
+            e.stopPropagation();
+            statusHandlers.handleStatusChange(task.id, "in_progress");
+            onClose?.();
+          }}
+          disabled={task.status === "in_progress"}
+        >
+          <ListItemIcon>
+            <AccessTime fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Set to In Progress</ListItemText>
+        </MenuItem>,
+        <MenuItem
+          key="status-complete"
+          onClick={e => {
+            e.stopPropagation();
+            statusHandlers.handleStatusChange(task.id, "complete");
+            onClose?.();
+          }}
+          disabled={task.status === "complete"}
+        >
+          <ListItemIcon>
+            <Check fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Set to Complete</ListItemText>
+        </MenuItem>,
+        <Divider key="divider-status-end" />,
+      ]}
+
+      <MenuItem
         onClick={e => {
           e.stopPropagation();
           taskOps.handleDuplicateTask(task.id);
           onClose?.();
         }}
       >
-        <HStack gap={2}>
-          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-            <Copy size={14} />
-          </Box>
-          <Text>Duplicate</Text>
-        </HStack>
-      </Menu.Item>
+        <ListItemIcon>
+          <ContentCopy fontSize="small" />
+        </ListItemIcon>
+        <ListItemText>Duplicate</ListItemText>
+      </MenuItem>
 
       {/* Tags submenu */}
       <TagMenuSelector task={task} />
 
-      <Menu.Item
+      <MenuItem
         onClick={e => {
           e.stopPropagation();
           taskOps.handleDeleteTask(task.id);
           onClose?.();
         }}
-        color={mode.status.error}
+        sx={{ color: "error.main" }}
       >
-        <HStack gap={2}>
-          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-            <Trash2 size={14} />
-          </Box>
-          <Text>Delete</Text>
-        </HStack>
-      </Menu.Item>
-    </>
+        <ListItemIcon sx={{ color: "inherit" }}>
+          <Delete fontSize="small" />
+        </ListItemIcon>
+        <ListItemText>Delete</ListItemText>
+      </MenuItem>
+    </Menu>
   );
 };
+
+export default TaskContextMenu;

@@ -1,10 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, Input, VStack, Text, Alert, Link } from "@chakra-ui/react";
-import Image from "next/image";
+import {
+  Box,
+  Stack,
+  Typography,
+  TextField,
+  Button,
+  IconButton,
+  InputAdornment,
+  Paper,
+  Link,
+  Alert,
+  CircularProgress,
+} from "@mui/material";
+import { Visibility, VisibilityOff, Email, Lock, Person } from "@mui/icons-material";
 import { useAuth } from "@/hooks/useAuth";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export function RegisterForm({ onSwitchToLogin }) {
   const { register } = useAuth();
@@ -12,155 +23,131 @@ export function RegisterForm({ onSwitchToLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const { mode } = useSemanticColors();
-  const bgColor = mode.bg.surface;
-  const borderColor = mode.border.default;
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async e => {
     e.preventDefault();
     setError("");
-
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-
     if (password.length < 8) {
       setError("Password must be at least 8 characters");
       return;
     }
-
-    setLoading(true);
-
+    setIsLoading(true);
     try {
       await register(email, password, name);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Failed to create account");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <Box
-      as="form"
-      onSubmit={handleSubmit}
-      bg={bgColor}
-      p={8}
-      borderRadius="lg"
-      borderWidth="1px"
-      borderColor={borderColor}
-      w="full"
-      maxW="400px"
-    >
-      <VStack spacing={4}>
-        <Box mb={2}>
-          <Image src="/icon.png" alt="Juda Logo" width={80} height={80} priority />
+    <Paper elevation={4} sx={{ p: 4, width: "100%", maxWidth: 400, borderRadius: 2 }}>
+      <Stack spacing={3}>
+        <Box textAlign="center">
+          <Typography variant="h4" fontWeight={700} gutterBottom>
+            Create Account
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Get started with Juda
+          </Typography>
         </Box>
-        <Text fontSize="2xl" fontWeight="bold">
-          Create Account
-        </Text>
 
         {error && (
-          <Alert.Root status="error" borderRadius="md">
-            <Alert.Title>{error}</Alert.Title>
-          </Alert.Root>
+          <Alert severity="error" onClose={() => setError("")}>
+            {error}
+          </Alert>
         )}
 
-        <Box w="full">
-          <Text fontSize="sm" fontWeight="medium" mb={1}>
-            Name (optional)
-          </Text>
-          <Input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="Your name"
-            borderColor={borderColor}
-            _focus={{
-              borderColor: "blue.400",
-              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-            }}
-          />
-        </Box>
+        <form onSubmit={handleSubmit}>
+          <Stack spacing={2.5}>
+            <TextField
+              fullWidth
+              label="Name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Person sx={{ fontSize: 18 }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Email sx={{ fontSize: 18 }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              helperText="At least 8 characters"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Lock sx={{ fontSize: 18 }} />
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setShowPassword(!showPassword)} size="small">
+                      {showPassword ? <VisibilityOff sx={{ fontSize: 18 }} /> : <Visibility sx={{ fontSize: 18 }} />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Confirm Password"
+              type={showPassword ? "text" : "password"}
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Lock sx={{ fontSize: 18 }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <Button type="submit" variant="contained" fullWidth size="large" disabled={isLoading}>
+              {isLoading ? <CircularProgress size={20} /> : "Create Account"}
+            </Button>
+          </Stack>
+        </form>
 
-        <Box w="full">
-          <Text fontSize="sm" fontWeight="medium" mb={1}>
-            Email{" "}
-            <Text as="span" color="red.500">
-              *
-            </Text>
-          </Text>
-          <Input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            borderColor={borderColor}
-            _focus={{
-              borderColor: "blue.400",
-              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-            }}
-            required
-          />
-        </Box>
-
-        <Box w="full">
-          <Text fontSize="sm" fontWeight="medium" mb={1}>
-            Password{" "}
-            <Text as="span" color="red.500">
-              *
-            </Text>
-          </Text>
-          <Input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="••••••••"
-            borderColor={borderColor}
-            _focus={{
-              borderColor: "blue.400",
-              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-            }}
-            required
-          />
-        </Box>
-
-        <Box w="full">
-          <Text fontSize="sm" fontWeight="medium" mb={1}>
-            Confirm Password{" "}
-            <Text as="span" color="red.500">
-              *
-            </Text>
-          </Text>
-          <Input
-            type="password"
-            value={confirmPassword}
-            onChange={e => setConfirmPassword(e.target.value)}
-            placeholder="••••••••"
-            borderColor={borderColor}
-            _focus={{
-              borderColor: "blue.400",
-              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-            }}
-            required
-          />
-        </Box>
-
-        <Button type="submit" colorPalette="blue" w="full" isLoading={loading}>
-          Create Account
-        </Button>
-
-        <Text fontSize="sm">
+        <Typography variant="body2" textAlign="center" color="text.secondary">
           Already have an account?{" "}
-          <Link color="blue.500" onClick={onSwitchToLogin} cursor="pointer">
+          <Link component="button" onClick={onSwitchToLogin}>
             Sign in
           </Link>
-        </Text>
-      </VStack>
-    </Box>
+        </Typography>
+      </Stack>
+    </Paper>
   );
 }

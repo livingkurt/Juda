@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useRef, memo } from "react";
-import { Box, Card, Heading, Text, Flex, HStack, VStack, IconButton, Menu, Input, Collapsible } from "@chakra-ui/react";
+import { Box, Paper, Stack, Typography, IconButton, Menu, MenuItem, TextField, Collapse } from "@mui/material";
 import { useDroppable } from "@dnd-kit/core";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, MoreVertical, GripVertical, Sun, ChevronDown, ChevronUp } from "lucide-react";
+import { Add, MoreVert, DragIndicator, LightMode, ExpandMore, ExpandLess } from "@mui/icons-material";
 import { TaskItem } from "./TaskItem";
 import { SECTION_ICONS } from "@/lib/constants";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useSectionOperations } from "@/hooks/useSectionOperations";
@@ -17,16 +16,9 @@ import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 
 const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDraggableId, viewDate }) => {
-  const { mode, dnd, icon } = useSemanticColors();
-
-  const bgColor = mode.bg.surface;
-  const borderColor = mode.border.default;
-  const textColor = mode.text.primary;
-  const mutedText = mode.text.secondary;
-  const dropHighlight = dnd.dropTarget;
-
   const [inlineInputValue, setInlineInputValue] = useState("");
   const [isInlineInputActive, setIsInlineInputActive] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState(null);
   const inlineInputRef = useRef(null);
 
   // Use hooks directly (they use Redux internally)
@@ -53,7 +45,7 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
   // Get tasks for this section from Redux
   const tasks = taskFilters.tasksBySection[section.id] || [];
 
-  const IconComponent = SECTION_ICONS.find(i => i.value === section.icon)?.Icon || Sun;
+  const IconComponent = SECTION_ICONS.find(i => i.value === section.icon)?.Icon || LightMode;
   const completedCount = tasks.filter(
     t => t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed))
   ).length;
@@ -124,217 +116,209 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
     }
   };
 
+  const isExpanded = section.expanded !== false;
+
   return (
-    <Card.Root
+    <Paper
       ref={setSectionNodeRef}
       style={sectionStyle}
-      mb={{ base: 2, md: 4 }}
-      bg={bgColor}
-      borderColor={isDropTarget || isOver ? dnd.dropTargetBorder : borderColor}
-      borderWidth={isDropTarget || isOver ? "2px" : "1px"}
-      opacity={sectionIsDragging ? 0.5 : 1}
-      transition="border-color 0.2s, border-width 0.2s"
-      w="100%"
-      maxW="100%"
-      overflow="hidden"
+      variant="outlined"
+      sx={{
+        mb: { xs: 1, md: 2 },
+        opacity: sectionIsDragging ? 0.5 : 1,
+        borderWidth: isDropTarget || isOver ? 2 : 1,
+        borderColor: isDropTarget || isOver ? "primary.main" : "divider",
+        transition: "border-color 0.2s, border-width 0.2s",
+        width: "100%",
+        maxWidth: "100%",
+        overflow: "hidden",
+      }}
     >
-      <Card.Header
-        pb={{ base: 1, md: 2 }}
-        pt={{ base: 2, md: 3 }}
-        px={{ base: 2, md: 4 }}
-        w="100%"
-        maxW="100%"
-        overflow="hidden"
+      {/* Header */}
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        spacing={1}
+        sx={{
+          p: { xs: 1.5, md: 2 },
+          borderBottom: isExpanded && tasksWithIds.length > 0 ? 1 : 0,
+          borderColor: "divider",
+          width: "100%",
+          maxWidth: "100%",
+          overflow: "hidden",
+        }}
       >
-        <Flex align="center" justify="space-between" w="100%" maxW="100%" gap={{ base: 1, md: 2 }}>
-          <Flex align="center" gap={{ base: 1, md: 2 }} minW={0} flex={1}>
-            <Box
-              {...sectionAttributes}
-              {...sectionListeners}
-              cursor="grab"
-              _active={{ cursor: "grabbing" }}
-              color={mutedText}
-              display={{ base: "none", md: "block" }}
-            >
-              <GripVertical size={14} stroke="currentColor" />
-            </Box>
-            <Box as="span" color={icon.primary}>
-              <IconComponent size={14} stroke="currentColor" />
-            </Box>
-            <Heading size={{ base: "sm", md: "md" }} color={textColor} noOfLines={1}>
-              {section.name}
-            </Heading>
-            <Text fontSize={{ base: "xs", md: "sm" }} color={mutedText} flexShrink={0}>
-              ({completedCount}/{tasks.length})
-            </Text>
-          </Flex>
-          <HStack spacing={{ base: 0, md: 1 }} flexShrink={0}>
-            <IconButton
-              onClick={() => sectionOps.handleToggleSectionExpand(section.id)}
-              size={{ base: "xs", md: "sm" }}
-              variant="ghost"
-              aria-label={section.expanded !== false ? "Collapse section" : "Expand section"}
-              minW={{ base: "24px", md: "32px" }}
-              h={{ base: "24px", md: "32px" }}
-              p={{ base: 0, md: 1 }}
-            >
-              <Box as="span" color="currentColor">
-                {section.expanded !== false ? (
-                  <ChevronUp size={14} stroke="currentColor" />
-                ) : (
-                  <ChevronDown size={14} stroke="currentColor" />
-                )}
-              </Box>
-            </IconButton>
-            <IconButton
-              onClick={() => taskOps.handleAddTask(section.id)}
-              size={{ base: "xs", md: "sm" }}
-              variant="ghost"
-              aria-label="Add task"
-              minW={{ base: "24px", md: "32px" }}
-              h={{ base: "24px", md: "32px" }}
-              p={{ base: 0, md: 1 }}
-            >
-              <Box as="span" color="currentColor">
-                <Plus size={14} stroke="currentColor" />
-              </Box>
-            </IconButton>
-            <Menu.Root>
-              <Menu.Trigger asChild>
-                <IconButton
-                  size={{ base: "xs", md: "sm" }}
-                  variant="ghost"
-                  aria-label="Section menu"
-                  border="none"
-                  outline="none"
-                  minW={{ base: "24px", md: "32px" }}
-                  h={{ base: "24px", md: "32px" }}
-                  p={{ base: 0, md: 1 }}
-                  _hover={{ border: "none", outline: "none" }}
-                  _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-                  _active={{ border: "none", outline: "none" }}
+        <Stack direction="row" alignItems="center" spacing={1} flex={1} minWidth={0}>
+          <Box
+            {...sectionAttributes}
+            {...sectionListeners}
+            sx={{
+              cursor: "grab",
+              color: "text.secondary",
+              display: { xs: "none", md: "block" },
+              "&:active": { cursor: "grabbing" },
+            }}
+          >
+            <DragIndicator fontSize="small" />
+          </Box>
+          <IconComponent fontSize="small" sx={{ color: "inherit" }} />
+          <Typography
+            variant="subtitle1"
+            sx={{
+              fontWeight: 600,
+              fontSize: { xs: "0.875rem", md: "1rem" },
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {section.name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+            ({completedCount}/{tasks.length})
+          </Typography>
+        </Stack>
+        <Stack direction="row" spacing={0.5} flexShrink={0}>
+          <IconButton
+            onClick={() => sectionOps.handleToggleSectionExpand(section.id)}
+            size="small"
+            aria-label={isExpanded ? "Collapse section" : "Expand section"}
+          >
+            {isExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+          </IconButton>
+          <IconButton onClick={() => taskOps.handleAddTask(section.id)} size="small" aria-label="Add task">
+            <Add fontSize="small" />
+          </IconButton>
+          <IconButton size="small" aria-label="Section menu" onClick={e => setMenuAnchor(e.currentTarget)}>
+            <MoreVert fontSize="small" />
+          </IconButton>
+        </Stack>
+      </Stack>
+
+      {/* Menu */}
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+        <MenuItem
+          onClick={() => {
+            sectionOps.handleEditSection(section);
+            setMenuAnchor(null);
+          }}
+        >
+          Edit
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            sectionOps.handleDeleteSection(section.id);
+            setMenuAnchor(null);
+          }}
+          sx={{ color: "error.main" }}
+        >
+          Delete
+        </MenuItem>
+      </Menu>
+
+      {/* Content */}
+      <Collapse in={isExpanded}>
+        <Box
+          sx={{
+            p: { xs: 1, md: 1.5 },
+          }}
+        >
+          <Box
+            ref={setDropNodeRef}
+            sx={{
+              bgcolor: isOver ? "action.hover" : "transparent",
+              borderRadius: 1,
+              minHeight: tasksWithIds.length === 0 ? { xs: 80, md: 120 } : { xs: 40, md: 60 },
+              p: tasksWithIds.length === 0 ? { xs: 2, md: 3 } : { xs: 1, md: 1.5 },
+              transition: "background-color 0.2s, padding 0.2s, min-height 0.2s",
+              borderWidth: isOver ? 2 : 0,
+              borderColor: isOver ? "primary.main" : "transparent",
+              borderStyle: "dashed",
+            }}
+          >
+            {tasksWithIds.length === 0 ? (
+              <Stack spacing={1}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontSize: { xs: "0.75rem", md: "0.875rem" },
+                    textAlign: "center",
+                    py: { xs: 2, md: 4 },
+                    color: "text.secondary",
+                  }}
                 >
-                  <Box as="span" color="currentColor">
-                    <MoreVertical size={14} stroke="currentColor" />
-                  </Box>
-                </IconButton>
-              </Menu.Trigger>
-              <Menu.Positioner>
-                <Menu.Content>
-                  <Menu.Item onClick={() => sectionOps.handleEditSection(section)}>Edit</Menu.Item>
-                  <Menu.Item onClick={() => sectionOps.handleDeleteSection(section.id)} color="red.500">
-                    Delete
-                  </Menu.Item>
-                </Menu.Content>
-              </Menu.Positioner>
-            </Menu.Root>
-          </HStack>
-        </Flex>
-      </Card.Header>
-      <Collapsible.Root open={section.expanded !== false}>
-        <Collapsible.Content>
-          <Card.Body pt={{ base: 1, md: 2 }} pb={{ base: 2, md: 3 }} px={{ base: 2, md: 4 }}>
-            <Box
-              ref={setDropNodeRef}
-              bg={isOver ? dropHighlight : "transparent"}
-              borderRadius="md"
-              minH={tasksWithIds.length === 0 ? { base: "80px", md: "120px" } : { base: "40px", md: "60px" }}
-              p={tasksWithIds.length === 0 ? { base: 2, md: 4 } : { base: 1, md: 2 }}
-              transition="background-color 0.2s, padding 0.2s, min-height 0.2s"
-              borderWidth={isOver ? "2px" : "0px"}
-              borderColor={isOver ? dnd.dropTargetBorder : "transparent"}
-              borderStyle="dashed"
-            >
-              {tasksWithIds.length === 0 ? (
-                <VStack align="stretch" spacing={{ base: 1, md: 2 }}>
-                  <Text
-                    fontSize={{ base: "xs", md: "sm" }}
-                    textAlign="center"
-                    py={{ base: 4, md: 8 }}
-                    color={mutedText}
-                  >
-                    {isOver ? "Drop here" : "No tasks"}
-                  </Text>
-                  <Input
-                    ref={inlineInputRef}
+                  {isOver ? "Drop here" : "No tasks"}
+                </Typography>
+                <TextField
+                  inputRef={inlineInputRef}
+                  fullWidth
+                  size="small"
+                  variant="standard"
+                  placeholder="New task..."
+                  value={inlineInputValue}
+                  onChange={e => setInlineInputValue(e.target.value)}
+                  onBlur={handleInlineInputBlur}
+                  onKeyDown={handleInlineInputKeyDown}
+                  onClick={handleInlineInputClick}
+                  InputProps={{
+                    disableUnderline: !isInlineInputActive,
+                    sx: {
+                      fontSize: "0.875rem",
+                      color: isInlineInputActive ? "text.primary" : "text.secondary",
+                    },
+                  }}
+                />
+              </Stack>
+            ) : (
+              <SortableContext
+                id={droppableId}
+                items={tasksWithIds.map(t => t.draggableId)}
+                strategy={verticalListSortingStrategy}
+              >
+                <Stack spacing={{ xs: 1, md: 1.5 }} sx={{ py: { xs: 0.5, md: 1 } }}>
+                  {tasksWithIds.map((task, index) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      variant="today"
+                      index={index}
+                      containerId={droppableId}
+                      hoveredDroppable={hoveredDroppable}
+                      draggableId={task.draggableId}
+                      viewDate={viewDate}
+                    />
+                  ))}
+                  <TextField
+                    inputRef={inlineInputRef}
+                    fullWidth
+                    size="small"
+                    variant="standard"
+                    placeholder="New task..."
                     value={inlineInputValue}
                     onChange={e => setInlineInputValue(e.target.value)}
                     onBlur={handleInlineInputBlur}
                     onKeyDown={handleInlineInputKeyDown}
                     onClick={handleInlineInputClick}
-                    placeholder="New task..."
-                    size="sm"
-                    variant="unstyled"
-                    bg="transparent"
-                    borderWidth="0px"
-                    px={2}
-                    py={1}
-                    fontSize="sm"
-                    color={isInlineInputActive ? textColor : mutedText}
-                    _focus={{
-                      outline: "none",
-                      color: textColor,
-                    }}
-                    _placeholder={{ color: mutedText }}
-                    _hover={{
-                      color: textColor,
+                    InputProps={{
+                      disableUnderline: !isInlineInputActive,
+                      sx: {
+                        fontSize: "0.875rem",
+                        color: isInlineInputActive ? "text.primary" : "text.secondary",
+                      },
                     }}
                   />
-                </VStack>
-              ) : (
-                <SortableContext
-                  id={droppableId}
-                  items={tasksWithIds.map(t => t.draggableId)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <VStack align="stretch" spacing={{ base: 2, md: 3 }} py={{ base: 1, md: 2 }}>
-                    {tasksWithIds.map((task, index) => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        variant="today"
-                        index={index}
-                        containerId={droppableId}
-                        hoveredDroppable={hoveredDroppable}
-                        draggableId={task.draggableId}
-                        viewDate={viewDate}
-                      />
-                    ))}
-                    <Input
-                      ref={inlineInputRef}
-                      value={inlineInputValue}
-                      onChange={e => setInlineInputValue(e.target.value)}
-                      onBlur={handleInlineInputBlur}
-                      onKeyDown={handleInlineInputKeyDown}
-                      onClick={handleInlineInputClick}
-                      placeholder="New task..."
-                      size="sm"
-                      variant="unstyled"
-                      bg="transparent"
-                      borderWidth="0px"
-                      px={2}
-                      py={1}
-                      fontSize="sm"
-                      color={isInlineInputActive ? textColor : mutedText}
-                      _focus={{
-                        outline: "none",
-                        color: textColor,
-                      }}
-                      _placeholder={{ color: mutedText }}
-                      _hover={{
-                        color: textColor,
-                      }}
-                    />
-                  </VStack>
-                </SortableContext>
-              )}
-            </Box>
-          </Card.Body>
-        </Collapsible.Content>
-      </Collapsible.Root>
-    </Card.Root>
+                </Stack>
+              </SortableContext>
+            )}
+          </Box>
+        </Box>
+      </Collapse>
+    </Paper>
   );
 };
 
 // Memoize to prevent unnecessary re-renders
 export const SectionCard = memo(SectionCardComponent);
+
+export default SectionCard;

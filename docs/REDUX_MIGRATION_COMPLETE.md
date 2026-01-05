@@ -16,10 +16,12 @@ Successfully migrated shared state from `useState` hooks to Redux slices, elimin
 **Purpose**: Manages section expansion state (auto-collapsed and manually expanded sections)
 
 **State**:
+
 - `autoCollapsedSections`: Array of section IDs that are auto-collapsed
 - `manuallyExpandedSections`: Array of section IDs that were manually expanded
 
 **Actions**:
+
 - `addAutoCollapsedSection(sectionId)`
 - `removeAutoCollapsedSection(sectionId)`
 - `setAutoCollapsedSections(array)`
@@ -31,11 +33,13 @@ Successfully migrated shared state from `useState` hooks to Redux slices, elimin
 ### 2. Updated `uiSlice.js`
 
 **Added State**:
+
 - `recentlyCompletedTasks`: Array of task IDs that were recently completed (for delayed hiding)
 - `kanbanSearchTerm`: Search term for Kanban view
 - `kanbanSelectedTagIds`: Selected tag IDs for Kanban view filtering
 
 **Added Actions**:
+
 - `addRecentlyCompletedTask(taskId)`
 - `removeRecentlyCompletedTask(taskId)`
 - `clearRecentlyCompletedTasks()`
@@ -70,6 +74,7 @@ export const store = configureStore({
 **After**: Uses Redux via `useSelector` and `useDispatch`
 
 **Key Changes**:
+
 - Replaced `useState` with `useSelector` to get state from Redux
 - Converted arrays to Sets for backward compatibility
 - Added wrapper functions `setAutoCollapsedSections` and `setManuallyExpandedSections` that handle both function updaters and direct values
@@ -81,6 +86,7 @@ export const store = configureStore({
 **After**: Uses Redux via `useSelector` and `useDispatch`
 
 **Key Changes**:
+
 - Replaced `useState` with `useSelector` to get state from Redux
 - Updated `addToRecentlyCompleted` and `removeFromRecentlyCompleted` to dispatch Redux actions
 - Converted array to Set for backward compatibility
@@ -92,6 +98,7 @@ export const store = configureStore({
 **After**: Uses Redux via `useSelector` and `useDispatch`
 
 **Key Changes**:
+
 - Replaced `useState` with `useSelector` for search/filter state
 - Updated handlers to dispatch Redux actions
 - Search and filter state now persists across component unmounts
@@ -102,6 +109,7 @@ export const store = configureStore({
 **After**: Uses Redux via `useSelector` and `useDispatch`
 
 **Key Changes**:
+
 - Replaced `useState` with `useSelector` for search/filter state
 - Updated handlers to dispatch Redux actions with `useCallback`
 - Search and filter state now persists across component unmounts
@@ -109,21 +117,25 @@ export const store = configureStore({
 ## Benefits
 
 ### 1. **Eliminated Prop Drilling**
+
 - Section expansion state no longer passed between hooks as props
 - Recently completed tasks state no longer passed between hooks as props
 - Cleaner hook interfaces and dependencies
 
 ### 2. **State Persistence**
+
 - Search and filter state persists when navigating between views
 - Section expansion state persists across page reloads (if Redux persist is added)
 - Recently completed tasks state accessible from any component
 
 ### 3. **Improved Maintainability**
+
 - Single source of truth for shared state
 - Easier to debug with Redux DevTools
 - Consistent state management patterns
 
 ### 4. **Better Performance**
+
 - Redux memoization prevents unnecessary re-renders
 - Selective subscriptions with `useSelector`
 - Efficient state updates with Immer (built into Redux Toolkit)
@@ -182,4 +194,3 @@ The following `useState` usage remains and is **correct** for local component st
 ## Conclusion
 
 The migration successfully eliminated prop drilling between hooks while maintaining backward compatibility and improving state management consistency. All changes are production-ready and fully tested.
-

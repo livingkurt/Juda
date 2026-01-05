@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useTheme } from "@/hooks/useTheme";
-import { useColorModeSync } from "@/hooks/useColorModeSync";
+import { useColorMode } from "@/hooks/useColorMode";
 import { TASK_COLORS } from "@/lib/constants";
 
 /**
@@ -13,7 +13,7 @@ import { TASK_COLORS } from "@/lib/constants";
  */
 export function useThemeColors() {
   const { theme } = useTheme();
-  const { colorMode } = useColorModeSync();
+  const { mode: colorMode } = useColorMode();
 
   return useMemo(() => {
     const mode = colorMode || "dark";

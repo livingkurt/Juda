@@ -1,64 +1,58 @@
 "use client";
 
-import { Box, HStack, Text, Badge, IconButton, Spinner } from "@chakra-ui/react";
-import { Wifi, WifiOff, RefreshCw } from "lucide-react";
-import { useOfflineStatus } from "@/hooks/useOfflineStatus";
+import { useState, useEffect } from "react";
+import { Snackbar, Alert, Slide } from "@mui/material";
+import { WifiOff, Wifi } from "@mui/icons-material";
 
 export function OfflineIndicator() {
-  const { isOnline, pendingSyncCount, syncInProgress, triggerSync } = useOfflineStatus();
+  const [isOnline, setIsOnline] = useState(() => {
+    if (typeof window !== "undefined") {
+      return navigator.onLine;
+    }
+    return true;
+  });
+  const [showReconnected, setShowReconnected] = useState(false);
 
-  // Don't show anything if online and no pending syncs
-  if (isOnline && pendingSyncCount === 0 && !syncInProgress) {
-    return null;
-  }
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setShowReconnected(true);
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   return (
-    <Box
-      position="fixed"
-      bottom={4}
-      left="50%"
-      transform="translateX(-50%)"
-      zIndex={1000}
-      bg={isOnline ? "orange.500" : "red.500"}
-      color="white"
-      px={4}
-      py={2}
-      borderRadius="full"
-      boxShadow="lg"
-    >
-      <HStack gap={2}>
-        {/* Connection Status */}
-        {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
+    <>
+      <Snackbar
+        open={!isOnline}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        TransitionComponent={Slide}
+      >
+        <Alert severity="warning" icon={<WifiOff fontSize="medium" />} sx={{ width: "100%" }}>
+          You&apos;re offline. Changes will sync when you reconnect.
+        </Alert>
+      </Snackbar>
 
-        {/* Status Text */}
-        <Text fontSize="sm" fontWeight="medium">
-          {isOnline ? "Syncing..." : "Offline"}
-        </Text>
-
-        {/* Pending Count */}
-        {pendingSyncCount > 0 && (
-          <Badge colorScheme={isOnline ? "orange" : "red"} variant="solid">
-            {pendingSyncCount}
-          </Badge>
-        )}
-
-        {/* Sync Button / Spinner */}
-        {isOnline &&
-          pendingSyncCount > 0 &&
-          (syncInProgress ? (
-            <Spinner size="sm" color="white" />
-          ) : (
-            <IconButton
-              icon={<RefreshCw size={14} />}
-              size="xs"
-              variant="ghost"
-              onClick={triggerSync}
-              aria-label="Sync now"
-              color="white"
-              _hover={{ bg: "whiteAlpha.300" }}
-            />
-          ))}
-      </HStack>
-    </Box>
+      <Snackbar
+        open={showReconnected}
+        autoHideDuration={3000}
+        onClose={() => setShowReconnected(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity="success" icon={<Wifi fontSize="medium" />}>
+          Back online! Syncing changes...
+        </Alert>
+      </Snackbar>
+    </>
   );
 }
+
+export default OfflineIndicator;

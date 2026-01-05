@@ -1,23 +1,22 @@
 "use client";
 
-import { Menu, MenuItem, IconButton, HStack, Text } from "@chakra-ui/react";
-import { Check, X, Circle } from "lucide-react";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useState } from "react";
+import { Menu, MenuItem, IconButton, Stack, Typography } from "@mui/material";
+import { Check, Close, RadioButtonUnchecked } from "@mui/icons-material";
 
 export const TaskOutcomeMenu = ({ taskId, date, currentOutcome, onSelectOutcome, size = "sm" }) => {
-  const { mode } = useSemanticColors();
-  const menuBg = mode.bg.surface;
-  const hoverBg = mode.bg.surfaceHover;
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
 
   // Determine current icon and color
   const getButtonProps = () => {
     switch (currentOutcome) {
       case "completed":
-        return { icon: <Check size={16} />, colorScheme: "green", variant: "solid" };
+        return { icon: <Check fontSize="small" />, color: "success", variant: "contained" };
       case "not_completed":
-        return { icon: <X size={16} />, colorScheme: "red", variant: "outline" };
+        return { icon: <Close fontSize="small" />, color: "error", variant: "outlined" };
       default:
-        return { icon: <Circle size={16} />, colorScheme: "gray", variant: "ghost" };
+        return { icon: <RadioButtonUnchecked fontSize="small" />, color: "default", variant: "text" };
     }
   };
 
@@ -30,44 +29,66 @@ export const TaskOutcomeMenu = ({ taskId, date, currentOutcome, onSelectOutcome,
     } else {
       onSelectOutcome(taskId, date, outcome);
     }
+    setAnchorEl(null);
+  };
+
+  const handleClick = event => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
   };
 
   return (
-    <Menu.Root isLazy placement="bottom-start">
-      <Menu.Trigger asChild>
-        <IconButton
-          icon={buttonProps.icon}
-          colorScheme={buttonProps.colorScheme}
-          variant={buttonProps.variant}
-          size={size}
-          aria-label="Set task outcome"
-          borderRadius="full"
-        />
-      </Menu.Trigger>
-      <Menu.Positioner>
-        <Menu.Content bg={menuBg} minW="150px">
-          <MenuItem
-            onClick={() => handleSelect("completed")}
-            _hover={{ bg: hoverBg }}
-            fontWeight={currentOutcome === "completed" ? "bold" : "normal"}
-          >
-            <HStack>
-              <Check size={16} />
-              <Text>Completed</Text>
-            </HStack>
-          </MenuItem>
-          <MenuItem
-            onClick={() => handleSelect("not_completed")}
-            _hover={{ bg: hoverBg }}
-            fontWeight={currentOutcome === "not_completed" ? "bold" : "normal"}
-          >
-            <HStack>
-              <X size={16} />
-              <Text>Not Completed</Text>
-            </HStack>
-          </MenuItem>
-        </Menu.Content>
-      </Menu.Positioner>
-    </Menu.Root>
+    <>
+      <IconButton
+        onClick={handleClick}
+        color={buttonProps.color}
+        variant={buttonProps.variant}
+        size={size}
+        aria-label="Set task outcome"
+        sx={{
+          borderRadius: "50%",
+        }}
+      >
+        {buttonProps.icon}
+      </IconButton>
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+      >
+        <MenuItem
+          onClick={() => handleSelect("completed")}
+          sx={{
+            "&:hover": {
+              bgcolor: "action.hover",
+            },
+            fontWeight: currentOutcome === "completed" ? 600 : 400,
+          }}
+        >
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Check fontSize="small" />
+            <Typography variant="body2">Completed</Typography>
+          </Stack>
+        </MenuItem>
+        <MenuItem
+          onClick={() => handleSelect("not_completed")}
+          sx={{
+            "&:hover": {
+              bgcolor: "action.hover",
+            },
+            fontWeight: currentOutcome === "not_completed" ? 600 : 400,
+          }}
+        >
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Close fontSize="small" />
+            <Typography variant="body2">Not Completed</Typography>
+          </Stack>
+        </MenuItem>
+      </Menu>
+    </>
   );
 };

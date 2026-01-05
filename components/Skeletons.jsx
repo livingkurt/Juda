@@ -1,34 +1,43 @@
 "use client";
 
-import { Box, Spinner, Flex, Skeleton, SkeletonCircle } from "@chakra-ui/react";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { Box, Stack, CircularProgress, Skeleton } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 
 // Simple loading spinner component
 export const LoadingSpinner = ({ size = "xl", color, ...props }) => {
-  const { interactive } = useSemanticColors();
-  const spinnerColor = color || interactive.primary;
+  const theme = useTheme();
+  const spinnerColor = color || theme.palette.primary.main;
+
+  const sizeMap = {
+    xs: 20,
+    sm: 24,
+    md: 32,
+    lg: 40,
+    xl: 48,
+  };
+
   return (
-    <Flex align="center" justify="center" {...props}>
-      <Spinner size={size} color={spinnerColor} thickness="4px" speed="0.65s" />
-    </Flex>
+    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }} {...props}>
+      <CircularProgress size={sizeMap[size] || sizeMap.lg} sx={{ color: spinnerColor }} />
+    </Box>
   );
 };
 
-// Loading dots animation using Chakra v3 Skeleton
+// Loading dots animation using MUI Skeleton
 export const LoadingDots = ({ ...props }) => {
   return (
-    <Flex align="center" justify="center" gap={2} {...props}>
-      <SkeletonCircle size="2" />
-      <SkeletonCircle size="2" />
-      <SkeletonCircle size="2" />
-    </Flex>
+    <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" {...props}>
+      <Skeleton variant="circular" width={8} height={8} />
+      <Skeleton variant="circular" width={8} height={8} />
+      <Skeleton variant="circular" width={8} height={8} />
+    </Stack>
   );
 };
 
 // Section loading (replaces SectionSkeleton)
 export const SectionSkeleton = () => {
   return (
-    <Box py={8}>
+    <Box sx={{ py: 8 }}>
       <LoadingDots />
     </Box>
   );
@@ -37,18 +46,18 @@ export const SectionSkeleton = () => {
 // Backlog loading (replaces BacklogSkeleton)
 export const BacklogSkeleton = () => {
   return (
-    <Flex h="100%" align="center" justify="center">
+    <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <LoadingSpinner size="lg" />
-    </Flex>
+    </Box>
   );
 };
 
 // Calendar loading (replaces CalendarSkeleton)
 export const CalendarSkeleton = () => {
   return (
-    <Flex flex={1} align="center" justify="center" minH="600px">
+    <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "600px" }}>
       <LoadingSpinner size="xl" />
-    </Flex>
+    </Box>
   );
 };
 
@@ -56,80 +65,103 @@ export const CalendarSkeleton = () => {
 // Uses plain HTML to avoid hydration mismatches during SSR
 export const PageSkeleton = () => {
   return (
-    <div
-      style={{
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-      }}
-    >
-      {/* Main content */}
-      <main
+    <>
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+      <div
         style={{
-          flex: 1,
+          height: "100vh",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           flexDirection: "column",
-          gap: "1rem",
+          overflow: "hidden",
         }}
       >
-        <div
+        {/* Main content */}
+        <main
           style={{
-            width: "3rem",
-            height: "3rem",
-            border: "4px solid rgba(59, 130, 246, 0.2)",
-            borderTopColor: "#3b82f6",
-            borderRadius: "50%",
-            animation: "spin 0.65s linear infinite",
-          }}
-        />
-        <div
-          style={{
-            fontSize: "0.875rem",
-            fontWeight: 500,
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            gap: "1rem",
           }}
         >
-          Loading...
-        </div>
-        <style>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-      </main>
-    </div>
+          <div
+            style={{
+              width: "3rem",
+              height: "3rem",
+              border: "4px solid rgba(59, 130, 246, 0.2)",
+              borderTopColor: "#3b82f6",
+              borderRadius: "50%",
+              animation: "spin 0.65s linear infinite",
+            }}
+          />
+          <div
+            style={{
+              fontSize: "0.875rem",
+              fontWeight: 500,
+            }}
+          >
+            Loading...
+          </div>
+        </main>
+      </div>
+    </>
   );
 };
 
-// Table skeleton for History tab using Chakra v3 Skeleton
+// Table skeleton for History tab using MUI Skeleton
 export const TableSkeleton = () => {
-  const { mode } = useSemanticColors();
-  const bgColor = mode.bg.surface;
-  const borderColor = mode.border.default;
-  const headerBg = mode.bg.muted;
-
   return (
     <Box>
-      <Box overflow="hidden" borderRadius="md" borderWidth="1px" borderColor={borderColor}>
+      <Box
+        sx={{
+          overflow: "hidden",
+          borderRadius: 1,
+          border: "1px solid",
+          borderColor: "divider",
+        }}
+      >
         {/* Table header */}
-        <Flex bg={headerBg} p={3} gap={4} borderBottomWidth="1px" borderColor={borderColor}>
-          <Skeleton height="20px" flex={1} />
-          <Skeleton height="20px" flex={1} />
-          <Skeleton height="20px" flex={1} />
-          <Skeleton height="20px" flex={1} />
-          <Skeleton height="20px" w="120px" />
-        </Flex>
+        <Stack
+          direction="row"
+          spacing={4}
+          sx={{
+            bgcolor: "action.hover",
+            p: 3,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Skeleton height={20} sx={{ flex: 1 }} />
+          <Skeleton height={20} sx={{ flex: 1 }} />
+          <Skeleton height={20} sx={{ flex: 1 }} />
+          <Skeleton height={20} sx={{ flex: 1 }} />
+          <Skeleton height={20} width={120} />
+        </Stack>
         {/* Table rows */}
         {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-          <Flex key={i} p={3} gap={4} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor}>
-            <Skeleton height="18px" flex={1} />
-            <Skeleton height="18px" flex={1} />
-            <Skeleton height="18px" flex={0.7} />
-            <Skeleton height="18px" flex={0.5} />
-            <Skeleton height="18px" w="100px" />
-          </Flex>
+          <Stack
+            key={i}
+            direction="row"
+            spacing={4}
+            sx={{
+              p: 3,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+            }}
+          >
+            <Skeleton height={18} sx={{ flex: 1 }} />
+            <Skeleton height={18} sx={{ flex: 1 }} />
+            <Skeleton height={18} sx={{ flex: 0.7 }} />
+            <Skeleton height={18} sx={{ flex: 0.5 }} />
+            <Skeleton height={18} width={100} />
+          </Stack>
         ))}
       </Box>
     </Box>

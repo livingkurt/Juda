@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useMemo, memo, useRef, useCallback } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { Box, Flex, VStack, HStack, Text, IconButton, Badge, Input } from "@chakra-ui/react";
+import { useState, useMemo, memo, useCallback, useRef } from "react";
+import { Box, Stack, Typography, TextField, IconButton, Chip } from "@mui/material";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
+import { Add } from "@mui/icons-material";
+import { useSelector, useDispatch } from "react-redux";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
@@ -25,17 +24,7 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
   });
 
   // Check if we're dragging a task over this column
-  // Simplified check - just use isOver since we know only tasks can be dragged to Kanban
   const isDraggingOver = isOver && active;
-
-  const { mode, dnd, interactive } = useSemanticColors();
-
-  const bgColor = mode.bg.canvas;
-  const columnBg = mode.bg.surface;
-  const borderColor = mode.border.default;
-  const dropHighlight = dnd.dropTarget;
-  const textColor = mode.text.primary;
-  const mutedText = mode.text.secondary;
 
   // Use hooks directly
   const taskOps = useTaskOperations();
@@ -101,41 +90,46 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
   };
 
   return (
-    <Box flex={1} minW="280px" maxW="400px" bg={bgColor} borderRadius="lg" p={3}>
+    <Box sx={{ flex: 1, minWidth: 280, maxWidth: 400, borderRadius: 2, p: 1.5 }}>
       {/* Column Header */}
-      <Flex align="center" justify="space-between" mb={3}>
-        <HStack>
-          <Box w={3} h={3} borderRadius="full" bg={color} />
-          <Text fontWeight="semibold" fontSize="sm">
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Box
+            sx={{
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              bgcolor: color,
+            }}
+          />
+          <Typography variant="subtitle2" fontWeight={600}>
             {title}
-          </Text>
-          <Badge colorScheme="gray" borderRadius="full" px={2}>
-            {visibleTasks.length}
-          </Badge>
-        </HStack>
-        <IconButton size="xs" variant="ghost" onClick={handleAddTask} aria-label={`Add task to ${title}`}>
-          <Box as="span" color="currentColor">
-            <Plus size={16} stroke="currentColor" />
-          </Box>
+          </Typography>
+          <Chip label={visibleTasks.length} size="small" sx={{ borderRadius: "12px", px: 1 }} />
+        </Stack>
+        <IconButton size="small" onClick={handleAddTask} aria-label={`Add task to ${title}`}>
+          <Add fontSize="small" />
         </IconButton>
-      </Flex>
+      </Stack>
 
       {/* Column Content */}
       <Box
         ref={setNodeRef}
-        bg={isOver ? dropHighlight : columnBg}
-        borderRadius="md"
-        border="2px solid"
-        borderColor={isDraggingOver ? dnd.dropTargetBorder : borderColor}
-        minH="200px"
-        maxH="calc(100vh - 300px)"
-        overflowY="auto"
-        p={2}
-        transition="all 0.2s"
-        position="relative"
+        sx={{
+          bgcolor: isDraggingOver ? "action.selected" : "background.paper",
+          borderRadius: 1,
+          border: 2,
+          borderColor: isDraggingOver ? "primary.main" : "divider",
+          minHeight: 200,
+          maxHeight: "calc(100vh - 300px)",
+          overflowY: "auto",
+          p: 1,
+          transition: "all 0.2s",
+          position: "relative",
+        }}
       >
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-          <VStack spacing={2} align="stretch" minH={isDraggingOver ? "100px" : "auto"}>
+          <Stack spacing={1} sx={{ minHeight: isDraggingOver ? 100 : "auto" }}>
             {visibleTasks.map(task => (
               <TaskItem
                 key={task.id}
@@ -146,86 +140,77 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
                 viewDate={viewDate}
               />
             ))}
-            {/* Drop placeholder - shows when dragging over to indicate drop zone */}
+            {/* Drop placeholder */}
             {isDraggingOver && (
               <Box
-                minH="80px"
-                border="2px dashed"
-                borderColor={dnd.dropTargetBorder}
-                borderRadius="md"
-                bg={dnd.dropTarget}
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                opacity={0.8}
-                transition="all 0.2s"
-                flex={visibleTasks.length === 0 ? 1 : undefined}
+                sx={{
+                  minHeight: 80,
+                  border: 2,
+                  borderStyle: "dashed",
+                  borderColor: "primary.main",
+                  borderRadius: 1,
+                  bgcolor: "action.selected",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: 0.8,
+                  transition: "all 0.2s",
+                  flex: visibleTasks.length === 0 ? 1 : undefined,
+                }}
               >
-                <Text fontSize="sm" color={interactive.primary} fontWeight="medium">
+                <Typography variant="body2" color="primary.main" fontWeight={500}>
                   Drop here
-                </Text>
+                </Typography>
               </Box>
             )}
             {visibleTasks.length === 0 && !isDraggingOver && (
-              <VStack align="stretch" spacing={2}>
-                <Text color={mutedText} fontSize="sm" textAlign="center" py={4}>
+              <Stack spacing={1}>
+                <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
                   No tasks
-                </Text>
-                <Input
-                  ref={inlineInputRef}
+                </Typography>
+                <TextField
+                  inputRef={inlineInputRef}
                   value={inlineInputValue}
                   onChange={e => setInlineInputValue(e.target.value)}
                   onBlur={handleInlineInputBlur}
                   onKeyDown={handleInlineInputKeyDown}
                   onClick={handleInlineInputClick}
                   placeholder="New task..."
-                  size="sm"
-                  variant="unstyled"
-                  bg="transparent"
-                  borderWidth="0px"
-                  px={2}
-                  py={1}
-                  fontSize="sm"
-                  color={isInlineInputActive ? textColor : mutedText}
-                  _focus={{
-                    outline: "none",
-                    color: textColor,
-                  }}
-                  _placeholder={{ color: mutedText }}
-                  _hover={{
-                    color: textColor,
+                  size="small"
+                  variant="standard"
+                  fullWidth
+                  InputProps={{
+                    disableUnderline: !isInlineInputActive,
+                    sx: {
+                      fontSize: "0.875rem",
+                      color: isInlineInputActive ? "text.primary" : "text.secondary",
+                    },
                   }}
                 />
-              </VStack>
+              </Stack>
             )}
             {visibleTasks.length > 0 && (
-              <Input
-                ref={inlineInputRef}
+              <TextField
+                inputRef={inlineInputRef}
                 value={inlineInputValue}
                 onChange={e => setInlineInputValue(e.target.value)}
                 onBlur={handleInlineInputBlur}
                 onKeyDown={handleInlineInputKeyDown}
                 onClick={handleInlineInputClick}
                 placeholder="New task..."
-                size="sm"
-                variant="unstyled"
-                bg="transparent"
-                borderWidth="0px"
-                px={2}
-                py={1}
-                fontSize="sm"
-                color={isInlineInputActive ? textColor : mutedText}
-                _focus={{
-                  outline: "none",
-                  color: textColor,
-                }}
-                _placeholder={{ color: mutedText }}
-                _hover={{
-                  color: textColor,
+                size="small"
+                variant="standard"
+                fullWidth
+                InputProps={{
+                  disableUnderline: !isInlineInputActive,
+                  sx: {
+                    fontSize: "0.875rem",
+                    color: isInlineInputActive ? "text.primary" : "text.secondary",
+                  },
                 }}
               />
             )}
-          </VStack>
+          </Stack>
         </SortableContext>
       </Box>
     </Box>
@@ -251,7 +236,6 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
   });
 
   // Filter tasks: non-recurring only, exclude notes
-  // Memoize to prevent unnecessary recalculations
   const kanbanTasks = useMemo(() => {
     return taskFilters.tasks.filter(task => {
       // Exclude notes
@@ -311,17 +295,17 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
   );
 
   const columns = [
-    { id: "todo", title: "Todo", color: "gray.400" },
-    { id: "in_progress", title: "In Progress", color: "blue.400" },
-    { id: "complete", title: "Done", color: "green.400" },
+    { id: "todo", title: "Todo", color: "grey.400" },
+    { id: "in_progress", title: "In Progress", color: "primary.main" },
+    { id: "complete", title: "Done", color: "success.main" },
   ];
 
   return (
-    <Box h="100%" display="flex" flexDirection="column">
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       {/* Header with search and filters */}
-      <Box mb={4}>
-        <HStack spacing={4} align="center">
-          <Box flex={1} maxW="300px">
+      <Box sx={{ mb: 2 }}>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Box sx={{ flex: 1, maxWidth: 300 }}>
             <TaskSearchInput onSearchChange={term => dispatch(setKanbanSearchTerm(term))} />
           </Box>
           <TagFilter
@@ -333,11 +317,11 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
               return await createTagMutation({ name, color }).unwrap();
             }}
           />
-        </HStack>
+        </Stack>
       </Box>
 
       {/* Kanban Columns */}
-      <Flex gap={4} flex={1} overflowX="auto" pb={4}>
+      <Stack direction="row" spacing={2} sx={{ flex: 1, overflowX: "auto", pb: 2 }}>
         {columns.map(column => (
           <KanbanColumn
             key={column.id}
@@ -348,7 +332,9 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
             createDraggableId={createDraggableId}
           />
         ))}
-      </Flex>
+      </Stack>
     </Box>
   );
 });
+
+export default KanbanView;

@@ -2,21 +2,38 @@
 
 import { useState, useMemo } from "react";
 import {
-  Box,
-  Button,
-  Input,
   Dialog,
-  VStack,
-  HStack,
-  SimpleGrid,
-  Text,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
   IconButton,
+  Stack,
+  Typography,
+  Box,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Divider,
+  Paper,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
   Tabs,
-  createListCollection,
-} from "@chakra-ui/react";
+  Tab,
+  Chip,
+  InputAdornment,
+} from "@mui/material";
+import { Close, Add, Delete, DragIndicator, Search } from "@mui/icons-material";
+import { DatePicker, TimePicker } from "@mui/x-date-pickers";
+import dayjs from "dayjs";
+import { FitnessCenter, Edit } from "@mui/icons-material";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
-import { Plus, Search, Dumbbell } from "lucide-react";
 import { DAYS_OF_WEEK, DURATION_OPTIONS, ORDINAL_OPTIONS, MONTH_OPTIONS, COMPLETION_TYPES } from "@/lib/constants";
 import { formatLocalDate } from "@/lib/utils";
 import { TagSelector } from "./TagSelector";
@@ -25,10 +42,8 @@ import { RichTextEditor } from "./RichTextEditor";
 import { TagChip } from "./TagChip";
 import WorkoutBuilder from "./WorkoutBuilder";
 import WeekdaySelector from "./WeekdaySelector";
-import { SelectDropdown } from "./SelectDropdown";
 import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Internal component that resets when key changes
 function TaskDialogForm({
@@ -44,12 +59,6 @@ function TaskDialogForm({
   onDeleteTag,
   allTasks,
 }) {
-  const { mode } = useSemanticColors();
-
-  const bgColor = mode.bg.surface;
-  const searchResultBg = mode.bg.muted;
-  const borderColor = mode.border.default;
-
   // Initialize state from task or defaults
   const [title, setTitle] = useState(task?.title || "");
   const [sectionId, setSectionId] = useState(task?.sectionId || defaultSectionId || sections[0]?.id || "");
@@ -133,8 +142,6 @@ function TaskDialogForm({
   const workoutProgramWeeks = workoutProgram?.numberOfWeeks || 0;
   const [updateTaskMutation] = useUpdateTaskMutation();
 
-  // Workout program status is now derived from workoutProgram query data
-
   // Calculate total weeks from recurrence dates
   const totalWeeks = useMemo(() => {
     if (!date || !endDate) return 1;
@@ -153,101 +160,6 @@ function TaskDialogForm({
       },
     })
   );
-
-  // Create collections for selects
-  const sectionCollection = useMemo(
-    () => createListCollection({ items: sections.map(s => ({ label: s.name, value: s.id })) }),
-    [sections]
-  );
-
-  const durationCollection = useMemo(
-    () => createListCollection({ items: DURATION_OPTIONS.map(d => ({ label: d.label, value: d.value.toString() })) }),
-    []
-  );
-
-  const completionTypeCollection = useMemo(
-    () =>
-      createListCollection({
-        items: COMPLETION_TYPES,
-      }),
-    []
-  );
-
-  const recurrenceCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "None (One-time task)", value: "none" },
-          { label: "Every day", value: "daily" },
-          { label: "Specific days", value: "weekly" },
-          { label: "Monthly", value: "monthly" },
-          { label: "Yearly", value: "yearly" },
-        ],
-      }),
-    []
-  );
-
-  const monthlyModeCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "On specific day(s) of month", value: "dayOfMonth" },
-          { label: "On a specific weekday pattern", value: "weekPattern" },
-        ],
-      }),
-    []
-  );
-
-  const yearlyModeCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "On specific date", value: "dayOfMonth" },
-          { label: "On a specific weekday pattern", value: "weekPattern" },
-        ],
-      }),
-    []
-  );
-
-  const ordinalCollection = useMemo(
-    () =>
-      createListCollection({ items: ORDINAL_OPTIONS.map(opt => ({ label: opt.label, value: opt.value.toString() })) }),
-    []
-  );
-
-  const monthCollection = useMemo(
-    () =>
-      createListCollection({ items: MONTH_OPTIONS.map(opt => ({ label: opt.label, value: opt.value.toString() })) }),
-    []
-  );
-
-  const dayOfWeekCollection = useMemo(
-    () => createListCollection({ items: DAYS_OF_WEEK.map(day => ({ label: day.label, value: day.value.toString() })) }),
-    []
-  );
-
-  const dayOfMonthSelectCollection = useMemo(
-    () =>
-      createListCollection({
-        items: Array.from({ length: 31 }, (_, i) => ({ label: (i + 1).toString(), value: (i + 1).toString() })),
-      }),
-    []
-  );
-
-  const statusCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "Todo", value: "todo" },
-          { label: "In Progress", value: "in_progress" },
-          { label: "Complete", value: "complete" },
-        ],
-      }),
-    []
-  );
-
-  // State initialization is now handled in useState initializers above
-  // No need for useLayoutEffect since we're using a key prop to reset the form
 
   const handleSave = () => {
     if (!title.trim()) return;
@@ -388,7 +300,7 @@ function TaskDialogForm({
   };
 
   // Handle removing subtask from parent
-  const handleRemoveSubtaskFromParent = async subtask => {
+  const _handleRemoveSubtaskFromParent = async subtask => {
     // Check if this is an existing task (has isExisting flag or was loaded from task.subtasks)
     // New subtasks created in dialog have timestamp IDs (all digits, >= 13 digits)
     const isNewSubtask = /^\d{13,}$/.test(subtask.id);
@@ -409,683 +321,711 @@ function TaskDialogForm({
     setSubtasks(subtasks.filter(s => s.id !== subtask.id));
   };
 
+  // Convert date/time strings to dayjs objects for DatePicker/TimePicker
+  const dateValue = date ? dayjs(date) : null;
+  const timeValue = time ? dayjs(time, "HH:mm") : null;
+  const endDateValue = endDate ? dayjs(endDate) : null;
+  const subtaskTimeValue = subtaskTime ? dayjs(subtaskTime, "HH:mm") : null;
+
   return (
     <>
-      <Dialog.Root open={true} onOpenChange={({ open }) => !open && onClose()} size="md">
-        <Dialog.Backdrop bg="blackAlpha.600" />
-        <Dialog.Positioner>
-          <Dialog.Content bg={bgColor} maxH="90vh" overflowY="auto">
-            <Dialog.Header>{task ? "Edit Task" : "New Task"}</Dialog.Header>
-            <Dialog.CloseTrigger />
-            <Dialog.Body>
-              <form onSubmit={handleFormSubmit}>
-                <VStack spacing={4} py={4}>
-                  <Box w="full">
-                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                      Task Name
-                    </Text>
-                    <Input
-                      autoFocus
-                      value={title}
-                      onChange={e => setTitle(e.target.value)}
-                      borderColor={borderColor}
-                      _focus={{
-                        borderColor: "blue.400",
-                        boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                      }}
-                      onKeyDown={e => {
-                        if (e.key === "Enter" && title.trim()) {
-                          e.preventDefault();
-                          handleSave();
-                        }
-                      }}
-                    />
-                  </Box>
-                  <Box w="full">
-                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                      Section
-                    </Text>
-                    <SelectDropdown
-                      collection={sectionCollection}
-                      value={[sectionId]}
-                      onValueChange={({ value }) => setSectionId(value[0])}
-                      placeholder="Select section"
-                      inModal={true}
-                    />
-                  </Box>
-                  <SimpleGrid columns={2} spacing={4} w="full">
-                    <Box>
-                      <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                        Date
-                      </Text>
-                      <Input
-                        type="date"
-                        value={date}
-                        onChange={e => setDate(e.target.value)}
-                        placeholder="Optional"
-                        borderColor={borderColor}
-                        fontSize={{ base: "md", md: "md" }}
-                        _focus={{
-                          borderColor: "blue.400",
-                          boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                        }}
-                        onKeyDown={e => {
-                          if (e.key === "Enter" && title.trim()) {
-                            e.preventDefault();
-                            handleSave();
-                          }
-                        }}
-                      />
-                      {date && (
-                        <Button size="xs" variant="ghost" mt={1} onClick={() => setDate("")}>
-                          Clear date
-                        </Button>
-                      )}
-                    </Box>
-                    <Box>
-                      <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                        Time
-                      </Text>
-                      <Input
-                        type="time"
-                        value={time}
-                        onChange={e => setTime(e.target.value)}
-                        placeholder="Optional"
-                        borderColor={borderColor}
-                        fontSize={{ base: "md", md: "md" }}
-                        _focus={{
-                          borderColor: "blue.400",
-                          boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                        }}
-                        onKeyDown={e => {
-                          if (e.key === "Enter" && title.trim()) {
-                            e.preventDefault();
-                            handleSave();
-                          }
-                        }}
-                      />
-                      {time && (
-                        <Button size="xs" variant="ghost" mt={1} onClick={() => setTime("")}>
-                          Clear time
-                        </Button>
-                      )}
-                    </Box>
-                  </SimpleGrid>
-                  <Box w="full">
-                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                      Duration
-                    </Text>
-                    <SelectDropdown
-                      collection={durationCollection}
-                      value={[duration.toString()]}
-                      onValueChange={({ value }) => setDuration(parseInt(value[0]))}
-                      placeholder="Select duration"
-                      inModal={true}
-                    />
-                  </Box>
-                  <Box w="full">
-                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                      Completion Type
-                    </Text>
-                    <SelectDropdown
-                      collection={completionTypeCollection}
-                      value={[completionType]}
-                      onValueChange={({ value }) => setCompletionType(value[0])}
-                      placeholder="Select completion type"
-                      inModal={true}
-                    />
-                    {completionType === "note" && (
-                      <Text fontSize="xs" color="gray.500" mt={1}>
-                        Notes appear in the Notes tab, not in Backlog/Today/Calendar
-                      </Text>
-                    )}
-                    {completionType === "workout" && (
-                      <Box mt={2}>
-                        <Button
-                          size="sm"
-                          colorPalette="blue"
-                          variant="outline"
-                          onClick={() => setWorkoutBuilderOpen(true)}
-                        >
-                          <Dumbbell size={14} />
-                          <Text ml={1}>{hasWorkoutProgram ? "Edit Workout Structure" : "Configure Workout"}</Text>
-                        </Button>
-                        {hasWorkoutProgram && (
-                          <Text fontSize="xs" color="gray.500" mt={1}>
-                            {title || "Workout"} - {workoutProgramWeeks > 0 ? workoutProgramWeeks : totalWeeks} weeks
-                          </Text>
-                        )}
-                      </Box>
-                    )}
-                  </Box>
-                  {/* Status field - only show for non-recurring tasks */}
-                  {recurrenceType === "none" && (
-                    <Box w="full">
-                      <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                        Status
-                      </Text>
-                      <SelectDropdown
-                        collection={statusCollection}
-                        value={[status || "todo"]}
-                        onValueChange={({ value }) => setStatus(value[0])}
-                        placeholder="Select status"
-                        inModal={true}
-                      />
-                    </Box>
+      <Dialog open={true} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { maxHeight: "90vh" } }}>
+        <form onSubmit={handleFormSubmit}>
+          <DialogTitle>
+            {task ? "Edit Task" : "New Task"}
+            <IconButton onClick={onClose} sx={{ position: "absolute", right: 8, top: 8 }} size="small">
+              <Close />
+            </IconButton>
+          </DialogTitle>
+
+          <DialogContent dividers sx={{ p: 2, overflowY: "auto" }}>
+            <Stack spacing={2.5}>
+              {/* Task Name */}
+              <TextField
+                fullWidth
+                size="small"
+                label="Task Name"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === "Enter" && title.trim()) {
+                    e.preventDefault();
+                    handleSave();
+                  }
+                }}
+              />
+
+              {/* Section */}
+              <FormControl fullWidth size="small">
+                <InputLabel>Section</InputLabel>
+                <Select value={sectionId} onChange={e => setSectionId(e.target.value)} label="Section">
+                  {sections.map(section => (
+                    <MenuItem key={section.id} value={section.id}>
+                      {section.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Date & Time Grid */}
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <DatePicker
+                    label="Date"
+                    value={dateValue}
+                    onChange={newDate => {
+                      const dateStr = newDate ? newDate.format("YYYY-MM-DD") : "";
+                      setDate(dateStr);
+                    }}
+                    slotProps={{
+                      textField: { size: "small", fullWidth: true },
+                    }}
+                  />
+                  {date && (
+                    <Button size="small" variant="text" sx={{ mt: 0.5 }} onClick={() => setDate("")}>
+                      Clear date
+                    </Button>
                   )}
-                  {/* Note Content Editor - Always visible for adding/editing note content */}
-                  <Box w="full">
-                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                      Note Content
-                    </Text>
-                    <Box
-                      borderWidth="1px"
-                      borderColor={borderColor}
-                      borderRadius="md"
-                      overflow="hidden"
-                      h="400px"
-                      bg={bgColor}
-                    >
-                      <RichTextEditor
-                        content={content}
-                        onChange={setContent}
-                        placeholder="Start writing your note..."
-                        showToolbar={true}
-                      />
-                    </Box>
-                  </Box>
-                  <Box w="full">
-                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                      Recurrence
-                    </Text>
-                    <SelectDropdown
-                      collection={recurrenceCollection}
-                      value={[recurrenceType]}
-                      onValueChange={({ value }) => setRecurrenceType(value[0])}
-                      placeholder="Select recurrence"
-                      inModal={true}
-                    />
-                  </Box>
-                  {recurrenceType === "weekly" && (
-                    <WeekdaySelector selectedDays={selectedDays} onChange={setSelectedDays} size="sm" />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TimePicker
+                    label="Time"
+                    value={timeValue}
+                    onChange={newTime => {
+                      const timeStr = newTime ? newTime.format("HH:mm") : "";
+                      setTime(timeStr);
+                    }}
+                    slotProps={{
+                      textField: { size: "small", fullWidth: true },
+                    }}
+                  />
+                  {time && (
+                    <Button size="small" variant="text" sx={{ mt: 0.5 }} onClick={() => setTime("")}>
+                      Clear time
+                    </Button>
                   )}
-                  {recurrenceType === "monthly" && (
-                    <VStack spacing={3} w="full" align="stretch">
-                      <SelectDropdown
-                        collection={monthlyModeCollection}
-                        value={[monthlyMode]}
-                        onValueChange={({ value }) => setMonthlyMode(value[0])}
-                        placeholder="Select pattern type"
-                        inModal={true}
-                      />
-                      {monthlyMode === "dayOfMonth" && (
-                        <Box>
-                          <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={2}>
-                            Select day(s) of month
-                          </Text>
-                          <SimpleGrid columns={7} spacing={1}>
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                              <Button
-                                key={day}
-                                size="sm"
-                                h={8}
-                                fontSize="xs"
+                </Grid>
+              </Grid>
+
+              {/* Duration */}
+              <FormControl fullWidth size="small">
+                <InputLabel>Duration</InputLabel>
+                <Select
+                  value={duration.toString()}
+                  onChange={e => setDuration(parseInt(e.target.value))}
+                  label="Duration"
+                >
+                  {DURATION_OPTIONS.map(d => (
+                    <MenuItem key={d.value} value={d.value.toString()}>
+                      {d.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Completion Type */}
+              <FormControl fullWidth size="small">
+                <InputLabel>Completion Type</InputLabel>
+                <Select
+                  value={completionType}
+                  onChange={e => setCompletionType(e.target.value)}
+                  label="Completion Type"
+                >
+                  {COMPLETION_TYPES.map(ct => (
+                    <MenuItem key={ct.value} value={ct.value}>
+                      {ct.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {completionType === "note" && (
+                <Typography variant="caption" color="text.secondary">
+                  Notes appear in the Notes tab, not in Backlog/Today/Calendar
+                </Typography>
+              )}
+              {completionType === "workout" && (
+                <Box>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<FitnessCenter fontSize="small" />}
+                    onClick={() => setWorkoutBuilderOpen(true)}
+                    sx={{ mb: 1 }}
+                  >
+                    {hasWorkoutProgram ? "Edit Workout Structure" : "Configure Workout"}
+                  </Button>
+                  {hasWorkoutProgram && (
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {title || "Workout"} - {workoutProgramWeeks > 0 ? workoutProgramWeeks : totalWeeks} weeks
+                    </Typography>
+                  )}
+                </Box>
+              )}
+
+              {/* Status field - only show for non-recurring tasks */}
+              {recurrenceType === "none" && (
+                <FormControl fullWidth size="small">
+                  <InputLabel>Status</InputLabel>
+                  <Select value={status || "todo"} onChange={e => setStatus(e.target.value)} label="Status">
+                    <MenuItem value="todo">Todo</MenuItem>
+                    <MenuItem value="in_progress">In Progress</MenuItem>
+                    <MenuItem value="complete">Complete</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
+
+              {/* Note Content Editor */}
+              <Box>
+                <Typography variant="body2" fontWeight={500} gutterBottom>
+                  Note Content
+                </Typography>
+                <Box
+                  sx={{
+                    border: 1,
+                    borderColor: "divider",
+                    borderRadius: 1,
+                    overflow: "hidden",
+                    height: "400px",
+                  }}
+                >
+                  <RichTextEditor
+                    content={content}
+                    onChange={setContent}
+                    placeholder="Start writing your note..."
+                    showToolbar={true}
+                  />
+                </Box>
+              </Box>
+
+              {/* Recurrence */}
+              <FormControl fullWidth size="small">
+                <InputLabel>Recurrence</InputLabel>
+                <Select value={recurrenceType} onChange={e => setRecurrenceType(e.target.value)} label="Recurrence">
+                  <MenuItem value="none">None (One-time task)</MenuItem>
+                  <MenuItem value="daily">Every day</MenuItem>
+                  <MenuItem value="weekly">Specific days</MenuItem>
+                  <MenuItem value="monthly">Monthly</MenuItem>
+                  <MenuItem value="yearly">Yearly</MenuItem>
+                </Select>
+              </FormControl>
+
+              {/* Weekly recurrence */}
+              {recurrenceType === "weekly" && (
+                <WeekdaySelector selectedDays={selectedDays} onChange={setSelectedDays} size="sm" />
+              )}
+
+              {/* Monthly recurrence */}
+              {recurrenceType === "monthly" && (
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Stack spacing={2}>
+                    <FormControl size="small" fullWidth>
+                      <InputLabel>Pattern Type</InputLabel>
+                      <Select value={monthlyMode} onChange={e => setMonthlyMode(e.target.value)} label="Pattern Type">
+                        <MenuItem value="dayOfMonth">On specific day(s) of month</MenuItem>
+                        <MenuItem value="weekPattern">On a specific weekday pattern</MenuItem>
+                      </Select>
+                    </FormControl>
+
+                    {monthlyMode === "dayOfMonth" && (
+                      <Box>
+                        <Typography variant="body2" fontWeight={500} gutterBottom>
+                          Select day(s) of month
+                        </Typography>
+                        <Grid container spacing={0.5}>
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                            <Grid item xs={1.7} key={day}>
+                              <Chip
+                                label={day}
                                 onClick={() =>
                                   setSelectedDayOfMonth(prev =>
                                     prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
                                   )
                                 }
-                                colorPalette={selectedDayOfMonth.includes(day) ? "blue" : "gray"}
-                                variant={selectedDayOfMonth.includes(day) ? "solid" : "outline"}
-                              >
-                                {day}
-                              </Button>
-                            ))}
-                          </SimpleGrid>
-                        </Box>
-                      )}
-                      {monthlyMode === "weekPattern" && (
-                        <HStack spacing={2}>
-                          <SelectDropdown
-                            collection={ordinalCollection}
-                            value={[monthlyOrdinal.toString()]}
-                            onValueChange={({ value }) => setMonthlyOrdinal(Number(value[0]))}
-                            placeholder="Select"
-                            w="120px"
-                            inModal={true}
-                          />
-                          <SelectDropdown
-                            collection={dayOfWeekCollection}
-                            value={[monthlyDayOfWeek.toString()]}
-                            onValueChange={({ value }) => setMonthlyDayOfWeek(Number(value[0]))}
-                            placeholder="Select day"
-                            flex={1}
-                            inModal={true}
-                          />
-                        </HStack>
-                      )}
-                      <HStack>
-                        <Text fontSize={{ base: "xs", md: "sm" }}>Every</Text>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={12}
-                          value={monthlyInterval}
-                          onChange={e => setMonthlyInterval(Math.max(1, parseInt(e.target.value) || 1))}
-                          w="60px"
-                          size="sm"
-                        />
-                        <Text fontSize={{ base: "xs", md: "sm" }}>month(s)</Text>
-                      </HStack>
-                    </VStack>
-                  )}
-                  {recurrenceType === "yearly" && (
-                    <VStack spacing={3} w="full" align="stretch">
-                      <SelectDropdown
-                        collection={yearlyModeCollection}
-                        value={[yearlyMode]}
-                        onValueChange={({ value }) => setYearlyMode(value[0])}
-                        placeholder="Select pattern type"
-                        inModal={true}
-                      />
-                      <HStack spacing={2}>
-                        <SelectDropdown
-                          collection={monthCollection}
-                          value={[yearlyMonth.toString()]}
-                          onValueChange={({ value }) => setYearlyMonth(Number(value[0]))}
-                          placeholder="Select month"
-                          flex={1}
-                          inModal={true}
-                        />
-                        {yearlyMode === "dayOfMonth" && (
-                          <SelectDropdown
-                            collection={dayOfMonthSelectCollection}
-                            value={[yearlyDayOfMonth.toString()]}
-                            onValueChange={({ value }) => setYearlyDayOfMonth(Number(value[0]))}
-                            placeholder="Day"
-                            w="80px"
-                            inModal={true}
-                          />
-                        )}
-                      </HStack>
-                      {yearlyMode === "weekPattern" && (
-                        <HStack spacing={2}>
-                          <SelectDropdown
-                            collection={ordinalCollection}
-                            value={[yearlyOrdinal.toString()]}
-                            onValueChange={({ value }) => setYearlyOrdinal(Number(value[0]))}
-                            placeholder="Select"
-                            w="120px"
-                            inModal={true}
-                          />
-                          <SelectDropdown
-                            collection={dayOfWeekCollection}
-                            value={[yearlyDayOfWeek.toString()]}
-                            onValueChange={({ value }) => setYearlyDayOfWeek(Number(value[0]))}
-                            placeholder="Select day"
-                            flex={1}
-                            inModal={true}
-                          />
-                        </HStack>
-                      )}
-                      <HStack>
-                        <Text fontSize={{ base: "xs", md: "sm" }}>Every</Text>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={10}
-                          value={yearlyInterval}
-                          onChange={e => setYearlyInterval(Math.max(1, parseInt(e.target.value) || 1))}
-                          w="60px"
-                          size="sm"
-                        />
-                        <Text fontSize={{ base: "xs", md: "sm" }}>year(s)</Text>
-                      </HStack>
-                    </VStack>
-                  )}
-                  {/* End Date - only show for recurring tasks */}
-                  {recurrenceType !== "none" && (
-                    <Box w="full">
-                      <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                        End Date (Optional)
-                      </Text>
-                      <Input
-                        type="date"
-                        value={endDate}
-                        onChange={e => setEndDate(e.target.value)}
-                        placeholder="No end date"
-                        min={date || undefined}
-                        borderColor={borderColor}
-                        _focus={{
-                          borderColor: "blue.400",
-                          boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                        }}
-                        onKeyDown={e => {
-                          if (e.key === "Enter" && title.trim()) {
-                            e.preventDefault();
-                            handleSave();
-                          }
-                        }}
-                      />
-                      {endDate && (
-                        <Button size="xs" variant="ghost" mt={1} onClick={() => setEndDate("")}>
-                          Clear end date
-                        </Button>
-                      )}
-                    </Box>
-                  )}
-                  {/* Tags */}
-                  <Box w="full">
-                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                      Tags
-                    </Text>
-                    <Box borderWidth="1px" borderColor={borderColor} borderRadius="md" p={3} minH="48px">
-                      <HStack spacing={2} flexWrap="wrap" align="center">
-                        {/* Tags */}
-                        {Array.isArray(tags) &&
-                          tags
-                            .filter(t => selectedTagIds.includes(t.id))
-                            .map(tag => <TagChip key={tag.id} tag={tag} size="sm" />)}
-                        {/* Add Tag button */}
-                        <TagSelector
-                          tags={tags}
-                          selectedTagIds={selectedTagIds}
-                          onTagsChange={setSelectedTagIds}
-                          onCreateTag={onCreateTag}
-                          onDeleteTag={onDeleteTag}
-                          inline
-                        />
-                      </HStack>
-                    </Box>
-                  </Box>
-                  <Box w="full">
-                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                      Subtasks
-                    </Text>
-                    <Tabs.Root
-                      value={subtaskTabIndex.toString()}
-                      onValueChange={({ value }) => setSubtaskTabIndex(parseInt(value))}
-                      variant="line"
-                      size="sm"
-                    >
-                      <Tabs.List>
-                        <Tabs.Trigger value="0">Manage ({subtasks.length})</Tabs.Trigger>
-                        <Tabs.Trigger value="1">Add Existing</Tabs.Trigger>
-                      </Tabs.List>
-                      <Tabs.Content value="0" px={0} py={3}>
-                        <DndContext
-                          sensors={sensors}
-                          collisionDetection={closestCenter}
-                          onDragStart={handleDragStart}
-                          onDragEnd={handleDragEnd}
-                          onDragCancel={handleDragCancel}
-                        >
-                          <SortableContext
-                            items={subtasks.map(st => `subtask-${st.id}`)}
-                            strategy={verticalListSortingStrategy}
+                                color={selectedDayOfMonth.includes(day) ? "primary" : "default"}
+                                variant={selectedDayOfMonth.includes(day) ? "filled" : "outlined"}
+                                size="small"
+                                sx={{ width: "100%" }}
+                              />
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Box>
+                    )}
+
+                    {monthlyMode === "weekPattern" && (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <FormControl size="small" sx={{ width: 120 }}>
+                          <InputLabel>Ordinal</InputLabel>
+                          <Select
+                            value={monthlyOrdinal.toString()}
+                            onChange={e => setMonthlyOrdinal(Number(e.target.value))}
+                            label="Ordinal"
                           >
-                            <VStack align="stretch" spacing={2}>
-                              {subtasks.map(st => (
-                                <TaskItem
-                                  key={st.id}
-                                  task={{ ...st, parentId: task?.id }}
-                                  variant="subtask"
-                                  containerId="task-dialog-subtasks"
-                                  draggableId={`subtask-${st.id}`}
-                                  parentTaskId={task?.id}
-                                  onEdit={() => {
+                            {ORDINAL_OPTIONS.map(opt => (
+                              <MenuItem key={opt.value} value={opt.value.toString()}>
+                                {opt.label}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <FormControl size="small" sx={{ flex: 1 }}>
+                          <InputLabel>Day of Week</InputLabel>
+                          <Select
+                            value={monthlyDayOfWeek.toString()}
+                            onChange={e => setMonthlyDayOfWeek(Number(e.target.value))}
+                            label="Day of Week"
+                          >
+                            {DAYS_OF_WEEK.map(day => (
+                              <MenuItem key={day.value} value={day.value.toString()}>
+                                {day.label}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Stack>
+                    )}
+
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="body2">Every</Typography>
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={monthlyInterval}
+                        onChange={e => setMonthlyInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                        inputProps={{ min: 1, max: 12 }}
+                        sx={{ width: 70 }}
+                      />
+                      <Typography variant="body2">month(s)</Typography>
+                    </Stack>
+                  </Stack>
+                </Paper>
+              )}
+
+              {/* Yearly recurrence */}
+              {recurrenceType === "yearly" && (
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Stack spacing={2}>
+                    <FormControl size="small" fullWidth>
+                      <InputLabel>Pattern Type</InputLabel>
+                      <Select value={yearlyMode} onChange={e => setYearlyMode(e.target.value)} label="Pattern Type">
+                        <MenuItem value="dayOfMonth">On specific date</MenuItem>
+                        <MenuItem value="weekPattern">On a specific weekday pattern</MenuItem>
+                      </Select>
+                    </FormControl>
+
+                    <Stack direction="row" spacing={1}>
+                      <FormControl size="small" sx={{ flex: 1 }}>
+                        <InputLabel>Month</InputLabel>
+                        <Select
+                          value={yearlyMonth.toString()}
+                          onChange={e => setYearlyMonth(Number(e.target.value))}
+                          label="Month"
+                        >
+                          {MONTH_OPTIONS.map(opt => (
+                            <MenuItem key={opt.value} value={opt.value.toString()}>
+                              {opt.label}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      {yearlyMode === "dayOfMonth" && (
+                        <FormControl size="small" sx={{ width: 80 }}>
+                          <InputLabel>Day</InputLabel>
+                          <Select
+                            value={yearlyDayOfMonth.toString()}
+                            onChange={e => setYearlyDayOfMonth(Number(e.target.value))}
+                            label="Day"
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                              <MenuItem key={day} value={day.toString()}>
+                                {day}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
+                    </Stack>
+
+                    {yearlyMode === "weekPattern" && (
+                      <Stack direction="row" spacing={1}>
+                        <FormControl size="small" sx={{ width: 120 }}>
+                          <InputLabel>Ordinal</InputLabel>
+                          <Select
+                            value={yearlyOrdinal.toString()}
+                            onChange={e => setYearlyOrdinal(Number(e.target.value))}
+                            label="Ordinal"
+                          >
+                            {ORDINAL_OPTIONS.map(opt => (
+                              <MenuItem key={opt.value} value={opt.value.toString()}>
+                                {opt.label}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <FormControl size="small" sx={{ flex: 1 }}>
+                          <InputLabel>Day of Week</InputLabel>
+                          <Select
+                            value={yearlyDayOfWeek.toString()}
+                            onChange={e => setYearlyDayOfWeek(Number(e.target.value))}
+                            label="Day of Week"
+                          >
+                            {DAYS_OF_WEEK.map(day => (
+                              <MenuItem key={day.value} value={day.value.toString()}>
+                                {day.label}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Stack>
+                    )}
+
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="body2">Every</Typography>
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={yearlyInterval}
+                        onChange={e => setYearlyInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                        inputProps={{ min: 1, max: 10 }}
+                        sx={{ width: 70 }}
+                      />
+                      <Typography variant="body2">year(s)</Typography>
+                    </Stack>
+                  </Stack>
+                </Paper>
+              )}
+
+              {/* End Date - only show for recurring tasks */}
+              {recurrenceType !== "none" && (
+                <Box>
+                  <DatePicker
+                    label="End Date (Optional)"
+                    value={endDateValue}
+                    onChange={newDate => {
+                      const dateStr = newDate ? newDate.format("YYYY-MM-DD") : "";
+                      setEndDate(dateStr);
+                    }}
+                    slotProps={{
+                      textField: { size: "small", fullWidth: true },
+                    }}
+                  />
+                  {endDate && (
+                    <Button size="small" variant="text" sx={{ mt: 0.5 }} onClick={() => setEndDate("")}>
+                      Clear end date
+                    </Button>
+                  )}
+                </Box>
+              )}
+
+              {/* Tags */}
+              <Box>
+                <Typography variant="body2" fontWeight={500} gutterBottom>
+                  Tags
+                </Typography>
+                <Box
+                  sx={{
+                    border: 1,
+                    borderColor: "divider",
+                    borderRadius: 1,
+                    p: 2,
+                    minHeight: 48,
+                  }}
+                >
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {/* Tags */}
+                    {Array.isArray(tags) &&
+                      tags
+                        .filter(t => selectedTagIds.includes(t.id))
+                        .map(tag => <TagChip key={tag.id} tag={tag} size="sm" />)}
+                    {/* Add Tag button */}
+                    <TagSelector
+                      tags={tags}
+                      selectedTagIds={selectedTagIds}
+                      onTagsChange={setSelectedTagIds}
+                      onCreateTag={onCreateTag}
+                      onDeleteTag={onDeleteTag}
+                      inline
+                    />
+                  </Stack>
+                </Box>
+              </Box>
+
+              {/* Subtasks */}
+              <Box>
+                <Typography variant="body2" fontWeight={500} gutterBottom>
+                  Subtasks ({subtasks.length})
+                </Typography>
+                <Tabs value={subtaskTabIndex} onChange={(e, newValue) => setSubtaskTabIndex(newValue)}>
+                  <Tab label={`Manage (${subtasks.length})`} />
+                  <Tab label="Add Existing" />
+                </Tabs>
+
+                {/* Manage Subtasks Tab */}
+                {subtaskTabIndex === 0 && (
+                  <Box sx={{ mt: 2 }}>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                      onDragCancel={handleDragCancel}
+                    >
+                      <SortableContext
+                        items={subtasks.map(st => `subtask-${st.id}`)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <List dense>
+                          {subtasks.map((st, index) => (
+                            <ListItem key={st.id} divider={index < subtasks.length - 1} sx={{ py: 1 }}>
+                              <DragIndicator sx={{ mr: 1, color: "text.disabled", cursor: "grab" }} />
+                              <ListItemText primary={st.title} secondary={st.time || undefined} />
+                              <ListItemSecondaryAction>
+                                <IconButton
+                                  edge="end"
+                                  size="small"
+                                  onClick={() => {
                                     setEditingSubtask(st);
                                     setSubtaskTitle(st.title);
                                     setSubtaskTime(st.time || "");
                                     setSubtaskDuration(st.duration || 30);
                                   }}
-                                  onDelete={() => {
-                                    // Just remove from local state - that's all we need to do
-                                    // The subtask relationship is managed when the parent task is saved
+                                  sx={{ mr: 1 }}
+                                >
+                                  <Edit fontSize="small" />
+                                </IconButton>
+                                <IconButton
+                                  edge="end"
+                                  size="small"
+                                  onClick={() => {
                                     setSubtasks(subtasks.filter(s => s.id !== st.id));
                                   }}
-                                  onRemoveFromParent={() => {
-                                    // Handle removal properly - call API for existing tasks
-                                    handleRemoveSubtaskFromParent(st);
-                                  }}
-                                />
-                              ))}
-                            </VStack>
-                          </SortableContext>
-                          <DragOverlay>
-                            {activeSubtask ? (
-                              <TaskItem
-                                task={activeSubtask}
-                                variant="subtask"
-                                containerId="task-dialog-subtasks"
-                                draggableId={`subtask-${activeSubtask.id}`}
-                              />
-                            ) : null}
-                          </DragOverlay>
-                        </DndContext>
-                        <Box borderTopWidth="1px" borderColor={borderColor} my={2} />
-                        <HStack spacing={2}>
-                          <Input
-                            value={newSubtask}
-                            onChange={e => setNewSubtask(e.target.value)}
-                            placeholder="Create new subtask"
-                            size="sm"
-                            onKeyDown={e => {
-                              if (e.key === "Enter" && newSubtask.trim()) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setSubtasks([
-                                  ...subtasks,
-                                  {
-                                    id: Date.now().toString(),
-                                    title: newSubtask.trim(),
-                                    completed: false,
-                                    time: null,
-                                    duration: 30,
-                                    order: subtasks.length,
-                                  },
-                                ]);
-                                setNewSubtask("");
-                              }
-                            }}
+                                >
+                                  <Delete fontSize="small" />
+                                </IconButton>
+                              </ListItemSecondaryAction>
+                            </ListItem>
+                          ))}
+                        </List>
+                      </SortableContext>
+                      <DragOverlay>
+                        {activeSubtask ? (
+                          <TaskItem
+                            task={activeSubtask}
+                            variant="subtask"
+                            containerId="task-dialog-subtasks"
+                            draggableId={`subtask-${activeSubtask.id}`}
                           />
-                          <IconButton
-                            onClick={() => {
-                              if (newSubtask.trim()) {
-                                setSubtasks([
-                                  ...subtasks,
-                                  {
-                                    id: Date.now().toString(),
-                                    title: newSubtask.trim(),
-                                    completed: false,
-                                    time: null,
-                                    duration: 30,
-                                    order: subtasks.length,
-                                  },
-                                ]);
-                                setNewSubtask("");
-                              }
-                            }}
-                            size="sm"
-                            variant="outline"
-                            aria-label="Add subtask"
-                          >
-                            <Box as="span" color="currentColor">
-                              <Plus size={14} stroke="currentColor" />
-                            </Box>
-                          </IconButton>
-                        </HStack>
-                      </Tabs.Content>
-
-                      {/* Add Existing Task Tab */}
-                      <Tabs.Content value="1" px={0} py={3}>
-                        <VStack align="stretch" spacing={3}>
-                          <HStack spacing={2}>
-                            <Box as="span" color="gray.500">
-                              <Search size={14} />
-                            </Box>
-                            <Input
-                              value={searchQuery}
-                              onChange={e => setSearchQuery(e.target.value)}
-                              placeholder="Search for tasks to add as subtasks..."
-                              size="sm"
-                            />
-                          </HStack>
-                          {searchQuery.trim() && (
-                            <VStack align="stretch" spacing={2} maxH="200px" overflowY="auto">
-                              {filteredTasks.length > 0 ? (
-                                filteredTasks.map(t => (
-                                  <Box
-                                    key={t.id}
-                                    cursor="pointer"
-                                    _hover={{ opacity: 0.8 }}
-                                    onClick={() => addExistingTaskAsSubtask(t)}
-                                    position="relative"
-                                  >
-                                    <TaskItem
-                                      task={t}
-                                      variant="subtask"
-                                      containerId="task-dialog-search"
-                                      draggableId={`dialog-search-${t.id}`}
-                                    />
-                                    <Box
-                                      position="absolute"
-                                      right={2}
-                                      top="50%"
-                                      transform="translateY(-50%)"
-                                      bg={searchResultBg}
-                                      borderRadius="md"
-                                      p={1}
-                                    >
-                                      <IconButton
-                                        size="xs"
-                                        variant="ghost"
-                                        aria-label="Add as subtask"
-                                        onClick={e => {
-                                          e.stopPropagation();
-                                          addExistingTaskAsSubtask(t);
-                                        }}
-                                      >
-                                        <Box as="span" color="currentColor">
-                                          <Plus size={14} stroke="currentColor" />
-                                        </Box>
-                                      </IconButton>
-                                    </Box>
-                                  </Box>
-                                ))
-                              ) : (
-                                <Text fontSize="sm" color="gray.500" textAlign="center" py={4}>
-                                  No tasks found
-                                </Text>
-                              )}
-                            </VStack>
-                          )}
-                          {!searchQuery.trim() && (
-                            <Text fontSize="sm" color="gray.500" textAlign="center" py={4}>
-                              Type to search for existing tasks
-                            </Text>
-                          )}
-                        </VStack>
-                      </Tabs.Content>
-                    </Tabs.Root>
+                        ) : null}
+                      </DragOverlay>
+                    </DndContext>
+                    <Divider sx={{ my: 2 }} />
+                    <Stack direction="row" spacing={1}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={newSubtask}
+                        onChange={e => setNewSubtask(e.target.value)}
+                        placeholder="Create new subtask"
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && newSubtask.trim()) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSubtasks([
+                              ...subtasks,
+                              {
+                                id: Date.now().toString(),
+                                title: newSubtask.trim(),
+                                completed: false,
+                                time: null,
+                                duration: 30,
+                                order: subtasks.length,
+                              },
+                            ]);
+                            setNewSubtask("");
+                          }
+                        }}
+                      />
+                      <IconButton
+                        onClick={() => {
+                          if (newSubtask.trim()) {
+                            setSubtasks([
+                              ...subtasks,
+                              {
+                                id: Date.now().toString(),
+                                title: newSubtask.trim(),
+                                completed: false,
+                                time: null,
+                                duration: 30,
+                                order: subtasks.length,
+                              },
+                            ]);
+                            setNewSubtask("");
+                          }
+                        }}
+                        size="small"
+                        color="primary"
+                      >
+                        <Add />
+                      </IconButton>
+                    </Stack>
                   </Box>
-                  {/* Subtask Edit Modal */}
-                  <Dialog.Root
-                    open={editingSubtask !== null}
-                    onOpenChange={({ open }) => !open && setEditingSubtask(null)}
-                    size="sm"
+                )}
+
+                {/* Add Existing Task Tab */}
+                {subtaskTabIndex === 1 && (
+                  <Box sx={{ mt: 2 }}>
+                    <Stack spacing={2}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        placeholder="Search for tasks to add as subtasks..."
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Search fontSize="small" />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                      {searchQuery.trim() && (
+                        <Box sx={{ maxHeight: 200, overflowY: "auto" }}>
+                          {filteredTasks.length > 0 ? (
+                            <List dense>
+                              {filteredTasks.map(t => (
+                                <ListItem
+                                  key={t.id}
+                                  button
+                                  onClick={() => addExistingTaskAsSubtask(t)}
+                                  sx={{ "&:hover": { opacity: 0.8 } }}
+                                >
+                                  <TaskItem
+                                    task={t}
+                                    variant="subtask"
+                                    containerId="task-dialog-search"
+                                    draggableId={`dialog-search-${t.id}`}
+                                  />
+                                  <ListItemSecondaryAction>
+                                    <IconButton
+                                      edge="end"
+                                      size="small"
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        addExistingTaskAsSubtask(t);
+                                      }}
+                                    >
+                                      <Add />
+                                    </IconButton>
+                                  </ListItemSecondaryAction>
+                                </ListItem>
+                              ))}
+                            </List>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
+                              No tasks found
+                            </Typography>
+                          )}
+                        </Box>
+                      )}
+                      {!searchQuery.trim() && (
+                        <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
+                          Type to search for existing tasks
+                        </Typography>
+                      )}
+                    </Stack>
+                  </Box>
+                )}
+              </Box>
+            </Stack>
+          </DialogContent>
+
+          <DialogActions>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button onClick={handleSave} variant="contained" disabled={!title.trim()}>
+              Save
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* Subtask Edit Dialog */}
+      <Dialog open={editingSubtask !== null} onClose={() => setEditingSubtask(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Edit Subtask</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Title"
+              value={subtaskTitle}
+              onChange={e => setSubtaskTitle(e.target.value)}
+              placeholder="Subtask title"
+            />
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <TimePicker
+                  label="Time"
+                  value={subtaskTimeValue}
+                  onChange={newTime => {
+                    const timeStr = newTime ? newTime.format("HH:mm") : "";
+                    setSubtaskTime(timeStr);
+                  }}
+                  slotProps={{
+                    textField: { size: "small", fullWidth: true },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Duration</InputLabel>
+                  <Select
+                    value={subtaskDuration.toString()}
+                    onChange={e => setSubtaskDuration(parseInt(e.target.value))}
+                    label="Duration"
                   >
-                    <Dialog.Backdrop bg="blackAlpha.600" />
-                    <Dialog.Positioner>
-                      <Dialog.Content bg={bgColor}>
-                        <Dialog.Header>Edit Subtask</Dialog.Header>
-                        <Dialog.CloseTrigger />
-                        <Dialog.Body>
-                          <VStack spacing={4} py={4}>
-                            <Box w="full">
-                              <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                                Title
-                              </Text>
-                              <Input
-                                value={subtaskTitle}
-                                onChange={e => setSubtaskTitle(e.target.value)}
-                                placeholder="Subtask title"
-                              />
-                            </Box>
-                            <SimpleGrid columns={2} spacing={4} w="full">
-                              <Box>
-                                <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                                  Time
-                                </Text>
-                                <Input
-                                  type="time"
-                                  value={subtaskTime}
-                                  onChange={e => setSubtaskTime(e.target.value)}
-                                  placeholder="Optional"
-                                />
-                              </Box>
-                              <Box>
-                                <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                                  Duration
-                                </Text>
-                                <SelectDropdown
-                                  collection={durationCollection}
-                                  value={[subtaskDuration.toString()]}
-                                  onValueChange={({ value }) => setSubtaskDuration(parseInt(value[0]))}
-                                  placeholder="Select duration"
-                                  inModal={true}
-                                />
-                              </Box>
-                            </SimpleGrid>
-                          </VStack>
-                        </Dialog.Body>
-                        <Dialog.Footer>
-                          <Button variant="outline" mr={3} onClick={() => setEditingSubtask(null)}>
-                            Cancel
-                          </Button>
-                          <Button
-                            onClick={() => {
-                              if (subtaskTitle.trim() && editingSubtask) {
-                                setSubtasks(
-                                  subtasks.map(st =>
-                                    st.id === editingSubtask.id
-                                      ? {
-                                          ...st,
-                                          title: subtaskTitle.trim(),
-                                          time: subtaskTime || null,
-                                          duration: subtaskDuration,
-                                        }
-                                      : st
-                                  )
-                                );
-                                setEditingSubtask(null);
-                                setSubtaskTitle("");
-                                setSubtaskTime("");
-                                setSubtaskDuration(30);
-                              }
-                            }}
-                            isDisabled={!subtaskTitle.trim()}
-                          >
-                            Save
-                          </Button>
-                        </Dialog.Footer>
-                      </Dialog.Content>
-                    </Dialog.Positioner>
-                  </Dialog.Root>
-                </VStack>
-              </form>
-            </Dialog.Body>
-            <Dialog.Footer>
-              <Button variant="outline" mr={3} onClick={onClose}>
-                Cancel
-              </Button>
-              <Button onClick={handleSave} isDisabled={!title.trim()}>
-                Save
-              </Button>
-            </Dialog.Footer>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Dialog.Root>
+                    {DURATION_OPTIONS.map(d => (
+                      <MenuItem key={d.value} value={d.value.toString()}>
+                        {d.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingSubtask(null)}>Cancel</Button>
+          <Button
+            onClick={() => {
+              if (subtaskTitle.trim() && editingSubtask) {
+                setSubtasks(
+                  subtasks.map(st =>
+                    st.id === editingSubtask.id
+                      ? {
+                          ...st,
+                          title: subtaskTitle.trim(),
+                          time: subtaskTime || null,
+                          duration: subtaskDuration,
+                        }
+                      : st
+                  )
+                );
+                setEditingSubtask(null);
+                setSubtaskTitle("");
+                setSubtaskTime("");
+                setSubtaskDuration(30);
+              }
+            }}
+            variant="contained"
+            disabled={!subtaskTitle.trim()}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Workout Builder Modal */}
       {workoutBuilderOpen && task?.id && (

@@ -1,12 +1,11 @@
 "use client";
 
-import { Box } from "@chakra-ui/react";
+import { Box } from "@mui/material";
 import { useDroppable } from "@dnd-kit/core";
 import { calculateTaskPositions } from "@/lib/utils";
 import { CalendarTask } from "./CalendarTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
 import { CurrentTimeLine } from "./CurrentTimeLine";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
@@ -22,13 +21,12 @@ export const TimedColumn = ({
   getTaskStyle,
   internalDrag,
   handleInternalDragStart,
-  borderColor,
+  borderColor: _borderColor,
   dropHighlight,
   showStatusTasks = true,
   hourHeight = 48,
   isToday = false,
 }) => {
-  const { calendar } = useSemanticColors();
   const timedDroppableId = createDroppableId.calendarWeek(day);
   const { setNodeRef, isOver } = useDroppable({
     id: timedDroppableId,
@@ -46,24 +44,26 @@ export const TimedColumn = ({
   return (
     <Box
       ref={setNodeRef}
-      flex={1}
-      flexShrink={0}
-      flexGrow={1}
-      minW={0}
-      borderLeftWidth={dayIndex === 0 ? "0" : isToday ? "1px" : "1px"}
-      borderRightWidth={isToday ? "1px" : "0"}
-      borderColor={isToday ? calendar.today : borderColor}
-      position="relative"
-      h="full"
-      w="full"
-      zIndex={2}
+      sx={{
+        flex: 1,
+        flexShrink: 0,
+        flexGrow: 1,
+        minWidth: 0,
+        borderLeft: dayIndex === 0 ? 0 : 1,
+        borderRight: isToday ? 1 : 0,
+        borderColor: isToday ? "primary.main" : "divider",
+        position: "relative",
+        height: "100%",
+        width: "100%",
+        zIndex: 2,
+        bgcolor: isOver ? dropHighlight : isToday ? "action.selected" : "transparent",
+        transition: "background-color 0.2s, border-color 0.2s",
+      }}
       onClick={e => {
         if (!isOver) {
           handleColumnClick(e, day);
         }
       }}
-      bg={isOver ? dropHighlight : isToday ? calendar.todayBg : "transparent"}
-      transition="background-color 0.2s, border-color 0.2s"
       data-calendar-timed="true"
       data-calendar-view="week"
       data-hour-height={hourHeight}
@@ -74,7 +74,7 @@ export const TimedColumn = ({
       }}
     >
       {/* Current time line - only show on today's column */}
-      {isToday && <CurrentTimeLine hourHeight={hourHeight} isVisible={true} />}
+      {isToday && <CurrentTimeLine hourHeight={hourHeight} startHour={0} />}
 
       {/* Render tasks */}
       {calculateTaskPositions(timedTasks).map(task => (
@@ -155,3 +155,5 @@ export const TimedColumn = ({
     </Box>
   );
 };
+
+export default TimedColumn;

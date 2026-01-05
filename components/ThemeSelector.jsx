@@ -1,10 +1,10 @@
 "use client";
 
-import { Box, HStack, Text, Portal, IconButton, Menu } from "@chakra-ui/react";
-import { Palette, Check } from "lucide-react";
+import { useState } from "react";
+import { Box, Stack, Typography, IconButton, Menu, MenuItem } from "@mui/material";
+import { Palette, Check } from "@mui/icons-material";
 import { useTheme } from "@/hooks/useTheme";
-import { useColorModeSync } from "@/hooks/useColorModeSync";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useColorMode } from "@/hooks/useColorMode";
 
 /**
  * Theme selector dropdown component
@@ -12,81 +12,96 @@ import { useSemanticColors } from "@/hooks/useSemanticColors";
  */
 export function ThemeSelector() {
   const { themeId, setTheme, themes } = useTheme();
-  const { colorMode } = useColorModeSync();
-  const { bg, text, border } = useSemanticColors();
+  const { mode: colorMode } = useColorMode(); // Used in theme.colors[colorMode]
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = event => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleThemeSelect = themeId => {
+    setTheme(themeId);
+    handleClose();
+  };
 
   return (
-    <Menu.Root>
-      <Menu.Trigger asChild>
-        <IconButton
-          variant="ghost"
-          size={{ base: "xs", md: "md" }}
-          aria-label="Select theme"
-          minW={{ base: "28px", md: "40px" }}
-          h={{ base: "28px", md: "40px" }}
-          p={{ base: 0, md: 2 }}
-          border="none"
-          outline="none"
-          boxShadow="none"
-          _hover={{ border: "none", outline: "none" }}
-          _active={{ border: "none", outline: "none" }}
-          _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-          _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
-        >
-          <Box as="span" color="currentColor">
-            <Palette size={16} stroke="currentColor" />
-          </Box>
-        </IconButton>
-      </Menu.Trigger>
-      <Portal>
-        <Menu.Positioner>
-          <Menu.Content bg={bg.surface} borderColor={border.default} minW="180px">
-            {themes.map(theme => {
-              const isSelected = themeId === theme.id;
-              const themeColors = theme.colors[colorMode];
+    <>
+      <IconButton
+        onClick={handleClick}
+        size="small"
+        aria-label="Select theme"
+        sx={{
+          minWidth: { xs: "28px", md: "40px" },
+          height: { xs: "28px", md: "40px" },
+          p: { xs: 0, md: 2 },
+        }}
+      >
+        <Palette fontSize="small" />
+      </IconButton>
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        {themes.map(theme => {
+          const isSelected = themeId === theme.id;
+          const themeColors = theme.colors[colorMode];
 
-              return (
-                <Menu.Item
-                  key={theme.id}
-                  onClick={() => setTheme(theme.id)}
-                  bg={isSelected ? bg.surfaceHover : "transparent"}
-                  _hover={{ bg: bg.surfaceHover }}
-                >
-                  <HStack justify="space-between" w="full">
-                    <HStack spacing={2}>
-                      {/* Color swatch preview */}
-                      <HStack spacing={0.5}>
-                        <Box
-                          w={3}
-                          h={3}
-                          borderRadius="sm"
-                          bg={themeColors.primary}
-                          borderWidth="1px"
-                          borderColor={border.default}
-                        />
-                        <Box
-                          w={3}
-                          h={3}
-                          borderRadius="sm"
-                          bg={themeColors.accent}
-                          borderWidth="1px"
-                          borderColor={border.default}
-                        />
-                      </HStack>
-                      <Text fontSize="sm">{theme.name}</Text>
-                    </HStack>
-                    {isSelected && (
-                      <Box as="span" color={text.primary}>
-                        <Check size={14} />
-                      </Box>
-                    )}
-                  </HStack>
-                </Menu.Item>
-              );
-            })}
-          </Menu.Content>
-        </Menu.Positioner>
-      </Portal>
-    </Menu.Root>
+          return (
+            <MenuItem
+              key={theme.id}
+              onClick={() => handleThemeSelect(theme.id)}
+              selected={isSelected}
+              sx={{
+                bgcolor: isSelected ? "action.selected" : "transparent",
+                "&:hover": {
+                  bgcolor: "action.hover",
+                },
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: "100%" }}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  {/* Color swatch preview */}
+                  <Stack direction="row" spacing={0.5}>
+                    <Box
+                      sx={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: 0.5,
+                        bgcolor: themeColors.primary,
+                        border: "1px solid",
+                        borderColor: "divider",
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: 0.5,
+                        bgcolor: themeColors.accent,
+                        border: "1px solid",
+                        borderColor: "divider",
+                      }}
+                    />
+                  </Stack>
+                  <Typography variant="body2">{theme.name}</Typography>
+                </Stack>
+                {isSelected && (
+                  <Box component="span" sx={{ color: "text.primary" }}>
+                    <Check fontSize="small" />
+                  </Box>
+                )}
+              </Stack>
+            </MenuItem>
+          );
+        })}
+      </Menu>
+    </>
   );
 }

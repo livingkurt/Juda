@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Box, Checkbox, HStack, Text, Menu, Portal } from "@chakra-ui/react";
-import { Check, X, Circle } from "lucide-react";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { Box, Checkbox, Stack, Typography, Menu, MenuItem, Divider } from "@mui/material";
+import { Check, Close, RadioButtonUnchecked } from "@mui/icons-material";
 
 /**
  * OutcomeCheckbox - Reusable multi-state checkbox component
@@ -25,8 +24,8 @@ import { useSemanticColors } from "@/hooks/useSemanticColors";
  * @param {string} size - Checkbox size: "sm", "md", "lg"
  */
 export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, disabled = false, size = "md" }) => {
-  const { mode } = useSemanticColors();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
   const menuJustOpenedRef = useRef(false);
   const previousOutcomeRef = useRef(outcome);
 
@@ -45,6 +44,7 @@ export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, d
     if (menuOpen && previousOutcomeRef.current !== null && previousOutcomeRef.current !== outcome) {
       const timer = setTimeout(() => {
         setMenuOpen(false);
+        setAnchorEl(null);
       }, 200);
       return () => clearTimeout(timer);
     }
@@ -72,6 +72,7 @@ export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, d
       e.stopPropagation();
       menuJustOpenedRef.current = true;
       setMenuOpen(true);
+      setAnchorEl(e.currentTarget);
     }
   };
 
@@ -84,115 +85,111 @@ export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, d
     }
   };
 
+  const handleMenuClose = () => {
+    setMenuOpen(false);
+    setAnchorEl(null);
+  };
+
+  const checkboxSize = size === "sm" ? "small" : size === "lg" ? "medium" : "medium";
+
   return (
-    <Box position="relative">
-      <Menu.Root
-        open={menuOpen}
-        onOpenChange={({ open }) => setMenuOpen(open)}
-        isLazy
-        placement="right-start"
-        closeOnSelect
-        closeOnInteractOutside
-      >
-        <Menu.Trigger asChild>
-          <Box
-            as="span"
-            display="inline-block"
-            border="none"
-            outline="none"
-            boxShadow="none"
-            bg="transparent"
-            p={0}
-            m={0}
-            _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-            _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
-          >
-            <Checkbox.Root
-              checked={outcome === "completed" || (outcome === null && isChecked)}
-              size={size}
-              disabled={disabled}
-              onCheckedChange={handleCheckboxChange}
-              onClick={handleClick}
-              onMouseDown={handleMouseDown}
-              onPointerDown={e => e.stopPropagation()}
+    <Box sx={{ position: "relative", display: "inline-flex" }}>
+      <Checkbox
+        checked={outcome !== null || isChecked}
+        size={checkboxSize}
+        disabled={disabled}
+        onChange={handleCheckboxChange}
+        onClick={handleClick}
+        onMouseDown={handleMouseDown}
+        onPointerDown={e => e.stopPropagation()}
+        checkedIcon={
+          outcome === "completed" ? (
+            <Box
+              sx={{
+                width: 18,
+                height: 18,
+                borderRadius: "2px",
+                border: "2px solid #a0aec0",
+                m: 0.5,
+                bgcolor: "#a0aec0",
+              }}
             >
-              <Checkbox.HiddenInput />
-              <Checkbox.Control
-                bg={outcome === "not_completed" ? "white" : undefined}
-                boxShadow="none"
-                outline="none"
-                _focus={{ boxShadow: "none", outline: "none" }}
-                _focusVisible={{ boxShadow: "none", outline: "none" }}
-              >
-                {outcome === "completed" ? (
-                  <Checkbox.Indicator>
-                    <Check size={14} />
-                  </Checkbox.Indicator>
-                ) : outcome === "not_completed" ? (
-                  <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
-                    <Box as="span" color={mode.text.muted}>
-                      <X size={18} stroke="currentColor" style={{ strokeWidth: 3 }} />
-                    </Box>
-                  </Box>
-                ) : null}
-              </Checkbox.Control>
-            </Checkbox.Root>
-          </Box>
-        </Menu.Trigger>
-        {shouldShowMenu && (
-          <Portal>
-            <Menu.Positioner style={{ zIndex: 99999 }}>
-              <Menu.Content>
-                {/* Only show Uncheck if task has an outcome */}
-                {outcome !== null && (
-                  <>
-                    <Menu.Item
-                      onClick={e => {
-                        e.stopPropagation();
-                        onOutcomeChange(null);
-                      }}
-                    >
-                      <HStack>
-                        <Circle size={14} />
-                        <Text>Uncheck</Text>
-                      </HStack>
-                    </Menu.Item>
-                    <Menu.Separator />
-                  </>
-                )}
-                {/* Only show Completed if not already completed */}
-                {outcome !== "completed" && (
-                  <Menu.Item
-                    onClick={e => {
-                      e.stopPropagation();
-                      onOutcomeChange("completed");
-                    }}
-                  >
-                    <HStack>
-                      <Check size={14} />
-                      <Text>Completed</Text>
-                    </HStack>
-                  </Menu.Item>
-                )}
-                {/* Only show Not Completed if not already not completed */}
-                {outcome !== "not_completed" && (
-                  <Menu.Item
-                    onClick={e => {
-                      e.stopPropagation();
-                      onOutcomeChange("not_completed");
-                    }}
-                  >
-                    <HStack>
-                      <X size={14} />
-                      <Text>Not Completed</Text>
-                    </HStack>
-                  </Menu.Item>
-                )}
-              </Menu.Content>
-            </Menu.Positioner>
-          </Portal>
-        )}
-      </Menu.Root>
+              <Check sx={{ color: "black", fontSize: "14px", mb: 0.5 }} />
+            </Box>
+          ) : outcome === "not_completed" ? (
+            <Box
+              sx={{
+                width: 18,
+                height: 18,
+                borderRadius: "2px",
+                border: "2px solid #a0aec0",
+                m: 0.5,
+                bgcolor: "#a0aec0",
+              }}
+            >
+              <Close sx={{ color: "black", fontSize: "14px", mb: 0.5 }} />
+            </Box>
+          ) : undefined
+        }
+      />
+      {shouldShowMenu && (
+        <Menu
+          anchorEl={anchorEl}
+          open={menuOpen}
+          onClose={handleMenuClose}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "left" }}
+          sx={{ zIndex: 99999 }}
+        >
+          {/* Only show Uncheck if task has an outcome */}
+          {outcome !== null && [
+            <MenuItem
+              key="uncheck"
+              onClick={e => {
+                e.stopPropagation();
+                onOutcomeChange(null);
+                handleMenuClose();
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <RadioButtonUnchecked fontSize="small" />
+                <Typography variant="body2">Uncheck</Typography>
+              </Stack>
+            </MenuItem>,
+            <Divider key="divider-uncheck" />,
+          ]}
+          {/* Only show Completed if not already completed */}
+          {outcome !== "completed" && (
+            <MenuItem
+              onClick={e => {
+                e.stopPropagation();
+                onOutcomeChange("completed");
+                handleMenuClose();
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Check fontSize="small" />
+                <Typography variant="body2">Completed</Typography>
+              </Stack>
+            </MenuItem>
+          )}
+          {/* Only show Not Completed if not already not completed */}
+          {outcome !== "not_completed" && (
+            <MenuItem
+              onClick={e => {
+                e.stopPropagation();
+                onOutcomeChange("not_completed");
+                handleMenuClose();
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Close fontSize="small" />
+                <Typography variant="body2">Not Completed</Typography>
+              </Stack>
+            </MenuItem>
+          )}
+        </Menu>
+      )}
     </Box>
   );
 };

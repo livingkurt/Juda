@@ -13,6 +13,7 @@ Error: Calling setState synchronously within an effect can trigger cascading ren
 ```
 
 This pattern causes:
+
 - **Cascading renders** that hurt performance
 - **Confusing data flow** (controlled/uncontrolled hybrids)
 - **Maintenance issues** (unclear source of truth)
@@ -42,6 +43,7 @@ const [internalValue, setInternalValue] = useState(initialValue);
 ```
 
 **Usage:** If parent needs to reset the value, use a `key` prop:
+
 ```javascript
 <DebouncedInput key={resetKey} value={initialValue} onChange={handleChange} />
 ```
@@ -103,7 +105,7 @@ useEffect(() => {
 
 // After
 // No local state - update preferences directly during drag
-const handleMouseMove = (e) => {
+const handleMouseMove = e => {
   const newWidth = calculateWidth(e);
   setBacklogWidth(newWidth);
 };
@@ -112,6 +114,7 @@ return { backlogWidth: initialBacklogWidth };
 ```
 
 **Updated usage in `app/page.jsx`:**
+
 ```javascript
 // Before
 w={resizeHandlers.isResizing ? resizeHandlers.localBacklogWidth : backlogWidth}
@@ -172,6 +175,7 @@ useEffect(() => {
 Created comprehensive guide: `docs/REACT_HOOKS_BEST_PRACTICES.md`
 
 This document includes:
+
 - Problem explanation
 - Common problematic patterns
 - Solutions for each pattern
@@ -208,4 +212,3 @@ When adding new components:
 - [React: You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect)
 - [React 19 Release Notes](https://react.dev/blog/2024/12/05/react-19)
 - ESLint rule: `react-hooks/set-state-in-effect`
-

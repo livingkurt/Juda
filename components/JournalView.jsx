@@ -1,288 +1,254 @@
 "use client";
 
-import { useMemo } from "react";
-import { Box, VStack, Heading, Text, createListCollection } from "@chakra-ui/react";
-import { BookOpen } from "lucide-react";
-import { DateNavigation } from "./DateNavigation";
+import { useState, useMemo, memo } from "react";
+import { Box, Stack, Typography } from "@mui/material";
+import dayjs from "dayjs";
 import { JournalDayEntry } from "./JournalDayEntry";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
-import { useSelector, useDispatch } from "react-redux";
-import { setJournalView, setJournalSelectedDate } from "@/lib/store/slices/uiSlice";
-import { shouldShowOnDate } from "@/lib/utils";
-import { useMobileDetection } from "@/hooks/useMobileDetection";
+import { shouldShowOnDate as checkTaskShouldShowOnDate } from "@/lib/utils";
+import { DateNavigation } from "./DateNavigation";
 
-// Define journal-related tag names (case-insensitive matching)
-const JOURNAL_TAG_NAMES = ["daily journal", "yearly reflection", "monthly reflection", "weekly reflection"];
+// Journal task types in display order
+const JOURNAL_TYPES = [
+  { tag: "yearly reflection", label: "Yearly Reflection" },
+  { tag: "monthly reflection", label: "Monthly Reflection" },
+  { tag: "weekly reflection", label: "Weekly Reflection" },
+  { tag: "daily journal", label: "Journal" },
+];
 
-export const JournalView = ({
-  tasks,
-  tags: _tags,
+export const JournalView = memo(function JournalView({
+  tasks = [],
+  tags: _tags = [],
+  completions: _completions = [],
   getCompletionForDate,
   createCompletion,
   updateCompletion,
-  deleteCompletion,
-}) => {
-  const dispatch = useDispatch();
-  const journalView = useSelector(state => state.ui.journalView);
-  const journalSelectedDateISO = useSelector(state => state.ui.journalSelectedDate);
-  const { mode } = useSemanticColors();
-  const isMobile = useMobileDetection();
+  deleteCompletion: _deleteCompletion,
+  updateTask: _updateTask,
+}) {
+  const [selectedDate, setSelectedDate] = useState(dayjs());
 
-  // Parse selected date from ISO string (avoid hydration issues by checking window)
-  const selectedDate = useMemo(() => {
-    if (typeof window === "undefined") {
-      // SSR: return a stable date
-      return new Date("2025-01-01T00:00:00.000Z");
-    }
-    if (!journalSelectedDateISO) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return today;
-    }
-    const date = new Date(journalSelectedDateISO);
-    date.setHours(0, 0, 0, 0);
-    return date;
-  }, [journalSelectedDateISO]);
+  const currentYear = dayjs().year();
 
-  // Helper to get the journal type for a task (for ordering and styling)
-  const getJournalType = task => {
-    const tagNames = (task.tags || []).map(t => (t.name || "").toLowerCase());
+  // Convert dayjs to Date for DateNavigation
+  const selectedDateAsDate = useMemo(() => {
+    return selectedDate.toDate();
+  }, [selectedDate]);
 
-    if (tagNames.includes("yearly reflection")) return "yearly";
-    if (tagNames.includes("monthly reflection")) return "monthly";
-    if (tagNames.includes("weekly reflection")) return "weekly";
-    if (tagNames.includes("daily journal")) return "daily";
-    return "daily"; // fallback
+  // Navigate dates - convert Date back to dayjs
+  const handleDateChange = date => {
+    setSelectedDate(dayjs(date));
   };
 
-  // Sort order priority (for display within each year)
-  const JOURNAL_TYPE_ORDER = {
-    yearly: 0,
-    monthly: 1,
-    weekly: 2,
-    daily: 3,
+  const handlePrev = () => {
+    setSelectedDate(d => d.subtract(1, "day"));
   };
 
-  // Filter journal tasks (completionType: "text" + any journal-related tag)
+  const handleNext = () => {
+    setSelectedDate(d => d.add(1, "day"));
+  };
+
+  const handleToday = () => {
+    setSelectedDate(dayjs());
+  };
+
+  // Get years to display (current year and 4 previous years)
+  const years = useMemo(() => {
+    const current = selectedDate.year();
+    return Array.from({ length: 5 }, (_, i) => current - i);
+  }, [selectedDate]);
+
+  // Filter journal tasks (completionType: "text" + journal-related tags)
   const journalTasks = useMemo(() => {
+    const journalTagNames = JOURNAL_TYPES.map(t => t.tag);
     return tasks.filter(task => {
       if (task.completionType !== "text") return false;
-
-      // Check if task has any journal-related tag
       return task.tags?.some(tag => {
         const tagName = (tag.name || "").toLowerCase();
-        return JOURNAL_TAG_NAMES.includes(tagName);
+        return journalTagNames.includes(tagName);
       });
     });
   }, [tasks]);
 
-  // Get entries for the selected date across all years (5-year journal)
-  const currentYear = useMemo(() => {
-    if (typeof window === "undefined") return 2025; // SSR fallback
-    return new Date().getFullYear();
-  }, []);
-  const years = useMemo(
-    () => [currentYear, currentYear - 1, currentYear - 2, currentYear - 3, currentYear - 4],
-    [currentYear]
-  );
+  // Group journal tasks by type
+  const tasksByType = useMemo(() => {
+    const grouped = {};
+    JOURNAL_TYPES.forEach(type => {
+      grouped[type.tag] = journalTasks.filter(task => {
+        const tagNames = (task.tags || []).map(t => (t.name || "").toLowerCase());
+        return tagNames.includes(type.tag);
+      });
+    });
+    return grouped;
+  }, [journalTasks]);
 
-  const handleDateChange = date => {
-    const d = date instanceof Date ? date : new Date(date);
-    d.setHours(0, 0, 0, 0);
-    // Convert to ISO string for Redux (must be serializable)
-    dispatch(setJournalSelectedDate(d.toISOString()));
-  };
+  // Handle saving journal entries
+  const handleSaveEntry = async (taskId, date, note) => {
+    const dateStr = dayjs(date).format("YYYY-MM-DD");
+    const existingCompletion = getCompletionForDate?.(taskId, dateStr);
 
-  const handlePrevious = () => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() - 1);
-    handleDateChange(newDate);
-  };
-
-  const handleNext = () => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + 1);
-    handleDateChange(newDate);
-  };
-
-  const handleToday = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    handleDateChange(today);
-  };
-
-  const handleSave = async (taskId, date, note) => {
-    const completion = getCompletionForDate(taskId, date);
-    if (completion) {
-      await updateCompletion(taskId, date, { note, outcome: "completed" });
-    } else {
-      await createCompletion(taskId, date, { note, outcome: "completed" });
+    try {
+      if (existingCompletion) {
+        // updateCompletion expects (taskId, date, updates)
+        // For journal entries, we only update the note, not the outcome
+        await updateCompletion(taskId, dateStr, { note });
+      } else {
+        // createCompletion expects (taskId, date, options)
+        // For journal entries, we create with note only (outcome defaults to "completed" in API)
+        // But we can use POST endpoint which allows note without requiring outcome validation
+        await createCompletion(taskId, dateStr, {
+          note,
+          // Don't pass outcome - let API handle it or use a default
+        });
+      }
+    } catch (error) {
+      console.error("Error saving journal entry:", error);
+      // Re-throw with a more descriptive error message
+      const errorMessage = error?.data?.message || error?.message || String(error);
+      throw new Error(`Failed to save journal entry: ${errorMessage}`);
     }
   };
 
-  const handleDelete = async (taskId, date) => {
-    await deleteCompletion(taskId, date);
+  // Check if a task should appear on a specific date for a specific year
+  const shouldShowTaskOnDate = (task, date, year) => {
+    // Create a date object for the target year (same month/day, different year)
+    const targetDate = dayjs(date).year(year).toDate();
+    return checkTaskShouldShowOnDate(task, targetDate);
   };
 
-  const viewCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "Day", value: "day" },
-          { label: "Week", value: "week" },
-          { label: "Month", value: "month" },
-          { label: "Year", value: "year" },
-        ],
-      }),
-    []
-  );
+  // Format display date
+  const displayDate = selectedDate.format("dddd, MMMM D, YYYY");
 
-  const bgColor = mode.bg.canvas;
-  const textColor = mode.text.primary;
-  const mutedText = mode.text.secondary;
-
-  // Day View - show entries grouped by year
-  const renderDayView = () => {
-    if (journalTasks.length === 0) {
-      return (
-        <Box p={8} textAlign="center">
-          <VStack spacing={4}>
-            <Box as={BookOpen} size={48} color={mutedText} />
-            <Text color={mutedText}>No journal tasks found</Text>
-            <Text fontSize="sm" color={mutedText}>
-              Create a task with completion type &quot;text&quot; and add one of these tags: &quot;Daily Journal&quot;,
-              &quot;Weekly Reflection&quot;, &quot;Monthly Reflection&quot;, or &quot;Yearly Reflection&quot;
-            </Text>
-          </VStack>
-        </Box>
-      );
-    }
-
-    return (
-      <VStack align="stretch" spacing={{ base: 8, md: 6 }}>
-        {years.map(year => {
-          const yearDate = new Date(selectedDate);
-          yearDate.setFullYear(year);
-          yearDate.setHours(0, 0, 0, 0);
-
-          return (
-            <Box key={year}>
-              <Heading size={{ base: "lg", md: "md" }} mb={{ base: 3, md: 4 }} color={textColor} fontWeight="bold">
-                {year}
-              </Heading>
-              {journalTasks
-                .filter(task => shouldShowOnDate(task, yearDate))
-                .sort((a, b) => {
-                  const typeA = getJournalType(a);
-                  const typeB = getJournalType(b);
-                  return JOURNAL_TYPE_ORDER[typeA] - JOURNAL_TYPE_ORDER[typeB];
-                })
-                .map(task => {
-                  const completion = getCompletionForDate(task.id, yearDate);
-                  const isCurrentYear = year === currentYear;
-                  const journalType = getJournalType(task);
-
-                  return (
-                    <JournalDayEntry
-                      key={`${task.id}-${year}`}
-                      task={task}
-                      date={yearDate}
-                      year={year}
-                      completion={completion}
-                      isCurrentYear={isCurrentYear}
-                      journalType={journalType}
-                      onSave={handleSave}
-                      onDelete={handleDelete}
-                    />
-                  );
-                })}
-              {journalTasks.filter(task => shouldShowOnDate(task, yearDate)).length === 0 && (
-                <Text fontSize="sm" color={mutedText} fontStyle="italic" mb={4}>
-                  No journal tasks scheduled for this day
-                </Text>
-              )}
-            </Box>
-          );
-        })}
-      </VStack>
-    );
-  };
-
-  // Week/Month/Year views - placeholder for now
-  const renderWeekView = () => {
-    return (
-      <Box p={8} textAlign="center">
-        <Text color={mutedText}>Week view coming soon</Text>
-      </Box>
-    );
-  };
-
-  const renderMonthView = () => {
-    return (
-      <Box p={8} textAlign="center">
-        <Text color={mutedText}>Month view coming soon</Text>
-      </Box>
-    );
-  };
-
-  const renderYearView = () => {
-    return (
-      <Box p={8} textAlign="center">
-        <Text color={mutedText}>Year view coming soon</Text>
-      </Box>
-    );
-  };
+  // View options for DateNavigation (Day view only for Journal)
+  const viewOptions = [{ label: "Day", value: "day" }];
 
   return (
-    <Box h="100%" overflow="hidden" display="flex" flexDirection="column" bg={bgColor}>
-      {/* Header with Date Navigation */}
-      <Box p={{ base: 3, md: 4 }} borderBottomWidth="1px" borderColor={mode.border.default} flexShrink={0}>
-        <VStack align="stretch" spacing={3}>
-          {/* Date Navigation Controls */}
-          <DateNavigation
-            selectedDate={selectedDate}
-            onDateChange={handleDateChange}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            onToday={handleToday}
-            showDatePicker={true}
-            showDateDisplay={false}
-            twoRowLayout={isMobile}
-            showViewSelector={true}
-            viewCollection={viewCollection}
-            selectedView={journalView}
-            onViewChange={value => dispatch(setJournalView(value))}
-            viewSelectorWidth={24}
-          />
-        </VStack>
-      </Box>
-
-      {/* Content Area */}
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Date Navigation Bar */}
       <Box
-        flex={1}
-        overflowY="auto"
-        p={{ base: 3, md: 4 }}
-        css={{
-          // Improve scroll behavior on mobile
-          WebkitOverflowScrolling: "touch",
-          scrollBehavior: "smooth",
+        sx={{
+          p: 2,
+          borderBottom: 1,
+          borderColor: "divider",
+          bgcolor: "background.paper",
         }}
       >
-        {/* Large Date Display */}
-        <Box textAlign="center" py={2}>
-          <Text fontSize={{ base: "2xl", md: "3xl" }} fontWeight="bold" color={textColor}>
-            {selectedDate.toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
-          </Text>
-        </Box>
-        {journalView === "day" && renderDayView()}
-        {journalView === "week" && renderWeekView()}
-        {journalView === "month" && renderMonthView()}
-        {journalView === "year" && renderYearView()}
+        <DateNavigation
+          selectedDate={selectedDateAsDate}
+          onDateChange={handleDateChange}
+          onPrevious={handlePrev}
+          onNext={handleNext}
+          onToday={handleToday}
+          showDatePicker={true}
+          showDateDisplay={true}
+          showViewSelector={true}
+          viewCollection={viewOptions}
+          selectedView="day"
+          onViewChange={() => {}} // No-op since only one view
+          viewSelectorWidth={20}
+        />
+      </Box>
+
+      {/* Content */}
+      <Box sx={{ flex: 1, overflow: "auto", p: { xs: 2, md: 4 } }}>
+        {/* Date Heading */}
+        <Typography
+          variant="h4"
+          sx={{
+            textAlign: "center",
+            mb: { xs: 3, md: 4 },
+            fontWeight: 500,
+          }}
+        >
+          {displayDate}
+        </Typography>
+
+        {/* Year Sections */}
+        <Stack spacing={{ xs: 3, md: 4 }}>
+          {years.map(year => {
+            const isCurrentYear = year === currentYear;
+            const yearDate = selectedDate.year(year);
+
+            return (
+              <Box key={year}>
+                {/* Year Header */}
+                <Typography
+                  variant="h6"
+                  sx={{
+                    mb: 2,
+                    fontWeight: 500,
+                    color: isCurrentYear ? "text.primary" : "text.secondary",
+                  }}
+                >
+                  {year}
+                </Typography>
+
+                {/* Journal Entries by Type */}
+                {(() => {
+                  // Collect all relevant tasks for this year/date
+                  const allRelevantTasks = [];
+                  JOURNAL_TYPES.forEach(type => {
+                    const typeTasks = tasksByType[type.tag] || [];
+                    const relevant = typeTasks.filter(task => shouldShowTaskOnDate(task, selectedDate, year));
+                    allRelevantTasks.push(...relevant.map(task => ({ ...task, journalType: type })));
+                  });
+
+                  // If no tasks exist for this year, show placeholder
+                  if (allRelevantTasks.length === 0) {
+                    return (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "text.secondary",
+                          fontStyle: "italic",
+                          pl: 4,
+                        }}
+                      >
+                        No journal tasks scheduled for this day
+                      </Typography>
+                    );
+                  }
+
+                  // Group tasks by type and display
+                  return (
+                    <Stack spacing={2}>
+                      {JOURNAL_TYPES.map(type => {
+                        const relevantTasks = allRelevantTasks.filter(t => t.journalType.tag === type.tag);
+
+                        if (relevantTasks.length === 0) {
+                          return null; // Don't show placeholder for individual types
+                        }
+
+                        return (
+                          <Stack key={type.tag} spacing={1}>
+                            {relevantTasks.map(task => {
+                              const dateStr = yearDate.format("YYYY-MM-DD");
+                              const completion = getCompletionForDate?.(task.id, dateStr);
+
+                              return (
+                                <JournalDayEntry
+                                  key={`${task.id}-${year}`}
+                                  task={task}
+                                  date={dateStr}
+                                  year={year}
+                                  completion={completion}
+                                  isCurrentYear={isCurrentYear}
+                                  onSave={handleSaveEntry}
+                                />
+                              );
+                            })}
+                          </Stack>
+                        );
+                      })}
+                    </Stack>
+                  );
+                })()}
+              </Box>
+            );
+          })}
+        </Stack>
       </Box>
     </Box>
   );
-};
+});
+
+export default JournalView;

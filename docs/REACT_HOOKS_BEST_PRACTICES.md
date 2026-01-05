@@ -45,7 +45,7 @@ const [internalValue, setInternalValue] = useState(initialValue);
 // No effect needed!
 
 // Parent usage:
-<MyComponent key={resetKey} value={initialValue} onChange={handleChange} />
+<MyComponent key={resetKey} value={initialValue} onChange={handleChange} />;
 ```
 
 #### Solution B: Make it Fully Controlled
@@ -103,7 +103,7 @@ useEffect(() => {
 ```javascript
 // ✅ GOOD - No local state needed
 function useResizeHandlers({ width, setWidth }) {
-  const handleMouseMove = (e) => {
+  const handleMouseMove = e => {
     const newWidth = calculateWidth(e);
     setWidth(newWidth); // Update preference directly
   };
@@ -150,7 +150,7 @@ useEffect(() => {
 ```javascript
 // ✅ ACCEPTABLE - Subscribing to external updates
 useEffect(() => {
-  const unsubscribe = externalStore.subscribe((newValue) => {
+  const unsubscribe = externalStore.subscribe(newValue => {
     setState(newValue);
   });
   return unsubscribe;
@@ -180,6 +180,7 @@ When you see `setState` in a `useEffect`, ask:
 ### Fixed: DebouncedInput
 
 **Before:**
+
 ```javascript
 const [internalValue, setInternalValue] = useState(externalValue || "");
 
@@ -194,6 +195,7 @@ useEffect(() => {
 ```
 
 **After:**
+
 ```javascript
 // Uncontrolled - only use initialValue for initial state
 const [internalValue, setInternalValue] = useState(initialValue);
@@ -201,12 +203,13 @@ const [internalValue, setInternalValue] = useState(initialValue);
 // No effect needed!
 
 // Parent uses key to reset:
-<DebouncedInput key={resetKey} value={initialValue} onChange={handleChange} />
+<DebouncedInput key={resetKey} value={initialValue} onChange={handleChange} />;
 ```
 
 ### Fixed: TaskItem Title Editing
 
 **Before:**
+
 ```javascript
 const [editedTitle, setEditedTitle] = useState(task.title);
 
@@ -216,6 +219,7 @@ useEffect(() => {
 ```
 
 **After:**
+
 ```javascript
 const [editedTitle, setEditedTitle] = useState(task.title);
 
@@ -229,6 +233,7 @@ const handleTitleClick = () => {
 ### Fixed: TaskItem Note Input
 
 **Before:**
+
 ```javascript
 const [noteInput, setNoteInput] = useState("");
 
@@ -240,6 +245,7 @@ useEffect(() => {
 ```
 
 **After:**
+
 ```javascript
 const savedNote = existingCompletion?.note || "";
 const noteInputKey = `${task.id}-${viewDate?.toISOString()}-${savedNote}`;
@@ -251,6 +257,7 @@ return <Input key={noteInputKey} value={noteInput} onChange={...} />;
 ### Fixed: useResizeHandlers
 
 **Before:**
+
 ```javascript
 const [localBacklogWidth, setLocalBacklogWidth] = useState(initialBacklogWidth);
 
@@ -262,9 +269,10 @@ useEffect(() => {
 ```
 
 **After:**
+
 ```javascript
 // No local state - work directly with preference values
-const handleMouseMove = (e) => {
+const handleMouseMove = e => {
   const newWidth = calculateWidth(e);
   setBacklogWidth(newWidth); // Update preference directly
 };
@@ -285,4 +293,3 @@ return { backlogWidth: initialBacklogWidth }; // Return preference value
 - [React Docs: You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect)
 - [React Docs: useRef](https://react.dev/reference/react/useRef)
 - [React 19 Release Notes](https://react.dev/blog/2024/12/05/react-19)
-

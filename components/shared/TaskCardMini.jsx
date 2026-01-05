@@ -1,9 +1,8 @@
 "use client";
 
 import { memo } from "react";
-import { Box } from "@chakra-ui/react";
+import { Box } from "@mui/material";
 import { getTaskDisplayColor } from "@/lib/utils";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTheme } from "@/hooks/useTheme";
 
 /**
@@ -17,34 +16,31 @@ export const TaskCardMini = memo(function TaskCardMini({
   outcome = null,
   onClick,
 }) {
-  const { mode, colorMode } = useSemanticColors();
   const { theme } = useTheme();
-  const taskColor = getTaskDisplayColor(task, theme, colorMode);
+  const taskColor = getTaskDisplayColor(task, theme, "dark");
   const hasOutcome = isCompleted || outcome === "not_completed";
 
-  const fontSize = {
-    base: zoom >= 1.5 ? "2xs" : zoom >= 1.0 ? "3xs" : "4xs",
-    md: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
-  };
+  const fontSize = zoom >= 1.5 ? "0.75rem" : zoom >= 1.0 ? "0.625rem" : "0.5rem";
 
   return (
     <Box
-      fontSize={fontSize}
-      px={zoom >= 1.0 ? 0.5 : 0.25}
-      py={zoom >= 1.0 ? 0.5 : 0.25}
-      borderRadius="md"
-      isTruncated
-      color={taskColor ? "white" : undefined}
-      bg={taskColor || mode.task.neutral}
-      opacity={hasOutcome ? 0.6 : 1}
+      sx={{
+        fontSize,
+        px: zoom >= 1.0 ? 0.5 : 0.25,
+        py: zoom >= 1.0 ? 0.5 : 0.25,
+        borderRadius: 1,
+        color: taskColor ? "white" : "text.primary",
+        bgcolor: taskColor || "grey.700",
+        opacity: hasOutcome ? 0.6 : 1,
+        lineHeight: zoom >= 1.5 ? 1.2 : zoom >= 1.0 ? 1.1 : 1,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        cursor: onClick ? "pointer" : "default",
+        "&:hover": onClick ? { opacity: 0.8 } : {},
+      }}
       title={task.title}
-      lineHeight={zoom >= 1.5 ? 1.2 : zoom >= 1.0 ? 1.1 : 1}
-      overflow="hidden"
-      textOverflow="ellipsis"
-      whiteSpace="nowrap"
-      cursor={onClick ? "pointer" : "default"}
       onClick={onClick}
-      _hover={onClick ? { opacity: 0.8 } : {}}
     >
       {task.title}
     </Box>

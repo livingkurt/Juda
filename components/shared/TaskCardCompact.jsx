@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, memo } from "react";
-import { Box, Menu, Portal } from "@chakra-ui/react";
+import { Box, Menu } from "@mui/material";
 import { getTaskDisplayColor } from "@/lib/utils";
 import { TaskContextMenu } from "../TaskContextMenu";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -20,7 +19,7 @@ export const TaskCardCompact = memo(function TaskCardCompact({
   outcome = null,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { mode, colorMode } = useSemanticColors();
+  const [anchorEl, setAnchorEl] = useState(null);
   const { theme } = useTheme();
 
   // Use hooks directly (they use Redux internally)
@@ -30,58 +29,69 @@ export const TaskCardCompact = memo(function TaskCardCompact({
   const actualOutcome = outcome !== null ? outcome : getOutcomeOnDate(task.id, date);
   const actualIsCompleted = isCompleted !== undefined ? isCompleted : actualOutcome === "completed";
 
-  const taskColor = getTaskDisplayColor(task, theme, colorMode);
+  const taskColor = getTaskDisplayColor(task, theme, "dark");
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
   const isWorkoutTask = task.completionType === "workout";
   const isNotCompleted = actualOutcome === "not_completed";
   const hasOutcome = actualIsCompleted || isNotCompleted;
 
   // Responsive font sizes based on zoom
-  const fontSize = {
-    base: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
-    md: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
+  const fontSize = zoom >= 1.5 ? "0.875rem" : zoom >= 1.0 ? "0.75rem" : "0.625rem";
+
+  const handleClick = e => {
+    e.stopPropagation();
+    setAnchorEl(e.currentTarget);
+    setMenuOpen(true);
+  };
+
+  const handleMenuClose = () => {
+    setMenuOpen(false);
+    setAnchorEl(null);
   };
 
   return (
-    <Menu.Root
-      open={menuOpen}
-      onOpenChange={({ open }) => setMenuOpen(open)}
-      positioning={{ placement: "right-start" }}
-    >
-      <Menu.Trigger asChild>
-        <Box
-          fontSize={fontSize}
-          px={1}
-          py={0.5}
-          borderRadius="md"
-          isTruncated
-          color={taskColor ? "white" : undefined}
-          mb={0.5}
-          bg={taskColor || mode.task.neutral}
-          cursor="pointer"
-          opacity={hasOutcome ? 0.6 : 1}
-          textDecoration={actualIsCompleted ? "line-through" : "none"}
-          _hover={{ opacity: 0.8 }}
-          onClick={e => e.stopPropagation()}
-        >
-          {task.title}
-        </Box>
-      </Menu.Trigger>
-
-      <Portal>
-        <Menu.Positioner>
-          <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-            <TaskContextMenu
-              task={task}
-              date={date}
-              isRecurring={isRecurring}
-              isWorkoutTask={isWorkoutTask}
-              outcome={actualOutcome}
-              onClose={() => setMenuOpen(false)}
-            />
-          </Menu.Content>
-        </Menu.Positioner>
-      </Portal>
-    </Menu.Root>
+    <>
+      <Box
+        sx={{
+          fontSize,
+          px: 1,
+          py: 0.5,
+          borderRadius: 1,
+          color: taskColor ? "white" : "text.primary",
+          mb: 0.5,
+          bgcolor: taskColor || "grey.700",
+          cursor: "pointer",
+          opacity: hasOutcome ? 0.6 : 1,
+          textDecoration: actualIsCompleted ? "line-through" : "none",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          "&:hover": {
+            opacity: 0.8,
+          },
+        }}
+        onClick={handleClick}
+      >
+        {task.title}
+      </Box>
+      <Menu
+        anchorEl={anchorEl}
+        open={menuOpen}
+        onClose={handleMenuClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        <TaskContextMenu
+          task={task}
+          date={date}
+          isRecurring={isRecurring}
+          isWorkoutTask={isWorkoutTask}
+          outcome={actualOutcome}
+          onClose={handleMenuClose}
+        />
+      </Menu>
+    </>
   );
 });

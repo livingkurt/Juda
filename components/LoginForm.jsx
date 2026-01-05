@@ -1,119 +1,118 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, Input, VStack, Text, Alert, Link } from "@chakra-ui/react";
-import Image from "next/image";
+import {
+  Box,
+  Stack,
+  Typography,
+  TextField,
+  Button,
+  IconButton,
+  InputAdornment,
+  Paper,
+  Link,
+  Alert,
+  CircularProgress,
+} from "@mui/material";
+import { Visibility, VisibilityOff, Email, Lock } from "@mui/icons-material";
 import { useAuth } from "@/hooks/useAuth";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const { mode } = useSemanticColors();
-  const bgColor = mode.bg.surface;
-  const borderColor = mode.border.default;
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async e => {
     e.preventDefault();
     setError("");
-    setLoading(true);
-
+    setIsLoading(true);
     try {
       await login(email, password);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Failed to sign in");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <Box
-      as="form"
-      onSubmit={handleSubmit}
-      bg={bgColor}
-      p={8}
-      borderRadius="lg"
-      borderWidth="1px"
-      borderColor={borderColor}
-      w="full"
-      maxW="400px"
-    >
-      <VStack spacing={4}>
-        <Box mb={2}>
-          <Image src="/icon.png" alt="Juda Logo" width={80} height={80} priority style={{ borderRadius: "50%" }} />
+    <Paper elevation={4} sx={{ p: 4, width: "100%", maxWidth: 400, borderRadius: 2 }}>
+      <Stack spacing={3}>
+        <Box textAlign="center">
+          <Typography variant="h4" fontWeight={700} gutterBottom>
+            Welcome Back
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Sign in to continue
+          </Typography>
         </Box>
-        <Text fontSize="2xl" fontWeight="bold">
-          Welcome Back
-        </Text>
 
         {error && (
-          <Alert.Root status="error" borderRadius="md">
-            <Alert.Title>{error}</Alert.Title>
-          </Alert.Root>
+          <Alert severity="error" onClose={() => setError("")}>
+            {error}
+          </Alert>
         )}
 
-        <Box w="full">
-          <Text fontSize="sm" fontWeight="medium" mb={1}>
-            Email{" "}
-            <Text as="span" color="red.500">
-              *
-            </Text>
-          </Text>
-          <Input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            borderColor={borderColor}
-            _focus={{
-              borderColor: "blue.400",
-              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-            }}
-            required
-          />
-        </Box>
+        <form onSubmit={handleSubmit}>
+          <Stack spacing={2.5}>
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Email sx={{ fontSize: 18 }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Lock sx={{ fontSize: 18 }} />
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
+                      {showPassword ? <VisibilityOff sx={{ fontSize: 18 }} /> : <Visibility sx={{ fontSize: 18 }} />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <Box textAlign="right">
+              <Link component="button" type="button" variant="body2" onClick={onForgotPassword}>
+                Forgot password?
+              </Link>
+            </Box>
+            <Button type="submit" variant="contained" fullWidth size="large" disabled={isLoading}>
+              {isLoading ? <CircularProgress size={20} /> : "Sign In"}
+            </Button>
+          </Stack>
+        </form>
 
-        <Box w="full">
-          <Text fontSize="sm" fontWeight="medium" mb={1}>
-            Password{" "}
-            <Text as="span" color="red.500">
-              *
-            </Text>
-          </Text>
-          <Input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="••••••••"
-            borderColor={borderColor}
-            _focus={{
-              borderColor: "blue.400",
-              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-            }}
-            required
-          />
-        </Box>
-
-        <Button type="submit" colorPalette="blue" w="full" isLoading={loading}>
-          Sign In
-        </Button>
-
-        <Button variant="link" onClick={onForgotPassword} size="sm" colorPalette="blue">
-          Forgot Password?
-        </Button>
-
-        <Text fontSize="sm">
+        <Typography variant="body2" textAlign="center" color="text.secondary">
           Don&apos;t have an account?{" "}
-          <Link color="blue.500" onClick={onSwitchToRegister} cursor="pointer">
+          <Link component="button" onClick={onSwitchToRegister}>
             Sign up
           </Link>
-        </Text>
-      </VStack>
-    </Box>
+        </Typography>
+      </Stack>
+    </Paper>
   );
 }

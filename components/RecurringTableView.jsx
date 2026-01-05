@@ -1,32 +1,42 @@
 "use client";
 
-import { useState, useMemo, useRef, useDeferredValue, useEffect } from "react";
+import { useState, useMemo, useDeferredValue, memo } from "react";
 import {
   Box,
+  Stack,
+  Typography,
   Table,
-  Text,
-  HStack,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   IconButton,
-  Flex,
-  createListCollection,
-  Checkbox,
-  Input,
+  TextField,
+  MenuItem,
+  Popover,
   Menu,
-  Portal,
-  Button,
-  VStack,
-} from "@chakra-ui/react";
-import { Check, X, ChevronLeft, ChevronRight, Dumbbell, Edit2, Copy, Trash2, Circle } from "lucide-react";
-import { shouldShowOnDate, formatDateDisplay } from "@/lib/utils";
-import { SelectDropdown } from "./SelectDropdown";
+  Tooltip,
+  Divider,
+  InputAdornment,
+} from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import dayjs from "dayjs";
+import {
+  Check,
+  Close,
+  FitnessCenter,
+  Edit,
+  ContentCopy,
+  Delete,
+  RadioButtonUnchecked,
+  MoreVert,
+  Search,
+} from "@mui/icons-material";
+import { shouldShowOnDate } from "@/lib/utils";
 import { CellEditorPopover } from "./CellEditorPopover";
 import WorkoutModal from "./WorkoutModal";
-import { TagMenuSelector } from "./TagMenuSelector";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
-import { LoadingSpinner } from "./Skeletons";
+import { DateNavigation } from "./DateNavigation";
 
 // Flatten tasks including subtasks
 const flattenTasks = tasks => {
@@ -34,7 +44,7 @@ const flattenTasks = tasks => {
   const traverse = taskList => {
     taskList.forEach(task => {
       result.push(task);
-      if (task.subtasks && task.subtasks.length > 0) {
+      if (task.subtasks?.length > 0) {
         traverse(task.subtasks);
       }
     });
@@ -43,15 +53,13 @@ const flattenTasks = tasks => {
   return result;
 };
 
-// Filter only recurring tasks (exclude null, "none", and "note" completionType)
+// Filter only recurring tasks
 const getRecurringTasks = tasks => {
   const flatTasks = flattenTasks(tasks);
-  return flatTasks.filter(
-    t => t.recurrence && t.recurrence.type && t.recurrence.type !== "none" && t.completionType !== "note"
-  );
+  return flatTasks.filter(t => t.recurrence?.type && t.recurrence.type !== "none" && t.completionType !== "note");
 };
 
-// Group tasks by section, maintaining section order
+// Group tasks by section
 const groupTasksBySection = (tasks, sections) => {
   const orderedSections = [...sections].sort((a, b) => (a.order || 0) - (b.order || 0));
   const grouped = [];
@@ -60,762 +68,225 @@ const groupTasksBySection = (tasks, sections) => {
     const sectionTasks = tasks.filter(t => t.sectionId === section.id).sort((a, b) => (a.order || 0) - (b.order || 0));
 
     if (sectionTasks.length > 0) {
-      grouped.push({
-        section,
-        tasks: sectionTasks,
-      });
+      grouped.push({ section, tasks: sectionTasks });
     }
   });
 
-  // Handle tasks with no section (shouldn't happen, but be safe)
-  const tasksWithoutSection = tasks.filter(t => !t.sectionId);
-  if (tasksWithoutSection.length > 0) {
+  // Tasks without section
+  const uncategorized = tasks.filter(t => !t.sectionId);
+  if (uncategorized.length > 0) {
     grouped.push({
       section: { id: "no-section", name: "Uncategorized", order: 999 },
-      tasks: tasksWithoutSection,
+      tasks: uncategorized,
     });
   }
 
   return grouped;
 };
 
-// Generate date array for range
+// Generate dates for range
 const generateDates = (range, page = 0, pageSize = 30) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  let startDate, endDate;
+  const today = dayjs().startOf("day");
+  let startDate;
+  let endDate;
 
   switch (range) {
     case "week":
-      // Last 7 days
-      startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - 6);
-      endDate = today;
+      startDate = today.startOf("week").add(page * 7, "day");
+      endDate = startDate.add(6, "day");
       break;
     case "month":
-      // Last 30 days
-      startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - 29);
-      endDate = today;
+      startDate = today.startOf("month").add(page, "month");
+      endDate = startDate.endOf("month");
       break;
     case "year":
-      // Last 365 days (paginated)
-      endDate = new Date(today);
-      endDate.setDate(endDate.getDate() - page * pageSize);
-      startDate = new Date(endDate);
-      startDate.setDate(startDate.getDate() - pageSize + 1);
+      startDate = today.startOf("year").add(page, "year");
+      endDate = startDate.endOf("year");
       break;
-    case "currentYear": {
-      // Jan 1 of current year to today (paginated)
-      const yearStart = new Date(today.getFullYear(), 0, 1);
-      endDate = new Date(today);
-      endDate.setDate(endDate.getDate() - page * pageSize);
-      startDate = new Date(endDate);
-      startDate.setDate(startDate.getDate() - pageSize + 1);
-      // Don't go before year start
-      if (startDate < yearStart) {
-        startDate = yearStart;
-      }
-      break;
-    }
-    case "all": {
-      // For "all", we'll use a large range (e.g., last 2 years)
-      // In a real implementation, you'd query completions to find the earliest date
-      endDate = new Date(today);
-      endDate.setDate(endDate.getDate() - page * pageSize);
-      startDate = new Date(endDate);
-      startDate.setDate(startDate.getDate() - pageSize + 1);
-      // Limit to 2 years back
-      const twoYearsAgo = new Date(today);
-      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-      if (startDate < twoYearsAgo) {
-        startDate = twoYearsAgo;
-      }
-      break;
-    }
-    default:
-      startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - 6);
-      endDate = today;
+    default: // custom or paginated
+      startDate = today.add(page * pageSize, "day");
+      endDate = startDate.add(pageSize - 1, "day");
   }
 
   const dates = [];
-  let current = new Date(endDate);
-  while (current >= startDate) {
-    dates.push(new Date(current));
-    current.setDate(current.getDate() - 1);
+  let current = startDate;
+
+  // Collect dates from startDate to endDate, but cap at today (filter out future dates)
+  const effectiveEndDate = endDate.isAfter(today) ? today : endDate;
+
+  while (current.isBefore(effectiveEndDate) || current.isSame(effectiveEndDate, "day")) {
+    dates.push(current.format("YYYY-MM-DD"));
+    current = current.add(1, "day");
   }
 
-  return dates; // Most recent first
-};
-
-// Calculate total pages for pagination
-const calculateTotalPages = (range, pageSize = 30) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  switch (range) {
-    case "week":
-    case "month":
-      return 1; // No pagination for these
-    case "year":
-      return Math.ceil(365 / pageSize);
-    case "currentYear": {
-      const yearStart = new Date(today.getFullYear(), 0, 1);
-      const daysSinceYearStart = Math.floor((today - yearStart) / (1000 * 60 * 60 * 24));
-      return Math.ceil(daysSinceYearStart / pageSize);
-    }
-    case "all":
-      // Assume max 2 years = 730 days
-      return Math.ceil(730 / pageSize);
-    default:
-      return 1;
-  }
-};
-
-// Check if date is today
-const isToday = date => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const checkDate = new Date(date);
-  checkDate.setHours(0, 0, 0, 0);
-  return today.getTime() === checkDate.getTime();
-};
-
-// Get completion for task and date
-const getCompletionForTaskDate = (completions, taskId, date) => {
-  const checkDate = new Date(date);
-  const utcCheckDate = new Date(
-    Date.UTC(checkDate.getUTCFullYear(), checkDate.getUTCMonth(), checkDate.getUTCDate(), 0, 0, 0, 0)
-  );
-
-  return completions.find(c => {
-    const completionDate = new Date(c.date);
-    const utcCompletionDate = new Date(
-      Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
-    );
-    return c.taskId === taskId && utcCompletionDate.getTime() === utcCheckDate.getTime();
+  // Filter out any future dates (safety check) and reverse to show newest dates first (today at top)
+  const filteredDates = dates.filter(date => {
+    const dateObj = dayjs(date);
+    return dateObj.isBefore(today) || dateObj.isSame(today, "day");
   });
+
+  return filteredDates.reverse();
 };
 
-// Task column header with menu
-const TaskColumnHeader = ({ task, onEdit, onEditWorkout, onDuplicate, onDelete, tags, onTagsChange, onCreateTag }) => {
-  const { mode } = useSemanticColors();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const isWorkoutTask = task.completionType === "workout";
+// Completion Cell Component
+const CompletionCell = memo(function CompletionCell({
+  task,
+  date,
+  completion,
+  isScheduled,
+  onUpdate,
+  onDelete,
+  onOpenWorkout,
+  showRightBorder = false,
+}) {
+  const theme = useTheme();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [textValue, setTextValue] = useState(completion?.note || completion?.actualValue || "");
+  const [isEditing, setIsEditing] = useState(false);
 
-  return (
-    <Menu.Root open={menuOpen} onOpenChange={({ open }) => setMenuOpen(open)}>
-      <Menu.Trigger asChild>
-        <Box
-          as="button"
-          w="100%"
-          h="100%"
-          minH="55px"
-          display="flex"
-          alignItems="center"
-          px={2}
-          py={2}
-          cursor="pointer"
-          _hover={{ bg: mode.bg.surfaceHover }}
-          onClick={e => {
-            e.stopPropagation();
-            setMenuOpen(true);
-          }}
-          border="none"
-          outline="none"
-          bg="transparent"
-          textAlign="left"
-          transition="background-color 0.15s"
-        >
-          <Text fontSize="xs" noOfLines={1} title={task.title}>
-            {task.title}
-          </Text>
-        </Box>
-      </Menu.Trigger>
-      <Portal>
-        <Menu.Positioner>
-          <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-            {onEdit && (
-              <Menu.Item
-                onClick={e => {
-                  e.stopPropagation();
-                  onEdit(task);
-                  setMenuOpen(false);
-                }}
-              >
-                <HStack gap={2}>
-                  <Box
-                    as="span"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    w="14px"
-                    h="14px"
-                    flexShrink={0}
-                  >
-                    <Edit2 size={14} />
-                  </Box>
-                  <Text>Edit</Text>
-                </HStack>
-              </Menu.Item>
-            )}
-            {/* Edit Workout option for workout-type tasks */}
-            {isWorkoutTask && onEditWorkout && (
-              <Menu.Item
-                onClick={e => {
-                  e.stopPropagation();
-                  onEditWorkout(task);
-                  setMenuOpen(false);
-                }}
-              >
-                <HStack gap={2}>
-                  <Box
-                    as="span"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    w="14px"
-                    h="14px"
-                    flexShrink={0}
-                  >
-                    <Dumbbell size={14} />
-                  </Box>
-                  <Text>Edit Workout</Text>
-                </HStack>
-              </Menu.Item>
-            )}
-            {onDuplicate && (
-              <Menu.Item
-                onClick={e => {
-                  e.stopPropagation();
-                  onDuplicate(task.id);
-                  setMenuOpen(false);
-                }}
-              >
-                <HStack gap={2}>
-                  <Box
-                    as="span"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    w="14px"
-                    h="14px"
-                    flexShrink={0}
-                  >
-                    <Copy size={14} />
-                  </Box>
-                  <Text>Duplicate</Text>
-                </HStack>
-              </Menu.Item>
-            )}
-            {/* Tags submenu */}
-            {tags && onTagsChange && onCreateTag && (
-              <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
-            )}
-            {onDelete && (
-              <Menu.Item
-                color={mode.status.error}
-                onClick={e => {
-                  e.stopPropagation();
-                  onDelete(task.id);
-                  setMenuOpen(false);
-                }}
-              >
-                <HStack gap={2}>
-                  <Box
-                    as="span"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    w="14px"
-                    h="14px"
-                    flexShrink={0}
-                  >
-                    <Trash2 size={14} />
-                  </Box>
-                  <Text>Delete</Text>
-                </HStack>
-              </Menu.Item>
-            )}
-          </Menu.Content>
-        </Menu.Positioner>
-      </Portal>
-    </Menu.Root>
-  );
-};
+  const outcome = completion?.outcome;
+  const isTextType = task.completionType === "text" || task.completionType === "text_input";
+  const isWorkoutType = task.completionType === "workout";
 
-// Table cell component
-const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, onSaveWorkoutProgress }) => {
-  const { mode } = useSemanticColors();
-  const [isOpen, setIsOpen] = useState(false);
-  const [workoutModalOpen, setWorkoutModalOpen] = useState(false);
-  const [textValue, setTextValue] = useState(completion?.note || "");
-  const prevCompletionNoteRef = useRef(completion?.note);
-
-  // Update text value when completion changes from external source
-  if (prevCompletionNoteRef.current !== completion?.note) {
-    prevCompletionNoteRef.current = completion?.note;
-    setTextValue(completion?.note || "");
-  }
-
-  const getCellDisplay = () => {
-    if (!completion) {
-      if (isScheduled) {
-        // Scheduled but no completion - show unchecked box (empty checkbox)
-        // Match TaskItem checkbox style exactly
-        return (
-          <Checkbox.Root checked={false} size="md">
-            <Checkbox.HiddenInput />
-            <Checkbox.Control
-              bg="white"
-              boxShadow="none"
-              outline="none"
-              border="none"
-              _focus={{ boxShadow: "none", outline: "none" }}
-              _focusVisible={{ boxShadow: "none", outline: "none" }}
-            >
-              <Checkbox.Indicator />
-            </Checkbox.Control>
-          </Checkbox.Root>
-        );
-      } else {
-        // Not scheduled, no completion - empty cell (no visual indicator)
-        return null;
-      }
-    }
-
-    // Has completion - show checkbox with appropriate state
-    // Check outcome explicitly
-    const outcome = completion?.outcome;
-
-    if (outcome === "completed") {
-      // Completed - green checkmark (match TaskItem style)
-      return (
-        <Checkbox.Root checked={true} size="md">
-          <Checkbox.HiddenInput />
-          <Checkbox.Control
-            bg="white"
-            boxShadow="none"
-            outline="none"
-            border="none"
-            _focus={{ boxShadow: "none", outline: "none" }}
-            _focusVisible={{ boxShadow: "none", outline: "none" }}
-          >
-            <Checkbox.Indicator>
-              <Check size={14} />
-            </Checkbox.Indicator>
-          </Checkbox.Control>
-        </Checkbox.Root>
-      );
-    } else if (outcome === "not_completed" || outcome === "not completed") {
-      // Not completed - X mark (match TaskItem style)
-      // Handle both "not_completed" and "not completed" formats
-      return (
-        <Checkbox.Root checked={false} size="md">
-          <Checkbox.HiddenInput />
-          <Checkbox.Control
-            bg="white"
-            boxShadow="none"
-            outline="none"
-            border="none"
-            _focus={{ boxShadow: "none", outline: "none" }}
-            _focusVisible={{ boxShadow: "none", outline: "none" }}
-          >
-            <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
-              <Box as="span" color="gray.700">
-                <X size={18} stroke="currentColor" style={{ strokeWidth: 3 }} />
-              </Box>
-            </Box>
-          </Checkbox.Control>
-        </Checkbox.Root>
-      );
-    } else {
-      // Outcome is missing/null/unknown - if scheduled, show empty checkbox, otherwise empty cell
-      if (isScheduled) {
-        return (
-          <Checkbox.Root checked={false} size="md">
-            <Checkbox.HiddenInput />
-            <Checkbox.Control
-              bg="white"
-              boxShadow="none"
-              outline="none"
-              border="none"
-              _focus={{ boxShadow: "none", outline: "none" }}
-              _focusVisible={{ boxShadow: "none", outline: "none" }}
-            >
-              <Checkbox.Indicator />
-            </Checkbox.Control>
-          </Checkbox.Root>
-        );
-      } else {
-        return null;
-      }
-    }
+  // Cell background color
+  const getCellBg = () => {
+    if (!isScheduled && !completion) return "transparent";
+    if (outcome === "completed") return theme.palette.success.dark + "40";
+    if (outcome === "not_completed") return theme.palette.error.dark + "40";
+    if (isScheduled) return theme.palette.action.hover;
+    return "transparent";
   };
 
-  const { task: taskColors } = useSemanticColors();
-  const cellBg = !isScheduled && completion ? taskColors.recurringBg : "transparent";
-  const cellContent = getCellDisplay();
+  // Cell content
+  const getCellContent = () => {
+    if (task.completionType === "text_input" && completion?.actualValue) {
+      return (
+        <Typography variant="caption" noWrap sx={{ maxWidth: 60 }}>
+          {completion.actualValue}
+        </Typography>
+      );
+    }
+    if (task.completionType === "text" && completion?.note) {
+      return (
+        <Typography variant="caption" noWrap sx={{ maxWidth: 60 }}>
+          {completion.note}
+        </Typography>
+      );
+    }
 
-  // Handle text input completion type
-  if (task.completionType === "text") {
-    const handleTextSave = () => {
-      if (textValue.trim()) {
-        onUpdate({ outcome: "completed", note: textValue });
-      } else if (completion) {
-        onDelete();
-      }
-    };
-
-    // If scheduled, show inline text input
+    if (outcome === "completed") {
+      return <Check fontSize="small" sx={{ color: theme.palette.success.main }} />;
+    }
+    if (outcome === "not_completed") {
+      return <Close fontSize="small" sx={{ color: theme.palette.error.main }} />;
+    }
     if (isScheduled) {
-      return (
-        <Box w="100%" h="100%" minH="40px" display="flex" alignItems="center" p={1} bg={cellBg}>
-          <Input
-            value={textValue}
-            onChange={e => setTextValue(e.target.value)}
-            onBlur={handleTextSave}
-            onKeyDown={e => {
-              if (e.key === "Enter") {
-                handleTextSave();
-                e.target.blur();
-              }
-            }}
-            placeholder="Enter text..."
-            size="sm"
-            variant="ghost"
-            fontSize="xs"
-            p={1}
-            h="auto"
-            minH="30px"
-            border="none"
-            bg="transparent"
-            _hover={{ bg: "transparent" }}
-            _focus={{ bg: "transparent", border: "1px solid", borderColor: mode.border.focus }}
-          />
-        </Box>
-      );
+      return <RadioButtonUnchecked fontSize="small" sx={{ opacity: 0.3 }} />;
     }
+    return null;
+  };
 
-    // If not scheduled, show text input if there's a completion, otherwise show popover button
-    if (completion?.note) {
-      // Has completion - show editable text input
-      return (
-        <Box w="100%" h="100%" minH="40px" display="flex" alignItems="center" p={1} bg={cellBg}>
-          <Input
-            value={textValue}
-            onChange={e => setTextValue(e.target.value)}
-            onBlur={handleTextSave}
-            onKeyDown={e => {
-              if (e.key === "Enter") {
-                handleTextSave();
-                e.target.blur();
-              }
-            }}
-            placeholder="Enter text..."
-            size="sm"
-            variant="ghost"
-            fontSize="xs"
-            p={1}
-            h="auto"
-            minH="30px"
-            border="none"
-            bg="transparent"
-            _hover={{ bg: "transparent" }}
-            _focus={{ bg: "transparent", border: "1px solid", borderColor: mode.border.focus }}
-          />
-        </Box>
-      );
+  const handleTextSave = () => {
+    if (textValue.trim()) {
+      const data =
+        task.completionType === "text_input"
+          ? { outcome: "completed", actualValue: textValue }
+          : { outcome: "completed", note: textValue };
+      onUpdate(data);
+    } else if (completion) {
+      onDelete();
     }
+    setIsEditing(false);
+  };
 
-    // No completion - show popover to add one
+  // Handle workout type
+  if (isWorkoutType) {
+    const canOpen = isScheduled || completion;
     return (
-      <Popover.Root open={isOpen} onOpenChange={e => setIsOpen(e.open)}>
-        <PopoverTrigger asChild>
-          <Box
-            as="button"
-            onClick={() => setIsOpen(true)}
-            p={0}
-            m={0}
-            w="100%"
-            h="100%"
-            minH="40px"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            bg={cellBg}
-            _hover={{ bg: mode.bg.muted }}
-            cursor="pointer"
-            border="none"
-            outline="none"
-            boxShadow="none"
-            _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-            _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
-          />
-        </PopoverTrigger>
-        <Popover.Positioner>
-          <PopoverContent>
-            <CellEditorPopover
-              task={task}
-              date={date}
-              completion={completion}
-              isScheduled={isScheduled}
-              onSave={data => {
-                onUpdate(data);
-                setIsOpen(false);
-              }}
-              onDelete={() => {
-                onDelete();
-                setIsOpen(false);
-              }}
-              onClose={() => setIsOpen(false)}
-            />
-          </PopoverContent>
-        </Popover.Positioner>
-      </Popover.Root>
+      <TableCell
+        align="center"
+        sx={{
+          p: 0.5,
+          bgcolor: getCellBg(),
+          cursor: canOpen ? "pointer" : "default",
+          "&:hover": canOpen ? { bgcolor: "action.selected" } : {},
+          borderRight: showRightBorder ? 1 : 0,
+          borderColor: "divider",
+        }}
+        onClick={() => canOpen && onOpenWorkout?.(task, date)}
+      >
+        {outcome === "completed" ? (
+          <Check fontSize="small" sx={{ color: theme.palette.success.main }} />
+        ) : isScheduled || completion ? (
+          <FitnessCenter fontSize="small" sx={{ opacity: 0.5 }} />
+        ) : null}
+      </TableCell>
     );
   }
 
-  // Handle workout completion type
-  if (task.completionType === "workout") {
-    // Only show checkbox if scheduled OR if there's a completion (off-schedule completion)
-    // If not scheduled and no completion, show empty cell
-    if (!isScheduled && !completion) {
-      return null;
+  // Handle text input type - inline editing
+  if (isTextType) {
+    if (isScheduled || completion) {
+      return (
+        <TableCell
+          align="center"
+          sx={{
+            p: 0.5,
+            bgcolor: getCellBg(),
+            cursor: "pointer",
+            "&:hover": { bgcolor: "action.selected" },
+            borderRight: showRightBorder ? 1 : 0,
+            borderColor: "divider",
+          }}
+          onClick={() => setIsEditing(true)}
+        >
+          {isEditing ? (
+            <TextField
+              size="small"
+              value={textValue}
+              onChange={e => setTextValue(e.target.value)}
+              onBlur={handleTextSave}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  handleTextSave();
+                }
+              }}
+              autoFocus
+              sx={{ width: "100%", "& .MuiInputBase-root": { fontSize: "0.75rem" } }}
+            />
+          ) : (
+            getCellContent()
+          )}
+        </TableCell>
+      );
     }
 
-    const [workoutMenuOpen, setWorkoutMenuOpen] = useState(false);
-    const outcome = completion?.outcome || null;
-
-    const handleOutcomeChange = async newOutcome => {
-      if (newOutcome === null) {
-        onDelete();
-      } else {
-        onUpdate({ outcome: newOutcome });
-      }
-      setWorkoutMenuOpen(false);
-    };
-
-    const handleOpenWorkout = () => {
-      setWorkoutMenuOpen(false);
-      setWorkoutModalOpen(true);
-    };
-
+    // Not scheduled - show popover button
     return (
       <>
-        <Box
-          w="100%"
-          h="100%"
-          minH="40px"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          bg={cellBg}
-          _hover={{ bg: mode.bg.muted }}
-          cursor="pointer"
-        >
-          <Menu.Root open={workoutMenuOpen} onOpenChange={({ open }) => setWorkoutMenuOpen(open)} isLazy placement="right-start" closeOnSelect>
-            <Menu.Trigger asChild>
-              <Box
-                as="button"
-                border="none"
-                outline="none"
-                boxShadow="none"
-                bg="transparent"
-                p={0}
-                m={0}
-                w="100%"
-                h="100%"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-                _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
-                onClick={e => {
-                  e.stopPropagation();
-                }}
-              >
-                <Checkbox.Root checked={outcome === "completed"} size="md" onCheckedChange={() => {}}>
-                  <Checkbox.HiddenInput />
-                  <Checkbox.Control
-                    bg={outcome === "not_completed" ? "white" : "white"}
-                    boxShadow="none"
-                    outline="none"
-                    border="none"
-                    _focus={{ boxShadow: "none", outline: "none" }}
-                    _focusVisible={{ boxShadow: "none", outline: "none" }}
-                  >
-                    {outcome === "completed" ? (
-                      <Checkbox.Indicator>
-                        <Check size={14} />
-                      </Checkbox.Indicator>
-                    ) : outcome === "not_completed" ? (
-                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
-                        <Box as="span" color={mode.text.muted}>
-                          <X size={18} stroke="currentColor" style={{ strokeWidth: 3 }} />
-                        </Box>
-                      </Box>
-                    ) : (
-                      // Show empty checkbox when scheduled but no outcome - empty indicator like regular checkbox
-                      <Checkbox.Indicator />
-                    )}
-                  </Checkbox.Control>
-                </Checkbox.Root>
-              </Box>
-            </Menu.Trigger>
-          <Portal>
-            <Menu.Positioner>
-              <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-                {/* Open Workout option - always show */}
-                <Menu.Item
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleOpenWorkout();
-                  }}
-                >
-                  <HStack gap={2}>
-                    <Box
-                      as="span"
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                      w="14px"
-                      h="14px"
-                      flexShrink={0}
-                    >
-                      <Dumbbell size={14} />
-                    </Box>
-                    <Text>Open Workout</Text>
-                  </HStack>
-                </Menu.Item>
-                <Menu.Separator />
-                {/* Only show Uncheck if task has an outcome */}
-                {outcome !== null && (
-                  <>
-                    <Menu.Item
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleOutcomeChange(null);
-                      }}
-                    >
-                      <HStack gap={2}>
-                        <Box
-                          as="span"
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="center"
-                          w="14px"
-                          h="14px"
-                          flexShrink={0}
-                        >
-                          <Circle size={14} />
-                        </Box>
-                        <Text>Uncheck</Text>
-                      </HStack>
-                    </Menu.Item>
-                    <Menu.Separator />
-                  </>
-                )}
-                {/* Only show Completed if not already completed */}
-                {outcome !== "completed" && (
-                  <Menu.Item
-                    onClick={e => {
-                      e.stopPropagation();
-                      handleOutcomeChange("completed");
-                    }}
-                  >
-                    <HStack gap={2}>
-                      <Box
-                        as="span"
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        w="14px"
-                        h="14px"
-                        flexShrink={0}
-                      >
-                        <Check size={14} />
-                      </Box>
-                      <Text>Completed</Text>
-                    </HStack>
-                  </Menu.Item>
-                )}
-                {/* Only show Not Completed if not already not completed */}
-                {outcome !== "not_completed" && (
-                  <Menu.Item
-                    onClick={e => {
-                      e.stopPropagation();
-                      handleOutcomeChange("not_completed");
-                    }}
-                  >
-                    <HStack gap={2}>
-                      <Box
-                        as="span"
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        w="14px"
-                        h="14px"
-                        flexShrink={0}
-                      >
-                        <X size={14} />
-                      </Box>
-                      <Text>Not Completed</Text>
-                    </HStack>
-                  </Menu.Item>
-                )}
-              </Menu.Content>
-            </Menu.Positioner>
-          </Portal>
-        </Menu.Root>
-        </Box>
-        <WorkoutModal
-          task={task}
-          isOpen={workoutModalOpen}
-          onClose={() => setWorkoutModalOpen(false)}
-          onSaveProgress={onSaveWorkoutProgress}
-          onCompleteTask={(_taskId, _completionDate) => {
-            onUpdate({ outcome: "completed" });
-            setWorkoutModalOpen(false);
+        <TableCell
+          align="center"
+          onClick={e => setAnchorEl(e.currentTarget)}
+          sx={{
+            p: 0.5,
+            minWidth: 40,
+            bgcolor: getCellBg(),
+            cursor: "pointer",
+            "&:hover": { bgcolor: "action.selected" },
+            borderRight: showRightBorder ? 1 : 0,
+            borderColor: "divider",
           }}
-          currentDate={date}
-        />
-      </>
-    );
-  }
-
-  // Handle checkbox completion type (default)
-  // Always render a clickable cell to allow adding completions to non-scheduled days
-  return (
-    <Popover.Root open={isOpen} onOpenChange={e => setIsOpen(e.open)}>
-      <PopoverTrigger asChild>
-        <Box
-          as="button"
-          onClick={() => setIsOpen(true)}
-          p={0}
-          m={0}
-          w="100%"
-          h="100%"
-          minH="40px"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          bg={cellBg}
-          _hover={{ bg: mode.bg.muted }}
-          cursor="pointer"
-          border="none"
-          outline="none"
-          boxShadow="none"
-          _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-          _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
         >
-          {cellContent}
-        </Box>
-      </PopoverTrigger>
-      <Popover.Positioner>
-        <PopoverContent>
+          {getCellContent()}
+        </TableCell>
+
+        <Popover
+          open={Boolean(anchorEl)}
+          anchorEl={anchorEl}
+          onClose={() => setAnchorEl(null)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          transformOrigin={{ vertical: "top", horizontal: "center" }}
+        >
           <CellEditorPopover
             task={task}
             date={date}
@@ -823,592 +294,487 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
             isScheduled={isScheduled}
             onSave={data => {
               onUpdate(data);
-              setIsOpen(false);
+              setAnchorEl(null);
             }}
             onDelete={() => {
               onDelete();
-              setIsOpen(false);
+              setAnchorEl(null);
             }}
-            onClose={() => setIsOpen(false)}
+            onClose={() => setAnchorEl(null)}
           />
-        </PopoverContent>
-      </Popover.Positioner>
-    </Popover.Root>
-  );
-};
+        </Popover>
+      </>
+    );
+  }
 
+  // Default cell with popover
+  return (
+    <>
+      <TableCell
+        align="center"
+        onClick={e => setAnchorEl(e.currentTarget)}
+        sx={{
+          p: 0.5,
+          minWidth: 40,
+          bgcolor: getCellBg(),
+          cursor: "pointer",
+          "&:hover": { bgcolor: "action.selected" },
+          borderRight: showRightBorder ? 1 : 0,
+          borderColor: "divider",
+        }}
+      >
+        {getCellContent()}
+      </TableCell>
+
+      <Popover
+        open={Boolean(anchorEl)}
+        anchorEl={anchorEl}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        transformOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <CellEditorPopover
+          task={task}
+          date={date}
+          completion={completion}
+          isScheduled={isScheduled}
+          onSave={data => {
+            onUpdate(data);
+            setAnchorEl(null);
+          }}
+          onDelete={() => {
+            onDelete();
+            setAnchorEl(null);
+          }}
+          onClose={() => setAnchorEl(null)}
+        />
+      </Popover>
+    </>
+  );
+});
+
+// Main Component
 export const RecurringTableView = ({
   tasks,
   sections,
-  completions,
   createCompletion,
   deleteCompletion,
   updateCompletion,
   getCompletionForDate,
-  updateTask,
   onEdit,
   onEditWorkout,
   onDuplicate,
   onDelete,
-  tags,
-  onTagsChange,
-  onCreateTag,
 }) => {
+  // State
   const [range, setRange] = useState("month");
   const [page, setPage] = useState(0);
-  const [customStartDate, setCustomStartDate] = useState(null);
-  const [customEndDate, setCustomEndDate] = useState(null);
-  const [useCustomRange, setUseCustomRange] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearch = useDeferredValue(searchQuery);
+  const [workoutModal, setWorkoutModal] = useState({ open: false, task: null, date: null });
+  const [taskMenuAnchor, setTaskMenuAnchor] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
 
-  // Defer heavy data processing to prevent blocking the UI
-  const deferredTasks = useDeferredValue(tasks);
-  const deferredSections = useDeferredValue(sections);
-  const deferredCompletions = useDeferredValue(completions);
+  // Generate dates
+  const dates = useMemo(() => generateDates(range, page), [range, page]);
 
-  // Mark initial load as complete after skeleton has time to render
-  useEffect(() => {
-    // Use double requestAnimationFrame to ensure skeleton paints before we start heavy work
-    const frame1 = requestAnimationFrame(() => {
-      const frame2 = requestAnimationFrame(() => {
-        setIsInitialLoad(false);
-      });
-      return () => cancelAnimationFrame(frame2);
-    });
-    return () => cancelAnimationFrame(frame1);
-  }, []);
+  // Get the first date of the range for DateNavigation (or today if no dates)
+  const selectedDate = useMemo(() => {
+    if (dates.length === 0) return new Date();
+    const firstDate = dayjs(dates[0]);
+    return firstDate.toDate();
+  }, [dates]);
 
-  const rangeCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "This Week", value: "week" },
-          { label: "This Month", value: "month" },
-          { label: "This Year", value: "year" },
-          { label: "Current Year", value: "currentYear" },
-          { label: "All Time", value: "all" },
-        ],
-      }),
-    []
-  );
+  // Filter and group tasks
+  const groupedTasks = useMemo(() => {
+    let recurring = getRecurringTasks(tasks);
 
-  // Get recurring tasks - use deferred values to prevent blocking
-  const recurringTasks = useMemo(() => getRecurringTasks(deferredTasks), [deferredTasks]);
-
-  // Group tasks by section - use deferred values
-  const groupedTasks = useMemo(
-    () => groupTasksBySection(recurringTasks, deferredSections),
-    [recurringTasks, deferredSections]
-  );
-
-  // Generate dates for current range and page
-  const dates = useMemo(() => {
-    if (useCustomRange && customStartDate && customEndDate) {
-      // Generate dates from custom range
-      const result = [];
-      let current = new Date(customEndDate);
-      current.setHours(0, 0, 0, 0);
-      const start = new Date(customStartDate);
-      start.setHours(0, 0, 0, 0);
-
-      while (current >= start) {
-        result.push(new Date(current));
-        current.setDate(current.getDate() - 1);
-      }
-      return result; // Most recent first
+    // Search filter
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.toLowerCase();
+      recurring = recurring.filter(
+        t => t.title?.toLowerCase().includes(q) || t.tags?.some(tag => tag.name.toLowerCase().includes(q))
+      );
     }
-    return generateDates(range, page);
-  }, [range, page, useCustomRange, customStartDate, customEndDate]);
 
-  // Calculate total pages
-  const totalPages = useMemo(() => calculateTotalPages(range), [range]);
+    return groupTasksBySection(recurring, sections);
+  }, [tasks, sections, deferredSearch]);
+
+  // Flatten all tasks for column headers
+  const allTasks = useMemo(() => {
+    return groupedTasks.flatMap(g => g.tasks);
+  }, [groupedTasks]);
+
+  // Total task count
+  const totalTasks = useMemo(() => {
+    return groupedTasks.reduce((sum, g) => sum + g.tasks.length, 0);
+  }, [groupedTasks]);
+
+  // Navigation label (title for DateNavigation)
+  const getNavigationLabel = () => {
+    if (dates.length === 0) return "";
+    const start = dayjs(dates[0]);
+    const end = dayjs(dates[dates.length - 1]);
+
+    if (range === "week") {
+      return `${start.format("MMM D")} - ${end.format("MMM D, YYYY")}`;
+    }
+    if (range === "month") {
+      return start.format("MMMM YYYY");
+    }
+    if (range === "year") {
+      return start.format("YYYY");
+    }
+    return `${start.format("MMM D")} - ${end.format("MMM D")}`;
+  };
+
+  // View options for DateNavigation
+  const viewOptions = [
+    { label: "Week", value: "week" },
+    { label: "Month", value: "month" },
+    { label: "Year", value: "year" },
+  ];
+
+  // Handle date navigation
+  const handlePrevious = () => {
+    setPage(page - 1);
+  };
+
+  const handleNext = () => {
+    setPage(page + 1);
+  };
+
+  const handleToday = () => {
+    setPage(0);
+  };
+
+  const handleViewChange = value => {
+    setRange(value);
+    setPage(0);
+  };
+
+  // Handle date change (not really used for range views, but required by DateNavigation)
+  const handleDateChange = () => {
+    // For range views, date changes don't make sense, so we reset to page 0
+    setPage(0);
+  };
+
+  // Check if today is visible
+  const isToday = date => dayjs(date).isSame(dayjs(), "day");
 
   // Handle cell update
-  const handleCellUpdate = async (taskId, date, data) => {
-    const existingCompletion = getCompletionForDate(taskId, date);
-
-    // If this is an off-schedule completion with a time, add the date to additionalDates
-    if (!data.isScheduled && data.time) {
-      const task = deferredTasks.find(t => t.id === taskId);
-      if (task) {
-        // Normalize date to UTC to avoid timezone issues
-        const d = new Date(date);
-        const utcDate = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0));
-        const dateStr = utcDate.toISOString();
-
-        // Check if this date is already in additionalDates
-        const existingAdditionalDates = task.recurrence?.additionalDates || [];
-        const dateAlreadyAdded = existingAdditionalDates.some(d => {
-          const existingDateStr = d.split("T")[0];
-          const newDateStr = dateStr.split("T")[0];
-          return existingDateStr === newDateStr;
-        });
-
-        if (!dateAlreadyAdded) {
-          const updatedRecurrence = {
-            ...task.recurrence,
-            additionalDates: [...existingAdditionalDates, dateStr],
-          };
-
-          // Update the task with the new recurrence (but NOT the time - that's stored in the completion)
-          await updateTask(taskId, {
-            recurrence: updatedRecurrence,
-          });
-        }
-      }
-    }
-
-    if (existingCompletion) {
-      // Update existing
-      await updateCompletion(taskId, date, data);
+  const handleCellUpdate = async (task, date, data) => {
+    const existing = getCompletionForDate?.(task.id, date);
+    if (existing) {
+      await updateCompletion?.(task.id, date, data);
     } else {
-      // Create new
-      await createCompletion(taskId, date, data);
+      await createCompletion?.(task.id, date, data);
     }
   };
 
   // Handle cell delete
-  const handleCellDelete = async (taskId, date) => {
-    // Check if this was an off-schedule completion
-    const task = deferredTasks.find(t => t.id === taskId);
-    if (task && task.recurrence?.additionalDates) {
-      // Normalize date to UTC to avoid timezone issues
-      const d = new Date(date);
-      const utcDate = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0));
-      const dateStr = utcDate.toISOString();
-      const dateStrShort = dateStr.split("T")[0];
-
-      // Check if this date is in additionalDates
-      const hasAdditionalDate = task.recurrence.additionalDates.some(d => {
-        const existingDateStr = d.split("T")[0];
-        return existingDateStr === dateStrShort;
-      });
-
-      if (hasAdditionalDate) {
-        // Remove this date from additionalDates
-        const updatedAdditionalDates = task.recurrence.additionalDates.filter(d => {
-          const existingDateStr = d.split("T")[0];
-          return existingDateStr !== dateStrShort;
-        });
-
-        const updatedRecurrence = {
-          ...task.recurrence,
-          additionalDates: updatedAdditionalDates,
-        };
-
-        // Update the task to remove this date from additionalDates
-        await updateTask(taskId, {
-          recurrence: updatedRecurrence,
-        });
-      }
-    }
-
-    await deleteCompletion(taskId, date);
-  };
-
-  // Handle workout progress save
-  const handleSaveWorkoutProgress = async (taskId, date, workoutCompletion) => {
-    try {
-      // Find the task to update its workoutData
-      const task = deferredTasks.find(t => t.id === taskId);
-      if (!task) return;
-
-      const updatedWorkoutData = {
-        ...task.workoutData,
-        progress: {
-          ...task.workoutData?.progress,
-          [workoutCompletion.week]: workoutCompletion,
-        },
-      };
-
-      // Update the task with new workout data
-      await updateTask(taskId, { workoutData: updatedWorkoutData });
-    } catch (error) {
-      console.error("Failed to save workout progress:", error);
-    }
-  };
-
-  const { mode, calendar } = useSemanticColors();
-
-  const bgColor = mode.bg.surface;
-  const borderColor = mode.border.default;
-  const headerBg = mode.bg.muted;
-  const sectionHeaderBg = calendar.todayBg;
-  const todayRowBg = calendar.todayBg;
-
-  // Show loading spinner on initial load only - deferred values will update automatically
-  const isPending = isInitialLoad;
-
-  // Show loading spinner while data is loading
-  if (isPending) {
-    return (
-      <Box h="100%" display="flex" alignItems="center" justifyContent="center" overflow="hidden">
-        <LoadingSpinner size="xl" />
-      </Box>
-    );
-  }
-
-  if (recurringTasks.length === 0) {
-    return (
-      <Box p={8} textAlign="center">
-        <Text color={mode.text.secondary}>No recurring tasks found.</Text>
-        <Text fontSize="sm" color={mode.text.muted} mt={2}>
-          Create recurring tasks to see them in this view.
-        </Text>
-      </Box>
-    );
-  }
-
-  // Calculate date range display
-  const getDateRangeDisplay = () => {
-    if (dates.length === 0) return "";
-
-    const startDate = dates[dates.length - 1]; // dates are in reverse order
-    const endDate = dates[0];
-
-    const startYear = startDate.getFullYear();
-    const endYear = endDate.getFullYear();
-
-    const formatDate = date => {
-      const month = date.toLocaleDateString("en-US", { month: "short" });
-      const day = date.getDate();
-      return `${month} ${day}`;
-    };
-
-    if (startYear === endYear) {
-      // Same year
-      return `${formatDate(startDate)} - ${formatDate(endDate)}, ${endYear}`;
-    } else {
-      // Different years
-      return `${formatDate(startDate)}, ${startYear} - ${formatDate(endDate)}, ${endYear}`;
-    }
-  };
-
-  // Format date for input field
-  const formatDateInput = date => {
-    if (!date) return "";
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  // Handle start date change
-  const handleStartDateChange = e => {
-    const value = e.target.value;
-    if (value) {
-      const newDate = new Date(value);
-      newDate.setHours(0, 0, 0, 0);
-      setCustomStartDate(newDate);
-      setUseCustomRange(true);
-      setPage(0);
-    }
-  };
-
-  // Handle end date change
-  const handleEndDateChange = e => {
-    const value = e.target.value;
-    if (value) {
-      const newDate = new Date(value);
-      newDate.setHours(0, 0, 0, 0);
-      setCustomEndDate(newDate);
-      setUseCustomRange(true);
-      setPage(0);
-    }
-  };
-
-  // Handle preset range change
-  const handleRangeChange = value => {
-    setRange(value);
-    setUseCustomRange(false);
-    setPage(0);
-  };
-
-  // Navigate dates backward (earlier)
-  const handlePreviousDay = () => {
-    if (useCustomRange && customStartDate && customEndDate) {
-      const newStart = new Date(customStartDate);
-      newStart.setDate(newStart.getDate() - 1);
-      const newEnd = new Date(customEndDate);
-      newEnd.setDate(newEnd.getDate() - 1);
-      setCustomStartDate(newStart);
-      setCustomEndDate(newEnd);
-    } else {
-      setPage(Math.min(totalPages - 1, page + 1));
-    }
-  };
-
-  // Navigate dates forward (more recent)
-  const handleNextDay = () => {
-    if (useCustomRange && customStartDate && customEndDate) {
-      const newStart = new Date(customStartDate);
-      newStart.setDate(newStart.getDate() + 1);
-      const newEnd = new Date(customEndDate);
-      newEnd.setDate(newEnd.getDate() + 1);
-      setCustomStartDate(newStart);
-      setCustomEndDate(newEnd);
-    } else {
-      setPage(Math.max(0, page - 1));
-    }
-  };
-
-  // Reset to today
-  const handleToday = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    setCustomEndDate(today);
-    const startDate = new Date(today);
-    startDate.setDate(startDate.getDate() - 29); // 30 days
-    setCustomStartDate(startDate);
-    setUseCustomRange(true);
-    setPage(0);
+  const handleCellDelete = async (task, date) => {
+    await deleteCompletion?.(task.id, date);
   };
 
   return (
-    <Box h="100%" display="flex" flexDirection="column" overflow="hidden">
-      {/* Header with title and date range */}
-      <Box p={4} borderBottomWidth="1px" borderColor={borderColor}>
-        <Text fontSize="xl" fontWeight="bold" mb={2}>
-          Recurring Tasks
-        </Text>
-        <Text fontSize="sm" color={mode.text.secondary}>
-          {getDateRangeDisplay()}
-        </Text>
-      </Box>
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Header */}
+      <Stack
+        direction="row"
+        spacing={2}
+        alignItems="center"
+        sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}
+        flexWrap="wrap"
+        useFlexGap
+      >
+        {/* Search */}
+        <TextField
+          size="small"
+          placeholder="Search tasks..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ minWidth: 200 }}
+        />
 
-      {/* Controls */}
-      <Box p={4} borderBottomWidth="1px" borderColor={borderColor}>
-        <VStack gap={3} align="stretch">
-          {/* Navigation and Today button */}
-          <Flex align="center" gap={2} flexWrap="wrap">
-            <Button variant="outline" size="sm" onClick={handleToday}>
-              Today
-            </Button>
-            <IconButton onClick={handlePreviousDay} variant="ghost" aria-label="Previous" size="sm">
-              <Box as="span" color="currentColor">
-                <ChevronLeft size={14} stroke="currentColor" />
-              </Box>
-            </IconButton>
-            <IconButton onClick={handleNextDay} variant="ghost" aria-label="Next" size="sm">
-              <Box as="span" color="currentColor">
-                <ChevronRight size={14} stroke="currentColor" />
-              </Box>
-            </IconButton>
+        {/* Date Navigation */}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <DateNavigation
+            selectedDate={selectedDate}
+            onDateChange={handleDateChange}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            onToday={handleToday}
+            title={getNavigationLabel()}
+            showDatePicker={false}
+            showDateDisplay={false}
+            showViewSelector={true}
+            viewCollection={viewOptions}
+            selectedView={range}
+            onViewChange={handleViewChange}
+            viewSelectorWidth={24}
+          />
+        </Box>
 
-            {/* Preset Range Selector */}
-            <HStack gap={2} flex={1}>
-              <Text fontSize="sm" fontWeight="medium" color={mode.text.primary} minW="fit-content">
-                Preset:
-              </Text>
-              <SelectDropdown
-                collection={rangeCollection}
-                value={[range]}
-                onValueChange={({ value }) => handleRangeChange(value[0])}
-                placeholder="Select range"
-                size="sm"
-                w="150px"
-              />
-            </HStack>
-
-            {/* Pagination for preset ranges */}
-            {!useCustomRange && totalPages > 1 && (
-              <HStack gap={2}>
-                <Text fontSize="sm" color={mode.text.secondary}>
-                  Page {page + 1} of {totalPages}
-                </Text>
-              </HStack>
-            )}
-          </Flex>
-
-          {/* Custom Date Range Pickers */}
-          <Flex align="center" gap={2} flexWrap="wrap">
-            <Text fontSize="sm" fontWeight="medium" color={mode.text.primary} minW="fit-content">
-              Custom Range:
-            </Text>
-            <HStack gap={2}>
-              <Text fontSize="sm" color={mode.text.secondary}>
-                From
-              </Text>
-              <Input
-                type="date"
-                value={formatDateInput(customStartDate)}
-                onChange={handleStartDateChange}
-                size="sm"
-                variant="outline"
-                cursor="pointer"
-                w="150px"
-                sx={{
-                  "&::-webkit-calendar-picker-indicator": {
-                    cursor: "pointer",
-                  },
-                }}
-              />
-              <Text fontSize="sm" color={mode.text.secondary}>
-                To
-              </Text>
-              <Input
-                type="date"
-                value={formatDateInput(customEndDate)}
-                onChange={handleEndDateChange}
-                size="sm"
-                variant="outline"
-                cursor="pointer"
-                w="150px"
-                sx={{
-                  "&::-webkit-calendar-picker-indicator": {
-                    cursor: "pointer",
-                  },
-                }}
-              />
-            </HStack>
-          </Flex>
-        </VStack>
-      </Box>
+        {/* Task count */}
+        <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
+          {totalTasks} recurring task{totalTasks !== 1 ? "s" : ""}
+        </Typography>
+      </Stack>
 
       {/* Table */}
-      <Box flex={1} overflow="auto">
-        <Table.Root variant="simple" size="sm">
-          <Table.Header bg={headerBg} position="sticky" top={0} zIndex={10}>
-            <Table.Row>
-              {/* Date column */}
-              <Table.ColumnHeader
-                position={{ base: "relative", md: "sticky" }}
-                left={{ base: "auto", md: 0 }}
-                zIndex={{ base: "auto", md: 11 }}
-                bg={headerBg}
-                minW="150px"
-                borderRightWidth="2px"
-                borderColor={borderColor}
-                borderWidth="1px"
-                borderLeftWidth="1px"
-                px={3}
-                py={2}
+      <TableContainer sx={{ flex: 1, overflow: "auto" }}>
+        <Table stickyHeader size="small">
+          {/* Header Row - Date column + Section headers spanning task columns */}
+          <TableHead>
+            <TableRow>
+              {/* Date column header */}
+              <TableCell
+                sx={{
+                  position: "sticky",
+                  left: 0,
+                  zIndex: 3,
+                  bgcolor: "background.paper",
+                  minWidth: 120,
+                  borderRight: 1,
+                  borderColor: "divider",
+                }}
               >
                 Date
-              </Table.ColumnHeader>
-              {/* Task columns grouped by section */}
+              </TableCell>
+              {/* Section headers spanning task columns */}
               {groupedTasks.map(({ section, tasks: sectionTasks }) => (
-                <Table.ColumnHeader
+                <TableCell
                   key={section.id}
                   colSpan={sectionTasks.length}
-                  bg={sectionHeaderBg}
-                  textAlign="center"
-                  fontWeight="bold"
-                  borderWidth="1px"
-                  borderColor={borderColor}
-                  borderLeftWidth="0"
-                  borderTopWidth="1px"
-                  px={2}
-                  py={2}
+                  align="center"
+                  sx={{
+                    bgcolor: "action.hover",
+                    fontWeight: 600,
+                    borderRight: 1,
+                    borderColor: "divider",
+                  }}
                 >
-                  {section.name}
-                </Table.ColumnHeader>
+                  {section.name} ({sectionTasks.length})
+                </TableCell>
               ))}
-            </Table.Row>
-            {/* Task header row */}
-            <Table.Row>
-              <Table.ColumnHeader
-                position={{ base: "relative", md: "sticky" }}
-                left={{ base: "auto", md: 0 }}
-                zIndex={{ base: "auto", md: 11 }}
-                bg={headerBg}
-                borderRightWidth="2px"
-                borderColor={borderColor}
-                borderWidth="1px"
-                borderLeftWidth="1px"
-                borderTopWidth="0"
+            </TableRow>
+            {/* Task name headers row */}
+            <TableRow>
+              {/* Empty cell for date column */}
+              <TableCell
+                sx={{
+                  position: "sticky",
+                  left: 0,
+                  zIndex: 2,
+                  bgcolor: "background.paper",
+                  borderRight: 1,
+                  borderColor: "divider",
+                }}
               />
-              {groupedTasks.map(({ section: _section, tasks: sectionTasks }) =>
-                sectionTasks.map(task => (
-                  <Table.ColumnHeader
+              {/* Task name headers */}
+              {allTasks.map(task => {
+                // Check if this is the last task in its section
+                const isLastInSection = (() => {
+                  for (const group of groupedTasks) {
+                    const taskIndexInSection = group.tasks.findIndex(t => t.id === task.id);
+                    if (taskIndexInSection !== -1) {
+                      return taskIndexInSection === group.tasks.length - 1;
+                    }
+                  }
+                  return false;
+                })();
+
+                return (
+                  <TableCell
                     key={task.id}
-                    minW="100px"
-                    maxW="150px"
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                    borderLeftWidth="0"
-                    borderTopWidth="0"
-                    p={0}
-                    overflow="hidden"
+                    align="center"
+                    sx={{
+                      minWidth: 100,
+                      maxWidth: 150,
+                      p: 1,
+                      borderRight: isLastInSection ? 1 : 0,
+                      borderColor: "divider",
+                      position: "relative",
+                    }}
                   >
-                    <TaskColumnHeader
-                      task={task}
-                      onEdit={onEdit}
-                      onEditWorkout={onEditWorkout}
-                      onDuplicate={onDuplicate}
-                      onDelete={onDelete}
-                      tags={tags}
-                      onTagsChange={onTagsChange}
-                      onCreateTag={onCreateTag}
-                    />
-                  </Table.ColumnHeader>
-                ))
-              )}
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {dates.map(date => {
-              const isTodayDate = isToday(date);
-              return (
-                <Table.Row
-                  key={date.toISOString()}
-                  bg={isTodayDate ? todayRowBg : "transparent"}
-                  _hover={{ bg: mode.bg.muted }}
-                >
-                  {/* Date cell */}
-                  <Table.Cell
-                    position={{ base: "relative", md: "sticky" }}
-                    left={{ base: "auto", md: 0 }}
-                    zIndex={{ base: "auto", md: 9 }}
-                    bg={isTodayDate ? todayRowBg : bgColor}
-                    borderRightWidth="2px"
-                    borderColor={borderColor}
-                    borderWidth="1px"
-                    borderLeftWidth="1px"
-                    borderTopWidth="0"
-                    fontWeight={isTodayDate ? "bold" : "normal"}
-                    px={3}
-                    py={2}
-                  >
-                    {formatDateDisplay(date)}
-                  </Table.Cell>
-                  {/* Task cells */}
-                  {groupedTasks.map(({ section: _section, tasks: sectionTasks }) =>
-                    sectionTasks.map(task => {
-                      const isScheduled = shouldShowOnDate(task, date);
-                      const completion = getCompletionForTaskDate(deferredCompletions, task.id, date);
-                      return (
-                        <Table.Cell
-                          key={task.id}
-                          p={0}
-                          borderWidth="1px"
-                          borderColor={borderColor}
-                          borderLeftWidth="0"
-                          borderTopWidth="0"
-                          textAlign="center"
-                          verticalAlign="middle"
-                          position="relative"
-                          minW="150px"
+                    <Stack direction="row" alignItems="center" spacing={0.5} justifyContent="center">
+                      <Tooltip title={task.title}>
+                        <Typography
+                          variant="caption"
+                          noWrap
+                          sx={{
+                            flex: 1,
+                            cursor: "pointer",
+                            "&:hover": { color: "primary.main" },
+                          }}
+                          onClick={() => onEdit?.(task)}
                         >
-                          <TableCell
-                            task={task}
-                            date={date}
-                            completion={completion}
-                            isScheduled={isScheduled}
-                            onUpdate={data => handleCellUpdate(task.id, date, data)}
-                            onDelete={() => handleCellDelete(task.id, date)}
-                            onSaveWorkoutProgress={handleSaveWorkoutProgress}
-                          />
-                        </Table.Cell>
-                      );
-                    })
-                  )}
-                </Table.Row>
+                          {task.title}
+                        </Typography>
+                      </Tooltip>
+                      {task.completionType === "workout" && (
+                        <Tooltip title="Workout task">
+                          <FitnessCenter fontSize="small" sx={{ opacity: 0.6, fontSize: "0.875rem" }} />
+                        </Tooltip>
+                      )}
+                      <IconButton
+                        size="small"
+                        onClick={e => {
+                          setSelectedTask(task);
+                          setTaskMenuAnchor(e.currentTarget);
+                        }}
+                        sx={{ p: 0.25 }}
+                      >
+                        <MoreVert fontSize="small" sx={{ fontSize: "0.875rem" }} />
+                      </IconButton>
+                    </Stack>
+                  </TableCell>
+                );
+              })}
+            </TableRow>
+          </TableHead>
+
+          {/* Body - Date rows */}
+          <TableBody>
+            {dates.map(date => {
+              const dateObj = dayjs(date);
+              const isTodayDate = isToday(date);
+
+              return (
+                <TableRow key={date} hover={isTodayDate}>
+                  {/* Date cell - sticky */}
+                  <TableCell
+                    sx={{
+                      position: "sticky",
+                      left: 0,
+                      zIndex: 1,
+                      bgcolor: isTodayDate ? "primary.dark" : "background.paper",
+                      color: isTodayDate ? "primary.contrastText" : "text.primary",
+                      fontWeight: isTodayDate ? 600 : 400,
+                      borderRight: 1,
+                      borderColor: "divider",
+                      minWidth: 120,
+                    }}
+                  >
+                    <Typography variant="body2" fontWeight={isTodayDate ? 600 : 400}>
+                      {dateObj.format("ddd, MMM D")}
+                    </Typography>
+                  </TableCell>
+
+                  {/* Task completion cells */}
+                  {allTasks.map(task => {
+                    const completion = getCompletionForDate?.(task.id, date);
+                    const isScheduled = shouldShowOnDate(task, date);
+                    // Check if this is the last task in its section
+                    const isLastInSection = (() => {
+                      for (const group of groupedTasks) {
+                        const taskIndexInSection = group.tasks.findIndex(t => t.id === task.id);
+                        if (taskIndexInSection !== -1) {
+                          return taskIndexInSection === group.tasks.length - 1;
+                        }
+                      }
+                      return false;
+                    })();
+
+                    return (
+                      <CompletionCell
+                        key={`${task.id}-${date}`}
+                        task={task}
+                        date={date}
+                        completion={completion}
+                        isScheduled={isScheduled}
+                        onUpdate={data => handleCellUpdate(task, date, data)}
+                        onDelete={() => handleCellDelete(task, date)}
+                        onOpenWorkout={(task, date) => setWorkoutModal({ open: true, task, date })}
+                        showRightBorder={isLastInSection}
+                      />
+                    );
+                  })}
+                </TableRow>
               );
             })}
-          </Table.Body>
-        </Table.Root>
-      </Box>
+
+            {/* Empty State */}
+            {groupedTasks.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={allTasks.length + 1} align="center" sx={{ py: 8 }}>
+                  <Typography color="text.secondary">
+                    {deferredSearch ? "No matching tasks found" : "No recurring tasks"}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* Task Actions Menu */}
+      <Menu anchorEl={taskMenuAnchor} open={Boolean(taskMenuAnchor)} onClose={() => setTaskMenuAnchor(null)}>
+        {selectedTask && (
+          <>
+            <MenuItem
+              onClick={() => {
+                onEdit?.(selectedTask);
+                setTaskMenuAnchor(null);
+              }}
+            >
+              <Edit fontSize="small" sx={{ mr: 1 }} /> Edit
+            </MenuItem>
+            {selectedTask.completionType === "workout" && (
+              <MenuItem
+                onClick={() => {
+                  onEditWorkout?.(selectedTask);
+                  setTaskMenuAnchor(null);
+                }}
+              >
+                <FitnessCenter fontSize="small" sx={{ mr: 1 }} /> Edit Workout
+              </MenuItem>
+            )}
+            <MenuItem
+              onClick={() => {
+                onDuplicate?.(selectedTask);
+                setTaskMenuAnchor(null);
+              }}
+            >
+              <ContentCopy fontSize="small" sx={{ mr: 1 }} /> Duplicate
+            </MenuItem>
+            <Divider />
+            <MenuItem
+              onClick={() => {
+                onDelete?.(selectedTask.id);
+                setTaskMenuAnchor(null);
+              }}
+              sx={{ color: "error.main" }}
+            >
+              <Delete fontSize="small" sx={{ mr: 1 }} /> Delete
+            </MenuItem>
+          </>
+        )}
+      </Menu>
+
+      {/* Workout Modal */}
+      {workoutModal.task && (
+        <WorkoutModal
+          task={workoutModal.task}
+          isOpen={workoutModal.open}
+          onClose={() => setWorkoutModal({ open: false, task: null, date: null })}
+          onCompleteTask={(taskId, date) => {
+            handleCellUpdate(workoutModal.task, date, { outcome: "completed" });
+            setWorkoutModal({ open: false, task: null, date: null });
+          }}
+          currentDate={workoutModal.date ? new Date(workoutModal.date) : new Date()}
+        />
+      )}
     </Box>
   );
 };
+
+export default RecurringTableView;

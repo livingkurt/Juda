@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useRef, useMemo } from "react";
-import { Box, Text, Textarea, VStack, HStack, IconButton, Collapsible } from "@chakra-ui/react";
-import { Plus, ChevronDown, ChevronRight } from "lucide-react";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { Box, Typography, TextField, Stack, IconButton, Collapse } from "@mui/material";
+import { Add, ExpandMore, ChevronRight } from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
 
 export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrentYear, onSave }) => {
-  const { mode } = useSemanticColors();
+  const theme = useTheme();
   // Initialize state from props - component will remount when completion changes (via key prop)
   const [noteInput, setNoteInput] = useState(completion?.note || "");
   const [showTextarea, setShowTextarea] = useState(Boolean(completion?.note));
@@ -22,9 +22,16 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
   const [expanded, setExpanded] = useState(isDailyJournal && hasEntry);
   const textareaRef = useRef(null);
 
-  const handleBlur = () => {
+  const handleBlur = async () => {
     if (isCurrentYear && noteInput.trim() && noteInput.trim() !== (completion?.note || "")) {
-      onSave(task.id, date, noteInput.trim());
+      try {
+        await onSave(task.id, date, noteInput.trim());
+      } catch (error) {
+        console.error("Failed to save journal entry:", error);
+        // Reset to original note on error
+        setNoteInput(completion?.note || "");
+        // You could also show a toast notification here if you have a toast system
+      }
     } else if (!noteInput.trim() && completion?.note) {
       // Reset to saved note if cleared
       setNoteInput(completion?.note);
@@ -53,11 +60,6 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
     setExpanded(prev => !prev);
   };
 
-  const bgColor = mode.bg.surface;
-  const borderColor = mode.border.default;
-  const textColor = mode.text.primary;
-  const dimmedText = mode.text.muted;
-
   // Check if task existed in this year (simplified - assumes task exists if it's recurring or created before year end)
   const taskExistedThisYear = true; // For now, assume all journal tasks exist in all years
 
@@ -67,20 +69,20 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
 
   return (
     <Box
-      borderRadius="lg"
-      borderWidth="1px"
-      borderColor={borderColor}
-      borderLeftWidth={"1px"}
-      borderLeftColor={borderColor}
-      bg={bgColor}
-      p={{ base: 3, md: 4 }}
-      mb={{ base: 3, md: 4 }}
-      opacity={isCurrentYear ? 1 : 0.7}
-      pb={{ base: 0.5, md: 0.5 }}
+      sx={{
+        borderRadius: 2,
+        border: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.paper",
+        p: { xs: 3, md: 4 },
+        mb: { xs: 3, md: 4 },
+        opacity: isCurrentYear ? 1 : 0.7,
+        pb: 0.5,
+      }}
     >
-      <VStack align="stretch" spacing={{ base: 2, md: 3 }}>
+      <Stack spacing={{ xs: 2, md: 3 }}>
         {/* Header with title and expand/collapse button */}
-        <HStack spacing={2} align="center">
+        <Stack direction="row" spacing={2} alignItems="center">
           {isCurrentYear && !hasEntry ? (
             <IconButton
               onClick={e => {
@@ -88,17 +90,15 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
                 handleAddEntry();
               }}
               onMouseDown={e => e.stopPropagation()}
-              onPointerDown={e => e.stopPropagation()}
-              size={{ base: "xs", md: "sm" }}
-              variant="ghost"
+              size="small"
               aria-label="Add Entry"
-              minW={{ base: "24px", md: "32px" }}
-              h={{ base: "24px", md: "32px" }}
-              p={{ base: 0, md: 1 }}
+              sx={{
+                minWidth: { xs: "24px", md: "32px" },
+                height: { xs: "24px", md: "32px" },
+                p: { xs: 0, md: 1 },
+              }}
             >
-              <Box as="span" color="currentColor">
-                <Plus size={14} stroke="currentColor" />
-              </Box>
+              <Add fontSize="small" />
             </IconButton>
           ) : (
             <IconButton
@@ -107,91 +107,94 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
                 handleToggleExpand();
               }}
               onMouseDown={e => e.stopPropagation()}
-              onPointerDown={e => e.stopPropagation()}
-              size={{ base: "xs", md: "sm" }}
-              variant="ghost"
+              size="small"
               aria-label="Toggle expand"
-              minW={{ base: "24px", md: "32px" }}
-              h={{ base: "24px", md: "32px" }}
-              p={{ base: 0, md: 1 }}
+              sx={{
+                minWidth: { xs: "24px", md: "32px" },
+                height: { xs: "24px", md: "32px" },
+                p: { xs: 0, md: 1 },
+              }}
             >
-              <Box as="span" color="currentColor">
-                {expanded ? (
-                  <ChevronDown size={14} stroke="currentColor" />
-                ) : (
-                  <ChevronRight size={14} stroke="currentColor" />
-                )}
-              </Box>
+              {expanded ? <ExpandMore fontSize="small" /> : <ChevronRight fontSize="small" />}
             </IconButton>
           )}
-          <Text
-            fontSize={{ base: "md", md: "lg" }}
-            fontWeight="medium"
-            color={isCurrentYear ? textColor : dimmedText}
-            flex={1}
-            cursor="pointer"
+          <Typography
+            variant={theme.breakpoints.down("md") ? "body1" : "h6"}
+            sx={{
+              fontWeight: 500,
+              color: isCurrentYear ? "text.primary" : "text.secondary",
+              flex: 1,
+              cursor: "pointer",
+              "&:hover": {
+                opacity: 0.8,
+              },
+            }}
             onClick={handleToggleExpand}
-            _hover={{ opacity: 0.8 }}
           >
             {task.title}
-          </Text>
-        </HStack>
+          </Typography>
+        </Stack>
 
         {/* Collapsible content */}
-        <Collapsible.Root open={expanded}>
-          <Collapsible.Content>
-            {isCurrentYear ? (
-              <>
-                {showTextarea ? (
-                  <Textarea
-                    ref={textareaRef}
-                    value={noteInput}
-                    onChange={e => setNoteInput(e.target.value)}
-                    onBlur={handleBlur}
-                    placeholder="Enter your journal entry..."
-                    size="sm"
-                    lineHeight={{ base: "1.6", md: "1.4" }}
-                    variant="filled"
-                    resize="vertical"
-                    minH={{ base: "120px", md: "80px" }}
-                    maxH={{ base: "400px", md: "600px" }}
-                    bg={mode.bg.muted}
-                    color={textColor}
-                    scrollMarginTop="100px"
-                    css={{
-                      fieldSizing: "content",
-                      // Prevent scroll jumping on mobile
-                      "@media (max-width: 768px)": {
-                        fieldSizing: "initial",
+        <Collapse in={expanded}>
+          {isCurrentYear ? (
+            <>
+              {showTextarea ? (
+                <TextField
+                  inputRef={textareaRef}
+                  value={noteInput}
+                  onChange={e => setNoteInput(e.target.value)}
+                  onBlur={handleBlur}
+                  placeholder="Enter your journal entry..."
+                  size="small"
+                  multiline
+                  rows={4}
+                  variant="filled"
+                  fullWidth
+                  sx={{
+                    "& .MuiFilledInput-root": {
+                      bgcolor: "action.hover",
+                      "&:hover": {
+                        bgcolor: "action.hover",
                       },
-                    }}
-                    _focus={{
-                      bg: mode.bg.surface,
-                      borderColor: mode.border.focus,
-                    }}
-                  />
-                ) : (
-                  <Text fontSize="xs" color={dimmedText} fontStyle="italic">
-                    No entry for this day
-                  </Text>
-                )}
-              </>
-            ) : (
-              <>
-                {hasEntry ? (
-                  <Text fontSize={{ base: "xs", md: "sm" }} color={dimmedText} whiteSpace="pre-wrap" lineHeight="1.6">
-                    {completion.note}
-                  </Text>
-                ) : (
-                  <Text fontSize="xs" color={dimmedText} fontStyle="italic">
-                    No entry for this day
-                  </Text>
-                )}
-              </>
-            )}
-          </Collapsible.Content>
-        </Collapsible.Root>
-      </VStack>
+                      "&.Mui-focused": {
+                        bgcolor: "background.paper",
+                      },
+                    },
+                    minHeight: { xs: "120px", md: "80px" },
+                    maxHeight: { xs: "400px", md: "600px" },
+                    scrollMarginTop: "100px",
+                  }}
+                />
+              ) : (
+                <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic" }}>
+                  No entry for this day
+                </Typography>
+              )}
+            </>
+          ) : (
+            <>
+              {hasEntry ? (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "text.secondary",
+                    whiteSpace: "pre-wrap",
+                    lineHeight: 1.6,
+                    fontSize: { xs: "0.75rem", md: "0.875rem" },
+                  }}
+                >
+                  {completion.note}
+                </Typography>
+              ) : (
+                <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic" }}>
+                  No entry for this day
+                </Typography>
+              )}
+            </>
+          )}
+        </Collapse>
+      </Stack>
     </Box>
   );
 };

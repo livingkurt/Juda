@@ -1,25 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { Flex } from "@chakra-ui/react";
+import { Box } from "@mui/material";
 import { LoginForm } from "./LoginForm";
 import { RegisterForm } from "./RegisterForm";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export function AuthPage() {
-  const { mode } = useSemanticColors();
   const [view, setView] = useState("login"); // "login" | "register" | "forgot"
 
   return (
-    <Flex minH="100vh" align="center" justify="center" bg={mode.bg.canvas} p={4}>
-      {view === "login" ? (
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "background.default",
+        p: 2,
+      }}
+    >
+      {view === "login" && (
         <LoginForm onSwitchToRegister={() => setView("register")} onForgotPassword={() => setView("forgot")} />
-      ) : view === "register" ? (
-        <RegisterForm onSwitchToLogin={() => setView("login")} />
-      ) : (
-        <ForgotPasswordForm onBackToLogin={() => setView("login")} />
       )}
-    </Flex>
+      {view === "register" && <RegisterForm onSwitchToLogin={() => setView("login")} />}
+      {view === "forgot" && <ForgotPasswordForm onBackToLogin={() => setView("login")} />}
+    </Box>
   );
 }

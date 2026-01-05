@@ -1,6 +1,6 @@
 "use client";
 
-import { Box } from "@chakra-ui/react";
+import { Box } from "@mui/material";
 import { forwardRef } from "react";
 
 /**
@@ -12,8 +12,8 @@ export const SyncAnimatedItem = forwardRef(function SyncAnimatedItem({ children,
       ref={ref}
       key={itemKey}
       data-layout-id={layoutId}
-      animation="slideIn 0.25s ease-out"
-      css={{
+      sx={{
+        animation: "slideIn 0.25s ease-out",
         "@keyframes slideIn": {
           from: {
             opacity: 0,
@@ -55,8 +55,8 @@ export function SyncUpdateHighlight({ children, updateKey }) {
   return (
     <Box
       key={updateKey}
-      animation="pulse 0.6s ease-in-out"
-      css={{
+      sx={{
+        animation: "pulse 0.6s ease-in-out",
         "@keyframes pulse": {
           "0%, 100%": { backgroundColor: "transparent" },
           "50%": { backgroundColor: "rgba(59, 130, 246, 0.1)" },

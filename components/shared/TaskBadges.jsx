@@ -1,8 +1,7 @@
 "use client";
 
-import { HStack, Badge } from "@chakra-ui/react";
+import { Stack, Chip } from "@mui/material";
 import { isOverdue, getRecurrenceLabel } from "@/lib/utils";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 /**
  * Renders task status badges (overdue, recurring, no-time, workout, end date)
@@ -25,8 +24,6 @@ export const TaskBadges = ({
   compact = false,
   hasRecordOnDate,
 }) => {
-  const { badges } = useSemanticColors();
-
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
   const isWorkoutTask = task.completionType === "workout";
   const taskIsOverdue =
@@ -34,110 +31,147 @@ export const TaskBadges = ({
   const hasEndDate = task.recurrence?.endDate;
   const hasNoTime = !task.time;
 
-  // Responsive sizes
-  const badgeSizes = {
-    xs: { base: "2xs", md: "xs" },
-    sm: { base: "xs", md: "sm" },
-    md: { base: "sm", md: "md" },
+  // Map sizes to MUI chip sizes
+  const chipSizeMap = {
+    xs: "small",
+    sm: "small",
+    md: "medium",
   };
 
-  const fontSize = {
-    xs: { base: "3xs", md: "2xs" },
-    sm: { base: "2xs", md: "xs" },
-    md: { base: "xs", md: "sm" },
+  const chipSize = chipSizeMap[size] || "small";
+
+  // Font sizes for different badge sizes
+  const fontSizeMap = {
+    xs: "0.625rem",
+    sm: "0.75rem",
+    md: "0.875rem",
   };
 
-  const padding = {
-    xs: { py: 0, px: 1 },
-    sm: { py: { base: 0, md: 0.5 }, px: { base: 1, md: 1.5 } },
-    md: { py: 0.5, px: 2 },
-  };
+  const fontSize = fontSizeMap[size] || "0.75rem";
 
   // In compact mode, only show most important badge
   if (compact) {
     if (taskIsOverdue) {
       return (
-        <Badge
-          size={badgeSizes[size]}
-          colorPalette={badges.overdue.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
-        >
-          !
-        </Badge>
+        <Chip
+          label="!"
+          color="error"
+          size={chipSize}
+          sx={{
+            fontSize,
+            height: size === "xs" ? 18 : size === "sm" ? 20 : 24,
+            "& .MuiChip-label": {
+              px: size === "xs" ? 0.5 : 0.75,
+              fontSize,
+            },
+          }}
+        />
       );
     }
     if (isRecurring) {
       return (
-        <Badge
-          size={badgeSizes[size]}
-          colorPalette={badges.recurring.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
-        >
-          ↻
-        </Badge>
+        <Chip
+          label="↻"
+          color="secondary"
+          size={chipSize}
+          sx={{
+            fontSize,
+            height: size === "xs" ? 18 : size === "sm" ? 20 : 24,
+            "& .MuiChip-label": {
+              px: size === "xs" ? 0.5 : 0.75,
+              fontSize,
+            },
+          }}
+        />
       );
     }
     return null;
   }
 
   return (
-    <HStack spacing={1} flexWrap="wrap">
+    <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ gap: 0.5, rowGap: 0.5 }}>
       {taskIsOverdue && task.status !== "in_progress" && (
-        <Badge
-          size={badgeSizes[size]}
-          colorPalette={badges.overdue.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
-        >
-          Overdue
-        </Badge>
+        <Chip
+          label="Overdue"
+          color="error"
+          size={chipSize}
+          sx={{
+            fontSize,
+            height: size === "xs" ? 18 : size === "sm" ? 20 : 24,
+            "& .MuiChip-label": {
+              px: size === "xs" ? 0.5 : 0.75,
+              fontSize,
+            },
+          }}
+        />
       )}
 
       {isRecurring && (
-        <Badge
-          size={badgeSizes[size]}
-          colorPalette={badges.recurring.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
-        >
-          {getRecurrenceLabel(task.recurrence) || "Recurring"}
-        </Badge>
+        <Chip
+          label={getRecurrenceLabel(task.recurrence) || "Recurring"}
+          color="secondary"
+          size={chipSize}
+          sx={{
+            fontSize,
+            height: size === "xs" ? 18 : size === "sm" ? 20 : 24,
+            "& .MuiChip-label": {
+              px: size === "xs" ? 0.5 : 0.75,
+              fontSize,
+            },
+          }}
+        />
       )}
 
       {isWorkoutTask && (
-        <Badge
-          size={badgeSizes[size]}
-          colorPalette={badges.workout.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
-        >
-          Workout
-        </Badge>
+        <Chip
+          label="Workout"
+          color="primary"
+          size={chipSize}
+          sx={{
+            fontSize,
+            height: size === "xs" ? 18 : size === "sm" ? 20 : 24,
+            "& .MuiChip-label": {
+              px: size === "xs" ? 0.5 : 0.75,
+              fontSize,
+            },
+          }}
+        />
       )}
 
       {showEndDate && hasEndDate && (
-        <Badge
-          size={badgeSizes[size]}
-          colorPalette={badges.noTime.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
-        >
-          Until {new Date(task.recurrence.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-        </Badge>
+        <Chip
+          label={`Until ${new Date(task.recurrence.endDate).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          })}`}
+          color="warning"
+          size={chipSize}
+          sx={{
+            fontSize,
+            height: size === "xs" ? 18 : size === "sm" ? 20 : 24,
+            "& .MuiChip-label": {
+              px: size === "xs" ? 0.5 : 0.75,
+              fontSize,
+            },
+          }}
+        />
       )}
 
       {showNoTime && hasNoTime && (
-        <Badge
-          size={badgeSizes[size]}
-          colorPalette={badges.noTime.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
-        >
-          No time
-        </Badge>
+        <Chip
+          label="No time"
+          color="warning"
+          size={chipSize}
+          sx={{
+            fontSize,
+            height: size === "xs" ? 18 : size === "sm" ? 20 : 24,
+            "& .MuiChip-label": {
+              px: size === "xs" ? 0.5 : 0.75,
+              fontSize,
+            },
+          }}
+        />
       )}
-    </HStack>
+    </Stack>
   );
 };

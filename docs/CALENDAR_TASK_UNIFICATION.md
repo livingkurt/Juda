@@ -17,6 +17,7 @@ Previously, we had 4 separate task components for calendar views:
 4. **UntimedWeekTask.jsx** - Week view all-day tasks (smaller, simple layout)
 
 This led to:
+
 - Code duplication across components
 - Inconsistent styling and behavior
 - More maintenance overhead when making changes
@@ -54,24 +55,24 @@ Created a single unified `CalendarTask` component that:
 
 ```javascript
 CalendarTask({
-  task,              // Task object
+  task, // Task object
   createDraggableId, // Function to create draggable ID
-  date,              // Date for this task instance
-  variant,           // "timed" | "untimed" | "timed-week" | "untimed-week"
-  getTaskStyle,      // [Optional] Positioning style (timed only)
-  internalDrag,      // [Optional] Internal drag state (timed only)
+  date, // Date for this task instance
+  variant, // "timed" | "untimed" | "timed-week" | "untimed-week"
+  getTaskStyle, // [Optional] Positioning style (timed only)
+  internalDrag, // [Optional] Internal drag state (timed only)
   handleInternalDragStart, // [Optional] Drag handler (timed only)
-})
+});
 ```
 
 ### Variant Behavior
 
-| Variant | Layout | Positioning | Resize Handle | Font Size | Use Case |
-|---------|--------|-------------|---------------|-----------|----------|
-| `timed` | Absolute | Yes | Yes (3px) | sm | Day view timed |
-| `untimed` | Relative | No | No | sm | Day view all-day |
-| `timed-week` | Absolute | Yes | Yes (2px) | xs | Week view timed |
-| `untimed-week` | Relative | No | No | xs | Week view all-day |
+| Variant        | Layout   | Positioning | Resize Handle | Font Size | Use Case          |
+| -------------- | -------- | ----------- | ------------- | --------- | ----------------- |
+| `timed`        | Absolute | Yes         | Yes (3px)     | sm        | Day view timed    |
+| `untimed`      | Relative | No          | No            | sm        | Day view all-day  |
+| `timed-week`   | Absolute | Yes         | Yes (2px)     | xs        | Week view timed   |
+| `untimed-week` | Relative | No          | No            | xs        | Week view all-day |
 
 ### Updated Components
 
@@ -143,4 +144,3 @@ If you need to add new features to calendar tasks:
 ## Conclusion
 
 This refactoring significantly improves code maintainability while preserving all existing functionality. The unified component makes it easier to ensure consistent behavior across all calendar views and reduces the cognitive load when making changes.
-

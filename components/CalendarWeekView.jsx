@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Box, Flex } from "@chakra-ui/react";
+import { Box } from "@mui/material";
 import { useDispatch } from "react-redux";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate } from "@/lib/utils";
 import { HOUR_HEIGHT_WEEK, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { DayHeaderColumn } from "./DayHeaderColumn";
 import { TimedColumn } from "./TimedColumn";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
@@ -43,14 +42,6 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
   const tasks = taskFilters.tasks;
 
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
-  const { mode, calendar, dnd } = useSemanticColors();
-
-  const bgColor = mode.bg.surface;
-  const borderColor = mode.border.default;
-  const dropHighlight = dnd.dropTarget;
-  const hourTextColor = calendar.hourText;
-  const hourBorderColor = calendar.gridLine;
-  const hoverBg = mode.bg.surfaceHover;
 
   // Calculate week days - memoized to prevent recalculation on every render
   const weekDays = useMemo(() => {
@@ -126,6 +117,7 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
     },
     [tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]
   );
+
   const getUntimedTasksForDay = useCallback(
     day => {
       let untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, day));
@@ -151,7 +143,6 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
     return {
       top: `${(minutes / 60) * HOUR_HEIGHT}px`,
       height: `${isNoDuration ? 24 : Math.max((duration / 60) * HOUR_HEIGHT, 18)}px`,
-      // Don't set backgroundColor here - let Chakra UI bg prop handle it for proper theming
     };
   };
 
@@ -298,29 +289,45 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
   }, []);
 
   return (
-    <Flex direction="column" flex={1} minH={0} w="100%" maxW="100%" overflow="hidden">
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        flex: 1,
+        minHeight: 0,
+        width: "100%",
+        maxWidth: "100%",
+        overflow: "hidden",
+      }}
+    >
       {/* Week header - syncs horizontal scroll with main container */}
       <Box
         ref={headerRef}
-        w="100%"
-        maxW="100%"
-        overflowX="auto"
-        flexShrink={0}
-        sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}
-        style={{ pointerEvents: "none" }}
+        sx={{
+          width: "100%",
+          maxWidth: "100%",
+          overflowX: "auto",
+          flexShrink: 0,
+          "&::-webkit-scrollbar": { display: "none" },
+          scrollbarWidth: "none",
+          pointerEvents: "none",
+        }}
       >
-        <Flex
-          borderBottomWidth="1px"
-          borderColor={borderColor}
-          bg={bgColor}
-          position={{ base: "relative", md: "sticky" }}
-          top={{ base: "auto", md: 0 }}
-          minW="fit-content"
-          zIndex={{ base: "auto", md: 10 }}
-          style={{ pointerEvents: "auto" }}
+        <Box
+          sx={{
+            display: "flex",
+            borderBottom: 1,
+            borderColor: "divider",
+            bgcolor: "background.paper",
+            position: { xs: "relative", md: "sticky" },
+            top: { xs: "auto", md: 0 },
+            minWidth: "fit-content",
+            zIndex: { xs: "auto", md: 10 },
+            pointerEvents: "auto",
+          }}
         >
           {/* Spacer to match hour labels width */}
-          <Box w={12} flexShrink={0} borderRightWidth="1px" borderColor={borderColor} />
+          <Box sx={{ width: 48, flexShrink: 0, borderRight: 1, borderColor: "divider" }} />
 
           {weekDays.map((day, i) => {
             const untimedTasksForDay = getUntimedTasksForDay(day);
@@ -336,53 +343,58 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
                 onDayClick={handleDayClick}
                 createDroppableId={createDroppableId}
                 createDraggableId={createDraggableId}
-                borderColor={borderColor}
-                dropHighlight={dropHighlight}
-                hourTextColor={hourTextColor}
-                hoverBg={hoverBg}
+                borderColor="divider"
+                dropHighlight="action.hover"
+                hourTextColor="text.secondary"
+                hoverBg="action.hover"
               />
             );
           })}
-        </Flex>
+        </Box>
       </Box>
 
       {/* Time grid */}
       <Box
         ref={containerRef}
-        flex={1}
-        overflowY="auto"
-        w="100%"
-        maxW="100%"
-        overflowX="auto"
-        minW={0}
-        sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}
+        sx={{
+          flex: 1,
+          overflowY: "auto",
+          width: "100%",
+          maxWidth: "100%",
+          overflowX: "auto",
+          minWidth: 0,
+          "&::-webkit-scrollbar": { display: "none" },
+          scrollbarWidth: "none",
+        }}
       >
-        <Box position="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
+        <Box sx={{ position: "relative", height: `${24 * HOUR_HEIGHT}px` }}>
           {/* Hour labels */}
           {hours.map(hour => (
             <Box
               key={hour}
-              position="absolute"
-              w="full"
-              borderTopWidth="1px"
-              borderColor={hourBorderColor}
-              display="flex"
-              pointerEvents="none"
-              zIndex={1}
-              style={{
+              sx={{
+                position: "absolute",
+                width: "100%",
+                borderTop: 1,
+                borderColor: "divider",
+                display: "flex",
+                pointerEvents: "none",
+                zIndex: 1,
                 top: `${hour * HOUR_HEIGHT}px`,
                 height: `${HOUR_HEIGHT}px`,
               }}
             >
               <Box
-                w={12}
-                fontSize={{ base: "2xs", md: "xs" }}
-                color={hourTextColor}
-                pr={1}
-                textAlign="right"
-                pt={1}
-                borderRightWidth="1px"
-                borderColor={borderColor}
+                sx={{
+                  width: 48,
+                  fontSize: { xs: "0.6rem", md: "0.75rem" },
+                  color: "text.secondary",
+                  pr: 1,
+                  textAlign: "right",
+                  pt: 1,
+                  borderRight: 1,
+                  borderColor: "divider",
+                }}
               >
                 {hour === 0 ? "" : hour < 12 ? `${hour} am` : hour === 12 ? "12 pm" : `${hour - 12} pm`}
               </Box>
@@ -390,7 +402,17 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
           ))}
 
           {/* Day columns */}
-          <Flex position="absolute" left={12} right={0} top={0} bottom={0} minW="fit-content">
+          <Box
+            sx={{
+              position: "absolute",
+              left: 48,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              minWidth: "fit-content",
+              display: "flex",
+            }}
+          >
             {weekDays.map((day, i) => {
               const dayTasks = getTasksForDay(day);
               const isTodayColumn = i === todayIndex;
@@ -409,17 +431,19 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
                   getTaskStyle={getTaskStyle}
                   internalDrag={internalDrag}
                   handleInternalDragStart={handleInternalDragStart}
-                  borderColor={borderColor}
-                  dropHighlight={dropHighlight}
+                  borderColor="divider"
+                  dropHighlight="action.hover"
                   showStatusTasks={showStatusTasks}
                   hourHeight={HOUR_HEIGHT}
                   isToday={isTodayColumn}
                 />
               );
             })}
-          </Flex>
+          </Box>
         </Box>
       </Box>
-    </Flex>
+    </Box>
   );
 };
+
+export default CalendarWeekView;

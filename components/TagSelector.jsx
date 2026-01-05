@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Box, HStack, VStack, Menu, Button, Input, Text, IconButton, Wrap, WrapItem } from "@chakra-ui/react";
-import { Tag as TagIcon, Plus, Trash2 } from "lucide-react";
+import { Box, Stack, Menu, MenuItem, Button, TextField, Typography, IconButton } from "@mui/material";
+import { Label, Add, Delete } from "@mui/icons-material";
 import { TagChip } from "./TagChip";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useThemeColors } from "@/hooks/useThemeColors";
+import { useTheme } from "@mui/material/styles";
 
 export const TagSelector = ({
   tags = [],
@@ -18,16 +18,10 @@ export const TagSelector = ({
   const [newTagName, setNewTagName] = useState("");
   const [newTagColorIndex, setNewTagColorIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
-  const onOpen = () => setIsOpen(true);
-  const onClose = () => setIsOpen(false);
+  const [anchorEl, setAnchorEl] = useState(null);
   const inputRef = useRef(null);
-
-  const { mode, interactive } = useSemanticColors();
+  const muiTheme = useTheme();
   const { tagColors, canonicalColors } = useThemeColors();
-  const bgColor = mode.bg.surface;
-  const borderColor = mode.border.default;
-  const hoverBg = mode.bg.surfaceHover;
-  const mutedText = mode.text.secondary;
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -66,192 +60,247 @@ export const TagSelector = ({
     }
   };
 
+  const handleMenuOpen = event => {
+    setAnchorEl(event.currentTarget);
+    setIsOpen(true);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setIsOpen(false);
+  };
+
   // If inline mode, only show the menu button (tags are displayed elsewhere)
   if (inline) {
     return (
-      <Menu.Root open={isOpen} onOpenChange={({ open }) => (open ? onOpen() : onClose())} closeOnSelect={false}>
-        <Menu.Trigger asChild>
-          <Button size="xs" variant="ghost" onClick={onOpen}>
-            <TagIcon size={14} />
-            Add
-          </Button>
-        </Menu.Trigger>
-        <Menu.Positioner>
-          <Menu.Content bg={bgColor} borderColor={borderColor} minW="250px" maxH="350px" overflowY="auto">
+      <>
+        <Button size="small" variant="text" onClick={handleMenuOpen}>
+          <Label fontSize="small" />
+          Add
+        </Button>
+        <Menu anchorEl={anchorEl} open={isOpen} onClose={handleMenuClose}>
+          <Box sx={{ p: 2, minWidth: "250px", maxHeight: "350px", overflowY: "auto" }}>
             {/* Create new tag section */}
-            <Box px={3} py={2}>
-              <Text fontSize="xs" fontWeight="semibold" color={mutedText} mb={2}>
-                Create New Tag
-              </Text>
-              <VStack spacing={2} align="stretch">
-                <Input
-                  ref={inputRef}
-                  size="sm"
-                  placeholder="Tag name..."
-                  value={newTagName}
-                  onChange={e => setNewTagName(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                />
-                <HStack spacing={1} flexWrap="wrap">
-                  {tagColors.map((themeColor, index) => (
-                    <Button
-                      key={index}
-                      w={6}
-                      h={6}
-                      minW={6}
-                      borderRadius="full"
-                      bg={themeColor}
-                      onClick={() => setNewTagColorIndex(index)}
-                      borderWidth={newTagColorIndex === index ? "2px" : "0px"}
-                      borderColor="white"
-                      boxShadow={newTagColorIndex === index ? `0 0 0 2px ${interactive.primary}` : "none"}
-                      _hover={{ transform: "scale(1.1)" }}
-                    />
-                  ))}
-                </HStack>
-                <Button size="sm" colorPalette="blue" onClick={handleCreateTag} isDisabled={!newTagName.trim()}>
-                  <Plus size={16} />
-                  Create Tag
-                </Button>
-              </VStack>
-            </Box>
+            <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 2, display: "block" }}>
+              Create New Tag
+            </Typography>
+            <Stack spacing={2}>
+              <TextField
+                inputRef={inputRef}
+                size="small"
+                placeholder="Tag name..."
+                value={newTagName}
+                onChange={e => setNewTagName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                fullWidth
+              />
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                {tagColors.map((themeColor, index) => (
+                  <Button
+                    key={index}
+                    sx={{
+                      width: 24,
+                      height: 24,
+                      minWidth: 24,
+                      borderRadius: "50%",
+                      bgcolor: themeColor,
+                      border: newTagColorIndex === index ? `2px solid white` : "none",
+                      boxShadow: newTagColorIndex === index ? `0 0 0 2px ${muiTheme.palette.primary.main}` : "none",
+                      "&:hover": {
+                        transform: "scale(1.1)",
+                      },
+                      p: 0,
+                    }}
+                    onClick={() => setNewTagColorIndex(index)}
+                  />
+                ))}
+              </Stack>
+              <Button
+                size="small"
+                variant="contained"
+                color="primary"
+                onClick={handleCreateTag}
+                disabled={!newTagName.trim()}
+                startIcon={<Add fontSize="small" />}
+              >
+                Create Tag
+              </Button>
+            </Stack>
 
             {/* Available tags list */}
             {availableTags.length > 0 && (
               <>
-                <Box borderTopWidth="1px" borderColor={borderColor} my={2} />
-                <Text px={3} py={1} fontSize="xs" fontWeight="semibold" color={mutedText}>
+                <Box
+                  sx={{
+                    borderTop: "1px solid",
+                    borderColor: "divider",
+                    my: 2,
+                  }}
+                />
+                <Typography
+                  variant="caption"
+                  fontWeight={600}
+                  color="text.secondary"
+                  sx={{ px: 1, py: 0.5, display: "block" }}
+                >
                   Available Tags
-                </Text>
+                </Typography>
                 {availableTags.map(tag => (
-                  <Menu.Item key={tag.id} onClick={() => handleAddTag(tag.id)} _hover={{ bg: hoverBg }}>
-                    <HStack justify="space-between" w="full">
+                  <MenuItem
+                    key={tag.id}
+                    onClick={() => handleAddTag(tag.id)}
+                    sx={{
+                      "&:hover": {
+                        bgcolor: "action.hover",
+                      },
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: "100%" }}>
                       <TagChip tag={tag} size="xs" />
                       <IconButton
-                        size="xs"
-                        variant="ghost"
-                        colorPalette="red"
+                        size="small"
                         onClick={e => {
                           e.stopPropagation();
                           onDeleteTag(tag.id);
                         }}
                         aria-label="Delete tag"
+                        color="error"
                       >
-                        <Trash2 size={14} />
+                        <Delete fontSize="small" />
                       </IconButton>
-                    </HStack>
-                  </Menu.Item>
+                    </Stack>
+                  </MenuItem>
                 ))}
               </>
             )}
 
             {availableTags.length === 0 && tags.length > 0 && (
-              <Text px={3} py={2} fontSize="sm" color={mutedText}>
+              <Typography variant="body2" sx={{ px: 1, py: 2, color: "text.secondary" }}>
                 All tags assigned to this task
-              </Text>
+              </Typography>
             )}
-          </Menu.Content>
-        </Menu.Positioner>
-      </Menu.Root>
+          </Box>
+        </Menu>
+      </>
     );
   }
 
   return (
     <Box>
       {/* Selected tags */}
-      <Wrap spacing={2} mb={2}>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
         {selectedTags.map(tag => (
-          <WrapItem key={tag.id}>
-            <TagChip tag={tag} size="sm" showClose onClose={handleRemoveTag} />
-          </WrapItem>
+          <TagChip key={tag.id} tag={tag} size="sm" showClose onClose={handleRemoveTag} />
         ))}
-      </Wrap>
+      </Box>
 
       {/* Add tag button/menu */}
-      <Menu.Root open={isOpen} onOpenChange={({ open }) => (open ? onOpen() : onClose())} closeOnSelect={false}>
-        <Menu.Trigger asChild>
-          <Button size="sm" variant="outline" onClick={onOpen}>
-            <TagIcon size={16} />
-            Add Tag
-          </Button>
-        </Menu.Trigger>
-        <Menu.Positioner>
-          <Menu.Content bg={bgColor} borderColor={borderColor} minW="250px" maxH="350px" overflowY="auto">
-            {/* Create new tag section */}
-            <Box px={3} py={2}>
-              <Text fontSize="xs" fontWeight="semibold" color={mutedText} mb={2}>
-                Create New Tag
-              </Text>
-              <VStack spacing={2} align="stretch">
-                <Input
-                  ref={inputRef}
-                  size="sm"
-                  placeholder="Tag name..."
-                  value={newTagName}
-                  onChange={e => setNewTagName(e.target.value)}
-                  onKeyDown={handleKeyDown}
+      <Button size="small" variant="outlined" onClick={handleMenuOpen} startIcon={<Label fontSize="small" />}>
+        Add Tag
+      </Button>
+      <Menu anchorEl={anchorEl} open={isOpen} onClose={handleMenuClose}>
+        <Box sx={{ p: 2, minWidth: "250px", maxHeight: "350px", overflowY: "auto" }}>
+          {/* Create new tag section */}
+          <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 2, display: "block" }}>
+            Create New Tag
+          </Typography>
+          <Stack spacing={2}>
+            <TextField
+              inputRef={inputRef}
+              size="small"
+              placeholder="Tag name..."
+              value={newTagName}
+              onChange={e => setNewTagName(e.target.value)}
+              onKeyDown={handleKeyDown}
+              fullWidth
+            />
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              {tagColors.map((themeColor, index) => (
+                <Button
+                  key={index}
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    minWidth: 24,
+                    borderRadius: "50%",
+                    bgcolor: themeColor,
+                    border: newTagColorIndex === index ? `2px solid white` : "none",
+                    boxShadow: newTagColorIndex === index ? `0 0 0 2px ${muiTheme.palette.primary.main}` : "none",
+                    "&:hover": {
+                      transform: "scale(1.1)",
+                    },
+                    p: 0,
+                  }}
+                  onClick={() => setNewTagColorIndex(index)}
                 />
-                <HStack spacing={1} flexWrap="wrap">
-                  {tagColors.map((themeColor, index) => (
-                    <Button
-                      key={index}
-                      w={6}
-                      h={6}
-                      minW={6}
-                      borderRadius="full"
-                      bg={themeColor}
-                      onClick={() => setNewTagColorIndex(index)}
-                      borderWidth={newTagColorIndex === index ? "2px" : "0px"}
-                      borderColor="white"
-                      boxShadow={newTagColorIndex === index ? `0 0 0 2px ${interactive.primary}` : "none"}
-                      _hover={{ transform: "scale(1.1)" }}
-                    />
-                  ))}
-                </HStack>
-                <Button size="sm" colorPalette="blue" onClick={handleCreateTag} isDisabled={!newTagName.trim()}>
-                  <Plus size={16} />
-                  Create Tag
-                </Button>
-              </VStack>
-            </Box>
+              ))}
+            </Stack>
+            <Button
+              size="small"
+              variant="contained"
+              color="primary"
+              onClick={handleCreateTag}
+              disabled={!newTagName.trim()}
+              startIcon={<Add fontSize="small" />}
+            >
+              Create Tag
+            </Button>
+          </Stack>
 
-            {/* Available tags list */}
-            {availableTags.length > 0 && (
-              <>
-                <Box borderTopWidth="1px" borderColor={borderColor} my={2} />
-                <Text px={3} py={1} fontSize="xs" fontWeight="semibold" color={mutedText}>
-                  Available Tags
-                </Text>
-                {availableTags.map(tag => (
-                  <Menu.Item key={tag.id} onClick={() => handleAddTag(tag.id)} _hover={{ bg: hoverBg }}>
-                    <HStack justify="space-between" w="full">
-                      <TagChip tag={tag} size="xs" />
-                      <IconButton
-                        size="xs"
-                        variant="ghost"
-                        colorPalette="red"
-                        onClick={e => {
-                          e.stopPropagation();
-                          onDeleteTag(tag.id);
-                        }}
-                        aria-label="Delete tag"
-                      >
-                        <Trash2 size={14} />
-                      </IconButton>
-                    </HStack>
-                  </Menu.Item>
-                ))}
-              </>
-            )}
+          {/* Available tags list */}
+          {availableTags.length > 0 && (
+            <>
+              <Box
+                sx={{
+                  borderTop: "1px solid",
+                  borderColor: "divider",
+                  my: 2,
+                }}
+              />
+              <Typography
+                variant="caption"
+                fontWeight={600}
+                color="text.secondary"
+                sx={{ px: 1, py: 0.5, display: "block" }}
+              >
+                Available Tags
+              </Typography>
+              {availableTags.map(tag => (
+                <MenuItem
+                  key={tag.id}
+                  onClick={() => handleAddTag(tag.id)}
+                  sx={{
+                    "&:hover": {
+                      bgcolor: "action.hover",
+                    },
+                  }}
+                >
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: "100%" }}>
+                    <TagChip tag={tag} size="xs" />
+                    <IconButton
+                      size="small"
+                      onClick={e => {
+                        e.stopPropagation();
+                        onDeleteTag(tag.id);
+                      }}
+                      aria-label="Delete tag"
+                      color="error"
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                </MenuItem>
+              ))}
+            </>
+          )}
 
-            {availableTags.length === 0 && tags.length > 0 && (
-              <Text px={3} py={2} fontSize="sm" color={mutedText}>
-                All tags assigned to this task
-              </Text>
-            )}
-          </Menu.Content>
-        </Menu.Positioner>
-      </Menu.Root>
+          {availableTags.length === 0 && tags.length > 0 && (
+            <Typography variant="body2" sx={{ px: 1, py: 2, color: "text.secondary" }}>
+              All tags assigned to this task
+            </Typography>
+          )}
+        </Box>
+      </Menu>
     </Box>
   );
 };

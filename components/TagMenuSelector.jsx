@@ -1,36 +1,58 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Box, HStack, VStack, Menu, Button, Input, Text, Checkbox, Portal } from "@chakra-ui/react";
-import { Tag as TagIcon, Plus, Search } from "lucide-react";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
+import {
+  Box,
+  Stack,
+  Menu,
+  MenuItem,
+  Button,
+  TextField,
+  Typography,
+  Checkbox,
+  ListItemIcon,
+  ListItemText,
+} from "@mui/material";
+import { Label, Add, Search } from "@mui/icons-material";
 import { useThemeColors } from "@/hooks/useThemeColors";
+import { useTheme } from "@mui/material/styles";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { TagChip } from "./TagChip";
 
-export const TagMenuSelector = ({ task }) => {
+export const TagMenuSelector = ({
+  task,
+  anchorEl: externalAnchorEl,
+  open: externalOpen,
+  onClose: externalOnClose,
+  tags: externalTags,
+  selectedTagIds: externalSelectedTagIds,
+  onTagsChange: externalOnTagsChange,
+}) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
+  const [internalAnchorEl, setInternalAnchorEl] = useState(null);
   const searchInputRef = useRef(null);
+  const theme = useTheme();
 
   // Use hooks directly (they use Redux internally)
-  const { data: tags = [] } = useGetTagsQuery();
+  const { data: tagsFromQuery = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
   const taskOps = useTaskOperations();
 
+  // Use external props if provided, otherwise use internal state
+  const tags = externalTags || tagsFromQuery;
+  const isControlled = externalAnchorEl !== undefined;
+  const anchorEl = isControlled ? externalAnchorEl : internalAnchorEl;
+  const isOpen = isControlled ? externalOpen : Boolean(anchorEl);
+
   // Local state for selected tags (optimistic updates)
-  const initialTagIds = task.tags?.map(t => t.id) || [];
+  const initialTagIds = task?.tags?.map(t => t.id) || externalSelectedTagIds || [];
   const [selectedTagIds, setSelectedTagIds] = useState(initialTagIds);
   const [hasChanges, setHasChanges] = useState(false);
 
-  const { mode, interactive } = useSemanticColors();
   const { tagColors, canonicalColors } = useThemeColors();
-  const bgColor = mode.bg.surface;
-  const borderColor = mode.border.default;
-  const hoverBg = mode.bg.surfaceHover;
-  const mutedText = mode.text.secondary;
 
   // Get current task's tag IDs
   const currentTagIds = selectedTagIds;
@@ -73,166 +95,191 @@ export const TagMenuSelector = ({ task }) => {
     }
   };
 
-  // Save changes when menu closes
-  const handleOpenChange = ({ open }) => {
-    if (!open && hasChanges) {
-      // Menu is closing and we have changes - save them
-      taskOps.handleTaskTagsChange(task.id, selectedTagIds);
-      setHasChanges(false);
-    } else if (!open && !hasChanges) {
-      // Menu is closing without changes - reset to initial state
-      setSelectedTagIds(initialTagIds);
+  const handleMenuOpen = event => {
+    if (!isControlled) {
+      setInternalAnchorEl(event.currentTarget);
     }
   };
 
-  return (
-    <Menu.Root closeOnSelect={false} onOpenChange={handleOpenChange}>
-      <Menu.TriggerItem>
-        <HStack gap={2}>
-          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
-            <TagIcon size={14} />
+  const handleMenuClose = () => {
+    if (hasChanges) {
+      // Menu is closing and we have changes - save them
+      if (task) {
+        taskOps.handleTaskTagsChange(task.id, selectedTagIds);
+      } else if (externalOnTagsChange) {
+        externalOnTagsChange(selectedTagIds);
+      }
+      setHasChanges(false);
+    } else {
+      // Menu is closing without changes - reset to initial state
+      setSelectedTagIds(initialTagIds);
+    }
+    if (!isControlled) {
+      setInternalAnchorEl(null);
+    }
+    if (externalOnClose) {
+      externalOnClose();
+    }
+    setSearchQuery("");
+    setShowColorPicker(false);
+  };
+
+  const menuContent = (
+    <Menu
+      anchorEl={anchorEl}
+      open={isOpen}
+      onClose={handleMenuClose}
+      onClick={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
+      PaperProps={{
+        sx: {
+          minWidth: "280px",
+          maxHeight: "400px",
+          overflowY: "auto",
+        },
+      }}
+    >
+      {/* Search bar */}
+      <Box sx={{ px: 3, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Box sx={{ color: "text.secondary", display: "flex", alignItems: "center" }}>
+            <Search fontSize="small" />
           </Box>
-          <Text>Tags</Text>
-        </HStack>
-      </Menu.TriggerItem>
-      <Portal>
-        <Menu.Positioner>
-          <Menu.Content
-            bg={bgColor}
-            borderColor={borderColor}
-            minW="280px"
-            maxH="400px"
-            overflowY="auto"
+          <TextField
+            inputRef={searchInputRef}
+            size="small"
+            placeholder="Search tags..."
+            value={searchQuery}
+            onChange={e => {
+              setSearchQuery(e.target.value);
+              setShowColorPicker(false); // Hide color picker when typing
+            }}
+            variant="standard"
+            autoFocus
             onClick={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
-          >
-            {/* Search bar */}
-            <Box px={3} py={2} borderBottomWidth="1px" borderColor={borderColor}>
-              <HStack spacing={2}>
-                <Box as="span" color={mutedText}>
-                  <Search size={14} />
-                </Box>
-                <Input
-                  ref={searchInputRef}
-                  size="sm"
-                  placeholder="Search tags..."
-                  value={searchQuery}
-                  onChange={e => {
-                    setSearchQuery(e.target.value);
-                    setShowColorPicker(false); // Hide color picker when typing
-                  }}
-                  variant="unstyled"
-                  autoFocus
-                  onClick={e => e.stopPropagation()}
-                  onMouseDown={e => e.stopPropagation()}
-                  bg="transparent"
-                  _hover={{
-                    bg: "transparent",
-                  }}
-                  _focus={{
-                    outline: "none",
-                    bg: "transparent",
-                    boxShadow: "none",
-                  }}
-                  _focusVisible={{
-                    outline: "none",
-                    bg: "transparent",
-                    boxShadow: "none",
-                  }}
-                />
-              </HStack>
-            </Box>
+            sx={{
+              flex: 1,
+              "& .MuiInput-underline:before": {
+                borderBottom: "none",
+              },
+              "& .MuiInput-underline:hover:before": {
+                borderBottom: "none",
+              },
+              "& .MuiInput-underline:after": {
+                borderBottom: "none",
+              },
+            }}
+          />
+        </Stack>
+      </Box>
 
-            {/* Add New button (shown when search doesn't match existing tags) */}
-            {showAddNew && !showColorPicker && (
-              <Box px={3} py={2} borderBottomWidth="1px" borderColor={borderColor}>
+      {/* Add New button (shown when search doesn't match existing tags) */}
+      {showAddNew && !showColorPicker && (
+        <Box sx={{ px: 3, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+          <Button
+            size="small"
+            variant="outlined"
+            fullWidth
+            onClick={e => {
+              e.stopPropagation();
+              setShowColorPicker(true);
+            }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <Add fontSize="small" />
+            <Typography ml={1}>Add &quot;{searchQuery}&quot;</Typography>
+          </Button>
+        </Box>
+      )}
+
+      {/* Color picker (shown after clicking Add New) */}
+      {showAddNew && showColorPicker && (
+        <Box sx={{ px: 3, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+          <Stack spacing={2}>
+            <Typography variant="caption" fontWeight={600} color="text.secondary">
+              Choose a color:
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="center">
+              {tagColors.map((themeColor, index) => (
                 <Button
-                  size="sm"
-                  variant="outline"
-                  colorPalette="blue"
-                  w="full"
+                  key={index}
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    minWidth: 32,
+                    borderRadius: 1,
+                    bgcolor: themeColor,
+                    border: selectedColorIndex === index ? `2px solid white` : "0px",
+                    boxShadow: selectedColorIndex === index ? `0 0 0 2px ${theme.palette.primary.main}` : "none",
+                    "&:hover": {
+                      transform: "scale(1.1)",
+                    },
+                    transition: "transform 0.1s",
+                  }}
                   onClick={e => {
                     e.stopPropagation();
-                    setShowColorPicker(true);
+                    handleCreateAndAssign(index);
                   }}
                   onMouseDown={e => e.stopPropagation()}
-                >
-                  <Plus size={14} />
-                  <Text ml={1}>Add &quot;{searchQuery}&quot;</Text>
-                </Button>
-              </Box>
-            )}
+                />
+              ))}
+            </Stack>
+          </Stack>
+        </Box>
+      )}
 
-            {/* Color picker (shown after clicking Add New) */}
-            {showAddNew && showColorPicker && (
-              <Box px={3} py={2} borderBottomWidth="1px" borderColor={borderColor}>
-                <VStack spacing={2} align="stretch">
-                  <Text fontSize="xs" fontWeight="semibold" color={mutedText}>
-                    Choose a color:
-                  </Text>
-                  <HStack spacing={1} flexWrap="wrap" justify="center">
-                    {tagColors.map((themeColor, index) => (
-                      <Button
-                        key={index}
-                        w={8}
-                        h={8}
-                        minW={8}
-                        borderRadius="md"
-                        bg={themeColor}
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleCreateAndAssign(index);
-                        }}
-                        onMouseDown={e => e.stopPropagation()}
-                        borderWidth={selectedColorIndex === index ? "2px" : "0px"}
-                        borderColor="white"
-                        boxShadow={selectedColorIndex === index ? `0 0 0 2px ${interactive.primary}` : "none"}
-                        _hover={{ transform: "scale(1.1)" }}
-                        transition="transform 0.1s"
-                      />
-                    ))}
-                  </HStack>
-                </VStack>
-              </Box>
-            )}
-
-            {/* Tags list with checkboxes */}
-            {filteredTags.length > 0 ? (
-              <Box py={1}>
-                {filteredTags.map(tag => (
-                  <Menu.Item
-                    key={tag.id}
-                    onClick={e => {
-                      e.stopPropagation();
-                      handleToggleTag(tag.id);
-                    }}
-                    onMouseDown={e => e.stopPropagation()}
-                    _hover={{ bg: hoverBg }}
-                    cursor="pointer"
-                  >
-                    <HStack justify="space-between" w="full" spacing={3}>
-                      <HStack spacing={2} flex={1} minW={0}>
-                        <Checkbox.Root checked={currentTagIds.includes(tag.id)} size="sm" pointerEvents="none">
-                          <Checkbox.HiddenInput />
-                          <Checkbox.Control />
-                          <Checkbox.Indicator />
-                        </Checkbox.Root>
-                        <TagChip tag={tag} size="xs" />
-                      </HStack>
-                    </HStack>
-                  </Menu.Item>
-                ))}
-              </Box>
-            ) : !showAddNew ? (
-              <Box px={3} py={4}>
-                <Text fontSize="sm" color={mutedText} textAlign="center">
-                  No tags found
-                </Text>
-              </Box>
-            ) : null}
-          </Menu.Content>
-        </Menu.Positioner>
-      </Portal>
-    </Menu.Root>
+      {/* Tags list with checkboxes */}
+      {filteredTags.length > 0 ? (
+        <Box sx={{ py: 1 }}>
+          {filteredTags.map(tag => (
+            <MenuItem
+              key={tag.id}
+              onClick={e => {
+                e.stopPropagation();
+                handleToggleTag(tag.id);
+              }}
+              onMouseDown={e => e.stopPropagation()}
+              sx={{
+                "&:hover": {
+                  bgcolor: "action.hover",
+                },
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: "100%" }}>
+                <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
+                  <Checkbox checked={currentTagIds.includes(tag.id)} size="small" sx={{ pointerEvents: "none" }} />
+                  <TagChip tag={tag} size="xs" />
+                </Stack>
+              </Stack>
+            </MenuItem>
+          ))}
+        </Box>
+      ) : !showAddNew ? (
+        <Box sx={{ px: 3, py: 4 }}>
+          <Typography variant="body2" color="text.secondary" textAlign="center">
+            No tags found
+          </Typography>
+        </Box>
+      ) : null}
+    </Menu>
   );
+
+  // If used as MenuItem (in TaskContextMenu), render MenuItem + Menu
+  if (task && !isControlled) {
+    return (
+      <>
+        <MenuItem onClick={handleMenuOpen}>
+          <ListItemIcon>
+            <Label fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Tags</ListItemText>
+        </MenuItem>
+        {menuContent}
+      </>
+    );
+  }
+
+  // If used with external anchorEl (in RecurringTableView), just render Menu
+  return menuContent;
 };

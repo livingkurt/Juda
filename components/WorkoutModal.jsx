@@ -1,102 +1,164 @@
 "use client";
 
-import { Box, Button, Flex, Text, VStack, HStack, Badge, Progress, Dialog } from "@chakra-ui/react";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Box,
+  Stack,
+  Typography,
+  Button,
+  IconButton,
+  Tabs,
+  Tab,
+  LinearProgress,
+  Divider,
+  CircularProgress,
+} from "@mui/material";
+import { Close, FitnessCenter, Check, ChevronLeft, ChevronRight } from "@mui/icons-material";
 import WorkoutDaySection from "./WorkoutDaySection";
 import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
 import { useAuthFetch } from "@/hooks/useAuthFetch";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 /**
  * WorkoutModal - Main modal for executing workouts
- * Displays exercises organized by section (warmup/workout/cooldown) and day
- * Tracks completion per set with auto-save
  */
 export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, currentDate = new Date() }) {
-  const { mode } = useSemanticColors();
-  const { data: workoutProgram } = useGetWorkoutProgramQuery(task?.id, {
+  const { data: workoutProgram, isLoading: programLoading } = useGetWorkoutProgramQuery(task?.id, {
     skip: !task?.id,
   });
   const authFetch = useAuthFetch();
+
   const [completionData, setCompletionData] = useState({});
+  const [activeTab, setActiveTab] = useState(0); // 0: Warmup, 1: Workout, 2: Cool Down
   const [isSaving, setIsSaving] = useState(false);
-  const [hasAutoCompleted, setHasAutoCompleted] = useState(false);
-  const [workoutData, setWorkoutData] = useState(null);
   const [isLoadingCompletions, setIsLoadingCompletions] = useState(false);
 
-  // Use refs to prevent save loops
   const pendingSaveRef = useRef(false);
   const saveTimeoutRef = useRef(null);
-  const authFetchRef = useRef(authFetch);
-  authFetchRef.current = authFetch;
 
-  // Calculate total weeks from task recurrence dates
+  // Calculate total weeks from task recurrence
   const totalWeeks = useMemo(() => {
     if (!task?.recurrence?.startDate || !task?.recurrence?.endDate) return 1;
-
     const startDate = new Date(task.recurrence.startDate);
     const endDate = new Date(task.recurrence.endDate);
     const daysDiff = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
-    const weeks = Math.ceil(daysDiff / 7);
-
-    return Math.max(1, weeks);
+    return Math.max(1, Math.ceil(daysDiff / 7));
   }, [task?.recurrence]);
 
-  // Determine current week based on task start date
+  // Calculate current week
   const currentWeek = useMemo(() => {
     if (!task?.recurrence?.startDate) return 1;
-
     const startDate = new Date(task.recurrence.startDate);
     const daysDiff = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24));
     const weekNumber = Math.floor(daysDiff / 7) + 1;
-
     return Math.min(Math.max(1, weekNumber), totalWeeks);
   }, [task?.recurrence, currentDate, totalWeeks]);
 
-  // Determine current day of week
+  // Get current day of week (0-6)
   const currentDayOfWeek = currentDate.getDay();
 
-  // Load workout program from Redux query
-  useEffect(() => {
-    if (isOpen && workoutProgram) {
-      setWorkoutData(workoutProgram);
-    } else if (!isOpen) {
-      setWorkoutData(null);
-    }
-  }, [isOpen, workoutProgram]);
+  // Get sections from workout program, organized by type
+  const sections = useMemo(() => workoutProgram?.sections || [], [workoutProgram?.sections]);
 
-  // Load set completions from database when modal opens
-  useEffect(() => {
-    if (!isOpen || !task?.id) {
-      // Clear state when modal closes
-      setCompletionData({});
-      setHasAutoCompleted(false);
-      pendingSaveRef.current = false;
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-      return;
+  // Organize sections by type (warmup, workout, cooldown)
+  const sectionsByType = useMemo(() => {
+    const organized = {
+      warmup: sections.find(s => s.type === "warmup"),
+      workout: sections.find(s => s.type === "workout"),
+      cooldown: sections.find(s => s.type === "cooldown"),
+    };
+    return organized;
+  }, [sections]);
+
+  // Get current day for active section type
+  const getCurrentDayForSection = useCallback(
+    sectionType => {
+      const section = sectionsByType[sectionType];
+      if (!section?.days) return null;
+
+      // Find day matching current day of week
+      const matchingDay = section.days.find(
+        day => day.dayOfWeek === currentDayOfWeek || day.daysOfWeek?.includes(currentDayOfWeek)
+      );
+
+      // If no match, return first day (fallback)
+      return matchingDay || section.days[0] || null;
+    },
+    [sectionsByType, currentDayOfWeek]
+  );
+
+  // Helper function to check if a set is complete
+  const isSetComplete = (setData, exerciseType) => {
+    if (setData?.outcome === "completed") return true;
+    if (exerciseType === "distance") {
+      return Boolean(setData?.time && setData?.distance && setData?.pace);
     }
+    return Boolean(setData?.completed);
+  };
+
+  // Helper function to process exercises for a day
+  const processDayExercises = useCallback(
+    (exercises, sectionId, dayId) => {
+      let dayTotal = 0;
+      let dayCompleted = 0;
+      exercises.forEach(exercise => {
+        dayTotal += exercise.sets;
+        const exerciseData = completionData[sectionId]?.days?.[dayId]?.exercises?.[exercise.id];
+        if (exerciseData?.sets) {
+          const completedCount = exerciseData.sets.filter(setData => isSetComplete(setData, exercise.type)).length;
+          dayCompleted += completedCount;
+        }
+      });
+      return { total: dayTotal, completed: dayCompleted };
+    },
+    [completionData]
+  );
+
+  // Calculate overall progress across all sections
+  const overallProgress = useMemo(() => {
+    let total = 0;
+    let completed = 0;
+
+    sections.forEach(section => {
+      section.days?.forEach(day => {
+        const result = processDayExercises(day.exercises || [], section.id, day.id);
+        total += result.total;
+        completed += result.completed;
+      });
+    });
+
+    return total > 0 ? Math.round((completed / total) * 100) : 0;
+  }, [sections, processDayExercises]);
+
+  // Reset active tab when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(0); // Start with Warmup tab
+    }
+  }, [isOpen]);
+
+  // Load existing completion data
+  useEffect(() => {
+    if (!isOpen || !task?.id) return;
 
     const loadCompletions = async () => {
       setIsLoadingCompletions(true);
-      pendingSaveRef.current = false; // Don't save data we just loaded
       try {
-        const dateKey = currentDate.toISOString().split("T")[0]; // YYYY-MM-DD
-        const response = await authFetchRef.current(`/api/workout-set-completions?taskId=${task.id}&date=${dateKey}`);
-
-        if (response.ok) {
-          const data = await response.json();
+        const dateStr = currentDate.toISOString().split("T")[0];
+        const res = await authFetch(`/api/workout-set-completions?taskId=${task.id}&date=${dateStr}`);
+        if (res.ok) {
+          const data = await res.json();
           // Transform API response into completionData structure
           const transformed = {};
 
-          const transformCompletion = completion => {
-            if (!workoutData) return;
-
-            for (const section of workoutData.sections) {
-              for (const day of section.days) {
-                const exercise = day.exercises.find(ex => ex.id === completion.exerciseId);
+          data.completions?.forEach(completion => {
+            // Find the exercise in the workout program
+            for (const section of sections) {
+              for (const day of section.days || []) {
+                const exercise = day.exercises?.find(ex => ex.id === completion.exerciseId);
                 if (exercise) {
                   if (!transformed[section.id]) transformed[section.id] = { days: {} };
                   if (!transformed[section.id].days[day.id]) {
@@ -106,70 +168,76 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
                     transformed[section.id].days[day.id].exercises[exercise.id] = { sets: [] };
                   }
 
-                  transformed[section.id].days[day.id].exercises[exercise.id].sets.push({
+                  const sets = transformed[section.id].days[day.id].exercises[exercise.id].sets;
+                  const existingIndex = sets.findIndex(s => s.setNumber === completion.setNumber);
+                  const setData = {
                     setNumber: completion.setNumber,
                     outcome: completion.outcome,
-                    completed: completion.completed, // Keep for backward compatibility
+                    completed: completion.completed,
                     actualValue: completion.actualValue,
-                    value: completion.value, // Keep for backward compatibility
                     time: completion.time,
                     distance: completion.distance,
                     pace: completion.pace,
-                  });
+                  };
+
+                  if (existingIndex >= 0) {
+                    sets[existingIndex] = setData;
+                  } else {
+                    sets.push(setData);
+                  }
                   return; // Found the exercise, no need to continue
                 }
               }
             }
-          };
+          });
 
-          data.completions.forEach(transformCompletion);
           setCompletionData(transformed);
         }
       } catch (err) {
-        console.error("Failed to load workout completions:", err);
+        console.error("Failed to load completions:", err);
       } finally {
         setIsLoadingCompletions(false);
       }
     };
 
-    if (workoutData) {
+    if (sections.length > 0) {
       loadCompletions();
     }
-  }, [isOpen, task?.id, currentDate, workoutData, authFetch]);
+  }, [isOpen, task?.id, currentDate, authFetch, sections]);
 
-  // Save function using refs to avoid dependency issues
+  // Auto-save completion data
   const saveCompletions = useCallback(
-    async dataToSave => {
-      if (!task?.id) return;
+    async data => {
+      if (!task?.id || pendingSaveRef.current) return;
 
+      pendingSaveRef.current = true;
       setIsSaving(true);
-      try {
-        const dateKey = currentDate.toISOString().split("T")[0];
-        const savePromises = [];
 
-        const createSavePromise = (exerciseId, setData) => {
-          return authFetchRef.current("/api/workout-set-completions", {
-            method: "POST",
-            body: JSON.stringify({
-              taskId: task.id,
-              date: dateKey,
-              exerciseId,
-              setNumber: setData.setNumber,
-              outcome: setData.outcome,
-              completed: setData.completed, // Keep for backward compatibility
-              actualValue: setData.actualValue,
-              value: setData.value, // Keep for backward compatibility
-              time: setData.time,
-              distance: setData.distance,
-              pace: setData.pace,
-            }),
-          });
-        };
+      try {
+        const dateStr = currentDate.toISOString().split("T")[0];
+        const savePromises = [];
 
         const processExerciseSets = (exerciseId, exerciseData) => {
           if (!exerciseData?.sets) return;
           exerciseData.sets.forEach(setData => {
-            savePromises.push(createSavePromise(exerciseId, setData));
+            savePromises.push(
+              authFetch("/api/workout-set-completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  taskId: task.id,
+                  date: dateStr,
+                  exerciseId,
+                  setNumber: setData.setNumber,
+                  outcome: setData.outcome,
+                  completed: setData.completed,
+                  actualValue: setData.actualValue,
+                  time: setData.time,
+                  distance: setData.distance,
+                  pace: setData.pace,
+                }),
+              })
+            );
           });
         };
 
@@ -187,256 +255,244 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
           });
         };
 
-        Object.values(dataToSave).forEach(sectionData => {
+        Object.values(data).forEach(sectionData => {
           processSectionDays(sectionData);
         });
 
         await Promise.all(savePromises);
       } catch (err) {
-        console.error("Failed to save workout progress:", err);
+        console.error("Failed to save completions:", err);
       } finally {
         setIsSaving(false);
         pendingSaveRef.current = false;
       }
     },
-    [task?.id, currentDate]
+    [task?.id, currentDate, authFetch]
   );
 
-  // Trigger save when pendingSaveRef is set (called from handleSetToggle)
-  useEffect(() => {
-    // Only save if we have a pending save and not currently loading/saving
-    if (!pendingSaveRef.current || isLoadingCompletions || isSaving) {
-      return;
-    }
+  // Debounced save
+  const debouncedSave = useCallback(
+    data => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(() => saveCompletions(data), 1000);
+    },
+    [saveCompletions]
+  );
 
-    // Clear any existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // Debounce save by 500ms
-    saveTimeoutRef.current = setTimeout(() => {
-      if (pendingSaveRef.current && Object.keys(completionData).length > 0) {
-        saveCompletions(completionData);
-      }
-    }, 500);
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [completionData, isLoadingCompletions, isSaving, saveCompletions]);
-
-  const handleSetToggle = (sectionId, dayId, exerciseId, setNumber, setData) => {
-    // Mark that we need to save after this update
-    pendingSaveRef.current = true;
-
+  // Handle set toggle with outcome
+  const handleSetToggle = (sectionId, dayId, exerciseId, setNumber, outcome) => {
     setCompletionData(prev => {
       const newData = { ...prev };
 
-      if (!newData[sectionId]) {
-        newData[sectionId] = { days: {} };
-      }
-      if (!newData[sectionId].days[dayId]) {
-        newData[sectionId].days[dayId] = { exercises: {} };
-      }
+      if (!newData[sectionId]) newData[sectionId] = { days: {} };
+      if (!newData[sectionId].days[dayId]) newData[sectionId].days[dayId] = { exercises: {} };
       if (!newData[sectionId].days[dayId].exercises[exerciseId]) {
         newData[sectionId].days[dayId].exercises[exerciseId] = { sets: [] };
       }
 
-      const sets = newData[sectionId].days[dayId].exercises[exerciseId].sets;
+      const sets = [...(newData[sectionId].days[dayId].exercises[exerciseId].sets || [])];
       const existingIndex = sets.findIndex(s => s.setNumber === setNumber);
 
+      const setData = {
+        setNumber,
+        outcome,
+        completed: outcome === "completed",
+      };
+
       if (existingIndex >= 0) {
-        sets[existingIndex] = setData;
+        sets[existingIndex] = { ...sets[existingIndex], ...setData };
+      } else {
+        sets.push(setData);
+      }
+      newData[sectionId].days[dayId].exercises[exerciseId].sets = sets;
+
+      debouncedSave(newData);
+      return newData;
+    });
+  };
+
+  // Handle actual value change (for distance exercises)
+  const handleActualValueChange = (sectionId, dayId, exerciseId, setNumber, field, value) => {
+    setCompletionData(prev => {
+      const newData = { ...prev };
+
+      if (!newData[sectionId]) newData[sectionId] = { days: {} };
+      if (!newData[sectionId].days[dayId]) newData[sectionId].days[dayId] = { exercises: {} };
+      if (!newData[sectionId].days[dayId].exercises[exerciseId]) {
+        newData[sectionId].days[dayId].exercises[exerciseId] = { sets: [] };
+      }
+
+      const sets = [...(newData[sectionId].days[dayId].exercises[exerciseId].sets || [])];
+      const existingIndex = sets.findIndex(s => s.setNumber === setNumber);
+
+      const setData = {
+        setNumber,
+        [field]: value,
+      };
+
+      if (existingIndex >= 0) {
+        sets[existingIndex] = { ...sets[existingIndex], ...setData };
       } else {
         sets.push(setData);
       }
 
+      // Check if all fields are filled for distance exercise
+      const updatedSetData = sets[existingIndex >= 0 ? existingIndex : sets.length - 1];
+      if (updatedSetData.time && updatedSetData.distance && updatedSetData.pace) {
+        updatedSetData.outcome = "completed";
+        updatedSetData.completed = true;
+      }
+
+      newData[sectionId].days[dayId].exercises[exerciseId].sets = sets;
+
+      debouncedSave(newData);
       return newData;
     });
   };
 
-  const handleActualValueChange = (sectionId, dayId, exerciseId, actualValue) => {
-    // Mark that we need to save after this update
-    pendingSaveRef.current = true;
-
-    setCompletionData(prev => {
-      const newData = { ...prev };
-
-      if (!newData[sectionId]) {
-        newData[sectionId] = { days: {} };
-      }
-      if (!newData[sectionId].days[dayId]) {
-        newData[sectionId].days[dayId] = { exercises: {} };
-      }
-      if (!newData[sectionId].days[dayId].exercises[exerciseId]) {
-        newData[sectionId].days[dayId].exercises[exerciseId] = { sets: [] };
-      }
-
-      newData[sectionId].days[dayId].exercises[exerciseId].actualValue = actualValue;
-
-      return newData;
-    });
+  // Handle complete workout
+  const handleComplete = () => {
+    const dateStr = currentDate.toISOString().split("T")[0];
+    onCompleteTask?.(task.id, dateStr);
+    onClose();
   };
 
-  // Helper to check if a set is complete based on outcome
-  const isSetComplete = (setData, exerciseType) => {
-    // Use outcome field if available (new system)
-    if (setData.outcome !== undefined) {
-      return setData.outcome === "completed";
-    }
-
-    // Fallback to old system for backward compatibility
-    if (exerciseType === "distance") {
-      // For distance exercises, all three fields must be filled
-      return Boolean(setData.time && setData.distance && setData.pace);
-    }
-    // For reps/time exercises, check the completed flag
-    return Boolean(setData.completed);
-  };
-
-  // Helper to check if a day matches the current day of week
-  const isDayForCurrentDayOfWeek = day => {
-    // Support both old dayOfWeek (single) and new daysOfWeek (array)
-    if (day.daysOfWeek) {
-      return day.daysOfWeek.includes(currentDayOfWeek);
-    }
-    if (day.dayOfWeek !== undefined) {
-      return day.dayOfWeek === currentDayOfWeek;
-    }
-    return false;
-  };
-
-  // Calculate progress for all sections on the current day
-  const calculateProgress = () => {
-    if (!workoutData) return { completed: 0, total: 0 };
-
-    let totalSets = 0;
-    let completedSets = 0;
-
-    // Count exercises from all sections for the current day
-    workoutData.sections.forEach(section => {
-      const dayInSection = section.days.find(d => isDayForCurrentDayOfWeek(d)) || section.days[0];
-      if (!dayInSection) return;
-
-      dayInSection.exercises.forEach(exercise => {
-        totalSets += exercise.sets;
-
-        const sectionData = completionData[section.id];
-        const dayData = sectionData?.days?.[dayInSection.id];
-        const exerciseData = dayData?.exercises?.[exercise.id];
-
-        if (exerciseData?.sets) {
-          completedSets += exerciseData.sets.filter(s => isSetComplete(s, exercise.type)).length;
-        }
-      });
-    });
-
-    return { completed: completedSets, total: totalSets };
-  };
-
-  const progress = calculateProgress();
-  const progressPercent = progress.total > 0 ? (progress.completed / progress.total) * 100 : 0;
-
-  // Auto-complete task when all exercises are done
-  useEffect(() => {
-    if (progress.total > 0 && progress.completed === progress.total && !hasAutoCompleted && onCompleteTask) {
-      setHasAutoCompleted(true);
-      onCompleteTask(task.id, currentDate);
-    }
-  }, [progress.completed, progress.total, hasAutoCompleted, onCompleteTask, task?.id, currentDate]);
-
-  const bgColor = mode.bg.surface;
-
-  if (!workoutData) {
-    return null;
-  }
+  if (!task) return null;
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={e => !e.open && onClose()} size="xl" closeOnInteractOutside closeOnEscape>
-      <Dialog.Backdrop bg="blackAlpha.600" onClick={onClose} />
-      <Dialog.Positioner>
-        <Dialog.Content maxW="900px" maxH="90vh" overflowY="auto" bg={bgColor}>
-          <Dialog.Header>
-            <Dialog.Title>
-              <Flex justify="space-between" align="center" w="full">
-                <VStack align="flex-start" gap={1}>
-                  <Text fontSize="xl" fontWeight="bold">
-                    {task?.title}
-                  </Text>
-                  <HStack>
-                    <Badge colorPalette="blue" size="sm">
-                      Week {currentWeek} of {totalWeeks}
-                    </Badge>
-                    {isSaving && (
-                      <Badge colorPalette="green" size="sm">
-                        Saving...
-                      </Badge>
-                    )}
-                  </HStack>
-                </VStack>
-              </Flex>
-            </Dialog.Title>
-            <Dialog.CloseTrigger />
-          </Dialog.Header>
+    <Dialog
+      open={isOpen}
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{ sx: { height: "90vh", maxHeight: "90vh" } }}
+    >
+      <DialogTitle>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <FitnessCenter fontSize="large" />
+          <Box flex={1}>
+            <Typography variant="h6">{task.title}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Week {currentWeek} of {totalWeeks}
+            </Typography>
+          </Box>
+          {isSaving && <CircularProgress size={20} />}
+          <IconButton onClick={onClose} edge="end">
+            <Close />
+          </IconButton>
+        </Stack>
 
-          <Dialog.Body>
-            <VStack align="stretch" gap={4}>
-              {/* Progress bar */}
-              <Box>
-                <Flex justify="space-between" mb={2}>
-                  <Text fontSize="sm" fontWeight="medium">
-                    Progress
-                  </Text>
-                  <Text fontSize="sm" fontWeight="medium" color={mode.text.secondary}>
-                    {Math.round(progressPercent)}%
-                  </Text>
-                </Flex>
-                <Progress.Root value={progressPercent} size="sm" colorPalette="blue">
-                  <Progress.Track>
-                    <Progress.Range />
-                  </Progress.Track>
-                </Progress.Root>
-              </Box>
+        {/* Overall Progress */}
+        <Box sx={{ mt: 2 }}>
+          <Stack direction="row" justifyContent="space-between" mb={0.5}>
+            <Typography variant="body2">Overall Progress</Typography>
+            <Typography variant="body2" fontWeight={600}>
+              {overallProgress}%
+            </Typography>
+          </Stack>
+          <LinearProgress
+            variant="determinate"
+            value={overallProgress}
+            sx={{
+              height: 8,
+              borderRadius: 1,
+              bgcolor: "action.hover",
+              "& .MuiLinearProgress-bar": {
+                bgcolor: overallProgress === 100 ? "success.main" : "primary.main",
+              },
+            }}
+          />
+        </Box>
+      </DialogTitle>
 
-              {/* Show all sections for the current day */}
-              {workoutData.sections.map(section => {
-                const dayInSection = section.days.find(d => isDayForCurrentDayOfWeek(d)) || section.days[0];
-                if (!dayInSection) return null;
+      <Divider />
 
-                return (
-                  <Box key={section.id}>
-                    {/* Section header */}
-                    <Text fontSize="md" fontWeight="bold" mb={3} color={mode.text.primary}>
-                      {section.name}
-                    </Text>
-                    <WorkoutDaySection
-                      day={dayInSection}
-                      completionData={completionData[section.id]?.days?.[dayInSection.id] || {}}
-                      onSetToggle={(exerciseId, setNumber, setData) =>
-                        handleSetToggle(section.id, dayInSection.id, exerciseId, setNumber, setData)
-                      }
-                      currentWeek={currentWeek}
-                      isCurrentDay={isDayForCurrentDayOfWeek(dayInSection)}
-                      onActualValueChange={(exerciseId, actualValue) =>
-                        handleActualValueChange(section.id, dayInSection.id, exerciseId, actualValue)
-                      }
-                    />
-                  </Box>
-                );
-              })}
-            </VStack>
-          </Dialog.Body>
+      {/* Section Type Tabs: Warmup, Workout, Cool Down */}
+      <Box sx={{ borderBottom: 1, borderColor: "divider", px: 2 }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <IconButton size="small" disabled>
+            <ChevronLeft />
+          </IconButton>
+          <Tabs
+            value={activeTab}
+            onChange={(e, v) => setActiveTab(v)}
+            variant="scrollable"
+            scrollButtons={false}
+            sx={{ flex: 1 }}
+          >
+            <Tab label="Warmup" disabled={!sectionsByType.warmup} />
+            <Tab label="Workout" disabled={!sectionsByType.workout} />
+            <Tab label="Cool Down" disabled={!sectionsByType.cooldown} />
+          </Tabs>
+          <IconButton size="small" disabled>
+            <ChevronRight />
+          </IconButton>
+        </Stack>
+      </Box>
 
-          <Dialog.Footer>
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          </Dialog.Footer>
-        </Dialog.Content>
-      </Dialog.Positioner>
-    </Dialog.Root>
+      <DialogContent sx={{ p: 2, overflow: "auto" }}>
+        {programLoading || isLoadingCompletions ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          (() => {
+            const tabTypes = ["warmup", "workout", "cooldown"];
+            const activeSectionType = tabTypes[activeTab];
+            const activeSection = sectionsByType[activeSectionType];
+            const currentDay = getCurrentDayForSection(activeSectionType);
+
+            if (!activeSection) {
+              return (
+                <Box sx={{ textAlign: "center", py: 8 }}>
+                  <Typography color="text.secondary">
+                    No{" "}
+                    {activeSectionType === "warmup"
+                      ? "Warmup"
+                      : activeSectionType === "workout"
+                        ? "Workout"
+                        : "Cool Down"}{" "}
+                    section defined.
+                  </Typography>
+                </Box>
+              );
+            }
+
+            if (!currentDay) {
+              return (
+                <Box sx={{ textAlign: "center", py: 8 }}>
+                  <Typography color="text.secondary">No workout day found for today.</Typography>
+                </Box>
+              );
+            }
+
+            return (
+              <WorkoutDaySection
+                key={currentDay.id}
+                day={currentDay}
+                completionData={completionData[activeSection.id]?.days?.[currentDay.id] || {}}
+                onSetToggle={(dayId, exerciseId, setNumber, outcome) => {
+                  handleSetToggle(activeSection.id, dayId, exerciseId, setNumber, outcome);
+                }}
+                onActualValueChange={(dayId, exerciseId, setNumber, field, value) => {
+                  handleActualValueChange(activeSection.id, dayId, exerciseId, setNumber, field, value);
+                }}
+                currentWeek={currentWeek}
+                isCurrentDay={true}
+              />
+            );
+          })()
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
+        <Button onClick={onClose}>Close</Button>
+        {overallProgress === 100 && (
+          <Button variant="contained" color="success" startIcon={<Check fontSize="small" />} onClick={handleComplete}>
+            Complete Workout
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 }

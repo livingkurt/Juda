@@ -1,129 +1,162 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Box, VStack, HStack, Text, Button, Input, createListCollection, Heading, Badge } from "@chakra-ui/react";
-import { SelectDropdown } from "./SelectDropdown";
-import { formatDateDisplay } from "@/lib/utils";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { useState } from "react";
+import { Box, Stack, Typography, Button, TextField, ToggleButton, ToggleButtonGroup, Chip } from "@mui/material";
+import { Check, Close, RadioButtonUnchecked, Delete } from "@mui/icons-material";
+import dayjs from "dayjs";
 
-// Format time for input (HH:MM)
-const formatTimeForInput = time => {
-  if (!time) return "";
-  return time;
-};
-
+/**
+ * CellEditorPopover - Editor for task completion cells
+ *
+ * @param {Object} task - The task being edited
+ * @param {string|Date} date - Date string (YYYY-MM-DD) or Date object
+ * @param {Object} completion - Existing completion data
+ * @param {boolean} isScheduled - Whether task is scheduled for this date
+ * @param {Function} onSave - (data) => void
+ * @param {Function} onDelete - () => void
+ * @param {Function} onClose - () => void
+ */
 export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave, onDelete, onClose }) => {
-  const { mode } = useSemanticColors();
-  // Initialize state based on completion - use "null" string for unchecked state
-  const [outcome, setOutcome] = useState(() => completion?.outcome || "null");
-  const [note, setNote] = useState(() => completion?.note || "");
-  const [time, setTime] = useState(() => (completion?.completedAt ? formatTimeForInput(task.time) : task.time || ""));
+  // Normalize date to dayjs
+  const dateObj = typeof date === "string" ? dayjs(date) : dayjs(date);
 
-  const outcomeCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "Unchecked", value: "null" },
-          { label: "Complete", value: "completed" },
-          { label: "Not Completed", value: "not_completed" },
-        ],
-      }),
-    []
-  );
+  const [outcome, setOutcome] = useState(completion?.outcome || null);
+  const [note, setNote] = useState(completion?.note || "");
+  const [actualValue, setActualValue] = useState(completion?.actualValue || "");
+
+  const hasChanges =
+    outcome !== (completion?.outcome || null) ||
+    note !== (completion?.note || "") ||
+    actualValue !== (completion?.actualValue || "");
 
   const handleSave = () => {
-    // If outcome is "null" (Unchecked), delete the completion instead
-    if (outcome === "null") {
-      if (completion) {
-        onDelete();
-      } else {
-        // Nothing to do - no completion exists and user wants it unchecked
-        onClose();
-      }
-      return;
-    }
-
-    const saveData = {
+    onSave({
       outcome,
-      note: task.completionType === "text" ? note : null,
-      time: time || null, // Include time for off-schedule completions
-      isScheduled, // Let the handler know if this is off-schedule
-    };
-    onSave(saveData);
+      note: note.trim() || null,
+      actualValue: actualValue || null,
+    });
   };
 
-  const handleDelete = () => {
-    if (completion) {
-      onDelete();
+  const handleOutcomeChange = (event, newOutcome) => {
+    if (newOutcome !== null) {
+      setOutcome(newOutcome);
     }
   };
 
-  return (
-    <Box p={4} minW="300px">
-      <VStack align="stretch" spacing={4}>
-        {/* Header */}
-        <VStack align="stretch" spacing={1}>
-          <Heading size="sm">{task.title}</Heading>
-          <Text fontSize="sm" color={mode.text.secondary}>
-            {formatDateDisplay(date)}
-          </Text>
-          {!isScheduled && (
-            <Badge colorPalette="purple" size="sm" w="fit-content">
-              Off-schedule completion
-            </Badge>
-          )}
-        </VStack>
+  // For text_input type, show a text field instead of outcome buttons
+  if (task.completionType === "text_input" || task.completionType === "text") {
+    return (
+      <Box sx={{ p: 2, minWidth: 250 }}>
+        <Typography variant="subtitle2" gutterBottom>
+          {task.title}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+          {dateObj.format("MMM D, YYYY")}
+        </Typography>
 
-        {/* Outcome selector */}
-        <VStack align="stretch" spacing={2}>
-          <Text fontSize="sm" fontWeight="medium">
-            Status
-          </Text>
-          <SelectDropdown
-            collection={outcomeCollection}
-            value={[outcome]}
-            onValueChange={({ value }) => setOutcome(value[0])}
-            placeholder="Select status"
-            size="sm"
-            inModal={true}
-          />
-        </VStack>
+        <TextField
+          fullWidth
+          size="small"
+          label="Value"
+          value={actualValue}
+          onChange={e => setActualValue(e.target.value)}
+          placeholder="Enter value..."
+          sx={{ mt: 2 }}
+          autoFocus
+        />
 
-        {/* Time picker - show for off-schedule or if task has time */}
-        {(!isScheduled || task.time) && (
-          <VStack align="stretch" spacing={2}>
-            <Text fontSize="sm" fontWeight="medium">
-              Time (optional)
-            </Text>
-            <Input type="time" value={time} onChange={e => setTime(e.target.value)} size="sm" />
-          </VStack>
-        )}
+        <TextField
+          fullWidth
+          size="small"
+          label="Note (optional)"
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          placeholder="Add a note..."
+          multiline
+          rows={2}
+          sx={{ mt: 1.5 }}
+        />
 
-        {/* Note input - only for text completion type */}
-        {task.completionType === "text" && (
-          <VStack align="stretch" spacing={2}>
-            <Text fontSize="sm" fontWeight="medium">
-              Note
-            </Text>
-            <Input value={note} onChange={e => setNote(e.target.value)} placeholder="Enter note..." size="sm" />
-          </VStack>
-        )}
-
-        {/* Actions */}
-        <HStack justify="flex-end" spacing={2} pt={2}>
+        <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 2 }}>
           {completion && (
-            <Button size="sm" variant="outline" colorPalette="red" onClick={handleDelete}>
+            <Button size="small" color="error" startIcon={<Delete fontSize="small" />} onClick={onDelete}>
               Delete
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={onClose}>
+          <Box flex={1} />
+          <Button size="small" onClick={onClose}>
             Cancel
           </Button>
-          <Button size="sm" colorPalette="blue" onClick={handleSave}>
+          <Button size="small" variant="contained" onClick={handleSave} disabled={!actualValue && !hasChanges}>
             Save
           </Button>
-        </HStack>
-      </VStack>
+        </Stack>
+      </Box>
+    );
+  }
+
+  // For checkbox type (default)
+  return (
+    <Box sx={{ p: 2, minWidth: 280 }}>
+      <Typography variant="subtitle2" gutterBottom>
+        {task.title}
+      </Typography>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+        <Typography variant="caption" color="text.secondary">
+          {dateObj.format("MMM D, YYYY")}
+        </Typography>
+        {!isScheduled && <Chip label="Off-schedule" size="small" sx={{ height: 18, fontSize: "0.65rem" }} />}
+      </Stack>
+
+      {/* Outcome Selection */}
+      <Typography variant="body2" sx={{ mt: 2, mb: 1 }}>
+        Status
+      </Typography>
+      <ToggleButtonGroup value={outcome} exclusive onChange={handleOutcomeChange} fullWidth size="small">
+        <ToggleButton value="completed" sx={{ flex: 1 }}>
+          <Check fontSize="small" sx={{ mr: 0.5 }} />
+          Done
+        </ToggleButton>
+        <ToggleButton value="not_completed" sx={{ flex: 1 }}>
+          <Close fontSize="small" sx={{ mr: 0.5 }} />
+          Missed
+        </ToggleButton>
+        <ToggleButton value={null} sx={{ flex: 1 }}>
+          <RadioButtonUnchecked fontSize="small" sx={{ mr: 0.5 }} />
+          None
+        </ToggleButton>
+      </ToggleButtonGroup>
+
+      {/* Note */}
+      <TextField
+        fullWidth
+        size="small"
+        label="Note (optional)"
+        value={note}
+        onChange={e => setNote(e.target.value)}
+        placeholder="Add a note..."
+        multiline
+        rows={2}
+        sx={{ mt: 2 }}
+      />
+
+      {/* Actions */}
+      <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 2 }}>
+        {completion && (
+          <Button size="small" color="error" startIcon={<Delete fontSize="small" />} onClick={onDelete}>
+            Delete
+          </Button>
+        )}
+        <Box flex={1} />
+        <Button size="small" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button size="small" variant="contained" onClick={handleSave} disabled={!hasChanges && !outcome}>
+          Save
+        </Button>
+      </Stack>
     </Box>
   );
 };
+
+export default CellEditorPopover;

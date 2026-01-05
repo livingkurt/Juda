@@ -8,42 +8,38 @@ import TaskItem from "@tiptap/extension-task-item";
 import Link from "@tiptap/extension-link";
 import Highlight from "@tiptap/extension-highlight";
 import TextAlign from "@tiptap/extension-text-align";
-import { Box, HStack, IconButton, Separator } from "@chakra-ui/react";
+import { Box, Stack, IconButton, Divider, Tooltip } from "@mui/material";
 import {
-  Bold,
-  Italic,
-  Strikethrough,
-  List,
-  ListOrdered,
-  CheckSquare,
-  Quote,
-  Code,
-  Link as LinkIcon,
-  Highlighter,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  Heading1,
-  Heading2,
-  Heading3,
-  Undo,
-  Redo,
-} from "lucide-react";
-import { useCallback, useEffect } from "react";
-import { promptUser } from "@/lib/prompt";
+  FormatBold as Bold,
+  FormatItalic as Italic,
+  StrikethroughS as Strikethrough,
+  FormatListBulleted as List,
+  FormatListNumbered as ListOrdered,
+  CheckBox as CheckSquare,
+  FormatQuote as Quote,
+  Code as Code,
+  FormatAlignLeft as AlignLeft,
+  FormatAlignCenter as AlignCenter,
+  FormatAlignRight as AlignRight,
+  Undo as Undo,
+  Redo as Redo,
+  Highlight as Highlighter,
+} from "@mui/icons-material";
+import { useEffect } from "react";
 
-// ToolbarButton component defined outside to avoid re-creation during render
-const ToolbarButton = ({ icon: Icon, isActive, onClick, label }) => (
-  <IconButton
-    size="xs"
-    variant={isActive ? "solid" : "ghost"}
-    colorScheme={isActive ? "blue" : "gray"}
-    onClick={onClick}
-    aria-label={label}
-    borderRadius="md"
-  >
-    <Icon size={14} />
-  </IconButton>
+const MenuButton = ({ icon: Icon, isActive, onClick, title }) => (
+  <Tooltip title={title}>
+    <IconButton
+      size="small"
+      onClick={onClick}
+      sx={{
+        bgcolor: isActive ? "action.selected" : "transparent",
+        "&:hover": { bgcolor: "action.hover" },
+      }}
+    >
+      <Icon fontSize="small" />
+    </IconButton>
+  </Tooltip>
 );
 
 export const RichTextEditor = ({
@@ -54,383 +50,154 @@ export const RichTextEditor = ({
   showToolbar = true,
 }) => {
   const editor = useEditor({
-    immediatelyRender: false,
     extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
-        },
-      }),
-      Placeholder.configure({
-        placeholder,
-      }),
+      StarterKit,
+      Placeholder.configure({ placeholder }),
       TaskList,
-      TaskItem.configure({
-        nested: true,
-      }),
-      Link.configure({
-        openOnClick: false,
-      }),
+      TaskItem.configure({ nested: true }),
+      Link.configure({ openOnClick: false }),
       Highlight,
-      TextAlign.configure({
-        types: ["heading", "paragraph"],
-      }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
-    content: content || "",
+    content,
     editable,
+    immediatelyRender: false,
     onUpdate: ({ editor }) => {
       onChange?.(editor.getHTML());
     },
   });
 
-  // Update content when prop changes
+  // Sync content when it changes externally
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content || "");
+      editor.commands.setContent(content, false);
     }
   }, [content, editor]);
-
-  const setLink = useCallback(() => {
-    if (!editor) return;
-
-    const previousUrl = editor.getAttributes("link").href;
-    const url = promptUser("URL", previousUrl);
-
-    if (url === null) return;
-
-    if (url === "") {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
-      return;
-    }
-
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
-  }, [editor]);
 
   if (!editor) return null;
 
   return (
-    <Box h="100%" display="flex" flexDirection="column">
-      {/* Floating Toolbar */}
-      {editable && showToolbar && (
-        <HStack
-          px={4}
-          py={2}
-          bg={{ base: "gray.50", _dark: "gray.800" }}
-          borderBottomWidth="1px"
-          borderColor={{ base: "gray.100", _dark: "gray.700" }}
-          gap={0.5}
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      {/* Toolbar */}
+      {showToolbar && (
+        <Stack
+          direction="row"
+          spacing={0.5}
           flexWrap="wrap"
-          flexShrink={0}
+          sx={{ pb: 1, mb: 1, borderBottom: 1, borderColor: "divider" }}
         >
-          <ToolbarButton
+          <MenuButton
             icon={Bold}
             isActive={editor.isActive("bold")}
             onClick={() => editor.chain().focus().toggleBold().run()}
-            label="Bold"
+            title="Bold"
           />
-          <ToolbarButton
+          <MenuButton
             icon={Italic}
             isActive={editor.isActive("italic")}
             onClick={() => editor.chain().focus().toggleItalic().run()}
-            label="Italic"
+            title="Italic"
           />
-          <ToolbarButton
+          <MenuButton
             icon={Strikethrough}
             isActive={editor.isActive("strike")}
             onClick={() => editor.chain().focus().toggleStrike().run()}
-            label="Strikethrough"
+            title="Strikethrough"
           />
-          <ToolbarButton
+          <MenuButton
             icon={Highlighter}
             isActive={editor.isActive("highlight")}
             onClick={() => editor.chain().focus().toggleHighlight().run()}
-            label="Highlight"
+            title="Highlight"
           />
 
-          <Separator orientation="vertical" h={4} mx={1} />
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-          <ToolbarButton
-            icon={Heading1}
-            isActive={editor.isActive("heading", { level: 1 })}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            label="Heading 1"
-          />
-          <ToolbarButton
-            icon={Heading2}
-            isActive={editor.isActive("heading", { level: 2 })}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            label="Heading 2"
-          />
-          <ToolbarButton
-            icon={Heading3}
-            isActive={editor.isActive("heading", { level: 3 })}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            label="Heading 3"
-          />
-
-          <Separator orientation="vertical" h={4} mx={1} />
-
-          <ToolbarButton
+          <MenuButton
             icon={List}
             isActive={editor.isActive("bulletList")}
             onClick={() => editor.chain().focus().toggleBulletList().run()}
-            label="Bullet List"
+            title="Bullet List"
           />
-          <ToolbarButton
+          <MenuButton
             icon={ListOrdered}
             isActive={editor.isActive("orderedList")}
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            label="Numbered List"
+            title="Numbered List"
           />
-          <ToolbarButton
+          <MenuButton
             icon={CheckSquare}
             isActive={editor.isActive("taskList")}
             onClick={() => editor.chain().focus().toggleTaskList().run()}
-            label="Task List"
+            title="Task List"
           />
 
-          <Separator orientation="vertical" h={4} mx={1} />
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-          <ToolbarButton
+          <MenuButton
             icon={Quote}
             isActive={editor.isActive("blockquote")}
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            label="Quote"
+            title="Quote"
           />
-          <ToolbarButton
+          <MenuButton
             icon={Code}
             isActive={editor.isActive("codeBlock")}
             onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-            label="Code Block"
+            title="Code Block"
           />
-          <ToolbarButton icon={LinkIcon} isActive={editor.isActive("link")} onClick={setLink} label="Link" />
 
-          <Separator orientation="vertical" h={4} mx={1} />
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-          <ToolbarButton
+          <MenuButton
             icon={AlignLeft}
             isActive={editor.isActive({ textAlign: "left" })}
             onClick={() => editor.chain().focus().setTextAlign("left").run()}
-            label="Align Left"
+            title="Align Left"
           />
-          <ToolbarButton
+          <MenuButton
             icon={AlignCenter}
             isActive={editor.isActive({ textAlign: "center" })}
             onClick={() => editor.chain().focus().setTextAlign("center").run()}
-            label="Align Center"
+            title="Align Center"
           />
-          <ToolbarButton
+          <MenuButton
             icon={AlignRight}
             isActive={editor.isActive({ textAlign: "right" })}
             onClick={() => editor.chain().focus().setTextAlign("right").run()}
-            label="Align Right"
+            title="Align Right"
           />
 
-          <Separator orientation="vertical" h={4} mx={1} />
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-          <ToolbarButton
-            icon={Undo}
-            isActive={false}
-            onClick={() => editor.chain().focus().undo().run()}
-            label="Undo"
-          />
-          <ToolbarButton
-            icon={Redo}
-            isActive={false}
-            onClick={() => editor.chain().focus().redo().run()}
-            label="Redo"
-          />
-        </HStack>
+          <MenuButton icon={Undo} isActive={false} onClick={() => editor.chain().focus().undo().run()} title="Undo" />
+          <MenuButton icon={Redo} isActive={false} onClick={() => editor.chain().focus().redo().run()} title="Redo" />
+        </Stack>
       )}
 
-      {/* Editor Content - Clean, borderless, full height */}
+      {/* Editor Content */}
       <Box
-        flex={1}
-        overflowY="auto"
-        px={{ base: 6, md: 12 }}
-        py={6}
-        bg={{ base: "white", _dark: "gray.800" }}
-        css={{
-          /* Remove focus outline from editor wrapper */
-          "&:focus-within": {
+        sx={{
+          flex: 1,
+          overflow: "auto",
+          "& .ProseMirror": {
             outline: "none",
-          },
-          "& > div": {
-            outline: "none",
-          },
-          "& .tiptap": {
-            outline: "none",
-          },
-
-          /* Notion-style editor styling */
-          ".ProseMirror": {
-            outline: "none",
-            border: "none",
-            boxShadow: "none",
             minHeight: "100%",
-            fontSize: "16px",
-            lineHeight: "1.8",
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-
-            "&:focus": {
-              outline: "none",
-              border: "none",
-              boxShadow: "none",
-            },
-
-            "&:focus-visible": {
-              outline: "none",
-              border: "none",
-              boxShadow: "none",
-            },
-
-            /* Placeholder */
-            "& p.is-editor-empty:first-of-type::before": {
-              content: "attr(data-placeholder)",
-              color: "var(--chakra-colors-gray-400)",
-              pointerEvents: "none",
-              float: "left",
-              height: 0,
-              fontSize: "16px",
-            },
-
-            /* Paragraphs */
-            "& p": {
-              marginBottom: "0.75em",
-              marginTop: 0,
-            },
-
-            /* Headings - Notion style */
-            "& h1": {
-              fontSize: "1.875em",
-              fontWeight: "700",
-              lineHeight: "1.3",
-              marginTop: "2em",
-              marginBottom: "0.5em",
-              "&:first-of-type": {
-                marginTop: 0,
-              },
-            },
-            "& h2": {
-              fontSize: "1.5em",
-              fontWeight: "600",
-              lineHeight: "1.35",
-              marginTop: "1.75em",
-              marginBottom: "0.5em",
-            },
-            "& h3": {
-              fontSize: "1.25em",
-              fontWeight: "600",
-              lineHeight: "1.4",
-              marginTop: "1.5em",
-              marginBottom: "0.5em",
-            },
-
-            /* Lists styled via globalCss in providers.jsx */
-
-            /* Blockquotes - Notion style */
-            "& blockquote": {
-              borderLeft: "3px solid var(--chakra-colors-gray-300)",
-              paddingLeft: "1em",
-              marginLeft: 0,
-              marginRight: 0,
-              marginTop: "0.75em",
-              marginBottom: "0.75em",
-              color: "var(--chakra-colors-gray-600)",
-            },
-
-            /* Code blocks */
-            "& pre": {
-              backgroundColor: "var(--chakra-colors-gray-900)",
-              color: "var(--chakra-colors-gray-100)",
-              padding: "1em",
-              borderRadius: "6px",
-              overflow: "auto",
-              marginTop: "0.75em",
-              marginBottom: "0.75em",
-              fontSize: "0.875em",
-              lineHeight: "1.6",
-              fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-              "& code": {
-                backgroundColor: "transparent",
-                padding: 0,
-                color: "inherit",
-                fontSize: "inherit",
-              },
-            },
-
-            /* Inline code */
-            "& code": {
-              backgroundColor: "var(--chakra-colors-gray-100)",
-              color: "var(--chakra-colors-pink-600)",
-              padding: "0.15em 0.4em",
-              borderRadius: "4px",
-              fontSize: "0.9em",
-              fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-            },
-
-            /* Links */
-            "& a": {
-              color: "var(--chakra-colors-blue-600)",
-              textDecoration: "underline",
-              textDecorationColor: "var(--chakra-colors-blue-200)",
-              textUnderlineOffset: "2px",
-              cursor: "pointer",
-              "&:hover": {
-                textDecorationColor: "var(--chakra-colors-blue-600)",
-              },
-            },
-
-            /* Highlight */
-            "& mark": {
-              backgroundColor: "var(--chakra-colors-yellow-200)",
-              padding: "0.1em 0.2em",
-              borderRadius: "2px",
-            },
-
-            /* Horizontal rule */
-            "& hr": {
-              border: "none",
-              borderTop: "1px solid var(--chakra-colors-gray-200)",
-              marginTop: "1.5em",
-              marginBottom: "1.5em",
-            },
-          },
-
-          /* Dark mode overrides */
-          "[data-theme='dark'] &, .dark &": {
-            ".ProseMirror": {
-              "& p.is-editor-empty:first-of-type::before": {
-                color: "var(--chakra-colors-gray-500)",
-              },
-              "& blockquote": {
-                borderLeftColor: "var(--chakra-colors-gray-600)",
-                color: "var(--chakra-colors-gray-400)",
-              },
-              "& code": {
-                backgroundColor: "var(--chakra-colors-gray-700)",
-                color: "var(--chakra-colors-pink-300)",
-              },
-              "& a": {
-                color: "var(--chakra-colors-blue-400)",
-                textDecorationColor: "var(--chakra-colors-blue-700)",
-                "&:hover": {
-                  textDecorationColor: "var(--chakra-colors-blue-400)",
-                },
-              },
-              "& mark": {
-                backgroundColor: "var(--chakra-colors-yellow-700)",
-                color: "var(--chakra-colors-yellow-100)",
-              },
-              "& hr": {
-                borderTopColor: "var(--chakra-colors-gray-700)",
-              },
-            },
+            "& p": { my: 0.5 },
+            "& h1": { fontSize: "1.75rem", fontWeight: 600, my: 1 },
+            "& h2": { fontSize: "1.5rem", fontWeight: 600, my: 1 },
+            "& h3": { fontSize: "1.25rem", fontWeight: 600, my: 0.75 },
+            "& ul, & ol": { pl: 3 },
+            "& blockquote": { borderLeft: 3, borderColor: "divider", pl: 2, ml: 0, fontStyle: "italic" },
+            "& code": { bgcolor: "action.hover", px: 0.5, borderRadius: 0.5, fontFamily: "monospace" },
+            "& pre": { bgcolor: "grey.900", color: "grey.100", p: 2, borderRadius: 1, overflow: "auto" },
           },
         }}
       >
-        <EditorContent editor={editor} style={{ height: "100%" }} />
+        <EditorContent editor={editor} />
       </Box>
     </Box>
   );
 };
+
+export default RichTextEditor;

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, HStack } from "@chakra-ui/react";
+import { Button, Stack } from "@mui/material";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 
 /**
@@ -11,7 +11,7 @@ import { DAYS_OF_WEEK } from "@/lib/constants";
  * @param {boolean} allowEmpty - Whether to allow deselecting all days (default: false)
  * @param {string} size - Button size: "xs" | "sm" | "md" (default: "md")
  * @param {boolean} circular - Use circular buttons (default: true)
- * @param {string} spacing - Spacing between buttons (default: 1)
+ * @param {number} spacing - Spacing between buttons (default: 1)
  */
 export default function WeekdaySelector({
   selectedDays = [],
@@ -37,33 +37,36 @@ export default function WeekdaySelector({
 
   // Size mappings
   const sizeMap = {
-    xs: { w: 8, h: 8, fontSize: "xs" },
-    sm: { w: 9, h: 9, fontSize: { base: "xs", md: "sm" } },
-    md: { w: 10, h: 10, fontSize: "sm" },
+    xs: { width: 32, height: 32, fontSize: "0.75rem" },
+    sm: { width: 36, height: 36, fontSize: { xs: "0.75rem", md: "0.875rem" } },
+    md: { width: 40, height: 40, fontSize: "0.875rem" },
   };
 
   const buttonSize = sizeMap[size] || sizeMap.md;
 
   return (
-    <HStack spacing={spacing} w="full">
+    <Stack direction="row" spacing={spacing} sx={{ width: "100%" }}>
       {DAYS_OF_WEEK.map(day => {
         const isSelected = selectedDays.includes(day.value);
         return (
           <Button
             key={day.value}
-            w={buttonSize.w}
-            h={buttonSize.h}
-            borderRadius={circular ? "full" : "md"}
-            fontSize={buttonSize.fontSize}
-            fontWeight="medium"
+            sx={{
+              width: buttonSize.width,
+              height: buttonSize.height,
+              minWidth: buttonSize.width,
+              borderRadius: circular ? "50%" : 1,
+              fontSize: buttonSize.fontSize,
+              fontWeight: 500,
+            }}
+            variant={isSelected ? "contained" : "outlined"}
+            color={isSelected ? "primary" : "inherit"}
             onClick={() => handleToggle(day.value)}
-            colorPalette={isSelected ? "blue" : "gray"}
-            variant={isSelected ? "solid" : "outline"}
           >
             {day.short}
           </Button>
         );
       })}
-    </HStack>
+    </Stack>
   );
 }

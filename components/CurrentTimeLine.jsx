@@ -1,53 +1,75 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Box } from "@chakra-ui/react";
+import { useEffect, useState } from "react";
+import { Box, Typography } from "@mui/material";
+import dayjs from "dayjs";
 
-export const CurrentTimeLine = ({ hourHeight, isVisible = true }) => {
-  const [currentMinutes, setCurrentMinutes] = useState(() => {
-    const now = new Date();
-    return now.getHours() * 60 + now.getMinutes();
-  });
+export const CurrentTimeLine = ({ hourHeight = 60, startHour = 0 }) => {
+  const [now, setNow] = useState(dayjs());
 
   useEffect(() => {
-    if (!isVisible) return;
-
-    // Update every minute
-    const interval = setInterval(() => {
-      const now = new Date();
-      setCurrentMinutes(now.getHours() * 60 + now.getMinutes());
-    }, 60000); // Update every minute
-
+    const interval = setInterval(() => setNow(dayjs()), 60000);
     return () => clearInterval(interval);
-  }, [isVisible]);
+  }, []);
 
-  if (!isVisible) return null;
+  const currentHour = now.hour();
+  const currentMinute = now.minute();
+  const topPosition = (currentHour - startHour) * hourHeight + (currentMinute / 60) * hourHeight;
 
-  const topPosition = (currentMinutes / 60) * hourHeight;
+  // Don't render if outside visible hours
+  if (currentHour < startHour || currentHour > 23) return null;
 
   return (
     <Box
-      position="absolute"
-      left={0}
-      right={0}
-      top={`${topPosition}px`}
-      height="2px"
-      bg="red.500"
-      zIndex={100}
-      pointerEvents="none"
-      _dark={{ bg: "red.400" }}
+      sx={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        top: topPosition,
+        zIndex: 10,
+        pointerEvents: "none",
+      }}
     >
-      {/* Small circle indicator */}
       <Box
-        position="absolute"
-        left={0}
-        top="-4px"
-        width="10px"
-        height="10px"
-        borderRadius="full"
-        bg="red.500"
-        _dark={{ bg: "red.400" }}
-      />
+        sx={{
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        {/* Circle indicator */}
+        <Box
+          sx={{
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            bgcolor: "error.main",
+            ml: -0.5,
+          }}
+        />
+        {/* Line */}
+        <Box
+          sx={{
+            flex: 1,
+            height: 2,
+            bgcolor: "error.main",
+          }}
+        />
+        {/* Time label */}
+        <Typography
+          sx={{
+            position: "absolute",
+            left: -50,
+            fontSize: "0.65rem",
+            color: "error.main",
+            fontWeight: 600,
+          }}
+        >
+          {now.format("h:mm")}
+        </Typography>
+      </Box>
     </Box>
   );
 };
+
+export default CurrentTimeLine;
