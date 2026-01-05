@@ -87,9 +87,9 @@ export async function POST(request) {
       // Determine the final outcome value
       const finalOutcome = outcome !== undefined ? outcome : existing.outcome;
 
-      // Clear actualValue when marking as not_completed (didn't contribute anything)
+      // Clear actualValue when marking as not_completed or unchecking (didn't contribute anything)
       let finalActualValue = actualValue !== undefined ? actualValue : existing.actualValue;
-      if (finalOutcome === "not_completed") {
+      if (finalOutcome === "not_completed" || finalOutcome === null) {
         finalActualValue = null;
       }
 
@@ -111,9 +111,9 @@ export async function POST(request) {
 
       return NextResponse.json(updated);
     } else {
-      // Clear actualValue when marking as not_completed (didn't contribute anything)
+      // Clear actualValue when marking as not_completed or unchecking (didn't contribute anything)
       let finalActualValue = actualValue || null;
-      if (outcome === "not_completed") {
+      if (outcome === "not_completed" || outcome === null) {
         finalActualValue = null;
       }
 

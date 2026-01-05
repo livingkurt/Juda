@@ -81,8 +81,8 @@ export default function WorkoutExerciseCard({
       }
     }
 
-    // Clear actualValue when marking as not_completed (didn't contribute anything)
-    if (outcome === "not_completed") {
+    // Clear actualValue when marking as not_completed or unchecking (didn't contribute anything)
+    if (outcome === "not_completed" || outcome === null) {
       updatedData.actualValue = null;
     }
 
