@@ -25,6 +25,8 @@ import {
 import { Close, Add as Plus, Delete as Trash2, ExpandMore as ChevronDown, ChevronRight } from "@mui/icons-material";
 import { EXERCISE_TYPES, WORKOUT_SECTION_TYPES, DAYS_OF_WEEK } from "@/lib/constants";
 import { useGetWorkoutProgramQuery, useSaveWorkoutProgramMutation } from "@/lib/store/api/workoutProgramsApi";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 
 // Generate unique IDs
 function generateCuid() {
@@ -50,11 +52,26 @@ function WeekdaySelector({ selectedDays = [], onChange, size = "small" }) {
   );
 }
 
-export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete }) {
+export default function WorkoutBuilder() {
+  const dialogState = useDialogState();
+  const { refetch: refetchTasks } = useGetTasksQuery();
+
+  const taskId = dialogState.editingWorkoutTask?.id;
+  const isOpen = Boolean(dialogState.editingWorkoutTask);
+
   const { data: existingProgram, isLoading: programLoading } = useGetWorkoutProgramQuery(taskId, {
     skip: !taskId,
   });
   const [saveWorkoutProgramMutation] = useSaveWorkoutProgramMutation();
+
+  const handleClose = () => {
+    dialogState.setEditingWorkoutTask(null);
+  };
+
+  const handleSaveComplete = () => {
+    dialogState.setEditingWorkoutTask(null);
+    refetchTasks();
+  };
 
   const [sections, setSections] = useState([]);
   const [expandedSections, setExpandedSections] = useState({});
@@ -289,8 +306,8 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
         numberOfWeeks,
         sections,
       }).unwrap();
-      onSaveComplete?.();
-      onClose();
+      handleSaveComplete();
+      handleClose();
     } catch (err) {
       console.error("Failed to save workout:", err);
     }
@@ -309,7 +326,7 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
   return (
     <Dialog
       open={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       maxWidth="lg"
       fullWidth
       PaperProps={{ sx: { height: "90vh", maxHeight: "90vh" } }}
@@ -317,7 +334,7 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
       <DialogTitle>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography variant="h6">Workout Builder</Typography>
-          <IconButton onClick={onClose} edge="end">
+          <IconButton onClick={handleClose} edge="end">
             <Close />
           </IconButton>
         </Stack>
@@ -547,7 +564,7 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
       </DialogContent>
 
       <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={handleClose}>Cancel</Button>
         <Button variant="contained" onClick={handleSave} disabled={programLoading}>
           Save Workout
         </Button>

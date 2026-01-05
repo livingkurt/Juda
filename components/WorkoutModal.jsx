@@ -21,15 +21,38 @@ import { Close, FitnessCenter, Check, ChevronLeft, ChevronRight } from "@mui/ico
 import WorkoutDaySection from "./WorkoutDaySection";
 import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
 import { useAuthFetch } from "@/hooks/useAuthFetch";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useCreateCompletionMutation } from "@/lib/store/api/completionsApi";
+import { useViewState } from "@/hooks/useViewState";
 
 /**
  * WorkoutModal - Main modal for executing workouts
  */
-export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, currentDate = new Date() }) {
+export default function WorkoutModal() {
+  const dialogState = useDialogState();
+  const viewState = useViewState();
+  const task = dialogState.workoutModalTask;
+  const isOpen = dialogState.workoutModalOpen;
+  const currentDate = useMemo(() => viewState.viewDate || new Date(), [viewState.viewDate]);
+
   const { data: workoutProgram, isLoading: programLoading } = useGetWorkoutProgramQuery(task?.id, {
     skip: !task?.id,
   });
   const authFetch = useAuthFetch();
+  const [createCompletionMutation] = useCreateCompletionMutation();
+
+  const handleClose = () => {
+    dialogState.setWorkoutModalOpen(false);
+    dialogState.setWorkoutModalTask(null);
+  };
+
+  const handleCompleteTask = async (taskId, date) => {
+    await createCompletionMutation({
+      taskId,
+      date,
+      outcome: "completed",
+    }).unwrap();
+  };
 
   const [completionData, setCompletionData] = useState({});
   const [activeTab, setActiveTab] = useState(0); // 0: Warmup, 1: Workout, 2: Cool Down
@@ -353,8 +376,8 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
   // Handle complete workout
   const handleComplete = () => {
     const dateStr = currentDate.toISOString().split("T")[0];
-    onCompleteTask?.(task.id, dateStr);
-    onClose();
+    handleCompleteTask(task.id, dateStr);
+    handleClose();
   };
 
   if (!task) return null;
@@ -362,7 +385,7 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
   return (
     <Dialog
       open={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       maxWidth="lg"
       fullWidth
       PaperProps={{ sx: { height: "90vh", maxHeight: "90vh" } }}
@@ -377,7 +400,7 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
             </Typography>
           </Box>
           {isSaving && <CircularProgress size={20} />}
-          <IconButton onClick={onClose} edge="end">
+          <IconButton onClick={handleClose} edge="end">
             <Close />
           </IconButton>
         </Stack>
@@ -486,7 +509,7 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
       </DialogContent>
 
       <DialogActions sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={handleClose}>Close</Button>
         {overallProgress === 100 && (
           <Button variant="contained" color="success" startIcon={<Check fontSize="small" />} onClick={handleComplete}>
             Complete Workout

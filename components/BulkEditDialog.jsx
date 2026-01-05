@@ -26,18 +26,36 @@ import dayjs from "dayjs";
 import { TagChip } from "./TagChip";
 import { TagSelector } from "./TagSelector";
 import { DAYS_OF_WEEK, DURATION_OPTIONS } from "@/lib/constants";
+import { useSelectionState } from "@/hooks/useSelectionState";
+import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
+import { useGetTagsQuery, useCreateTagMutation, useDeleteTagMutation } from "@/lib/store/api/tagsApi";
+import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 
-export const BulkEditDialog = ({
-  isOpen,
-  onClose,
-  onSave,
-  sections = [],
-  tags = [],
-  onCreateTag,
-  onDeleteTag,
-  selectedCount,
-  selectedTasks,
-}) => {
+export const BulkEditDialog = () => {
+  const selectionState = useSelectionState();
+  const { data: sections = [] } = useGetSectionsQuery();
+  const { data: tags = [] } = useGetTagsQuery();
+  const { data: allTasks = [] } = useGetTasksQuery();
+  const [createTagMutation] = useCreateTagMutation();
+  const [deleteTagMutation] = useDeleteTagMutation();
+
+  const isOpen = selectionState.bulkEditDialogOpen;
+  const selectedCount = selectionState.selectedTaskIds.size;
+  const selectedTasks = useMemo(() => {
+    return allTasks.filter(t => selectionState.selectedTaskIds.has(t.id));
+  }, [allTasks, selectionState.selectedTaskIds]);
+
+  const handleClose = () => {
+    selectionState.setBulkEditDialogOpen(false);
+  };
+
+  const handleCreateTag = async (name, color) => {
+    return await createTagMutation({ name, color }).unwrap();
+  };
+
+  const handleDeleteTag = async id => {
+    return await deleteTagMutation(id).unwrap();
+  };
   // Calculate common values across all selected tasks
   const commonValues = useMemo(() => {
     if (!selectedTasks || selectedTasks.length === 0) {
@@ -201,7 +219,7 @@ export const BulkEditDialog = ({
       updates.status = status;
     }
 
-    onSave(updates);
+    selectionState.handleBulkEditSave(updates);
 
     // Reset state
     setEditedFields(new Set());
@@ -226,12 +244,14 @@ export const BulkEditDialog = ({
   const timeValue = time ? dayjs(time, "HH:mm") : null;
   const endDateValue = endDate ? dayjs(endDate) : null;
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={isOpen} onClose={handleClose} maxWidth="sm" fullWidth>
       <form onSubmit={handleFormSubmit}>
         <DialogTitle>
           Bulk Edit ({selectedCount} tasks)
-          <IconButton onClick={onClose} sx={{ position: "absolute", right: 8, top: 8 }} size="small">
+          <IconButton onClick={handleClose} sx={{ position: "absolute", right: 8, top: 8 }} size="small">
             <Close />
           </IconButton>
         </DialogTitle>
@@ -431,8 +451,8 @@ export const BulkEditDialog = ({
                       setSelectedTagIds(newTagIds);
                       markFieldEdited("tags");
                     }}
-                    onCreateTag={onCreateTag}
-                    onDeleteTag={onDeleteTag}
+                    onCreateTag={handleCreateTag}
+                    onDeleteTag={handleDeleteTag}
                     inline
                   />
                 </Stack>
@@ -445,8 +465,8 @@ export const BulkEditDialog = ({
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained" disabled={editedFields.size === 0}>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={selectionState.handleBulkEditSave} variant="contained" disabled={editedFields.size === 0}>
             Update {selectedCount} Task(s)
           </Button>
         </DialogActions>

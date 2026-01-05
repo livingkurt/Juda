@@ -43,7 +43,11 @@ import { TagChip } from "./TagChip";
 import WorkoutBuilder from "./WorkoutBuilder";
 import WeekdaySelector from "./WeekdaySelector";
 import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
-import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useUpdateTaskMutation, useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
+import { useGetTagsQuery, useCreateTagMutation, useDeleteTagMutation } from "@/lib/store/api/tagsApi";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
 
 // Internal component that resets when key changes
 function TaskDialogForm({
@@ -1044,11 +1048,53 @@ function TaskDialogForm({
 }
 
 // Wrapper component that uses key prop to reset form state
-export const TaskDialog = ({ isOpen, task, ...props }) => {
+export const TaskDialog = () => {
+  const dialogState = useDialogState();
+  const { data: sections = [] } = useGetSectionsQuery();
+  const { data: tags = [] } = useGetTagsQuery();
+  const { data: allTasks = [] } = useGetTasksQuery();
+  const [createTagMutation] = useCreateTagMutation();
+  const [deleteTagMutation] = useDeleteTagMutation();
+  const taskOps = useTaskOperations();
+
+  const isOpen = dialogState.taskDialogOpen;
+  const task = dialogState.editingTask;
+
+  const handleClose = () => {
+    dialogState.closeTaskDialog();
+    dialogState.setEditingTask(null);
+    dialogState.setDefaultSectionId(null);
+    dialogState.setDefaultTime(null);
+    dialogState.setDefaultDate(null);
+  };
+
+  const handleCreateTag = async (name, color) => {
+    return await createTagMutation({ name, color }).unwrap();
+  };
+
+  const handleDeleteTag = async id => {
+    return await deleteTagMutation(id).unwrap();
+  };
+
   if (!isOpen) return null;
 
   // Use key to reset form state when task changes or dialog opens with new task
   const key = task?.id || `new-${isOpen}`;
 
-  return <TaskDialogForm key={key} task={task} {...props} />;
+  return (
+    <TaskDialogForm
+      key={key}
+      task={task}
+      sections={sections}
+      onSave={taskOps.handleSaveTask}
+      onClose={handleClose}
+      defaultSectionId={dialogState.defaultSectionId}
+      defaultTime={dialogState.defaultTime}
+      defaultDate={dialogState.defaultDate}
+      tags={tags}
+      onCreateTag={handleCreateTag}
+      onDeleteTag={handleDeleteTag}
+      allTasks={allTasks}
+    />
+  );
 };

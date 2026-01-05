@@ -17,6 +17,8 @@ import {
 } from "@mui/material";
 import { Close } from "@mui/icons-material";
 import { SECTION_ICONS } from "@/lib/constants";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useSectionOperations } from "@/hooks/useSectionOperations";
 
 function SectionForm({ section, onSave, onClose }) {
   const [name, setName] = useState(section?.name || "");
@@ -90,12 +92,28 @@ function SectionForm({ section, onSave, onClose }) {
   );
 }
 
-export const SectionDialog = ({ isOpen, onClose, section, onSave }) => {
+export const SectionDialog = () => {
+  const dialogState = useDialogState();
+  const sectionOps = useSectionOperations();
+
+  const isOpen = dialogState.sectionDialogOpen;
+  const section = dialogState.editingSection;
+
+  const handleClose = () => {
+    dialogState.closeSectionDialog();
+    dialogState.setEditingSection(null);
+  };
+
   if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onClose={onClose} maxWidth="xs" fullWidth>
-      <SectionForm key={section?.id || "new"} section={section} onSave={onSave} onClose={onClose} />
+    <Dialog open={isOpen} onClose={handleClose} maxWidth="xs" fullWidth>
+      <SectionForm
+        key={section?.id || "new"}
+        section={section}
+        onSave={sectionOps.handleSaveSection}
+        onClose={handleClose}
+      />
     </Dialog>
   );
 };

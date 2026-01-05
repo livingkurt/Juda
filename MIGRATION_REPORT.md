@@ -10,11 +10,13 @@
 ## Components Migrated
 
 ### Core Infrastructure ✅
+
 - [x] lib/theme.js - Complete MUI theme setup
 - [x] app/providers.jsx - MUI ThemeProvider setup
 - [x] hooks/useToast.js - Migrated to notistack
 
 ### Main Application ✅
+
 - [x] app/page.jsx - Fully migrated to MUI components
   - Replaced HStack → Stack
   - Replaced Text → Typography
@@ -23,6 +25,7 @@
   - Fixed all undefined color variables
 
 ### Utility Components ✅
+
 - [x] Skeletons.jsx - Migrated to MUI Skeleton/CircularProgress
 - [x] DebouncedInput.jsx - Migrated to MUI TextField
 - [x] TagChip.jsx - Migrated to MUI Chip
@@ -40,20 +43,24 @@
 - [x] JournalDayEntry.jsx - Migrated to MUI components
 
 ### Shared Components ✅
+
 - [x] components/shared/TaskBadges.jsx - Migrated to MUI Badge
 - [x] components/shared/TaskCardCompact.jsx - Migrated to MUI components
 - [x] components/shared/TaskCardMini.jsx - Migrated to MUI components
 
 ### Form Dialogs ✅
+
 - [x] TaskDialog.jsx - Removed unused imports
 - [x] BulkEditDialog.jsx - Removed unused imports
 - [x] SectionDialog.jsx - Already migrated
 
 ### Other Components ✅
+
 - [x] NoteEditor.jsx - Fixed import (MoreVertical)
 - [x] SyncStatusIndicator.jsx - Removed unused import
 
 ## Files Deleted ✅
+
 - [x] hooks/useSemanticColors.js
 - [x] hooks/useColorModeSync.js
 - [x] lib/colors.js (recreated minimal version for themes.js)
@@ -89,10 +96,12 @@ All files have been successfully migrated from Chakra UI to Material UI:
 ## Dependencies Changed
 
 ### Removed
+
 - `@chakra-ui/react` (removed from package.json)
 - `framer-motion` (if not used elsewhere)
 
 ### Added
+
 - `@mui/material` ^7.0.0 ✅
 - `@mui/x-date-pickers` ^7.0.0 ✅
 - `@mui/x-data-grid` ^7.0.0 ✅
@@ -102,6 +111,7 @@ All files have been successfully migrated from Chakra UI to Material UI:
 ## Migration Patterns Used
 
 ### Component Replacements
+
 - `HStack` → `Stack direction="row"`
 - `VStack` → `Stack direction="column"`
 - `Text` → `Typography`
@@ -122,11 +132,13 @@ All files have been successfully migrated from Chakra UI to Material UI:
 - `Collapsible.Root` → `Collapse`
 
 ### Styling Patterns
+
 - Chakra props (`py={2}`, `bg="gray.100"`) → MUI `sx` prop
 - Color mode objects (`_light`, `_dark`) → Theme palette strings (`"background.paper"`, `"text.primary"`)
 - Responsive props (`{{ base: 2, md: 4 }}`) → `{{ xs: 2, md: 4 }}`
 
 ### Theme Access
+
 - `useSemanticColors()` → `useTheme()` + `useColorMode()` from `@/app/providers`
 - Color strings: `"background.paper"`, `"text.primary"`, `"divider"`, etc.
 

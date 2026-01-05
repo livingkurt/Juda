@@ -19,6 +19,7 @@ import {
   Tooltip,
   Divider,
   InputAdornment,
+  CircularProgress,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import dayjs from "dayjs";
@@ -34,9 +35,18 @@ import {
   Search,
 } from "@mui/icons-material";
 import { shouldShowOnDate } from "@/lib/utils";
-import { CellEditorPopover } from "./CellEditorPopover";
-import WorkoutModal from "./WorkoutModal";
-import { DateNavigation } from "./DateNavigation";
+import WorkoutModal from "../WorkoutModal";
+import { DateNavigation } from "../DateNavigation";
+import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import {
+  useCreateCompletionMutation,
+  useDeleteCompletionMutation,
+  useUpdateCompletionMutation,
+} from "@/lib/store/api/completionsApi";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
+import CellEditorPopover from "../CellEditorPopover";
 
 // Flatten tasks including subtasks
 const flattenTasks = tasks => {
@@ -353,19 +363,20 @@ const CompletionCell = memo(function CompletionCell({
   );
 });
 
-// Main Component
-export const RecurringTableView = ({
-  tasks,
-  sections,
-  createCompletion,
-  deleteCompletion,
-  updateCompletion,
-  getCompletionForDate,
-  onEdit,
-  onEditWorkout,
-  onDuplicate,
-  onDelete,
-}) => {
+export function HistoryTab({ isLoading: tabLoading }) {
+  // Get data from Redux
+  const { data: tasks = [] } = useGetTasksQuery();
+  const { data: sections = [] } = useGetSectionsQuery();
+  const { getCompletionForDate } = useCompletionHelpers();
+
+  // Mutations
+  const [createCompletion] = useCreateCompletionMutation();
+  const [deleteCompletion] = useDeleteCompletionMutation();
+  const [updateCompletion] = useUpdateCompletionMutation();
+
+  // Task operations
+  const taskOps = useTaskOperations();
+
   // State
   const [range, setRange] = useState("month");
   const [page, setPage] = useState(0);
@@ -466,16 +477,24 @@ export const RecurringTableView = ({
   const handleCellUpdate = async (task, date, data) => {
     const existing = getCompletionForDate?.(task.id, date);
     if (existing) {
-      await updateCompletion?.(task.id, date, data);
+      await updateCompletion({ taskId: task.id, date, ...data }).unwrap();
     } else {
-      await createCompletion?.(task.id, date, data);
+      await createCompletion({ taskId: task.id, date, ...data }).unwrap();
     }
   };
 
   // Handle cell delete
   const handleCellDelete = async (task, date) => {
-    await deleteCompletion?.(task.id, date);
+    await deleteCompletion({ taskId: task.id, date }).unwrap();
   };
+
+  if (tabLoading) {
+    return (
+      <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <CircularProgress size="xl" />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -615,7 +634,7 @@ export const RecurringTableView = ({
                             cursor: "pointer",
                             "&:hover": { color: "primary.main" },
                           }}
-                          onClick={() => onEdit?.(task)}
+                          onClick={() => taskOps.handleEditTask(task)}
                         >
                           {task.title}
                         </Typography>
@@ -722,7 +741,7 @@ export const RecurringTableView = ({
           <>
             <MenuItem
               onClick={() => {
-                onEdit?.(selectedTask);
+                taskOps.handleEditTask(selectedTask);
                 setTaskMenuAnchor(null);
               }}
             >
@@ -731,7 +750,7 @@ export const RecurringTableView = ({
             {selectedTask.completionType === "workout" && (
               <MenuItem
                 onClick={() => {
-                  onEditWorkout?.(selectedTask);
+                  taskOps.handleEditWorkout(selectedTask);
                   setTaskMenuAnchor(null);
                 }}
               >
@@ -740,7 +759,7 @@ export const RecurringTableView = ({
             )}
             <MenuItem
               onClick={() => {
-                onDuplicate?.(selectedTask);
+                taskOps.handleDuplicateTask(selectedTask);
                 setTaskMenuAnchor(null);
               }}
             >
@@ -749,7 +768,7 @@ export const RecurringTableView = ({
             <Divider />
             <MenuItem
               onClick={() => {
-                onDelete?.(selectedTask.id);
+                taskOps.handleDeleteTask(selectedTask.id);
                 setTaskMenuAnchor(null);
               }}
               sx={{ color: "error.main" }}
@@ -775,6 +794,4 @@ export const RecurringTableView = ({
       )}
     </Box>
   );
-};
-
-export default RecurringTableView;
+}

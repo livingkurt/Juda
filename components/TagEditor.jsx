@@ -17,10 +17,40 @@ import {
 import { Edit, Add, Delete, Close, Check, Label } from "@mui/icons-material";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { TagChip } from "./TagChip";
+import { useDialogState } from "@/hooks/useDialogState";
+import {
+  useGetTagsQuery,
+  useCreateTagMutation,
+  useUpdateTagMutation,
+  useDeleteTagMutation,
+} from "@/lib/store/api/tagsApi";
 
-export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onDeleteTag }) => {
+export const TagEditor = () => {
+  const dialogState = useDialogState();
+  const { data: tags = [] } = useGetTagsQuery();
+  const [createTagMutation] = useCreateTagMutation();
+  const [updateTagMutation] = useUpdateTagMutation();
+  const [deleteTagMutation] = useDeleteTagMutation();
   const { tagColors, canonicalColors } = useThemeColors();
   const theme = useTheme();
+
+  const isOpen = dialogState.tagEditorOpen;
+
+  const handleClose = () => {
+    dialogState.setTagEditorOpen(false);
+  };
+
+  const handleCreateTag = async (name, color) => {
+    return await createTagMutation({ name, color }).unwrap();
+  };
+
+  const handleUpdateTag = async (id, updates) => {
+    return await updateTagMutation({ id, ...updates }).unwrap();
+  };
+
+  const handleDeleteTag = async id => {
+    return await deleteTagMutation(id).unwrap();
+  };
 
   const [newTagName, setNewTagName] = useState("");
   const [newTagColorIndex, setNewTagColorIndex] = useState(0);
@@ -28,10 +58,10 @@ export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onD
   const [editingName, setEditingName] = useState("");
   const [editingColorIndex, setEditingColorIndex] = useState(0);
 
-  const handleCreateTag = async () => {
+  const handleCreate = async () => {
     if (!newTagName.trim()) return;
     // Store canonical color (not theme color)
-    await onCreateTag(newTagName.trim(), canonicalColors[newTagColorIndex]);
+    await handleCreateTag(newTagName.trim(), canonicalColors[newTagColorIndex]);
     setNewTagName("");
     setNewTagColorIndex(0);
   };
@@ -52,7 +82,7 @@ export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onD
 
   const saveEditing = async () => {
     if (!editingName.trim()) return;
-    await onUpdateTag(editingTagId, {
+    await handleUpdateTag(editingTagId, {
       name: editingName.trim(),
       color: canonicalColors[editingColorIndex],
     });
@@ -62,18 +92,20 @@ export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onD
   const handleDelete = async tagId => {
     // eslint-disable-next-line no-alert
     if (window.confirm("Delete this tag? It will be removed from all tasks.")) {
-      await onDeleteTag(tagId);
+      await handleDeleteTag(tagId);
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={isOpen} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         <Stack direction="row" spacing={1} alignItems="center">
           <Label fontSize="medium" />
           <Typography>Manage Tags</Typography>
         </Stack>
-        <IconButton onClick={onClose} sx={{ position: "absolute", right: 8, top: 8 }} size="small">
+        <IconButton onClick={handleClose} sx={{ position: "absolute", right: 8, top: 8 }} size="small">
           <Close />
         </IconButton>
       </DialogTitle>
@@ -95,7 +127,7 @@ export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onD
               placeholder="Tag name"
               value={newTagName}
               onChange={e => setNewTagName(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleCreateTag()}
+              onKeyDown={e => e.key === "Enter" && handleCreate()}
               size="small"
               fullWidth
               sx={{ mb: 2 }}
@@ -125,7 +157,7 @@ export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onD
                 </Grid>
               ))}
             </Grid>
-            <Button size="small" variant="contained" onClick={handleCreateTag} disabled={!newTagName.trim()}>
+            <Button size="small" variant="contained" onClick={handleCreate} disabled={!newTagName.trim()}>
               <Add fontSize="small" />
               Create Tag
             </Button>

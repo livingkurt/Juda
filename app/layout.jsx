@@ -1,6 +1,7 @@
 import { Providers } from "./providers";
 import "./globals.css";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const metadata = {
   title: "Juda - Task Manager",
   description: "Daily task management system",
