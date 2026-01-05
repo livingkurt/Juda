@@ -1,7 +1,8 @@
 "use client";
 
-import { Box, Text, Flex, Checkbox, Input, HStack, VStack, Badge } from "@chakra-ui/react";
+import { Box, Text, Flex, Input, HStack, VStack, Badge } from "@chakra-ui/react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import { OutcomeCheckbox } from "./OutcomeCheckbox";
 
 /**
  * WorkoutExerciseCard - Displays a single exercise with set tracking
@@ -20,6 +21,7 @@ export default function WorkoutExerciseCard({
   onActualValueChange = null,
 }) {
   const { mode } = useSemanticColors();
+
   // Get target value for current week
   const weeklyTarget = exercise.weeklyProgression?.find(w => w.week === currentWeek);
   const targetValue = weeklyTarget?.targetValue ?? exercise.targetValue;
@@ -48,16 +50,50 @@ export default function WorkoutExerciseCard({
     return `${exercise.sets} x ${targetValue} ${exercise.unit}`;
   };
 
-  const handleSetClick = setNumber => {
-    const existingSet = completedSets.find(s => s.setNumber === setNumber);
+  // Get outcome for a set
+  const getSetOutcome = setNumber => {
+    const setData = completedSets.find(s => s.setNumber === setNumber);
+    return setData?.outcome || null;
+  };
 
-    if (exercise.type === "reps" || exercise.type === "time") {
-      // Toggle checkbox for reps/time exercises
-      onSetToggle(exercise.id, setNumber, {
-        setNumber,
-        completed: !existingSet?.completed,
-      });
+  // Get actual value for a set
+  const getSetActualValue = setNumber => {
+    const setData = completedSets.find(s => s.setNumber === setNumber);
+    return setData?.actualValue ?? "";
+  };
+
+  // Handle outcome change (completed/not_completed/null)
+  const handleOutcomeChange = (setNumber, outcome) => {
+    const existingSet = completedSets.find(s => s.setNumber === setNumber) || {};
+
+    // When marking as completed, automatically set actualValue to targetValue if not already set
+    const updatedData = {
+      ...existingSet,
+      setNumber,
+      outcome: outcome,
+    };
+
+    // Auto-fill actualValue with targetValue when completing (only for reps/time exercises)
+    if (outcome === "completed" && (exercise.type === "reps" || exercise.type === "time")) {
+      // Only set if there's no existing actualValue
+      if (!existingSet.actualValue && targetValue) {
+        updatedData.actualValue = parseInt(targetValue, 10);
+      }
     }
+
+    onSetToggle(exercise.id, setNumber, updatedData);
+  };
+
+  // Handle actual value change
+  const handleActualValueChange = (setNumber, value) => {
+    const existingSet = completedSets.find(s => s.setNumber === setNumber) || {};
+    const parsedValue = value === "" ? null : parseInt(value, 10);
+
+    onSetToggle(exercise.id, setNumber, {
+      ...existingSet,
+      setNumber,
+      actualValue: parsedValue,
+    });
   };
 
   const handleValueChange = (setNumber, field, value) => {
@@ -71,10 +107,13 @@ export default function WorkoutExerciseCard({
   };
 
   const renderSetInput = setNumber => {
-    const setData = completedSets.find(s => s.setNumber === setNumber) || {};
+    const outcome = getSetOutcome(setNumber);
+    const actualValue = getSetActualValue(setNumber);
+    const isNotCompleted = outcome === "not_completed";
 
     if (exercise.type === "distance") {
       // Running exercise - show time, distance, pace inputs
+      const setData = completedSets.find(s => s.setNumber === setNumber) || {};
       return (
         <VStack gap={2} w="full" align="stretch">
           <HStack>
@@ -119,22 +158,46 @@ export default function WorkoutExerciseCard({
       );
     }
 
-    // Reps or time - simple checkbox
+    // Reps or time - outcome checkbox + actual value input
     return (
-      <Checkbox.Root
-        size="lg"
-        checked={setData.completed || false}
-        onCheckedChange={() => handleSetClick(setNumber)}
-        colorPalette="blue"
-      >
-        <Checkbox.HiddenInput />
-        <Checkbox.Control />
-        <Checkbox.Label>
-          <Text fontSize="sm" whiteSpace="nowrap">
-            Set {setNumber}
-          </Text>
-        </Checkbox.Label>
-      </Checkbox.Root>
+      <HStack gap={2} align="flex-start">
+        {/* Set label on the left */}
+        <Text fontSize="md" color={mode.text.secondary} minW="40px">
+          Set {setNumber}
+        </Text>
+
+        {/* Checkbox and input stacked vertically */}
+        <VStack gap={1} align="stretch">
+          {/* Outcome checkbox */}
+          <OutcomeCheckbox
+            outcome={outcome}
+            onOutcomeChange={newOutcome => handleOutcomeChange(setNumber, newOutcome)}
+            size="md"
+          />
+
+          {/* Actual value input below checkbox */}
+          <Input
+            size="sm"
+            type="number"
+            placeholder={exercise.type === "reps" ? "Reps" : "Secs"}
+            value={actualValue}
+            onChange={e => handleActualValueChange(setNumber, e.target.value)}
+            disabled={isNotCompleted}
+            bg={mode.bg.surface}
+            w="100px"
+            opacity={isNotCompleted ? 0.5 : 1}
+            borderRadius="md"
+            borderColor={mode.border.default}
+            borderWidth="1px"
+            _hover={{
+              borderColor: mode.border.hover,
+            }}
+            _focus={{
+              borderColor: mode.border.focus,
+            }}
+          />
+        </VStack>
+      </HStack>
     );
   };
 
@@ -181,7 +244,7 @@ export default function WorkoutExerciseCard({
   return (
     <Box p={3} bg={mode.bg.muted} borderRadius="md" borderWidth="1px" borderColor={mode.border.default}>
       <VStack align="stretch" gap={2}>
-        {/* Top row: Exercise name and checkboxes */}
+        {/* Top row: Exercise name and set inputs */}
         <Flex
           direction={{ base: "column", md: "row" }}
           align={{ base: "flex-start", md: "center" }}

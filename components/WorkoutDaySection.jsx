@@ -21,8 +21,14 @@ export default function WorkoutDaySection({
   isCurrentDay = false,
   onActualValueChange = null,
 }) {
-  // Helper to check if a set is complete based on exercise type
+  // Helper to check if a set is complete based on outcome
   const isSetComplete = (setData, exerciseType) => {
+    // Use outcome field if available (new system)
+    if (setData.outcome !== undefined) {
+      return setData.outcome === "completed";
+    }
+
+    // Fallback to old system for backward compatibility
     if (exerciseType === "distance") {
       // For distance exercises, all three fields must be filled
       return Boolean(setData.time && setData.distance && setData.pace);

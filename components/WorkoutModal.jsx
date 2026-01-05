@@ -108,8 +108,10 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
 
                   transformed[section.id].days[day.id].exercises[exercise.id].sets.push({
                     setNumber: completion.setNumber,
-                    completed: completion.completed,
-                    value: completion.value,
+                    outcome: completion.outcome,
+                    completed: completion.completed, // Keep for backward compatibility
+                    actualValue: completion.actualValue,
+                    value: completion.value, // Keep for backward compatibility
                     time: completion.time,
                     distance: completion.distance,
                     pace: completion.pace,
@@ -153,8 +155,10 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
               date: dateKey,
               exerciseId,
               setNumber: setData.setNumber,
-              completed: setData.completed,
-              value: setData.value,
+              outcome: setData.outcome,
+              completed: setData.completed, // Keep for backward compatibility
+              actualValue: setData.actualValue,
+              value: setData.value, // Keep for backward compatibility
               time: setData.time,
               distance: setData.distance,
               pace: setData.pace,
@@ -277,8 +281,14 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
     });
   };
 
-  // Helper to check if a set is complete based on exercise type
+  // Helper to check if a set is complete based on outcome
   const isSetComplete = (setData, exerciseType) => {
+    // Use outcome field if available (new system)
+    if (setData.outcome !== undefined) {
+      return setData.outcome === "completed";
+    }
+
+    // Fallback to old system for backward compatibility
     if (exerciseType === "distance") {
       // For distance exercises, all three fields must be filled
       return Boolean(setData.time && setData.distance && setData.pace);
@@ -345,8 +355,8 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
   }
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={e => !e.open && onClose()} size="xl">
-      <Dialog.Backdrop bg="blackAlpha.600" />
+    <Dialog.Root open={isOpen} onOpenChange={e => !e.open && onClose()} size="xl" closeOnInteractOutside closeOnEscape>
+      <Dialog.Backdrop bg="blackAlpha.600" onClick={onClose} />
       <Dialog.Positioner>
         <Dialog.Content maxW="900px" maxH="90vh" overflowY="auto" bg={bgColor}>
           <Dialog.Header>

@@ -218,6 +218,20 @@
       "when": 1767333683926,
       "tag": "0030_add_workout_set_completions_table",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1767625923018,
+      "tag": "0031_add_workout_set_outcome_and_actual_values",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1767626157498,
+      "tag": "0032_simplify_actual_value_field",
+      "breakpoints": true
     }
   ]
 }
