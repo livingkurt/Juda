@@ -251,7 +251,8 @@ export function useTaskOperations() {
     async (taskId, newTagIds) => {
       try {
         await batchUpdateTaskTags(taskId, newTagIds);
-        await fetchTasks();
+        // RTK Query will automatically refetch due to invalidatesTags
+        // No need to manually call fetchTasks()
       } catch (error) {
         console.error("Error updating task tags:", error);
         toast({
@@ -263,7 +264,7 @@ export function useTaskOperations() {
         });
       }
     },
-    [batchUpdateTaskTags, fetchTasks, toast]
+    [batchUpdateTaskTags, toast]
   );
 
   // Create task inline

@@ -106,7 +106,8 @@ function TaskDialogForm({
 
   const [subtasks, setSubtasks] = useState(() => {
     const taskSubtasks = Array.isArray(task?.subtasks) ? task.subtasks : [];
-    return taskSubtasks.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((st, idx) => ({ ...st, order: idx }));
+    // Create a copy before sorting to avoid mutating frozen Redux state
+    return [...taskSubtasks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((st, idx) => ({ ...st, order: idx }));
   });
   const [newSubtask, setNewSubtask] = useState("");
   const [editingSubtask, setEditingSubtask] = useState(null);
