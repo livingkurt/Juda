@@ -50,7 +50,6 @@
     "jsonwebtoken": "^9.0.3",
     "nanoid": "^5.1.6",
     "next": "^16.1.1",
-    "notistack": "^3.0.1",
     "postgres": "^3.4.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -20,6 +20,7 @@ import {
   setDefaultTime,
   setDefaultDate,
 } from "@/lib/store/slices/uiSlice";
+import { showSuccess, showError } from "@/lib/store/slices/snackbarSlice";
 
 /**
  * Task operation handlers (edit, delete, duplicate, etc.)
@@ -113,38 +114,47 @@ export function useTaskOperations() {
       const { tagIds, subtasks: subtasksData, ...taskFields } = taskData;
 
       let savedTask;
-      if (taskData.id) {
-        savedTask = await updateTaskMutation({ id: taskData.id, ...taskFields }).unwrap();
-      } else {
-        savedTask = await createTaskMutation(taskFields).unwrap();
+      const isUpdate = Boolean(taskData.id);
+
+      try {
+        if (isUpdate) {
+          savedTask = await updateTaskMutation({ id: taskData.id, ...taskFields }).unwrap();
+          dispatch(showSuccess({ message: "Task updated" }));
+        } else {
+          savedTask = await createTaskMutation(taskFields).unwrap();
+          dispatch(showSuccess({ message: "Task created" }));
+        }
+
+        // Handle subtasks if provided - ensure all remaining subtasks have correct parentId
+        if (subtasksData !== undefined && subtasksData.length > 0) {
+          // Prepare subtasks for batch save - set parentId for all remaining subtasks
+          const subtasksToSave = subtasksData.map(st => ({
+            id: st.id,
+            title: st.title,
+            sectionId: taskFields.sectionId || savedTask.sectionId,
+            parentId: savedTask.id, // Ensure parentId is set to the parent task
+            time: st.time || null,
+            duration: st.duration ?? 30,
+            order: st.order ?? 0,
+            recurrence: st.recurrence || null,
+          }));
+
+          // Use batch save to update all subtasks at once
+          await batchSaveTasksMutation(subtasksToSave).unwrap();
+        }
+
+        // Handle tag assignments if tagIds provided
+        if (tagIds !== undefined) {
+          await updateTaskTagsMutation({ taskId: savedTask.id, tagIds }).unwrap();
+        }
+
+        return savedTask;
+      } catch (error) {
+        dispatch(showError({ message: isUpdate ? "Failed to update task" : "Failed to create task" }));
+        throw error;
       }
-
-      // Handle subtasks if provided - ensure all remaining subtasks have correct parentId
-      if (subtasksData !== undefined && subtasksData.length > 0) {
-        // Prepare subtasks for batch save - set parentId for all remaining subtasks
-        const subtasksToSave = subtasksData.map(st => ({
-          id: st.id,
-          title: st.title,
-          sectionId: taskFields.sectionId || savedTask.sectionId,
-          parentId: savedTask.id, // Ensure parentId is set to the parent task
-          time: st.time || null,
-          duration: st.duration ?? 30,
-          order: st.order ?? 0,
-          recurrence: st.recurrence || null,
-        }));
-
-        // Use batch save to update all subtasks at once
-        await batchSaveTasksMutation(subtasksToSave).unwrap();
-      }
-
-      // Handle tag assignments if tagIds provided
-      if (tagIds !== undefined) {
-        await updateTaskTagsMutation({ taskId: savedTask.id, tagIds }).unwrap();
-      }
-
-      return savedTask;
     },
-    [createTaskMutation, updateTaskMutation, updateTaskTagsMutation, batchSaveTasksMutation]
+    [dispatch, createTaskMutation, updateTaskMutation, updateTaskTagsMutation, batchSaveTasksMutation]
   );
 
   // Edit task - opens dialog with task data

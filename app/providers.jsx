@@ -4,7 +4,6 @@ import { useMemo, useEffect } from "react";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { SnackbarProvider } from "notistack";
 import { Provider as ReduxProvider } from "react-redux";
 import { store } from "@/lib/store";
 import { darkTheme, lightTheme } from "@/lib/theme";
@@ -16,6 +15,7 @@ import { initDB } from "@/lib/db/indexedDB";
 import { syncManager } from "@/lib/sync/syncManager";
 import { useSSESync } from "@/hooks/useSSESync";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
+import Notification from "@/components/Notification";
 
 // Inner component that has access to preferences
 function ThemeWrapper({ children }) {
@@ -69,14 +69,10 @@ function ThemeWrapper({ children }) {
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <SnackbarProvider
-          maxSnack={3}
-          anchorOrigin={{ vertical: "top", horizontal: "center" }}
-          autoHideDuration={3000}
-          preventDuplicate
-        >
-          <LocalizationProvider dateAdapter={AdapterDayjs}>{children}</LocalizationProvider>
-        </SnackbarProvider>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          {children}
+          <Notification />
+        </LocalizationProvider>
       </ThemeProvider>
     </ColorModeContext.Provider>
   );
