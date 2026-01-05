@@ -130,7 +130,9 @@ export default function WorkoutExerciseCard({
         <Checkbox.HiddenInput />
         <Checkbox.Control />
         <Checkbox.Label>
-          <Text fontSize="sm">Set {setNumber}</Text>
+          <Text fontSize="sm" whiteSpace="nowrap">
+            Set {setNumber}
+          </Text>
         </Checkbox.Label>
       </Checkbox.Root>
     );
@@ -180,15 +182,27 @@ export default function WorkoutExerciseCard({
     <Box p={3} bg={mode.bg.muted} borderRadius="md" borderWidth="1px" borderColor={mode.border.default}>
       <VStack align="stretch" gap={2}>
         {/* Top row: Exercise name and checkboxes */}
-        <Flex align="center" justify="space-between" gap={3}>
-          <Text fontWeight="semibold" fontSize="md">
+        <Flex
+          direction={{ base: "column", md: "row" }}
+          align={{ base: "flex-start", md: "center" }}
+          justify="space-between"
+          gap={3}
+        >
+          <Text fontWeight="semibold" fontSize="md" flexShrink={1} minW={0}>
             {exercise.name}
           </Text>
-          <HStack gap={2}>
+          <Flex
+            direction={{ base: "column", md: "row" }}
+            gap={2}
+            flexShrink={0}
+            align={{ base: "flex-start", md: "center" }}
+          >
             {Array.from({ length: exercise.sets }, (_, i) => i + 1).map(setNumber => (
-              <Box key={setNumber}>{renderSetInput(setNumber)}</Box>
+              <Box key={setNumber} flexShrink={0}>
+                {renderSetInput(setNumber)}
+              </Box>
             ))}
-          </HStack>
+          </Flex>
         </Flex>
 
         {/* Bottom row: Reps info and badges */}
