@@ -258,7 +258,16 @@ export const JournalView = ({
       </Box>
 
       {/* Content Area */}
-      <Box flex={1} overflowY="auto" p={{ base: 3, md: 4 }}>
+      <Box
+        flex={1}
+        overflowY="auto"
+        p={{ base: 3, md: 4 }}
+        css={{
+          // Improve scroll behavior on mobile
+          WebkitOverflowScrolling: "touch",
+          scrollBehavior: "smooth",
+        }}
+      >
         {/* Large Date Display */}
         <Box textAlign="center" py={2}>
           <Text fontSize={{ base: "2xl", md: "3xl" }} fontWeight="bold" color={textColor}>

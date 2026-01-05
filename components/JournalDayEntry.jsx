@@ -34,9 +34,19 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
   const handleAddEntry = () => {
     setShowTextarea(true);
     setExpanded(true);
-    setTimeout(() => {
-      textareaRef.current?.focus();
-    }, 10);
+    // Delay focus to allow collapsible animation to complete
+    // Use longer delay on mobile to prevent scroll jumping
+    const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
+    setTimeout(
+      () => {
+        textareaRef.current?.focus({ preventScroll: true });
+        // Smooth scroll into view after focus
+        if (isMobile) {
+          textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      },
+      isMobile ? 300 : 10
+    );
   };
 
   const handleToggleExpand = () => {
@@ -142,12 +152,18 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
                     size="sm"
                     lineHeight={{ base: "1.6", md: "1.4" }}
                     variant="filled"
-                    resize="none"
-                    minH="80px"
+                    resize="vertical"
+                    minH={{ base: "120px", md: "80px" }}
+                    maxH={{ base: "400px", md: "600px" }}
                     bg={mode.bg.muted}
                     color={textColor}
+                    scrollMarginTop="100px"
                     css={{
                       fieldSizing: "content",
+                      // Prevent scroll jumping on mobile
+                      "@media (max-width: 768px)": {
+                        fieldSizing: "initial",
+                      },
                     }}
                     _focus={{
                       bg: mode.bg.surface,
