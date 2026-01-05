@@ -640,7 +640,7 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
                 <Checkbox.Root checked={outcome === "completed"} size="md" onCheckedChange={() => {}}>
                   <Checkbox.HiddenInput />
                   <Checkbox.Control
-                    bg={outcome === "not_completed" ? "white" : undefined}
+                    bg={outcome === "not_completed" ? "white" : "white"}
                     boxShadow="none"
                     outline="none"
                     border="none"
@@ -658,7 +658,7 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
                         </Box>
                       </Box>
                     ) : (
-                      // Show empty checkbox when scheduled but no outcome
+                      // Show empty checkbox when scheduled but no outcome - empty indicator like regular checkbox
                       <Checkbox.Indicator />
                     )}
                   </Checkbox.Control>
