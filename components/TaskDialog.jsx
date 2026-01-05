@@ -27,6 +27,7 @@ import WorkoutBuilder from "./WorkoutBuilder";
 import WeekdaySelector from "./WeekdaySelector";
 import { SelectDropdown } from "./SelectDropdown";
 import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
+import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Internal component that resets when key changes
@@ -130,6 +131,7 @@ function TaskDialogForm({
   // Derive workout program status from Redux query
   const hasWorkoutProgram = Boolean(workoutProgram);
   const workoutProgramWeeks = workoutProgram?.numberOfWeeks || 0;
+  const [updateTaskMutation] = useUpdateTaskMutation();
 
   // Workout program status is now derived from workoutProgram query data
 
@@ -383,6 +385,28 @@ function TaskDialogForm({
     ]);
     setSearchQuery("");
     setSubtaskTabIndex(0); // Switch back to subtasks list
+  };
+
+  // Handle removing subtask from parent
+  const handleRemoveSubtaskFromParent = async subtask => {
+    // Check if this is an existing task (has isExisting flag or was loaded from task.subtasks)
+    // New subtasks created in dialog have timestamp IDs (all digits, >= 13 digits)
+    const isNewSubtask = /^\d{13,}$/.test(subtask.id);
+    const isExistingTask = subtask.isExisting === true || !isNewSubtask;
+
+    if (isExistingTask) {
+      // For existing tasks, call API to remove parent relationship
+      try {
+        await updateTaskMutation({ id: subtask.id, parentId: null }).unwrap();
+      } catch (error) {
+        console.error("Failed to remove subtask from parent:", error);
+        // Don't remove from local state if API call failed
+        return;
+      }
+    }
+
+    // Remove from local state (for both new and existing tasks)
+    setSubtasks(subtasks.filter(s => s.id !== subtask.id));
   };
 
   return (
@@ -804,17 +828,26 @@ function TaskDialogForm({
                               {subtasks.map(st => (
                                 <TaskItem
                                   key={st.id}
-                                  task={st}
+                                  task={{ ...st, parentId: task?.id }}
                                   variant="subtask"
                                   containerId="task-dialog-subtasks"
                                   draggableId={`subtask-${st.id}`}
+                                  parentTaskId={task?.id}
                                   onEdit={() => {
                                     setEditingSubtask(st);
                                     setSubtaskTitle(st.title);
                                     setSubtaskTime(st.time || "");
                                     setSubtaskDuration(st.duration || 30);
                                   }}
-                                  onDelete={() => setSubtasks(subtasks.filter(s => s.id !== st.id))}
+                                  onDelete={() => {
+                                    // Just remove from local state - that's all we need to do
+                                    // The subtask relationship is managed when the parent task is saved
+                                    setSubtasks(subtasks.filter(s => s.id !== st.id));
+                                  }}
+                                  onRemoveFromParent={() => {
+                                    // Handle removal properly - call API for existing tasks
+                                    handleRemoveSubtaskFromParent(st);
+                                  }}
                                 />
                               ))}
                             </VStack>

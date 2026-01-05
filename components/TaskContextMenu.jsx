@@ -1,14 +1,24 @@
 "use client";
 
 import { HStack, Box, Text, Menu } from "@chakra-ui/react";
-import { Edit2, Check, X, Circle, Copy, Trash2, Dumbbell, Clock } from "lucide-react";
+import { Edit2, Check, X, Circle, Copy, Trash2, Dumbbell, Clock, Unlink } from "lucide-react";
 import { TagMenuSelector } from "./TagMenuSelector";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
+import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
 
-export const TaskContextMenu = ({ task, date, isRecurring, isWorkoutTask, outcome, onClose }) => {
+export const TaskContextMenu = ({
+  task,
+  date,
+  isRecurring,
+  isWorkoutTask,
+  outcome,
+  isSubtask,
+  onClose,
+  onRemoveFromParent,
+}) => {
   const { mode } = useSemanticColors();
 
   // Use hooks directly (they use Redux internally)
@@ -17,6 +27,25 @@ export const TaskContextMenu = ({ task, date, isRecurring, isWorkoutTask, outcom
   const statusHandlers = useStatusHandlers({
     addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
   });
+  const [updateTaskMutation] = useUpdateTaskMutation();
+
+  const handleRemoveFromParent = async () => {
+    // If a custom handler is provided (e.g., from dialog), use it
+    if (onRemoveFromParent) {
+      onRemoveFromParent();
+      onClose?.();
+      return;
+    }
+
+    // Otherwise, update via API
+    try {
+      await updateTaskMutation({ id: task.id, parentId: null }).unwrap();
+      console.warn("Subtask promoted: Task is now a regular task");
+      onClose?.();
+    } catch (error) {
+      console.error("Failed to remove from parent:", error);
+    }
+  };
 
   return (
     <>
@@ -35,6 +64,35 @@ export const TaskContextMenu = ({ task, date, isRecurring, isWorkoutTask, outcom
           <Text>Edit</Text>
         </HStack>
       </Menu.Item>
+
+      {/* Remove from Parent - only show for subtasks */}
+      {isSubtask && (
+        <>
+          <Menu.Item
+            onClick={e => {
+              e.stopPropagation();
+              handleRemoveFromParent();
+            }}
+            color={mode.text.primary}
+          >
+            <HStack gap={2}>
+              <Box
+                as="span"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                w="14px"
+                h="14px"
+                flexShrink={0}
+              >
+                <Unlink size={14} />
+              </Box>
+              <Text>Remove from Parent</Text>
+            </HStack>
+          </Menu.Item>
+          <Menu.Separator />
+        </>
+      )}
 
       {/* Edit Workout option for workout-type tasks */}
       {isWorkoutTask && (

@@ -148,6 +148,7 @@ export const TaskItem = ({
   isSelected, // Whether this task is selected for bulk edit
   selectedCount, // Number of tasks currently selected
   hoveredDroppable: _hoveredDroppable, // For drag and drop highlighting (unused for now)
+  onRemoveFromParent, // Optional handler for removing subtask from parent (used in dialog)
 }) => {
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
@@ -468,156 +469,182 @@ export const TaskItem = ({
             <Box />
           )}
 
+          {/* X button for dialog subtasks */}
+          {isDialogSubtask && onRemoveFromParent && (
+            <IconButton
+              onClick={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                onRemoveFromParent();
+              }}
+              onMouseDown={e => e.stopPropagation()}
+              onPointerDown={e => e.stopPropagation()}
+              size={{ base: "xs", md: "sm" }}
+              variant="ghost"
+              aria-label="Remove subtask"
+              colorPalette="red"
+              minW={{ base: "24px", md: "32px" }}
+              h={{ base: "24px", md: "32px" }}
+              p={{ base: 0, md: 1 }}
+            >
+              <Box as="span" color="currentColor">
+                <X size={14} stroke="currentColor" />
+              </Box>
+            </IconButton>
+          )}
+
           {/* Checkbox with outcome states */}
-          <Box position="relative">
-            {/* Checkbox for all tasks (including text-type and subtasks) */}
-            {(isToday || isBacklog || isSubtask) && (
-              <Menu.Root
-                open={outcomeMenuOpen}
-                onOpenChange={({ open }) => setOutcomeMenuOpen(open)}
-                isLazy
-                placement="right-start"
-                closeOnSelect
-              >
-                <Menu.Trigger asChild>
-                  <Box
-                    as="span"
-                    display="inline-block"
-                    border="none"
-                    outline="none"
-                    boxShadow="none"
-                    bg="transparent"
-                    p={0}
-                    m={0}
-                    _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-                    _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
-                  >
-                    <Checkbox.Root
-                      checked={
-                        isTextTask
-                          ? isTextTaskCompleted
-                          : isWorkoutTask
-                            ? isWorkoutTaskCompleted
-                            : outcome === "completed" || (outcome === null && isChecked)
-                      }
-                      size="md"
-                      onCheckedChange={() => {
-                        // For text tasks, complete when checkbox is checked (if there's a saved note)
-                        if (isTextTask && !isTextTaskCompleted && savedNote.trim()) {
-                          onCompleteWithNote?.(task.id, savedNote.trim());
-                          return;
-                        }
-                        // If overdue OR has outcome set, prevent default toggle
-                        if (shouldShowMenu) {
-                          // Don't toggle, menu will be opened by onClick handler
-                          return;
-                        }
-                        // Normal toggle behavior
-                        if (isSubtask) {
-                          onToggle?.(parentTaskId, task.id);
-                        } else {
-                          onToggle?.(task.id);
-                        }
-                      }}
-                      onClick={e => {
-                        e.stopPropagation();
-                        // If overdue OR has outcome set, open menu instead of toggling
-                        if (shouldShowMenu) {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          menuJustOpenedRef.current = true;
-                          setOutcomeMenuOpen(true);
-                        }
-                      }}
-                      onMouseDown={e => {
-                        e.stopPropagation();
-                        // Prevent default checkbox behavior when we want to show menu
-                        if (shouldShowMenu) {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }
-                      }}
-                      onPointerDown={e => e.stopPropagation()}
+          {!isDialogSubtask && (
+            <Box position="relative">
+              {/* Checkbox for all tasks (including text-type and subtasks) */}
+              {(isToday || isBacklog || isSubtask) && (
+                <Menu.Root
+                  open={outcomeMenuOpen}
+                  onOpenChange={({ open }) => setOutcomeMenuOpen(open)}
+                  isLazy
+                  placement="right-start"
+                  closeOnSelect
+                >
+                  <Menu.Trigger asChild>
+                    <Box
+                      as="span"
+                      display="inline-block"
+                      border="none"
+                      outline="none"
+                      boxShadow="none"
+                      bg="transparent"
+                      p={0}
+                      m={0}
+                      _focus={{ border: "none", outline: "none", boxShadow: "none" }}
+                      _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
                     >
-                      <Checkbox.HiddenInput />
-                      <Checkbox.Control
-                        bg={outcome === "not_completed" ? "white" : undefined}
-                        boxShadow="none"
-                        outline="none"
-                        _focus={{ boxShadow: "none", outline: "none" }}
-                        _focusVisible={{ boxShadow: "none", outline: "none" }}
+                      <Checkbox.Root
+                        checked={
+                          isTextTask
+                            ? isTextTaskCompleted
+                            : isWorkoutTask
+                              ? isWorkoutTaskCompleted
+                              : outcome === "completed" || (outcome === null && isChecked)
+                        }
+                        size="md"
+                        onCheckedChange={() => {
+                          // For text tasks, complete when checkbox is checked (if there's a saved note)
+                          if (isTextTask && !isTextTaskCompleted && savedNote.trim()) {
+                            onCompleteWithNote?.(task.id, savedNote.trim());
+                            return;
+                          }
+                          // If overdue OR has outcome set, prevent default toggle
+                          if (shouldShowMenu) {
+                            // Don't toggle, menu will be opened by onClick handler
+                            return;
+                          }
+                          // Normal toggle behavior
+                          if (isSubtask) {
+                            onToggle?.(parentTaskId, task.id);
+                          } else {
+                            onToggle?.(task.id);
+                          }
+                        }}
+                        onClick={e => {
+                          e.stopPropagation();
+                          // If overdue OR has outcome set, open menu instead of toggling
+                          if (shouldShowMenu) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            menuJustOpenedRef.current = true;
+                            setOutcomeMenuOpen(true);
+                          }
+                        }}
+                        onMouseDown={e => {
+                          e.stopPropagation();
+                          // Prevent default checkbox behavior when we want to show menu
+                          if (shouldShowMenu) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }
+                        }}
+                        onPointerDown={e => e.stopPropagation()}
                       >
-                        {outcome === "completed" || isTextTaskCompleted ? (
-                          <Checkbox.Indicator>
-                            <Check size={14} />
-                          </Checkbox.Indicator>
-                        ) : outcome === "not_completed" ? (
-                          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
-                            <Box as="span" color={mode.text.muted}>
-                              <X size={18} stroke="currentColor" style={{ strokeWidth: 3 }} />
+                        <Checkbox.HiddenInput />
+                        <Checkbox.Control
+                          bg={outcome === "not_completed" ? "white" : undefined}
+                          boxShadow="none"
+                          outline="none"
+                          _focus={{ boxShadow: "none", outline: "none" }}
+                          _focusVisible={{ boxShadow: "none", outline: "none" }}
+                        >
+                          {outcome === "completed" || isTextTaskCompleted ? (
+                            <Checkbox.Indicator>
+                              <Check size={14} />
+                            </Checkbox.Indicator>
+                          ) : outcome === "not_completed" ? (
+                            <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
+                              <Box as="span" color={mode.text.muted}>
+                                <X size={18} stroke="currentColor" style={{ strokeWidth: 3 }} />
+                              </Box>
                             </Box>
-                          </Box>
-                        ) : null}
-                      </Checkbox.Control>
-                    </Checkbox.Root>
-                  </Box>
-                </Menu.Trigger>
-                {shouldShowMenu && (
-                  <Portal>
-                    <Menu.Positioner>
-                      <Menu.Content onClick={e => e.stopPropagation()}>
-                        {/* Only show Uncheck if task has an outcome */}
-                        {outcome !== null && (
-                          <>
+                          ) : null}
+                        </Checkbox.Control>
+                      </Checkbox.Root>
+                    </Box>
+                  </Menu.Trigger>
+                  {shouldShowMenu && (
+                    <Portal>
+                      <Menu.Positioner>
+                        <Menu.Content onClick={e => e.stopPropagation()}>
+                          {/* Only show Uncheck if task has an outcome */}
+                          {outcome !== null && (
+                            <>
+                              <Menu.Item
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  onOutcomeChange(task.id, viewDate, null);
+                                }}
+                              >
+                                <HStack>
+                                  <Circle size={14} />
+                                  <Text>Uncheck</Text>
+                                </HStack>
+                              </Menu.Item>
+                              <Menu.Separator />
+                            </>
+                          )}
+                          {/* Only show Completed if not already completed */}
+                          {outcome !== "completed" && (
                             <Menu.Item
                               onClick={e => {
                                 e.stopPropagation();
-                                onOutcomeChange(task.id, viewDate, null);
+                                onOutcomeChange(task.id, viewDate, "completed");
                               }}
                             >
                               <HStack>
-                                <Circle size={14} />
-                                <Text>Uncheck</Text>
+                                <Check size={14} />
+                                <Text>Completed</Text>
                               </HStack>
                             </Menu.Item>
-                            <Menu.Separator />
-                          </>
-                        )}
-                        {/* Only show Completed if not already completed */}
-                        {outcome !== "completed" && (
-                          <Menu.Item
-                            onClick={e => {
-                              e.stopPropagation();
-                              onOutcomeChange(task.id, viewDate, "completed");
-                            }}
-                          >
-                            <HStack>
-                              <Check size={14} />
-                              <Text>Completed</Text>
-                            </HStack>
-                          </Menu.Item>
-                        )}
-                        {/* Only show Not Completed if not already not completed */}
-                        {outcome !== "not_completed" && (
-                          <Menu.Item
-                            onClick={e => {
-                              e.stopPropagation();
-                              onOutcomeChange(task.id, viewDate, "not_completed");
-                            }}
-                          >
-                            <HStack>
-                              <X size={14} />
-                              <Text>Not Completed</Text>
-                            </HStack>
-                          </Menu.Item>
-                        )}
-                      </Menu.Content>
-                    </Menu.Positioner>
-                  </Portal>
-                )}
-              </Menu.Root>
-            )}
-          </Box>
+                          )}
+                          {/* Only show Not Completed if not already not completed */}
+                          {outcome !== "not_completed" && (
+                            <Menu.Item
+                              onClick={e => {
+                                e.stopPropagation();
+                                onOutcomeChange(task.id, viewDate, "not_completed");
+                              }}
+                            >
+                              <HStack>
+                                <X size={14} />
+                                <Text>Not Completed</Text>
+                              </HStack>
+                            </Menu.Item>
+                          )}
+                        </Menu.Content>
+                      </Menu.Positioner>
+                    </Portal>
+                  )}
+                </Menu.Root>
+              )}
+            </Box>
+          )}
           {/* Color indicator */}
           {/* <Box w={3} h={3} borderRadius="full" bg={task.color || "#3b82f6"} flexShrink={0} /> */}
 
@@ -824,82 +851,87 @@ export const TaskItem = ({
           )}
 
           {/* Action menu */}
-          <Menu.Root open={actionMenuOpen} onOpenChange={({ open }) => setActionMenuOpen(open)}>
-            <Menu.Trigger asChild>
-              <IconButton
-                onClick={e => e.stopPropagation()}
-                onMouseDown={e => e.stopPropagation()}
-                onPointerDown={e => e.stopPropagation()}
-                size={{ base: "xs", md: "sm" }}
-                variant="ghost"
-                aria-label="Task actions"
-                border="none"
-                outline="none"
-                minW={{ base: "24px", md: "32px" }}
-                h={{ base: "24px", md: "32px" }}
-                p={{ base: 0, md: 1 }}
-                _hover={{ border: "none", outline: "none" }}
-                _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-                _active={{ border: "none", outline: "none" }}
-              >
-                <Box as="span" color="currentColor">
-                  <MoreVertical size={14} stroke="currentColor" />
-                </Box>
-              </IconButton>
-            </Menu.Trigger>
-            <Portal>
-              <Menu.Positioner>
-                <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-                  {/* Show Bulk Edit option if multiple tasks are selected */}
-                  {selectedCountComputed > 0 && onBulkEdit && (
-                    <>
-                      <Menu.Item
-                        onClick={e => {
-                          e.stopPropagation();
-                          onBulkEdit();
-                          setActionMenuOpen(false);
-                        }}
-                      >
-                        <HStack gap={2}>
-                          <Box
-                            as="span"
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="center"
-                            w="14px"
-                            h="14px"
-                            flexShrink={0}
-                          >
-                            <Edit2 size={14} />
-                          </Box>
-                          <Text>Bulk Edit ({selectedCountComputed} selected)</Text>
-                        </HStack>
-                      </Menu.Item>
-                      <Menu.Separator />
-                    </>
-                  )}
-                  {/* Shared context menu for common actions */}
-                  <TaskContextMenu
-                    task={task}
-                    date={viewDate}
-                    isRecurring={isRecurring}
-                    isWorkoutTask={isWorkoutTask}
-                    outcome={outcome}
-                    onEdit={onEdit}
-                    onEditWorkout={onEditWorkout}
-                    onDuplicate={onDuplicate}
-                    onDelete={isSubtask ? taskId => onDelete?.(parentTaskId, taskId) : onDelete}
-                    onOutcomeChange={onOutcomeChange}
-                    onClose={() => setActionMenuOpen(false)}
-                    tags={tags}
-                    onTagsChange={onTagsChange}
-                    onCreateTag={onCreateTag}
-                    onStatusChange={statusHandlers.handleStatusChange}
-                  />
-                </Menu.Content>
-              </Menu.Positioner>
-            </Portal>
-          </Menu.Root>
+          {!isDialogSubtask && (
+            <Menu.Root open={actionMenuOpen} onOpenChange={({ open }) => setActionMenuOpen(open)}>
+              <Menu.Trigger asChild>
+                <IconButton
+                  onClick={e => e.stopPropagation()}
+                  onMouseDown={e => e.stopPropagation()}
+                  onPointerDown={e => e.stopPropagation()}
+                  size={{ base: "xs", md: "sm" }}
+                  variant="ghost"
+                  aria-label="Task actions"
+                  border="none"
+                  outline="none"
+                  minW={{ base: "24px", md: "32px" }}
+                  h={{ base: "24px", md: "32px" }}
+                  p={{ base: 0, md: 1 }}
+                  _hover={{ border: "none", outline: "none" }}
+                  _focus={{ border: "none", outline: "none", boxShadow: "none" }}
+                  _active={{ border: "none", outline: "none" }}
+                >
+                  <Box as="span" color="currentColor">
+                    <MoreVertical size={14} stroke="currentColor" />
+                  </Box>
+                </IconButton>
+              </Menu.Trigger>
+              <Portal>
+                <Menu.Positioner>
+                  <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+                    {/* Show Bulk Edit option if multiple tasks are selected */}
+                    {selectedCountComputed > 0 && onBulkEdit && (
+                      <>
+                        <Menu.Item
+                          onClick={e => {
+                            e.stopPropagation();
+                            onBulkEdit();
+                            setActionMenuOpen(false);
+                          }}
+                        >
+                          <HStack gap={2}>
+                            <Box
+                              as="span"
+                              display="flex"
+                              alignItems="center"
+                              justifyContent="center"
+                              w="14px"
+                              h="14px"
+                              flexShrink={0}
+                            >
+                              <Edit2 size={14} />
+                            </Box>
+                            <Text>Bulk Edit ({selectedCountComputed} selected)</Text>
+                          </HStack>
+                        </Menu.Item>
+                        <Menu.Separator />
+                      </>
+                    )}
+                    {/* Shared context menu for common actions */}
+                    <TaskContextMenu
+                      task={task}
+                      date={viewDate}
+                      isRecurring={isRecurring}
+                      isWorkoutTask={isWorkoutTask}
+                      outcome={outcome}
+                      isSubtask={isSubtask}
+                      parentTaskId={parentTaskId}
+                      onEdit={onEdit}
+                      onEditWorkout={onEditWorkout}
+                      onDuplicate={onDuplicate}
+                      onDelete={isSubtask ? taskId => onDelete?.(parentTaskId, taskId) : onDelete}
+                      onOutcomeChange={onOutcomeChange}
+                      onClose={() => setActionMenuOpen(false)}
+                      tags={tags}
+                      onTagsChange={onTagsChange}
+                      onCreateTag={onCreateTag}
+                      onStatusChange={statusHandlers.handleStatusChange}
+                      onRemoveFromParent={onRemoveFromParent}
+                    />
+                  </Menu.Content>
+                </Menu.Positioner>
+              </Portal>
+            </Menu.Root>
+          )}
         </Flex>
 
         {/* Expanded subtasks */}

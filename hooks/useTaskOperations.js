@@ -3,12 +3,12 @@
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { formatLocalDate } from "@/lib/utils";
-import { useToast } from "@/hooks/useToast";
 import {
   useGetTasksQuery,
   useCreateTaskMutation,
   useUpdateTaskMutation,
   useDeleteTaskMutation,
+  useBatchSaveTasksMutation,
 } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
@@ -27,7 +27,6 @@ import {
  */
 export function useTaskOperations() {
   const dispatch = useDispatch();
-  const { toast } = useToast();
 
   // Get viewDate from Redux (or compute today if not set)
   const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
@@ -42,6 +41,7 @@ export function useTaskOperations() {
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [deleteTaskMutation] = useDeleteTaskMutation();
   const [updateTaskTagsMutation] = useUpdateTaskTagsMutation();
+  const [batchSaveTasksMutation] = useBatchSaveTasksMutation();
 
   // Wrapper functions for mutations
   const createTask = useCallback(
@@ -110,13 +110,31 @@ export function useTaskOperations() {
   // Save task (create or update with tags and subtasks)
   const saveTask = useCallback(
     async taskData => {
-      const { tagIds, subtasks: _subtasksData, ...taskFields } = taskData;
+      const { tagIds, subtasks: subtasksData, ...taskFields } = taskData;
 
       let savedTask;
       if (taskData.id) {
         savedTask = await updateTaskMutation({ id: taskData.id, ...taskFields }).unwrap();
       } else {
         savedTask = await createTaskMutation(taskFields).unwrap();
+      }
+
+      // Handle subtasks if provided - ensure all remaining subtasks have correct parentId
+      if (subtasksData !== undefined && subtasksData.length > 0) {
+        // Prepare subtasks for batch save - set parentId for all remaining subtasks
+        const subtasksToSave = subtasksData.map(st => ({
+          id: st.id,
+          title: st.title,
+          sectionId: taskFields.sectionId || savedTask.sectionId,
+          parentId: savedTask.id, // Ensure parentId is set to the parent task
+          time: st.time || null,
+          duration: st.duration ?? 30,
+          order: st.order ?? 0,
+          recurrence: st.recurrence || null,
+        }));
+
+        // Use batch save to update all subtasks at once
+        await batchSaveTasksMutation(subtasksToSave).unwrap();
       }
 
       // Handle tag assignments if tagIds provided
@@ -126,7 +144,7 @@ export function useTaskOperations() {
 
       return savedTask;
     },
-    [createTaskMutation, updateTaskMutation, updateTaskTagsMutation]
+    [createTaskMutation, updateTaskMutation, updateTaskTagsMutation, batchSaveTasksMutation]
   );
 
   // Edit task - opens dialog with task data
@@ -170,23 +188,12 @@ export function useTaskOperations() {
     async taskId => {
       try {
         await duplicateTask(taskId);
-        toast({
-          title: "Task duplicated",
-          status: "success",
-          duration: 2000,
-          isClosable: true,
-        });
+        console.warn("Task duplicated");
       } catch (error) {
-        toast({
-          title: "Failed to duplicate task",
-          description: error.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
+        console.error("Failed to duplicate task:", error.message);
       }
     },
-    [duplicateTask, toast]
+    [duplicateTask]
   );
 
   // Save task (from dialog)
@@ -255,16 +262,9 @@ export function useTaskOperations() {
         // No need to manually call fetchTasks()
       } catch (error) {
         console.error("Error updating task tags:", error);
-        toast({
-          title: "Failed to update tags",
-          description: error.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
       }
     },
-    [batchUpdateTaskTags, toast]
+    [batchUpdateTaskTags]
   );
 
   // Create task inline
@@ -293,16 +293,10 @@ export function useTaskOperations() {
           order: 999,
         });
       } catch (error) {
-        toast({
-          title: "Failed to create task",
-          description: error.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
+        console.error("Failed to create task:", error.message);
       }
     },
-    [createTask, viewDate, toast]
+    [createTask, viewDate]
   );
 
   // Create subtask
@@ -328,22 +322,12 @@ export function useTaskOperations() {
 
         await fetchTasks();
 
-        toast({
-          title: "Subtask created",
-          status: "success",
-          duration: 2000,
-        });
+        console.warn("Subtask created");
       } catch (error) {
-        toast({
-          title: "Failed to create subtask",
-          description: error.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
+        console.error("Failed to create subtask:", error.message);
       }
     },
-    [tasks, createTask, fetchTasks, toast]
+    [tasks, createTask, fetchTasks]
   );
 
   // Create backlog task inline
@@ -368,16 +352,10 @@ export function useTaskOperations() {
           await batchUpdateTaskTags(newTask.id, tagIds);
         }
       } catch (error) {
-        toast({
-          title: "Failed to create task",
-          description: error.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
+        console.error("Failed to create task:", error.message);
       }
     },
-    [createTask, sections, batchUpdateTaskTags, toast]
+    [createTask, sections, batchUpdateTaskTags]
   );
 
   // Create kanban task inline
@@ -400,16 +378,10 @@ export function useTaskOperations() {
           order: 999,
         });
       } catch (error) {
-        toast({
-          title: "Failed to create task",
-          description: error.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
+        console.error("Failed to create task:", error.message);
       }
     },
-    [createTask, sections, toast]
+    [createTask, sections]
   );
 
   // Toggle task expand

@@ -2,7 +2,6 @@
 
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useToast } from "@/hooks/useToast";
 import {
   useGetSectionsQuery,
   useCreateSectionMutation,
@@ -22,7 +21,6 @@ export function useSectionOperations({
   setManuallyExpandedSections,
 } = {}) {
   const dispatch = useDispatch();
-  const { toast } = useToast();
 
   // Get state from Redux
   const editingSection = useSelector(state => state.ui.editingSection);
@@ -88,18 +86,12 @@ export function useSectionOperations({
   const handleDeleteSection = useCallback(
     async sectionId => {
       if (sections.length <= 1) {
-        toast({
-          title: "Cannot delete section",
-          description: "You need at least one section",
-          status: "warning",
-          duration: 3000,
-          isClosable: true,
-        });
+        console.warn("Cannot delete section: You need at least one section");
         return;
       }
       await deleteSection(sectionId);
     },
-    [sections.length, deleteSection, toast]
+    [sections.length, deleteSection]
   );
 
   // Toggle section expand

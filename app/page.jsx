@@ -15,7 +15,6 @@ import {
 } from "@chakra-ui/react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
-import { useToast } from "@/hooks/useToast";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { AuthPage } from "@/components/AuthPage";
@@ -200,7 +199,6 @@ const customCollisionDetection = args => {
 export default function DailyTasksApp() {
   const { isAuthenticated, loading: authLoading, initialized: authInitialized, logout } = useAuth();
   const { colorMode, toggleColorMode } = useColorModeSync();
-  const { toast: _toast } = useToast();
   const { mode, interactive, dnd, icon } = useSemanticColors();
 
   const bgColor = mode.bg.canvas;

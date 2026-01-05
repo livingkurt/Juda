@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useToast } from "@/hooks/useToast";
 import { useBatchUpdateTasksMutation } from "@/lib/store/api/tasksApi";
 import {
   setSelectedTaskIds,
@@ -17,7 +16,6 @@ import {
  */
 export function useSelectionState() {
   const dispatch = useDispatch();
-  const { toast } = useToast();
 
   // Get state from Redux
   const selectedTaskIdsArray = useSelector(state => state.ui.selectedTaskIds);
@@ -71,24 +69,14 @@ export function useSelectionState() {
           updates,
         }).unwrap();
 
-        toast({
-          title: `Updated ${selectedTaskIds.size} task(s)`,
-          status: "success",
-          duration: 2000,
-        });
+        console.warn(`Updated ${selectedTaskIds.size} task(s)`);
 
         handleCloseBulkEditDialog();
       } catch (err) {
         console.error("Bulk edit error:", err);
-        toast({
-          title: "Failed to update tasks",
-          description: err.message,
-          status: "error",
-          duration: 3000,
-        });
       }
     },
-    [selectedTaskIds, batchUpdateTasksMutation, toast, handleCloseBulkEditDialog]
+    [selectedTaskIds, batchUpdateTasksMutation, handleCloseBulkEditDialog]
   );
 
   return {

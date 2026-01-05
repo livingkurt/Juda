@@ -6,7 +6,6 @@ import { useSensor, useSensors, PointerSensor, KeyboardSensor } from "@dnd-kit/c
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import { parseDroppableId, extractTaskId } from "@/lib/dragHelpers";
 import { formatLocalDate, snapToIncrement, minutesToTime } from "@/lib/utils";
-import { useToast } from "@/hooks/useToast";
 import { useGetTasksQuery, useUpdateTaskMutation, useBatchReorderTasksMutation } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery, useReorderSectionsMutation } from "@/lib/store/api/sectionsApi";
 
@@ -27,8 +26,6 @@ export function useDragAndDrop({
   handleStatusChange,
   reorderTask,
 }) {
-  const { toast } = useToast();
-
   // Get state from Redux
   const selectedDateISO = useSelector(state => state.ui.selectedDate);
   const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
@@ -558,12 +555,7 @@ export function useDragAndDrop({
             const updates = reordered.map((t, idx) => ({ id: t.id, order: idx }));
             await batchReorderTasks(updates);
           } catch {
-            toast({
-              title: "Error",
-              description: "Failed to reorder backlog tasks",
-              status: "error",
-              duration: 3000,
-            });
+            console.error("Error: Failed to reorder backlog tasks");
           }
           return;
         }
@@ -605,12 +597,7 @@ export function useDragAndDrop({
               const updates = reordered.map((t, idx) => ({ id: t.id, order: idx }));
               await batchReorderTasks(updates);
             } catch {
-              toast({
-                title: "Error",
-                description: "Failed to reorder Kanban tasks",
-                status: "error",
-                duration: 3000,
-              });
+              console.error("Error: Failed to reorder Kanban tasks");
             }
             return;
           }
@@ -625,12 +612,7 @@ export function useDragAndDrop({
             const updates = reordered.map((t, idx) => ({ id: t.id, order: idx }));
             await batchReorderTasks(updates);
           } catch {
-            toast({
-              title: "Error",
-              description: "Failed to reorder Kanban tasks",
-              status: "error",
-              duration: 3000,
-            });
+            console.error("Error: Failed to reorder Kanban tasks");
           }
           return;
         }
@@ -730,7 +712,6 @@ export function useDragAndDrop({
       updateTask,
       batchReorderTasks,
       handleStatusChange,
-      toast,
       today,
       viewDate,
       handleDragEnd,

@@ -3,7 +3,6 @@
 import { useRef, useCallback, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
-import { useToast } from "@/hooks/useToast";
 import { useGetTasksQuery, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery, useUpdateSectionMutation } from "@/lib/store/api/sectionsApi";
 import {
@@ -31,7 +30,6 @@ export function useCompletionHandlers({
   checkAndAutoCollapseSection,
 } = {}) {
   const dispatch = useDispatch();
-  const { toast } = useToast();
 
   // Get state from Redux
   const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
@@ -443,13 +441,7 @@ export function useCompletionHandlers({
           }
         }, 100);
       } catch (error) {
-        toast({
-          title: "Failed to update task",
-          description: error.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
+        console.error("Failed to update task:", error.message);
       }
     },
     [
@@ -462,7 +454,6 @@ export function useCompletionHandlers({
       checkAndAutoCollapseSection,
       addToRecentlyCompleted,
       removeFromRecentlyCompleted,
-      toast,
     ]
   );
 
@@ -479,16 +470,9 @@ export function useCompletionHandlers({
         }
       } catch (error) {
         console.error("Error marking task as not completed:", error);
-        toast({
-          title: "Failed to mark task as not completed",
-          description: error.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
       }
     },
-    [tasks, today, viewDate, createCompletion, showCompletedTasks, addToRecentlyCompleted, toast]
+    [tasks, today, viewDate, createCompletion, showCompletedTasks, addToRecentlyCompleted]
   );
 
   // Complete with note
@@ -512,16 +496,9 @@ export function useCompletionHandlers({
         }
       } catch (error) {
         console.error("Error completing task with note:", error);
-        toast({
-          title: "Failed to complete task",
-          description: error.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
       }
     },
-    [tasks, today, viewDate, createCompletion, updateTask, showCompletedTasks, addToRecentlyCompleted, toast]
+    [tasks, today, viewDate, createCompletion, updateTask, showCompletedTasks, addToRecentlyCompleted]
   );
 
   return {

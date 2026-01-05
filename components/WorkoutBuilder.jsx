@@ -20,7 +20,6 @@ import { EXERCISE_TYPES, WORKOUT_SECTION_TYPES } from "@/lib/constants";
 import WeekdaySelector from "./WeekdaySelector";
 import { SelectDropdown } from "./SelectDropdown";
 import { useGetWorkoutProgramQuery, useSaveWorkoutProgramMutation } from "@/lib/store/api/workoutProgramsApi";
-import { useToast } from "@/hooks/useToast";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Helper to generate CUID-like IDs
@@ -43,7 +42,6 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
   const saveWorkoutProgram = async (taskId, programData) => {
     return await saveWorkoutProgramMutation({ taskId, ...programData }).unwrap();
   };
-  const { toast } = useToast();
   const [sections, setSections] = useState([]);
   const [expandedSections, setExpandedSections] = useState({});
   const [expandedDays, setExpandedDays] = useState({});
@@ -330,12 +328,7 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
 
   const handleSave = async () => {
     if (!taskId) {
-      toast({
-        title: "Error",
-        description: "Task ID is required",
-        status: "error",
-        duration: 3000,
-      });
+      console.error("Error: Task ID is required");
       return;
     }
 
@@ -346,22 +339,12 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
         sections,
       });
 
-      toast({
-        title: "Workout saved",
-        status: "success",
-        duration: 2000,
-      });
+      console.warn("Workout saved");
 
       onSaveComplete?.();
       onClose();
     } catch (err) {
       console.error("Failed to save workout:", err);
-      toast({
-        title: "Failed to save workout",
-        description: err.message,
-        status: "error",
-        duration: 3000,
-      });
     }
   };
 
