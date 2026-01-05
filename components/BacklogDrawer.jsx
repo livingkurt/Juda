@@ -212,20 +212,22 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
             <Typography variant="h6" sx={{ flexShrink: 0, fontWeight: 600 }}>
               Backlog
             </Typography>
-            <IconButton onClick={taskOps.handleAddTaskToBacklog} size="small" aria-label="Add task to backlog">
-              <Add fontSize="small" />
-            </IconButton>
+            <Box display="flex" alignItems="center">
+              <Chip
+                label={`${filteredTasks.length} task${filteredTasks.length !== 1 ? "s" : ""}${
+                  (searchTerm || selectedTagIds.length > 0) && filteredTasks.length !== backlogTasks.length
+                    ? ` of ${backlogTasks.length}`
+                    : ""
+                }`}
+                size="small"
+                color="primary"
+              />
+              <IconButton onClick={taskOps.handleAddTaskToBacklog} size="small" aria-label="Add task to backlog">
+                <Add fontSize="small" />
+              </IconButton>
+            </Box>
           </Stack>
-          <Chip
-            label={`${filteredTasks.length} task${filteredTasks.length !== 1 ? "s" : ""}${
-              (searchTerm || selectedTagIds.length > 0) && filteredTasks.length !== backlogTasks.length
-                ? ` of ${backlogTasks.length}`
-                : ""
-            }`}
-            size="small"
-            color="primary"
-            sx={{ mb: 1 }}
-          />
+
           <Stack
             direction="row"
             spacing={{ xs: 1, md: 2 }}
