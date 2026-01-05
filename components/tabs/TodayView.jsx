@@ -142,7 +142,7 @@ export function TodayView({
                 direction="row"
                 spacing={{ xs: 1, md: 4 }}
                 alignItems="center"
-                sx={{ width: "100%", maxWidth: "100%" }}
+                sx={{ width: "100%", maxWidth: "100%", mb: 2 }}
               >
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <TaskSearchInput onSearchChange={setTodaySearchTerm} />
@@ -161,7 +161,6 @@ export function TodayView({
           <Box
             ref={todayScrollContainerRef}
             sx={{
-              flex: 1,
               overflowY: "auto",
               minHeight: 0,
               width: "100%",
