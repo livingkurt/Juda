@@ -14,7 +14,8 @@ export const GET = withApi(async (request, { userId }) => {
 
   const mergedPrefs = mergeWithDefaults(prefs?.preferences || {});
 
-  return NextResponse.json(mergedPrefs);
+  // Include userId for IndexedDB storage
+  return NextResponse.json({ ...mergedPrefs, userId });
 });
 
 export const PUT = withApi(async (request, { userId, getBody }) => {
@@ -44,10 +45,13 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     finalPrefs = newPrefs;
   }
 
-  // Broadcast to other clients
-  preferencesBroadcast.onUpdate(userId, finalPrefs, clientId);
+  // Include userId for IndexedDB storage
+  const finalPrefsWithUserId = { ...finalPrefs, userId };
 
-  return NextResponse.json(finalPrefs);
+  // Broadcast to other clients
+  preferencesBroadcast.onUpdate(userId, finalPrefsWithUserId, clientId);
+
+  return NextResponse.json(finalPrefsWithUserId);
 });
 
 function deepMerge(target, source) {

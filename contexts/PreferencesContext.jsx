@@ -32,6 +32,11 @@ export function PreferencesProvider({ children }) {
   // Save preferences to server (debounced)
   const savePreferences = useCallback(
     async updates => {
+      // Don't try to save if not authenticated
+      if (!isAuthenticated) {
+        return;
+      }
+
       // Accumulate pending updates
       pendingUpdatesRef.current = {
         ...pendingUpdatesRef.current,
@@ -45,6 +50,12 @@ export function PreferencesProvider({ children }) {
 
       // Debounce save by 500ms
       saveTimerRef.current = setTimeout(async () => {
+        // Double-check authentication before saving
+        if (!isAuthenticated) {
+          pendingUpdatesRef.current = {};
+          return;
+        }
+
         const updatesToSave = { ...pendingUpdatesRef.current };
         pendingUpdatesRef.current = {};
 
@@ -61,7 +72,7 @@ export function PreferencesProvider({ children }) {
         }
       }, 500);
     },
-    [updatePreferencesMutation]
+    [updatePreferencesMutation, isAuthenticated]
   );
 
   // Update a single preference
