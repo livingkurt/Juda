@@ -123,7 +123,13 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
           return !isCompleted && !hasOutcome;
         });
       }
-      grouped[s.id] = sectionTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
+      // Sort by order, with stable secondary sort by id for consistent ordering
+      grouped[s.id] = sectionTasks.sort((a, b) => {
+        const orderDiff = (a.order || 0) - (b.order || 0);
+        if (orderDiff !== 0) return orderDiff;
+        // Stable secondary sort by id to ensure consistent ordering when orders are equal
+        return a.id.localeCompare(b.id);
+      });
     });
     return grouped;
   }, [filteredTodaysTasks, sections, showCompletedTasks, recentlyCompleted]);

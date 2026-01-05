@@ -50,6 +50,7 @@ import {
   useCreateTaskMutation,
   useUpdateTaskMutation,
   useDeleteTaskMutation,
+  useReorderTaskMutation,
   useBatchReorderTasksMutation,
   useBatchUpdateTasksMutation,
 } from "@/lib/store/api/tasksApi";
@@ -222,6 +223,7 @@ export default function DailyTasksApp() {
   const [createTaskMutation] = useCreateTaskMutation();
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [deleteTaskMutation] = useDeleteTaskMutation();
+  const [reorderTaskMutation] = useReorderTaskMutation();
   const [batchReorderTasksMutation] = useBatchReorderTasksMutation();
   const [batchUpdateTasksMutation] = useBatchUpdateTasksMutation();
 
@@ -429,20 +431,19 @@ export default function DailyTasksApp() {
   const reorderTask = useCallback(
     async (taskId, sourceSectionId, targetSectionId, newOrder) => {
       try {
-        // Update task with new section and order
-        await updateTaskMutation({
-          id: taskId,
-          sectionId: targetSectionId,
-          order: newOrder,
+        // Use the proper reorder endpoint which handles reordering all tasks in the section
+        await reorderTaskMutation({
+          taskId,
+          sourceSectionId,
+          targetSectionId,
+          newOrder,
         }).unwrap();
-        // Refresh to get correct order from server
-        await fetchTasks();
       } catch (err) {
         console.error("Error reordering task:", err);
         throw err;
       }
     },
-    [updateTaskMutation, fetchTasks]
+    [reorderTaskMutation]
   );
 
   const _duplicateTask = useCallback(
