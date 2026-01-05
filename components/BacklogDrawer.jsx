@@ -228,7 +228,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
             {/* TagFilter - Mobile Only */}
             {isMobile && (
               <TagFilter
-                tags={tags}
+                tags={backlogTags}
                 selectedTagIds={selectedTagIds}
                 onTagSelect={handleTagSelect}
                 onTagDeselect={handleTagDeselect}
