@@ -84,7 +84,17 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                     </Typography>
                     <OutcomeCheckbox
                       outcome={outcome}
-                      onOutcomeChange={newOutcome => onSetToggle?.(exercise.id, setNumber, newOutcome)}
+                      onOutcomeChange={newOutcome => {
+                        onSetToggle?.(exercise.id, setNumber, newOutcome);
+                        // Auto-fill target value when checked
+                        if (newOutcome === "completed" && !setData.actualValue) {
+                          onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
+                        }
+                        // Clear value when unchecked
+                        if (newOutcome !== "completed" && setData.actualValue) {
+                          onActualValueChange?.(exercise.id, setNumber, "actualValue", "");
+                        }
+                      }}
                       isChecked={isComplete}
                       size="sm"
                     />
@@ -135,7 +145,27 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                   </Typography>
                   <OutcomeCheckbox
                     outcome={outcome}
-                    onOutcomeChange={newOutcome => onSetToggle?.(exercise.id, setNumber, newOutcome)}
+                    onOutcomeChange={newOutcome => {
+                      onSetToggle?.(exercise.id, setNumber, newOutcome);
+                      // Auto-fill target value when checked (for distance exercises)
+                      if (newOutcome === "completed") {
+                        if (!setData.distance) {
+                          onActualValueChange?.(exercise.id, setNumber, "distance", targetValue);
+                        }
+                      }
+                      // Clear values when unchecked
+                      if (newOutcome !== "completed") {
+                        if (setData.distance) {
+                          onActualValueChange?.(exercise.id, setNumber, "distance", "");
+                        }
+                        if (setData.time) {
+                          onActualValueChange?.(exercise.id, setNumber, "time", "");
+                        }
+                        if (setData.pace) {
+                          onActualValueChange?.(exercise.id, setNumber, "pace", "");
+                        }
+                      }
+                    }}
                     isChecked={isComplete}
                     size="sm"
                   />
