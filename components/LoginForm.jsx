@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, Input, VStack, Text, Alert, Link } from "@chakra-ui/react";
+import { Box, Button, TextInput, Stack, Text, Alert, Anchor } from "@mantine/core";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
@@ -13,7 +13,7 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { mode } = useSemanticColors();
+  const { mode, interactive } = useSemanticColors();
   const bgColor = mode.bg.surface;
   const borderColor = mode.border.default;
 
@@ -33,87 +33,96 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
 
   return (
     <Box
-      as="form"
+      component="form"
       onSubmit={handleSubmit}
       bg={bgColor}
-      p={8}
-      borderRadius="lg"
-      borderWidth="1px"
-      borderColor={borderColor}
-      w="full"
-      maxW="400px"
+      p={32}
+      style={{
+        borderRadius: "0.5rem",
+        border: `1px solid ${borderColor}`,
+        width: "100%",
+        maxWidth: "400px",
+      }}
     >
-      <VStack spacing={4}>
-        <Box mb={2}>
+      <Stack gap="md">
+        <Box mb={8}>
           <Image src="/icon.png" alt="Juda Logo" width={80} height={80} priority style={{ borderRadius: "50%" }} />
         </Box>
-        <Text fontSize="2xl" fontWeight="bold">
+        <Text size="2xl" fw={700}>
           Welcome Back
         </Text>
 
         {error && (
-          <Alert.Root status="error" borderRadius="md">
-            <Alert.Title>{error}</Alert.Title>
-          </Alert.Root>
+          <Alert color="red" radius="md">
+            {error}
+          </Alert>
         )}
 
-        <Box w="full">
-          <Text fontSize="sm" fontWeight="medium" mb={1}>
+        <Box w="100%">
+          <Text size="sm" fw={500} mb={4}>
             Email{" "}
-            <Text as="span" color="red.500">
+            <Text component="span" c="red.5">
               *
             </Text>
           </Text>
-          <Input
+          <TextInput
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="you@example.com"
-            borderColor={borderColor}
-            _focus={{
-              borderColor: "blue.400",
-              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-            }}
             required
+            styles={{
+              input: {
+                borderColor: borderColor,
+                "&:focus": {
+                  borderColor: interactive.primary,
+                  boxShadow: `0 0 0 1px ${interactive.primary}`,
+                },
+              },
+            }}
           />
         </Box>
 
-        <Box w="full">
-          <Text fontSize="sm" fontWeight="medium" mb={1}>
+        <Box w="100%">
+          <Text size="sm" fw={500} mb={4}>
             Password{" "}
-            <Text as="span" color="red.500">
+            <Text component="span" c="red.5">
               *
             </Text>
           </Text>
-          <Input
+          <TextInput
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             placeholder="••••••••"
-            borderColor={borderColor}
-            _focus={{
-              borderColor: "blue.400",
-              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-            }}
             required
+            styles={{
+              input: {
+                borderColor: borderColor,
+                "&:focus": {
+                  borderColor: interactive.primary,
+                  boxShadow: `0 0 0 1px ${interactive.primary}`,
+                },
+              },
+            }}
           />
         </Box>
 
-        <Button type="submit" colorPalette="blue" w="full" isLoading={loading}>
+        <Button type="submit" color="blue" w="100%" loading={loading}>
           Sign In
         </Button>
 
-        <Button variant="link" onClick={onForgotPassword} size="sm" colorPalette="blue">
+        <Button variant="subtle" onClick={onForgotPassword} size="sm" color="blue">
           Forgot Password?
         </Button>
 
-        <Text fontSize="sm">
+        <Text size="sm">
           Don&apos;t have an account?{" "}
-          <Link color="blue.500" onClick={onSwitchToRegister} cursor="pointer">
+          <Anchor c="blue.5" onClick={onSwitchToRegister} style={{ cursor: "pointer" }}>
             Sign up
-          </Link>
+          </Anchor>
         </Text>
-      </VStack>
+      </Stack>
     </Box>
   );
 }

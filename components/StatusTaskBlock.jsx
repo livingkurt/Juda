@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Box, Text, HStack } from "@chakra-ui/react";
+import { Box, Text, Group } from "@mantine/core";
 import { Clock, PlayCircle } from "lucide-react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -30,30 +30,40 @@ export const StatusTaskBlock = memo(function StatusTaskBlock({
 
   return (
     <Box
-      position="absolute"
-      top={`${top}px`}
-      left="4px"
-      right="4px"
-      height={`${height}px`}
-      bg={bgColor}
-      borderLeft="3px solid"
-      borderColor={borderColor}
-      borderRadius="md"
-      px={2}
-      py={1}
-      cursor="pointer"
+      style={{
+        position: "absolute",
+        top: `${top}px`,
+        left: "4px",
+        right: "4px",
+        height: `${height}px`,
+        background: bgColor,
+        borderLeft: `3px solid ${borderColor}`,
+        borderRadius: "0.375rem",
+        paddingLeft: 8,
+        paddingRight: 8,
+        paddingTop: 4,
+        paddingBottom: 4,
+        cursor: "pointer",
+        overflow: "hidden",
+        opacity: isInProgress ? 1 : 0.8,
+      }}
       onClick={() => taskOps.handleEditTask(task)}
-      overflow="hidden"
-      opacity={isInProgress ? 1 : 0.8}
-      _hover={{ opacity: 1 }}
+      onMouseEnter={e => {
+        const target = e.currentTarget;
+        target.style.opacity = "1";
+      }}
+      onMouseLeave={e => {
+        const target = e.currentTarget;
+        target.style.opacity = isInProgress ? 1 : 0.8;
+      }}
     >
-      <HStack spacing={1} fontSize="xs">
+      <Group gap={4} style={{ fontSize: "0.75rem" }}>
         {isInProgress ? <PlayCircle size={12} /> : <Clock size={12} />}
-        <Text fontWeight="medium" noOfLines={1}>
+        <Text fw={500} lineClamp={1}>
           {task.title}
         </Text>
-      </HStack>
-      <Text fontSize="2xs" color={mode.text.muted}>
+      </Group>
+      <Text size="0.625rem" c={mode.text.muted}>
         {durationText}
       </Text>
     </Box>

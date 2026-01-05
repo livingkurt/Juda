@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Spinner, Flex, Skeleton, SkeletonCircle } from "@chakra-ui/react";
+import { Box, Loader, Flex, Skeleton, Group } from "@mantine/core";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Simple loading spinner component
@@ -9,26 +9,26 @@ export const LoadingSpinner = ({ size = "xl", color, ...props }) => {
   const spinnerColor = color || interactive.primary;
   return (
     <Flex align="center" justify="center" {...props}>
-      <Spinner size={size} color={spinnerColor} thickness="4px" speed="0.65s" />
+      <Loader size={size} color={spinnerColor} />
     </Flex>
   );
 };
 
-// Loading dots animation using Chakra v3 Skeleton
+// Loading dots animation using Mantine Skeleton
 export const LoadingDots = ({ ...props }) => {
   return (
-    <Flex align="center" justify="center" gap={2} {...props}>
-      <SkeletonCircle size="2" />
-      <SkeletonCircle size="2" />
-      <SkeletonCircle size="2" />
-    </Flex>
+    <Group gap={8} justify="center" {...props}>
+      <Skeleton height={8} width={8} circle />
+      <Skeleton height={8} width={8} circle />
+      <Skeleton height={8} width={8} circle />
+    </Group>
   );
 };
 
 // Section loading (replaces SectionSkeleton)
 export const SectionSkeleton = () => {
   return (
-    <Box py={8}>
+    <Box py="xl">
       <LoadingDots />
     </Box>
   );
@@ -38,7 +38,7 @@ export const SectionSkeleton = () => {
 export const BacklogSkeleton = () => {
   return (
     <Flex h="100%" align="center" justify="center">
-      <LoadingSpinner size="lg" />
+      <Loader size="lg" />
     </Flex>
   );
 };
@@ -46,8 +46,8 @@ export const BacklogSkeleton = () => {
 // Calendar loading (replaces CalendarSkeleton)
 export const CalendarSkeleton = () => {
   return (
-    <Flex flex={1} align="center" justify="center" minH="600px">
-      <LoadingSpinner size="xl" />
+    <Flex flex={1} align="center" justify="center" mih="600px">
+      <Loader size="xl" />
     </Flex>
   );
 };
@@ -103,7 +103,7 @@ export const PageSkeleton = () => {
   );
 };
 
-// Table skeleton for History tab using Chakra v3 Skeleton
+// Table skeleton for History tab using Mantine Skeleton
 export const TableSkeleton = () => {
   const { mode } = useSemanticColors();
   const bgColor = mode.bg.surface;
@@ -112,24 +112,24 @@ export const TableSkeleton = () => {
 
   return (
     <Box>
-      <Box overflow="hidden" borderRadius="md" borderWidth="1px" borderColor={borderColor}>
+      <Box style={{ overflow: "hidden", borderRadius: "0.375rem", border: `1px solid ${borderColor}` }}>
         {/* Table header */}
-        <Flex bg={headerBg} p={3} gap={4} borderBottomWidth="1px" borderColor={borderColor}>
-          <Skeleton height="20px" flex={1} />
-          <Skeleton height="20px" flex={1} />
-          <Skeleton height="20px" flex={1} />
-          <Skeleton height="20px" flex={1} />
-          <Skeleton height="20px" w="120px" />
-        </Flex>
+        <Group bg={headerBg} p="md" gap="md" style={{ borderBottom: `1px solid ${borderColor}` }}>
+          <Skeleton height={20} style={{ flex: 1 }} />
+          <Skeleton height={20} style={{ flex: 1 }} />
+          <Skeleton height={20} style={{ flex: 1 }} />
+          <Skeleton height={20} style={{ flex: 1 }} />
+          <Skeleton height={20} w={120} />
+        </Group>
         {/* Table rows */}
         {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-          <Flex key={i} p={3} gap={4} borderBottomWidth="1px" borderColor={borderColor} bg={bgColor}>
-            <Skeleton height="18px" flex={1} />
-            <Skeleton height="18px" flex={1} />
-            <Skeleton height="18px" flex={0.7} />
-            <Skeleton height="18px" flex={0.5} />
-            <Skeleton height="18px" w="100px" />
-          </Flex>
+          <Group key={i} p="md" gap="md" style={{ borderBottom: `1px solid ${borderColor}`, background: bgColor }}>
+            <Skeleton height={18} style={{ flex: 1 }} />
+            <Skeleton height={18} style={{ flex: 1 }} />
+            <Skeleton height={18} style={{ flex: 0.7 }} />
+            <Skeleton height={18} style={{ flex: 0.5 }} />
+            <Skeleton height={18} w={100} />
+          </Group>
         ))}
       </Box>
     </Box>

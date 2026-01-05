@@ -9,7 +9,7 @@ alwaysApply: true
 Before making any changes, remember:
 
 1. **React 19** - Don't use `useMemo`/`useCallback` unless there's high computational cost
-2. **Chakra UI v3** - Syntax is different from v2, check existing components for patterns
+2. **Mantine UI** - Component library, check existing components for patterns
 3. **Next.js 16** - Latest version with App Router
 4. **Drizzle ORM** - NOT Prisma! Use `lib/db.js` and `lib/schema.js`
 5. **Lint-Free** - Always run `npm run lint` and fix ALL errors before completing tasks
@@ -18,7 +18,7 @@ Before making any changes, remember:
 
 ## Project Overview
 
-Juda is a daily task management system built with Next.js, Chakra UI, and PostgreSQL. The core feature is a flexible drag-and-drop interface that allows users to seamlessly move tasks between three main areas:
+Juda is a daily task management system built with Next.js, Mantine UI, and PostgreSQL. The core feature is a flexible drag-and-drop interface that allows users to seamlessly move tasks between three main areas:
 
 1. **Backlog** - Unscheduled tasks without dates/times
 2. **Today View** - Tasks organized by sections (Morning, Afternoon, Evening)
@@ -32,9 +32,9 @@ The goal is to make task scheduling feel effortless - drag a task from your back
 
 - **Framework**: Next.js 16 (App Router) - Latest version
 - **React**: React 19 - Latest version with automatic optimizations
-- **UI Library**: Chakra UI v3 - Latest version (syntax differs significantly from v2)
+- **UI Library**: Mantine UI - Latest version
 - **Database**: PostgreSQL with Drizzle ORM (NOT Prisma)
-- **Drag & Drop**: @dnd-kit (replaced @hello-pangea/dnd)
+- **Drag & Drop**: @dnd-kit
 - **Icons**: Lucide React
 
 ---
@@ -67,26 +67,27 @@ const handleClick = () => doSomething(id);
 
 ---
 
-## ⚠️ CRITICAL: Chakra UI v3 Syntax
+## ⚠️ CRITICAL: Mantine UI Syntax
 
-**Chakra UI v3 has significant syntax differences from v2.** Always use v3 patterns:
+**Mantine UI provides a clean, consistent API.** Always use Mantine patterns:
 
 ### Component Imports
 
 ```javascript
-// ✅ CORRECT - v3 syntax
-import { Box, Flex, Button, Text, VStack, HStack } from "@chakra-ui/react";
+// ✅ CORRECT - Mantine syntax
+import { Box, Flex, Button, Text, Stack, Group } from "@mantine/core";
 ```
 
 ### Styling Patterns
 
-Chakra UI v3 uses a different styling system. Check existing components for patterns:
+Mantine uses style props and CSS-in-JS. Check existing components for patterns:
 
-- Use `Box`, `Flex`, `VStack`, `HStack` for layout
-- Use `Button`, `Text`, `Input` for form elements
+- Use `Box`, `Flex`, `Stack`, `Group` for layout
+- Use `Button`, `Text`, `TextInput` for form elements
+- Use `useSemanticColors()` hook for theme-aware colors
 - Check `components/TaskItem.jsx` and `components/WorkoutModal.jsx` for examples
 
-**When in doubt, check existing components in the codebase for v3 patterns.**
+**When in doubt, check existing components in the codebase for Mantine patterns.**
 
 ---
 
@@ -126,7 +127,7 @@ juda/
 │   │   └── backlog/           # Backlog item CRUD
 │   ├── layout.jsx             # Root layout
 │   ├── page.jsx               # Main app (drag context lives here)
-│   └── providers.jsx          # Chakra provider
+│   └── providers.jsx          # Mantine provider
 ├── components/
 │   ├── Section.jsx            # Today view sections container
 │   ├── TaskItem.jsx           # Individual task card

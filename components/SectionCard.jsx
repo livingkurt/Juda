@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, memo } from "react";
-import { Box, Card, Heading, Text, Flex, HStack, VStack, IconButton, Menu, Input, Collapsible } from "@chakra-ui/react";
+import { Box, Card, Title, Text, Flex, Group, Stack, ActionIcon, Menu, TextInput, Collapse } from "@mantine/core";
 import { useDroppable } from "@dnd-kit/core";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -124,138 +124,214 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
     }
   };
 
+  const isExpanded = section.expanded !== false;
+
   return (
-    <Card.Root
+    <Card
       ref={setSectionNodeRef}
-      style={sectionStyle}
-      mb={{ base: 2, md: 4 }}
-      bg={bgColor}
-      borderColor={isDropTarget || isOver ? dnd.dropTargetBorder : borderColor}
-      borderWidth={isDropTarget || isOver ? "2px" : "1px"}
-      opacity={sectionIsDragging ? 0.5 : 1}
-      transition="border-color 0.2s, border-width 0.2s"
-      w="100%"
-      maxW="100%"
-      overflow="hidden"
+      style={{
+        ...sectionStyle,
+        marginBottom: 16,
+        background: bgColor,
+        borderColor: isDropTarget || isOver ? dnd.dropTargetBorder : borderColor,
+        borderWidth: isDropTarget || isOver ? 2 : 1,
+        borderStyle: "solid",
+        opacity: sectionIsDragging ? 0.5 : 1,
+        transition: "border-color 0.2s, border-width 0.2s",
+        width: "100%",
+        maxWidth: "100%",
+        overflow: "hidden",
+      }}
     >
-      <Card.Header
-        pb={{ base: 1, md: 2 }}
-        pt={{ base: 2, md: 3 }}
-        px={{ base: 2, md: 4 }}
-        w="100%"
-        maxW="100%"
-        overflow="hidden"
+      <Card.Section
+        style={{
+          paddingBottom: 8,
+          paddingTop: 12,
+          paddingLeft: 16,
+          paddingRight: 16,
+          width: "100%",
+          maxWidth: "100%",
+          overflow: "hidden",
+        }}
       >
-        <Flex align="center" justify="space-between" w="100%" maxW="100%" gap={{ base: 1, md: 2 }}>
-          <Flex align="center" gap={{ base: 1, md: 2 }} minW={0} flex={1}>
+        <Flex align="center" justify="space-between" style={{ width: "100%", maxWidth: "100%" }} gap={[4, 8]}>
+          <Flex align="center" gap={[4, 8]} style={{ minWidth: 0, flex: 1 }}>
             <Box
               {...sectionAttributes}
               {...sectionListeners}
-              cursor="grab"
-              _active={{ cursor: "grabbing" }}
-              color={mutedText}
-              display={{ base: "none", md: "block" }}
+              style={{
+                cursor: "grab",
+                color: mutedText,
+                display: "none",
+              }}
+              visibleFrom="md"
+              onMouseDown={e => {
+                const target = e.currentTarget;
+                target.style.cursor = "grabbing";
+              }}
+              onMouseUp={e => {
+                const target = e.currentTarget;
+                target.style.cursor = "grab";
+              }}
             >
               <GripVertical size={14} stroke="currentColor" />
             </Box>
-            <Box as="span" color={icon.primary}>
+            <Box component="span" style={{ color: icon.primary }}>
               <IconComponent size={14} stroke="currentColor" />
             </Box>
-            <Heading size={{ base: "sm", md: "md" }} color={textColor} noOfLines={1}>
+            <Title order={5} c={textColor} truncate="end" style={{ flex: 1, minWidth: 0 }}>
               {section.name}
-            </Heading>
-            <Text fontSize={{ base: "xs", md: "sm" }} color={mutedText} flexShrink={0}>
+            </Title>
+            <Text size={["xs", "sm"]} c={mutedText} style={{ flexShrink: 0 }}>
               ({completedCount}/{tasks.length})
             </Text>
           </Flex>
-          <HStack spacing={{ base: 0, md: 1 }} flexShrink={0}>
-            <IconButton
+          <Group gap={[0, 4]} style={{ flexShrink: 0 }}>
+            <ActionIcon
               onClick={() => sectionOps.handleToggleSectionExpand(section.id)}
-              size={{ base: "xs", md: "sm" }}
-              variant="ghost"
-              aria-label={section.expanded !== false ? "Collapse section" : "Expand section"}
-              minW={{ base: "24px", md: "32px" }}
-              h={{ base: "24px", md: "32px" }}
-              p={{ base: 0, md: 1 }}
+              size={["xs", "sm"]}
+              variant="subtle"
+              aria-label={isExpanded ? "Collapse section" : "Expand section"}
+              style={{
+                minWidth: "24px",
+                height: "24px",
+                padding: 0,
+              }}
             >
-              <Box as="span" color="currentColor">
-                {section.expanded !== false ? (
-                  <ChevronUp size={14} stroke="currentColor" />
-                ) : (
-                  <ChevronDown size={14} stroke="currentColor" />
-                )}
-              </Box>
-            </IconButton>
-            <IconButton
+              {isExpanded ? (
+                <ChevronUp size={14} stroke="currentColor" />
+              ) : (
+                <ChevronDown size={14} stroke="currentColor" />
+              )}
+            </ActionIcon>
+            <ActionIcon
               onClick={() => taskOps.handleAddTask(section.id)}
-              size={{ base: "xs", md: "sm" }}
-              variant="ghost"
+              size={["xs", "sm"]}
+              variant="subtle"
               aria-label="Add task"
-              minW={{ base: "24px", md: "32px" }}
-              h={{ base: "24px", md: "32px" }}
-              p={{ base: 0, md: 1 }}
+              style={{
+                minWidth: "24px",
+                height: "24px",
+                padding: 0,
+              }}
             >
-              <Box as="span" color="currentColor">
-                <Plus size={14} stroke="currentColor" />
-              </Box>
-            </IconButton>
-            <Menu.Root>
-              <Menu.Trigger asChild>
-                <IconButton
-                  size={{ base: "xs", md: "sm" }}
-                  variant="ghost"
+              <Plus size={14} stroke="currentColor" />
+            </ActionIcon>
+            <Menu>
+              <Menu.Target>
+                <ActionIcon
+                  size={["xs", "sm"]}
+                  variant="subtle"
                   aria-label="Section menu"
-                  border="none"
-                  outline="none"
-                  minW={{ base: "24px", md: "32px" }}
-                  h={{ base: "24px", md: "32px" }}
-                  p={{ base: 0, md: 1 }}
-                  _hover={{ border: "none", outline: "none" }}
-                  _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-                  _active={{ border: "none", outline: "none" }}
+                  style={{
+                    border: "none",
+                    outline: "none",
+                    minWidth: "24px",
+                    height: "24px",
+                    padding: 0,
+                  }}
                 >
-                  <Box as="span" color="currentColor">
-                    <MoreVertical size={14} stroke="currentColor" />
-                  </Box>
-                </IconButton>
-              </Menu.Trigger>
-              <Menu.Positioner>
-                <Menu.Content>
-                  <Menu.Item onClick={() => sectionOps.handleEditSection(section)}>Edit</Menu.Item>
-                  <Menu.Item onClick={() => sectionOps.handleDeleteSection(section.id)} color="red.500">
-                    Delete
-                  </Menu.Item>
-                </Menu.Content>
-              </Menu.Positioner>
-            </Menu.Root>
-          </HStack>
+                  <MoreVertical size={14} stroke="currentColor" />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item onClick={() => sectionOps.handleEditSection(section)}>Edit</Menu.Item>
+                <Menu.Item color="red" onClick={() => sectionOps.handleDeleteSection(section.id)}>
+                  Delete
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          </Group>
         </Flex>
-      </Card.Header>
-      <Collapsible.Root open={section.expanded !== false}>
-        <Collapsible.Content>
-          <Card.Body pt={{ base: 1, md: 2 }} pb={{ base: 2, md: 3 }} px={{ base: 2, md: 4 }}>
-            <Box
-              ref={setDropNodeRef}
-              bg={isOver ? dropHighlight : "transparent"}
-              borderRadius="md"
-              minH={tasksWithIds.length === 0 ? { base: "80px", md: "120px" } : { base: "40px", md: "60px" }}
-              p={tasksWithIds.length === 0 ? { base: 2, md: 4 } : { base: 1, md: 2 }}
-              transition="background-color 0.2s, padding 0.2s, min-height 0.2s"
-              borderWidth={isOver ? "2px" : "0px"}
-              borderColor={isOver ? dnd.dropTargetBorder : "transparent"}
-              borderStyle="dashed"
-            >
-              {tasksWithIds.length === 0 ? (
-                <VStack align="stretch" spacing={{ base: 1, md: 2 }}>
-                  <Text
-                    fontSize={{ base: "xs", md: "sm" }}
-                    textAlign="center"
-                    py={{ base: 4, md: 8 }}
-                    color={mutedText}
-                  >
-                    {isOver ? "Drop here" : "No tasks"}
-                  </Text>
-                  <Input
+      </Card.Section>
+      <Collapse in={isExpanded}>
+        <Card.Section
+          style={{
+            paddingTop: 8,
+            paddingBottom: 12,
+            paddingLeft: 16,
+            paddingRight: 16,
+          }}
+        >
+          <Box
+            ref={setDropNodeRef}
+            style={{
+              background: isOver ? dropHighlight : "transparent",
+              borderRadius: "0.375rem",
+              minHeight: tasksWithIds.length === 0 ? 120 : 60,
+              padding: tasksWithIds.length === 0 ? 16 : 8,
+              transition: "background-color 0.2s, padding 0.2s, min-height 0.2s",
+              borderWidth: isOver ? 2 : 0,
+              borderColor: isOver ? dnd.dropTargetBorder : "transparent",
+              borderStyle: "dashed",
+            }}
+          >
+            {tasksWithIds.length === 0 ? (
+              <Stack gap={[4, 8]}>
+                <Text
+                  size={["xs", "sm"]}
+                  style={{ textAlign: "center", paddingTop: 16, paddingBottom: 32 }}
+                  c={mutedText}
+                >
+                  {isOver ? "Drop here" : "No tasks"}
+                </Text>
+                <TextInput
+                  ref={inlineInputRef}
+                  value={inlineInputValue}
+                  onChange={e => setInlineInputValue(e.target.value)}
+                  onBlur={handleInlineInputBlur}
+                  onKeyDown={handleInlineInputKeyDown}
+                  onClick={handleInlineInputClick}
+                  placeholder="New task..."
+                  size="sm"
+                  variant="unstyled"
+                  style={{
+                    background: "transparent",
+                    borderWidth: 0,
+                    paddingLeft: 8,
+                    paddingRight: 8,
+                    paddingTop: 4,
+                    paddingBottom: 4,
+                    fontSize: "0.875rem",
+                    color: isInlineInputActive ? textColor : mutedText,
+                  }}
+                  styles={{
+                    input: {
+                      color: isInlineInputActive ? textColor : mutedText,
+                      "&::placeholder": {
+                        color: mutedText,
+                      },
+                      "&:focus": {
+                        outline: "none",
+                        color: textColor,
+                      },
+                      "&:hover": {
+                        color: textColor,
+                      },
+                    },
+                  }}
+                />
+              </Stack>
+            ) : (
+              <SortableContext
+                id={droppableId}
+                items={tasksWithIds.map(t => t.draggableId)}
+                strategy={verticalListSortingStrategy}
+              >
+                <Stack gap={[8, 12]} style={{ paddingTop: 4, paddingBottom: 8 }}>
+                  {tasksWithIds.map((task, index) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      variant="today"
+                      index={index}
+                      containerId={droppableId}
+                      hoveredDroppable={hoveredDroppable}
+                      draggableId={task.draggableId}
+                      viewDate={viewDate}
+                    />
+                  ))}
+                  <TextInput
                     ref={inlineInputRef}
                     value={inlineInputValue}
                     onChange={e => setInlineInputValue(e.target.value)}
@@ -265,74 +341,39 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
                     placeholder="New task..."
                     size="sm"
                     variant="unstyled"
-                    bg="transparent"
-                    borderWidth="0px"
-                    px={2}
-                    py={1}
-                    fontSize="sm"
-                    color={isInlineInputActive ? textColor : mutedText}
-                    _focus={{
-                      outline: "none",
-                      color: textColor,
+                    style={{
+                      background: "transparent",
+                      borderWidth: 0,
+                      paddingLeft: 8,
+                      paddingRight: 8,
+                      paddingTop: 4,
+                      paddingBottom: 4,
+                      fontSize: "0.875rem",
+                      color: isInlineInputActive ? textColor : mutedText,
                     }}
-                    _placeholder={{ color: mutedText }}
-                    _hover={{
-                      color: textColor,
+                    styles={{
+                      input: {
+                        color: isInlineInputActive ? textColor : mutedText,
+                        "&::placeholder": {
+                          color: mutedText,
+                        },
+                        "&:focus": {
+                          outline: "none",
+                          color: textColor,
+                        },
+                        "&:hover": {
+                          color: textColor,
+                        },
+                      },
                     }}
                   />
-                </VStack>
-              ) : (
-                <SortableContext
-                  id={droppableId}
-                  items={tasksWithIds.map(t => t.draggableId)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <VStack align="stretch" spacing={{ base: 2, md: 3 }} py={{ base: 1, md: 2 }}>
-                    {tasksWithIds.map((task, index) => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        variant="today"
-                        index={index}
-                        containerId={droppableId}
-                        hoveredDroppable={hoveredDroppable}
-                        draggableId={task.draggableId}
-                        viewDate={viewDate}
-                      />
-                    ))}
-                    <Input
-                      ref={inlineInputRef}
-                      value={inlineInputValue}
-                      onChange={e => setInlineInputValue(e.target.value)}
-                      onBlur={handleInlineInputBlur}
-                      onKeyDown={handleInlineInputKeyDown}
-                      onClick={handleInlineInputClick}
-                      placeholder="New task..."
-                      size="sm"
-                      variant="unstyled"
-                      bg="transparent"
-                      borderWidth="0px"
-                      px={2}
-                      py={1}
-                      fontSize="sm"
-                      color={isInlineInputActive ? textColor : mutedText}
-                      _focus={{
-                        outline: "none",
-                        color: textColor,
-                      }}
-                      _placeholder={{ color: mutedText }}
-                      _hover={{
-                        color: textColor,
-                      }}
-                    />
-                  </VStack>
-                </SortableContext>
-              )}
-            </Box>
-          </Card.Body>
-        </Collapsible.Content>
-      </Collapsible.Root>
-    </Card.Root>
+                </Stack>
+              </SortableContext>
+            )}
+          </Box>
+        </Card.Section>
+      </Collapse>
+    </Card>
   );
 };
 

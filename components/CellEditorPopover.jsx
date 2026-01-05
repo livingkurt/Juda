@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Box, VStack, HStack, Text, Button, Input, createListCollection, Heading, Badge } from "@chakra-ui/react";
+import { Box, Stack, Text, Button, TextInput, Title, Badge, Group } from "@mantine/core";
 import { SelectDropdown } from "./SelectDropdown";
 import { formatDateDisplay } from "@/lib/utils";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
@@ -19,15 +19,12 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
   const [note, setNote] = useState(() => completion?.note || "");
   const [time, setTime] = useState(() => (completion?.completedAt ? formatTimeForInput(task.time) : task.time || ""));
 
-  const outcomeCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "Unchecked", value: "null" },
-          { label: "Complete", value: "completed" },
-          { label: "Not Completed", value: "not_completed" },
-        ],
-      }),
+  const outcomeData = useMemo(
+    () => [
+      { label: "Unchecked", value: "null" },
+      { label: "Complete", value: "completed" },
+      { label: "Not Completed", value: "not_completed" },
+    ],
     []
   );
 
@@ -59,71 +56,70 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
   };
 
   return (
-    <Box p={4} minW="300px">
-      <VStack align="stretch" spacing={4}>
+    <Box p="md" style={{ minWidth: "300px" }}>
+      <Stack gap="md">
         {/* Header */}
-        <VStack align="stretch" spacing={1}>
-          <Heading size="sm">{task.title}</Heading>
-          <Text fontSize="sm" color={mode.text.secondary}>
+        <Stack gap={4}>
+          <Title order={5}>{task.title}</Title>
+          <Text size="sm" c={mode.text.secondary}>
             {formatDateDisplay(date)}
           </Text>
           {!isScheduled && (
-            <Badge colorPalette="purple" size="sm" w="fit-content">
+            <Badge color="purple" size="sm" style={{ width: "fit-content" }}>
               Off-schedule completion
             </Badge>
           )}
-        </VStack>
+        </Stack>
 
         {/* Outcome selector */}
-        <VStack align="stretch" spacing={2}>
-          <Text fontSize="sm" fontWeight="medium">
+        <Stack gap={8}>
+          <Text size="sm" fw={500}>
             Status
           </Text>
           <SelectDropdown
-            collection={outcomeCollection}
-            value={[outcome]}
-            onValueChange={({ value }) => setOutcome(value[0])}
+            data={outcomeData}
+            value={outcome}
+            onChange={setOutcome}
             placeholder="Select status"
             size="sm"
-            inModal={true}
           />
-        </VStack>
+        </Stack>
 
         {/* Time picker - show for off-schedule or if task has time */}
         {(!isScheduled || task.time) && (
-          <VStack align="stretch" spacing={2}>
-            <Text fontSize="sm" fontWeight="medium">
+          <Stack gap={8}>
+            <Text size="sm" fw={500}>
               Time (optional)
             </Text>
-            <Input type="time" value={time} onChange={e => setTime(e.target.value)} size="sm" />
-          </VStack>
+            <TextInput type="time" value={time} onChange={e => setTime(e.target.value)} size="sm" />
+          </Stack>
         )}
 
         {/* Note input - only for text completion type */}
         {task.completionType === "text" && (
-          <VStack align="stretch" spacing={2}>
-            <Text fontSize="sm" fontWeight="medium">
+          <Stack gap={8}>
+            <Text size="sm" fw={500}>
               Note
             </Text>
-            <Input value={note} onChange={e => setNote(e.target.value)} placeholder="Enter note..." size="sm" />
-          </VStack>
+            <TextInput value={note} onChange={e => setNote(e.target.value)} placeholder="Enter note..." size="sm" />
+          </Stack>
         )}
 
         {/* Actions */}
-        <HStack justify="flex-end" spacing={2} pt={2}>
+        <Group justify="flex-end" gap={8} pt={8}>
           {completion && (
-            <Button size="sm" variant="outline" colorPalette="red" onClick={handleDelete}>
+            <Button size="sm" variant="outline" color="red" onClick={handleDelete}>
               Delete
             </Button>
           )}
           <Button size="sm" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button size="sm" colorPalette="blue" onClick={handleSave}>
+          <Button size="sm" color="blue" onClick={handleSave}>
             Save
           </Button>
-        </HStack>
-      </VStack>
+        </Group>
+      </Stack>
     </Box>
   );
 };

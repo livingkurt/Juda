@@ -1,6 +1,6 @@
 "use client";
 
-import { HStack, Badge } from "@chakra-ui/react";
+import { Group, Badge } from "@mantine/core";
 import { isOverdue, getRecurrenceLabel } from "@/lib/utils";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
@@ -34,23 +34,23 @@ export const TaskBadges = ({
   const hasEndDate = task.recurrence?.endDate;
   const hasNoTime = !task.time;
 
-  // Responsive sizes
+  // Responsive sizes (Mantine array syntax: [xs, sm, md, lg, xl])
   const badgeSizes = {
-    xs: { base: "2xs", md: "xs" },
-    sm: { base: "xs", md: "sm" },
-    md: { base: "sm", md: "md" },
+    xs: ["xs", "xs"],
+    sm: ["xs", "sm"],
+    md: ["sm", "md"],
   };
 
   const fontSize = {
-    xs: { base: "3xs", md: "2xs" },
-    sm: { base: "2xs", md: "xs" },
-    md: { base: "xs", md: "sm" },
+    xs: ["0.625rem", "0.625rem"],
+    sm: ["0.625rem", "0.75rem"],
+    md: ["0.75rem", "0.875rem"],
   };
 
   const padding = {
-    xs: { py: 0, px: 1 },
-    sm: { py: { base: 0, md: 0.5 }, px: { base: 1, md: 1.5 } },
-    md: { py: 0.5, px: 2 },
+    xs: { py: 0, px: 4 },
+    sm: { py: [0, 2], px: [4, 6] },
+    md: { py: 2, px: 8 },
   };
 
   // In compact mode, only show most important badge
@@ -59,9 +59,14 @@ export const TaskBadges = ({
       return (
         <Badge
           size={badgeSizes[size]}
-          colorPalette={badges.overdue.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
+          color={badges.overdue.colorPalette}
+          style={{
+            fontSize: fontSize[size][0],
+            paddingTop: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingBottom: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingLeft: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+            paddingRight: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+          }}
         >
           !
         </Badge>
@@ -71,9 +76,14 @@ export const TaskBadges = ({
       return (
         <Badge
           size={badgeSizes[size]}
-          colorPalette={badges.recurring.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
+          color={badges.recurring.colorPalette}
+          style={{
+            fontSize: fontSize[size][0],
+            paddingTop: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingBottom: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingLeft: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+            paddingRight: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+          }}
         >
           ↻
         </Badge>
@@ -83,13 +93,18 @@ export const TaskBadges = ({
   }
 
   return (
-    <HStack spacing={1} flexWrap="wrap">
+    <Group gap={4} wrap="wrap">
       {taskIsOverdue && task.status !== "in_progress" && (
         <Badge
           size={badgeSizes[size]}
-          colorPalette={badges.overdue.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
+          color={badges.overdue.colorPalette}
+          style={{
+            fontSize: fontSize[size][0],
+            paddingTop: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingBottom: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingLeft: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+            paddingRight: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+          }}
         >
           Overdue
         </Badge>
@@ -98,9 +113,14 @@ export const TaskBadges = ({
       {isRecurring && (
         <Badge
           size={badgeSizes[size]}
-          colorPalette={badges.recurring.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
+          color={badges.recurring.colorPalette}
+          style={{
+            fontSize: fontSize[size][0],
+            paddingTop: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingBottom: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingLeft: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+            paddingRight: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+          }}
         >
           {getRecurrenceLabel(task.recurrence) || "Recurring"}
         </Badge>
@@ -109,9 +129,14 @@ export const TaskBadges = ({
       {isWorkoutTask && (
         <Badge
           size={badgeSizes[size]}
-          colorPalette={badges.workout.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
+          color={badges.workout.colorPalette}
+          style={{
+            fontSize: fontSize[size][0],
+            paddingTop: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingBottom: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingLeft: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+            paddingRight: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+          }}
         >
           Workout
         </Badge>
@@ -120,9 +145,14 @@ export const TaskBadges = ({
       {showEndDate && hasEndDate && (
         <Badge
           size={badgeSizes[size]}
-          colorPalette={badges.noTime.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
+          color={badges.noTime.colorPalette}
+          style={{
+            fontSize: fontSize[size][0],
+            paddingTop: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingBottom: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingLeft: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+            paddingRight: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+          }}
         >
           Until {new Date(task.recurrence.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
         </Badge>
@@ -131,13 +161,18 @@ export const TaskBadges = ({
       {showNoTime && hasNoTime && (
         <Badge
           size={badgeSizes[size]}
-          colorPalette={badges.noTime.colorPalette}
-          fontSize={fontSize[size]}
-          {...padding[size]}
+          color={badges.noTime.colorPalette}
+          style={{
+            fontSize: fontSize[size][0],
+            paddingTop: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingBottom: Array.isArray(padding[size].py) ? padding[size].py[0] : padding[size].py,
+            paddingLeft: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+            paddingRight: Array.isArray(padding[size].px) ? padding[size].px[0] : padding[size].px,
+          }}
         >
           No time
         </Badge>
       )}
-    </HStack>
+    </Group>
   );
 };

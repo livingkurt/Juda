@@ -6,6 +6,9 @@ const nextConfig = {
   reactCompiler: true,
   // Empty turbopack config to silence warning
   turbopack: {},
+  experimental: {
+    optimizePackageImports: ["@mantine/core", "@mantine/hooks"],
+  },
 };
 
 export default withSerwist({

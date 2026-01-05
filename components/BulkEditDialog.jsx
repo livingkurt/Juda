@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Box, Button, Input, Dialog, VStack, HStack, SimpleGrid, Text, createListCollection } from "@chakra-ui/react";
-import { DAYS_OF_WEEK, DURATION_OPTIONS } from "@/lib/constants";
+import { Box, Button, TextInput, Modal, Stack, Group, SimpleGrid, Text } from "@mantine/core";
+import { DURATION_OPTIONS } from "@/lib/constants";
 import { TagSelector } from "./TagSelector";
 import { TagChip } from "./TagChip";
 import { SelectDropdown } from "./SelectDropdown";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
+import WeekdaySelector from "./WeekdaySelector";
 
 export const BulkEditDialog = ({
   isOpen,
@@ -20,9 +21,7 @@ export const BulkEditDialog = ({
   selectedTasks,
 }) => {
   const { mode } = useSemanticColors();
-  const bgColor = mode.bg.surface;
   const borderColor = mode.border.default;
-  const placeholderColor = mode.text.placeholder;
 
   // Calculate common values across all selected tasks
   const commonValues = useMemo(() => {
@@ -128,49 +127,34 @@ export const BulkEditDialog = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Create collections for selects
-  const sectionCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [{ label: "...", value: "" }, ...sections.map(s => ({ label: s.name, value: s.id }))],
-      }),
+  // Create data arrays for selects
+  const sectionData = useMemo(
+    () => [{ label: "...", value: "" }, ...sections.map(s => ({ label: s.name, value: s.id }))],
     [sections]
   );
 
-  const durationCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "...", value: "" },
-          ...DURATION_OPTIONS.map(d => ({ label: d.label, value: d.value.toString() })),
-        ],
-      }),
+  const durationData = useMemo(
+    () => [{ label: "...", value: "" }, ...DURATION_OPTIONS.map(d => ({ label: d.label, value: d.value.toString() }))],
     []
   );
 
-  const recurrenceCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "...", value: "" },
-          { label: "None (One-time task)", value: "none" },
-          { label: "Every day", value: "daily" },
-          { label: "Specific days", value: "weekly" },
-        ],
-      }),
+  const recurrenceData = useMemo(
+    () => [
+      { label: "...", value: "" },
+      { label: "None (One-time task)", value: "none" },
+      { label: "Every day", value: "daily" },
+      { label: "Specific days", value: "weekly" },
+    ],
     []
   );
 
-  const statusCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "...", value: "" },
-          { label: "Todo", value: "todo" },
-          { label: "In Progress", value: "in_progress" },
-          { label: "Complete", value: "complete" },
-        ],
-      }),
+  const statusData = useMemo(
+    () => [
+      { label: "...", value: "" },
+      { label: "Todo", value: "todo" },
+      { label: "In Progress", value: "in_progress" },
+      { label: "Complete", value: "complete" },
+    ],
     []
   );
 
@@ -254,230 +238,196 @@ export const BulkEditDialog = ({
   };
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={({ open }) => !open && onClose()} size="md">
-      <Dialog.Backdrop bg="blackAlpha.600" />
-      <Dialog.Positioner>
-        <Dialog.Content bg={bgColor} maxH="90vh" overflowY="auto">
-          <Dialog.Header>Bulk Edit ({selectedCount} tasks)</Dialog.Header>
-          <Dialog.CloseTrigger />
-          <Dialog.Body>
-            <form onSubmit={handleFormSubmit}>
-              <VStack spacing={4} py={4}>
-                <Box w="full">
-                  <Text fontSize="sm" color="gray.500" mb={4}>
-                    Fields show common values across all selected tasks. Only fields you change will be updated. Fields
-                    showing &quot;...&quot; have different values or are empty.
-                  </Text>
-                </Box>
+    <Modal opened={isOpen} onClose={onClose} title={`Bulk Edit (${selectedCount} tasks)`} size="md" centered>
+      <form onSubmit={handleFormSubmit}>
+        <Stack gap="md" py="md" style={{ maxHeight: "90vh", overflowY: "auto" }}>
+          <Box w="100%">
+            <Text size="sm" c="gray.5" mb={16}>
+              Fields show common values across all selected tasks. Only fields you change will be updated. Fields
+              showing &quot;...&quot; have different values or are empty.
+            </Text>
+          </Box>
 
-                <Box w="full">
-                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                    Section
-                  </Text>
-                  <SelectDropdown
-                    collection={sectionCollection}
-                    value={[sectionId]}
-                    onValueChange={({ value }) => {
-                      setSectionId(value[0]);
-                      markFieldEdited("sectionId");
-                    }}
-                    placeholder="..."
-                    inModal={true}
-                  />
-                </Box>
+          <Box w="100%">
+            <Text size={["xs", "sm"]} fw={500} mb={4}>
+              Section
+            </Text>
+            <SelectDropdown
+              data={sectionData}
+              value={sectionId}
+              onChange={value => {
+                setSectionId(value);
+                markFieldEdited("sectionId");
+              }}
+              placeholder="..."
+            />
+          </Box>
 
-                <SimpleGrid columns={2} spacing={4} w="full">
-                  <Box>
-                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                      Date
-                    </Text>
-                    <Input
-                      type="date"
-                      value={date}
-                      onChange={e => {
-                        setDate(e.target.value);
-                        markFieldEdited("date");
-                      }}
-                      onFocus={() => markFieldEdited("date")}
-                      placeholder="..."
-                      borderColor={borderColor}
-                      fontSize={{ base: "md", md: "md" }}
-                      _focus={{
-                        borderColor: "blue.400",
-                        boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                      }}
-                      _placeholder={{ color: placeholderColor }}
-                    />
-                  </Box>
-                  <Box>
-                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                      Time
-                    </Text>
-                    <Input
-                      type="time"
-                      value={time}
-                      onChange={e => {
-                        setTime(e.target.value);
-                        markFieldEdited("time");
-                      }}
-                      onFocus={() => markFieldEdited("time")}
-                      placeholder="..."
-                      borderColor={borderColor}
-                      fontSize={{ base: "md", md: "md" }}
-                      _focus={{
-                        borderColor: "blue.400",
-                        boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                      }}
-                      _placeholder={{ color: placeholderColor }}
-                    />
-                  </Box>
-                </SimpleGrid>
+          <SimpleGrid cols={2} spacing="md" w="100%">
+            <Box>
+              <Text size={["xs", "sm"]} fw={500} mb={4}>
+                Date
+              </Text>
+              <TextInput
+                type="date"
+                value={date}
+                onChange={e => {
+                  setDate(e.target.value);
+                  markFieldEdited("date");
+                }}
+                onFocus={() => markFieldEdited("date")}
+                placeholder="..."
+                style={{
+                  fontSize: "16px",
+                }}
+              />
+            </Box>
+            <Box>
+              <Text size={["xs", "sm"]} fw={500} mb={4}>
+                Time
+              </Text>
+              <TextInput
+                type="time"
+                value={time}
+                onChange={e => {
+                  setTime(e.target.value);
+                  markFieldEdited("time");
+                }}
+                onFocus={() => markFieldEdited("time")}
+                placeholder="..."
+                style={{
+                  fontSize: "16px",
+                }}
+              />
+            </Box>
+          </SimpleGrid>
 
-                <Box w="full">
-                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                    Duration
-                  </Text>
-                  <SelectDropdown
-                    collection={durationCollection}
-                    value={[duration]}
-                    onValueChange={({ value }) => {
-                      setDuration(value[0]);
-                      markFieldEdited("duration");
-                    }}
-                    placeholder="..."
-                    inModal={true}
-                  />
-                </Box>
+          <Box w="100%">
+            <Text size={["xs", "sm"]} fw={500} mb={4}>
+              Duration
+            </Text>
+            <SelectDropdown
+              data={durationData}
+              value={duration}
+              onChange={value => {
+                setDuration(value);
+                markFieldEdited("duration");
+              }}
+              placeholder="..."
+            />
+          </Box>
 
-                <Box w="full">
-                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                    Status
-                  </Text>
-                  <SelectDropdown
-                    collection={statusCollection}
-                    value={[status]}
-                    onValueChange={({ value }) => {
-                      setStatus(value[0]);
-                      markFieldEdited("status");
-                    }}
-                    placeholder="..."
-                    inModal={true}
-                  />
-                </Box>
+          <Box w="100%">
+            <Text size={["xs", "sm"]} fw={500} mb={4}>
+              Status
+            </Text>
+            <SelectDropdown
+              data={statusData}
+              value={status}
+              onChange={value => {
+                setStatus(value);
+                markFieldEdited("status");
+              }}
+              placeholder="..."
+            />
+          </Box>
 
-                <Box w="full">
-                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                    Recurrence
-                  </Text>
-                  <SelectDropdown
-                    collection={recurrenceCollection}
-                    value={[recurrenceType]}
-                    onValueChange={({ value }) => {
-                      setRecurrenceType(value[0]);
-                      markFieldEdited("recurrenceType");
-                    }}
-                    placeholder="..."
-                    inModal={true}
-                  />
-                </Box>
+          <Box w="100%">
+            <Text size={["xs", "sm"]} fw={500} mb={4}>
+              Recurrence
+            </Text>
+            <SelectDropdown
+              data={recurrenceData}
+              value={recurrenceType}
+              onChange={value => {
+                setRecurrenceType(value);
+                markFieldEdited("recurrenceType");
+              }}
+              placeholder="..."
+            />
+          </Box>
 
-                {recurrenceType === "weekly" && (
-                  <HStack spacing={1} w="full">
-                    {DAYS_OF_WEEK.map(day => (
-                      <Button
-                        key={day.value}
-                        w={9}
-                        h={9}
-                        borderRadius="full"
-                        fontSize={{ base: "xs", md: "sm" }}
-                        fontWeight="medium"
-                        onClick={() => {
-                          setSelectedDays(prev =>
-                            prev.includes(day.value) ? prev.filter(d => d !== day.value) : [...prev, day.value]
-                          );
-                          markFieldEdited("recurrenceType");
-                        }}
-                        colorPalette={selectedDays.includes(day.value) ? "blue" : "gray"}
-                        variant={selectedDays.includes(day.value) ? "solid" : "outline"}
-                      >
-                        {day.short}
-                      </Button>
-                    ))}
-                  </HStack>
-                )}
+          {recurrenceType === "weekly" && (
+            <Box w="100%">
+              <WeekdaySelector
+                selectedDays={selectedDays}
+                onChange={newDays => {
+                  setSelectedDays(newDays);
+                  markFieldEdited("recurrenceType");
+                }}
+                size="sm"
+              />
+            </Box>
+          )}
 
-                {recurrenceType !== "" && recurrenceType !== "none" && (
-                  <Box w="full">
-                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                      End Date (Optional)
-                    </Text>
-                    <Input
-                      type="date"
-                      value={endDate}
-                      onChange={e => {
-                        setEndDate(e.target.value);
-                        markFieldEdited("endDate");
-                      }}
-                      onFocus={() => markFieldEdited("endDate")}
-                      placeholder="No end date"
-                      borderColor={borderColor}
-                      _focus={{
-                        borderColor: "blue.400",
-                        boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-                      }}
-                    />
-                  </Box>
-                )}
+          {recurrenceType !== "" && recurrenceType !== "none" && (
+            <Box w="100%">
+              <Text size={["xs", "sm"]} fw={500} mb={4}>
+                End Date (Optional)
+              </Text>
+              <TextInput
+                type="date"
+                value={endDate}
+                onChange={e => {
+                  setEndDate(e.target.value);
+                  markFieldEdited("endDate");
+                }}
+                onFocus={() => markFieldEdited("endDate")}
+                placeholder="No end date"
+                style={{
+                  fontSize: "16px",
+                }}
+              />
+            </Box>
+          )}
 
-                <Box w="full">
-                  <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" mb={1}>
-                    Tags
-                  </Text>
-                  <Box
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                    borderRadius="md"
-                    p={3}
-                    minH="48px"
-                    onClick={() => markFieldEdited("tags")}
-                  >
-                    <HStack spacing={2} flexWrap="wrap" align="center">
-                      {/* Selected Tags */}
-                      {Array.isArray(tags) &&
-                        tags
-                          .filter(t => selectedTagIds.includes(t.id))
-                          .map(tag => <TagChip key={tag.id} tag={tag} size="sm" />)}
-                      {/* Add Tag button */}
-                      <TagSelector
-                        tags={tags}
-                        selectedTagIds={selectedTagIds}
-                        onTagsChange={newTagIds => {
-                          setSelectedTagIds(newTagIds);
-                          markFieldEdited("tags");
-                        }}
-                        onCreateTag={onCreateTag}
-                        onDeleteTag={onDeleteTag}
-                        inline
-                      />
-                    </HStack>
-                  </Box>
-                  <Text fontSize="xs" color="gray.500" mt={1}>
-                    Common tags are shown. Add more tags to apply them to all selected tasks.
-                  </Text>
-                </Box>
-              </VStack>
-            </form>
-          </Dialog.Body>
-          <Dialog.Footer>
-            <Button variant="outline" mr={3} onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} isDisabled={editedFields.size === 0}>
-              Update {selectedCount} Task(s)
-            </Button>
-          </Dialog.Footer>
-        </Dialog.Content>
-      </Dialog.Positioner>
-    </Dialog.Root>
+          <Box w="100%">
+            <Text size={["xs", "sm"]} fw={500} mb={4}>
+              Tags
+            </Text>
+            <Box
+              style={{
+                border: `1px solid ${borderColor}`,
+                borderRadius: "0.375rem",
+                padding: 12,
+                minHeight: "48px",
+              }}
+              onClick={() => markFieldEdited("tags")}
+            >
+              <Group gap={8} wrap="wrap" align="center">
+                {/* Selected Tags */}
+                {Array.isArray(tags) &&
+                  tags
+                    .filter(t => selectedTagIds.includes(t.id))
+                    .map(tag => <TagChip key={tag.id} tag={tag} size="sm" />)}
+                {/* Add Tag button */}
+                <TagSelector
+                  tags={tags}
+                  selectedTagIds={selectedTagIds}
+                  onTagsChange={newTagIds => {
+                    setSelectedTagIds(newTagIds);
+                    markFieldEdited("tags");
+                  }}
+                  onCreateTag={onCreateTag}
+                  onDeleteTag={onDeleteTag}
+                  inline
+                />
+              </Group>
+            </Box>
+            <Text size="xs" c="gray.5" mt={4}>
+              Common tags are shown. Add more tags to apply them to all selected tasks.
+            </Text>
+          </Box>
+        </Stack>
+      </form>
+      <Group justify="flex-end" mt="md">
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={handleSave} disabled={editedFields.size === 0}>
+          Update {selectedCount} Task(s)
+        </Button>
+      </Group>
+    </Modal>
   );
 };

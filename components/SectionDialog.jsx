@@ -1,83 +1,68 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, Input, Text, Dialog, VStack, HStack, IconButton } from "@chakra-ui/react";
+import { Box, Button, TextInput, Text, Modal, Stack, Group, ActionIcon } from "@mantine/core";
 import { SECTION_ICONS } from "@/lib/constants";
-import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // Internal component that resets when key changes
-function SectionForm({ section, onSave, onClose, bgColor }) {
+function SectionForm({ section, onSave, onClose }) {
   const [name, setName] = useState(section?.name || "");
   const [icon, setIcon] = useState(section?.icon || "sun");
 
   return (
-    <Dialog.Root open={true} onOpenChange={({ open }) => !open && onClose()}>
-      <Dialog.Backdrop />
-      <Dialog.Content bg={bgColor}>
-        <Dialog.Header>{section ? "Edit Section" : "New Section"}</Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          <VStack spacing={4} py={4}>
-            <Box w="full">
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Name
-              </Text>
-              <Input value={name} onChange={e => setName(e.target.value)} />
-            </Box>
-            <Box w="full">
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Icon
-              </Text>
-              <HStack spacing={2} mt={2}>
-                {SECTION_ICONS.map(({ value, Icon }) => (
-                  <IconButton
-                    key={value}
-                    onClick={() => setIcon(value)}
-                    colorPalette={icon === value ? "orange" : "gray"}
-                    variant={icon === value ? "solid" : "outline"}
-                    aria-label={`Select ${value} icon`}
-                  >
-                    <Box as="span" color="currentColor">
-                      <Icon size={20} stroke="currentColor" />
-                    </Box>
-                  </IconButton>
-                ))}
-              </HStack>
-            </Box>
-          </VStack>
-        </Dialog.Body>
-        <Dialog.Footer>
-          <Button variant="outline" mr={3} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => {
-              onSave({
-                id: section?.id,
-                name,
-                icon,
-                order: section?.order ?? 999,
-              });
-              onClose();
-            }}
-            isDisabled={!name.trim()}
-          >
-            Save
-          </Button>
-        </Dialog.Footer>
-      </Dialog.Content>
-    </Dialog.Root>
+    <Modal opened={true} onClose={onClose} title={section ? "Edit Section" : "New Section"} centered>
+      <Stack gap="md" py="md">
+        <Box w="100%">
+          <Text size="sm" fw={500} mb={4}>
+            Name
+          </Text>
+          <TextInput value={name} onChange={e => setName(e.target.value)} />
+        </Box>
+        <Box w="100%">
+          <Text size="sm" fw={500} mb={4}>
+            Icon
+          </Text>
+          <Group gap={8} mt={8}>
+            {SECTION_ICONS.map(({ value, Icon }) => (
+              <ActionIcon
+                key={value}
+                onClick={() => setIcon(value)}
+                color={icon === value ? "orange" : "gray"}
+                variant={icon === value ? "filled" : "outline"}
+                aria-label={`Select ${value} icon`}
+              >
+                <Icon size={20} stroke="currentColor" />
+              </ActionIcon>
+            ))}
+          </Group>
+        </Box>
+      </Stack>
+      <Group justify="flex-end" mt="md">
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          onClick={() => {
+            onSave({
+              id: section?.id,
+              name,
+              icon,
+              order: section?.order ?? 999,
+            });
+            onClose();
+          }}
+          disabled={!name.trim()}
+        >
+          Save
+        </Button>
+      </Group>
+    </Modal>
   );
 }
 
 export const SectionDialog = ({ isOpen, onClose, section, onSave }) => {
-  const { mode } = useSemanticColors();
-  const bgColor = mode.bg.surface;
-
   if (!isOpen) return null;
 
   // Use key to reset form state when section changes
-  return (
-    <SectionForm key={section?.id || "new"} section={section} onSave={onSave} onClose={onClose} bgColor={bgColor} />
-  );
+  return <SectionForm key={section?.id || "new"} section={section} onSave={onSave} onClose={onClose} />;
 };

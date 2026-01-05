@@ -1,18 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useMemo, startTransition, useState } from "react";
-import {
-  Box,
-  Button,
-  HStack,
-  Text,
-  Flex,
-  IconButton,
-  Heading,
-  Badge,
-  Tabs,
-  createListCollection,
-} from "@chakra-ui/react";
+import { Box, Button, Group, Text, Flex, ActionIcon, Title, Badge, Anchor, Center, Loader } from "@mantine/core";
 import { useAuth } from "@/hooks/useAuth";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
@@ -124,15 +113,14 @@ import { TagFilter } from "@/components/TagFilter";
 import { NotesView } from "@/components/NotesView";
 import { Tag as TagIcon } from "lucide-react";
 import dynamic from "next/dynamic";
-import { Spinner, Center } from "@chakra-ui/react";
 
 // Lazy load heavy components that aren't immediately visible
 const BulkEditDialog = dynamic(
   () => import("@/components/BulkEditDialog").then(mod => ({ default: mod.BulkEditDialog })),
   {
     loading: () => (
-      <Center p={8}>
-        <Spinner size="lg" />
+      <Center p={32}>
+        <Loader size="lg" />
       </Center>
     ),
     ssr: false,
@@ -141,8 +129,8 @@ const BulkEditDialog = dynamic(
 
 const TagEditor = dynamic(() => import("@/components/TagEditor").then(mod => ({ default: mod.TagEditor })), {
   loading: () => (
-    <Center p={8}>
-      <Spinner size="lg" />
+    <Center p={32}>
+      <Loader size="lg" />
     </Center>
   ),
   ssr: false,
@@ -150,8 +138,8 @@ const TagEditor = dynamic(() => import("@/components/TagEditor").then(mod => ({ 
 
 const WorkoutModal = dynamic(() => import("@/components/WorkoutModal"), {
   loading: () => (
-    <Center p={8}>
-      <Spinner size="lg" />
+    <Center p={32}>
+      <Loader size="lg" />
     </Center>
   ),
   ssr: false,
@@ -159,8 +147,8 @@ const WorkoutModal = dynamic(() => import("@/components/WorkoutModal"), {
 
 const WorkoutBuilder = dynamic(() => import("@/components/WorkoutBuilder"), {
   loading: () => (
-    <Center p={8}>
-      <Spinner size="lg" />
+    <Center p={32}>
+      <Loader size="lg" />
     </Center>
   ),
   ssr: false,
@@ -169,14 +157,12 @@ const WorkoutBuilder = dynamic(() => import("@/components/WorkoutBuilder"), {
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
 
-const calendarViewCollection = createListCollection({
-  items: [
-    { label: "Day", value: "day" },
-    { label: "Week", value: "week" },
-    { label: "Month", value: "month" },
-    { label: "Year", value: "year" },
-  ],
-});
+const calendarViewData = [
+  { label: "Day", value: "day" },
+  { label: "Week", value: "week" },
+  { label: "Month", value: "month" },
+  { label: "Year", value: "year" },
+];
 
 // Custom collision detection that prioritizes sortable reordering
 const customCollisionDetection = args => {
@@ -920,27 +906,36 @@ export default function DailyTasksApp() {
 
   return (
     <Box
-      h={{ base: "auto", md: "100vh" }}
-      minH="100vh"
-      display="flex"
-      flexDirection="column"
-      overflow={{ base: "auto", md: "hidden" }}
-      bg={bgColor}
-      color={textColor}
+      style={{
+        height: "100vh",
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        background: bgColor,
+        color: textColor,
+      }}
     >
       {/* Header */}
-      <Box as="header" bg={headerBg} borderBottomWidth="1px" borderColor={borderColor} flexShrink={{ base: 1, md: 0 }}>
-        <Box w="full" px={{ base: 3, md: 4 }} py={{ base: 2, md: 4 }}>
+      <Box
+        component="header"
+        style={{
+          background: headerBg,
+          borderBottom: `1px solid ${borderColor}`,
+          flexShrink: 0,
+        }}
+      >
+        <Box style={{ width: "100%", paddingLeft: 16, paddingRight: 16, paddingTop: 8, paddingBottom: 16 }}>
           <Flex align="center" justify="space-between">
-            <Flex align="center" gap={{ base: 2, md: 3 }}>
-              <Box as="span" color={icon.primary}>
+            <Flex align="center" gap={[8, 12]}>
+              <Box component="span" c={icon.primary}>
                 <GreetingIcon size={20} stroke="currentColor" />
               </Box>
               <Box>
-                <Heading as="h1" size={{ base: "md", md: "lg" }} fontWeight="semibold">
+                <Title order={1} size={["md", "lg"]} fw={600}>
                   {greeting.text}
-                </Heading>
-                <Text fontSize={{ base: "xs", md: "sm" }} color={mutedText}>
+                </Title>
+                <Text size={["xs", "sm"]} c={mutedText}>
                   {new Date().toLocaleDateString("en-US", {
                     weekday: "long",
                     month: "long",
@@ -949,185 +944,272 @@ export default function DailyTasksApp() {
                 </Text>
               </Box>
             </Flex>
-            <HStack spacing={{ base: 1, md: 2 }}>
-              <IconButton
+            <Group gap={[4, 8]}>
+              <ActionIcon
                 onClick={() => dialogState.setTagEditorOpen(true)}
-                variant="ghost"
-                size={{ base: "xs", md: "md" }}
+                variant="subtle"
+                size="md"
                 aria-label="Manage tags"
-                minW={{ base: "28px", md: "40px" }}
-                h={{ base: "28px", md: "40px" }}
-                p={{ base: 0, md: 2 }}
+                style={{
+                  minWidth: "40px",
+                  height: "40px",
+                  padding: 8,
+                }}
+                visibleFrom="md"
               >
-                <Box as="span" color="currentColor">
-                  <TagIcon size={16} stroke="currentColor" />
-                </Box>
-              </IconButton>
+                <TagIcon size={16} stroke="currentColor" />
+              </ActionIcon>
+              <ActionIcon
+                onClick={() => dialogState.setTagEditorOpen(true)}
+                variant="subtle"
+                size="xs"
+                aria-label="Manage tags"
+                style={{
+                  minWidth: "28px",
+                  height: "28px",
+                  padding: 0,
+                }}
+                hiddenFrom="md"
+              >
+                <TagIcon size={16} stroke="currentColor" />
+              </ActionIcon>
               <ThemeSelector />
-              <IconButton
+              <ActionIcon
                 onClick={toggleColorMode}
-                variant="ghost"
-                size={{ base: "xs", md: "md" }}
+                variant="subtle"
+                size="md"
                 aria-label={colorMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-                minW={{ base: "28px", md: "40px" }}
-                h={{ base: "28px", md: "40px" }}
-                p={{ base: 0, md: 2 }}
+                style={{
+                  minWidth: "40px",
+                  height: "40px",
+                  padding: 8,
+                }}
+                visibleFrom="md"
               >
-                <Box as="span" color="currentColor">
-                  {colorMode === "dark" ? (
-                    <Sun size={16} stroke="currentColor" />
-                  ) : (
-                    <Moon size={16} stroke="currentColor" />
-                  )}
-                </Box>
-              </IconButton>
-              <IconButton
+                {colorMode === "dark" ? (
+                  <Sun size={16} stroke="currentColor" />
+                ) : (
+                  <Moon size={16} stroke="currentColor" />
+                )}
+              </ActionIcon>
+              <ActionIcon
+                onClick={toggleColorMode}
+                variant="subtle"
+                size="xs"
+                aria-label={colorMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                style={{
+                  minWidth: "28px",
+                  height: "28px",
+                  padding: 0,
+                }}
+                hiddenFrom="md"
+              >
+                {colorMode === "dark" ? (
+                  <Sun size={16} stroke="currentColor" />
+                ) : (
+                  <Moon size={16} stroke="currentColor" />
+                )}
+              </ActionIcon>
+              <ActionIcon
                 onClick={logout}
-                variant="ghost"
-                colorPalette="red"
-                size={{ base: "xs", md: "md" }}
+                variant="subtle"
+                color="red"
+                size="md"
                 aria-label="Logout"
-                minW={{ base: "28px", md: "40px" }}
-                h={{ base: "28px", md: "40px" }}
-                p={{ base: 0, md: 2 }}
+                style={{
+                  minWidth: "40px",
+                  height: "40px",
+                  padding: 8,
+                }}
+                visibleFrom="md"
               >
-                <Box as="span" color="currentColor">
-                  <LogOut size={16} stroke="currentColor" />
-                </Box>
-              </IconButton>
-            </HStack>
+                <LogOut size={16} stroke="currentColor" />
+              </ActionIcon>
+              <ActionIcon
+                onClick={logout}
+                variant="subtle"
+                color="red"
+                size="xs"
+                aria-label="Logout"
+                style={{
+                  minWidth: "28px",
+                  height: "28px",
+                  padding: 0,
+                }}
+                hiddenFrom="md"
+              >
+                <LogOut size={16} stroke="currentColor" />
+              </ActionIcon>
+            </Group>
           </Flex>
 
-          {/* Main Tabs */}
-          <Box mt={{ base: 2, md: 4 }}>
-            <Tabs.Root
-              value={mainTabIndex.toString()}
-              onValueChange={({ value }) => {
-                const newTabIndex = parseInt(value);
-                // Update tab index immediately so tab switches right away
-                setMainTabIndex(newTabIndex);
-                // Show loading spinner immediately
-                setLoadingTab(newTabIndex);
-                // Clear loading after content has time to render
-                startTransition(() => {
-                  setTimeout(() => setLoadingTab(null), 150);
-                });
-              }}
-              variant="line"
-            >
-              <Tabs.List>
-                <Tabs.Trigger
-                  value="0"
-                  fontSize={{ base: "sm", md: "md" }}
-                  py={{ base: 1.5, md: 2 }}
-                  px={{ base: 2, md: 3 }}
-                >
-                  <HStack spacing={{ base: 1, md: 2 }}>
-                    <CheckSquare size={14} />
-                    <Text>Tasks</Text>
-                  </HStack>
-                </Tabs.Trigger>
-                <Tabs.Trigger
-                  value="1"
-                  fontSize={{ base: "sm", md: "md" }}
-                  py={{ base: 1.5, md: 2 }}
-                  px={{ base: 2, md: 3 }}
-                >
-                  <HStack spacing={{ base: 1, md: 2 }}>
-                    <Columns size={14} />
-                    <Text>Kanban</Text>
-                  </HStack>
-                </Tabs.Trigger>
-                <Tabs.Trigger
-                  value="2"
-                  fontSize={{ base: "sm", md: "md" }}
-                  py={{ base: 1.5, md: 2 }}
-                  px={{ base: 2, md: 3 }}
-                >
-                  <HStack spacing={{ base: 1, md: 2 }}>
-                    <BookOpen size={14} />
-                    <Text>Journal</Text>
-                    {journalTasks.length > 0 && (
-                      <Badge
-                        colorScheme="orange"
-                        borderRadius="full"
-                        fontSize={{ base: "2xs", md: "xs" }}
-                        px={{ base: 1, md: 1.5 }}
-                        py={0}
-                      >
-                        {journalTasks.length}
-                      </Badge>
-                    )}
-                  </HStack>
-                </Tabs.Trigger>
-                <Tabs.Trigger
-                  value="3"
-                  fontSize={{ base: "sm", md: "md" }}
-                  py={{ base: 1.5, md: 2 }}
-                  px={{ base: 2, md: 3 }}
-                >
-                  <HStack spacing={{ base: 1, md: 2 }}>
-                    <StickyNote size={14} />
-                    <Text>Notes</Text>
-                    {noteTasks.length > 0 && (
-                      <Badge
-                        colorScheme="purple"
-                        borderRadius="full"
-                        fontSize={{ base: "2xs", md: "xs" }}
-                        px={{ base: 1, md: 1.5 }}
-                        py={0}
-                      >
-                        {noteTasks.length}
-                      </Badge>
-                    )}
-                  </HStack>
-                </Tabs.Trigger>
-                <Tabs.Trigger
-                  value="4"
-                  fontSize={{ base: "sm", md: "md" }}
-                  py={{ base: 1.5, md: 2 }}
-                  px={{ base: 2, md: 3 }}
-                >
-                  <HStack spacing={{ base: 1, md: 2 }}>
-                    <Clock size={14} />
-                    <Text>History</Text>
-                  </HStack>
-                </Tabs.Trigger>
-              </Tabs.List>
-            </Tabs.Root>
+          {/* Main Navigation Links */}
+          <Box style={{ marginTop: 16 }}>
+            <Group gap={0} justify="flex-start">
+              <Anchor
+                href="#"
+                onClick={event => {
+                  event.preventDefault();
+                  const newTabIndex = 0;
+                  setMainTabIndex(newTabIndex);
+                  setLoadingTab(newTabIndex);
+                  startTransition(() => {
+                    setTimeout(() => setLoadingTab(null), 150);
+                  });
+                }}
+                data-active={mainTabIndex === 0 || undefined}
+              >
+                <Group gap={[8, 12]}>
+                  <CheckSquare size={14} />
+                  <Text size={["sm", "md"]}>Tasks</Text>
+                </Group>
+              </Anchor>
+              <Anchor
+                href="#"
+                onClick={event => {
+                  event.preventDefault();
+                  const newTabIndex = 1;
+                  setMainTabIndex(newTabIndex);
+                  setLoadingTab(newTabIndex);
+                  startTransition(() => {
+                    setTimeout(() => setLoadingTab(null), 150);
+                  });
+                }}
+                data-active={mainTabIndex === 1 || undefined}
+              >
+                <Group gap={[8, 12]}>
+                  <Columns size={14} />
+                  <Text size={["sm", "md"]}>Kanban</Text>
+                </Group>
+              </Anchor>
+              <Anchor
+                href="#"
+                onClick={event => {
+                  event.preventDefault();
+                  const newTabIndex = 2;
+                  setMainTabIndex(newTabIndex);
+                  setLoadingTab(newTabIndex);
+                  startTransition(() => {
+                    setTimeout(() => setLoadingTab(null), 150);
+                  });
+                }}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: "var(--mantine-font-size-sm)",
+                  fontWeight: mainTabIndex === 2 ? 600 : 400,
+                  color: mainTabIndex === 2 ? interactive.primary : mode.text.secondary,
+                  textDecoration: "none",
+                  transition: "all 0.2s ease",
+                  borderBottom: mainTabIndex === 2 ? `2px solid ${interactive.primary}` : "2px solid transparent",
+                  marginBottom: "-2px",
+                }}
+                data-active={mainTabIndex === 2 || undefined}
+              >
+                <Group gap={[8, 12]}>
+                  <BookOpen size={14} />
+                  <Text size={["sm", "md"]}>Journal</Text>
+                  {journalTasks.length > 0 && (
+                    <Badge color="orange" radius="xl" size={["xs", "sm"]}>
+                      {journalTasks.length}
+                    </Badge>
+                  )}
+                </Group>
+              </Anchor>
+              <Anchor
+                href="#"
+                onClick={event => {
+                  event.preventDefault();
+                  const newTabIndex = 3;
+                  setMainTabIndex(newTabIndex);
+                  setLoadingTab(newTabIndex);
+                  startTransition(() => {
+                    setTimeout(() => setLoadingTab(null), 150);
+                  });
+                }}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: "var(--mantine-font-size-sm)",
+                  fontWeight: mainTabIndex === 3 ? 600 : 400,
+                  color: mainTabIndex === 3 ? interactive.primary : mode.text.secondary,
+                  textDecoration: "none",
+                  transition: "all 0.2s ease",
+                  borderBottom: mainTabIndex === 3 ? `2px solid ${interactive.primary}` : "2px solid transparent",
+                  marginBottom: "-2px",
+                }}
+                data-active={mainTabIndex === 3 || undefined}
+              >
+                <Group gap={[8, 12]}>
+                  <StickyNote size={14} />
+                  <Text size={["sm", "md"]}>Notes</Text>
+                  {noteTasks.length > 0 && (
+                    <Badge color="purple" radius="xl" size={["xs", "sm"]}>
+                      {noteTasks.length}
+                    </Badge>
+                  )}
+                </Group>
+              </Anchor>
+              <Anchor
+                href="#"
+                onClick={event => {
+                  event.preventDefault();
+                  const newTabIndex = 4;
+                  setMainTabIndex(newTabIndex);
+                  setLoadingTab(newTabIndex);
+                  startTransition(() => {
+                    setTimeout(() => setLoadingTab(null), 150);
+                  });
+                }}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: "var(--mantine-font-size-sm)",
+                  fontWeight: mainTabIndex === 4 ? 600 : 400,
+                  color: mainTabIndex === 4 ? interactive.primary : mode.text.secondary,
+                  textDecoration: "none",
+                  transition: "all 0.2s ease",
+                  borderBottom: mainTabIndex === 4 ? `2px solid ${interactive.primary}` : "2px solid transparent",
+                  marginBottom: "-2px",
+                }}
+                data-active={mainTabIndex === 4 || undefined}
+              >
+                <Group gap={[8, 12]}>
+                  <Clock size={14} />
+                  <Text size={["sm", "md"]}>History</Text>
+                </Group>
+              </Anchor>
+            </Group>
           </Box>
 
           {/* View toggles and calendar nav - only show in Tasks tab, hide on mobile */}
           {mainTabIndex === 0 && !isMobile && (
-            <Box mt={4}>
-              <Flex align="center" justify="space-between" mb={3}>
-                <HStack spacing={2}>
-                  <Box position="relative">
+            <Box style={{ marginTop: 16 }}>
+              <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
+                <Group gap={8}>
+                  <Box style={{ position: "relative" }}>
                     <Button
                       size="sm"
-                      variant={backlogOpen ? "solid" : "outline"}
-                      colorPalette={backlogOpen ? "blue" : "gray"}
+                      variant={backlogOpen ? "filled" : "outline"}
+                      color={backlogOpen ? "blue" : "gray"}
                       onClick={() => dispatch(setBacklogOpen(!backlogOpen))}
                     >
-                      <Box as="span" color="currentColor">
-                        <List size={14} stroke="currentColor" />
-                      </Box>
+                      <List size={14} stroke="currentColor" />
                       Backlog
                     </Button>
                     {backlogTasks.length > 0 && (
                       <Badge
-                        position="absolute"
-                        top="-1"
-                        right="-1"
-                        bg={mode.status.error}
-                        color="white"
-                        fontSize="xs"
-                        borderRadius="full"
-                        w={5}
-                        h={5}
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
+                        style={{
+                          position: "absolute",
+                          top: "-4px",
+                          right: "-4px",
+                          background: mode.status.error,
+                          color: "white",
+                          fontSize: "var(--mantine-font-size-xs)",
+                          borderRadius: "50%",
+                          width: 20,
+                          height: 20,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
                       >
                         {backlogTasks.length}
                       </Badge>
@@ -1135,33 +1217,32 @@ export default function DailyTasksApp() {
                   </Box>
                   <Button
                     size="sm"
-                    variant={showDashboard ? "solid" : "outline"}
-                    colorPalette={showDashboard ? "blue" : "gray"}
+                    variant={showDashboard ? "filled" : "outline"}
+                    color={showDashboard ? "blue" : "gray"}
                     onClick={() => dispatch(setShowDashboard(!showDashboard))}
                   >
-                    <Box as="span" color="currentColor">
-                      <LayoutDashboard size={14} stroke="currentColor" />
-                    </Box>
+                    <LayoutDashboard size={14} stroke="currentColor" />
                     Today
                   </Button>
                   <Button
                     size="sm"
-                    variant={showCalendar ? "solid" : "outline"}
-                    colorPalette={showCalendar ? "blue" : "gray"}
+                    variant={showCalendar ? "filled" : "outline"}
+                    color={showCalendar ? "blue" : "gray"}
                     onClick={() => dispatch(setShowCalendar(!showCalendar))}
                   >
-                    <Box as="span" color="currentColor">
-                      <Calendar size={14} stroke="currentColor" />
-                    </Box>
+                    <Calendar size={14} stroke="currentColor" />
                     Calendar
                   </Button>
-                </HStack>
+                </Group>
               </Flex>
 
               {/* Progress bar */}
               {showDashboard && (
                 <Box>
-                  <Flex justify="space-between" fontSize="sm" color={mutedText} mb={1}>
+                  <Flex
+                    justify="space-between"
+                    style={{ fontSize: "var(--mantine-font-size-sm)", color: mutedText, marginBottom: 4 }}
+                  >
                     <Text>
                       {viewDate && viewDate.toDateString() === today.toDateString()
                         ? "Today's Progress"
@@ -1176,43 +1257,47 @@ export default function DailyTasksApp() {
                     </Text>
                   </Flex>
                   <Box
-                    h={2}
-                    bg={progressBarBg}
-                    borderRadius="full"
-                    overflow="hidden"
-                    position="relative"
-                    display="flex"
+                    style={{
+                      height: 8,
+                      background: progressBarBg,
+                      borderRadius: "9999px",
+                      overflow: "hidden",
+                      position: "relative",
+                      display: "flex",
+                    }}
                   >
                     {/* Completed segment */}
                     {completedPercent > 0 && (
                       <Box
-                        h="full"
-                        bgGradient="to-r"
-                        gradientFrom={colorMode === "dark" ? "#48BB78" : "#38A169"}
-                        gradientTo={colorMode === "dark" ? "#4299E1" : "#3182CE"}
-                        transition="width 0.3s ease-in-out"
-                        width={`${completedPercent}%`}
+                        style={{
+                          height: "100%",
+                          background: `linear-gradient(to right, ${colorMode === "dark" ? "#48BB78" : "#38A169"}, ${colorMode === "dark" ? "#4299E1" : "#3182CE"})`,
+                          transition: "width 0.3s ease-in-out",
+                          width: `${completedPercent}%`,
+                        }}
                       />
                     )}
                     {/* Not completed segment */}
                     {notCompletedPercent > 0 && (
                       <Box
-                        h="full"
-                        bgGradient="to-r"
-                        gradientFrom={colorMode === "dark" ? "#E53E3E" : "#C53030"}
-                        gradientTo={colorMode === "dark" ? "#FC8181" : "#E53E3E"}
-                        transition="width 0.3s ease-in-out"
-                        width={`${notCompletedPercent}%`}
+                        style={{
+                          height: "100%",
+                          background: `linear-gradient(to right, ${colorMode === "dark" ? "#E53E3E" : "#C53030"}, ${colorMode === "dark" ? "#FC8181" : "#E53E3E"})`,
+                          transition: "width 0.3s ease-in-out",
+                          width: `${notCompletedPercent}%`,
+                        }}
                       />
                     )}
                     {/* Unchecked segment - translucent background */}
                     {uncheckedPercent > 0 && (
                       <Box
-                        h="full"
-                        bg={progressBarBg}
-                        opacity={0.5}
-                        transition="width 0.3s ease-in-out"
-                        width={`${uncheckedPercent}%`}
+                        style={{
+                          height: "100%",
+                          background: progressBarBg,
+                          opacity: 0.5,
+                          transition: "width 0.3s ease-in-out",
+                          width: `${uncheckedPercent}%`,
+                        }}
                       />
                     )}
                   </Box>
@@ -1231,77 +1316,103 @@ export default function DailyTasksApp() {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEndNew}
       >
-        <Box as="main" flex={1} overflow={{ base: "visible", md: "hidden" }} display="flex" flexDirection="column">
+        <Box
+          component="main"
+          style={{
+            flex: 1,
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           {showMobileLayout ? (
             /* ========== MOBILE LAYOUT ========== */
             <>
               {/* Mobile Tab Bar - Only show for Tasks tab */}
               {mainTabIndex === 0 && (
-                <Box display="flex" borderBottomWidth="1px" borderColor={borderColor} bg={headerBg} flexShrink={0}>
+                <Box
+                  style={{
+                    display: "flex",
+                    borderBottom: `1px solid ${borderColor}`,
+                    background: headerBg,
+                    flexShrink: 0,
+                  }}
+                >
                   <Button
-                    flex={1}
-                    variant="ghost"
-                    borderRadius={0}
-                    borderBottomWidth={mobileActiveView === "backlog" ? "2px" : "0"}
-                    borderBottomColor={interactive.primary}
-                    color={mobileActiveView === "backlog" ? interactive.primary : textColor}
+                    style={{
+                      flex: 1,
+                      borderRadius: 0,
+                      borderBottom: mobileActiveView === "backlog" ? `2px solid ${interactive.primary}` : "0",
+                      color: mobileActiveView === "backlog" ? interactive.primary : textColor,
+                      paddingTop: 8,
+                      paddingBottom: 8,
+                      position: "relative",
+                      fontSize: "var(--mantine-font-size-sm)",
+                    }}
+                    variant="subtle"
                     onClick={() => dispatch(setMobileActiveView("backlog"))}
-                    py={2}
-                    position="relative"
-                    fontSize="sm"
                   >
-                    <HStack spacing={1}>
+                    <Group gap={4}>
                       <List size={14} />
                       <Text>Backlog</Text>
                       {backlogTasks.length > 0 && (
-                        <Badge colorPalette="red" borderRadius="full" fontSize="2xs" px={1.5} py={0}>
+                        <Badge
+                          color="red"
+                          radius="xl"
+                          size="xs"
+                          style={{ paddingLeft: 6, paddingRight: 6, paddingTop: 0, paddingBottom: 0 }}
+                        >
                           {backlogTasks.length}
                         </Badge>
                       )}
-                    </HStack>
+                    </Group>
                   </Button>
                   <Button
-                    flex={1}
-                    variant="ghost"
-                    borderRadius={0}
-                    borderBottomWidth={mobileActiveView === "today" ? "2px" : "0"}
-                    borderBottomColor={interactive.primary}
-                    color={mobileActiveView === "today" ? interactive.primary : textColor}
+                    style={{
+                      flex: 1,
+                      borderRadius: 0,
+                      borderBottom: mobileActiveView === "today" ? `2px solid ${interactive.primary}` : "0",
+                      color: mobileActiveView === "today" ? interactive.primary : textColor,
+                      paddingTop: 8,
+                      paddingBottom: 8,
+                      fontSize: "var(--mantine-font-size-sm)",
+                    }}
+                    variant="subtle"
                     onClick={() => setMobileActiveView("today")}
-                    py={2}
-                    fontSize="sm"
                   >
-                    <HStack spacing={1}>
+                    <Group gap={4}>
                       <LayoutDashboard size={14} />
                       <Text>Today</Text>
-                    </HStack>
+                    </Group>
                   </Button>
                   <Button
-                    flex={1}
-                    variant="ghost"
-                    borderRadius={0}
-                    borderBottomWidth={mobileActiveView === "calendar" ? "2px" : "0"}
-                    borderBottomColor="blue.500"
-                    color={mobileActiveView === "calendar" ? "blue.500" : textColor}
+                    style={{
+                      flex: 1,
+                      borderRadius: 0,
+                      borderBottom: mobileActiveView === "calendar" ? "2px solid var(--mantine-color-blue-5)" : "0",
+                      color: mobileActiveView === "calendar" ? "var(--mantine-color-blue-5)" : textColor,
+                      paddingTop: 8,
+                      paddingBottom: 8,
+                      fontSize: "var(--mantine-font-size-sm)",
+                    }}
+                    variant="subtle"
                     onClick={() => setMobileActiveView("calendar")}
-                    py={2}
-                    fontSize="sm"
                   >
-                    <HStack spacing={1}>
+                    <Group gap={4}>
                       <Calendar size={16} />
                       <Text>Calendar</Text>
-                    </HStack>
+                    </Group>
                   </Button>
                 </Box>
               )}
 
               {/* Mobile Content Area */}
-              <Box flex={1} overflow="hidden">
+              <Box style={{ flex: 1, overflow: "hidden" }}>
                 {/* Kanban Tab - Mobile */}
                 {(mainTabIndex === 1 || loadingTab === 1) && (
-                  <Box h="100%" overflow="hidden" display="flex" flexDirection="column">
+                  <Box style={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
                     {loadingTab === 1 ? (
-                      <Box h="100%" display="flex" alignItems="center" justifyContent="center">
+                      <Box style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <LoadingSpinner size="xl" />
                       </Box>
                     ) : (
@@ -1312,9 +1423,9 @@ export default function DailyTasksApp() {
 
                 {/* Journal Tab - Mobile */}
                 {(mainTabIndex === 2 || loadingTab === 2) && (
-                  <Box h="100%" overflow="hidden">
+                  <Box style={{ height: "100%", overflow: "hidden" }}>
                     {loadingTab === 2 ? (
-                      <Box h="100%" display="flex" alignItems="center" justifyContent="center">
+                      <Box style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <LoadingSpinner size="xl" />
                       </Box>
                     ) : (
@@ -1334,9 +1445,9 @@ export default function DailyTasksApp() {
 
                 {/* Notes Tab - Mobile */}
                 {(mainTabIndex === 3 || loadingTab === 3) && (
-                  <Box h="100%" overflow="hidden">
+                  <Box style={{ height: "100%", overflow: "hidden" }}>
                     {loadingTab === 3 ? (
-                      <Box h="100%" display="flex" alignItems="center" justifyContent="center">
+                      <Box style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <LoadingSpinner size="xl" />
                       </Box>
                     ) : (
@@ -1371,9 +1482,9 @@ export default function DailyTasksApp() {
 
                 {/* History Tab - Mobile */}
                 {(mainTabIndex === 4 || loadingTab === 4) && (
-                  <Box h="100%" overflow="hidden">
+                  <Box style={{ height: "100%", overflow: "hidden" }}>
                     {loadingTab === 4 ? (
-                      <Box h="100%" display="flex" alignItems="center" justifyContent="center">
+                      <Box style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <LoadingSpinner size="xl" />
                       </Box>
                     ) : (
@@ -1402,22 +1513,34 @@ export default function DailyTasksApp() {
                 {(mainTabIndex === 0 || loadingTab === 0) && (
                   <>
                     {loadingTab === 0 ? (
-                      <Box h="100%" display="flex" alignItems="center" justifyContent="center">
+                      <Box style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <LoadingSpinner size="xl" />
                       </Box>
                     ) : (
                       <>
                         {mobileActiveView === "backlog" && (
-                          <Box h="100%" overflow="auto">
+                          <Box style={{ height: "100%", overflow: "auto" }}>
                             {isLoading ? <BacklogSkeleton /> : <BacklogDrawer createDraggableId={createDraggableId} />}
                           </Box>
                         )}
 
                         {mobileActiveView === "today" && (
-                          <Box h="100%" overflow="auto" px={3} py={3}>
+                          <Box
+                            style={{
+                              height: "100%",
+                              overflow: "auto",
+                              paddingLeft: 12,
+                              paddingRight: 12,
+                              paddingTop: 12,
+                              paddingBottom: 12,
+                            }}
+                          >
                             {/* Mobile Today View - Progress bar */}
-                            <Box mb={3}>
-                              <Flex justify="space-between" fontSize="xs" color={mutedText} mb={1}>
+                            <Box style={{ marginBottom: 12 }}>
+                              <Flex
+                                justify="space-between"
+                                style={{ fontSize: "var(--mantine-font-size-xs)", color: mutedText, marginBottom: 4 }}
+                              >
                                 <Text>
                                   {viewDate && viewDate.toDateString() === today.toDateString()
                                     ? "Today's Progress"
@@ -1432,67 +1555,77 @@ export default function DailyTasksApp() {
                                 </Text>
                               </Flex>
                               <Box
-                                h={2}
-                                bg={progressBarBg}
-                                borderRadius="full"
-                                overflow="hidden"
-                                position="relative"
-                                display="flex"
+                                style={{
+                                  height: 8,
+                                  background: progressBarBg,
+                                  borderRadius: "9999px",
+                                  overflow: "hidden",
+                                  position: "relative",
+                                  display: "flex",
+                                }}
                               >
                                 {/* Completed segment */}
                                 {completedPercent > 0 && (
                                   <Box
-                                    h="full"
-                                    bgGradient="to-r"
-                                    gradientFrom={colorMode === "dark" ? "#48BB78" : "#38A169"}
-                                    gradientTo={colorMode === "dark" ? "#4299E1" : "#3182CE"}
-                                    transition="width 0.3s ease-in-out"
-                                    width={`${completedPercent}%`}
+                                    style={{
+                                      height: "100%",
+                                      background: `linear-gradient(to right, ${colorMode === "dark" ? "#48BB78" : "#38A169"}, ${colorMode === "dark" ? "#4299E1" : "#3182CE"})`,
+                                      transition: "width 0.3s ease-in-out",
+                                      width: `${completedPercent}%`,
+                                    }}
                                   />
                                 )}
                                 {/* Not completed segment */}
                                 {notCompletedPercent > 0 && (
                                   <Box
-                                    h="full"
-                                    bgGradient="to-r"
-                                    gradientFrom={colorMode === "dark" ? "#E53E3E" : "#C53030"}
-                                    gradientTo={colorMode === "dark" ? "#FC8181" : "#E53E3E"}
-                                    transition="width 0.3s ease-in-out"
-                                    width={`${notCompletedPercent}%`}
+                                    style={{
+                                      height: "100%",
+                                      background: `linear-gradient(to right, ${colorMode === "dark" ? "#E53E3E" : "#C53030"}, ${colorMode === "dark" ? "#FC8181" : "#E53E3E"})`,
+                                      transition: "width 0.3s ease-in-out",
+                                      width: `${notCompletedPercent}%`,
+                                    }}
                                   />
                                 )}
                                 {/* Unchecked segment - translucent background */}
                                 {uncheckedPercent > 0 && (
                                   <Box
-                                    h="full"
-                                    bg={progressBarBg}
-                                    opacity={0.5}
-                                    transition="width 0.3s ease-in-out"
-                                    width={`${uncheckedPercent}%`}
+                                    style={{
+                                      height: "100%",
+                                      background: progressBarBg,
+                                      opacity: 0.5,
+                                      transition: "width 0.3s ease-in-out",
+                                      width: `${uncheckedPercent}%`,
+                                    }}
                                   />
                                 )}
                               </Box>
                             </Box>
 
                             {/* Today View Header */}
-                            <Flex align="center" justify="space-between" mb={3}>
-                              <Heading size="sm">Today</Heading>
-                              <HStack spacing={1}>
-                                <Badge colorPalette="blue" fontSize="2xs" px={1.5} py={0}>
+                            <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
+                              <Title size="sm">Today</Title>
+                              <Group gap={4}>
+                                <Badge
+                                  color="blue"
+                                  size="xs"
+                                  style={{ paddingLeft: 6, paddingRight: 6, paddingTop: 0, paddingBottom: 0 }}
+                                >
                                   {filteredTodaysTasks.length} task{filteredTodaysTasks.length !== 1 ? "s" : ""}
                                 </Badge>
-                                <IconButton
+                                <ActionIcon
                                   size="xs"
-                                  variant="ghost"
+                                  variant="subtle"
                                   onClick={() => setShowCompletedTasks(!showCompletedTasks)}
                                   aria-label={showCompletedTasks ? "Hide Completed" : "Show Completed"}
-                                  minW="24px"
-                                  h="24px"
-                                  p={0}
+                                  style={{
+                                    minWidth: "24px",
+                                    height: "24px",
+                                    padding: 0,
+                                  }}
                                 >
                                   {showCompletedTasks ? <Eye size={14} /> : <EyeOff size={14} />}
-                                </IconButton>
-                              </HStack>
+                                </ActionIcon>
+                              </Group>
                             </Flex>
 
                             {/* Date Navigation for Today View */}
@@ -1507,9 +1640,9 @@ export default function DailyTasksApp() {
                             )}
 
                             {/* Search */}
-                            <Box my={2}>
-                              <HStack spacing={1} align="center" w="100%">
-                                <Box flex={1} minW={0}>
+                            <Box style={{ marginTop: 8, marginBottom: 8 }}>
+                              <Group gap={4} align="center" style={{ width: "100%" }}>
+                                <Box style={{ flex: 1, minWidth: 0 }}>
                                   <TaskSearchInput onSearchChange={setTodaySearchTerm} />
                                 </Box>
                                 <TagFilter
@@ -1519,7 +1652,7 @@ export default function DailyTasksApp() {
                                   onTagDeselect={viewState.handleTodayTagDeselect}
                                   onCreateTag={createTag}
                                 />
-                              </HStack>
+                              </Group>
                             </Box>
 
                             {/* Sections */}
@@ -1528,9 +1661,15 @@ export default function DailyTasksApp() {
                         )}
 
                         {mobileActiveView === "calendar" && (
-                          <Box h="100%" overflow="hidden" display="flex" flexDirection="column">
+                          <Box style={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
                             {/* Mobile Calendar Controls */}
-                            <Box p={2} borderBottomWidth="1px" borderColor={borderColor} bg={headerBg}>
+                            <Box
+                              style={{
+                                padding: 8,
+                                borderBottom: `1px solid ${borderColor}`,
+                                background: headerBg,
+                              }}
+                            >
                               <DateNavigation
                                 selectedDate={selectedDate}
                                 onDateChange={date => {
@@ -1549,15 +1688,24 @@ export default function DailyTasksApp() {
                                 showDatePicker={false}
                                 showDateDisplay={false}
                                 showViewSelector={true}
-                                viewCollection={calendarViewCollection}
+                                viewData={calendarViewData}
                                 selectedView={calendarView}
                                 onViewChange={value => setCalendarView(value)}
                                 viewSelectorWidth={20}
                               />
                               {/* Search and Tag Filter */}
-                              <Box px={2} py={2} w="100%" maxW="100%">
-                                <HStack spacing={1} align="center" w="100%" maxW="100%">
-                                  <Box flex={1} minW={0}>
+                              <Box
+                                style={{
+                                  paddingLeft: 8,
+                                  paddingRight: 8,
+                                  paddingTop: 8,
+                                  paddingBottom: 8,
+                                  width: "100%",
+                                  maxWidth: "100%",
+                                }}
+                              >
+                                <Group gap={4} align="center" style={{ width: "100%", maxWidth: "100%" }}>
+                                  <Box style={{ flex: 1, minWidth: 0 }}>
                                     <TaskSearchInput onSearchChange={setCalendarSearchTerm} />
                                   </Box>
                                   <TagFilter
@@ -1567,12 +1715,20 @@ export default function DailyTasksApp() {
                                     onTagDeselect={viewState.handleCalendarTagDeselect}
                                     onCreateTag={createTag}
                                   />
-                                </HStack>
+                                </Group>
                               </Box>
                             </Box>
 
                             {/* Calendar View */}
-                            <Box flex={1} overflow="hidden" display="flex" flexDirection="column" minH={0}>
+                            <Box
+                              style={{
+                                flex: 1,
+                                overflow: "hidden",
+                                display: "flex",
+                                flexDirection: "column",
+                                minHeight: 0,
+                              }}
+                            >
                               {(() => {
                                 // Filter tasks based on recurring preference for current view
                                 let filteredTasks = showRecurringTasks[calendarView]
@@ -1666,20 +1822,31 @@ export default function DailyTasksApp() {
             </>
           ) : (
             /* ========== DESKTOP LAYOUT (existing code) ========== */
-            <Box display="flex" flex={1} h="100%" minH={0} overflow="hidden">
-              <Box flex={1} minH={0} h="100%" overflow={mainTabIndex === 2 || mainTabIndex === 3 ? "hidden" : "auto"}>
+            <Box style={{ display: "flex", flex: 1, height: "100%", minHeight: 0, overflow: "hidden" }}>
+              <Box
+                style={{
+                  flex: 1,
+                  minHeight: 0,
+                  height: "100%",
+                  overflow: mainTabIndex === 2 || mainTabIndex === 3 ? "hidden" : "auto",
+                }}
+              >
                 {mainTabIndex === 1 || loadingTab === 1 ? (
                   /* Kanban Tab Content */
                   <Box
-                    h="100%"
-                    overflow="hidden"
-                    display="flex"
-                    flexDirection="column"
-                    px={{ base: 2, md: 4 }}
-                    py={{ base: 3, md: 6 }}
+                    style={{
+                      height: "100%",
+                      overflow: "hidden",
+                      display: "flex",
+                      flexDirection: "column",
+                      paddingLeft: 16,
+                      paddingRight: 16,
+                      paddingTop: 24,
+                      paddingBottom: 24,
+                    }}
                   >
                     {loadingTab === 1 ? (
-                      <Box h="100%" display="flex" alignItems="center" justifyContent="center">
+                      <Box style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <LoadingSpinner size="xl" />
                       </Box>
                     ) : (
@@ -1688,9 +1855,9 @@ export default function DailyTasksApp() {
                   </Box>
                 ) : mainTabIndex === 2 || loadingTab === 2 ? (
                   /* Journal Tab Content */
-                  <Box h="100%" overflow="hidden">
+                  <Box style={{ height: "100%", overflow: "hidden" }}>
                     {loadingTab === 2 ? (
-                      <Box h="100%" display="flex" alignItems="center" justifyContent="center">
+                      <Box style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <LoadingSpinner size="xl" />
                       </Box>
                     ) : (
@@ -1708,9 +1875,9 @@ export default function DailyTasksApp() {
                   </Box>
                 ) : mainTabIndex === 3 || loadingTab === 3 ? (
                   /* Notes Tab Content */
-                  <Box h="100%" overflow="hidden">
+                  <Box style={{ height: "100%", overflow: "hidden" }}>
                     {loadingTab === 3 ? (
-                      <Box h="100%" display="flex" alignItems="center" justifyContent="center">
+                      <Box style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <LoadingSpinner size="xl" />
                       </Box>
                     ) : (
@@ -1744,9 +1911,9 @@ export default function DailyTasksApp() {
                   </Box>
                 ) : mainTabIndex === 4 || loadingTab === 4 ? (
                   /* History Tab Content */
-                  <Box h="100%" overflow="hidden">
+                  <Box style={{ height: "100%", overflow: "hidden" }}>
                     {loadingTab === 4 ? (
-                      <Box h="100%" display="flex" alignItems="center" justifyContent="center">
+                      <Box style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <LoadingSpinner size="xl" />
                       </Box>
                     ) : (
@@ -1772,33 +1939,41 @@ export default function DailyTasksApp() {
                 ) : mainTabIndex === 0 || loadingTab === 0 ? (
                   /* Tasks Tab Content */
                   loadingTab === 0 ? (
-                    <Box w="full" h="full" display="flex" alignItems="center" justifyContent="center">
+                    <Box
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
                       <LoadingSpinner size="xl" />
                     </Box>
                   ) : (
-                    <Box w="full" h="full" display="flex" maxW="100%" overflow="hidden">
+                    <Box
+                      style={{ width: "100%", height: "100%", display: "flex", maxWidth: "100%", overflow: "hidden" }}
+                    >
                       {/* Backlog Section - only show on Tasks tab */}
                       {mainTabIndex === 0 && (
                         <Box
-                          w={backlogOpen ? `${resizeHandlers.backlogWidth}px` : "0px"}
-                          h="100%"
-                          transition={
-                            resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
-                              ? "none"
-                              : "width 0.3s ease-in-out"
-                          }
                           style={{
+                            width: backlogOpen ? `${resizeHandlers.backlogWidth}px` : "0px",
+                            height: "100%",
+                            transition:
+                              resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
+                                ? "none"
+                                : "width 0.3s ease-in-out",
                             willChange:
                               resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? "width" : "auto",
+                            overflow: "hidden",
+                            borderRight: backlogOpen ? `1px solid ${borderColor}` : "0px",
+                            background: bgColor,
+                            flexShrink: 0,
+                            display: "flex",
+                            flexDirection: "column",
+                            position: "relative",
                           }}
-                          overflow="hidden"
-                          borderRightWidth={backlogOpen ? "1px" : "0px"}
-                          borderColor={borderColor}
-                          bg={bgColor}
-                          flexShrink={0}
-                          display="flex"
-                          flexDirection="column"
-                          position="relative"
                         >
                           {backlogOpen && (
                             <>
@@ -1809,24 +1984,35 @@ export default function DailyTasksApp() {
                               )}
                               {/* Resize handle between backlog and today */}
                               <Box
-                                position="absolute"
-                                right={0}
-                                top={0}
-                                bottom={0}
-                                w={{ md: "12px", lg: "4px" }}
-                                cursor="col-resize"
-                                bg={
-                                  resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
-                                    ? "blue.400"
-                                    : "transparent"
-                                }
-                                _hover={{ bg: "blue.300" }}
-                                transition="background-color 0.2s"
+                                style={{
+                                  position: "absolute",
+                                  right: 0,
+                                  top: 0,
+                                  bottom: 0,
+                                  width: "4px",
+                                  cursor: "col-resize",
+                                  background:
+                                    resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
+                                      ? "var(--mantine-color-blue-4)"
+                                      : "transparent",
+                                  transition: "background-color 0.2s",
+                                  zIndex: 10,
+                                  userSelect: "none",
+                                  touchAction: "none",
+                                }}
                                 onMouseDown={resizeHandlers.handleBacklogResizeStart}
                                 onTouchStart={resizeHandlers.handleBacklogResizeStart}
-                                zIndex={10}
-                                sx={{ userSelect: "none", touchAction: "none" }}
-                                display={{ base: "none", md: "block" }}
+                                onMouseEnter={e => {
+                                  if (!(resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog")) {
+                                    e.currentTarget.style.background = "var(--mantine-color-blue-3)";
+                                  }
+                                }}
+                                onMouseLeave={e => {
+                                  if (!(resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog")) {
+                                    e.currentTarget.style.background = "transparent";
+                                  }
+                                }}
+                                visibleFrom="md"
                               />
                             </>
                           )}
@@ -1834,31 +2020,41 @@ export default function DailyTasksApp() {
                       )}
 
                       {/* Today and Calendar Section */}
-                      <Box flex={1} overflow="hidden" display="flex" flexDirection="row" h="100%" minH={0} minW={0}>
+                      <Box
+                        style={{
+                          flex: 1,
+                          overflow: "hidden",
+                          display: "flex",
+                          flexDirection: "row",
+                          height: "100%",
+                          minHeight: 0,
+                          minWidth: 0,
+                        }}
+                      >
                         {/* Today View */}
                         {showDashboard && (
                           <>
                             <Box
-                              w={showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%"}
-                              h="100%"
-                              transition={
-                                resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
-                                  ? "none"
-                                  : "width 0.3s"
-                              }
                               style={{
+                                width: showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%",
+                                height: "100%",
+                                transition:
+                                  resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
+                                    ? "none"
+                                    : "width 0.3s",
                                 willChange:
                                   resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? "width" : "auto",
+                                overflow: "hidden",
+                                borderRight: showCalendar ? `1px solid ${borderColor}` : "0",
+                                flexShrink: 0,
+                                display: "flex",
+                                flexDirection: "column",
+                                position: "relative",
+                                paddingLeft: 16,
+                                paddingRight: 16,
+                                paddingTop: 24,
+                                paddingBottom: 24,
                               }}
-                              overflow="hidden"
-                              borderRightWidth={showCalendar ? "1px" : "0"}
-                              borderColor={borderColor}
-                              flexShrink={0}
-                              display="flex"
-                              flexDirection="column"
-                              position="relative"
-                              px={{ base: 2, md: 4 }}
-                              py={{ base: 3, md: 6 }}
                             >
                               {isLoading && sections.length === 0 ? (
                                 <Box>
@@ -1870,25 +2066,31 @@ export default function DailyTasksApp() {
                                 <>
                                   {/* Today View Header - Sticky */}
                                   <Box
-                                    position="sticky"
-                                    top={0}
-                                    zIndex={10}
-                                    bg={bgColor}
-                                    mb={4}
-                                    pb={4}
-                                    borderBottomWidth="1px"
-                                    borderColor={borderColor}
-                                    flexShrink={0}
-                                    w="100%"
-                                    maxW="100%"
-                                    overflow="hidden"
+                                    style={{
+                                      position: "sticky",
+                                      top: 0,
+                                      zIndex: 10,
+                                      background: bgColor,
+                                      marginBottom: 16,
+                                      paddingBottom: 16,
+                                      borderBottom: `1px solid ${borderColor}`,
+                                      flexShrink: 0,
+                                      width: "100%",
+                                      maxWidth: "100%",
+                                      overflow: "hidden",
+                                    }}
                                   >
-                                    <Flex align="center" justify="space-between" mb={2} w="100%" maxW="100%" gap={2}>
-                                      <Heading size="md" flexShrink={0}>
+                                    <Flex
+                                      align="center"
+                                      justify="space-between"
+                                      style={{ marginBottom: 8, width: "100%", maxWidth: "100%" }}
+                                      gap={8}
+                                    >
+                                      <Title size="md" style={{ flexShrink: 0 }}>
                                         Today
-                                      </Heading>
-                                      <Flex align="center" gap={2} flexShrink={0}>
-                                        <Badge colorPalette="blue">
+                                      </Title>
+                                      <Flex align="center" gap={8} style={{ flexShrink: 0 }}>
+                                        <Badge color="blue">
                                           {filteredTodaysTasks.length} task{filteredTodaysTasks.length !== 1 ? "s" : ""}
                                           {todaySearchTerm &&
                                             filteredTodaysTasks.length !== todaysTasks.length &&
@@ -1896,19 +2098,24 @@ export default function DailyTasksApp() {
                                         </Badge>
                                         <Button
                                           size="sm"
-                                          variant="ghost"
+                                          variant="subtle"
                                           onClick={() => setShowCompletedTasks(!showCompletedTasks)}
-                                          fontSize="sm"
-                                          color={mutedText}
-                                          _hover={{ color: textColor }}
+                                          style={{
+                                            fontSize: "var(--mantine-font-size-sm)",
+                                            color: mutedText,
+                                          }}
+                                          onMouseEnter={e => {
+                                            e.currentTarget.style.color = textColor;
+                                          }}
+                                          onMouseLeave={e => {
+                                            e.currentTarget.style.color = mutedText;
+                                          }}
                                         >
-                                          <Box as="span" color="currentColor">
-                                            {showCompletedTasks ? (
-                                              <Eye size={16} stroke="currentColor" />
-                                            ) : (
-                                              <EyeOff size={16} stroke="currentColor" />
-                                            )}
-                                          </Box>
+                                          {showCompletedTasks ? (
+                                            <Eye size={16} stroke="currentColor" />
+                                          ) : (
+                                            <EyeOff size={16} stroke="currentColor" />
+                                          )}
                                           {showCompletedTasks ? "Hide Completed" : "Show Completed"}
                                         </Button>
                                       </Flex>
@@ -1922,9 +2129,9 @@ export default function DailyTasksApp() {
                                         onToday={handleTodayViewToday}
                                       />
                                     )}
-                                    <Box mt={3} w="100%" maxW="100%">
-                                      <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
-                                        <Box flex={1} minW={0}>
+                                    <Box style={{ marginTop: 12, width: "100%", maxWidth: "100%" }}>
+                                      <Group gap={[8, 16]} align="center" style={{ width: "100%", maxWidth: "100%" }}>
+                                        <Box style={{ flex: 1, minWidth: 0 }}>
                                           <TaskSearchInput onSearchChange={setTodaySearchTerm} />
                                         </Box>
                                         <TagFilter
@@ -1934,17 +2141,19 @@ export default function DailyTasksApp() {
                                           onTagDeselect={viewState.handleTodayTagDeselect}
                                           onCreateTag={createTag}
                                         />
-                                      </HStack>
+                                      </Group>
                                     </Box>
                                   </Box>
                                   {/* Scrollable Sections Container */}
                                   <Box
                                     ref={todayScrollContainerRefCallback}
-                                    flex={1}
-                                    overflowY="auto"
-                                    minH={0}
-                                    w="100%"
-                                    maxW="100%"
+                                    style={{
+                                      flex: 1,
+                                      overflowY: "auto",
+                                      minHeight: 0,
+                                      width: "100%",
+                                      maxWidth: "100%",
+                                    }}
                                   >
                                     <Section
                                       createDroppableId={createDroppableId}
@@ -1956,24 +2165,35 @@ export default function DailyTasksApp() {
                               {/* Resize handle between today and calendar */}
                               {showCalendar && (
                                 <Box
-                                  position="absolute"
-                                  right={0}
-                                  top={0}
-                                  bottom={0}
-                                  w={{ md: "12px", lg: "4px" }}
-                                  cursor="col-resize"
-                                  bg={
-                                    resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
-                                      ? "blue.400"
-                                      : "transparent"
-                                  }
-                                  _hover={{ bg: "blue.300" }}
-                                  transition="background-color 0.2s"
+                                  style={{
+                                    position: "absolute",
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    width: "4px",
+                                    cursor: "col-resize",
+                                    background:
+                                      resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
+                                        ? "var(--mantine-color-blue-4)"
+                                        : "transparent",
+                                    transition: "background-color 0.2s",
+                                    zIndex: 10,
+                                    userSelect: "none",
+                                    touchAction: "none",
+                                  }}
                                   onMouseDown={resizeHandlers.handleTodayResizeStart}
                                   onTouchStart={resizeHandlers.handleTodayResizeStart}
-                                  zIndex={10}
-                                  sx={{ userSelect: "none", touchAction: "none" }}
-                                  display={{ base: "none", md: "block" }}
+                                  onMouseEnter={e => {
+                                    if (!(resizeHandlers.isResizing && resizeHandlers.resizeType === "today")) {
+                                      e.currentTarget.style.background = "var(--mantine-color-blue-3)";
+                                    }
+                                  }}
+                                  onMouseLeave={e => {
+                                    if (!(resizeHandlers.isResizing && resizeHandlers.resizeType === "today")) {
+                                      e.currentTarget.style.background = "transparent";
+                                    }
+                                  }}
+                                  visibleFrom="md"
                                 />
                               )}
                             </Box>
@@ -1983,37 +2203,46 @@ export default function DailyTasksApp() {
                         {/* Calendar View */}
                         {showCalendar && (
                           <Box
-                            flex={1}
-                            minW={0}
-                            w="auto"
-                            maxW="100%"
-                            display="flex"
-                            flexDirection="column"
-                            overflow="hidden"
-                            h="full"
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                              width: "auto",
+                              maxWidth: "100%",
+                              display: "flex",
+                              flexDirection: "column",
+                              overflow: "hidden",
+                              height: "100%",
+                            }}
                           >
                             {/* Calendar Header */}
                             <Box
-                              mb={4}
-                              pb={4}
-                              borderBottomWidth="1px"
-                              borderColor={borderColor}
-                              px={{ base: 2, md: 4 }}
-                              pt={{ base: 3, md: 6 }}
-                              w="100%"
-                              maxW="100%"
-                              overflow="hidden"
-                              flexShrink={0}
+                              style={{
+                                marginBottom: 16,
+                                paddingBottom: 16,
+                                borderBottom: `1px solid ${borderColor}`,
+                                paddingLeft: 16,
+                                paddingRight: 16,
+                                paddingTop: 24,
+                                width: "100%",
+                                maxWidth: "100%",
+                                overflow: "hidden",
+                                flexShrink: 0,
+                              }}
                             >
-                              <Flex align="center" justify="space-between" mb={2} w="100%" maxW="100%" gap={2}>
-                                <Heading size="md" flexShrink={0}>
+                              <Flex
+                                align="center"
+                                justify="space-between"
+                                style={{ marginBottom: 8, width: "100%", maxWidth: "100%" }}
+                                gap={8}
+                              >
+                                <Title size="md" style={{ flexShrink: 0 }}>
                                   Calendar
-                                </Heading>
-                                <HStack spacing={2} flexShrink={0}>
-                                  <HStack spacing={1}>
-                                    <IconButton
+                                </Title>
+                                <Group gap={8} style={{ flexShrink: 0 }}>
+                                  <Group gap={4}>
+                                    <ActionIcon
                                       size="sm"
-                                      variant="ghost"
+                                      variant="subtle"
                                       onClick={() => {
                                         setCalendarZoom(prev => ({
                                           ...prev,
@@ -2021,21 +2250,26 @@ export default function DailyTasksApp() {
                                         }));
                                       }}
                                       aria-label="Zoom Out"
-                                      fontSize="sm"
-                                      color={mutedText}
-                                      _hover={{ color: textColor }}
-                                      isDisabled={calendarZoom[calendarView] <= 0.25}
+                                      style={{
+                                        fontSize: "var(--mantine-font-size-sm)",
+                                        color: mutedText,
+                                      }}
+                                      disabled={calendarZoom[calendarView] <= 0.25}
+                                      onMouseEnter={e => {
+                                        e.currentTarget.style.color = textColor;
+                                      }}
+                                      onMouseLeave={e => {
+                                        e.currentTarget.style.color = mutedText;
+                                      }}
                                     >
-                                      <Box as="span" color="currentColor">
-                                        <ZoomOut size={14} stroke="currentColor" />
-                                      </Box>
-                                    </IconButton>
-                                    <Text fontSize="xs" color={mutedText} minW="40px" textAlign="center">
+                                      <ZoomOut size={14} stroke="currentColor" />
+                                    </ActionIcon>
+                                    <Text size="xs" c={mutedText} style={{ minWidth: "40px", textAlign: "center" }}>
                                       {Math.round(calendarZoom[calendarView] * 100)}%
                                     </Text>
-                                    <IconButton
+                                    <ActionIcon
                                       size="sm"
-                                      variant="ghost"
+                                      variant="subtle"
                                       onClick={() => {
                                         setCalendarZoom(prev => ({
                                           ...prev,
@@ -2043,61 +2277,76 @@ export default function DailyTasksApp() {
                                         }));
                                       }}
                                       aria-label="Zoom In"
-                                      fontSize="sm"
-                                      color={mutedText}
-                                      _hover={{ color: textColor }}
-                                      isDisabled={calendarZoom[calendarView] >= 3.0}
+                                      style={{
+                                        fontSize: "var(--mantine-font-size-sm)",
+                                        color: mutedText,
+                                      }}
+                                      disabled={calendarZoom[calendarView] >= 3.0}
+                                      onMouseEnter={e => {
+                                        e.currentTarget.style.color = textColor;
+                                      }}
+                                      onMouseLeave={e => {
+                                        e.currentTarget.style.color = mutedText;
+                                      }}
                                     >
-                                      <Box as="span" color="currentColor">
-                                        <ZoomIn size={14} stroke="currentColor" />
-                                      </Box>
-                                    </IconButton>
-                                  </HStack>
+                                      <ZoomIn size={14} stroke="currentColor" />
+                                    </ActionIcon>
+                                  </Group>
                                   <Button
                                     size="sm"
-                                    variant="ghost"
+                                    variant="subtle"
                                     onClick={() => {
                                       setShowCompletedTasksCalendar(prev => ({
                                         ...prev,
                                         [calendarView]: !prev[calendarView],
                                       }));
                                     }}
-                                    fontSize="sm"
-                                    color={mutedText}
-                                    _hover={{ color: textColor }}
+                                    style={{
+                                      fontSize: "var(--mantine-font-size-sm)",
+                                      color: mutedText,
+                                    }}
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.color = textColor;
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.color = mutedText;
+                                    }}
                                   >
-                                    <Box as="span" color="currentColor">
-                                      {showCompletedTasksCalendar[calendarView] ? (
-                                        <Eye size={14} stroke="currentColor" />
-                                      ) : (
-                                        <EyeOff size={14} stroke="currentColor" />
-                                      )}
-                                    </Box>
+                                    {showCompletedTasksCalendar[calendarView] ? (
+                                      <Eye size={14} stroke="currentColor" />
+                                    ) : (
+                                      <EyeOff size={14} stroke="currentColor" />
+                                    )}
                                     {showCompletedTasksCalendar[calendarView] ? "Hide Completed" : "Show Completed"}
                                   </Button>
                                   <Button
                                     size="sm"
-                                    variant="ghost"
+                                    variant="subtle"
                                     onClick={() => {
                                       setShowRecurringTasks(prev => ({
                                         ...prev,
                                         [calendarView]: !prev[calendarView],
                                       }));
                                     }}
-                                    fontSize="sm"
-                                    color={mutedText}
-                                    _hover={{ color: textColor }}
+                                    style={{
+                                      fontSize: "var(--mantine-font-size-sm)",
+                                      color: mutedText,
+                                    }}
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.color = textColor;
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.color = mutedText;
+                                    }}
                                   >
-                                    <Box as="span" color="currentColor">
-                                      {showRecurringTasks[calendarView] ? (
-                                        <Repeat size={14} stroke="currentColor" />
-                                      ) : (
-                                        <X size={14} stroke="currentColor" />
-                                      )}
-                                    </Box>
+                                    {showRecurringTasks[calendarView] ? (
+                                      <Repeat size={14} stroke="currentColor" />
+                                    ) : (
+                                      <X size={14} stroke="currentColor" />
+                                    )}
                                     {showRecurringTasks[calendarView] ? "Hide Recurring" : "Show Recurring"}
                                   </Button>
-                                </HStack>
+                                </Group>
                               </Flex>
                               {/* Calendar Controls */}
                               <DateNavigation
@@ -2118,15 +2367,15 @@ export default function DailyTasksApp() {
                                 showDatePicker={false}
                                 showDateDisplay={false}
                                 showViewSelector={true}
-                                viewCollection={calendarViewCollection}
+                                viewData={calendarViewData}
                                 selectedView={calendarView}
                                 onViewChange={value => setCalendarView(value)}
                                 viewSelectorWidth={24}
                               />
                               {/* Search and Tag Filter */}
-                              <Box mt={3} w="100%" maxW="100%">
-                                <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
-                                  <Box flex={1} minW={0}>
+                              <Box style={{ marginTop: 12, width: "100%", maxWidth: "100%" }}>
+                                <Group gap={[8, 16]} align="center" style={{ width: "100%", maxWidth: "100%" }}>
+                                  <Box style={{ flex: 1, minWidth: 0 }}>
                                     <TaskSearchInput onSearchChange={setCalendarSearchTerm} />
                                   </Box>
                                   <TagFilter
@@ -2136,7 +2385,7 @@ export default function DailyTasksApp() {
                                     onTagDeselect={viewState.handleCalendarTagDeselect}
                                     onCreateTag={createTag}
                                   />
-                                </HStack>
+                                </Group>
                               </Box>
                             </Box>
                             {isLoading && !selectedDate ? (
@@ -2144,7 +2393,16 @@ export default function DailyTasksApp() {
                             ) : (
                               <>
                                 {/* Calendar content */}
-                                <Box flex={1} overflow="hidden" display="flex" flexDirection="column" minH={0} h="100%">
+                                <Box
+                                  style={{
+                                    flex: 1,
+                                    overflow: "hidden",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    minHeight: 0,
+                                    height: "100%",
+                                  }}
+                                >
                                   {(() => {
                                     // Filter tasks based on recurring preference for current view
                                     let filteredTasks = showRecurringTasks[calendarView]
@@ -2255,34 +2513,42 @@ export default function DailyTasksApp() {
         >
           {dragAndDrop.dragState.activeTask ? (
             <Box
-              px={4}
-              py={2}
-              borderRadius="lg"
-              bg={dragOverlayBg}
-              borderWidth="2px"
-              borderColor={dragOverlayBorder}
-              boxShadow="0 10px 25px -5px rgba(59, 130, 246, 0.4)"
-              w="180px"
-              h="40px"
-              opacity={0.9}
-              transform="rotate(2deg)"
+              style={{
+                paddingLeft: 16,
+                paddingRight: 16,
+                paddingTop: 8,
+                paddingBottom: 8,
+                borderRadius: "var(--mantine-radius-lg)",
+                background: dragOverlayBg,
+                borderWidth: "2px",
+                borderColor: dragOverlayBorder,
+                boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.4)",
+                width: "180px",
+                height: "40px",
+                opacity: 0.9,
+                transform: "rotate(2deg)",
+              }}
             >
-              <Text fontSize="sm" fontWeight="semibold" color={dragOverlayText} isTruncated>
+              <Text size="sm" fw={600} c={dragOverlayText} truncate="end">
                 {dragAndDrop.dragState.activeTask.title}
               </Text>
             </Box>
           ) : dragAndDrop.dragState.activeId?.startsWith("section-") ? (
             <Box
-              px={4}
-              py={3}
-              borderRadius="lg"
-              bg={dragOverlayBg}
-              borderWidth="2px"
-              borderColor={dragOverlayBorder}
-              boxShadow="0 10px 25px -5px rgba(59, 130, 246, 0.4)"
-              opacity={0.9}
+              style={{
+                paddingLeft: 16,
+                paddingRight: 16,
+                paddingTop: 12,
+                paddingBottom: 12,
+                borderRadius: "var(--mantine-radius-lg)",
+                background: dragOverlayBg,
+                borderWidth: "2px",
+                borderColor: dragOverlayBorder,
+                boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.4)",
+                opacity: 0.9,
+              }}
             >
-              <Text fontSize="sm" fontWeight="semibold" color={dragOverlayText}>
+              <Text size="sm" fw={600} c={dragOverlayText}>
                 {(() => {
                   const sectionId = dragAndDrop.dragState.activeId?.replace("section-", "");
                   return sectionsById.get(sectionId)?.name || "Section";

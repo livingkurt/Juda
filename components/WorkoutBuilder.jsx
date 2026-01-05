@@ -4,16 +4,16 @@ import {
   Box,
   Button,
   Flex,
-  Heading,
+  Title,
   Text,
-  Input,
-  VStack,
-  HStack,
-  IconButton,
+  TextInput,
+  Stack,
+  Group,
+  ActionIcon,
   Textarea,
-  Dialog,
-  createListCollection,
-} from "@chakra-ui/react";
+  Modal,
+  Collapse,
+} from "@mantine/core";
 import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { EXERCISE_TYPES, WORKOUT_SECTION_TYPES } from "@/lib/constants";
@@ -48,20 +48,17 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
   const [numberOfWeeks, setNumberOfWeeks] = useState(0);
   const [name, setName] = useState("");
 
-  // Create collections for selects
-  const sectionTypeCollection = useMemo(() => createListCollection({ items: WORKOUT_SECTION_TYPES }), []);
+  // Create options for selects
+  const sectionTypeOptions = useMemo(() => WORKOUT_SECTION_TYPES, []);
 
-  const exerciseTypeCollection = useMemo(() => createListCollection({ items: EXERCISE_TYPES }), []);
+  const exerciseTypeOptions = useMemo(() => EXERCISE_TYPES, []);
 
-  const weekTypeCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "Normal", value: "normal" },
-          { label: "Deload", value: "deload" },
-          { label: "Test", value: "test" },
-        ],
-      }),
+  const weekTypeOptions = useMemo(
+    () => [
+      { label: "Normal", value: "normal" },
+      { label: "Deload", value: "deload" },
+      { label: "Test", value: "test" },
+    ],
     []
   );
 
@@ -366,501 +363,515 @@ export default function WorkoutBuilder({ isOpen, onClose, taskId, onSaveComplete
   const bgColor = mode.bg.surface;
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={e => !e.open && onClose()} size="full">
-      <Dialog.Backdrop bg="blackAlpha.600" />
-      <Dialog.Positioner>
-        <Dialog.Content maxW="1200px" maxH="90vh" overflowY="auto" bg={bgColor}>
-          <Dialog.Header>
-            <Dialog.Title>Workout Builder</Dialog.Title>
-            <Dialog.CloseTrigger />
-          </Dialog.Header>
+    <Modal
+      opened={isOpen}
+      onClose={onClose}
+      size="full"
+      title="Workout Builder"
+      styles={{
+        body: {
+          maxWidth: "1200px",
+          maxHeight: "90vh",
+          overflowY: "auto",
+          background: bgColor,
+        },
+      }}
+    >
+      <Stack align="stretch" gap={24}>
+        {/* Workout Name */}
+        <Box>
+          <Text size="sm" fw={500} style={{ marginBottom: 4 }}>
+            Workout Name (optional)
+          </Text>
+          <TextInput
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="My Workout Program"
+            style={{ maxWidth: "400px" }}
+          />
+        </Box>
 
-          <Dialog.Body>
-            <VStack align="stretch" gap={6}>
-              {/* Workout Name */}
-              <Box>
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Workout Name (optional)
-                </Text>
-                <Input
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="My Workout Program"
-                  maxW="400px"
-                />
-              </Box>
+        {/* Number of Weeks - Controls all exercises */}
+        <Box>
+          <Text size="sm" fw={500} style={{ marginBottom: 4 }}>
+            Number of Weeks
+          </Text>
+          <TextInput
+            type="number"
+            min="0"
+            value={numberOfWeeks}
+            onChange={e => {
+              const weeks = parseInt(e.target.value) || 0;
+              updateNumberOfWeeks(weeks);
+            }}
+            placeholder="0"
+            style={{ maxWidth: "200px" }}
+          />
+          <Text size="xs" c={mode.text.secondary} style={{ marginTop: 4 }}>
+            This controls weekly progression for all exercises across all sections and days
+          </Text>
+        </Box>
 
-              {/* Number of Weeks - Controls all exercises */}
-              <Box>
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Number of Weeks
-                </Text>
-                <Input
-                  type="number"
-                  min="0"
-                  value={numberOfWeeks}
-                  onChange={e => {
-                    const weeks = parseInt(e.target.value) || 0;
-                    updateNumberOfWeeks(weeks);
+        {/* Sections */}
+        <Stack align="stretch" gap={16}>
+          <Flex justify="space-between" align="center">
+            <Title size="md">Sections</Title>
+            <Button size="sm" onClick={addSection} color="blue" leftSection={<Plus size={16} />}>
+              Add Section
+            </Button>
+          </Flex>
+
+          {sections.map(section => (
+            <Box
+              key={section.id}
+              style={{
+                borderWidth: "1px",
+                borderColor: "var(--mantine-color-gray-3)",
+                borderRadius: "var(--mantine-radius-md)",
+                overflow: "hidden",
+              }}
+            >
+              {/* Section header */}
+              <Flex
+                style={{
+                  padding: 12,
+                  background: "var(--mantine-color-gray-1)",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  cursor: "pointer",
+                }}
+                onClick={() => toggleSection(section.id)}
+              >
+                <Group gap={12} style={{ flex: 1 }} align="flex-end">
+                  {expandedSections[section.id] ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                  <Box style={{ flex: 1, minWidth: 0 }}>
+                    <Text size="xs" fw={500} style={{ marginBottom: 2 }}>
+                      Section Name
+                    </Text>
+                    <TextInput
+                      value={section.name}
+                      onChange={e => {
+                        e.stopPropagation();
+                        updateSection(section.id, { name: e.target.value });
+                      }}
+                      onClick={e => e.stopPropagation()}
+                      size="sm"
+                      variant="filled"
+                      style={{ width: "100%" }}
+                    />
+                  </Box>
+                  <Box style={{ minWidth: "150px" }} onClick={e => e.stopPropagation()}>
+                    <Text size="xs" fw={500} style={{ marginBottom: 2 }}>
+                      Section Type
+                    </Text>
+                    <SelectDropdown
+                      data={sectionTypeOptions}
+                      value={section.type}
+                      onChange={type => updateSection(section.id, { type })}
+                      placeholder="Section type"
+                      size="sm"
+                      inModal={true}
+                    />
+                  </Box>
+                </Group>
+                <ActionIcon
+                  size="sm"
+                  variant="subtle"
+                  color="red"
+                  onClick={e => {
+                    e.stopPropagation();
+                    deleteSection(section.id);
                   }}
-                  placeholder="0"
-                  maxW="200px"
-                />
-                <Text fontSize="xs" color={mode.text.secondary} mt={1}>
-                  This controls weekly progression for all exercises across all sections and days
-                </Text>
-              </Box>
+                >
+                  <Trash2 size={16} />
+                </ActionIcon>
+              </Flex>
 
-              {/* Sections */}
-              <VStack align="stretch" gap={4}>
-                <Flex justify="space-between" align="center">
-                  <Heading size="md">Sections</Heading>
-                  <Button size="sm" onClick={addSection} colorPalette="blue">
-                    <Plus size={16} />
-                    Add Section
-                  </Button>
-                </Flex>
-
-                {sections.map(section => (
-                  <Box
-                    key={section.id}
-                    borderWidth="1px"
-                    borderColor="gray.300"
-                    _dark={{ borderColor: "gray.600" }}
-                    borderRadius="md"
-                    overflow="hidden"
-                  >
-                    {/* Section header */}
-                    <Flex
-                      p={3}
-                      bg="gray.100"
-                      _dark={{ bg: "gray.700" }}
-                      justify="space-between"
-                      align="center"
-                      cursor="pointer"
-                      onClick={() => toggleSection(section.id)}
+              {/* Section content */}
+              <Collapse in={expandedSections[section.id]}>
+                <Box style={{ padding: 16 }}>
+                  <Stack align="stretch" gap={12}>
+                    <Button
+                      size="sm"
+                      onClick={() => addDay(section.id)}
+                      variant="outline"
+                      leftSection={<Plus size={14} />}
                     >
-                      <HStack flex={1} gap={3} align="flex-end">
-                        {expandedSections[section.id] ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                        <Box flex={1} minW={0}>
-                          <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                            Section Name
-                          </Text>
-                          <Input
-                            value={section.name}
-                            onChange={e => {
-                              e.stopPropagation();
-                              updateSection(section.id, { name: e.target.value });
-                            }}
-                            onClick={e => e.stopPropagation()}
-                            size="sm"
-                            variant="filled"
-                            w="full"
-                          />
-                        </Box>
-                        <Box minW="150px" onClick={e => e.stopPropagation()}>
-                          <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                            Section Type
-                          </Text>
-                          <SelectDropdown
-                            collection={sectionTypeCollection}
-                            value={[section.type]}
-                            onValueChange={({ value }) => updateSection(section.id, { type: value[0] })}
-                            placeholder="Section type"
-                            size="sm"
-                            inModal={true}
-                          />
-                        </Box>
-                      </HStack>
-                      <IconButton
-                        size="sm"
-                        variant="ghost"
-                        colorPalette="red"
-                        onClick={e => {
-                          e.stopPropagation();
-                          deleteSection(section.id);
+                      Add Day
+                    </Button>
+
+                    {section.days.map(day => (
+                      <Box
+                        key={day.id}
+                        style={{
+                          borderWidth: "1px",
+                          borderColor: mode.border.default,
+                          borderRadius: "var(--mantine-radius-md)",
+                          overflow: "hidden",
                         }}
                       >
-                        <Trash2 size={16} />
-                      </IconButton>
-                    </Flex>
+                        {/* Day header */}
+                        <Flex
+                          style={{
+                            padding: 8,
+                            background: "var(--mantine-color-gray-0)",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            cursor: "pointer",
+                          }}
+                          onClick={() => toggleDay(day.id)}
+                        >
+                          <Group gap={12} style={{ flex: 1 }} align="flex-end">
+                            {expandedDays[day.id] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            <Box style={{ flex: 1, minWidth: 0 }}>
+                              <Text size="xs" fw={500} style={{ marginBottom: 2 }}>
+                                Day Name
+                              </Text>
+                              <TextInput
+                                value={day.name}
+                                onChange={e => {
+                                  e.stopPropagation();
+                                  updateDay(section.id, day.id, { name: e.target.value });
+                                }}
+                                onClick={e => e.stopPropagation()}
+                                size="sm"
+                                variant="filled"
+                                style={{ width: "100%" }}
+                              />
+                            </Box>
+                            <Box onClick={e => e.stopPropagation()} style={{ flexShrink: 0 }}>
+                              <Text size="xs" fw={500} style={{ marginBottom: 2 }}>
+                                Days of Week
+                              </Text>
+                              <WeekdaySelector
+                                selectedDays={day.daysOfWeek || (day.dayOfWeek !== undefined ? [day.dayOfWeek] : [])}
+                                onChange={newDays => updateDaysOfWeek(section.id, day.id, newDays)}
+                                size="xs"
+                              />
+                            </Box>
+                          </Group>
+                          <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="red"
+                            onClick={e => {
+                              e.stopPropagation();
+                              deleteDay(section.id, day.id);
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </ActionIcon>
+                        </Flex>
 
-                    {/* Section content */}
-                    {expandedSections[section.id] && (
-                      <Box p={4}>
-                        <VStack align="stretch" gap={3}>
-                          <Button size="sm" onClick={() => addDay(section.id)} variant="outline">
-                            <Plus size={14} />
-                            Add Day
-                          </Button>
-
-                          {section.days.map(day => (
-                            <Box
-                              key={day.id}
-                              borderWidth="1px"
-                              borderColor={mode.border.default}
-                              borderRadius="md"
-                              overflow="hidden"
-                            >
-                              {/* Day header */}
-                              <Flex
-                                p={2}
-                                bg="gray.50"
-                                _dark={{ bg: "gray.800" }}
-                                justify="space-between"
-                                align="center"
-                                cursor="pointer"
-                                onClick={() => toggleDay(day.id)}
+                        {/* Day exercises */}
+                        <Collapse in={expandedDays[day.id]}>
+                          <Box style={{ padding: 12 }}>
+                            <Stack align="stretch" gap={8}>
+                              <Button
+                                size="xs"
+                                onClick={() => addExercise(section.id, day.id)}
+                                variant="outline"
+                                leftSection={<Plus size={12} />}
                               >
-                                <HStack flex={1} gap={3} align="flex-end">
-                                  {expandedDays[day.id] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                                  <Box flex={1} minW={0}>
-                                    <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                                      Day Name
-                                    </Text>
-                                    <Input
-                                      value={day.name}
-                                      onChange={e => {
-                                        e.stopPropagation();
-                                        updateDay(section.id, day.id, { name: e.target.value });
-                                      }}
-                                      onClick={e => e.stopPropagation()}
-                                      size="sm"
-                                      variant="filled"
-                                      w="full"
-                                    />
-                                  </Box>
-                                  <Box onClick={e => e.stopPropagation()} flexShrink={0}>
-                                    <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                                      Days of Week
-                                    </Text>
-                                    <WeekdaySelector
-                                      selectedDays={
-                                        day.daysOfWeek || (day.dayOfWeek !== undefined ? [day.dayOfWeek] : [])
-                                      }
-                                      onChange={newDays => updateDaysOfWeek(section.id, day.id, newDays)}
-                                      size="xs"
-                                    />
-                                  </Box>
-                                </HStack>
-                                <IconButton
-                                  size="sm"
-                                  variant="ghost"
-                                  colorPalette="red"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    deleteDay(section.id, day.id);
+                                Add Exercise
+                              </Button>
+
+                              {day.exercises.map(exercise => (
+                                <Box
+                                  key={exercise.id}
+                                  style={{
+                                    padding: 12,
+                                    background: mode.bg.canvas,
+                                    borderRadius: "var(--mantine-radius-md)",
+                                    borderWidth: "1px",
+                                    borderColor: mode.border.default,
+                                    borderStyle: "solid",
                                   }}
                                 >
-                                  <Trash2 size={14} />
-                                </IconButton>
-                              </Flex>
-
-                              {/* Day exercises */}
-                              {expandedDays[day.id] && (
-                                <Box p={3}>
-                                  <VStack align="stretch" gap={2}>
-                                    <Button size="xs" onClick={() => addExercise(section.id, day.id)} variant="outline">
-                                      <Plus size={12} />
-                                      Add Exercise
-                                    </Button>
-
-                                    {day.exercises.map(exercise => (
-                                      <Box
-                                        key={exercise.id}
-                                        p={3}
-                                        bg={mode.bg.canvas}
-                                        borderRadius="md"
-                                        borderWidth="1px"
-                                        borderColor={mode.border.default}
-                                      >
-                                        <VStack align="stretch" gap={2}>
-                                          <Flex justify="space-between" align="flex-end" gap={2}>
-                                            <Box flex={1} minW={0}>
-                                              <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                                                Exercise Name
-                                              </Text>
-                                              <Input
-                                                value={exercise.name}
-                                                onChange={e =>
-                                                  updateExercise(section.id, day.id, exercise.id, {
-                                                    name: e.target.value,
-                                                  })
-                                                }
-                                                placeholder="Exercise name"
-                                                size="sm"
-                                                w="full"
-                                              />
-                                            </Box>
-                                            <IconButton
-                                              size="xs"
-                                              variant="ghost"
-                                              colorPalette="red"
-                                              onClick={() => deleteExercise(section.id, day.id, exercise.id)}
-                                              flexShrink={0}
-                                            >
-                                              <Trash2 size={12} />
-                                            </IconButton>
-                                          </Flex>
-
-                                          <HStack gap={2} align="flex-end" w="full">
-                                            <Box minW="180px" flex={1.5}>
-                                              <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                                                Primary Metric
-                                              </Text>
-                                              <SelectDropdown
-                                                collection={exerciseTypeCollection}
-                                                value={[getExerciseSelectValue(exercise.type, exercise.unit)]}
-                                                onValueChange={({ value }) => {
-                                                  const { type, unit } = parseExerciseSelectValue(value[0]);
-                                                  updateExercise(section.id, day.id, exercise.id, {
-                                                    type,
-                                                    unit,
-                                                  });
-                                                }}
-                                                placeholder="Type"
-                                                size="sm"
-                                                inModal={true}
-                                              />
-                                            </Box>
-
-                                            <Box minW="70px" flex={1}>
-                                              <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                                                Sets
-                                              </Text>
-                                              <Input
-                                                type="number"
-                                                value={exercise.sets}
-                                                onChange={e =>
-                                                  updateExercise(section.id, day.id, exercise.id, {
-                                                    sets: parseInt(e.target.value) || 1,
-                                                  })
-                                                }
-                                                placeholder="Sets"
-                                                size="sm"
-                                                w="full"
-                                              />
-                                            </Box>
-
-                                            <Box minW="90px" flex={1}>
-                                              <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                                                {getExerciseLabel(exercise.type, exercise.unit)}
-                                              </Text>
-                                              <Input
-                                                type="number"
-                                                value={exercise.targetValue}
-                                                onChange={e =>
-                                                  updateExercise(section.id, day.id, exercise.id, {
-                                                    targetValue: parseInt(e.target.value) || 0,
-                                                  })
-                                                }
-                                                placeholder={getExerciseLabel(exercise.type, exercise.unit)}
-                                                size="sm"
-                                                w="full"
-                                              />
-                                            </Box>
-
-                                            <Box minW="120px" flex={2}>
-                                              <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                                                Goal (optional)
-                                              </Text>
-                                              <Input
-                                                value={exercise.goal || ""}
-                                                onChange={e =>
-                                                  updateExercise(section.id, day.id, exercise.id, {
-                                                    goal: e.target.value,
-                                                  })
-                                                }
-                                                placeholder="Goal (optional)"
-                                                size="sm"
-                                                w="full"
-                                              />
-                                            </Box>
-                                          </HStack>
-
-                                          <Box>
-                                            <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                                              Notes (optional)
-                                            </Text>
-                                            <Textarea
-                                              value={exercise.notes || ""}
-                                              onChange={e =>
-                                                updateExercise(section.id, day.id, exercise.id, {
-                                                  notes: e.target.value,
-                                                })
-                                              }
-                                              placeholder="Notes (optional)"
-                                              size="sm"
-                                              rows={2}
-                                            />
-                                          </Box>
-
-                                          {/* Weekly Progression Editor */}
-                                          {numberOfWeeks > 0 && (
-                                            <Box>
-                                              <Text fontSize="xs" fontWeight="medium" mb={1}>
-                                                Weekly Progression
-                                              </Text>
-                                              <VStack align="stretch" gap={1}>
-                                                {Array.from({ length: numberOfWeeks }, (_, i) => {
-                                                  const weekNumber = i + 1;
-                                                  const weekData = exercise.weeklyProgression?.find(
-                                                    w => w.week === weekNumber
-                                                  ) || {
-                                                    week: weekNumber,
-                                                    targetValue: exercise.targetValue || null,
-                                                    actualValue: null,
-                                                    isDeload: false,
-                                                    isTest: false,
-                                                  };
-                                                  const isTest = weekData.isTest ?? false;
-                                                  return (
-                                                    <HStack key={weekNumber} gap={2} align="flex-end" w="full">
-                                                      <Text fontSize="xs" minW="50px" flexShrink={0}>
-                                                        Week {weekNumber}:
-                                                      </Text>
-                                                      {isTest ? (
-                                                        <>
-                                                          <Box minW="90px" flex={1}>
-                                                            <Text fontSize="xs" color={mode.text.secondary} mb={0.5}>
-                                                              Test week doesn&apos;t get target
-                                                            </Text>
-                                                          </Box>
-                                                        </>
-                                                      ) : (
-                                                        <>
-                                                          <Box minW="90px" flex={1}>
-                                                            <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                                                              Target {getExerciseLabel(exercise.type, exercise.unit)}
-                                                            </Text>
-                                                            <Input
-                                                              type="number"
-                                                              step={exercise.type === "distance" ? "0.01" : "1"}
-                                                              value={weekData.targetValue ?? ""}
-                                                              onChange={e => {
-                                                                const currentProgression =
-                                                                  exercise.weeklyProgression || [];
-                                                                const weekIndex = currentProgression.findIndex(
-                                                                  w => w.week === weekNumber
-                                                                );
-                                                                const newProgression = [...currentProgression];
-
-                                                                if (weekIndex >= 0) {
-                                                                  newProgression[weekIndex] = {
-                                                                    ...newProgression[weekIndex],
-                                                                    targetValue: parseExerciseValue(
-                                                                      e.target.value,
-                                                                      exercise.type
-                                                                    ),
-                                                                  };
-                                                                } else {
-                                                                  newProgression.push({
-                                                                    week: weekNumber,
-                                                                    targetValue: parseExerciseValue(
-                                                                      e.target.value,
-                                                                      exercise.type
-                                                                    ),
-                                                                    actualValue: null,
-                                                                    isDeload: false,
-                                                                    isTest: false,
-                                                                  });
-                                                                  newProgression.sort((a, b) => a.week - b.week);
-                                                                }
-
-                                                                updateExercise(section.id, day.id, exercise.id, {
-                                                                  weeklyProgression: newProgression,
-                                                                });
-                                                              }}
-                                                              placeholder={getExerciseLabel(
-                                                                exercise.type,
-                                                                exercise.unit
-                                                              )}
-                                                              size="xs"
-                                                              w="full"
-                                                            />
-                                                          </Box>
-                                                        </>
-                                                      )}
-                                                      <Box minW="100px">
-                                                        <Text fontSize="xs" fontWeight="medium" mb={0.5}>
-                                                          Type
-                                                        </Text>
-                                                        <SelectDropdown
-                                                          collection={weekTypeCollection}
-                                                          value={[
-                                                            weekData.isDeload
-                                                              ? "deload"
-                                                              : weekData.isTest
-                                                                ? "test"
-                                                                : "normal",
-                                                          ]}
-                                                          onValueChange={({ value }) => {
-                                                            const currentProgression = exercise.weeklyProgression || [];
-                                                            const weekIdx = currentProgression.findIndex(
-                                                              w => w.week === weekNumber
-                                                            );
-                                                            const newProgression = [...currentProgression];
-                                                            const isDeload = value[0] === "deload";
-                                                            const isTest = value[0] === "test";
-
-                                                            if (weekIdx >= 0) {
-                                                              newProgression[weekIdx] = {
-                                                                ...newProgression[weekIdx],
-                                                                isDeload,
-                                                                isTest,
-                                                              };
-                                                            } else {
-                                                              newProgression.push({
-                                                                week: weekNumber,
-                                                                targetValue: exercise.targetValue || null,
-                                                                actualValue: null,
-                                                                isDeload,
-                                                                isTest,
-                                                              });
-                                                              newProgression.sort((a, b) => a.week - b.week);
-                                                            }
-
-                                                            updateExercise(section.id, day.id, exercise.id, {
-                                                              weeklyProgression: newProgression,
-                                                            });
-                                                          }}
-                                                          size="xs"
-                                                          inModal={true}
-                                                        />
-                                                      </Box>
-                                                    </HStack>
-                                                  );
-                                                })}
-                                              </VStack>
-                                            </Box>
-                                          )}
-                                        </VStack>
+                                  <Stack align="stretch" gap={8}>
+                                    <Flex justify="space-between" align="flex-end" gap={8}>
+                                      <Box style={{ flex: 1, minWidth: 0 }}>
+                                        <Text size="xs" fw={500} style={{ marginBottom: 2 }}>
+                                          Exercise Name
+                                        </Text>
+                                        <TextInput
+                                          value={exercise.name}
+                                          onChange={e =>
+                                            updateExercise(section.id, day.id, exercise.id, {
+                                              name: e.target.value,
+                                            })
+                                          }
+                                          placeholder="Exercise name"
+                                          size="sm"
+                                          style={{ width: "100%" }}
+                                        />
                                       </Box>
-                                    ))}
-                                  </VStack>
-                                </Box>
-                              )}
-                            </Box>
-                          ))}
-                        </VStack>
-                      </Box>
-                    )}
-                  </Box>
-                ))}
-              </VStack>
-            </VStack>
-          </Dialog.Body>
+                                      <ActionIcon
+                                        size="xs"
+                                        variant="subtle"
+                                        color="red"
+                                        onClick={() => deleteExercise(section.id, day.id, exercise.id)}
+                                        style={{ flexShrink: 0 }}
+                                      >
+                                        <Trash2 size={12} />
+                                      </ActionIcon>
+                                    </Flex>
 
-          <Dialog.Footer>
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button colorPalette="blue" onClick={handleSave} loading={programLoading}>
-              Save Workout
-            </Button>
-          </Dialog.Footer>
-        </Dialog.Content>
-      </Dialog.Positioner>
-    </Dialog.Root>
+                                    <Group gap={8} align="flex-end" style={{ width: "100%" }}>
+                                      <Box style={{ minWidth: "180px", flex: 1.5 }}>
+                                        <Text size="xs" fw={500} style={{ marginBottom: 2 }}>
+                                          Primary Metric
+                                        </Text>
+                                        <SelectDropdown
+                                          data={exerciseTypeOptions}
+                                          value={getExerciseSelectValue(exercise.type, exercise.unit)}
+                                          onChange={val => {
+                                            const { type, unit } = parseExerciseSelectValue(val);
+                                            updateExercise(section.id, day.id, exercise.id, {
+                                              type,
+                                              unit,
+                                            });
+                                          }}
+                                          placeholder="Type"
+                                          size="sm"
+                                          inModal={true}
+                                        />
+                                      </Box>
+
+                                      <Box style={{ minWidth: "70px", flex: 1 }}>
+                                        <Text size="xs" fw={500} style={{ marginBottom: 2 }}>
+                                          Sets
+                                        </Text>
+                                        <TextInput
+                                          type="number"
+                                          value={exercise.sets}
+                                          onChange={e =>
+                                            updateExercise(section.id, day.id, exercise.id, {
+                                              sets: parseInt(e.target.value) || 1,
+                                            })
+                                          }
+                                          placeholder="Sets"
+                                          size="sm"
+                                          style={{ width: "100%" }}
+                                        />
+                                      </Box>
+
+                                      <Box style={{ minWidth: "90px", flex: 1 }}>
+                                        <Text size="xs" fw={500} style={{ marginBottom: 2 }}>
+                                          {getExerciseLabel(exercise.type, exercise.unit)}
+                                        </Text>
+                                        <TextInput
+                                          type="number"
+                                          value={exercise.targetValue}
+                                          onChange={e =>
+                                            updateExercise(section.id, day.id, exercise.id, {
+                                              targetValue: parseInt(e.target.value) || 0,
+                                            })
+                                          }
+                                          placeholder={getExerciseLabel(exercise.type, exercise.unit)}
+                                          size="sm"
+                                          style={{ width: "100%" }}
+                                        />
+                                      </Box>
+
+                                      <Box style={{ minWidth: "120px", flex: 2 }}>
+                                        <Text size="xs" fw={500} style={{ marginBottom: 2 }}>
+                                          Goal (optional)
+                                        </Text>
+                                        <TextInput
+                                          value={exercise.goal || ""}
+                                          onChange={e =>
+                                            updateExercise(section.id, day.id, exercise.id, {
+                                              goal: e.target.value,
+                                            })
+                                          }
+                                          placeholder="Goal (optional)"
+                                          size="sm"
+                                          style={{ width: "100%" }}
+                                        />
+                                      </Box>
+                                    </Group>
+
+                                    <Box>
+                                      <Text size="xs" fw={500} style={{ marginBottom: 2 }}>
+                                        Notes (optional)
+                                      </Text>
+                                      <Textarea
+                                        value={exercise.notes || ""}
+                                        onChange={e =>
+                                          updateExercise(section.id, day.id, exercise.id, {
+                                            notes: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Notes (optional)"
+                                        size="sm"
+                                        rows={2}
+                                      />
+                                    </Box>
+
+                                    {/* Weekly Progression Editor */}
+                                    {numberOfWeeks > 0 && (
+                                      <Box>
+                                        <Text size="xs" fw={500} style={{ marginBottom: 4 }}>
+                                          Weekly Progression
+                                        </Text>
+                                        <Stack align="stretch" gap={4}>
+                                          {Array.from({ length: numberOfWeeks }, (_, i) => {
+                                            const weekNumber = i + 1;
+                                            const weekData = exercise.weeklyProgression?.find(
+                                              w => w.week === weekNumber
+                                            ) || {
+                                              week: weekNumber,
+                                              targetValue: exercise.targetValue || null,
+                                              actualValue: null,
+                                              isDeload: false,
+                                              isTest: false,
+                                            };
+                                            const isTest = weekData.isTest ?? false;
+                                            return (
+                                              <Group
+                                                key={weekNumber}
+                                                gap={8}
+                                                align="flex-end"
+                                                style={{ width: "100%" }}
+                                              >
+                                                <Text size="xs" style={{ minWidth: "50px", flexShrink: 0 }}>
+                                                  Week {weekNumber}:
+                                                </Text>
+                                                {isTest ? (
+                                                  <>
+                                                    <Box style={{ minWidth: "90px", flex: 1 }}>
+                                                      <Text
+                                                        size="xs"
+                                                        c={mode.text.secondary}
+                                                        style={{ marginBottom: 2 }}
+                                                      >
+                                                        Test week doesn&apos;t get target
+                                                      </Text>
+                                                    </Box>
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <Box style={{ minWidth: "90px", flex: 1 }}>
+                                                      <Text size="xs" fw={500} style={{ marginBottom: 2 }}>
+                                                        Target {getExerciseLabel(exercise.type, exercise.unit)}
+                                                      </Text>
+                                                      <TextInput
+                                                        type="number"
+                                                        step={exercise.type === "distance" ? "0.01" : "1"}
+                                                        value={weekData.targetValue ?? ""}
+                                                        onChange={e => {
+                                                          const currentProgression = exercise.weeklyProgression || [];
+                                                          const weekIndex = currentProgression.findIndex(
+                                                            w => w.week === weekNumber
+                                                          );
+                                                          const newProgression = [...currentProgression];
+
+                                                          if (weekIndex >= 0) {
+                                                            newProgression[weekIndex] = {
+                                                              ...newProgression[weekIndex],
+                                                              targetValue: parseExerciseValue(
+                                                                e.target.value,
+                                                                exercise.type
+                                                              ),
+                                                            };
+                                                          } else {
+                                                            newProgression.push({
+                                                              week: weekNumber,
+                                                              targetValue: parseExerciseValue(
+                                                                e.target.value,
+                                                                exercise.type
+                                                              ),
+                                                              actualValue: null,
+                                                              isDeload: false,
+                                                              isTest: false,
+                                                            });
+                                                            newProgression.sort((a, b) => a.week - b.week);
+                                                          }
+
+                                                          updateExercise(section.id, day.id, exercise.id, {
+                                                            weeklyProgression: newProgression,
+                                                          });
+                                                        }}
+                                                        placeholder={getExerciseLabel(exercise.type, exercise.unit)}
+                                                        size="xs"
+                                                        style={{ width: "100%" }}
+                                                      />
+                                                    </Box>
+                                                  </>
+                                                )}
+                                                <Box style={{ minWidth: "100px" }}>
+                                                  <Text size="xs" fw={500} style={{ marginBottom: 2 }}>
+                                                    Type
+                                                  </Text>
+                                                  <SelectDropdown
+                                                    data={weekTypeOptions}
+                                                    value={
+                                                      weekData.isDeload ? "deload" : weekData.isTest ? "test" : "normal"
+                                                    }
+                                                    onChange={val => {
+                                                      const currentProgression = exercise.weeklyProgression || [];
+                                                      const weekIdx = currentProgression.findIndex(
+                                                        w => w.week === weekNumber
+                                                      );
+                                                      const newProgression = [...currentProgression];
+                                                      const isDeload = val === "deload";
+                                                      const isTest = val === "test";
+
+                                                      if (weekIdx >= 0) {
+                                                        newProgression[weekIdx] = {
+                                                          ...newProgression[weekIdx],
+                                                          isDeload,
+                                                          isTest,
+                                                        };
+                                                      } else {
+                                                        newProgression.push({
+                                                          week: weekNumber,
+                                                          targetValue: exercise.targetValue || null,
+                                                          actualValue: null,
+                                                          isDeload,
+                                                          isTest,
+                                                        });
+                                                        newProgression.sort((a, b) => a.week - b.week);
+                                                      }
+
+                                                      updateExercise(section.id, day.id, exercise.id, {
+                                                        weeklyProgression: newProgression,
+                                                      });
+                                                    }}
+                                                    size="xs"
+                                                    inModal={true}
+                                                  />
+                                                </Box>
+                                              </Group>
+                                            );
+                                          })}
+                                        </Stack>
+                                      </Box>
+                                    )}
+                                  </Stack>
+                                </Box>
+                              ))}
+                            </Stack>
+                          </Box>
+                        </Collapse>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Box>
+              </Collapse>
+            </Box>
+          ))}
+        </Stack>
+      </Stack>
+      <Group justify="flex-end" style={{ marginTop: 16 }}>
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button color="blue" onClick={handleSave} loading={programLoading}>
+          Save Workout
+        </Button>
+      </Group>
+    </Modal>
   );
 }

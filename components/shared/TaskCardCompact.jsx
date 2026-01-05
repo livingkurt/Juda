@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, memo } from "react";
-import { Box, Menu, Portal } from "@chakra-ui/react";
+import { Box, Menu, Text } from "@mantine/core";
 import { getTaskDisplayColor } from "@/lib/utils";
 import { TaskContextMenu } from "../TaskContextMenu";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
@@ -38,50 +38,53 @@ export const TaskCardCompact = memo(function TaskCardCompact({
 
   // Responsive font sizes based on zoom
   const fontSize = {
-    base: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
-    md: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
+    base: zoom >= 1.5 ? "0.75rem" : zoom >= 1.0 ? "0.625rem" : "0.625rem",
+    md: zoom >= 1.5 ? "0.875rem" : zoom >= 1.0 ? "0.75rem" : "0.625rem",
   };
 
   return (
-    <Menu.Root
-      open={menuOpen}
-      onOpenChange={({ open }) => setMenuOpen(open)}
-      positioning={{ placement: "right-start" }}
-    >
-      <Menu.Trigger asChild>
+    <Menu opened={menuOpen} onClose={() => setMenuOpen(false)} position="right-start">
+      <Menu.Target>
         <Box
-          fontSize={fontSize}
-          px={1}
-          py={0.5}
-          borderRadius="md"
-          isTruncated
-          color={taskColor ? "white" : undefined}
-          mb={0.5}
-          bg={taskColor || mode.task.neutral}
-          cursor="pointer"
-          opacity={hasOutcome ? 0.6 : 1}
-          textDecoration={actualIsCompleted ? "line-through" : "none"}
-          _hover={{ opacity: 0.8 }}
-          onClick={e => e.stopPropagation()}
+          style={{
+            fontSize: fontSize.base,
+            paddingLeft: 4,
+            paddingRight: 4,
+            paddingTop: 2,
+            paddingBottom: 2,
+            borderRadius: "0.375rem",
+            color: taskColor ? "white" : undefined,
+            marginBottom: 2,
+            background: taskColor || mode.task.neutral,
+            cursor: "pointer",
+            opacity: hasOutcome ? 0.6 : 1,
+            textDecoration: actualIsCompleted ? "line-through" : "none",
+          }}
+          onClick={e => {
+            e.stopPropagation();
+            setMenuOpen(true);
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.opacity = "0.8";
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.opacity = hasOutcome ? 0.6 : 1;
+          }}
         >
-          {task.title}
+          <Text truncate="end">{task.title}</Text>
         </Box>
-      </Menu.Trigger>
+      </Menu.Target>
 
-      <Portal>
-        <Menu.Positioner>
-          <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-            <TaskContextMenu
-              task={task}
-              date={date}
-              isRecurring={isRecurring}
-              isWorkoutTask={isWorkoutTask}
-              outcome={actualOutcome}
-              onClose={() => setMenuOpen(false)}
-            />
-          </Menu.Content>
-        </Menu.Positioner>
-      </Portal>
-    </Menu.Root>
+      <Menu.Dropdown onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+        <TaskContextMenu
+          task={task}
+          date={date}
+          isRecurring={isRecurring}
+          isWorkoutTask={isWorkoutTask}
+          outcome={actualOutcome}
+          onClose={() => setMenuOpen(false)}
+        />
+      </Menu.Dropdown>
+    </Menu>
   );
 });

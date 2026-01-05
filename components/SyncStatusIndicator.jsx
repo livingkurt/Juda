@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import { Box, HStack, Text } from "@chakra-ui/react";
+import { Box, Group, Text } from "@mantine/core";
 import { useDispatch, useSelector } from "react-redux";
 import { selectConnectionStatus, selectRecentSyncs, clearRecentSync } from "@/lib/store/slices/syncSlice";
 import { Wifi, WifiOff, RefreshCw, Check, AlertCircle } from "lucide-react";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export function SyncStatusIndicator() {
   const dispatch = useDispatch();
   const connectionStatus = useSelector(selectConnectionStatus);
   const recentSyncs = useSelector(selectRecentSyncs);
+  const { bg, text, border } = useSemanticColors();
 
   // Auto-clear syncs after 3 seconds
   useEffect(() => {
@@ -25,18 +27,19 @@ export function SyncStatusIndicator() {
   const getConnectionDisplay = () => {
     switch (connectionStatus) {
       case "connected":
-        return { icon: Wifi, color: "green.500", text: "Synced" };
+        return { icon: Wifi, color: "var(--mantine-color-green-5)", text: "Synced" };
       case "reconnecting":
-        return { icon: RefreshCw, color: "orange.500", text: "Reconnecting..." };
+        return { icon: RefreshCw, color: "var(--mantine-color-orange-5)", text: "Reconnecting..." };
       case "failed":
-        return { icon: AlertCircle, color: "red.500", text: "Connection failed" };
+        return { icon: AlertCircle, color: "var(--mantine-color-red-5)", text: "Connection failed" };
       default:
-        return { icon: WifiOff, color: "gray.500", text: "Offline" };
+        return { icon: WifiOff, color: "var(--mantine-color-gray-5)", text: "Offline" };
     }
   };
 
   const connectionDisplay = getConnectionDisplay();
   const showConnectionStatus = connectionStatus !== "connected";
+  const IconComponent = connectionDisplay.icon;
 
   // Get sync operation display text
   const getSyncText = sync => {
@@ -55,49 +58,59 @@ export function SyncStatusIndicator() {
   };
 
   return (
-    <Box position="fixed" bottom={4} left="50%" transform="translateX(-50%)" zIndex={1000}>
+    <Box
+      style={{
+        position: "fixed",
+        bottom: 16,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 1000,
+      }}
+    >
       {/* Connection status badge */}
       {showConnectionStatus && (
         <Box
-          animation="slideUp 0.2s ease-out"
-          css={{
-            "@keyframes slideUp": {
-              from: {
-                opacity: 0,
-                transform: "translateY(20px) scale(0.9)",
-              },
-              to: {
-                opacity: 1,
-                transform: "translateY(0) scale(1)",
-              },
-            },
+          style={{
+            animation: "slideUp 0.2s ease-out",
           }}
         >
-          <HStack
-            bg="bg.panel"
-            borderRadius="full"
-            px={4}
-            py={2}
-            shadow="lg"
-            borderWidth={1}
-            borderColor="border.default"
-            gap={2}
+          <style>{`
+            @keyframes slideUp {
+              from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.9);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+              }
+            }
+            @keyframes spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+          <Group
+            bg={bg.surface}
+            style={{
+              borderRadius: "9999px",
+              padding: "8px 16px",
+              boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+              border: `1px solid ${border.default}`,
+            }}
+            gap={8}
           >
-            <Box
-              as={connectionDisplay.icon}
-              color={connectionDisplay.color}
-              animation={connectionStatus === "reconnecting" ? "spin 1s linear infinite" : undefined}
-              css={{
-                "@keyframes spin": {
-                  from: { transform: "rotate(0deg)" },
-                  to: { transform: "rotate(360deg)" },
-                },
+            <IconComponent
+              size={16}
+              style={{
+                color: connectionDisplay.color,
+                animation: connectionStatus === "reconnecting" ? "spin 1s linear infinite" : undefined,
               }}
             />
-            <Text fontSize="sm" color="fg.muted">
+            <Text size="sm" c={text.muted}>
               {connectionDisplay.text}
             </Text>
-          </HStack>
+          </Group>
         </Box>
       )}
 
@@ -105,37 +118,26 @@ export function SyncStatusIndicator() {
       {recentSyncs.map(sync => (
         <Box
           key={sync.id}
-          mt={2}
-          animation="slideUp 0.2s ease-out"
-          css={{
-            "@keyframes slideUp": {
-              from: {
-                opacity: 0,
-                transform: "translateY(20px) scale(0.9)",
-              },
-              to: {
-                opacity: 1,
-                transform: "translateY(0) scale(1)",
-              },
-            },
+          mt={8}
+          style={{
+            animation: "slideUp 0.2s ease-out",
           }}
         >
-          <HStack
-            bg="bg.panel"
-            borderRadius="full"
-            px={4}
-            py={2}
-            shadow="md"
-            borderWidth={1}
-            borderColor="green.500"
-            borderColorOpacity={0.3}
-            gap={2}
+          <Group
+            bg={bg.surface}
+            style={{
+              borderRadius: "9999px",
+              padding: "8px 16px",
+              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+              border: `1px solid rgba(34, 197, 94, 0.3)`,
+            }}
+            gap={8}
           >
-            <Box as={Check} color="green.500" boxSize={4} />
-            <Text fontSize="sm" color="fg.muted">
+            <Check size={16} style={{ color: "var(--mantine-color-green-5)" }} />
+            <Text size="sm" c={text.muted}>
               {getSyncText(sync)}
             </Text>
-          </HStack>
+          </Group>
         </Box>
       ))}
     </Box>

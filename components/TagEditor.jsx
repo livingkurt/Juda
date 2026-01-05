@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, Dialog, HStack, IconButton, Input, SimpleGrid, Text, VStack, Portal } from "@chakra-ui/react";
+import { Box, Button, Modal, Group, ActionIcon, TextInput, SimpleGrid, Text, Stack } from "@mantine/core";
 import { Edit2, Plus, Trash2, X, Check, Tag as TagIcon } from "lucide-react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useThemeColors } from "@/hooks/useThemeColors";
@@ -10,7 +10,6 @@ import { TagChip } from "./TagChip";
 export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onDeleteTag }) => {
   const { mode, interactive } = useSemanticColors();
   const { tagColors, canonicalColors } = useThemeColors();
-  const bgColor = mode.bg.surface;
   const borderColor = mode.border.default;
   const hoverBg = mode.bg.muted;
 
@@ -59,145 +58,162 @@ export const TagEditor = ({ isOpen, onClose, tags, onCreateTag, onUpdateTag, onD
   };
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={e => !e.open && onClose()}>
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content bg={bgColor} maxW="500px" w="90vw">
-            <Dialog.Header>
-              <HStack>
-                <TagIcon size={20} />
-                <Text>Manage Tags</Text>
-              </HStack>
-            </Dialog.Header>
-            <Dialog.CloseTrigger />
-            <Dialog.Body pb={6}>
-              <VStack spacing={4} align="stretch">
-                {/* Create new tag section */}
-                <Box p={3} borderWidth="1px" borderColor={borderColor} borderRadius="md">
-                  <Text fontSize="sm" fontWeight="medium" mb={2}>
-                    Create New Tag
-                  </Text>
-                  <Input
-                    placeholder="Tag name"
-                    value={newTagName}
-                    onChange={e => setNewTagName(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && handleCreateTag()}
-                    size="sm"
-                    mb={2}
-                  />
-                  <Text fontSize="xs" color={mode.text.secondary} mb={1}>
-                    Color
-                  </Text>
-                  <SimpleGrid columns={10} gap={1}>
-                    {tagColors.map((themeColor, index) => (
-                      <Box
-                        key={index}
-                        w={6}
-                        h={6}
-                        borderRadius="md"
-                        bg={themeColor}
-                        cursor="pointer"
-                        borderWidth={newTagColorIndex === index ? "2px" : "1px"}
-                        borderColor={newTagColorIndex === index ? interactive.primary : mode.border.input}
-                        _hover={{ transform: "scale(1.1)" }}
-                        onClick={() => setNewTagColorIndex(index)}
-                        transition="all 0.15s"
-                      />
-                    ))}
-                  </SimpleGrid>
-                  <Button size="sm" colorPalette="blue" mt={3} onClick={handleCreateTag} disabled={!newTagName.trim()}>
-                    <Plus size={14} />
-                    Create Tag
-                  </Button>
-                </Box>
+    <Modal
+      opened={isOpen}
+      onClose={onClose}
+      title={
+        <Group gap={8}>
+          <TagIcon size={20} />
+          <Text>Manage Tags</Text>
+        </Group>
+      }
+      size="md"
+      centered
+    >
+      <Stack gap="md">
+        {/* Create new tag section */}
+        <Box p={12} style={{ border: `1px solid ${borderColor}`, borderRadius: "0.375rem" }}>
+          <Text size="sm" fw={500} mb={8}>
+            Create New Tag
+          </Text>
+          <TextInput
+            placeholder="Tag name"
+            value={newTagName}
+            onChange={e => setNewTagName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleCreateTag()}
+            size="sm"
+            mb={8}
+          />
+          <Text size="xs" c={mode.text.secondary} mb={4}>
+            Color
+          </Text>
+          <SimpleGrid cols={10} spacing={4}>
+            {tagColors.map((themeColor, index) => (
+              <Box
+                key={index}
+                w={24}
+                h={24}
+                style={{
+                  borderRadius: "0.375rem",
+                  background: themeColor,
+                  cursor: "pointer",
+                  border:
+                    newTagColorIndex === index ? `2px solid ${interactive.primary}` : `1px solid ${mode.border.input}`,
+                  transition: "all 0.15s",
+                }}
+                onClick={() => setNewTagColorIndex(index)}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "scale(1.1)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "scale(1)";
+                }}
+              />
+            ))}
+          </SimpleGrid>
+          <Button
+            size="sm"
+            color="blue"
+            mt={12}
+            onClick={handleCreateTag}
+            disabled={!newTagName.trim()}
+            leftSection={<Plus size={14} />}
+          >
+            Create Tag
+          </Button>
+        </Box>
 
-                {/* Existing tags list */}
-                <Box>
-                  <Text fontSize="sm" fontWeight="medium" mb={2}>
-                    Existing Tags ({tags.length})
-                  </Text>
-                  <VStack spacing={2} align="stretch" maxH="300px" overflowY="auto">
-                    {tags.length === 0 ? (
-                      <Text fontSize="sm" color={mode.text.secondary} textAlign="center" py={4}>
-                        No tags yet. Create your first tag above.
-                      </Text>
-                    ) : (
-                      tags.map(tag => (
-                        <Box
-                          key={tag.id}
-                          p={2}
-                          borderWidth="1px"
-                          borderColor={borderColor}
-                          borderRadius="md"
-                          _hover={{ bg: hoverBg }}
+        {/* Existing tags list */}
+        <Box>
+          <Text size="sm" fw={500} mb={8}>
+            Existing Tags ({tags.length})
+          </Text>
+          <Stack gap={8} style={{ maxHeight: "300px", overflowY: "auto" }}>
+            {tags.length === 0 ? (
+              <Text
+                size="sm"
+                c={mode.text.secondary}
+                style={{ textAlign: "center", paddingTop: 16, paddingBottom: 16 }}
+              >
+                No tags yet. Create your first tag above.
+              </Text>
+            ) : (
+              tags.map(tag => (
+                <Box
+                  key={tag.id}
+                  p={8}
+                  style={{
+                    border: `1px solid ${borderColor}`,
+                    borderRadius: "0.375rem",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = hoverBg;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
+                  {editingTagId === tag.id ? (
+                    <Stack gap={8}>
+                      <TextInput
+                        value={editingName}
+                        onChange={e => setEditingName(e.target.value)}
+                        size="sm"
+                        autoFocus
+                      />
+                      <SimpleGrid cols={10} spacing={4}>
+                        {tagColors.map((themeColor, index) => (
+                          <Box
+                            key={index}
+                            w={20}
+                            h={20}
+                            style={{
+                              borderRadius: "0.125rem",
+                              background: themeColor,
+                              cursor: "pointer",
+                              border:
+                                editingColorIndex === index
+                                  ? `2px solid ${interactive.primary}`
+                                  : `1px solid ${borderColor}`,
+                            }}
+                            onClick={() => setEditingColorIndex(index)}
+                          />
+                        ))}
+                      </SimpleGrid>
+                      <Group justify="flex-end" gap={4}>
+                        <ActionIcon size="xs" variant="subtle" onClick={cancelEditing} aria-label="Cancel">
+                          <X size={14} />
+                        </ActionIcon>
+                        <ActionIcon size="xs" color="blue" onClick={saveEditing} aria-label="Save">
+                          <Check size={14} />
+                        </ActionIcon>
+                      </Group>
+                    </Stack>
+                  ) : (
+                    <Group justify="space-between">
+                      <TagChip tag={tag} size="sm" />
+                      <Group gap={4}>
+                        <ActionIcon size="xs" variant="subtle" onClick={() => startEditing(tag)} aria-label="Edit tag">
+                          <Edit2 size={14} />
+                        </ActionIcon>
+                        <ActionIcon
+                          size="xs"
+                          variant="subtle"
+                          color="red"
+                          onClick={() => handleDelete(tag.id)}
+                          aria-label="Delete tag"
                         >
-                          {editingTagId === tag.id ? (
-                            <VStack spacing={2} align="stretch">
-                              <Input
-                                value={editingName}
-                                onChange={e => setEditingName(e.target.value)}
-                                size="sm"
-                                autoFocus
-                              />
-                              <SimpleGrid columns={10} gap={1}>
-                                {tagColors.map((themeColor, index) => (
-                                  <Box
-                                    key={index}
-                                    w={5}
-                                    h={5}
-                                    borderRadius="sm"
-                                    bg={themeColor}
-                                    cursor="pointer"
-                                    borderWidth={editingColorIndex === index ? "2px" : "1px"}
-                                    borderColor={editingColorIndex === index ? interactive.primary : borderColor}
-                                    onClick={() => setEditingColorIndex(index)}
-                                  />
-                                ))}
-                              </SimpleGrid>
-                              <HStack justify="flex-end" spacing={1}>
-                                <IconButton size="xs" variant="ghost" onClick={cancelEditing} aria-label="Cancel">
-                                  <X size={14} />
-                                </IconButton>
-                                <IconButton size="xs" colorPalette="blue" onClick={saveEditing} aria-label="Save">
-                                  <Check size={14} />
-                                </IconButton>
-                              </HStack>
-                            </VStack>
-                          ) : (
-                            <HStack justify="space-between">
-                              <TagChip tag={tag} size="sm" />
-                              <HStack spacing={1}>
-                                <IconButton
-                                  size="xs"
-                                  variant="ghost"
-                                  onClick={() => startEditing(tag)}
-                                  aria-label="Edit tag"
-                                >
-                                  <Edit2 size={14} />
-                                </IconButton>
-                                <IconButton
-                                  size="xs"
-                                  variant="ghost"
-                                  colorPalette="red"
-                                  onClick={() => handleDelete(tag.id)}
-                                  aria-label="Delete tag"
-                                >
-                                  <Trash2 size={14} />
-                                </IconButton>
-                              </HStack>
-                            </HStack>
-                          )}
-                        </Box>
-                      ))
-                    )}
-                  </VStack>
+                          <Trash2 size={14} />
+                        </ActionIcon>
+                      </Group>
+                    </Group>
+                  )}
                 </Box>
-              </VStack>
-            </Dialog.Body>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+              ))
+            )}
+          </Stack>
+        </Box>
+      </Stack>
+    </Modal>
   );
 };

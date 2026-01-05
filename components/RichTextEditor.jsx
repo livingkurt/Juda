@@ -8,7 +8,7 @@ import TaskItem from "@tiptap/extension-task-item";
 import Link from "@tiptap/extension-link";
 import Highlight from "@tiptap/extension-highlight";
 import TextAlign from "@tiptap/extension-text-align";
-import { Box, HStack, IconButton, Separator } from "@chakra-ui/react";
+import { Box, Group, ActionIcon, Divider } from "@mantine/core";
 import {
   Bold,
   Italic,
@@ -31,19 +31,20 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect } from "react";
 import { promptUser } from "@/lib/prompt";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 // ToolbarButton component defined outside to avoid re-creation during render
 const ToolbarButton = ({ icon: Icon, isActive, onClick, label }) => (
-  <IconButton
+  <ActionIcon
     size="xs"
-    variant={isActive ? "solid" : "ghost"}
-    colorScheme={isActive ? "blue" : "gray"}
+    variant={isActive ? "filled" : "subtle"}
+    color={isActive ? "blue" : "gray"}
     onClick={onClick}
     aria-label={label}
-    borderRadius="md"
+    style={{ borderRadius: "var(--mantine-radius-md)" }}
   >
     <Icon size={14} />
-  </IconButton>
+  </ActionIcon>
 );
 
 export const RichTextEditor = ({
@@ -53,6 +54,7 @@ export const RichTextEditor = ({
   editable = true,
   showToolbar = true,
 }) => {
+  const { mode } = useSemanticColors();
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -109,18 +111,23 @@ export const RichTextEditor = ({
   if (!editor) return null;
 
   return (
-    <Box h="100%" display="flex" flexDirection="column">
+    <Box style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       {/* Floating Toolbar */}
       {editable && showToolbar && (
-        <HStack
-          px={4}
-          py={2}
-          bg={{ base: "gray.50", _dark: "gray.800" }}
-          borderBottomWidth="1px"
-          borderColor={{ base: "gray.100", _dark: "gray.700" }}
-          gap={0.5}
-          flexWrap="wrap"
-          flexShrink={0}
+        <Group
+          style={{
+            paddingLeft: 16,
+            paddingRight: 16,
+            paddingTop: 8,
+            paddingBottom: 8,
+            background: mode.bg.canvas,
+            borderBottomWidth: "1px",
+            borderBottomColor: mode.border.default,
+            borderBottomStyle: "solid",
+            gap: 2,
+            flexWrap: "wrap",
+            flexShrink: 0,
+          }}
         >
           <ToolbarButton
             icon={Bold}
@@ -147,7 +154,7 @@ export const RichTextEditor = ({
             label="Highlight"
           />
 
-          <Separator orientation="vertical" h={4} mx={1} />
+          <Divider orientation="vertical" style={{ height: 16, marginLeft: 4, marginRight: 4 }} />
 
           <ToolbarButton
             icon={Heading1}
@@ -168,7 +175,7 @@ export const RichTextEditor = ({
             label="Heading 3"
           />
 
-          <Separator orientation="vertical" h={4} mx={1} />
+          <Divider orientation="vertical" style={{ height: 16, marginLeft: 4, marginRight: 4 }} />
 
           <ToolbarButton
             icon={List}
@@ -189,7 +196,7 @@ export const RichTextEditor = ({
             label="Task List"
           />
 
-          <Separator orientation="vertical" h={4} mx={1} />
+          <Divider orientation="vertical" style={{ height: 16, marginLeft: 4, marginRight: 4 }} />
 
           <ToolbarButton
             icon={Quote}
@@ -205,7 +212,7 @@ export const RichTextEditor = ({
           />
           <ToolbarButton icon={LinkIcon} isActive={editor.isActive("link")} onClick={setLink} label="Link" />
 
-          <Separator orientation="vertical" h={4} mx={1} />
+          <Divider orientation="vertical" style={{ height: 16, marginLeft: 4, marginRight: 4 }} />
 
           <ToolbarButton
             icon={AlignLeft}
@@ -226,7 +233,7 @@ export const RichTextEditor = ({
             label="Align Right"
           />
 
-          <Separator orientation="vertical" h={4} mx={1} />
+          <Divider orientation="vertical" style={{ height: 16, marginLeft: 4, marginRight: 4 }} />
 
           <ToolbarButton
             icon={Undo}
@@ -240,17 +247,21 @@ export const RichTextEditor = ({
             onClick={() => editor.chain().focus().redo().run()}
             label="Redo"
           />
-        </HStack>
+        </Group>
       )}
 
       {/* Editor Content - Clean, borderless, full height */}
       <Box
-        flex={1}
-        overflowY="auto"
-        px={{ base: 6, md: 12 }}
-        py={6}
-        bg={{ base: "white", _dark: "gray.800" }}
-        css={{
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          paddingLeft: 24,
+          paddingRight: 24,
+          paddingTop: 24,
+          paddingBottom: 24,
+          background: mode.bg.surface,
+        }}
+        sx={{
           /* Remove focus outline from editor wrapper */
           "&:focus-within": {
             outline: "none",
@@ -278,7 +289,7 @@ export const RichTextEditor = ({
               boxShadow: "none",
             },
 
-            "&:focus-visible": {
+            "&:focusVisible": {
               outline: "none",
               border: "none",
               boxShadow: "none",
@@ -287,7 +298,7 @@ export const RichTextEditor = ({
             /* Placeholder */
             "& p.is-editor-empty:first-of-type::before": {
               content: "attr(data-placeholder)",
-              color: "var(--chakra-colors-gray-400)",
+              color: mode.text.placeholder,
               pointerEvents: "none",
               float: "left",
               height: 0,
@@ -330,19 +341,19 @@ export const RichTextEditor = ({
 
             /* Blockquotes - Notion style */
             "& blockquote": {
-              borderLeft: "3px solid var(--chakra-colors-gray-300)",
+              borderLeft: `3px solid ${mode.border.subtle}`,
               paddingLeft: "1em",
               marginLeft: 0,
               marginRight: 0,
               marginTop: "0.75em",
               marginBottom: "0.75em",
-              color: "var(--chakra-colors-gray-600)",
+              color: mode.text.secondary,
             },
 
             /* Code blocks */
             "& pre": {
-              backgroundColor: "var(--chakra-colors-gray-900)",
-              color: "var(--chakra-colors-gray-100)",
+              backgroundColor: mode.bg.canvas,
+              color: mode.text.primary,
               padding: "1em",
               borderRadius: "6px",
               overflow: "auto",
@@ -361,8 +372,8 @@ export const RichTextEditor = ({
 
             /* Inline code */
             "& code": {
-              backgroundColor: "var(--chakra-colors-gray-100)",
-              color: "var(--chakra-colors-pink-600)",
+              backgroundColor: mode.bg.muted,
+              color: mode.text.primary,
               padding: "0.15em 0.4em",
               borderRadius: "4px",
               fontSize: "0.9em",
@@ -371,19 +382,19 @@ export const RichTextEditor = ({
 
             /* Links */
             "& a": {
-              color: "var(--chakra-colors-blue-600)",
+              color: mode.text.link,
               textDecoration: "underline",
-              textDecorationColor: "var(--chakra-colors-blue-200)",
+              textDecorationColor: mode.text.link,
               textUnderlineOffset: "2px",
               cursor: "pointer",
               "&:hover": {
-                textDecorationColor: "var(--chakra-colors-blue-600)",
+                textDecorationColor: mode.text.linkHover,
               },
             },
 
             /* Highlight */
             "& mark": {
-              backgroundColor: "var(--chakra-colors-yellow-200)",
+              backgroundColor: mode.status.warningBg,
               padding: "0.1em 0.2em",
               borderRadius: "2px",
             },
@@ -391,40 +402,9 @@ export const RichTextEditor = ({
             /* Horizontal rule */
             "& hr": {
               border: "none",
-              borderTop: "1px solid var(--chakra-colors-gray-200)",
+              borderTop: `1px solid ${mode.border.subtle}`,
               marginTop: "1.5em",
               marginBottom: "1.5em",
-            },
-          },
-
-          /* Dark mode overrides */
-          "[data-theme='dark'] &, .dark &": {
-            ".ProseMirror": {
-              "& p.is-editor-empty:first-of-type::before": {
-                color: "var(--chakra-colors-gray-500)",
-              },
-              "& blockquote": {
-                borderLeftColor: "var(--chakra-colors-gray-600)",
-                color: "var(--chakra-colors-gray-400)",
-              },
-              "& code": {
-                backgroundColor: "var(--chakra-colors-gray-700)",
-                color: "var(--chakra-colors-pink-300)",
-              },
-              "& a": {
-                color: "var(--chakra-colors-blue-400)",
-                textDecorationColor: "var(--chakra-colors-blue-700)",
-                "&:hover": {
-                  textDecorationColor: "var(--chakra-colors-blue-400)",
-                },
-              },
-              "& mark": {
-                backgroundColor: "var(--chakra-colors-yellow-700)",
-                color: "var(--chakra-colors-yellow-100)",
-              },
-              "& hr": {
-                borderTopColor: "var(--chakra-colors-gray-700)",
-              },
             },
           },
         }}

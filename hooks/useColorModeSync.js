@@ -15,7 +15,7 @@ export function useColorModeSync() {
   useLayoutEffect(() => {
     if (!initialized) return;
 
-    // Update document class and colorScheme for CSS-based theming (Chakra v3)
+    // Update document class and colorScheme for CSS-based theming
     document.documentElement.classList.remove("light", "dark");
     document.documentElement.classList.add(colorMode);
     document.documentElement.style.colorScheme = colorMode;

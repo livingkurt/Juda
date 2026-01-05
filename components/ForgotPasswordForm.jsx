@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, Input, VStack, Text, Alert } from "@chakra-ui/react";
+import { Box, Button, TextInput, Stack, Text, Alert } from "@mantine/core";
 import Image from "next/image";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
@@ -13,7 +13,7 @@ export function ForgotPasswordForm({ onBackToLogin }) {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { mode } = useSemanticColors();
+  const { mode, interactive } = useSemanticColors();
   const bgColor = mode.bg.surface;
   const borderColor = mode.border.default;
 
@@ -63,107 +63,120 @@ export function ForgotPasswordForm({ onBackToLogin }) {
 
   return (
     <Box
-      as="form"
+      component="form"
       onSubmit={handleSubmit}
       bg={bgColor}
-      p={8}
-      borderRadius="lg"
-      borderWidth="1px"
-      borderColor={borderColor}
-      w="full"
-      maxW="400px"
+      p={32}
+      style={{
+        borderRadius: "0.5rem",
+        border: `1px solid ${borderColor}`,
+        width: "100%",
+        maxWidth: "400px",
+      }}
     >
-      <VStack spacing={4}>
-        <Box mb={2}>
+      <Stack gap="md">
+        <Box mb={8}>
           <Image src="/icon.png" alt="Juda Logo" width={80} height={80} priority />
         </Box>
-        <Text fontSize="2xl" fontWeight="bold">
+        <Text size="2xl" fw={700}>
           Reset Password
         </Text>
 
         {success && (
-          <Alert.Root status="success" borderRadius="md">
-            <Alert.Title>Password updated successfully! Redirecting to login...</Alert.Title>
-          </Alert.Root>
+          <Alert color="green" radius="md">
+            Password updated successfully! Redirecting to login...
+          </Alert>
         )}
 
         {error && (
-          <Alert.Root status="error" borderRadius="md">
-            <Alert.Title>{error}</Alert.Title>
-          </Alert.Root>
+          <Alert color="red" radius="md">
+            {error}
+          </Alert>
         )}
 
-        <Box w="full">
-          <Text fontSize="sm" fontWeight="medium" mb={1}>
+        <Box w="100%">
+          <Text size="sm" fw={500} mb={4}>
             Email{" "}
-            <Text as="span" color="red.500">
+            <Text component="span" c="red.5">
               *
             </Text>
           </Text>
-          <Input
+          <TextInput
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="you@example.com"
-            borderColor={borderColor}
-            _focus={{
-              borderColor: "blue.400",
-              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-            }}
             required
+            styles={{
+              input: {
+                borderColor: borderColor,
+                "&:focus": {
+                  borderColor: interactive.primary,
+                  boxShadow: `0 0 0 1px ${interactive.primary}`,
+                },
+              },
+            }}
           />
         </Box>
 
-        <Box w="full">
-          <Text fontSize="sm" fontWeight="medium" mb={1}>
+        <Box w="100%">
+          <Text size="sm" fw={500} mb={4}>
             New Password{" "}
-            <Text as="span" color="red.500">
+            <Text component="span" c="red.5">
               *
             </Text>
           </Text>
-          <Input
+          <TextInput
             type="password"
             value={newPassword}
             onChange={e => setNewPassword(e.target.value)}
             placeholder="••••••••"
-            borderColor={borderColor}
-            _focus={{
-              borderColor: "blue.400",
-              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-            }}
             required
+            styles={{
+              input: {
+                borderColor: borderColor,
+                "&:focus": {
+                  borderColor: interactive.primary,
+                  boxShadow: `0 0 0 1px ${interactive.primary}`,
+                },
+              },
+            }}
           />
         </Box>
 
-        <Box w="full">
-          <Text fontSize="sm" fontWeight="medium" mb={1}>
+        <Box w="100%">
+          <Text size="sm" fw={500} mb={4}>
             Confirm New Password{" "}
-            <Text as="span" color="red.500">
+            <Text component="span" c="red.5">
               *
             </Text>
           </Text>
-          <Input
+          <TextInput
             type="password"
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
             placeholder="••••••••"
-            borderColor={borderColor}
-            _focus={{
-              borderColor: "blue.400",
-              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
-            }}
             required
+            styles={{
+              input: {
+                borderColor: borderColor,
+                "&:focus": {
+                  borderColor: interactive.primary,
+                  boxShadow: `0 0 0 1px ${interactive.primary}`,
+                },
+              },
+            }}
           />
         </Box>
 
-        <Button type="submit" colorPalette="blue" w="full" isLoading={loading} isDisabled={success}>
+        <Button type="submit" color="blue" w="100%" loading={loading} disabled={success}>
           Update Password
         </Button>
 
-        <Button variant="link" onClick={onBackToLogin} size="sm">
+        <Button variant="subtle" onClick={onBackToLogin} size="sm">
           Back to Login
         </Button>
-      </VStack>
+      </Stack>
     </Box>
   );
 }

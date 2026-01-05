@@ -1,6 +1,6 @@
 "use client";
 
-import { HStack, Box, Text, Menu } from "@chakra-ui/react";
+import { Group, Box, Text, Menu } from "@mantine/core";
 import { Edit2, Check, X, Circle, Copy, Trash2, Dumbbell, Clock, Unlink } from "lucide-react";
 import { TagMenuSelector } from "./TagMenuSelector";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
@@ -57,12 +57,22 @@ export const TaskContextMenu = ({
           onClose?.();
         }}
       >
-        <HStack gap={2}>
-          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+        <Group gap={8}>
+          <Box
+            component="span"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "14px",
+              height: "14px",
+              flexShrink: 0,
+            }}
+          >
             <Edit2 size={14} />
           </Box>
           <Text>Edit</Text>
-        </HStack>
+        </Group>
       </Menu.Item>
 
       {/* Remove from Parent - only show for subtasks */}
@@ -73,24 +83,26 @@ export const TaskContextMenu = ({
               e.stopPropagation();
               handleRemoveFromParent();
             }}
-            color={mode.text.primary}
+            c={mode.text.primary}
           >
-            <HStack gap={2}>
+            <Group gap={8}>
               <Box
-                as="span"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                w="14px"
-                h="14px"
-                flexShrink={0}
+                component="span"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "14px",
+                  height: "14px",
+                  flexShrink: 0,
+                }}
               >
                 <Unlink size={14} />
               </Box>
               <Text>Remove from Parent</Text>
-            </HStack>
+            </Group>
           </Menu.Item>
-          <Menu.Separator />
+          <Menu.Divider />
         </>
       )}
 
@@ -103,12 +115,22 @@ export const TaskContextMenu = ({
             onClose?.();
           }}
         >
-          <HStack gap={2}>
-            <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+          <Group gap={8}>
+            <Box
+              component="span"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "14px",
+                height: "14px",
+                flexShrink: 0,
+              }}
+            >
               <Dumbbell size={14} />
             </Box>
             <Text>Edit Workout</Text>
-          </HStack>
+          </Group>
         </Menu.Item>
       )}
 
@@ -124,22 +146,24 @@ export const TaskContextMenu = ({
                   onClose?.();
                 }}
               >
-                <HStack gap={2}>
+                <Group gap={8}>
                   <Box
-                    as="span"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    w="14px"
-                    h="14px"
-                    flexShrink={0}
+                    component="span"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "14px",
+                      height: "14px",
+                      flexShrink: 0,
+                    }}
                   >
                     <Circle size={14} />
                   </Box>
                   <Text>Uncheck</Text>
-                </HStack>
+                </Group>
               </Menu.Item>
-              <Menu.Separator />
+              <Menu.Divider />
             </>
           )}
           {outcome !== "completed" && (
@@ -150,20 +174,22 @@ export const TaskContextMenu = ({
                 onClose?.();
               }}
             >
-              <HStack gap={2}>
+              <Group gap={8}>
                 <Box
-                  as="span"
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  w="14px"
-                  h="14px"
-                  flexShrink={0}
+                  component="span"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "14px",
+                    height: "14px",
+                    flexShrink: 0,
+                  }}
                 >
                   <Check size={14} />
                 </Box>
                 <Text>Complete</Text>
-              </HStack>
+              </Group>
             </Menu.Item>
           )}
           {outcome !== "not_completed" && (
@@ -174,29 +200,31 @@ export const TaskContextMenu = ({
                 onClose?.();
               }}
             >
-              <HStack gap={2}>
+              <Group gap={8}>
                 <Box
-                  as="span"
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  w="14px"
-                  h="14px"
-                  flexShrink={0}
+                  component="span"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "14px",
+                    height: "14px",
+                    flexShrink: 0,
+                  }}
                 >
                   <X size={14} />
                 </Box>
                 <Text>Not Completed</Text>
-              </HStack>
+              </Group>
             </Menu.Item>
           )}
-          <Menu.Separator />
+          <Menu.Divider />
         </>
       )}
       {/* Status options for non-recurring tasks */}
       {!isRecurring && (
         <>
-          <Menu.Separator />
+          <Menu.Divider />
           <Menu.Item
             onClick={e => {
               e.stopPropagation();
@@ -205,20 +233,22 @@ export const TaskContextMenu = ({
             }}
             disabled={task.status === "todo"}
           >
-            <HStack gap={2}>
+            <Group gap={8}>
               <Box
-                as="span"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                w="14px"
-                h="14px"
-                flexShrink={0}
+                component="span"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "14px",
+                  height: "14px",
+                  flexShrink: 0,
+                }}
               >
                 <Circle size={14} />
               </Box>
               <Text>Set to Todo</Text>
-            </HStack>
+            </Group>
           </Menu.Item>
           <Menu.Item
             onClick={e => {
@@ -228,20 +258,22 @@ export const TaskContextMenu = ({
             }}
             disabled={task.status === "in_progress"}
           >
-            <HStack gap={2}>
+            <Group gap={8}>
               <Box
-                as="span"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                w="14px"
-                h="14px"
-                flexShrink={0}
+                component="span"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "14px",
+                  height: "14px",
+                  flexShrink: 0,
+                }}
               >
                 <Clock size={14} />
               </Box>
               <Text>Set to In Progress</Text>
-            </HStack>
+            </Group>
           </Menu.Item>
           <Menu.Item
             onClick={e => {
@@ -251,22 +283,24 @@ export const TaskContextMenu = ({
             }}
             disabled={task.status === "complete"}
           >
-            <HStack gap={2}>
+            <Group gap={8}>
               <Box
-                as="span"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                w="14px"
-                h="14px"
-                flexShrink={0}
+                component="span"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "14px",
+                  height: "14px",
+                  flexShrink: 0,
+                }}
               >
                 <Check size={14} />
               </Box>
               <Text>Set to Complete</Text>
-            </HStack>
+            </Group>
           </Menu.Item>
-          <Menu.Separator />
+          <Menu.Divider />
         </>
       )}
       <Menu.Item
@@ -276,12 +310,22 @@ export const TaskContextMenu = ({
           onClose?.();
         }}
       >
-        <HStack gap={2}>
-          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+        <Group gap={8}>
+          <Box
+            component="span"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "14px",
+              height: "14px",
+              flexShrink: 0,
+            }}
+          >
             <Copy size={14} />
           </Box>
           <Text>Duplicate</Text>
-        </HStack>
+        </Group>
       </Menu.Item>
 
       {/* Tags submenu */}
@@ -293,14 +337,24 @@ export const TaskContextMenu = ({
           taskOps.handleDeleteTask(task.id);
           onClose?.();
         }}
-        color={mode.status.error}
+        c={mode.status.error}
       >
-        <HStack gap={2}>
-          <Box as="span" display="flex" alignItems="center" justifyContent="center" w="14px" h="14px" flexShrink={0}>
+        <Group gap={8}>
+          <Box
+            component="span"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "14px",
+              height: "14px",
+              flexShrink: 0,
+            }}
+          >
             <Trash2 size={14} />
           </Box>
           <Text>Delete</Text>
-        </HStack>
+        </Group>
       </Menu.Item>
     </>
   );

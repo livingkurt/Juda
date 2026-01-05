@@ -1,6 +1,6 @@
 "use client";
 
-import { Box } from "@chakra-ui/react";
+import { Box } from "@mantine/core";
 import { forwardRef } from "react";
 
 /**
@@ -12,21 +12,23 @@ export const SyncAnimatedItem = forwardRef(function SyncAnimatedItem({ children,
       ref={ref}
       key={itemKey}
       data-layout-id={layoutId}
-      animation="slideIn 0.25s ease-out"
-      css={{
-        "@keyframes slideIn": {
-          from: {
-            opacity: 0,
-            transform: "translateY(-10px) scale(0.95)",
-          },
-          to: {
-            opacity: 1,
-            transform: "translateY(0) scale(1)",
-          },
-        },
+      style={{
+        animation: "slideIn 0.25s ease-out",
       }}
       {...props}
     >
+      <style>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
       {children}
     </Box>
   );
@@ -55,14 +57,16 @@ export function SyncUpdateHighlight({ children, updateKey }) {
   return (
     <Box
       key={updateKey}
-      animation="pulse 0.6s ease-in-out"
-      css={{
-        "@keyframes pulse": {
-          "0%, 100%": { backgroundColor: "transparent" },
-          "50%": { backgroundColor: "rgba(59, 130, 246, 0.1)" },
-        },
+      style={{
+        animation: "pulse 0.6s ease-in-out",
       }}
     >
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { background-color: transparent; }
+          50% { background-color: rgba(59, 130, 246, 0.1); }
+        }
+      `}</style>
       {children}
     </Box>
   );

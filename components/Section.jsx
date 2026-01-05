@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Button } from "@chakra-ui/react";
+import { Box, Button, Group } from "@mantine/core";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
@@ -76,7 +76,15 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
       items={taskOps.sections.map(s => `section-${s.id}`)}
       strategy={verticalListSortingStrategy}
     >
-      <Box ref={setNodeRef} bg={isOver ? dropHighlight : "transparent"} borderRadius="md" w="100%" maxW="100%">
+      <Box
+        ref={setNodeRef}
+        style={{
+          background: isOver ? dropHighlight : "transparent",
+          borderRadius: "0.375rem",
+          width: "100%",
+          maxWidth: "100%",
+        }}
+      >
         {taskOps.sections.map((section, index) => (
           <SectionCard
             key={section.id}
@@ -91,16 +99,45 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
         <Button
           variant="outline"
           onClick={sectionOps.handleAddSection}
-          w="full"
-          py={{ base: 4, md: 6 }}
-          borderStyle="dashed"
-          mt={{ base: 2, md: 4 }}
-          fontSize={{ base: "sm", md: "md" }}
+          w="100%"
+          style={{
+            paddingTop: 16,
+            paddingBottom: 24,
+            borderStyle: "dashed",
+            marginTop: 16,
+            fontSize: "0.875rem",
+          }}
+          visibleFrom="md"
+          styles={{
+            root: {
+              paddingTop: 16,
+              paddingBottom: 16,
+              fontSize: "0.875rem",
+            },
+          }}
         >
-          <Box as="span" display="inline-flex" alignItems="center" mr={{ base: 1, md: 2 }}>
+          <Group gap={[4, 8]}>
             <Plus size={16} stroke="currentColor" />
-          </Box>
-          Add Section
+            Add Section
+          </Group>
+        </Button>
+        <Button
+          variant="outline"
+          onClick={sectionOps.handleAddSection}
+          w="100%"
+          style={{
+            paddingTop: 16,
+            paddingBottom: 16,
+            borderStyle: "dashed",
+            marginTop: 8,
+            fontSize: "0.875rem",
+          }}
+          hiddenFrom="md"
+        >
+          <Group gap={4}>
+            <Plus size={16} stroke="currentColor" />
+            Add Section
+          </Group>
         </Button>
       </Box>
     </SortableContext>

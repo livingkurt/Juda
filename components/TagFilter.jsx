@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Box, HStack, Menu, Button, Input, Text } from "@chakra-ui/react";
+import { Box, Group, Menu, Button, TextInput, Text } from "@mantine/core";
 import { Tag as TagIcon, Plus, X } from "lucide-react";
 import { TagChip } from "./TagChip";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
@@ -16,8 +16,6 @@ export const TagFilter = ({
 }) => {
   const [newTagName, setNewTagName] = useState("");
   const [isOpen, setIsOpen] = useState(false);
-  const onOpen = () => setIsOpen(true);
-  const onClose = () => setIsOpen(false);
   const inputRef = useRef(null);
 
   const { mode } = useSemanticColors();
@@ -55,89 +53,124 @@ export const TagFilter = ({
   };
 
   return (
-    <HStack spacing={2} flexWrap="wrap" align="center">
+    <Group gap={8} wrap="wrap" align="center">
       {/* Selected tags as removable pills */}
       {selectedTags.map(tag => (
         <TagChip key={tag.id} tag={tag} size="sm" showClose onClose={onTagDeselect} />
       ))}
 
       {/* Tag selector dropdown */}
-      <Menu.Root open={isOpen} onOpenChange={({ open }) => (open ? onOpen() : onClose())} closeOnSelect={false}>
-        <Menu.Trigger asChild>
-          <Button size="xs" variant="ghost" onClick={onOpen} color={mutedText} _hover={{ bg: hoverBg }}>
-            <TagIcon size={14} />
+      <Menu opened={isOpen} onClose={() => setIsOpen(false)} closeOnItemClick={false}>
+        <Menu.Target>
+          <Button
+            size="xs"
+            variant="subtle"
+            onClick={() => setIsOpen(true)}
+            c={mutedText}
+            style={{
+              backgroundColor: hoverBg,
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = hoverBg;
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
+            leftSection={<TagIcon size={14} />}
+          >
             {compact ? "" : selectedTags.length === 0 ? "" : "Add"}
           </Button>
-        </Menu.Trigger>
-        <Menu.Positioner>
-          <Menu.Content bg={bgColor} borderColor={borderColor} minW="200px" maxH="300px" overflowY="auto">
-            {/* Create new tag input */}
-            <Box px={3} py={2}>
-              <HStack>
-                <Input
-                  ref={inputRef}
-                  size="sm"
-                  placeholder="New tag name..."
-                  value={newTagName}
-                  onChange={e => setNewTagName(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                />
-                <Button size="sm" colorPalette="blue" onClick={handleCreateTag} isDisabled={!newTagName.trim()}>
-                  <Plus size={14} />
-                </Button>
-              </HStack>
-            </Box>
+        </Menu.Target>
+        <Menu.Dropdown
+          bg={bgColor}
+          style={{ borderColor: borderColor, minWidth: "200px", maxHeight: "300px", overflowY: "auto" }}
+        >
+          {/* Create new tag input */}
+          <Box px={12} py={8}>
+            <Group gap={8}>
+              <TextInput
+                ref={inputRef}
+                size="sm"
+                placeholder="New tag name..."
+                value={newTagName}
+                onChange={e => setNewTagName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                style={{ flex: 1 }}
+              />
+              <Button
+                size="sm"
+                color="blue"
+                onClick={handleCreateTag}
+                disabled={!newTagName.trim()}
+                leftSection={<Plus size={14} />}
+              />
+            </Group>
+          </Box>
 
-            {availableTags.length > 0 && (
-              <>
-                <Box borderTopWidth="1px" borderColor={borderColor} my={1} />
-                <Text px={3} py={1} fontSize={{ base: "2xs", md: "xs" }} color={mutedText} fontWeight="semibold">
-                  Available Tags
-                </Text>
-                {availableTags.map(tag => (
-                  <Menu.Item
-                    key={tag.id}
-                    onClick={() => {
-                      onTagSelect(tag.id);
-                    }}
-                    _hover={{ bg: hoverBg }}
-                  >
-                    <HStack>
-                      <Box w={3} h={3} borderRadius="full" bg={tag.color} />
-                      <Text>{tag.name}</Text>
-                    </HStack>
-                  </Menu.Item>
-                ))}
-              </>
-            )}
-
-            {availableTags.length === 0 && tags.length > 0 && (
-              <Text px={3} py={2} fontSize={{ base: "xs", md: "sm" }} color={mutedText}>
-                All tags selected
+          {availableTags.length > 0 && (
+            <>
+              <Box style={{ borderTop: `1px solid ${borderColor}`, marginTop: 4, marginBottom: 4 }} />
+              <Text px={12} py={4} size={["0.625rem", "0.75rem"]} c={mutedText} fw={600}>
+                Available Tags
               </Text>
-            )}
+              {availableTags.map(tag => (
+                <Menu.Item
+                  key={tag.id}
+                  onClick={() => {
+                    onTagSelect(tag.id);
+                  }}
+                  style={{
+                    backgroundColor: hoverBg,
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = hoverBg;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
+                  <Group gap={8}>
+                    <Box w={12} h={12} style={{ borderRadius: "50%", background: tag.color }} />
+                    <Text>{tag.name}</Text>
+                  </Group>
+                </Menu.Item>
+              ))}
+            </>
+          )}
 
-            {tags.length === 0 && !newTagName && (
-              <Text px={3} py={2} fontSize={{ base: "xs", md: "sm" }} color={mutedText}>
-                No tags yet. Create one above!
-              </Text>
-            )}
-          </Menu.Content>
-        </Menu.Positioner>
-      </Menu.Root>
+          {availableTags.length === 0 && tags.length > 0 && (
+            <Text px={12} py={8} size={["0.75rem", "0.875rem"]} c={mutedText}>
+              All tags selected
+            </Text>
+          )}
+
+          {tags.length === 0 && !newTagName && (
+            <Text px={12} py={8} size={["0.75rem", "0.875rem"]} c={mutedText}>
+              No tags yet. Create one above!
+            </Text>
+          )}
+        </Menu.Dropdown>
+      </Menu>
 
       {/* Clear all filters button */}
       {selectedTags.length > 0 && (
         <Button
           size="xs"
-          variant="ghost"
+          variant="subtle"
           onClick={() => selectedTagIds.forEach(id => onTagDeselect(id))}
-          color={mutedText}
-          _hover={{ bg: hoverBg }}
-        >
-          <X size={14} />
-        </Button>
+          c={mutedText}
+          style={{
+            backgroundColor: hoverBg,
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.backgroundColor = hoverBg;
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.backgroundColor = "transparent";
+          }}
+          leftSection={<X size={14} />}
+        />
       )}
-    </HStack>
+    </Group>
   );
 };

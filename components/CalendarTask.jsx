@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Text, Menu, Portal } from "@chakra-ui/react";
+import { Box, Text, Menu } from "@mantine/core";
 import { useDraggable } from "@dnd-kit/core";
 import { formatTime, getTaskDisplayColor } from "@/lib/utils";
 import { TagMenuSelector } from "./TagMenuSelector";
@@ -90,12 +90,12 @@ export const CalendarTask = ({
   // Merge with positioning style for timed tasks
   const style = isTimed && getTaskStyle ? { ...getTaskStyle(task), ...baseStyle } : baseStyle;
 
-  // Font sizes based on variant
-  const titleFontSize = isWeek ? { base: "2xs", md: "xs" } : { base: "xs", md: "sm" };
-  const timeFontSize = { base: "2xs", md: "xs" };
+  // Font sizes based on variant (Mantine array syntax: [xs, sm, md, lg, xl])
+  const titleFontSize = isWeek ? ["0.625rem", "0.75rem"] : ["0.75rem", "0.875rem"];
+  const timeFontSize = ["0.625rem", "0.75rem"];
 
   // Padding based on variant
-  const contentPadding = isTimed ? { px: 2, py: 1 } : { px: 1, py: isWeek ? 0.5 : 0 };
+  const contentPadding = isTimed ? { px: 8, py: 4 } : { px: 4, py: isWeek ? 2 : 0 };
 
   // Show time text for timed tasks with sufficient duration
   const showTimeText = isTimed && (task.duration || 30) >= 45;
@@ -104,97 +104,136 @@ export const CalendarTask = ({
   return (
     <Box
       ref={setNodeRef}
-      position={isTimed ? "absolute" : undefined}
-      left={isTimed ? task.left : undefined}
-      width={isTimed ? task.width : undefined}
-      ml={isTimed ? 1 : undefined}
-      mr={isTimed ? 1 : undefined}
-      borderRadius="md"
-      color={taskColor ? "white" : mode.task.neutralText}
-      overflow={isTimed ? "hidden" : undefined}
-      cursor="grab"
-      _hover={{ shadow: isWeek ? "md" : "lg" }}
-      bg={isNoDuration ? mode.text.muted : taskColor || mode.task.neutral}
-      borderWidth={isNoDuration ? "2px" : "0"}
-      borderColor={isNoDuration ? taskColor || mode.border.default : "transparent"}
-      minH={isNoDuration ? "24px" : undefined}
-      style={style}
-      boxShadow={internalDrag?.taskId === task.id ? "xl" : "none"}
-      zIndex={internalDrag?.taskId === task.id ? 50 : "auto"}
+      style={{
+        position: isTimed ? "absolute" : undefined,
+        left: isTimed ? task.left : undefined,
+        width: isTimed ? task.width : undefined,
+        marginLeft: isTimed ? 4 : undefined,
+        marginRight: isTimed ? 4 : undefined,
+        borderRadius: "0.375rem",
+        color: taskColor ? "white" : mode.task.neutralText,
+        overflow: isTimed ? "hidden" : undefined,
+        cursor: "grab",
+        background: isNoDuration ? mode.text.muted : taskColor || mode.task.neutral,
+        borderWidth: isNoDuration ? "2px" : "0",
+        borderColor: isNoDuration ? taskColor || mode.border.default : "transparent",
+        borderStyle: "solid",
+        minHeight: isNoDuration ? "24px" : undefined,
+        boxShadow:
+          internalDrag?.taskId === task.id
+            ? "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+            : "none",
+        zIndex: internalDrag?.taskId === task.id ? 50 : "auto",
+        ...style,
+      }}
       onClick={e => e.stopPropagation()}
+      onMouseEnter={e => {
+        const target = e.currentTarget;
+        if (!isWeek) {
+          target.style.boxShadow = "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)";
+        } else {
+          target.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)";
+        }
+      }}
+      onMouseLeave={e => {
+        const target = e.currentTarget;
+        target.style.boxShadow =
+          internalDrag?.taskId === task.id
+            ? "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+            : "none";
+      }}
     >
       {/* Task content - drag handle for cross-container DnD */}
-      <Menu.Root open={menuOpen} onOpenChange={({ open }) => setMenuOpen(open)}>
-        <Menu.Trigger asChild>
+      <Menu opened={menuOpen} onClose={() => setMenuOpen(false)}>
+        <Menu.Target>
           <Box
             {...attributes}
             {...listeners}
-            position={isTimed ? "absolute" : undefined}
-            inset={isTimed ? 0 : undefined}
-            {...contentPadding}
-            cursor="grab"
+            style={{
+              position: isTimed ? "absolute" : undefined,
+              inset: isTimed ? 0 : undefined,
+              paddingLeft: contentPadding.px,
+              paddingRight: contentPadding.px,
+              paddingTop: contentPadding.py,
+              paddingBottom: contentPadding.py,
+              cursor: "grab",
+            }}
             onClick={e => {
               e.stopPropagation();
               setMenuOpen(true);
             }}
           >
-            <Box display="flex" alignItems="center" justifyContent="space-between" h={isTimed ? "100%" : undefined}>
-              <Box flex={1} minW={0}>
+            <Box
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                height: isTimed ? "100%" : undefined,
+              }}
+            >
+              <Box style={{ flex: 1, minWidth: 0 }}>
                 <Text
-                  fontSize={titleFontSize}
-                  fontWeight="medium"
-                  isTruncated
-                  textDecoration={isCompleted || isNotCompleted ? "line-through" : "none"}
+                  size={titleFontSize}
+                  fw={500}
+                  truncate="end"
+                  style={{
+                    textDecoration: isCompleted || isNotCompleted ? "line-through" : "none",
+                  }}
                 >
                   {task.title}
                 </Text>
                 {showTimeText && (
-                  <Text fontSize={timeFontSize} opacity={0.8}>
+                  <Text size={timeFontSize} style={{ opacity: 0.8 }}>
                     {formatTime(task.time)}
                   </Text>
                 )}
               </Box>
             </Box>
           </Box>
-        </Menu.Trigger>
-        <Portal>
-          <Menu.Positioner>
-            <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-              <TaskContextMenu
-                task={task}
-                date={date}
-                isRecurring={isRecurring}
-                isWorkoutTask={isWorkoutTask}
-                outcome={outcome}
-                onClose={() => setMenuOpen(false)}
-              />
-              {/* Tags submenu */}
-              <TagMenuSelector
-                task={task}
-                tags={tags}
-                onTagsChange={taskOps.handleTaskTagsChange}
-                onCreateTag={async (name, color) => {
-                  return await createTagMutation({ name, color }).unwrap();
-                }}
-              />
-            </Menu.Content>
-          </Menu.Positioner>
-        </Portal>
-      </Menu.Root>
+        </Menu.Target>
+        <Menu.Dropdown onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+          <TaskContextMenu
+            task={task}
+            date={date}
+            isRecurring={isRecurring}
+            isWorkoutTask={isWorkoutTask}
+            outcome={outcome}
+            onClose={() => setMenuOpen(false)}
+          />
+          {/* Tags submenu */}
+          <TagMenuSelector
+            task={task}
+            tags={tags}
+            onTagsChange={taskOps.handleTaskTagsChange}
+            onCreateTag={async (name, color) => {
+              return await createTagMutation({ name, color }).unwrap();
+            }}
+          />
+        </Menu.Dropdown>
+      </Menu>
 
       {/* Resize handle - only for timed tasks */}
       {isTimed && (
         <Box
-          position="absolute"
-          bottom={0}
-          left={0}
-          right={0}
-          h={isWeek ? 2 : 3}
-          cursor="ns-resize"
-          _hover={{ bg: "blackAlpha.200" }}
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: isWeek ? 8 : 12,
+            cursor: "ns-resize",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseEnter={e => {
+            const target = e.currentTarget;
+            target.style.background = "rgba(0, 0, 0, 0.1)";
+          }}
+          onMouseLeave={e => {
+            const target = e.currentTarget;
+            target.style.background = "transparent";
+          }}
           onMouseDown={e => {
             if (!isDragging && handleInternalDragStart) {
               handleInternalDragStart(e, task, "resize");
@@ -202,7 +241,7 @@ export const CalendarTask = ({
           }}
           onClick={e => e.stopPropagation()}
         >
-          {!isWeek && <Box w={8} h={1} borderRadius="full" bg="whiteAlpha.500" />}
+          {!isWeek && <Box w={32} h={4} style={{ borderRadius: "9999px", background: "rgba(255, 255, 255, 0.5)" }} />}
         </Box>
       )}
     </Box>

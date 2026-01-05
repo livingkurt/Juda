@@ -5,20 +5,16 @@ import {
   Box,
   Table,
   Text,
-  HStack,
+  Group,
   Popover,
-  PopoverTrigger,
-  PopoverContent,
-  IconButton,
+  ActionIcon,
   Flex,
-  createListCollection,
   Checkbox,
-  Input,
+  TextInput,
   Menu,
-  Portal,
   Button,
-  VStack,
-} from "@chakra-ui/react";
+  Stack,
+} from "@mantine/core";
 import { Check, X, ChevronLeft, ChevronRight, Dumbbell, Edit2, Copy, Trash2 } from "lucide-react";
 import { shouldShowOnDate, formatDateDisplay } from "@/lib/utils";
 import { SelectDropdown } from "./SelectDropdown";
@@ -206,143 +202,156 @@ const TaskColumnHeader = ({ task, onEdit, onEditWorkout, onDuplicate, onDelete, 
   const isWorkoutTask = task.completionType === "workout";
 
   return (
-    <Menu.Root open={menuOpen} onOpenChange={({ open }) => setMenuOpen(open)}>
-      <Menu.Trigger asChild>
+    <Menu opened={menuOpen} onChange={setMenuOpen}>
+      <Menu.Target>
         <Box
-          as="button"
-          w="100%"
-          h="100%"
-          minH="55px"
-          display="flex"
-          alignItems="center"
-          px={2}
-          py={2}
-          cursor="pointer"
-          _hover={{ bg: mode.bg.surfaceHover }}
+          component="button"
+          style={{
+            width: "100%",
+            height: "100%",
+            minHeight: "55px",
+            display: "flex",
+            alignItems: "center",
+            paddingLeft: 8,
+            paddingRight: 8,
+            paddingTop: 8,
+            paddingBottom: 8,
+            cursor: "pointer",
+            border: "none",
+            outline: "none",
+            background: "transparent",
+            textAlign: "left",
+            transition: "background-color 0.15s",
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.backgroundColor = mode.bg.surfaceHover;
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.backgroundColor = "transparent";
+          }}
           onClick={e => {
             e.stopPropagation();
             setMenuOpen(true);
           }}
-          border="none"
-          outline="none"
-          bg="transparent"
-          textAlign="left"
-          transition="background-color 0.15s"
         >
-          <Text fontSize="xs" noOfLines={1} title={task.title}>
+          <Text size="xs" style={{ lineClamp: 1, overflow: "hidden", textOverflow: "ellipsis" }} title={task.title}>
             {task.title}
           </Text>
         </Box>
-      </Menu.Trigger>
-      <Portal>
-        <Menu.Positioner>
-          <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-            {onEdit && (
-              <Menu.Item
-                onClick={e => {
-                  e.stopPropagation();
-                  onEdit(task);
-                  setMenuOpen(false);
+      </Menu.Target>
+      <Menu.Dropdown onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+        {onEdit && (
+          <Menu.Item
+            onClick={e => {
+              e.stopPropagation();
+              onEdit(task);
+              setMenuOpen(false);
+            }}
+          >
+            <Group gap={8}>
+              <Box
+                component="span"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 14,
+                  height: 14,
+                  flexShrink: 0,
                 }}
               >
-                <HStack gap={2}>
-                  <Box
-                    as="span"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    w="14px"
-                    h="14px"
-                    flexShrink={0}
-                  >
-                    <Edit2 size={14} />
-                  </Box>
-                  <Text>Edit</Text>
-                </HStack>
-              </Menu.Item>
-            )}
-            {/* Edit Workout option for workout-type tasks */}
-            {isWorkoutTask && onEditWorkout && (
-              <Menu.Item
-                onClick={e => {
-                  e.stopPropagation();
-                  onEditWorkout(task);
-                  setMenuOpen(false);
+                <Edit2 size={14} />
+              </Box>
+              <Text>Edit</Text>
+            </Group>
+          </Menu.Item>
+        )}
+        {/* Edit Workout option for workout-type tasks */}
+        {isWorkoutTask && onEditWorkout && (
+          <Menu.Item
+            onClick={e => {
+              e.stopPropagation();
+              onEditWorkout(task);
+              setMenuOpen(false);
+            }}
+          >
+            <Group gap={8}>
+              <Box
+                component="span"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 14,
+                  height: 14,
+                  flexShrink: 0,
                 }}
               >
-                <HStack gap={2}>
-                  <Box
-                    as="span"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    w="14px"
-                    h="14px"
-                    flexShrink={0}
-                  >
-                    <Dumbbell size={14} />
-                  </Box>
-                  <Text>Edit Workout</Text>
-                </HStack>
-              </Menu.Item>
-            )}
-            {onDuplicate && (
-              <Menu.Item
-                onClick={e => {
-                  e.stopPropagation();
-                  onDuplicate(task.id);
-                  setMenuOpen(false);
+                <Dumbbell size={14} />
+              </Box>
+              <Text>Edit Workout</Text>
+            </Group>
+          </Menu.Item>
+        )}
+        {onDuplicate && (
+          <Menu.Item
+            onClick={e => {
+              e.stopPropagation();
+              onDuplicate(task.id);
+              setMenuOpen(false);
+            }}
+          >
+            <Group gap={8}>
+              <Box
+                component="span"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 14,
+                  height: 14,
+                  flexShrink: 0,
                 }}
               >
-                <HStack gap={2}>
-                  <Box
-                    as="span"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    w="14px"
-                    h="14px"
-                    flexShrink={0}
-                  >
-                    <Copy size={14} />
-                  </Box>
-                  <Text>Duplicate</Text>
-                </HStack>
-              </Menu.Item>
-            )}
-            {/* Tags submenu */}
-            {tags && onTagsChange && onCreateTag && (
-              <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
-            )}
-            {onDelete && (
-              <Menu.Item
-                color={mode.status.error}
-                onClick={e => {
-                  e.stopPropagation();
-                  onDelete(task.id);
-                  setMenuOpen(false);
+                <Copy size={14} />
+              </Box>
+              <Text>Duplicate</Text>
+            </Group>
+          </Menu.Item>
+        )}
+        {/* Tags submenu */}
+        {tags && onTagsChange && onCreateTag && (
+          <TagMenuSelector task={task} tags={tags} onTagsChange={onTagsChange} onCreateTag={onCreateTag} />
+        )}
+        {onDelete && (
+          <Menu.Item
+            c={mode.status.error}
+            onClick={e => {
+              e.stopPropagation();
+              onDelete(task.id);
+              setMenuOpen(false);
+            }}
+          >
+            <Group gap={8}>
+              <Box
+                component="span"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 14,
+                  height: 14,
+                  flexShrink: 0,
                 }}
               >
-                <HStack gap={2}>
-                  <Box
-                    as="span"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    w="14px"
-                    h="14px"
-                    flexShrink={0}
-                  >
-                    <Trash2 size={14} />
-                  </Box>
-                  <Text>Delete</Text>
-                </HStack>
-              </Menu.Item>
-            )}
-          </Menu.Content>
-        </Menu.Positioner>
-      </Portal>
-    </Menu.Root>
+                <Trash2 size={14} />
+              </Box>
+              <Text>Delete</Text>
+            </Group>
+          </Menu.Item>
+        )}
+      </Menu.Dropdown>
+    </Menu>
   );
 };
 
@@ -366,19 +375,26 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
         // Scheduled but no completion - show unchecked box (empty checkbox)
         // Match TaskItem checkbox style exactly
         return (
-          <Checkbox.Root checked={false} size="md">
-            <Checkbox.HiddenInput />
-            <Checkbox.Control
-              bg="white"
-              boxShadow="none"
-              outline="none"
-              border="none"
-              _focus={{ boxShadow: "none", outline: "none" }}
-              _focusVisible={{ boxShadow: "none", outline: "none" }}
-            >
-              <Checkbox.Indicator />
-            </Checkbox.Control>
-          </Checkbox.Root>
+          <Checkbox
+            checked={false}
+            size="md"
+            styles={{
+              input: {
+                backgroundColor: "white",
+                boxShadow: "none",
+                outline: "none",
+                border: "none",
+                "&:focus": {
+                  boxShadow: "none",
+                  outline: "none",
+                },
+                "&:focusVisible": {
+                  boxShadow: "none",
+                  outline: "none",
+                },
+              },
+            }}
+          />
         );
       } else {
         // Not scheduled, no completion - empty cell (no visual indicator)
@@ -393,61 +409,88 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
     if (outcome === "completed") {
       // Completed - green checkmark (match TaskItem style)
       return (
-        <Checkbox.Root checked={true} size="md">
-          <Checkbox.HiddenInput />
-          <Checkbox.Control
-            bg="white"
-            boxShadow="none"
-            outline="none"
-            border="none"
-            _focus={{ boxShadow: "none", outline: "none" }}
-            _focusVisible={{ boxShadow: "none", outline: "none" }}
-          >
-            <Checkbox.Indicator>
-              <Check size={14} />
-            </Checkbox.Indicator>
-          </Checkbox.Control>
-        </Checkbox.Root>
+        <Checkbox
+          checked={true}
+          size="md"
+          icon={() => <Check size={14} strokeWidth={3} />}
+          styles={{
+            input: {
+              backgroundColor: "white",
+              boxShadow: "none",
+              outline: "none",
+              border: "none",
+              "&:focus": {
+                boxShadow: "none",
+                outline: "none",
+              },
+              "&:focusVisible": {
+                boxShadow: "none",
+                outline: "none",
+              },
+            },
+            icon: {
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            },
+          }}
+        />
       );
     } else if (outcome === "not_completed" || outcome === "not completed") {
       // Not completed - X mark (match TaskItem style)
       // Handle both "not_completed" and "not completed" formats
       return (
-        <Checkbox.Root checked={false} size="md">
-          <Checkbox.HiddenInput />
-          <Checkbox.Control
-            bg="white"
-            boxShadow="none"
-            outline="none"
-            border="none"
-            _focus={{ boxShadow: "none", outline: "none" }}
-            _focusVisible={{ boxShadow: "none", outline: "none" }}
-          >
-            <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
-              <Box as="span" color="gray.700">
-                <X size={18} stroke="currentColor" style={{ strokeWidth: 3 }} />
-              </Box>
-            </Box>
-          </Checkbox.Control>
-        </Checkbox.Root>
+        <Checkbox
+          checked={false}
+          size="md"
+          icon={() => <X size={14} strokeWidth={3} />}
+          styles={{
+            input: {
+              backgroundColor: "white",
+              boxShadow: "none",
+              outline: "none",
+              border: "none",
+              "&:focus": {
+                boxShadow: "none",
+                outline: "none",
+              },
+              "&:focusVisible": {
+                boxShadow: "none",
+                outline: "none",
+              },
+            },
+            icon: {
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            },
+          }}
+        />
       );
     } else {
       // Outcome is missing/null/unknown - if scheduled, show empty checkbox, otherwise empty cell
       if (isScheduled) {
         return (
-          <Checkbox.Root checked={false} size="md">
-            <Checkbox.HiddenInput />
-            <Checkbox.Control
-              bg="white"
-              boxShadow="none"
-              outline="none"
-              border="none"
-              _focus={{ boxShadow: "none", outline: "none" }}
-              _focusVisible={{ boxShadow: "none", outline: "none" }}
-            >
-              <Checkbox.Indicator />
-            </Checkbox.Control>
-          </Checkbox.Root>
+          <Checkbox
+            checked={false}
+            size="md"
+            styles={{
+              input: {
+                backgroundColor: "white",
+                boxShadow: "none",
+                outline: "none",
+                border: "none",
+                "&:focus": {
+                  boxShadow: "none",
+                  outline: "none",
+                },
+                "&:focusVisible": {
+                  boxShadow: "none",
+                  outline: "none",
+                },
+              },
+            }}
+          />
         );
       } else {
         return null;
@@ -472,8 +515,18 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
     // If scheduled, show inline text input
     if (isScheduled) {
       return (
-        <Box w="100%" h="100%" minH="40px" display="flex" alignItems="center" p={1} bg={cellBg}>
-          <Input
+        <Box
+          style={{
+            width: "100%",
+            height: "100%",
+            minHeight: "40px",
+            display: "flex",
+            alignItems: "center",
+            padding: 4,
+            background: cellBg,
+          }}
+        >
+          <TextInput
             value={textValue}
             onChange={e => setTextValue(e.target.value)}
             onBlur={handleTextSave}
@@ -485,15 +538,25 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
             }}
             placeholder="Enter text..."
             size="sm"
-            variant="ghost"
-            fontSize="xs"
-            p={1}
-            h="auto"
-            minH="30px"
-            border="none"
-            bg="transparent"
-            _hover={{ bg: "transparent" }}
-            _focus={{ bg: "transparent", border: "1px solid", borderColor: mode.border.focus }}
+            variant="unstyled"
+            styles={{
+              input: {
+                fontSize: "var(--mantine-font-size-xs)",
+                padding: 4,
+                height: "auto",
+                minHeight: "30px",
+                border: "none",
+                backgroundColor: "transparent",
+                "&:hover": {
+                  backgroundColor: "transparent",
+                },
+                "&:focus": {
+                  backgroundColor: "transparent",
+                  border: "1px solid",
+                  borderColor: mode.border.focus,
+                },
+              },
+            }}
           />
         </Box>
       );
@@ -503,8 +566,18 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
     if (completion?.note) {
       // Has completion - show editable text input
       return (
-        <Box w="100%" h="100%" minH="40px" display="flex" alignItems="center" p={1} bg={cellBg}>
-          <Input
+        <Box
+          style={{
+            width: "100%",
+            height: "100%",
+            minHeight: "40px",
+            display: "flex",
+            alignItems: "center",
+            padding: 4,
+            background: cellBg,
+          }}
+        >
+          <TextInput
             value={textValue}
             onChange={e => setTextValue(e.target.value)}
             onBlur={handleTextSave}
@@ -516,15 +589,25 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
             }}
             placeholder="Enter text..."
             size="sm"
-            variant="ghost"
-            fontSize="xs"
-            p={1}
-            h="auto"
-            minH="30px"
-            border="none"
-            bg="transparent"
-            _hover={{ bg: "transparent" }}
-            _focus={{ bg: "transparent", border: "1px solid", borderColor: mode.border.focus }}
+            variant="unstyled"
+            styles={{
+              input: {
+                fontSize: "var(--mantine-font-size-xs)",
+                padding: 4,
+                height: "auto",
+                minHeight: "30px",
+                border: "none",
+                backgroundColor: "transparent",
+                "&:hover": {
+                  backgroundColor: "transparent",
+                },
+                "&:focus": {
+                  backgroundColor: "transparent",
+                  border: "1px solid",
+                  borderColor: mode.border.focus,
+                },
+              },
+            }}
           />
         </Box>
       );
@@ -532,49 +615,52 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
 
     // No completion - show popover to add one
     return (
-      <Popover.Root open={isOpen} onOpenChange={e => setIsOpen(e.open)}>
-        <PopoverTrigger asChild>
+      <Popover opened={isOpen} onChange={setIsOpen}>
+        <Popover.Target>
           <Box
-            as="button"
+            component="button"
             onClick={() => setIsOpen(true)}
-            p={0}
-            m={0}
-            w="100%"
-            h="100%"
-            minH="40px"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            bg={cellBg}
-            _hover={{ bg: mode.bg.muted }}
-            cursor="pointer"
-            border="none"
-            outline="none"
-            boxShadow="none"
-            _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-            _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
+            style={{
+              padding: 0,
+              margin: 0,
+              width: "100%",
+              height: "100%",
+              minHeight: "40px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: cellBg,
+              cursor: "pointer",
+              border: "none",
+              outline: "none",
+              boxShadow: "none",
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = mode.bg.muted;
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = cellBg;
+            }}
           />
-        </PopoverTrigger>
-        <Popover.Positioner>
-          <PopoverContent>
-            <CellEditorPopover
-              task={task}
-              date={date}
-              completion={completion}
-              isScheduled={isScheduled}
-              onSave={data => {
-                onUpdate(data);
-                setIsOpen(false);
-              }}
-              onDelete={() => {
-                onDelete();
-                setIsOpen(false);
-              }}
-              onClose={() => setIsOpen(false)}
-            />
-          </PopoverContent>
-        </Popover.Positioner>
-      </Popover.Root>
+        </Popover.Target>
+        <Popover.Dropdown>
+          <CellEditorPopover
+            task={task}
+            date={date}
+            completion={completion}
+            isScheduled={isScheduled}
+            onSave={data => {
+              onUpdate(data);
+              setIsOpen(false);
+            }}
+            onDelete={() => {
+              onDelete();
+              setIsOpen(false);
+            }}
+            onClose={() => setIsOpen(false)}
+          />
+        </Popover.Dropdown>
+      </Popover>
     );
   }
 
@@ -587,39 +673,55 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
     return (
       <>
         <Box
-          as="button"
+          component="button"
           onClick={handleWorkoutClick}
-          w="100%"
-          h="100%"
-          minH="40px"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          bg={cellBg}
-          _hover={{ bg: mode.bg.muted }}
-          cursor="pointer"
-          border="none"
-          outline="none"
-          boxShadow="none"
-          _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-          _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
+          style={{
+            width: "100%",
+            height: "100%",
+            minHeight: "40px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: cellBg,
+            cursor: "pointer",
+            border: "none",
+            outline: "none",
+            boxShadow: "none",
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.backgroundColor = mode.bg.muted;
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.backgroundColor = cellBg;
+          }}
         >
           {completion?.outcome === "completed" ? (
-            <Checkbox.Root checked={true} size="md">
-              <Checkbox.HiddenInput />
-              <Checkbox.Control
-                bg="white"
-                boxShadow="none"
-                outline="none"
-                border="none"
-                _focus={{ boxShadow: "none", outline: "none" }}
-                _focusVisible={{ boxShadow: "none", outline: "none" }}
-              >
-                <Checkbox.Indicator>
-                  <Check size={14} />
-                </Checkbox.Indicator>
-              </Checkbox.Control>
-            </Checkbox.Root>
+            <Checkbox
+              checked={true}
+              size="md"
+              icon={() => <Check size={14} strokeWidth={3} />}
+              styles={{
+                input: {
+                  backgroundColor: "white",
+                  boxShadow: "none",
+                  outline: "none",
+                  border: "none",
+                  "&:focus": {
+                    boxShadow: "none",
+                    outline: "none",
+                  },
+                  "&:focusVisible": {
+                    boxShadow: "none",
+                    outline: "none",
+                  },
+                },
+                icon: {
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                },
+              }}
+            />
           ) : (
             <Dumbbell size={18} />
           )}
@@ -642,51 +744,54 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
   // Handle checkbox completion type (default)
   // Always render a clickable cell to allow adding completions to non-scheduled days
   return (
-    <Popover.Root open={isOpen} onOpenChange={e => setIsOpen(e.open)}>
-      <PopoverTrigger asChild>
+    <Popover opened={isOpen} onChange={setIsOpen}>
+      <Popover.Target>
         <Box
-          as="button"
+          component="button"
           onClick={() => setIsOpen(true)}
-          p={0}
-          m={0}
-          w="100%"
-          h="100%"
-          minH="40px"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          bg={cellBg}
-          _hover={{ bg: mode.bg.muted }}
-          cursor="pointer"
-          border="none"
-          outline="none"
-          boxShadow="none"
-          _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-          _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
+          style={{
+            padding: 0,
+            margin: 0,
+            width: "100%",
+            height: "100%",
+            minHeight: "40px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: cellBg,
+            cursor: "pointer",
+            border: "none",
+            outline: "none",
+            boxShadow: "none",
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.backgroundColor = mode.bg.muted;
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.backgroundColor = cellBg;
+          }}
         >
           {cellContent}
         </Box>
-      </PopoverTrigger>
-      <Popover.Positioner>
-        <PopoverContent>
-          <CellEditorPopover
-            task={task}
-            date={date}
-            completion={completion}
-            isScheduled={isScheduled}
-            onSave={data => {
-              onUpdate(data);
-              setIsOpen(false);
-            }}
-            onDelete={() => {
-              onDelete();
-              setIsOpen(false);
-            }}
-            onClose={() => setIsOpen(false)}
-          />
-        </PopoverContent>
-      </Popover.Positioner>
-    </Popover.Root>
+      </Popover.Target>
+      <Popover.Dropdown>
+        <CellEditorPopover
+          task={task}
+          date={date}
+          completion={completion}
+          isScheduled={isScheduled}
+          onSave={data => {
+            onUpdate(data);
+            setIsOpen(false);
+          }}
+          onDelete={() => {
+            onDelete();
+            setIsOpen(false);
+          }}
+          onClose={() => setIsOpen(false)}
+        />
+      </Popover.Dropdown>
+    </Popover>
   );
 };
 
@@ -731,17 +836,14 @@ export const RecurringTableView = ({
     return () => cancelAnimationFrame(frame1);
   }, []);
 
-  const rangeCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "This Week", value: "week" },
-          { label: "This Month", value: "month" },
-          { label: "This Year", value: "year" },
-          { label: "Current Year", value: "currentYear" },
-          { label: "All Time", value: "all" },
-        ],
-      }),
+  const rangeOptions = useMemo(
+    () => [
+      { label: "This Week", value: "week" },
+      { label: "This Month", value: "month" },
+      { label: "This Year", value: "year" },
+      { label: "Current Year", value: "currentYear" },
+      { label: "All Time", value: "all" },
+    ],
     []
   );
 
@@ -895,7 +997,9 @@ export const RecurringTableView = ({
   // Show loading spinner while data is loading
   if (isPending) {
     return (
-      <Box h="100%" display="flex" alignItems="center" justifyContent="center" overflow="hidden">
+      <Box
+        style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}
+      >
         <LoadingSpinner size="xl" />
       </Box>
     );
@@ -903,9 +1007,9 @@ export const RecurringTableView = ({
 
   if (recurringTasks.length === 0) {
     return (
-      <Box p={8} textAlign="center">
-        <Text color={mode.text.secondary}>No recurring tasks found.</Text>
-        <Text fontSize="sm" color={mode.text.muted} mt={2}>
+      <Box style={{ padding: 32, textAlign: "center" }}>
+        <Text c={mode.text.secondary}>No recurring tasks found.</Text>
+        <Text size="sm" c={mode.text.muted} style={{ marginTop: 8 }}>
           Create recurring tasks to see them in this view.
         </Text>
       </Box>
@@ -1018,171 +1122,223 @@ export const RecurringTableView = ({
   };
 
   return (
-    <Box h="100%" display="flex" flexDirection="column" overflow="hidden">
+    <Box style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Header with title and date range */}
-      <Box p={4} borderBottomWidth="1px" borderColor={borderColor}>
-        <Text fontSize="xl" fontWeight="bold" mb={2}>
+      <Box
+        style={{ padding: 16, borderBottomWidth: "1px", borderBottomColor: borderColor, borderBottomStyle: "solid" }}
+      >
+        <Text size="xl" fw={700} style={{ marginBottom: 8 }}>
           Recurring Tasks
         </Text>
-        <Text fontSize="sm" color={mode.text.secondary}>
+        <Text size="sm" c={mode.text.secondary}>
           {getDateRangeDisplay()}
         </Text>
       </Box>
 
       {/* Controls */}
-      <Box p={4} borderBottomWidth="1px" borderColor={borderColor}>
-        <VStack gap={3} align="stretch">
+      <Box
+        style={{ padding: 16, borderBottomWidth: "1px", borderBottomColor: borderColor, borderBottomStyle: "solid" }}
+      >
+        <Stack gap={12} align="stretch">
           {/* Navigation and Today button */}
-          <Flex align="center" gap={2} flexWrap="wrap">
+          <Flex align="center" gap={8} wrap="wrap">
             <Button variant="outline" size="sm" onClick={handleToday}>
               Today
             </Button>
-            <IconButton onClick={handlePreviousDay} variant="ghost" aria-label="Previous" size="sm">
-              <Box as="span" color="currentColor">
-                <ChevronLeft size={14} stroke="currentColor" />
-              </Box>
-            </IconButton>
-            <IconButton onClick={handleNextDay} variant="ghost" aria-label="Next" size="sm">
-              <Box as="span" color="currentColor">
-                <ChevronRight size={14} stroke="currentColor" />
-              </Box>
-            </IconButton>
+            <ActionIcon onClick={handlePreviousDay} variant="subtle" aria-label="Previous" size="sm">
+              <ChevronLeft size={14} stroke="currentColor" />
+            </ActionIcon>
+            <ActionIcon onClick={handleNextDay} variant="subtle" aria-label="Next" size="sm">
+              <ChevronRight size={14} stroke="currentColor" />
+            </ActionIcon>
 
             {/* Preset Range Selector */}
-            <HStack gap={2} flex={1}>
-              <Text fontSize="sm" fontWeight="medium" color={mode.text.primary} minW="fit-content">
+            <Group gap={8} style={{ flex: 1 }}>
+              <Text size="sm" fw={500} c={mode.text.primary} style={{ minWidth: "fit-content" }}>
                 Preset:
               </Text>
               <SelectDropdown
-                collection={rangeCollection}
-                value={[range]}
-                onValueChange={({ value }) => handleRangeChange(value[0])}
+                data={rangeOptions}
+                value={range}
+                onChange={handleRangeChange}
                 placeholder="Select range"
                 size="sm"
-                w="150px"
+                width="150px"
               />
-            </HStack>
+            </Group>
 
             {/* Pagination for preset ranges */}
             {!useCustomRange && totalPages > 1 && (
-              <HStack gap={2}>
-                <Text fontSize="sm" color={mode.text.secondary}>
+              <Group gap={8}>
+                <Text size="sm" c={mode.text.secondary}>
                   Page {page + 1} of {totalPages}
                 </Text>
-              </HStack>
+              </Group>
             )}
           </Flex>
 
           {/* Custom Date Range Pickers */}
-          <Flex align="center" gap={2} flexWrap="wrap">
-            <Text fontSize="sm" fontWeight="medium" color={mode.text.primary} minW="fit-content">
+          <Flex align="center" gap={8} wrap="wrap">
+            <Text size="sm" fw={500} c={mode.text.primary} style={{ minWidth: "fit-content" }}>
               Custom Range:
             </Text>
-            <HStack gap={2}>
-              <Text fontSize="sm" color={mode.text.secondary}>
+            <Group gap={8}>
+              <Text size="sm" c={mode.text.secondary}>
                 From
               </Text>
-              <Input
+              <TextInput
                 type="date"
                 value={formatDateInput(customStartDate)}
                 onChange={handleStartDateChange}
                 size="sm"
-                variant="outline"
-                cursor="pointer"
-                w="150px"
-                sx={{
-                  "&::-webkit-calendar-picker-indicator": {
+                variant="default"
+                style={{ width: "150px", cursor: "pointer" }}
+                styles={{
+                  input: {
                     cursor: "pointer",
+                    "&::-webkit-calendar-picker-indicator": {
+                      cursor: "pointer",
+                    },
                   },
                 }}
               />
-              <Text fontSize="sm" color={mode.text.secondary}>
+              <Text size="sm" c={mode.text.secondary}>
                 To
               </Text>
-              <Input
+              <TextInput
                 type="date"
                 value={formatDateInput(customEndDate)}
                 onChange={handleEndDateChange}
                 size="sm"
-                variant="outline"
-                cursor="pointer"
-                w="150px"
-                sx={{
-                  "&::-webkit-calendar-picker-indicator": {
+                variant="default"
+                style={{ width: "150px", cursor: "pointer" }}
+                styles={{
+                  input: {
                     cursor: "pointer",
+                    "&::-webkit-calendar-picker-indicator": {
+                      cursor: "pointer",
+                    },
                   },
                 }}
               />
-            </HStack>
+            </Group>
           </Flex>
-        </VStack>
+        </Stack>
       </Box>
 
       {/* Table */}
-      <Box flex={1} overflow="auto">
-        <Table.Root variant="simple" size="sm">
-          <Table.Header bg={headerBg} position="sticky" top={0} zIndex={10}>
-            <Table.Row>
+      <Box style={{ flex: 1, overflow: "auto" }}>
+        <Table size="sm" style={{ borderCollapse: "collapse" }}>
+          <Table.Thead
+            style={{
+              background: headerBg,
+              position: "sticky",
+              top: 0,
+              zIndex: 10,
+            }}
+          >
+            <Table.Tr>
               {/* Date column */}
-              <Table.ColumnHeader
-                position={{ base: "relative", md: "sticky" }}
-                left={{ base: "auto", md: 0 }}
-                zIndex={{ base: "auto", md: 11 }}
-                bg={headerBg}
-                minW="150px"
-                borderRightWidth="2px"
-                borderColor={borderColor}
-                borderWidth="1px"
-                borderLeftWidth="1px"
-                px={3}
-                py={2}
+              <Table.Th
+                style={{
+                  position: "sticky",
+                  left: 0,
+                  zIndex: 11,
+                  background: headerBg,
+                  minWidth: "150px",
+                  borderRightWidth: "2px",
+                  borderRightColor: borderColor,
+                  borderRightStyle: "solid",
+                  borderWidth: "1px",
+                  borderLeftWidth: "1px",
+                  borderLeftColor: borderColor,
+                  borderLeftStyle: "solid",
+                  borderTopWidth: "1px",
+                  borderTopColor: borderColor,
+                  borderTopStyle: "solid",
+                  borderBottomWidth: "1px",
+                  borderBottomColor: borderColor,
+                  borderBottomStyle: "solid",
+                  paddingLeft: 12,
+                  paddingRight: 12,
+                  paddingTop: 8,
+                  paddingBottom: 8,
+                }}
               >
                 Date
-              </Table.ColumnHeader>
+              </Table.Th>
               {/* Task columns grouped by section */}
               {groupedTasks.map(({ section, tasks: sectionTasks }) => (
-                <Table.ColumnHeader
+                <Table.Th
                   key={section.id}
                   colSpan={sectionTasks.length}
-                  bg={sectionHeaderBg}
-                  textAlign="center"
-                  fontWeight="bold"
-                  borderWidth="1px"
-                  borderColor={borderColor}
-                  borderLeftWidth="0"
-                  borderTopWidth="1px"
-                  px={2}
-                  py={2}
+                  style={{
+                    background: sectionHeaderBg,
+                    textAlign: "center",
+                    fontWeight: 700,
+                    borderWidth: "1px",
+                    borderColor: borderColor,
+                    borderLeftWidth: 0,
+                    borderTopWidth: "1px",
+                    borderTopColor: borderColor,
+                    borderTopStyle: "solid",
+                    borderRightWidth: "1px",
+                    borderRightColor: borderColor,
+                    borderRightStyle: "solid",
+                    borderBottomWidth: "1px",
+                    borderBottomColor: borderColor,
+                    borderBottomStyle: "solid",
+                    paddingLeft: 8,
+                    paddingRight: 8,
+                    paddingTop: 8,
+                    paddingBottom: 8,
+                  }}
                 >
                   {section.name}
-                </Table.ColumnHeader>
+                </Table.Th>
               ))}
-            </Table.Row>
+            </Table.Tr>
             {/* Task header row */}
-            <Table.Row>
-              <Table.ColumnHeader
-                position={{ base: "relative", md: "sticky" }}
-                left={{ base: "auto", md: 0 }}
-                zIndex={{ base: "auto", md: 11 }}
-                bg={headerBg}
-                borderRightWidth="2px"
-                borderColor={borderColor}
-                borderWidth="1px"
-                borderLeftWidth="1px"
-                borderTopWidth="0"
+            <Table.Tr>
+              <Table.Th
+                style={{
+                  position: "sticky",
+                  left: 0,
+                  zIndex: 11,
+                  background: headerBg,
+                  borderRightWidth: "2px",
+                  borderRightColor: borderColor,
+                  borderRightStyle: "solid",
+                  borderWidth: "1px",
+                  borderLeftWidth: "1px",
+                  borderLeftColor: borderColor,
+                  borderLeftStyle: "solid",
+                  borderTopWidth: 0,
+                  borderBottomWidth: "1px",
+                  borderBottomColor: borderColor,
+                  borderBottomStyle: "solid",
+                }}
               />
               {groupedTasks.map(({ section: _section, tasks: sectionTasks }) =>
                 sectionTasks.map(task => (
-                  <Table.ColumnHeader
+                  <Table.Th
                     key={task.id}
-                    minW="100px"
-                    maxW="150px"
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                    borderLeftWidth="0"
-                    borderTopWidth="0"
-                    p={0}
-                    overflow="hidden"
+                    style={{
+                      minWidth: "100px",
+                      maxWidth: "150px",
+                      borderWidth: "1px",
+                      borderColor: borderColor,
+                      borderLeftWidth: 0,
+                      borderTopWidth: 0,
+                      borderRightWidth: "1px",
+                      borderRightColor: borderColor,
+                      borderRightStyle: "solid",
+                      borderBottomWidth: "1px",
+                      borderBottomColor: borderColor,
+                      borderBottomStyle: "solid",
+                      padding: 0,
+                      overflow: "hidden",
+                    }}
                   >
                     <TaskColumnHeader
                       task={task}
@@ -1194,54 +1350,79 @@ export const RecurringTableView = ({
                       onTagsChange={onTagsChange}
                       onCreateTag={onCreateTag}
                     />
-                  </Table.ColumnHeader>
+                  </Table.Th>
                 ))
               )}
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
             {dates.map(date => {
               const isTodayDate = isToday(date);
               return (
-                <Table.Row
+                <Table.Tr
                   key={date.toISOString()}
-                  bg={isTodayDate ? todayRowBg : "transparent"}
-                  _hover={{ bg: mode.bg.muted }}
+                  style={{
+                    background: isTodayDate ? todayRowBg : "transparent",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = mode.bg.muted;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = isTodayDate ? todayRowBg : "transparent";
+                  }}
                 >
                   {/* Date cell */}
-                  <Table.Cell
-                    position={{ base: "relative", md: "sticky" }}
-                    left={{ base: "auto", md: 0 }}
-                    zIndex={{ base: "auto", md: 9 }}
-                    bg={isTodayDate ? todayRowBg : bgColor}
-                    borderRightWidth="2px"
-                    borderColor={borderColor}
-                    borderWidth="1px"
-                    borderLeftWidth="1px"
-                    borderTopWidth="0"
-                    fontWeight={isTodayDate ? "bold" : "normal"}
-                    px={3}
-                    py={2}
+                  <Table.Td
+                    style={{
+                      position: "sticky",
+                      left: 0,
+                      zIndex: 9,
+                      background: isTodayDate ? todayRowBg : bgColor,
+                      borderRightWidth: "2px",
+                      borderRightColor: borderColor,
+                      borderRightStyle: "solid",
+                      borderWidth: "1px",
+                      borderLeftWidth: "1px",
+                      borderLeftColor: borderColor,
+                      borderLeftStyle: "solid",
+                      borderTopWidth: 0,
+                      borderBottomWidth: "1px",
+                      borderBottomColor: borderColor,
+                      borderBottomStyle: "solid",
+                      fontWeight: isTodayDate ? 700 : 400,
+                      paddingLeft: 12,
+                      paddingRight: 12,
+                      paddingTop: 8,
+                      paddingBottom: 8,
+                    }}
                   >
                     {formatDateDisplay(date)}
-                  </Table.Cell>
+                  </Table.Td>
                   {/* Task cells */}
                   {groupedTasks.map(({ section: _section, tasks: sectionTasks }) =>
                     sectionTasks.map(task => {
                       const isScheduled = shouldShowOnDate(task, date);
                       const completion = getCompletionForTaskDate(deferredCompletions, task.id, date);
                       return (
-                        <Table.Cell
+                        <Table.Td
                           key={task.id}
-                          p={0}
-                          borderWidth="1px"
-                          borderColor={borderColor}
-                          borderLeftWidth="0"
-                          borderTopWidth="0"
-                          textAlign="center"
-                          verticalAlign="middle"
-                          position="relative"
-                          minW="150px"
+                          style={{
+                            padding: 0,
+                            borderWidth: "1px",
+                            borderColor: borderColor,
+                            borderLeftWidth: 0,
+                            borderTopWidth: 0,
+                            borderRightWidth: "1px",
+                            borderRightColor: borderColor,
+                            borderRightStyle: "solid",
+                            borderBottomWidth: "1px",
+                            borderBottomColor: borderColor,
+                            borderBottomStyle: "solid",
+                            textAlign: "center",
+                            verticalAlign: "middle",
+                            position: "relative",
+                            minWidth: "150px",
+                          }}
                         >
                           <TableCell
                             task={task}
@@ -1252,15 +1433,15 @@ export const RecurringTableView = ({
                             onDelete={() => handleCellDelete(task.id, date)}
                             onSaveWorkoutProgress={handleSaveWorkoutProgress}
                           />
-                        </Table.Cell>
+                        </Table.Td>
                       );
                     })
                   )}
-                </Table.Row>
+                </Table.Tr>
               );
             })}
-          </Table.Body>
-        </Table.Root>
+          </Table.Tbody>
+        </Table>
       </Box>
     </Box>
   );

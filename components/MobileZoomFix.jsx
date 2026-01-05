@@ -14,12 +14,10 @@ export function MobileZoomFix() {
     style.id = styleId;
     style.textContent = `
       @media (max-width: 768px) {
-        /* Chakra UI Input field */
-        [data-part='field'] {
-          font-size: 16px !important;
-        }
-        /* Chakra UI Select trigger (excluding tabs) */
-        [data-part='trigger']:not([data-scope='tabs']) {
+        /* Mantine form inputs */
+        input[data-mantine-input],
+        textarea[data-mantine-input],
+        select[data-mantine-input] {
           font-size: 16px !important;
         }
         /* Native HTML form elements */

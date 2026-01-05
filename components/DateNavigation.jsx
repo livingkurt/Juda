@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Box, Button, IconButton, Text, Flex, Input, Badge, VStack } from "@chakra-ui/react";
+import { Box, Button, ActionIcon, Text, Flex, TextInput, Badge, Stack } from "@mantine/core";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { SelectDropdown } from "./SelectDropdown";
@@ -18,7 +18,7 @@ export const DateNavigation = memo(function DateNavigation({
   twoRowLayout = false,
   // View selector props
   showViewSelector = false,
-  viewCollection = null,
+  viewData = null,
   selectedView = null,
   onViewChange = null,
   viewSelectorWidth = 24,
@@ -74,172 +74,142 @@ export const DateNavigation = memo(function DateNavigation({
   if (twoRowLayout) {
     return (
       <Box
-        p={{ base: 2, md: 4 }}
-        borderRadius="lg"
-        bg={isToday ? bgColor : warningBg}
-        borderWidth="1px"
-        borderColor={isToday ? borderColor : warningBorder}
-        transition="all 0.2s"
-        w="100%"
-        maxW="100%"
-        overflow="hidden"
+        p={[8, 16]}
+        style={{
+          borderRadius: "0.5rem",
+          background: isToday ? bgColor : warningBg,
+          border: `1px solid ${isToday ? borderColor : warningBorder}`,
+          transition: "all 0.2s",
+          width: "100%",
+          maxWidth: "100%",
+          overflow: "hidden",
+        }}
       >
-        <VStack align="stretch" spacing={2}>
+        <Stack gap={8}>
           {/* First Row: Navigation Controls + View Selector */}
-          <Flex align="center" gap={{ base: 1.5, md: 2 }} w="100%">
-            <Button variant="outline" size="sm" onClick={onToday} flexShrink={0}>
+          <Flex align="center" gap={[6, 8]} style={{ width: "100%" }}>
+            <Button variant="outline" size="sm" onClick={onToday} style={{ flexShrink: 0 }}>
               Today
             </Button>
-            <IconButton onClick={onPrevious} variant="ghost" aria-label="Previous" size="sm" flexShrink={0}>
-              <Box as="span" color="currentColor">
-                <ChevronLeft size={14} stroke="currentColor" />
-              </Box>
-            </IconButton>
-            <IconButton onClick={onNext} variant="ghost" aria-label="Next" size="sm" flexShrink={0}>
-              <Box as="span" color="currentColor">
-                <ChevronRight size={14} stroke="currentColor" />
-              </Box>
-            </IconButton>
+            <ActionIcon onClick={onPrevious} variant="subtle" aria-label="Previous" size="sm" style={{ flexShrink: 0 }}>
+              <ChevronLeft size={14} stroke="currentColor" />
+            </ActionIcon>
+            <ActionIcon onClick={onNext} variant="subtle" aria-label="Next" size="sm" style={{ flexShrink: 0 }}>
+              <ChevronRight size={14} stroke="currentColor" />
+            </ActionIcon>
             {/* Spacer */}
-            <Box flex={1} />
+            <Box style={{ flex: 1 }} />
             {/* View Selector on the right */}
-            {showViewSelector && viewCollection && selectedView && onViewChange && (
+            {showViewSelector && viewData && selectedView && onViewChange && (
               <SelectDropdown
-                collection={viewCollection}
-                value={[selectedView]}
-                onValueChange={({ value }) => onViewChange(value[0])}
+                data={viewData}
+                value={selectedView}
+                onChange={onViewChange}
                 placeholder="View"
                 size="sm"
-                w={viewSelectorWidth}
-                showIndicator={true}
+                style={{ width: viewSelectorWidth }}
               />
             )}
           </Flex>
 
           {/* Second Row: Centered Date Picker */}
           {showDatePicker && (
-            <Box w="100%" display="flex" justifyContent="center">
-              <Input
+            <Box style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+              <TextInput
                 type="date"
                 value={formatDateInput(selectedDate)}
                 onChange={handleDateInputChange}
                 size="sm"
                 variant="outline"
-                cursor="pointer"
-                w="auto"
-                minW="150px"
-                textAlign="center"
-                borderWidth="1px"
-                borderColor={borderColor}
-                _hover={{ borderColor: mode.border.hover }}
-                _focus={{ borderColor: mode.border.focus, boxShadow: `0 0 0 1px ${mode.border.focus}` }}
-                sx={{
-                  "&::-webkit-calendar-picker-indicator": {
-                    cursor: "pointer",
-                  },
+                style={{
+                  cursor: "pointer",
+                  width: "auto",
+                  minWidth: "150px",
+                  textAlign: "center",
                 }}
               />
             </Box>
           )}
-        </VStack>
+        </Stack>
       </Box>
     );
   }
 
   return (
     <Box
-      p={{ base: 2, md: 4 }}
-      borderRadius="lg"
-      bg={isToday ? bgColor : warningBg}
-      borderWidth="1px"
-      borderColor={isToday ? borderColor : warningBorder}
-      transition="all 0.2s"
-      w="100%"
-      maxW="100%"
-      overflow="hidden"
+      p={[8, 16]}
+      style={{
+        borderRadius: "0.5rem",
+        background: isToday ? bgColor : warningBg,
+        border: `1px solid ${isToday ? borderColor : warningBorder}`,
+        transition: "all 0.2s",
+        width: "100%",
+        maxWidth: "100%",
+        overflow: "hidden",
+      }}
     >
-      <Flex align="center" gap={{ base: 1.5, md: 2 }} w="100%" maxW="100%" flexWrap={{ base: "wrap", md: "nowrap" }}>
-        <Button variant="outline" size="sm" onClick={onToday} flexShrink={0}>
+      <Flex align="center" gap={[6, 8]} style={{ width: "100%", maxWidth: "100%", flexWrap: "wrap" }}>
+        <Button variant="outline" size="sm" onClick={onToday} style={{ flexShrink: 0 }}>
           Today
         </Button>
-        <IconButton onClick={onPrevious} variant="ghost" aria-label="Previous" size="sm" flexShrink={0}>
-          <Box as="span" color="currentColor">
-            <ChevronLeft size={14} stroke="currentColor" />
-          </Box>
-        </IconButton>
-        <IconButton onClick={onNext} variant="ghost" aria-label="Next" size="sm" flexShrink={0}>
-          <Box as="span" color="currentColor">
-            <ChevronRight size={14} stroke="currentColor" />
-          </Box>
-        </IconButton>
+        <ActionIcon onClick={onPrevious} variant="subtle" aria-label="Previous" size="sm" style={{ flexShrink: 0 }}>
+          <ChevronLeft size={14} stroke="currentColor" />
+        </ActionIcon>
+        <ActionIcon onClick={onNext} variant="subtle" aria-label="Next" size="sm" style={{ flexShrink: 0 }}>
+          <ChevronRight size={14} stroke="currentColor" />
+        </ActionIcon>
         {/* Spacer to center date picker when view selector is shown */}
-        {showViewSelector && showDatePicker && <Box flex={1} />}
+        {showViewSelector && showDatePicker && <Box style={{ flex: 1 }} />}
         {showDatePicker && (
-          <Box display="flex" justifyContent="center" alignItems="center" flexShrink={0}>
-            <Input
+          <Box style={{ display: "flex", justifyContent: "center", alignItems: "center", flexShrink: 0 }}>
+            <TextInput
               type="date"
               value={formatDateInput(selectedDate)}
               onChange={handleDateInputChange}
               size="sm"
               variant="outline"
-              cursor="pointer"
-              w="auto"
-              minW="150px"
-              textAlign="center"
-              borderWidth="1px"
-              borderColor={borderColor}
-              _hover={{ borderColor: mode.border.hover }}
-              _focus={{ borderColor: mode.border.focus, boxShadow: `0 0 0 1px ${mode.border.focus}` }}
-              sx={{
-                "&::-webkit-calendar-picker-indicator": {
-                  cursor: "pointer",
-                },
+              style={{
+                cursor: "pointer",
+                width: "auto",
+                minWidth: "150px",
+                textAlign: "center",
               }}
             />
           </Box>
         )}
         {title && (
-          <Text fontSize="sm" fontWeight="medium" minW="120px" display={{ base: "none", md: "block" }}>
+          <Text size="sm" fw={500} style={{ minWidth: "120px", display: "none" }} visibleFrom="md">
             {title}
           </Text>
         )}
         {showDateDisplay && (
-          <Flex align="center" gap={2} minW={{ base: 0, md: "120px" }} flexShrink={{ base: 1, md: 0 }}>
-            <Text fontSize="sm" fontWeight="medium" color={isToday ? textColor : warningText}>
+          <Flex align="center" gap={8} style={{ minWidth: "120px", flexShrink: 0 }}>
+            <Text size="sm" fw={500} c={isToday ? textColor : warningText}>
               {formatDateDisplay(selectedDate)}
             </Text>
             {isPast && (
-              <Badge
-                colorPalette={badges.past.colorPalette}
-                fontSize="xs"
-                display={{ base: "none", md: "inline-flex" }}
-              >
+              <Badge color={badges.past.colorPalette} size="xs" style={{ display: "none" }} visibleFrom="md">
                 Past Date
               </Badge>
             )}
             {isFuture && (
-              <Badge
-                colorPalette={badges.future.colorPalette}
-                fontSize="xs"
-                display={{ base: "none", md: "inline-flex" }}
-              >
+              <Badge color={badges.future.colorPalette} size="xs" style={{ display: "none" }} visibleFrom="md">
                 Future Date
               </Badge>
             )}
           </Flex>
         )}
         {/* Spacer to push view selector to the end */}
-        {showViewSelector && <Box flex={1} />}
+        {showViewSelector && <Box style={{ flex: 1 }} />}
         {/* View Selector on the right */}
-        {showViewSelector && viewCollection && selectedView && onViewChange && (
+        {showViewSelector && viewData && selectedView && onViewChange && (
           <SelectDropdown
-            collection={viewCollection}
-            value={[selectedView]}
-            onValueChange={({ value }) => onViewChange(value[0])}
+            data={viewData}
+            value={selectedView}
+            onChange={onViewChange}
             placeholder="View"
             size="sm"
             w={viewSelectorWidth}
-            showIndicator={true}
           />
         )}
       </Flex>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, MenuItem, IconButton, HStack, Text } from "@chakra-ui/react";
+import { Menu, ActionIcon, Group, Text } from "@mantine/core";
 import { Check, X, Circle } from "lucide-react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
@@ -13,11 +13,11 @@ export const TaskOutcomeMenu = ({ taskId, date, currentOutcome, onSelectOutcome,
   const getButtonProps = () => {
     switch (currentOutcome) {
       case "completed":
-        return { icon: <Check size={16} />, colorScheme: "green", variant: "solid" };
+        return { icon: <Check size={16} />, color: "green", variant: "filled" };
       case "not_completed":
-        return { icon: <X size={16} />, colorScheme: "red", variant: "outline" };
+        return { icon: <X size={16} />, color: "red", variant: "outline" };
       default:
-        return { icon: <Circle size={16} />, colorScheme: "gray", variant: "ghost" };
+        return { icon: <Circle size={16} />, color: "gray", variant: "subtle" };
     }
   };
 
@@ -33,41 +33,56 @@ export const TaskOutcomeMenu = ({ taskId, date, currentOutcome, onSelectOutcome,
   };
 
   return (
-    <Menu.Root isLazy placement="bottom-start">
-      <Menu.Trigger asChild>
-        <IconButton
-          icon={buttonProps.icon}
-          colorScheme={buttonProps.colorScheme}
-          variant={buttonProps.variant}
+    <Menu>
+      <Menu.Target>
+        <ActionIcon
           size={size}
+          color={buttonProps.color}
+          variant={buttonProps.variant}
           aria-label="Set task outcome"
-          borderRadius="full"
-        />
-      </Menu.Trigger>
-      <Menu.Positioner>
-        <Menu.Content bg={menuBg} minW="150px">
-          <MenuItem
-            onClick={() => handleSelect("completed")}
-            _hover={{ bg: hoverBg }}
-            fontWeight={currentOutcome === "completed" ? "bold" : "normal"}
-          >
-            <HStack>
-              <Check size={16} />
-              <Text>Completed</Text>
-            </HStack>
-          </MenuItem>
-          <MenuItem
-            onClick={() => handleSelect("not_completed")}
-            _hover={{ bg: hoverBg }}
-            fontWeight={currentOutcome === "not_completed" ? "bold" : "normal"}
-          >
-            <HStack>
-              <X size={16} />
-              <Text>Not Completed</Text>
-            </HStack>
-          </MenuItem>
-        </Menu.Content>
-      </Menu.Positioner>
-    </Menu.Root>
+          radius="xl"
+        >
+          {buttonProps.icon}
+        </ActionIcon>
+      </Menu.Target>
+      <Menu.Dropdown bg={menuBg} style={{ minWidth: "150px" }}>
+        <Menu.Item
+          onClick={() => handleSelect("completed")}
+          style={{
+            backgroundColor: currentOutcome === "completed" ? hoverBg : "transparent",
+            fontWeight: currentOutcome === "completed" ? "bold" : "normal",
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.backgroundColor = hoverBg;
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.backgroundColor = currentOutcome === "completed" ? hoverBg : "transparent";
+          }}
+        >
+          <Group gap={8}>
+            <Check size={16} />
+            <Text>Completed</Text>
+          </Group>
+        </Menu.Item>
+        <Menu.Item
+          onClick={() => handleSelect("not_completed")}
+          style={{
+            backgroundColor: currentOutcome === "not_completed" ? hoverBg : "transparent",
+            fontWeight: currentOutcome === "not_completed" ? "bold" : "normal",
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.backgroundColor = hoverBg;
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.backgroundColor = currentOutcome === "not_completed" ? hoverBg : "transparent";
+          }}
+        >
+          <Group gap={8}>
+            <X size={16} />
+            <Text>Not Completed</Text>
+          </Group>
+        </Menu.Item>
+      </Menu.Dropdown>
+    </Menu>
   );
 };

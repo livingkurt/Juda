@@ -1,19 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import {
-  Box,
-  Flex,
-  VStack,
-  HStack,
-  Text,
-  Heading,
-  IconButton,
-  Button,
-  Input,
-  Badge,
-  Separator,
-} from "@chakra-ui/react";
+import { Box, Flex, Stack, Group, Text, Title, ActionIcon, Button, TextInput, Badge, Divider } from "@mantine/core";
 import {
   Plus,
   Folder,
@@ -30,6 +18,7 @@ import {
 import { useGetFoldersQuery, useCreateFolderMutation } from "@/lib/store/api/foldersApi.js";
 import { useGetSmartFoldersQuery, useCreateSmartFolderMutation } from "@/lib/store/api/smartFoldersApi.js";
 import { useAuth } from "@/hooks/useAuth";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { NoteEditor } from "./NoteEditor";
 import { promptUser } from "@/lib/prompt";
 
@@ -250,6 +239,14 @@ export const NotesView = ({
 
   const selectedNote = notes.find(n => n.id === selectedNoteId);
 
+  const { mode, selection } = useSemanticColors();
+  const bgColor = mode.bg.surface;
+  const sidebarBg = mode.bg.canvas;
+  const borderColor = mode.border.default;
+  const mutedText = mode.text.secondary;
+  const hoverBg = mode.bg.surfaceHover;
+  const selectedBg = selection.bg;
+
   const toggleFolderExpand = folderId => {
     setExpandedFolders(prev => {
       const next = new Set(prev);
@@ -285,13 +282,21 @@ export const NotesView = ({
       <Box key={folder.id}>
         <Flex
           align="center"
-          px={2}
-          py={1.5}
-          pl={2 + depth * 4}
-          cursor="pointer"
-          bg={{ base: isSelected ? "blue.50" : "transparent", _dark: isSelected ? "blue.900" : "transparent" }}
-          _hover={{ bg: { base: isSelected ? "blue.50" : "gray.100", _dark: isSelected ? "blue.900" : "gray.700" } }}
-          borderRadius="md"
+          style={{
+            paddingLeft: 8 + depth * 16,
+            paddingRight: 8,
+            paddingTop: 6,
+            paddingBottom: 6,
+            cursor: "pointer",
+            background: isSelected ? selectedBg : "transparent",
+            borderRadius: "var(--mantine-radius-md)",
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.backgroundColor = isSelected ? selectedBg : hoverBg;
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.backgroundColor = isSelected ? selectedBg : "transparent";
+          }}
           onClick={() => {
             setSelectedFolderId(folder.id);
             setSelectedSmartFolderId(null);
@@ -299,25 +304,26 @@ export const NotesView = ({
           }}
         >
           {hasChildren ? (
-            <IconButton
-              icon={isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <ActionIcon
               size="xs"
-              variant="ghost"
+              variant="subtle"
               onClick={e => {
                 e.stopPropagation();
                 toggleFolderExpand(folder.id);
               }}
               aria-label="Toggle folder"
-            />
+            >
+              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </ActionIcon>
           ) : (
-            <Box w={6} />
+            <Box style={{ width: 24 }} />
           )}
-          <Box as={Folder} size={16} color={folder.color} mr={2} />
-          <Text flex={1} fontSize="sm" fontWeight={isSelected ? "medium" : "normal"}>
+          <Folder size={16} style={{ color: folder.color, marginRight: 8 }} />
+          <Text style={{ flex: 1, fontSize: "var(--mantine-font-size-sm)", fontWeight: isSelected ? 500 : 400 }}>
             {folder.name}
           </Text>
           {noteCount > 0 && (
-            <Badge size="sm" colorScheme="gray" fontSize="2xs">
+            <Badge size="sm" color="gray" style={{ fontSize: "var(--mantine-font-size-xs)" }}>
               {noteCount}
             </Badge>
           )}
@@ -330,24 +336,27 @@ export const NotesView = ({
   // Mobile layout - show one panel at a time
   if (isMobile) {
     return (
-      <Flex h="100%" overflow="hidden" flexDirection="column">
+      <Flex style={{ height: "100%", overflow: "hidden", flexDirection: "column" }}>
         {/* Mobile: Folders View */}
         {mobileView === "folders" && (
-          <Box h="100%" display="flex" flexDirection="column" overflow="hidden">
+          <Box style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {/* Header */}
             <Flex
-              p={3}
-              align="center"
-              justify="space-between"
-              borderBottomWidth="1px"
-              borderColor={{ base: "gray.200", _dark: "gray.600" }}
-              bg={{ base: "gray.50", _dark: "gray.900" }}
+              style={{
+                padding: 12,
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderBottomWidth: "1px",
+                borderBottomColor: borderColor,
+                borderBottomStyle: "solid",
+                background: sidebarBg,
+              }}
             >
-              <Heading size="sm">Notes</Heading>
-              <HStack spacing={1}>
-                <IconButton
+              <Title size="sm">Notes</Title>
+              <Group gap={4}>
+                <ActionIcon
                   size="sm"
-                  variant="ghost"
+                  variant="subtle"
                   onClick={() => {
                     const name = promptUser("Folder name:");
                     if (name?.trim()) createFolder({ name: name.trim() });
@@ -355,50 +364,59 @@ export const NotesView = ({
                   aria-label="New Folder"
                 >
                   <FolderPlus size={16} />
-                </IconButton>
-                <IconButton size="sm" variant="ghost" colorScheme="blue" onClick={onCreateNote} aria-label="New Note">
+                </ActionIcon>
+                <ActionIcon size="sm" variant="subtle" color="blue" onClick={onCreateNote} aria-label="New Note">
                   <Plus size={16} />
-                </IconButton>
-              </HStack>
+                </ActionIcon>
+              </Group>
             </Flex>
 
             {/* Folder List */}
-            <Box flex={1} overflowY="auto" p={2} bg={{ base: "white", _dark: "gray.800" }}>
+            <Box style={{ flex: 1, overflowY: "auto", padding: 8, background: bgColor }}>
               {/* All Notes */}
               <Flex
                 align="center"
-                px={2}
-                py={1.5}
-                cursor="pointer"
-                bg={!selectedFolderId && !selectedSmartFolderId ? "blue.50" : "transparent"}
-                _dark={{ bg: !selectedFolderId && !selectedSmartFolderId ? "blue.900" : "transparent" }}
-                _hover={{
-                  bg: !selectedFolderId && !selectedSmartFolderId ? "blue.50" : "gray.100",
-                  _dark: { bg: !selectedFolderId && !selectedSmartFolderId ? "blue.900" : "gray.700" },
+                style={{
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  paddingTop: 6,
+                  paddingBottom: 6,
+                  cursor: "pointer",
+                  background: !selectedFolderId && !selectedSmartFolderId ? selectedBg : "transparent",
+                  borderRadius: "var(--mantine-radius-md)",
                 }}
-                borderRadius="md"
+                onMouseEnter={e => {
+                  e.currentTarget.style.backgroundColor =
+                    !selectedFolderId && !selectedSmartFolderId ? selectedBg : hoverBg;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.backgroundColor =
+                    !selectedFolderId && !selectedSmartFolderId ? selectedBg : "transparent";
+                }}
                 onClick={() => {
                   setSelectedFolderId(null);
                   setSelectedSmartFolderId(null);
                   setMobileView("notes");
                 }}
               >
-                <Box w={6} />
-                <Box as={FileText} size={16} mr={2} color={{ base: "gray.500", _dark: "gray.400" }} />
+                <Box style={{ width: 24 }} />
+                <FileText size={16} style={{ marginRight: 8, color: mutedText }} />
                 <Text
-                  flex={1}
-                  fontSize="sm"
-                  fontWeight={!selectedFolderId && !selectedSmartFolderId ? "medium" : "normal"}
+                  style={{
+                    flex: 1,
+                    fontSize: "var(--mantine-font-size-sm)",
+                    fontWeight: !selectedFolderId && !selectedSmartFolderId ? 500 : 400,
+                  }}
                 >
                   All Notes
                 </Text>
-                <ChevronRight size={16} color="gray" />
+                <ChevronRight size={16} style={{ color: mutedText }} />
               </Flex>
 
-              <Separator my={2} />
+              <Divider style={{ marginTop: 8, marginBottom: 8 }} />
 
               {/* Smart Folders */}
-              <Text fontSize="xs" fontWeight="bold" color={{ base: "gray.500", _dark: "gray.400" }} px={2} mb={1}>
+              <Text size="xs" fw={700} c="gray.6" style={{ paddingLeft: 8, paddingRight: 8, marginBottom: 4 }}>
                 SMART FOLDERS
               </Text>
               {smartFolders.map(sf => {
@@ -407,36 +425,43 @@ export const NotesView = ({
                   <Flex
                     key={sf.id}
                     align="center"
-                    px={2}
-                    py={1.5}
-                    cursor="pointer"
-                    bg={isSelected ? "blue.50" : "transparent"}
-                    _dark={{ bg: isSelected ? "blue.900" : "transparent" }}
-                    _hover={{
-                      bg: isSelected ? "blue.50" : "gray.100",
-                      _dark: { bg: isSelected ? "blue.900" : "gray.700" },
+                    style={{
+                      paddingLeft: 8,
+                      paddingRight: 8,
+                      paddingTop: 6,
+                      paddingBottom: 6,
+                      cursor: "pointer",
+                      background: isSelected ? selectedBg : "transparent",
+                      borderRadius: "var(--mantine-radius-md)",
                     }}
-                    borderRadius="md"
+                    onMouseEnter={e => {
+                      e.currentTarget.style.backgroundColor = isSelected ? selectedBg : hoverBg;
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.backgroundColor = isSelected ? selectedBg : "transparent";
+                    }}
                     onClick={() => {
                       setSelectedSmartFolderId(sf.id);
                       setSelectedFolderId(null);
                       setMobileView("notes");
                     }}
                   >
-                    <Box w={6} />
-                    <Box as={Zap} size={16} color={sf.color} mr={2} />
-                    <Text flex={1} fontSize="sm" fontWeight={isSelected ? "medium" : "normal"}>
+                    <Box style={{ width: 24 }} />
+                    <Zap size={16} style={{ color: sf.color, marginRight: 8 }} />
+                    <Text
+                      style={{ flex: 1, fontSize: "var(--mantine-font-size-sm)", fontWeight: isSelected ? 500 : 400 }}
+                    >
                       {sf.name}
                     </Text>
-                    <ChevronRight size={16} color="gray" />
+                    <ChevronRight size={16} style={{ color: mutedText }} />
                   </Flex>
                 );
               })}
 
-              <Separator my={2} />
+              <Divider style={{ marginTop: 8, marginBottom: 8 }} />
 
               {/* Regular Folders */}
-              <Text fontSize="xs" fontWeight="bold" color={{ base: "gray.500", _dark: "gray.400" }} px={2} mb={1}>
+              <Text size="xs" fw={700} c="gray.6" style={{ paddingLeft: 8, paddingRight: 8, marginBottom: 4 }}>
                 FOLDERS
               </Text>
               {folderTree.map(folder => renderFolder(folder))}
@@ -446,111 +471,134 @@ export const NotesView = ({
 
         {/* Mobile: Notes List View */}
         {mobileView === "notes" && (
-          <Box h="100%" display="flex" flexDirection="column" overflow="hidden">
+          <Box style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {/* Header with back button */}
             <Flex
-              p={3}
-              align="center"
-              gap={2}
-              borderBottomWidth="1px"
-              borderColor={{ base: "gray.200", _dark: "gray.600" }}
-              bg={{ base: "gray.50", _dark: "gray.900" }}
+              style={{
+                padding: 12,
+                alignItems: "center",
+                gap: 8,
+                borderBottomWidth: "1px",
+                borderBottomColor: borderColor,
+                borderBottomStyle: "solid",
+                background: sidebarBg,
+              }}
             >
-              <IconButton size="sm" variant="ghost" onClick={() => setMobileView("folders")} aria-label="Back">
+              <ActionIcon size="sm" variant="subtle" onClick={() => setMobileView("folders")} aria-label="Back">
                 <ArrowLeft size={20} />
-              </IconButton>
-              <Heading size="sm" flex={1}>
+              </ActionIcon>
+              <Title size="sm" style={{ flex: 1 }}>
                 {selectedSmartFolderId
                   ? smartFolders.find(sf => sf.id === selectedSmartFolderId)?.name
                   : selectedFolderId
                     ? folders.find(f => f.id === selectedFolderId)?.name
                     : "All Notes"}
-              </Heading>
-              <IconButton size="sm" variant="ghost" colorScheme="blue" onClick={onCreateNote} aria-label="New Note">
+              </Title>
+              <ActionIcon size="sm" variant="subtle" color="blue" onClick={onCreateNote} aria-label="New Note">
                 <Plus size={20} />
-              </IconButton>
+              </ActionIcon>
             </Flex>
 
             {/* Search */}
-            <Box p={3} borderBottomWidth="1px" borderColor={{ base: "gray.200", _dark: "gray.600" }}>
-              <HStack>
-                <Box as={Search} size={16} color={{ base: "gray.500", _dark: "gray.400" }} />
-                <Input
+            <Box
+              style={{
+                padding: 12,
+                borderBottomWidth: "1px",
+                borderBottomColor: borderColor,
+                borderBottomStyle: "solid",
+              }}
+            >
+              <Group gap={8}>
+                <Search size={16} style={{ color: mutedText }} />
+                <TextInput
                   placeholder="Search notes..."
                   size="sm"
-                  bg="transparent"
-                  borderColor={{ base: "gray.200", _dark: "gray.600" }}
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  _focus={{
-                    bg: "transparent",
-                    borderColor: "blue.400",
-                    boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+                  styles={{
+                    input: {
+                      backgroundColor: "transparent",
+                      borderColor: borderColor,
+                      "&:focus": {
+                        backgroundColor: "transparent",
+                        borderColor: mode.border.focus,
+                        boxShadow: `0 0 0 1px ${mode.border.focus}`,
+                      },
+                      "&:focusVisible": {
+                        backgroundColor: "transparent",
+                      },
+                    },
                   }}
-                  _focusVisible={{ bg: "transparent" }}
                 />
-              </HStack>
+              </Group>
             </Box>
 
             {/* Note List */}
-            <VStack flex={1} overflowY="auto" spacing={0} align="stretch" bg={{ base: "white", _dark: "gray.800" }}>
+            <Stack flex={1} style={{ overflowY: "auto", gap: 0, align: "stretch", background: bgColor }}>
               {filteredNotes.map(note => (
                 <Box
                   key={note.id}
-                  p={3}
-                  cursor="pointer"
-                  bg={selectedNoteId === note.id ? "blue.50" : "transparent"}
-                  _dark={{ bg: selectedNoteId === note.id ? "blue.900" : "transparent" }}
-                  _hover={{
-                    bg: selectedNoteId === note.id ? "blue.50" : "gray.100",
-                    _dark: { bg: selectedNoteId === note.id ? "blue.900" : "gray.700" },
+                  style={{
+                    padding: 12,
+                    cursor: "pointer",
+                    background: selectedNoteId === note.id ? selectedBg : "transparent",
+                    borderBottomWidth: "1px",
+                    borderBottomColor: borderColor,
+                    borderBottomStyle: "solid",
                   }}
-                  borderBottomWidth="1px"
-                  borderColor={{ base: "gray.200", _dark: "gray.600" }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = selectedNoteId === note.id ? selectedBg : hoverBg;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = selectedNoteId === note.id ? selectedBg : "transparent";
+                  }}
                   onClick={() => {
                     setSelectedNoteId(note.id);
                     setMobileView("editor");
                   }}
                 >
-                  <Text fontWeight="medium" fontSize="sm" noOfLines={1}>
+                  <Text fw={500} size="sm" style={{ lineClamp: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
                     {note.title || "Untitled"}
                   </Text>
-                  <Text fontSize="xs" color={{ base: "gray.500", _dark: "gray.400" }} noOfLines={2} mt={1}>
+                  <Text size="xs" c="gray.6" style={{ lineClamp: 2, overflow: "hidden", marginTop: 4 }}>
                     {(note.content || "").replace(/<[^>]*>/g, "").slice(0, 100) || "No content"}
                   </Text>
-                  <Text fontSize="2xs" color={{ base: "gray.500", _dark: "gray.400" }} mt={1}>
+                  <Text size="xs" c="gray.6" style={{ marginTop: 4 }}>
                     {new Date(note.updatedAt).toLocaleDateString()}
                   </Text>
                 </Box>
               ))}
               {filteredNotes.length === 0 && (
-                <Box p={4} textAlign="center">
-                  <Text color={{ base: "gray.500", _dark: "gray.400" }}>No notes found</Text>
+                <Box style={{ padding: 16, textAlign: "center" }}>
+                  <Text c="gray.6">No notes found</Text>
                 </Box>
               )}
-            </VStack>
+            </Stack>
           </Box>
         )}
 
         {/* Mobile: Editor View */}
         {mobileView === "editor" && selectedNote && (
-          <Box h="100%" display="flex" flexDirection="column" overflow="hidden">
+          <Box style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {/* Header with back button */}
             <Flex
-              p={2}
-              align="center"
-              gap={2}
-              borderBottomWidth="1px"
-              borderColor={{ base: "gray.200", _dark: "gray.600" }}
-              bg={{ base: "gray.50", _dark: "gray.900" }}
+              style={{
+                padding: 8,
+                alignItems: "center",
+                gap: 8,
+                borderBottomWidth: "1px",
+                borderBottomColor: borderColor,
+                borderBottomStyle: "solid",
+                background: sidebarBg,
+              }}
             >
-              <IconButton size="sm" variant="ghost" onClick={() => setMobileView("notes")} aria-label="Back">
+              <ActionIcon size="sm" variant="subtle" onClick={() => setMobileView("notes")} aria-label="Back">
                 <ArrowLeft size={20} />
-              </IconButton>
+              </ActionIcon>
             </Flex>
 
             {/* Editor */}
-            <Box flex={1} overflow="hidden">
+            <Box style={{ flex: 1, overflow: "hidden" }}>
               <NoteEditor
                 note={selectedNote}
                 folders={folders}
@@ -570,34 +618,40 @@ export const NotesView = ({
 
   // Desktop layout - show all panels side by side
   return (
-    <Flex h="100%" overflow="hidden">
+    <Flex style={{ height: "100%", overflow: "hidden" }}>
       {/* Sidebar - Folders */}
       <Box
-        w={sidebarOpen ? `${sidebarWidth}px` : "0"}
-        h="100%"
-        bg={{ base: "gray.50", _dark: "gray.900" }}
-        borderRightWidth={sidebarOpen ? "1px" : "0"}
-        borderColor={{ base: "gray.200", _dark: "gray.600" }}
-        display="flex"
-        flexDirection="column"
-        flexShrink={0}
-        position="relative"
-        overflow="hidden"
-        transition={isSidebarResizing ? "none" : "width 0.3s ease-in-out, border-width 0.3s ease-in-out"}
+        style={{
+          width: sidebarOpen ? `${sidebarWidth}px` : "0",
+          height: "100%",
+          background: sidebarBg,
+          borderRightWidth: sidebarOpen ? "1px" : "0",
+          borderRightColor: borderColor,
+          borderRightStyle: "solid",
+          display: "flex",
+          flexDirection: "column",
+          flexShrink: 0,
+          position: "relative",
+          overflow: "hidden",
+          transition: isSidebarResizing ? "none" : "width 0.3s ease-in-out, border-width 0.3s ease-in-out",
+        }}
       >
         {/* Sidebar Header */}
         <Flex
-          p={3}
-          align="center"
-          justify="space-between"
-          borderBottomWidth="1px"
-          borderColor={{ base: "gray.200", _dark: "gray.600" }}
+          style={{
+            padding: 12,
+            alignItems: "center",
+            justifyContent: "space-between",
+            borderBottomWidth: "1px",
+            borderBottomColor: borderColor,
+            borderBottomStyle: "solid",
+          }}
         >
-          <Heading size="sm">Notes</Heading>
-          <HStack spacing={1}>
-            <IconButton
+          <Title size="sm">Notes</Title>
+          <Group gap={4}>
+            <ActionIcon
               size="sm"
-              variant="ghost"
+              variant="subtle"
               onClick={() => {
                 const name = promptUser("Folder name:");
                 if (name?.trim()) createFolder({ name: name.trim() });
@@ -605,48 +659,61 @@ export const NotesView = ({
               aria-label="New Folder"
             >
               <FolderPlus size={16} />
-            </IconButton>
-            <IconButton size="sm" variant="ghost" colorScheme="blue" onClick={onCreateNote} aria-label="New Note">
+            </ActionIcon>
+            <ActionIcon size="sm" variant="subtle" color="blue" onClick={onCreateNote} aria-label="New Note">
               <Plus size={16} />
-            </IconButton>
-          </HStack>
+            </ActionIcon>
+          </Group>
         </Flex>
 
         {/* Folder List */}
-        <Box flex={1} overflowY="auto" p={2}>
+        <Box style={{ flex: 1, overflowY: "auto", padding: 8 }}>
           {/* All Notes */}
           <Flex
             align="center"
-            px={2}
-            py={1.5}
-            cursor="pointer"
-            bg={!selectedFolderId && !selectedSmartFolderId ? "blue.50" : "transparent"}
-            _dark={{ bg: !selectedFolderId && !selectedSmartFolderId ? "blue.900" : "transparent" }}
-            _hover={{
-              bg: !selectedFolderId && !selectedSmartFolderId ? "blue.50" : "gray.100",
-              _dark: { bg: !selectedFolderId && !selectedSmartFolderId ? "blue.900" : "gray.700" },
+            style={{
+              paddingLeft: 8,
+              paddingRight: 8,
+              paddingTop: 6,
+              paddingBottom: 6,
+              cursor: "pointer",
+              background: !selectedFolderId && !selectedSmartFolderId ? selectedBg : "transparent",
+              borderRadius: "var(--mantine-radius-md)",
             }}
-            borderRadius="md"
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor =
+                !selectedFolderId && !selectedSmartFolderId ? selectedBg : hoverBg;
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor =
+                !selectedFolderId && !selectedSmartFolderId ? selectedBg : "transparent";
+            }}
             onClick={() => {
               setSelectedFolderId(null);
               setSelectedSmartFolderId(null);
               if (isMobile) setMobileView("notes");
             }}
           >
-            <Box w={6} />
-            <Box as={FileText} size={16} mr={2} color={{ base: "gray.500", _dark: "gray.400" }} />
-            <Text flex={1} fontSize="sm" fontWeight={!selectedFolderId && !selectedSmartFolderId ? "medium" : "normal"}>
+            <Box style={{ width: 24 }} />
+            <FileText size={16} style={{ marginRight: 8, color: mutedText }} />
+            <Text
+              style={{
+                flex: 1,
+                fontSize: "var(--mantine-font-size-sm)",
+                fontWeight: !selectedFolderId && !selectedSmartFolderId ? 500 : 400,
+              }}
+            >
               All Notes
             </Text>
-            <Badge size="sm" colorScheme="gray" fontSize="2xs">
+            <Badge size="sm" color="gray" style={{ fontSize: "var(--mantine-font-size-xs)" }}>
               {notes.length}
             </Badge>
           </Flex>
 
-          <Separator my={2} />
+          <Divider style={{ marginTop: 8, marginBottom: 8 }} />
 
           {/* Smart Folders */}
-          <Text fontSize="xs" fontWeight="bold" color={{ base: "gray.500", _dark: "gray.400" }} px={2} mb={1}>
+          <Text size="xs" fw={700} c="gray.6" style={{ paddingLeft: 8, paddingRight: 8, marginBottom: 4 }}>
             SMART FOLDERS
           </Text>
           {smartFolders.map(sf => {
@@ -657,28 +724,35 @@ export const NotesView = ({
               <Flex
                 key={sf.id}
                 align="center"
-                px={2}
-                py={1.5}
-                cursor="pointer"
-                bg={isSelected ? "blue.50" : "transparent"}
-                _dark={{ bg: isSelected ? "blue.900" : "transparent" }}
-                _hover={{
-                  bg: isSelected ? "blue.50" : "gray.100",
-                  _dark: { bg: isSelected ? "blue.900" : "gray.700" },
+                style={{
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  paddingTop: 6,
+                  paddingBottom: 6,
+                  cursor: "pointer",
+                  background: isSelected ? selectedBg : "transparent",
+                  borderRadius: "var(--mantine-radius-md)",
                 }}
-                borderRadius="md"
+                onMouseEnter={e => {
+                  e.currentTarget.style.backgroundColor = isSelected
+                    ? "var(--mantine-color-blue-0)"
+                    : "var(--mantine-color-gray-1)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.backgroundColor = isSelected ? selectedBg : "transparent";
+                }}
                 onClick={() => {
                   setSelectedSmartFolderId(sf.id);
                   setSelectedFolderId(null);
                   if (isMobile) setMobileView("notes");
                 }}
               >
-                <Box w={6} />
-                <Box as={Zap} size={16} color={sf.color} mr={2} />
-                <Text flex={1} fontSize="sm" fontWeight={isSelected ? "medium" : "normal"}>
+                <Box style={{ width: 24 }} />
+                <Zap size={16} style={{ color: sf.color, marginRight: 8 }} />
+                <Text style={{ flex: 1, fontSize: "var(--mantine-font-size-sm)", fontWeight: isSelected ? 500 : 400 }}>
                   {sf.name}
                 </Text>
-                <Badge size="sm" colorScheme="purple" fontSize="2xs">
+                <Badge size="sm" color="purple" style={{ fontSize: "var(--mantine-font-size-xs)" }}>
                   {matchCount}
                 </Badge>
               </Flex>
@@ -686,9 +760,8 @@ export const NotesView = ({
           })}
           <Button
             size="xs"
-            variant="ghost"
-            ml={6}
-            mt={1}
+            variant="subtle"
+            style={{ marginLeft: 24, marginTop: 4 }}
             onClick={() => {
               const name = promptUser("Smart folder name:");
               if (name?.trim()) {
@@ -701,14 +774,15 @@ export const NotesView = ({
                 createSmartFolder({ name: name.trim(), filters: { tags, operator: "any" } });
               }
             }}
+            leftSection={<Plus size={12} />}
           >
-            <Plus size={12} /> New Smart Folder
+            New Smart Folder
           </Button>
 
-          <Separator my={2} />
+          <Divider style={{ marginTop: 8, marginBottom: 8 }} />
 
           {/* Regular Folders */}
-          <Text fontSize="xs" fontWeight="bold" color={{ base: "gray.500", _dark: "gray.400" }} px={2} mb={1}>
+          <Text size="xs" fw={700} c="gray.6" style={{ paddingLeft: 8, paddingRight: 8, marginBottom: 4 }}>
             FOLDERS
           </Text>
           {folderTree.map(folder => renderFolder(folder))}
@@ -717,152 +791,209 @@ export const NotesView = ({
         {/* Resize Handle */}
         {sidebarOpen && (
           <Box
-            position="absolute"
-            right={0}
-            top={0}
-            bottom={0}
-            w="4px"
-            cursor="col-resize"
-            bg={isSidebarResizing ? "blue.400" : "transparent"}
-            _hover={{ bg: "blue.300" }}
-            transition="background-color 0.2s"
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: "4px",
+              cursor: "col-resize",
+              background: isSidebarResizing ? mode.border.focus : "transparent",
+              transition: "background-color 0.2s",
+              zIndex: 10,
+              userSelect: "none",
+            }}
+            onMouseEnter={e => {
+              if (!isSidebarResizing) {
+                e.currentTarget.style.backgroundColor = mode.interactive.primary;
+              }
+            }}
+            onMouseLeave={e => {
+              if (!isSidebarResizing) {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }
+            }}
             onMouseDown={handleSidebarResizeStart}
-            zIndex={10}
-            sx={{ userSelect: "none" }}
           />
         )}
       </Box>
 
       {/* Note List */}
       <Box
-        w={noteListOpen ? `${noteListWidth}px` : "0"}
-        h="100%"
-        borderRightWidth={noteListOpen ? "1px" : "0"}
-        borderColor={{ base: "gray.200", _dark: "gray.600" }}
-        display="flex"
-        flexDirection="column"
-        flexShrink={0}
-        position="relative"
-        overflow="hidden"
-        transition={isNoteListResizing ? "none" : "width 0.3s ease-in-out, border-width 0.3s ease-in-out"}
+        style={{
+          width: noteListOpen ? `${noteListWidth}px` : "0",
+          height: "100%",
+          borderRightWidth: noteListOpen ? "1px" : "0",
+          borderRightColor: borderColor,
+          borderRightStyle: "solid",
+          display: "flex",
+          flexDirection: "column",
+          flexShrink: 0,
+          position: "relative",
+          overflow: "hidden",
+          transition: isNoteListResizing ? "none" : "width 0.3s ease-in-out, border-width 0.3s ease-in-out",
+        }}
       >
         {/* Search */}
-        <Box p={3} borderBottomWidth="1px" borderColor={{ base: "gray.200", _dark: "gray.600" }}>
-          <HStack>
+        <Box
+          style={{
+            padding: 12,
+            borderBottomWidth: "1px",
+            borderBottomColor: borderColor,
+            borderBottomStyle: "solid",
+          }}
+        >
+          <Group gap={8}>
             {onSidebarToggle && (
-              <IconButton
+              <ActionIcon
                 size="sm"
-                variant="ghost"
+                variant="subtle"
                 onClick={onSidebarToggle}
                 aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
               >
                 {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
-              </IconButton>
+              </ActionIcon>
             )}
-            <Box as={Search} size={16} color={{ base: "gray.500", _dark: "gray.400" }} />
-            <Input
+            <Search size={16} style={{ color: mutedText }} />
+            <TextInput
               placeholder="Search notes..."
               size="sm"
-              bg="transparent"
-              borderColor={{ base: "gray.200", _dark: "gray.600" }}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              _focus={{
-                bg: "transparent",
-                borderColor: "blue.400",
-                boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+              styles={{
+                input: {
+                  backgroundColor: "transparent",
+                  borderColor: borderColor,
+                  "&:focus": {
+                    backgroundColor: "transparent",
+                    borderColor: mode.border.focus,
+                    boxShadow: `0 0 0 1px ${mode.border.focus}`,
+                  },
+                  "&:focusVisible": {
+                    backgroundColor: "transparent",
+                  },
+                },
               }}
-              _focusVisible={{ bg: "transparent" }}
             />
-          </HStack>
+          </Group>
         </Box>
 
         {/* Note List */}
-        <VStack flex={1} overflowY="auto" spacing={0} align="stretch">
+        <Stack flex={1} style={{ overflowY: "auto", gap: 0, align: "stretch" }}>
           {filteredNotes.map(note => (
             <Box
               key={note.id}
-              p={3}
-              cursor="pointer"
-              bg={selectedNoteId === note.id ? "blue.50" : "transparent"}
-              _dark={{ bg: selectedNoteId === note.id ? "blue.900" : "transparent" }}
-              _hover={{
-                bg: selectedNoteId === note.id ? "blue.50" : "gray.100",
-                _dark: { bg: selectedNoteId === note.id ? "blue.900" : "gray.700" },
+              style={{
+                padding: 12,
+                cursor: "pointer",
+                background: selectedNoteId === note.id ? selectedBg : "transparent",
+                borderBottomWidth: "1px",
+                borderBottomColor: borderColor,
+                borderBottomStyle: "solid",
               }}
-              borderBottomWidth="1px"
-              borderColor={{ base: "gray.200", _dark: "gray.600" }}
+              onMouseEnter={e => {
+                e.currentTarget.style.backgroundColor = selectedNoteId === note.id ? selectedBg : hoverBg;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.backgroundColor = selectedNoteId === note.id ? selectedBg : "transparent";
+              }}
               onClick={() => {
                 setSelectedNoteId(note.id);
                 if (isMobile) setMobileView("editor");
               }}
             >
-              <Text fontWeight="medium" fontSize="sm" noOfLines={1}>
+              <Text fw={500} size="sm" style={{ lineClamp: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
                 {note.title || "Untitled"}
               </Text>
-              <Text fontSize="xs" color={{ base: "gray.500", _dark: "gray.400" }} noOfLines={2} mt={1}>
+              <Text size="xs" c="gray.6" style={{ lineClamp: 2, overflow: "hidden", marginTop: 4 }}>
                 {/* Strip HTML for preview */}
                 {(note.content || "").replace(/<[^>]*>/g, "").slice(0, 100) || "No content"}
               </Text>
-              <HStack mt={2} spacing={1} flexWrap="wrap">
+              <Group gap={4} style={{ marginTop: 8 }} wrap="wrap">
                 {(note.tags || []).slice(0, 3).map(tag => {
                   const tagName = typeof tag === "string" ? tag : tag.name;
                   return (
-                    <Badge key={tagName} size="sm" colorScheme="blue" fontSize="2xs">
+                    <Badge key={tagName} size="sm" color="blue" style={{ fontSize: "var(--mantine-font-size-xs)" }}>
                       {tagName}
                     </Badge>
                   );
                 })}
                 {(note.tags || []).length > 3 && (
-                  <Badge size="sm" colorScheme="gray" fontSize="2xs">
+                  <Badge size="sm" color="gray" style={{ fontSize: "var(--mantine-font-size-xs)" }}>
                     +{note.tags.length - 3}
                   </Badge>
                 )}
-              </HStack>
-              <Text fontSize="2xs" color={{ base: "gray.500", _dark: "gray.400" }} mt={1}>
+              </Group>
+              <Text size="xs" c="gray.6" style={{ marginTop: 4 }}>
                 {new Date(note.updatedAt).toLocaleDateString()}
               </Text>
             </Box>
           ))}
           {filteredNotes.length === 0 && (
-            <Box p={4} textAlign="center">
-              <Text color={{ base: "gray.500", _dark: "gray.400" }}>No notes found</Text>
+            <Box style={{ padding: 16, textAlign: "center" }}>
+              <Text c="gray.6">No notes found</Text>
             </Box>
           )}
-        </VStack>
+        </Stack>
 
         {/* Resize Handle for Note List */}
         {noteListOpen && (
           <Box
-            position="absolute"
-            right={0}
-            top={0}
-            bottom={0}
-            w="4px"
-            cursor="col-resize"
-            bg={isNoteListResizing ? "blue.400" : "transparent"}
-            _hover={{ bg: "blue.300" }}
-            transition="background-color 0.2s"
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: "4px",
+              cursor: "col-resize",
+              background: isNoteListResizing ? mode.border.focus : "transparent",
+              transition: "background-color 0.2s",
+              zIndex: 10,
+              userSelect: "none",
+            }}
+            onMouseEnter={e => {
+              if (!isNoteListResizing) {
+                e.currentTarget.style.backgroundColor = mode.interactive.primary;
+              }
+            }}
+            onMouseLeave={e => {
+              if (!isNoteListResizing) {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }
+            }}
             onMouseDown={handleNoteListResizeStart}
-            zIndex={10}
-            sx={{ userSelect: "none" }}
           />
         )}
       </Box>
 
       {/* Note Editor */}
-      <Box flex={1} h="100%" display="flex" flexDirection="column" bg={{ base: "white", _dark: "gray.800" }}>
+      <Box
+        style={{
+          flex: 1,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          background: bgColor,
+        }}
+      >
         {/* Toggle button for note list */}
         {onNoteListToggle && (
-          <Box p={2} borderBottomWidth="1px" borderColor={{ base: "gray.200", _dark: "gray.600" }}>
-            <IconButton
+          <Box
+            style={{
+              padding: 8,
+              borderBottomWidth: "1px",
+              borderBottomColor: borderColor,
+              borderBottomStyle: "solid",
+            }}
+          >
+            <ActionIcon
               size="sm"
-              variant="ghost"
+              variant="subtle"
               onClick={onNoteListToggle}
               aria-label={noteListOpen ? "Hide note list" : "Show note list"}
             >
               {noteListOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
-            </IconButton>
+            </ActionIcon>
           </Box>
         )}
         {selectedNote ? (
@@ -878,14 +1009,14 @@ export const NotesView = ({
             }}
           />
         ) : (
-          <Flex flex={1} align="center" justify="center">
-            <VStack spacing={4} color={{ base: "gray.500", _dark: "gray.400" }}>
+          <Flex style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+            <Stack gap={16} style={{ color: mutedText }}>
               <FileText size={48} />
               <Text>Select a note or create a new one</Text>
-              <Button colorScheme="blue" leftIcon={<Plus size={16} />} onClick={onCreateNote}>
+              <Button color="blue" leftSection={<Plus size={16} />} onClick={onCreateNote}>
                 New Note
               </Button>
-            </VStack>
+            </Stack>
           </Flex>
         )}
       </Box>

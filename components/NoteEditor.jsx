@@ -1,24 +1,14 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import {
-  Box,
-  Flex,
-  HStack,
-  Input,
-  IconButton,
-  Menu,
-  MenuItem,
-  Tag,
-  Text,
-  Separator,
-  createListCollection,
-} from "@chakra-ui/react";
+import { Box, Flex, Group, TextInput, ActionIcon, Menu, Badge, Text, Divider } from "@mantine/core";
 import { MoreVertical, Trash2, CheckSquare, Type, Folder, Plus, Tag as TagIcon } from "lucide-react";
 import { RichTextEditor } from "./RichTextEditor";
 import { SelectDropdown } from "./SelectDropdown";
+import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 export const NoteEditor = ({ note, folders, allTags: _allTags, onUpdate, onDelete, onConvertToTask }) => {
+  const { mode } = useSemanticColors();
   // Initialize state from note prop
   const [title, setTitle] = useState(() => note.title || "");
   const [content, setContent] = useState(() => note.content || "");
@@ -31,12 +21,9 @@ export const NoteEditor = ({ note, folders, allTags: _allTags, onUpdate, onDelet
   const [showMetadata, setShowMetadata] = useState(false);
   const [currentNoteId, setCurrentNoteId] = useState(note.id);
 
-  // Create folder collection for Select
-  const folderCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [{ label: "No folder", value: "" }, ...folders.map(f => ({ label: f.name, value: f.id }))],
-      }),
+  // Create folder options for Select
+  const folderOptions = useMemo(
+    () => [{ label: "No folder", value: "" }, ...folders.map(f => ({ label: f.name, value: f.id }))],
     [folders]
   );
 
@@ -82,136 +69,152 @@ export const NoteEditor = ({ note, folders, allTags: _allTags, onUpdate, onDelet
   const currentFolder = folders.find(f => f.id === folderId);
 
   return (
-    <Flex direction="column" h="100%" bg={{ base: "white", _dark: "gray.800" }}>
+    <Flex direction="column" style={{ height: "100%", background: mode.bg.surface }}>
       {/* Minimal Header - Notion/Apple Notes style */}
-      <Flex px={6} pt={4} pb={2} align="center" justify="space-between" flexShrink={0}>
+      <Flex
+        style={{ paddingLeft: 24, paddingRight: 24, paddingTop: 16, paddingBottom: 8, flexShrink: 0 }}
+        align="center"
+        justify="space-between"
+      >
         {/* Left side - folder/tag indicators */}
-        <HStack gap={2} color={{ base: "gray.500", _dark: "gray.400" }} fontSize="xs">
+        <Group gap={8} style={{ color: mode.text.secondary, fontSize: "var(--mantine-font-size-xs)" }}>
           {currentFolder && (
-            <HStack gap={1} cursor="pointer" onClick={() => setShowMetadata(!showMetadata)}>
+            <Group gap={4} style={{ cursor: "pointer" }} onClick={() => setShowMetadata(!showMetadata)}>
               <Folder size={12} />
               <Text>{currentFolder.name}</Text>
-            </HStack>
+            </Group>
           )}
           {tags.length > 0 && (
-            <HStack gap={1} cursor="pointer" onClick={() => setShowMetadata(!showMetadata)}>
+            <Group gap={4} style={{ cursor: "pointer" }} onClick={() => setShowMetadata(!showMetadata)}>
               <TagIcon size={12} />
               <Text>
                 {tags.length} tag{tags.length > 1 ? "s" : ""}
               </Text>
-            </HStack>
+            </Group>
           )}
           {!currentFolder && tags.length === 0 && (
             <Text
-              cursor="pointer"
+              style={{ cursor: "pointer" }}
               onClick={() => setShowMetadata(!showMetadata)}
-              _hover={{ color: { base: "gray.700", _dark: "gray.300" } }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = mode.text.primary;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = mode.text.secondary;
+              }}
             >
               Add folder or tags...
             </Text>
           )}
-        </HStack>
+        </Group>
 
         {/* Right side - actions */}
-        <HStack gap={1}>
-          <Text fontSize="xs" color={{ base: "gray.400", _dark: "gray.500" }}>
+        <Group gap={4}>
+          <Text size="xs" c="gray.5">
             {new Date(note.updatedAt).toLocaleDateString()}
           </Text>
-          <Menu.Root>
-            <Menu.Trigger asChild>
-              <IconButton
-                variant="ghost"
+          <Menu>
+            <Menu.Target>
+              <ActionIcon
+                variant="subtle"
                 size="sm"
                 aria-label="Note options"
-                border="none"
-                outline="none"
-                _hover={{ border: "none", outline: "none" }}
-                _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-                _active={{ border: "none", outline: "none" }}
+                style={{ border: "none", outline: "none" }}
               >
                 <MoreVertical size={16} />
-              </IconButton>
-            </Menu.Trigger>
-            <Menu.Positioner>
-              <Menu.Content>
-                <MenuItem onClick={() => setShowMetadata(!showMetadata)}>
-                  <HStack>
-                    <Folder size={16} />
-                    <Text>{showMetadata ? "Hide" : "Show"} folder & tags</Text>
-                  </HStack>
-                </MenuItem>
-                <Separator />
-                <MenuItem onClick={() => onConvertToTask(note)}>
-                  <HStack>
-                    <CheckSquare size={16} />
-                    <Text>Convert to Task</Text>
-                  </HStack>
-                </MenuItem>
-                <MenuItem onClick={() => onUpdate(note.id, { completionType: "text" })}>
-                  <HStack>
-                    <Type size={16} />
-                    <Text>Convert to Text Input Task</Text>
-                  </HStack>
-                </MenuItem>
-                <Separator />
-                <MenuItem onClick={() => onDelete(note.id)} color="red.500">
-                  <HStack>
-                    <Trash2 size={16} />
-                    <Text>Delete Note</Text>
-                  </HStack>
-                </MenuItem>
-              </Menu.Content>
-            </Menu.Positioner>
-          </Menu.Root>
-        </HStack>
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item onClick={() => setShowMetadata(!showMetadata)}>
+                <Group gap={8}>
+                  <Folder size={16} />
+                  <Text>{showMetadata ? "Hide" : "Show"} folder & tags</Text>
+                </Group>
+              </Menu.Item>
+              <Menu.Divider />
+              <Menu.Item onClick={() => onConvertToTask(note)}>
+                <Group gap={8}>
+                  <CheckSquare size={16} />
+                  <Text>Convert to Task</Text>
+                </Group>
+              </Menu.Item>
+              <Menu.Item onClick={() => onUpdate(note.id, { completionType: "text" })}>
+                <Group gap={8}>
+                  <Type size={16} />
+                  <Text>Convert to Text Input Task</Text>
+                </Group>
+              </Menu.Item>
+              <Menu.Divider />
+              <Menu.Item onClick={() => onDelete(note.id)} c="red">
+                <Group gap={8}>
+                  <Trash2 size={16} />
+                  <Text>Delete Note</Text>
+                </Group>
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+        </Group>
       </Flex>
 
       {/* Collapsible Metadata Panel */}
       {showMetadata && (
         <Box
-          px={6}
-          py={3}
-          bg={{ base: "gray.50", _dark: "gray.900" }}
-          borderTopWidth="1px"
-          borderBottomWidth="1px"
-          borderColor={{ base: "gray.100", _dark: "gray.700" }}
+          style={{
+            paddingLeft: 24,
+            paddingRight: 24,
+            paddingTop: 12,
+            paddingBottom: 12,
+            background: mode.bg.canvas,
+            borderTopWidth: "1px",
+            borderBottomWidth: "1px",
+            borderTopColor: mode.border.default,
+            borderBottomColor: mode.border.default,
+            borderTopStyle: "solid",
+            borderBottomStyle: "solid",
+          }}
         >
-          <Flex gap={6} flexWrap="wrap" align="center">
+          <Flex gap={24} wrap="wrap" align="center">
             {/* Folder Select */}
-            <HStack gap={2}>
-              <Text fontSize="xs" fontWeight="medium" color={{ base: "gray.500", _dark: "gray.400" }} minW="50px">
+            <Group gap={8}>
+              <Text size="xs" fw={500} c="gray.6" style={{ minWidth: "50px" }}>
                 Folder
               </Text>
               <SelectDropdown
-                collection={folderCollection}
-                value={[folderId]}
-                onValueChange={({ value }) => setFolderId(value[0])}
+                data={folderOptions}
+                value={folderId || null}
+                onChange={setFolderId}
                 placeholder="No folder"
                 size="sm"
                 width="160px"
               />
-            </HStack>
+            </Group>
 
             {/* Tags */}
-            <HStack gap={2} flex={1} flexWrap="wrap">
-              <Text fontSize="xs" fontWeight="medium" color={{ base: "gray.500", _dark: "gray.400" }} minW="50px">
+            <Group gap={8} style={{ flex: 1 }} wrap="wrap">
+              <Text size="xs" fw={500} c="gray.6" style={{ minWidth: "50px" }}>
                 Tags
               </Text>
               {tags.map(tag => (
-                <Tag.Root key={tag} size="sm" colorScheme="blue" borderRadius="full">
-                  <Tag.Label>{tag}</Tag.Label>
-                  <Tag.CloseTrigger onClick={() => removeTag(tag)} />
-                </Tag.Root>
+                <Badge key={tag} size="sm" color="blue" style={{ borderRadius: "50%" }}>
+                  {tag}
+                  <ActionIcon size="xs" variant="subtle" onClick={() => removeTag(tag)} style={{ marginLeft: 4 }}>
+                    ×
+                  </ActionIcon>
+                </Badge>
               ))}
-              <HStack gap={1}>
-                <Input
+              <Group gap={4}>
+                <TextInput
                   value={newTag}
                   onChange={e => setNewTag(e.target.value)}
                   placeholder="Add tag..."
                   size="xs"
-                  w="80px"
-                  variant="flushed"
-                  bg="transparent"
+                  style={{ width: "80px" }}
+                  variant="unstyled"
+                  styles={{
+                    input: {
+                      backgroundColor: "transparent",
+                    },
+                  }}
                   onKeyDown={e => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -220,30 +223,40 @@ export const NoteEditor = ({ note, folders, allTags: _allTags, onUpdate, onDelet
                   }}
                 />
                 {newTag.trim() && (
-                  <IconButton size="xs" variant="ghost" onClick={addTag} aria-label="Add tag">
+                  <ActionIcon size="xs" variant="subtle" onClick={addTag} aria-label="Add tag">
                     <Plus size={12} />
-                  </IconButton>
+                  </ActionIcon>
                 )}
-              </HStack>
-            </HStack>
+              </Group>
+            </Group>
           </Flex>
         </Box>
       )}
 
       {/* Title - Large, clean input */}
-      <Box px={6} pt={4} pb={2} flexShrink={0}>
-        <Input
+      <Box style={{ paddingLeft: 24, paddingRight: 24, paddingTop: 16, paddingBottom: 8, flexShrink: 0 }}>
+        <TextInput
           value={title}
           onChange={e => setTitle(e.target.value)}
           placeholder="Untitled"
           variant="unstyled"
-          bg="transparent"
-          fontSize="2xl"
-          fontWeight="bold"
-          color={{ base: "gray.900", _dark: "gray.50" }}
-          _placeholder={{ color: { base: "gray.300", _dark: "gray.600" } }}
-          _focus={{ bg: "transparent" }}
-          _focusVisible={{ bg: "transparent" }}
+          styles={{
+            input: {
+              backgroundColor: "transparent",
+              fontSize: "var(--mantine-font-size-2xl)",
+              fontWeight: 700,
+              color: mode.text.primary,
+              "&::placeholder": {
+                color: mode.text.muted,
+              },
+              "&:focus": {
+                backgroundColor: "transparent",
+              },
+              "&:focusVisible": {
+                backgroundColor: "transparent",
+              },
+            },
+          }}
         />
       </Box>
 

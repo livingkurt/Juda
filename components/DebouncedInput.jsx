@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, memo } from "react";
-import { Input } from "@chakra-ui/react";
+import { TextInput } from "@mantine/core";
 
 /**
  * Input that debounces onChange to reduce re-renders
@@ -31,5 +31,5 @@ export const DebouncedInput = memo(function DebouncedInput({
     return () => clearTimeout(handler);
   }, [internalValue, debounceMs, onChange]);
 
-  return <Input value={internalValue} onChange={e => setInternalValue(e.target.value)} {...props} />;
+  return <TextInput value={internalValue} onChange={e => setInternalValue(e.target.value)} {...props} />;
 });

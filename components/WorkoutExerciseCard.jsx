@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Text, Flex, Checkbox, Input, HStack, VStack, Badge } from "@chakra-ui/react";
+import { Box, Text, Flex, Checkbox, TextInput, Group, Stack, Badge } from "@mantine/core";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
 /**
@@ -76,93 +76,109 @@ export default function WorkoutExerciseCard({
     if (exercise.type === "distance") {
       // Running exercise - show time, distance, pace inputs
       return (
-        <VStack gap={2} w="full" align="stretch">
-          <HStack>
-            <Text fontSize="xs" color={mode.text.secondary} minW="50px">
+        <Stack gap={8} style={{ width: "100%" }} align="stretch">
+          <Group gap={8}>
+            <Text size="xs" c={mode.text.secondary} style={{ minWidth: "50px" }}>
               Time:
             </Text>
-            <Input
+            <TextInput
               size="sm"
               placeholder="08:05"
               value={setData.time || ""}
               onChange={e => handleValueChange(setNumber, "time", e.target.value)}
-              bg={mode.bg.surface}
+              styles={{
+                input: {
+                  backgroundColor: mode.bg.surface,
+                },
+              }}
             />
-          </HStack>
-          <HStack>
-            <Text fontSize="xs" color={mode.text.secondary} minW="50px">
+          </Group>
+          <Group gap={8}>
+            <Text size="xs" c={mode.text.secondary} style={{ minWidth: "50px" }}>
               Miles:
             </Text>
-            <Input
+            <TextInput
               size="sm"
               type="number"
               step="0.01"
               placeholder="1.02"
               value={setData.distance || ""}
               onChange={e => handleValueChange(setNumber, "distance", parseFloat(e.target.value) || "")}
-              bg={mode.bg.surface}
+              styles={{
+                input: {
+                  backgroundColor: mode.bg.surface,
+                },
+              }}
             />
-          </HStack>
-          <HStack>
-            <Text fontSize="xs" color={mode.text.secondary} minW="50px">
+          </Group>
+          <Group gap={8}>
+            <Text size="xs" c={mode.text.secondary} style={{ minWidth: "50px" }}>
               Pace:
             </Text>
-            <Input
+            <TextInput
               size="sm"
               placeholder="7:55"
               value={setData.pace || ""}
               onChange={e => handleValueChange(setNumber, "pace", e.target.value)}
-              bg={mode.bg.surface}
+              styles={{
+                input: {
+                  backgroundColor: mode.bg.surface,
+                },
+              }}
             />
-          </HStack>
-        </VStack>
+          </Group>
+        </Stack>
       );
     }
 
     // Reps or time - simple checkbox
     return (
-      <Checkbox.Root
+      <Checkbox
         size="lg"
         checked={setData.completed || false}
-        onCheckedChange={() => handleSetClick(setNumber)}
-        colorPalette="blue"
-      >
-        <Checkbox.HiddenInput />
-        <Checkbox.Control />
-        <Checkbox.Label>
-          <Text fontSize="sm">Set {setNumber}</Text>
-        </Checkbox.Label>
-      </Checkbox.Root>
+        onChange={() => handleSetClick(setNumber)}
+        color="blue"
+        label={<Text size="sm">Set {setNumber}</Text>}
+      />
     );
   };
 
   // For distance exercises, show expanded layout
   if (exercise.type === "distance") {
     return (
-      <Box p={3} bg={mode.bg.muted} borderRadius="md" borderWidth="1px" borderColor={mode.border.default}>
-        <VStack align="stretch" gap={2}>
+      <Box
+        style={{
+          padding: 12,
+          background: mode.bg.muted,
+          borderRadius: "var(--mantine-radius-md)",
+          borderWidth: "1px",
+          borderColor: mode.border.default,
+          borderStyle: "solid",
+        }}
+      >
+        <Stack align="stretch" gap={8}>
           {/* Exercise header */}
           <Flex justify="space-between" align="center">
-            <HStack gap={2}>
-              <Text fontWeight="semibold" fontSize="md">
+            <Group gap={8}>
+              <Text fw={600} size="md">
                 {exercise.name}
               </Text>
-              <Text fontSize="md" color={mode.text.secondary}>
+              <Text size="md" c={mode.text.secondary}>
                 {getDisplayText()}
               </Text>
               {isDeload && (
-                <Badge colorPalette="orange" size="sm">
+                <Badge color="orange" size="sm">
                   Deload
                 </Badge>
               )}
               {isTest && (
-                <Badge colorPalette="purple" size="sm">
+                <Badge color="purple" size="sm">
                   TEST
                 </Badge>
               )}
-            </HStack>
+            </Group>
             {exercise.goal && (
-              <Badge colorPalette="blue" size="sm">
+              <Badge color="blue" size="sm">
                 {exercise.goal}
               </Badge>
             )}
@@ -170,57 +186,66 @@ export default function WorkoutExerciseCard({
 
           {/* Distance inputs */}
           {renderSetInput(1)}
-        </VStack>
+        </Stack>
       </Box>
     );
   }
 
   // For reps/time exercises, show compact horizontal layout
   return (
-    <Box p={3} bg={mode.bg.muted} borderRadius="md" borderWidth="1px" borderColor={mode.border.default}>
-      <VStack align="stretch" gap={2}>
+    <Box
+      style={{
+        padding: 12,
+        background: mode.bg.muted,
+        borderRadius: "var(--mantine-radius-md)",
+        borderWidth: "1px",
+        borderColor: mode.border.default,
+        borderStyle: "solid",
+      }}
+    >
+      <Stack align="stretch" gap={8}>
         {/* Top row: Exercise name and checkboxes */}
-        <Flex align="center" justify="space-between" gap={3}>
-          <Text fontWeight="semibold" fontSize="md">
+        <Flex align="center" justify="space-between" gap={12}>
+          <Text fw={600} size="md">
             {exercise.name}
           </Text>
-          <HStack gap={2}>
+          <Group gap={8}>
             {Array.from({ length: exercise.sets }, (_, i) => i + 1).map(setNumber => (
               <Box key={setNumber}>{renderSetInput(setNumber)}</Box>
             ))}
-          </HStack>
+          </Group>
         </Flex>
 
         {/* Bottom row: Reps info and badges */}
-        <HStack gap={2}>
-          <Text fontSize="sm" color={mode.text.secondary}>
+        <Group gap={8}>
+          <Text size="sm" c={mode.text.secondary}>
             {getDisplayText()}
           </Text>
           {isDeload && (
-            <Badge colorPalette="orange" size="sm">
+            <Badge color="orange" size="sm">
               Deload
             </Badge>
           )}
           {isTest && (
-            <Badge colorPalette="purple" size="sm">
+            <Badge color="purple" size="sm">
               TEST
             </Badge>
           )}
           {exercise.goal && (
-            <Badge colorPalette="blue" size="sm">
+            <Badge color="blue" size="sm">
               {exercise.goal}
             </Badge>
           )}
-        </HStack>
+        </Group>
 
         {/* Actual value input for test weeks */}
         {isTest && onActualValueChange && (
           <Box>
-            <HStack gap={2} align="flex-end">
-              <Text fontSize="xs" color={mode.text.secondary} minW="80px">
+            <Group gap={8} align="flex-end">
+              <Text size="xs" c={mode.text.secondary} style={{ minWidth: "80px" }}>
                 Actual {getExerciseLabel()}:
               </Text>
-              <Input
+              <TextInput
                 type="number"
                 step={exercise.type === "distance" ? "0.01" : "1"}
                 size="sm"
@@ -230,13 +255,17 @@ export default function WorkoutExerciseCard({
                   const value = e.target.value === "" ? null : parseFloat(e.target.value) || 0;
                   onActualValueChange(exercise.id, value);
                 }}
-                bg={mode.bg.surface}
-                flex={1}
+                styles={{
+                  input: {
+                    backgroundColor: mode.bg.surface,
+                  },
+                }}
+                style={{ flex: 1 }}
               />
-            </HStack>
+            </Group>
           </Box>
         )}
-      </VStack>
+      </Stack>
     </Box>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Button, Flex, Text, VStack, HStack, Badge, Progress, Dialog } from "@chakra-ui/react";
+import { Box, Button, Flex, Text, Stack, Group, Badge, Progress, Modal } from "@mantine/core";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import WorkoutDaySection from "./WorkoutDaySection";
 import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
@@ -345,88 +345,84 @@ export default function WorkoutModal({ task, isOpen, onClose, onCompleteTask, cu
   }
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={e => !e.open && onClose()} size="xl">
-      <Dialog.Backdrop bg="blackAlpha.600" />
-      <Dialog.Positioner>
-        <Dialog.Content maxW="900px" maxH="90vh" overflowY="auto" bg={bgColor}>
-          <Dialog.Header>
-            <Dialog.Title>
-              <Flex justify="space-between" align="center" w="full">
-                <VStack align="flex-start" gap={1}>
-                  <Text fontSize="xl" fontWeight="bold">
-                    {task?.title}
-                  </Text>
-                  <HStack>
-                    <Badge colorPalette="blue" size="sm">
-                      Week {currentWeek} of {totalWeeks}
-                    </Badge>
-                    {isSaving && (
-                      <Badge colorPalette="green" size="sm">
-                        Saving...
-                      </Badge>
-                    )}
-                  </HStack>
-                </VStack>
-              </Flex>
-            </Dialog.Title>
-            <Dialog.CloseTrigger />
-          </Dialog.Header>
+    <Modal
+      opened={isOpen}
+      onClose={onClose}
+      size="xl"
+      title={
+        <Flex justify="space-between" align="center" style={{ width: "100%" }}>
+          <Stack align="flex-start" gap={4}>
+            <Text size="xl" fw={700}>
+              {task?.title}
+            </Text>
+            <Group gap={8}>
+              <Badge color="blue" size="sm">
+                Week {currentWeek} of {totalWeeks}
+              </Badge>
+              {isSaving && (
+                <Badge color="green" size="sm">
+                  Saving...
+                </Badge>
+              )}
+            </Group>
+          </Stack>
+        </Flex>
+      }
+      styles={{
+        body: {
+          maxWidth: "900px",
+          maxHeight: "90vh",
+          overflowY: "auto",
+          background: bgColor,
+        },
+      }}
+    >
+      <Stack align="stretch" gap={16}>
+        {/* Progress bar */}
+        <Box>
+          <Flex justify="space-between" style={{ marginBottom: 8 }}>
+            <Text size="sm" fw={500}>
+              Progress
+            </Text>
+            <Text size="sm" fw={500} c={mode.text.secondary}>
+              {Math.round(progressPercent)}%
+            </Text>
+          </Flex>
+          <Progress value={progressPercent} size="sm" color="blue" />
+        </Box>
 
-          <Dialog.Body>
-            <VStack align="stretch" gap={4}>
-              {/* Progress bar */}
-              <Box>
-                <Flex justify="space-between" mb={2}>
-                  <Text fontSize="sm" fontWeight="medium">
-                    Progress
-                  </Text>
-                  <Text fontSize="sm" fontWeight="medium" color={mode.text.secondary}>
-                    {Math.round(progressPercent)}%
-                  </Text>
-                </Flex>
-                <Progress.Root value={progressPercent} size="sm" colorPalette="blue">
-                  <Progress.Track>
-                    <Progress.Range />
-                  </Progress.Track>
-                </Progress.Root>
-              </Box>
+        {/* Show all sections for the current day */}
+        {workoutData.sections.map(section => {
+          const dayInSection = section.days.find(d => isDayForCurrentDayOfWeek(d)) || section.days[0];
+          if (!dayInSection) return null;
 
-              {/* Show all sections for the current day */}
-              {workoutData.sections.map(section => {
-                const dayInSection = section.days.find(d => isDayForCurrentDayOfWeek(d)) || section.days[0];
-                if (!dayInSection) return null;
-
-                return (
-                  <Box key={section.id}>
-                    {/* Section header */}
-                    <Text fontSize="md" fontWeight="bold" mb={3} color={mode.text.primary}>
-                      {section.name}
-                    </Text>
-                    <WorkoutDaySection
-                      day={dayInSection}
-                      completionData={completionData[section.id]?.days?.[dayInSection.id] || {}}
-                      onSetToggle={(exerciseId, setNumber, setData) =>
-                        handleSetToggle(section.id, dayInSection.id, exerciseId, setNumber, setData)
-                      }
-                      currentWeek={currentWeek}
-                      isCurrentDay={isDayForCurrentDayOfWeek(dayInSection)}
-                      onActualValueChange={(exerciseId, actualValue) =>
-                        handleActualValueChange(section.id, dayInSection.id, exerciseId, actualValue)
-                      }
-                    />
-                  </Box>
-                );
-              })}
-            </VStack>
-          </Dialog.Body>
-
-          <Dialog.Footer>
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          </Dialog.Footer>
-        </Dialog.Content>
-      </Dialog.Positioner>
-    </Dialog.Root>
+          return (
+            <Box key={section.id}>
+              {/* Section header */}
+              <Text size="md" fw={700} style={{ marginBottom: 12 }} c={mode.text.primary}>
+                {section.name}
+              </Text>
+              <WorkoutDaySection
+                day={dayInSection}
+                completionData={completionData[section.id]?.days?.[dayInSection.id] || {}}
+                onSetToggle={(exerciseId, setNumber, setData) =>
+                  handleSetToggle(section.id, dayInSection.id, exerciseId, setNumber, setData)
+                }
+                currentWeek={currentWeek}
+                isCurrentDay={isDayForCurrentDayOfWeek(dayInSection)}
+                onActualValueChange={(exerciseId, actualValue) =>
+                  handleActualValueChange(section.id, dayInSection.id, exerciseId, actualValue)
+                }
+              />
+            </Box>
+          );
+        })}
+      </Stack>
+      <Group justify="flex-end" style={{ marginTop: 16 }}>
+        <Button variant="outline" onClick={onClose}>
+          Close
+        </Button>
+      </Group>
+    </Modal>
   );
 }

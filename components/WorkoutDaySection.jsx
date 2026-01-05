@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Text, VStack, Heading, Badge, Flex } from "@chakra-ui/react";
+import { Box, Text, Stack, Title, Badge, Flex, Group } from "@mantine/core";
 import WorkoutExerciseCard from "./WorkoutExerciseCard";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
@@ -42,30 +42,35 @@ export default function WorkoutDaySection({
 
   return (
     <Box
-      p={4}
-      bg={isCurrentDay ? calendar.todayBg : mode.bg.surface}
-      borderRadius="lg"
-      borderWidth="2px"
-      borderColor={isCurrentDay ? calendar.today : mode.border.default}
+      style={{
+        padding: 16,
+        background: isCurrentDay ? calendar.todayBg : mode.bg.surface,
+        borderRadius: "var(--mantine-radius-lg)",
+        borderWidth: "2px",
+        borderColor: isCurrentDay ? calendar.today : mode.border.default,
+        borderStyle: "solid",
+      }}
     >
-      <VStack align="stretch" gap={4}>
+      <Stack align="stretch" gap={16}>
         {/* Day header */}
         <Flex justify="space-between" align="center">
-          <Heading size="md" color={isCurrentDay ? mode.text.link : mode.text.primary}>
-            {day.name}
+          <Group gap={8}>
+            <Title size="md" c={isCurrentDay ? mode.text.link : mode.text.primary}>
+              {day.name}
+            </Title>
             {isCurrentDay && (
-              <Badge ml={2} colorPalette="blue" size="sm">
+              <Badge color="blue" size="sm">
                 Today
               </Badge>
             )}
-          </Heading>
-          <Text fontSize="sm" color={mode.text.secondary}>
+          </Group>
+          <Text size="sm" c={mode.text.secondary}>
             {completedSets} / {totalSets} sets
           </Text>
         </Flex>
 
         {/* Exercises */}
-        <VStack align="stretch" gap={3}>
+        <Stack align="stretch" gap={12}>
           {day.exercises.map(exercise => {
             const exerciseCompletion = completionData.exercises?.[exercise.id] || { sets: [] };
 
@@ -81,8 +86,8 @@ export default function WorkoutDaySection({
               />
             );
           })}
-        </VStack>
-      </VStack>
+        </Stack>
+      </Stack>
     </Box>
   );
 }

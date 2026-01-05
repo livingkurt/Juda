@@ -42,7 +42,7 @@ export function useSemanticColors() {
       return resolved;
     };
 
-    // Helper to create Chakra color mode object for inline styles
+    // Helper to create color mode object for inline styles
     const colorModeObj = colorDef => {
       if (typeof colorDef === "string") return colorDef;
       return { _light: colorDef.light, _dark: colorDef.dark };
@@ -53,7 +53,7 @@ export function useSemanticColors() {
       colorPalette: badgeDef.colorPalette,
       bg: resolve(badgeDef.bg),
       color: resolve(badgeDef.color),
-      // Also provide color mode objects for Chakra components
+      // Also provide color mode objects for compatibility
       bgMode: colorModeObj(badgeDef.bg),
       colorMode: colorModeObj(badgeDef.color),
     });
@@ -150,7 +150,7 @@ export function useSemanticColors() {
         future: resolveBadge(badgeColors.future),
       },
 
-      // Color mode objects (for Chakra's _light/_dark syntax)
+      // Color mode objects (for light/dark mode styling)
       mode: {
         bg: {
           canvas: { _light: theme.colors.light.bgCanvas, _dark: theme.colors.dark.bgCanvas },

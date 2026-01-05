@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useEffect } from "react";
-import { Input, InputGroup, Box } from "@chakra-ui/react";
+import { TextInput } from "@mantine/core";
 import { Search } from "lucide-react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
@@ -29,26 +29,28 @@ export const TaskSearchInput = memo(function TaskSearchInput({ onSearchChange, p
   }, [debouncedSearch, onSearchChange]);
 
   return (
-    <InputGroup
-      startElement={
-        <Box as="span" color={mutedText} pointerEvents="none">
-          <Search size={14} stroke="currentColor" />
-        </Box>
-      }
-    >
-      <Input
-        placeholder={placeholder}
-        value={searchTerm}
-        onChange={e => setSearchTerm(e.target.value)}
-        bg="transparent"
-        borderColor={borderColor}
-        color={textColor}
-        _placeholder={{ color: mutedText }}
-        _focus={{
-          borderColor: interactive.primary,
-          boxShadow: `0 0 0 1px ${interactive.primary}`,
-        }}
-      />
-    </InputGroup>
+    <TextInput
+      placeholder={placeholder}
+      value={searchTerm}
+      onChange={e => setSearchTerm(e.target.value)}
+      leftSection={<Search size={14} stroke="currentColor" />}
+      style={{
+        background: "transparent",
+        borderColor: borderColor,
+        color: textColor,
+      }}
+      styles={{
+        input: {
+          color: textColor,
+          "&::placeholder": {
+            color: mutedText,
+          },
+          "&:focus": {
+            borderColor: interactive.primary,
+            boxShadow: `0 0 0 1px ${interactive.primary}`,
+          },
+        },
+      }}
+    />
   );
 });

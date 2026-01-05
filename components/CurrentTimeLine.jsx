@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Box } from "@chakra-ui/react";
+import { Box } from "@mantine/core";
+import { useMantineColorScheme } from "@mantine/core";
 
 export const CurrentTimeLine = ({ hourHeight, isVisible = true }) => {
   const [currentMinutes, setCurrentMinutes] = useState(() => {
     const now = new Date();
     return now.getHours() * 60 + now.getMinutes();
   });
+
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === "dark";
 
   useEffect(() => {
     if (!isVisible) return;
@@ -24,29 +28,32 @@ export const CurrentTimeLine = ({ hourHeight, isVisible = true }) => {
   if (!isVisible) return null;
 
   const topPosition = (currentMinutes / 60) * hourHeight;
+  const lineColor = isDark ? "var(--mantine-color-red-4)" : "var(--mantine-color-red-5)";
 
   return (
     <Box
-      position="absolute"
-      left={0}
-      right={0}
-      top={`${topPosition}px`}
-      height="2px"
-      bg="red.500"
-      zIndex={100}
-      pointerEvents="none"
-      _dark={{ bg: "red.400" }}
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        top: `${topPosition}px`,
+        height: "2px",
+        background: lineColor,
+        zIndex: 100,
+        pointerEvents: "none",
+      }}
     >
       {/* Small circle indicator */}
       <Box
-        position="absolute"
-        left={0}
-        top="-4px"
-        width="10px"
-        height="10px"
-        borderRadius="full"
-        bg="red.500"
-        _dark={{ bg: "red.400" }}
+        style={{
+          position: "absolute",
+          left: 0,
+          top: "-4px",
+          width: "10px",
+          height: "10px",
+          borderRadius: "50%",
+          background: lineColor,
+        }}
       />
     </Box>
   );

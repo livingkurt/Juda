@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Text, VStack } from "@chakra-ui/react";
+import { Box, Text, Stack } from "@mantine/core";
 import { useDroppable } from "@dnd-kit/core";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 import { CalendarTask } from "./CalendarTask";
@@ -29,43 +29,54 @@ export const DayHeaderColumn = ({
 
   return (
     <Box
-      flex={1}
-      flexShrink={0}
-      flexGrow={1}
-      minW={0}
-      borderLeftWidth={dayIndex === 0 ? "0" : isToday ? "1.5px" : "1px"}
-      borderRightWidth={isToday ? "1.5px" : "0"}
-      borderColor={isToday ? calendar.today : borderColor}
-      bg={isToday ? calendar.todayBg : "transparent"}
+      style={{
+        flex: 1,
+        flexShrink: 0,
+        flexGrow: 1,
+        minWidth: 0,
+        borderLeftWidth: dayIndex === 0 ? 0 : isToday ? 1.5 : 1,
+        borderRightWidth: isToday ? 1.5 : 0,
+        borderColor: isToday ? calendar.today : borderColor,
+        borderStyle: "solid",
+        background: isToday ? calendar.todayBg : "transparent",
+      }}
     >
       {/* Day header */}
       <Box
-        textAlign="center"
-        py={2}
-        cursor="pointer"
-        _hover={{ bg: isToday ? calendar.selected : hoverBg }}
+        style={{
+          textAlign: "center",
+          paddingTop: 8,
+          paddingBottom: 8,
+          cursor: "pointer",
+          background: isToday ? calendar.todayBg : "transparent",
+        }}
+        onMouseEnter={e => {
+          const target = e.currentTarget;
+          target.style.background = isToday ? calendar.selected : hoverBg;
+        }}
+        onMouseLeave={e => {
+          const target = e.currentTarget;
+          target.style.background = isToday ? calendar.todayBg : "transparent";
+        }}
         onClick={() => onDayClick(day)}
-        bg={isToday ? calendar.todayBg : "transparent"}
       >
-        <Text
-          fontSize={{ base: "2xs", md: "xs" }}
-          color={isToday ? interactive.primary : hourTextColor}
-          fontWeight={isToday ? "medium" : "normal"}
-        >
+        <Text size={["0.625rem", "0.75rem"]} c={isToday ? interactive.primary : hourTextColor} fw={isToday ? 500 : 400}>
           {DAYS_OF_WEEK[dayIndex].short}
         </Text>
         <Box
-          as="span"
-          fontSize={{ base: "md", md: "lg" }}
-          fontWeight={isToday ? "semibold" : "normal"}
-          display="inline-block"
-          bg={isToday ? calendar.today : "transparent"}
-          color={isToday ? mode.text.inverse : "inherit"}
-          borderRadius="full"
-          w={8}
-          h={8}
-          lineHeight="32px"
-          boxShadow={isToday ? "sm" : "none"}
+          component="span"
+          size={["md", "lg"]}
+          fw={isToday ? 600 : 400}
+          style={{
+            display: "inline-block",
+            background: isToday ? calendar.today : "transparent",
+            color: isToday ? mode.text.inverse : "inherit",
+            borderRadius: "50%",
+            width: 32,
+            height: 32,
+            lineHeight: "32px",
+            boxShadow: isToday ? "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)" : "none",
+          }}
         >
           {day.getDate()}
         </Box>
@@ -74,18 +85,19 @@ export const DayHeaderColumn = ({
       {/* Untimed tasks for this day */}
       <Box
         ref={setNodeRef}
-        px={0.5}
-        py={0.5}
-        borderTopWidth="1px"
-        borderColor={borderColor}
-        bg={isOver ? dropHighlight : isToday ? calendar.todayBg : "transparent"}
-        minH={untimedTasks.length > 0 || isOver ? "auto" : "0"}
-        maxH="80px"
-        overflowY="auto"
-        transition="background-color 0.2s"
-        flexShrink={0}
+        px={2}
+        py={2}
+        style={{
+          borderTop: `1px solid ${borderColor}`,
+          background: isOver ? dropHighlight : isToday ? calendar.todayBg : "transparent",
+          minHeight: untimedTasks.length > 0 || isOver ? "auto" : 0,
+          maxHeight: "80px",
+          overflowY: "auto",
+          transition: "background-color 0.2s",
+          flexShrink: 0,
+        }}
       >
-        <VStack align="stretch" spacing={0.5}>
+        <Stack gap={2}>
           {untimedTasks.map(task => (
             <CalendarTask
               key={task.id}
@@ -95,7 +107,7 @@ export const DayHeaderColumn = ({
               variant="untimed-week"
             />
           ))}
-        </VStack>
+        </Stack>
       </Box>
     </Box>
   );

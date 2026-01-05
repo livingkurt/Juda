@@ -1,6 +1,6 @@
-# Task Manager - Next.js with Chakra UI & PostgreSQL
+# Task Manager - Next.js with Mantine & PostgreSQL
 
-A daily task management system built with Next.js, Chakra UI, and PostgreSQL.
+A daily task management system built with Next.js, Mantine UI, and PostgreSQL.
 
 ## Features
 
@@ -13,18 +13,18 @@ A daily task management system built with Next.js, Chakra UI, and PostgreSQL.
   - Set time and duration for tasks
   - Color coding for tasks
 - **Backlog**: Store tasks that don't have a specific time
-- **Drag and Drop**: Reorder tasks and sections using @hello-pangea/dnd
+- **Drag and Drop**: Reorder tasks and sections using @dnd-kit
 - **Dark Mode**: Toggle between light and dark themes
 - **Progress Tracking**: Visual progress bar for daily completion
 - **Database Persistence**: All data stored in PostgreSQL
 
 ## Tech Stack
 
-- **Next.js 14**: React framework with App Router
-- **Chakra UI**: Component library
+- **Next.js 16**: React framework with App Router
+- **Mantine UI**: Component library
 - **PostgreSQL**: Database
 - **Drizzle ORM**: Type-safe ORM for database access
-- **@hello-pangea/dnd**: Drag and drop library
+- **@dnd-kit**: Drag and drop library
 - **Lucide React**: Icon library
 
 ## Getting Started
@@ -90,7 +90,7 @@ juda/
 │   │   └── backlog/     # Backlog CRUD endpoints
 │   ├── layout.jsx       # Root layout
 │   ├── page.jsx         # Main application page
-│   └── providers.jsx    # Chakra UI provider
+│   └── providers.jsx    # Mantine UI provider
 ├── components/          # React components
 │   ├── TaskItem.jsx
 │   ├── Section.jsx
@@ -172,6 +172,6 @@ Quick steps:
 - All data is persisted in PostgreSQL
 - Tasks support recurrence patterns (daily, weekly)
 - Drag and drop functionality for reordering
-- Responsive design with Chakra UI components
-- Dark mode support via Chakra UI color mode
+- Responsive design with Mantine UI components
+- Dark mode support via Mantine color scheme
 - Task completion records use UTC dates to ensure consistency across timezones (client and server)

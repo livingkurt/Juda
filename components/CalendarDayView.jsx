@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Box, Text, Flex, VStack } from "@chakra-ui/react";
+import { Box, Text, Flex, Stack } from "@mantine/core";
 import { useDroppable } from "@dnd-kit/core";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate, calculateTaskPositions } from "@/lib/utils";
 import { HOUR_HEIGHT_DAY, DRAG_THRESHOLD } from "@/lib/calendarConstants";
@@ -109,7 +109,7 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
     return {
       top: `${(minutes / 60) * HOUR_HEIGHT}px`,
       height: `${isNoDuration ? 24 : Math.max((duration / 60) * HOUR_HEIGHT, 24)}px`,
-      // Don't set backgroundColor here - let Chakra UI bg prop handle it for proper theming
+      // Background color handled by semantic colors
     };
   };
 
@@ -237,19 +237,23 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
   });
 
   return (
-    <Flex direction="column" flex={1} minH={0} w="100%" maxW="100%" overflow="hidden">
+    <Flex direction="column" style={{ flex: 1, minHeight: 0, width: "100%", maxWidth: "100%", overflow: "hidden" }}>
       {/* Day header */}
       <Box
-        textAlign="center"
-        py={3}
-        borderBottomWidth="1px"
-        borderColor={borderColor}
-        bg={bgColor}
-        flexShrink={0}
-        w="100%"
-        maxW="100%"
+        style={{
+          textAlign: "center",
+          paddingTop: 12,
+          paddingBottom: 12,
+          borderBottomWidth: "1px",
+          borderBottomColor: borderColor,
+          borderBottomStyle: "solid",
+          background: bgColor,
+          flexShrink: 0,
+          width: "100%",
+          maxWidth: "100%",
+        }}
       >
-        <Text fontSize={{ base: "lg", md: "xl" }} fontWeight="bold">
+        <Text size={["lg", "xl"]} fw={700}>
           {date.toLocaleDateString("en-US", { day: "numeric", weekday: "long", month: "long" })}
         </Text>
       </Box>
@@ -257,26 +261,38 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
       {/* Untimed tasks area */}
       <Box
         ref={setUntimedRef}
-        borderBottomWidth="1px"
-        borderColor={borderColor}
-        bg={isOverUntimed ? dropHighlight : bgColor}
-        minH={untimedTasks.length > 0 || isOverUntimed ? "auto" : "0"}
-        transition="background-color 0.2s"
-        w="100%"
-        maxW="100%"
-        flexShrink={0}
+        style={{
+          borderBottomWidth: "1px",
+          borderBottomColor: borderColor,
+          borderBottomStyle: "solid",
+          background: isOverUntimed ? dropHighlight : bgColor,
+          minHeight: untimedTasks.length > 0 || isOverUntimed ? "auto" : "0",
+          transition: "background-color 0.2s",
+          width: "100%",
+          maxWidth: "100%",
+          flexShrink: 0,
+        }}
       >
         {(untimedTasks.length > 0 || isOverUntimed) && (
-          <VStack align="stretch" spacing={0}>
+          <Stack align="stretch" gap={0}>
             {/* All Day header - fixed, not scrollable */}
-            <Box px={{ base: 2, md: 4 }} pt={1} pb={0.5} flexShrink={0}>
-              <Text fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} fontWeight="medium">
+            <Box style={{ paddingLeft: 16, paddingRight: 16, paddingTop: 4, paddingBottom: 2, flexShrink: 0 }}>
+              <Text size={["xs", "sm"]} c={hourTextColor} fw={500}>
                 All Day
               </Text>
             </Box>
             {/* Scrollable tasks container */}
-            <Box px={{ base: 2, md: 4 }} pb={1} maxH="100px" overflowY="auto" flexShrink={0}>
-              <VStack align="stretch" spacing={1}>
+            <Box
+              style={{
+                paddingLeft: 16,
+                paddingRight: 16,
+                paddingBottom: 4,
+                maxHeight: "100px",
+                overflowY: "auto",
+                flexShrink: 0,
+              }}
+            >
+              <Stack align="stretch" gap={4}>
                 {untimedTasks.map(task => (
                   <CalendarTask
                     key={task.id}
@@ -287,19 +303,19 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
                   />
                 ))}
                 {isOverUntimed && untimedTasks.length === 0 && (
-                  <Text fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} textAlign="center" py={2}>
+                  <Text size={["xs", "sm"]} c={hourTextColor} ta="center" style={{ paddingTop: 8, paddingBottom: 8 }}>
                     Drop here for all-day task
                   </Text>
                 )}
-              </VStack>
+              </Stack>
             </Box>
-          </VStack>
+          </Stack>
         )}
       </Box>
 
       {/* Timed calendar grid */}
-      <Box ref={containerRef} flex={1} overflowY="auto" w="100%" maxW="100%" minH={0}>
-        <Box position="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
+      <Box ref={containerRef} style={{ flex: 1, overflowY: "auto", width: "100%", maxWidth: "100%", minHeight: 0 }}>
+        <Box style={{ position: "relative", height: `${24 * HOUR_HEIGHT}px` }}>
           {/* Current time line - only show if viewing today */}
           {isToday && <CurrentTimeLine hourHeight={HOUR_HEIGHT} isVisible={true} />}
 
@@ -307,34 +323,48 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
           {hours.map(hour => (
             <Box
               key={hour}
-              position="absolute"
-              w="full"
-              borderTopWidth="1px"
-              borderColor={hourBorderColor}
-              display="flex"
               style={{
+                position: "absolute",
+                width: "100%",
+                borderTopWidth: "1px",
+                borderTopColor: hourBorderColor,
+                borderTopStyle: "solid",
+                display: "flex",
                 top: `${hour * HOUR_HEIGHT}px`,
                 height: `${HOUR_HEIGHT}px`,
               }}
             >
-              <Box w={16} fontSize={{ base: "2xs", md: "xs" }} color={hourTextColor} pr={2} textAlign="right" pt={1}>
+              <Box
+                style={{
+                  width: 64,
+                  fontSize: "var(--mantine-font-size-xs)",
+                  color: hourTextColor,
+                  paddingRight: 8,
+                  textAlign: "right",
+                  paddingTop: 4,
+                }}
+              >
                 {hour === 0 ? "12 am" : hour < 12 ? `${hour} am` : hour === 12 ? "12 pm" : `${hour - 12} pm`}
               </Box>
-              <Box flex={1} borderLeftWidth="1px" borderColor={borderColor} />
+              <Box
+                style={{ flex: 1, borderLeftWidth: "1px", borderLeftColor: borderColor, borderLeftStyle: "solid" }}
+              />
             </Box>
           ))}
 
           {/* Droppable timed area */}
           <Box
             ref={setTimedRef}
-            position="absolute"
-            left={16}
-            right={2}
-            top={0}
-            bottom={0}
-            bg={isOverTimed ? dropHighlight : "transparent"}
-            borderRadius="md"
-            transition="background-color 0.2s"
+            style={{
+              position: "absolute",
+              left: 64,
+              right: 8,
+              top: 0,
+              bottom: 0,
+              background: isOverTimed ? dropHighlight : "transparent",
+              borderRadius: "var(--mantine-radius-md)",
+              transition: "background-color 0.2s",
+            }}
             onClick={handleCalendarClick}
             data-calendar-timed="true"
             data-calendar-view="day"

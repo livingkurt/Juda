@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Flex, VStack, Text, Menu, Portal } from "@chakra-ui/react";
+import { Box, Flex, Stack, Text, Menu } from "@mantine/core";
 import { shouldShowOnDate, getTaskDisplayColor } from "@/lib/utils";
 import { MONTH_OPTIONS } from "@/lib/constants";
 import { Calendar } from "lucide-react";
@@ -105,41 +105,50 @@ export const CalendarYearView = ({
   const monthLabelWidth = "50px";
 
   return (
-    <Flex direction="column" h="full" overflow="auto" bg={bgColor} p={2}>
+    <Flex direction="column" style={{ height: "100%", overflow: "auto", background: bgColor, padding: 8 }}>
       {/* Header row - Day numbers */}
-      <Flex mb={0} position="sticky" top={0} bg={bgColor} zIndex={10} pb={0}>
+      <Flex style={{ marginBottom: 0, position: "sticky", top: 0, background: bgColor, zIndex: 10, paddingBottom: 0 }}>
         {/* Empty space for month label column */}
-        <Box w={monthLabelWidth} minW={monthLabelWidth} flexShrink={0} />
+        <Box style={{ width: monthLabelWidth, minWidth: monthLabelWidth, flexShrink: 0 }} />
 
         {/* Day number headers */}
         <Flex>
           {daysOfMonth.map(day => (
             <Box
               key={day}
-              w={cellSizePx}
-              minW={cellSizePx}
-              maxW={cellSizePx}
-              flexShrink={0}
-              h="auto"
-              textAlign="left"
-              fontSize={{
-                base: zoom >= 1.5 ? "xs" : zoom >= 1.0 ? "2xs" : "3xs",
-                md: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
+              style={{
+                width: cellSizePx,
+                minWidth: cellSizePx,
+                maxWidth: cellSizePx,
+                flexShrink: 0,
+                height: "auto",
+                textAlign: "left",
+                fontSize:
+                  zoom >= 1.5
+                    ? "var(--mantine-font-size-sm)"
+                    : zoom >= 1.0
+                      ? "var(--mantine-font-size-xs)"
+                      : "var(--mantine-font-size-xs)",
+                paddingLeft: 8,
+                color: headerText,
+                fontWeight: 500,
+                borderTopWidth: "2px",
+                borderTopColor: borderColor,
+                borderTopStyle: "solid",
+                borderBottomWidth: "1px",
+                borderBottomColor: borderColor,
+                borderBottomStyle: "solid",
+                borderLeftWidth: day === 1 ? "2px" : "1px",
+                borderLeftColor: borderColor,
+                borderLeftStyle: "solid",
+                borderRightWidth: day === 31 ? "2px" : "1px",
+                borderRightColor: borderColor,
+                borderRightStyle: "solid",
+                paddingTop: 4,
+                paddingBottom: 4,
+                background: bgColor,
+                boxSizing: "border-box",
               }}
-              pl={2}
-              color={headerText}
-              fontWeight="medium"
-              borderTopWidth="2px"
-              borderTopColor={borderColor}
-              borderBottomWidth="1px"
-              borderBottomColor={borderColor}
-              borderLeftWidth={day === 1 ? "2px" : "1px"}
-              borderLeftColor={borderColor}
-              borderRightWidth={day === 31 ? "2px" : "1px"}
-              borderRightColor={borderColor}
-              py={1}
-              bg={bgColor}
-              boxSizing="border-box"
             >
               {day}
             </Box>
@@ -149,24 +158,28 @@ export const CalendarYearView = ({
 
       {/* Month rows */}
       {MONTH_OPTIONS.map((monthOption, monthIndex) => (
-        <Flex key={monthOption.value} align="flex-start" mb={0}>
+        <Flex key={monthOption.value} align="flex-start" style={{ marginBottom: 0 }}>
           {/* Month label */}
           <Box
-            w={monthLabelWidth}
-            minW={monthLabelWidth}
-            flexShrink={0}
-            pr={2}
-            fontSize={{
-              base: zoom >= 1.5 ? "sm" : zoom >= 1.0 ? "xs" : "2xs",
-              md: zoom >= 1.5 ? "md" : zoom >= 1.0 ? "sm" : "xs",
+            style={{
+              width: monthLabelWidth,
+              minWidth: monthLabelWidth,
+              flexShrink: 0,
+              paddingRight: 8,
+              fontSize:
+                zoom >= 1.5
+                  ? "var(--mantine-font-size-md)"
+                  : zoom >= 1.0
+                    ? "var(--mantine-font-size-sm)"
+                    : "var(--mantine-font-size-xs)",
+              fontWeight: 500,
+              color: monthText,
+              textAlign: "right",
+              position: "sticky",
+              left: 0,
+              background: bgColor,
+              zIndex: 5,
             }}
-            fontWeight="medium"
-            color={monthText}
-            textAlign="right"
-            position="sticky"
-            left={0}
-            bg={bgColor}
-            zIndex={5}
           >
             {monthOption.label.substring(0, 3)}
           </Box>
@@ -187,33 +200,61 @@ export const CalendarYearView = ({
               const hasHiddenTasks = remainingCount > 0;
 
               return (
-                <Menu.Root
+                <Menu
                   key={day}
-                  open={openMenuDate === dateKey}
-                  onOpenChange={e => setOpenMenuDate(e.open ? dateKey : null)}
+                  opened={openMenuDate === dateKey}
+                  onChange={opened => setOpenMenuDate(opened ? dateKey : null)}
                 >
-                  <Menu.Trigger asChild>
+                  <Menu.Target>
                     <Box
-                      w={cellSizePx}
-                      minW={cellSizePx}
-                      maxW={cellSizePx}
-                      flexShrink={0}
-                      minH={cellMinHeight}
-                      display="flex"
-                      flexDirection="column"
-                      bg={todayCell ? calendar.todayBg : valid ? cellBg : invalidCellBg}
-                      borderTopWidth={monthIndex === 0 ? "2px" : "1px"}
-                      borderTopColor={borderColor}
-                      borderBottomWidth={monthIndex === 11 ? "2px" : "1px"}
-                      borderBottomColor={borderColor}
-                      borderLeftWidth={day === 1 ? "2px" : "1px"}
-                      borderLeftColor={borderColor}
-                      borderRightWidth={day === 31 ? "2px" : "1px"}
-                      borderRightColor={borderColor}
-                      boxShadow={todayCell ? `inset 0 0 0 1.5px ${todayBorder}` : "none"}
-                      cursor={valid ? "pointer" : "default"}
-                      opacity={valid ? 1 : 0.3}
-                      _hover={valid ? { bg: todayCell ? calendar.selected : cellHover } : {}}
+                      style={{
+                        width: cellSizePx,
+                        minWidth: cellSizePx,
+                        maxWidth: cellSizePx,
+                        flexShrink: 0,
+                        minHeight: cellMinHeight.base,
+                        display: "flex",
+                        flexDirection: "column",
+                        background: todayCell ? calendar.todayBg : valid ? cellBg : invalidCellBg,
+                        borderTopWidth: monthIndex === 0 ? "2px" : "1px",
+                        borderTopColor: borderColor,
+                        borderTopStyle: "solid",
+                        borderBottomWidth: monthIndex === 11 ? "2px" : "1px",
+                        borderBottomColor: borderColor,
+                        borderBottomStyle: "solid",
+                        borderLeftWidth: day === 1 ? "2px" : "1px",
+                        borderLeftColor: borderColor,
+                        borderLeftStyle: "solid",
+                        borderRightWidth: day === 31 ? "2px" : "1px",
+                        borderRightColor: borderColor,
+                        borderRightStyle: "solid",
+                        boxShadow: todayCell ? `inset 0 0 0 1.5px ${todayBorder}` : "none",
+                        cursor: valid ? "pointer" : "default",
+                        opacity: valid ? 1 : 0.3,
+                        transition: "all 0.15s",
+                        padding: zoom >= 1.0 ? 4 : 2,
+                        position: "relative",
+                        boxSizing: "border-box",
+                      }}
+                      title={
+                        valid && dayTasks.length > 0
+                          ? `${monthOption.label} ${day}: ${dayTasks.length} task${dayTasks.length !== 1 ? "s" : ""}`
+                          : undefined
+                      }
+                      onMouseEnter={e => {
+                        if (valid) {
+                          e.currentTarget.style.backgroundColor = todayCell ? calendar.selected : cellHover;
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (valid) {
+                          e.currentTarget.style.backgroundColor = todayCell
+                            ? calendar.todayBg
+                            : valid
+                              ? cellBg
+                              : invalidCellBg;
+                        }
+                      }}
                       onClick={e => {
                         // If there are hidden tasks, open menu; otherwise navigate to day
                         if (!hasHiddenTasks) {
@@ -221,15 +262,6 @@ export const CalendarYearView = ({
                           handleCellClick(monthIndex, day);
                         }
                       }}
-                      transition="all 0.15s"
-                      p={zoom >= 1.0 ? 1 : 0.5}
-                      position="relative"
-                      boxSizing="border-box"
-                      title={
-                        valid && dayTasks.length > 0
-                          ? `${monthOption.label} ${day}: ${dayTasks.length} task${dayTasks.length !== 1 ? "s" : ""}`
-                          : undefined
-                      }
                     >
                       {/* Day number */}
                       {/* {valid && (
@@ -258,7 +290,7 @@ export const CalendarYearView = ({
 
                       {/* Tasks */}
                       {valid && (
-                        <VStack spacing={zoom >= 1.0 ? 0.5 : 0.25} align="stretch" flex={1} overflow="hidden">
+                        <Stack spacing={zoom >= 1.0 ? 2 : 1} align="stretch" style={{ flex: 1, overflow: "hidden" }}>
                           {visibleTasks.map(task => {
                             const targetDate = new Date(year, monthIndex, day);
                             targetDate.setHours(0, 0, 0, 0);
@@ -274,136 +306,148 @@ export const CalendarYearView = ({
                           })}
                           {remainingCount > 0 && (
                             <Box
-                              fontSize={{
-                                base: zoom >= 1.5 ? "3xs" : zoom >= 1.0 ? "4xs" : "5xs",
-                                md: zoom >= 1.5 ? "2xs" : zoom >= 1.0 ? "3xs" : "4xs",
+                              style={{
+                                fontSize: "var(--mantine-font-size-xs)",
+                                color: mutedText,
+                                textAlign: "center",
+                                paddingLeft: 2,
+                                paddingRight: 2,
                               }}
-                              color={mutedText}
-                              textAlign="center"
-                              px={0.5}
                             >
                               +{remainingCount}
                             </Box>
                           )}
-                        </VStack>
+                        </Stack>
                       )}
                     </Box>
-                  </Menu.Trigger>
+                  </Menu.Target>
 
                   {/* Popover menu for all tasks */}
                   {hasHiddenTasks && (
-                    <Portal>
-                      <Menu.Positioner>
-                        <Menu.Content
-                          onClick={e => e.stopPropagation()}
-                          onMouseDown={e => e.stopPropagation()}
-                          minW="250px"
-                          maxW="350px"
-                          p={2}
-                        >
-                          {/* Go to Day View button */}
-                          <Box
-                            as="button"
-                            w="full"
-                            p={2}
-                            mb={2}
-                            borderRadius="md"
-                            bg={calendar.todayBg}
-                            color={mode.text.link}
-                            _hover={{ bg: calendar.selected }}
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleCellClick(monthIndex, day);
-                              setOpenMenuDate(null);
-                            }}
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="center"
-                            gap={2}
-                            cursor="pointer"
-                            border="none"
-                            outline="none"
-                          >
-                            <Calendar size={14} />
-                            <Text fontSize="sm" fontWeight="medium">
-                              Go to Day View
-                            </Text>
-                          </Box>
+                    <Menu.Dropdown
+                      onClick={e => e.stopPropagation()}
+                      onMouseDown={e => e.stopPropagation()}
+                      style={{ minWidth: "250px", maxWidth: "350px", padding: 8 }}
+                    >
+                      {/* Go to Day View button */}
+                      <Box
+                        component="button"
+                        style={{
+                          width: "100%",
+                          padding: 8,
+                          marginBottom: 8,
+                          borderRadius: "var(--mantine-radius-md)",
+                          background: calendar.todayBg,
+                          color: mode.text.link,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                          cursor: "pointer",
+                          border: "none",
+                          outline: "none",
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.backgroundColor = calendar.selected;
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.backgroundColor = calendar.todayBg;
+                        }}
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleCellClick(monthIndex, day);
+                          setOpenMenuDate(null);
+                        }}
+                      >
+                        <Calendar size={14} />
+                        <Text size="sm" fw={500}>
+                          Go to Day View
+                        </Text>
+                      </Box>
 
-                          {/* All tasks for this day - styled like calendar cells */}
-                          <VStack spacing={1} align="stretch">
-                            {dayTasks.map(task => {
-                              const taskColor = getTaskDisplayColor(task);
-                              const isRecurring = task.recurrence && task.recurrence.type !== "none";
-                              const isWorkoutTask = task.completionType === "workout";
-                              const taskDate = new Date(year, monthIndex, day);
-                              taskDate.setHours(0, 0, 0, 0);
-                              const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, taskDate) : null;
+                      {/* All tasks for this day - styled like calendar cells */}
+                      <Stack gap={4} align="stretch">
+                        {dayTasks.map(task => {
+                          const taskColor = getTaskDisplayColor(task);
+                          const isRecurring = task.recurrence && task.recurrence.type !== "none";
+                          const isWorkoutTask = task.completionType === "workout";
+                          const taskDate = new Date(year, monthIndex, day);
+                          taskDate.setHours(0, 0, 0, 0);
+                          const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, taskDate) : null;
 
-                              return (
-                                <Menu.Root key={task.id}>
-                                  <Menu.Trigger asChild>
-                                    <Box
-                                      as="button"
-                                      w="full"
-                                      px={2}
-                                      py={1.5}
-                                      borderRadius="md"
-                                      bg={taskColor || mode.task.neutral}
-                                      color={taskColor ? "white" : mode.task.neutralText}
-                                      _hover={{
-                                        opacity: 0.8,
-                                        transform: "translateY(-1px)",
-                                        boxShadow: "sm",
-                                      }}
-                                      onClick={e => {
-                                        e.stopPropagation();
-                                      }}
-                                      cursor="pointer"
-                                      textAlign="left"
-                                      transition="all 0.15s"
-                                      border="none"
-                                      outline="none"
-                                      display="flex"
-                                      alignItems="center"
-                                      gap={2}
-                                    >
-                                      <Text flex={1} fontSize="sm" isTruncated fontWeight="medium">
-                                        {task.title}
-                                      </Text>
-                                    </Box>
-                                  </Menu.Trigger>
-                                  <Portal>
-                                    <Menu.Positioner>
-                                      <Menu.Content
-                                        onClick={e => e.stopPropagation()}
-                                        onMouseDown={e => e.stopPropagation()}
-                                      >
-                                        <TaskContextMenu
-                                          task={task}
-                                          date={taskDate}
-                                          isRecurring={isRecurring}
-                                          isWorkoutTask={isWorkoutTask}
-                                          outcome={outcome}
-                                          onEdit={onEdit}
-                                          onEditWorkout={onEditWorkout}
-                                          onOutcomeChange={onOutcomeChange}
-                                          onDuplicate={onDuplicate}
-                                          onDelete={onDelete}
-                                          onClose={() => setOpenMenuDate(null)}
-                                        />
-                                      </Menu.Content>
-                                    </Menu.Positioner>
-                                  </Portal>
-                                </Menu.Root>
-                              );
-                            })}
-                          </VStack>
-                        </Menu.Content>
-                      </Menu.Positioner>
-                    </Portal>
+                          return (
+                            <Menu key={task.id}>
+                              <Menu.Target>
+                                <Box
+                                  component="button"
+                                  style={{
+                                    width: "100%",
+                                    paddingLeft: 8,
+                                    paddingRight: 8,
+                                    paddingTop: 6,
+                                    paddingBottom: 6,
+                                    borderRadius: "var(--mantine-radius-md)",
+                                    background: taskColor || mode.task.neutral,
+                                    color: taskColor ? "white" : mode.task.neutralText,
+                                    cursor: "pointer",
+                                    textAlign: "left",
+                                    transition: "all 0.15s",
+                                    border: "none",
+                                    outline: "none",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                  }}
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.opacity = "0.8";
+                                    e.currentTarget.style.transform = "translateY(-1px)";
+                                    e.currentTarget.style.boxShadow = "var(--mantine-shadow-sm)";
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.opacity = "1";
+                                    e.currentTarget.style.transform = "translateY(0)";
+                                    e.currentTarget.style.boxShadow = "none";
+                                  }}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      flex: 1,
+                                      fontSize: "var(--mantine-font-size-sm)",
+                                      fontWeight: 500,
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {task.title}
+                                  </Text>
+                                </Box>
+                              </Menu.Target>
+                              <Menu.Dropdown onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+                                <TaskContextMenu
+                                  task={task}
+                                  date={taskDate}
+                                  isRecurring={isRecurring}
+                                  isWorkoutTask={isWorkoutTask}
+                                  outcome={outcome}
+                                  onEdit={onEdit}
+                                  onEditWorkout={onEditWorkout}
+                                  onOutcomeChange={onOutcomeChange}
+                                  onDuplicate={onDuplicate}
+                                  onDelete={onDelete}
+                                  onClose={() => setOpenMenuDate(null)}
+                                />
+                              </Menu.Dropdown>
+                            </Menu>
+                          );
+                        })}
+                      </Stack>
+                    </Menu.Dropdown>
                   )}
-                </Menu.Root>
+                </Menu>
               );
             })}
           </Flex>

@@ -1,5 +1,11 @@
+import "@mantine/core/styles.css";
+import "@mantine/dates/styles.css";
+import "@mantine/notifications/styles.css";
+import "@mantine/charts/styles.css";
+import "./globals.css";
+
+import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core";
 import { Providers } from "./providers";
-import { ColorModeScript } from "./color-mode-script";
 import { MobileZoomFix } from "@/components/MobileZoomFix";
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -32,9 +38,11 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" {...mantineHtmlProps} suppressHydrationWarning>
+      <head>
+        <ColorSchemeScript defaultColorScheme="dark" />
+      </head>
       <body suppressHydrationWarning>
-        <ColorModeScript />
         <MobileZoomFix />
         <Providers>{children}</Providers>
       </body>

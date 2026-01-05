@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { Box, VStack, HStack, Text, IconButton, Flex } from "@chakra-ui/react";
+import { Box, Stack, Group, Text, ActionIcon, Flex } from "@mantine/core";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTheme } from "@/hooks/useTheme";
@@ -58,84 +58,139 @@ export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect,
 
   return (
     <Box
-      w={sidebarWidth}
-      minW={sidebarWidth}
-      maxW={sidebarWidth}
-      h="100%"
-      bg={bgColor}
-      borderRightWidth="1px"
-      borderColor={borderColor}
-      display="flex"
-      flexDirection="column"
-      transition="width 0.2s ease-in-out"
-      flexShrink={0}
-      position="relative"
+      style={{
+        width: sidebarWidth,
+        minWidth: sidebarWidth,
+        maxWidth: sidebarWidth,
+        height: "100%",
+        background: bgColor,
+        borderRight: `1px solid ${borderColor}`,
+        display: "flex",
+        flexDirection: "column",
+        transition: "width 0.2s ease-in-out",
+        flexShrink: 0,
+        position: "relative",
+      }}
     >
       {/* Toggle Button */}
       <Flex
         justify="center"
         align="center"
-        py={2}
-        borderBottomWidth="1px"
-        borderColor={borderColor}
-        cursor="pointer"
-        _hover={{ bg: hoverBg }}
+        style={{
+          paddingTop: 8,
+          paddingBottom: 8,
+          borderBottom: `1px solid ${borderColor}`,
+          cursor: "pointer",
+        }}
         onClick={onToggle}
         role="button"
         aria-label={isOpen ? "Collapse tag sidebar" : "Expand tag sidebar"}
+        onMouseEnter={e => {
+          const target = e.currentTarget;
+          target.style.backgroundColor = hoverBg;
+        }}
+        onMouseLeave={e => {
+          const target = e.currentTarget;
+          target.style.backgroundColor = "transparent";
+        }}
       >
-        <IconButton
+        <ActionIcon
           size="xs"
-          variant="ghost"
+          variant="subtle"
           aria-label={isOpen ? "Collapse" : "Expand"}
-          color={mutedText}
-          _hover={{ bg: "transparent", color: textColor }}
+          c={mutedText}
+          style={{
+            backgroundColor: "transparent",
+            color: mutedText,
+          }}
+          onMouseEnter={e => {
+            const target = e.currentTarget;
+            target.style.backgroundColor = "transparent";
+            target.style.color = textColor;
+          }}
+          onMouseLeave={e => {
+            const target = e.currentTarget;
+            target.style.backgroundColor = "transparent";
+            target.style.color = mutedText;
+          }}
         >
           {isOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-        </IconButton>
+        </ActionIcon>
       </Flex>
 
       {/* Tag List */}
-      <VStack align="stretch" spacing={0} flex={1} overflowY="auto" overflowX="hidden" py={1} px={isOpen ? 2 : 1}>
+      <Stack
+        gap={0}
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          overflowX: "hidden",
+          paddingTop: 4,
+          paddingBottom: 4,
+          paddingLeft: isOpen ? 8 : 4,
+          paddingRight: isOpen ? 8 : 4,
+        }}
+      >
         {/* Untagged option */}
         <Box
-          px={isOpen ? 2 : 1}
-          py={1.5}
-          cursor="pointer"
-          bg={selectedTagIds.includes(UNTAGGED_ID) ? activeBg : "transparent"}
-          _hover={{ bg: selectedTagIds.includes(UNTAGGED_ID) ? activeBg : hoverBg }}
+          style={{
+            paddingLeft: isOpen ? 8 : 4,
+            paddingRight: isOpen ? 8 : 4,
+            paddingTop: 6,
+            paddingBottom: 6,
+            cursor: "pointer",
+            background: selectedTagIds.includes(UNTAGGED_ID) ? activeBg : "transparent",
+            borderRadius: "0.375rem",
+            transition: "background-color 0.15s",
+          }}
           onClick={() => handleTagClick(UNTAGGED_ID)}
-          borderRadius="md"
-          transition="background-color 0.15s"
           title={isOpen ? undefined : "Untagged"}
+          onMouseEnter={e => {
+            const target = e.currentTarget;
+            target.style.backgroundColor = selectedTagIds.includes(UNTAGGED_ID) ? activeBg : hoverBg;
+          }}
+          onMouseLeave={e => {
+            const target = e.currentTarget;
+            target.style.backgroundColor = selectedTagIds.includes(UNTAGGED_ID) ? activeBg : "transparent";
+          }}
         >
-          <HStack spacing={isOpen ? 2 : 0} justify={isOpen ? "flex-start" : "center"}>
+          <Group gap={isOpen ? 8 : 0} justify={isOpen ? "flex-start" : "center"}>
             <Box
-              w={"12px"}
-              h={"12px"}
-              borderRadius="full"
-              bg="transparent"
-              borderWidth="1.5px"
-              borderColor={selectedTagIds.includes(UNTAGGED_ID) ? textColor : mutedText}
-              flexShrink={0}
+              w={12}
+              h={12}
+              style={{
+                borderRadius: "50%",
+                background: "transparent",
+                border: `1.5px solid ${selectedTagIds.includes(UNTAGGED_ID) ? textColor : mutedText}`,
+                flexShrink: 0,
+              }}
             />
             {isOpen && (
               <Text
-                fontSize="sm"
-                fontWeight={selectedTagIds.includes(UNTAGGED_ID) ? "semibold" : "normal"}
-                color={selectedTagIds.includes(UNTAGGED_ID) ? textColor : mutedText}
-                noOfLines={1}
-                flex={1}
-                minW={0}
+                size="sm"
+                fw={selectedTagIds.includes(UNTAGGED_ID) ? 600 : 400}
+                c={selectedTagIds.includes(UNTAGGED_ID) ? textColor : mutedText}
+                truncate="end"
+                style={{ flex: 1, minWidth: 0 }}
               >
                 Untagged
               </Text>
             )}
-          </HStack>
+          </Group>
         </Box>
 
         {tags.length === 0 ? (
-          <Text fontSize="xs" color={mutedText} textAlign="center" py={4} px={2}>
+          <Text
+            size="xs"
+            c={mutedText}
+            style={{
+              textAlign: "center",
+              paddingTop: 16,
+              paddingBottom: 16,
+              paddingLeft: 8,
+              paddingRight: 8,
+            }}
+          >
             {isOpen ? "No tags" : ""}
           </Text>
         ) : (
@@ -146,36 +201,46 @@ export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect,
             return (
               <Box
                 key={tag.id}
-                px={isOpen ? 2 : 1}
-                py={1.5}
-                cursor="pointer"
-                bg={isSelected ? activeBg : "transparent"}
-                _hover={{ bg: isSelected ? activeBg : hoverBg }}
+                style={{
+                  paddingLeft: isOpen ? 8 : 4,
+                  paddingRight: isOpen ? 8 : 4,
+                  paddingTop: 6,
+                  paddingBottom: 6,
+                  cursor: "pointer",
+                  background: isSelected ? activeBg : "transparent",
+                  borderRadius: "0.375rem",
+                  transition: "background-color 0.15s",
+                }}
                 onClick={() => handleTagClick(tag.id)}
-                borderRadius="md"
-                transition="background-color 0.15s"
                 title={isOpen ? undefined : tag.name}
+                onMouseEnter={e => {
+                  const target = e.currentTarget;
+                  target.style.backgroundColor = isSelected ? activeBg : hoverBg;
+                }}
+                onMouseLeave={e => {
+                  const target = e.currentTarget;
+                  target.style.backgroundColor = isSelected ? activeBg : "transparent";
+                }}
               >
-                <HStack spacing={isOpen ? 2 : 0} justify={isOpen ? "flex-start" : "center"}>
-                  <Box w={"12px"} h={"12px"} borderRadius="full" bg={displayColor} flexShrink={0} />
+                <Group gap={isOpen ? 8 : 0} justify={isOpen ? "flex-start" : "center"}>
+                  <Box w={12} h={12} style={{ borderRadius: "50%", background: displayColor, flexShrink: 0 }} />
                   {isOpen && (
                     <Text
-                      fontSize="sm"
-                      fontWeight={isSelected ? "semibold" : "normal"}
-                      color={isSelected ? textColor : mutedText}
-                      noOfLines={1}
-                      flex={1}
-                      minW={0}
+                      size="sm"
+                      fw={isSelected ? 600 : 400}
+                      c={isSelected ? textColor : mutedText}
+                      truncate="end"
+                      style={{ flex: 1, minWidth: 0 }}
                     >
                       {tag.name}
                     </Text>
                   )}
-                </HStack>
+                </Group>
               </Box>
             );
           })
         )}
-      </VStack>
+      </Stack>
     </Box>
   );
 };

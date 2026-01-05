@@ -145,11 +145,9 @@ export function AuthProvider({ children }) {
 
     try {
       const viewPrefs = localStorage.getItem("juda-view-preferences");
-      const colorMode = localStorage.getItem("chakra-ui-color-mode");
 
-      if (viewPrefs || colorMode) {
+      if (viewPrefs) {
         const prefs = viewPrefs ? JSON.parse(viewPrefs) : {};
-        if (colorMode) prefs.colorMode = colorMode;
 
         // Save to database
         await fetch("/api/preferences", {

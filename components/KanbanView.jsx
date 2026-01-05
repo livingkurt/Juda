@@ -2,7 +2,7 @@
 
 import { useState, useMemo, memo, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Box, Flex, VStack, HStack, Text, IconButton, Badge, Input } from "@chakra-ui/react";
+import { Box, Flex, Stack, Group, Text, ActionIcon, Badge, TextInput } from "@mantine/core";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
@@ -101,41 +101,51 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
   };
 
   return (
-    <Box flex={1} minW="280px" maxW="400px" bg={bgColor} borderRadius="lg" p={3}>
+    <Box
+      style={{
+        flex: 1,
+        minWidth: "280px",
+        maxWidth: "400px",
+        background: bgColor,
+        borderRadius: "var(--mantine-radius-lg)",
+        padding: 12,
+      }}
+    >
       {/* Column Header */}
-      <Flex align="center" justify="space-between" mb={3}>
-        <HStack>
-          <Box w={3} h={3} borderRadius="full" bg={color} />
-          <Text fontWeight="semibold" fontSize="sm">
+      <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
+        <Group gap={8}>
+          <Box style={{ width: 12, height: 12, borderRadius: "50%", background: color }} />
+          <Text fw={600} size="sm">
             {title}
           </Text>
-          <Badge colorScheme="gray" borderRadius="full" px={2}>
+          <Badge color="gray" style={{ borderRadius: "50%", paddingLeft: 8, paddingRight: 8 }}>
             {visibleTasks.length}
           </Badge>
-        </HStack>
-        <IconButton size="xs" variant="ghost" onClick={handleAddTask} aria-label={`Add task to ${title}`}>
-          <Box as="span" color="currentColor">
-            <Plus size={16} stroke="currentColor" />
-          </Box>
-        </IconButton>
+        </Group>
+        <ActionIcon size="xs" variant="subtle" onClick={handleAddTask} aria-label={`Add task to ${title}`}>
+          <Plus size={16} stroke="currentColor" />
+        </ActionIcon>
       </Flex>
 
       {/* Column Content */}
       <Box
         ref={setNodeRef}
-        bg={isOver ? dropHighlight : columnBg}
-        borderRadius="md"
-        border="2px solid"
-        borderColor={isDraggingOver ? dnd.dropTargetBorder : borderColor}
-        minH="200px"
-        maxH="calc(100vh - 300px)"
-        overflowY="auto"
-        p={2}
-        transition="all 0.2s"
-        position="relative"
+        style={{
+          background: isOver ? dropHighlight : columnBg,
+          borderRadius: "var(--mantine-radius-md)",
+          borderWidth: "2px",
+          borderStyle: "solid",
+          borderColor: isDraggingOver ? dnd.dropTargetBorder : borderColor,
+          minHeight: "200px",
+          maxHeight: "calc(100vh - 300px)",
+          overflowY: "auto",
+          padding: 8,
+          transition: "all 0.2s",
+          position: "relative",
+        }}
       >
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-          <VStack spacing={2} align="stretch" minH={isDraggingOver ? "100px" : "auto"}>
+          <Stack spacing={8} align="stretch" style={{ minHeight: isDraggingOver ? "100px" : "auto" }}>
             {visibleTasks.map(task => (
               <TaskItem
                 key={task.id}
@@ -149,29 +159,32 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
             {/* Drop placeholder - shows when dragging over to indicate drop zone */}
             {isDraggingOver && (
               <Box
-                minH="80px"
-                border="2px dashed"
-                borderColor={dnd.dropTargetBorder}
-                borderRadius="md"
-                bg={dnd.dropTarget}
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                opacity={0.8}
-                transition="all 0.2s"
-                flex={visibleTasks.length === 0 ? 1 : undefined}
+                style={{
+                  minHeight: "80px",
+                  borderWidth: "2px",
+                  borderStyle: "dashed",
+                  borderColor: dnd.dropTargetBorder,
+                  borderRadius: "var(--mantine-radius-md)",
+                  background: dnd.dropTarget,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: 0.8,
+                  transition: "all 0.2s",
+                  flex: visibleTasks.length === 0 ? 1 : undefined,
+                }}
               >
-                <Text fontSize="sm" color={interactive.primary} fontWeight="medium">
+                <Text size="sm" c={interactive.primary} fw={500}>
                   Drop here
                 </Text>
               </Box>
             )}
             {visibleTasks.length === 0 && !isDraggingOver && (
-              <VStack align="stretch" spacing={2}>
-                <Text color={mutedText} fontSize="sm" textAlign="center" py={4}>
+              <Stack align="stretch" gap={8}>
+                <Text c={mutedText} size="sm" ta="center" style={{ paddingTop: 16, paddingBottom: 16 }}>
                   No tasks
                 </Text>
-                <Input
+                <TextInput
                   ref={inlineInputRef}
                   value={inlineInputValue}
                   onChange={e => setInlineInputValue(e.target.value)}
@@ -181,25 +194,33 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
                   placeholder="New task..."
                   size="sm"
                   variant="unstyled"
-                  bg="transparent"
-                  borderWidth="0px"
-                  px={2}
-                  py={1}
-                  fontSize="sm"
-                  color={isInlineInputActive ? textColor : mutedText}
-                  _focus={{
-                    outline: "none",
-                    color: textColor,
-                  }}
-                  _placeholder={{ color: mutedText }}
-                  _hover={{
-                    color: textColor,
+                  styles={{
+                    input: {
+                      backgroundColor: "transparent",
+                      borderWidth: "0px",
+                      paddingLeft: 8,
+                      paddingRight: 8,
+                      paddingTop: 4,
+                      paddingBottom: 4,
+                      fontSize: "var(--mantine-font-size-sm)",
+                      color: isInlineInputActive ? textColor : mutedText,
+                      "&:focus": {
+                        outline: "none",
+                        color: textColor,
+                      },
+                      "&::placeholder": {
+                        color: mutedText,
+                      },
+                      "&:hover": {
+                        color: textColor,
+                      },
+                    },
                   }}
                 />
-              </VStack>
+              </Stack>
             )}
             {visibleTasks.length > 0 && (
-              <Input
+              <TextInput
                 ref={inlineInputRef}
                 value={inlineInputValue}
                 onChange={e => setInlineInputValue(e.target.value)}
@@ -209,23 +230,31 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
                 placeholder="New task..."
                 size="sm"
                 variant="unstyled"
-                bg="transparent"
-                borderWidth="0px"
-                px={2}
-                py={1}
-                fontSize="sm"
-                color={isInlineInputActive ? textColor : mutedText}
-                _focus={{
-                  outline: "none",
-                  color: textColor,
-                }}
-                _placeholder={{ color: mutedText }}
-                _hover={{
-                  color: textColor,
+                styles={{
+                  input: {
+                    backgroundColor: "transparent",
+                    borderWidth: "0px",
+                    paddingLeft: 8,
+                    paddingRight: 8,
+                    paddingTop: 4,
+                    paddingBottom: 4,
+                    fontSize: "var(--mantine-font-size-sm)",
+                    color: isInlineInputActive ? textColor : mutedText,
+                    "&:focus": {
+                      outline: "none",
+                      color: textColor,
+                    },
+                    "&::placeholder": {
+                      color: mutedText,
+                    },
+                    "&:hover": {
+                      color: textColor,
+                    },
+                  },
                 }}
               />
             )}
-          </VStack>
+          </Stack>
         </SortableContext>
       </Box>
     </Box>
@@ -317,11 +346,11 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
   ];
 
   return (
-    <Box h="100%" display="flex" flexDirection="column">
+    <Box style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       {/* Header with search and filters */}
-      <Box mb={4}>
-        <HStack spacing={4} align="center">
-          <Box flex={1} maxW="300px">
+      <Box style={{ marginBottom: 16 }}>
+        <Group gap={16} align="center">
+          <Box style={{ flex: 1, maxWidth: "300px" }}>
             <TaskSearchInput onSearchChange={term => dispatch(setKanbanSearchTerm(term))} />
           </Box>
           <TagFilter
@@ -333,11 +362,11 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
               return await createTagMutation({ name, color }).unwrap();
             }}
           />
-        </HStack>
+        </Group>
       </Box>
 
       {/* Kanban Columns */}
-      <Flex gap={4} flex={1} overflowX="auto" pb={4}>
+      <Flex gap={16} style={{ flex: 1, overflowX: "auto", paddingBottom: 16 }}>
         {columns.map(column => (
           <KanbanColumn
             key={column.id}

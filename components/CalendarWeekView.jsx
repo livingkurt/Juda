@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Box, Flex } from "@chakra-ui/react";
+import { Box, Flex } from "@mantine/core";
 import { useDispatch } from "react-redux";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate } from "@/lib/utils";
 import { HOUR_HEIGHT_WEEK, DRAG_THRESHOLD } from "@/lib/calendarConstants";
@@ -151,7 +151,7 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
     return {
       top: `${(minutes / 60) * HOUR_HEIGHT}px`,
       height: `${isNoDuration ? 24 : Math.max((duration / 60) * HOUR_HEIGHT, 18)}px`,
-      // Don't set backgroundColor here - let Chakra UI bg prop handle it for proper theming
+      // Background color handled by semantic colors
     };
   };
 
@@ -298,29 +298,44 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
   }, []);
 
   return (
-    <Flex direction="column" flex={1} minH={0} w="100%" maxW="100%" overflow="hidden">
+    <Flex direction="column" style={{ flex: 1, minHeight: 0, width: "100%", maxWidth: "100%", overflow: "hidden" }}>
       {/* Week header - syncs horizontal scroll with main container */}
       <Box
         ref={headerRef}
-        w="100%"
-        maxW="100%"
-        overflowX="auto"
-        flexShrink={0}
-        sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}
-        style={{ pointerEvents: "none" }}
+        style={{
+          width: "100%",
+          maxWidth: "100%",
+          overflowX: "auto",
+          flexShrink: 0,
+          pointerEvents: "none",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
+        sx={{ "&::-webkit-scrollbar": { display: "none" } }}
       >
         <Flex
-          borderBottomWidth="1px"
-          borderColor={borderColor}
-          bg={bgColor}
-          position={{ base: "relative", md: "sticky" }}
-          top={{ base: "auto", md: 0 }}
-          minW="fit-content"
-          zIndex={{ base: "auto", md: 10 }}
-          style={{ pointerEvents: "auto" }}
+          style={{
+            borderBottomWidth: "1px",
+            borderBottomColor: borderColor,
+            borderBottomStyle: "solid",
+            background: bgColor,
+            position: "sticky",
+            top: 0,
+            minWidth: "fit-content",
+            zIndex: 10,
+            pointerEvents: "auto",
+          }}
         >
           {/* Spacer to match hour labels width */}
-          <Box w={12} flexShrink={0} borderRightWidth="1px" borderColor={borderColor} />
+          <Box
+            style={{
+              width: 48,
+              flexShrink: 0,
+              borderRightWidth: "1px",
+              borderRightColor: borderColor,
+              borderRightStyle: "solid",
+            }}
+          />
 
           {weekDays.map((day, i) => {
             const untimedTasksForDay = getUntimedTasksForDay(day);
@@ -349,40 +364,48 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
       {/* Time grid */}
       <Box
         ref={containerRef}
-        flex={1}
-        overflowY="auto"
-        w="100%"
-        maxW="100%"
-        overflowX="auto"
-        minW={0}
-        sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          width: "100%",
+          maxWidth: "100%",
+          overflowX: "auto",
+          minWidth: 0,
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
+        sx={{ "&::-webkit-scrollbar": { display: "none" } }}
       >
-        <Box position="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
+        <Box style={{ position: "relative", height: `${24 * HOUR_HEIGHT}px` }}>
           {/* Hour labels */}
           {hours.map(hour => (
             <Box
               key={hour}
-              position="absolute"
-              w="full"
-              borderTopWidth="1px"
-              borderColor={hourBorderColor}
-              display="flex"
-              pointerEvents="none"
-              zIndex={1}
               style={{
+                position: "absolute",
+                width: "100%",
+                borderTopWidth: "1px",
+                borderTopColor: hourBorderColor,
+                borderTopStyle: "solid",
+                display: "flex",
+                pointerEvents: "none",
+                zIndex: 1,
                 top: `${hour * HOUR_HEIGHT}px`,
                 height: `${HOUR_HEIGHT}px`,
               }}
             >
               <Box
-                w={12}
-                fontSize={{ base: "2xs", md: "xs" }}
-                color={hourTextColor}
-                pr={1}
-                textAlign="right"
-                pt={1}
-                borderRightWidth="1px"
-                borderColor={borderColor}
+                style={{
+                  width: 48,
+                  fontSize: "var(--mantine-font-size-xs)",
+                  color: hourTextColor,
+                  paddingRight: 4,
+                  textAlign: "right",
+                  paddingTop: 4,
+                  borderRightWidth: "1px",
+                  borderRightColor: borderColor,
+                  borderRightStyle: "solid",
+                }}
               >
                 {hour === 0 ? "" : hour < 12 ? `${hour} am` : hour === 12 ? "12 pm" : `${hour - 12} pm`}
               </Box>
@@ -390,7 +413,7 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
           ))}
 
           {/* Day columns */}
-          <Flex position="absolute" left={12} right={0} top={0} bottom={0} minW="fit-content">
+          <Flex style={{ position: "absolute", left: 48, right: 0, top: 0, bottom: 0, minWidth: "fit-content" }}>
             {weekDays.map((day, i) => {
               const dayTasks = getTasksForDay(day);
               const isTodayColumn = i === todayIndex;

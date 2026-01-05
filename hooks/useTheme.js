@@ -38,19 +38,14 @@ export function useTheme() {
       root.style.setProperty(`--theme-${key}`, value);
     });
 
-    // Apply background colors
-    root.style.setProperty("--chakra-colors-bg-canvas", colors.bgCanvas);
-    root.style.setProperty("--chakra-colors-bg-surface", colors.bgSurface);
-    root.style.setProperty("--chakra-colors-bg-elevated", colors.bgElevated);
-
-    // Also set Chakra's CSS custom properties directly
-    // Chakra v3 uses these CSS variables internally for color tokens
-    // Format: --chakra-colors-{colorName}-{shade}
-    root.style.setProperty("--chakra-colors-blue-500", colors.primary);
-    root.style.setProperty("--chakra-colors-blue-600", colors.primaryHover);
-    root.style.setProperty("--chakra-colors-blue-700", colors.primaryActive);
-    root.style.setProperty("--chakra-colors-blue-400", colors.focus);
-    root.style.setProperty("--chakra-colors-blue-300", colors.primaryHover);
+    // Set Mantine-compatible CSS variables for theme colors
+    root.style.setProperty("--theme-bg-canvas", colors.bgCanvas);
+    root.style.setProperty("--theme-bg-surface", colors.bgSurface);
+    root.style.setProperty("--theme-bg-elevated", colors.bgElevated);
+    root.style.setProperty("--theme-primary", colors.primary);
+    root.style.setProperty("--theme-primary-hover", colors.primaryHover);
+    root.style.setProperty("--theme-primary-active", colors.primaryActive);
+    root.style.setProperty("--theme-focus", colors.focus);
 
     // Set data attribute for potential CSS selectors
     root.setAttribute("data-theme", themeId);
@@ -70,7 +65,7 @@ export function useTheme() {
 
 /**
  * Component to initialize theme CSS variables early in the render tree
- * This ensures theme colors are available before Chakra components render
+ * This ensures theme colors are available before Mantine components render
  */
 export function ThemeInitializer() {
   useTheme(); // Just call the hook to trigger CSS variable updates

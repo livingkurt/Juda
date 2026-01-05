@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useCallback, memo, useRef, useState } from "react";
-import { Box, VStack, HStack, Flex, Text, IconButton, Badge, Heading, Input } from "@chakra-ui/react";
+import { Box, Stack, Group, Flex, Text, ActionIcon, Badge, Title, TextInput } from "@mantine/core";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
@@ -170,7 +170,17 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   }));
 
   return (
-    <Box h="100%" display="flex" flexDirection="row" bg={bgColor} w="100%" maxW="100%" overflow="hidden">
+    <Box
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "row",
+        background: bgColor,
+        width: "100%",
+        maxWidth: "100%",
+        overflow: "hidden",
+      }}
+    >
       {/* Tag Sidebar - Desktop Only */}
       {!isMobile && (
         <BacklogTagSidebar
@@ -184,45 +194,54 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
       )}
 
       {/* Main Content */}
-      <Box h="100%" display="flex" flexDirection="column" flex={1} minW={0} overflow="hidden">
+      <Box
+        style={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+          minWidth: 0,
+          overflow: "hidden",
+        }}
+      >
         {/* Header */}
         <Box
-          px={{ base: 2, md: 4 }}
-          pt={{ base: 3, md: 6 }}
-          pb={4}
-          mb={4}
-          borderBottomWidth="1px"
-          borderColor={borderColor}
-          flexShrink={0}
-          w="100%"
-          maxW="100%"
+          style={{
+            paddingLeft: 16,
+            paddingRight: 16,
+            paddingTop: 24,
+            paddingBottom: 16,
+            marginBottom: 16,
+            borderBottom: `1px solid ${borderColor}`,
+            flexShrink: 0,
+            width: "100%",
+            maxWidth: "100%",
+          }}
         >
-          <Flex align="center" justify="space-between" mb={2} gap={2}>
-            <Heading size="md" flexShrink={0}>
+          <Flex align="center" justify="space-between" style={{ marginBottom: 8 }} gap={8}>
+            <Title size="md" style={{ flexShrink: 0 }}>
               Backlog
-            </Heading>
-            <HStack spacing={2} flexShrink={0}>
-              <IconButton
+            </Title>
+            <Group gap={8} style={{ flexShrink: 0 }}>
+              <ActionIcon
                 onClick={taskOps.handleAddTaskToBacklog}
                 size="sm"
-                variant="ghost"
-                colorPalette="blue"
+                variant="subtle"
+                color="blue"
                 aria-label="Add task to backlog"
               >
-                <Box as="span" color="currentColor">
-                  <Plus size={16} stroke="currentColor" />
-                </Box>
-              </IconButton>
-            </HStack>
+                <Plus size={16} stroke="currentColor" />
+              </ActionIcon>
+            </Group>
           </Flex>
-          <Badge colorPalette="blue" mb={2}>
+          <Badge color="blue" style={{ marginBottom: 8 }}>
             {filteredTasks.length} task{filteredTasks.length !== 1 ? "s" : ""}
             {(searchTerm || selectedTagIds.length > 0) &&
               filteredTasks.length !== backlogTasks.length &&
               ` of ${backlogTasks.length}`}
           </Badge>
-          <HStack spacing={{ base: 2, md: 4 }} align="center" w="100%" maxW="100%">
-            <Box flex={1} minW={0}>
+          <Group gap={[8, 16]} align="center" style={{ width: "100%", maxWidth: "100%" }}>
+            <Box style={{ flex: 1, minWidth: 0 }}>
               <TaskSearchInput onSearchChange={term => dispatch(setBacklogSearchTermAction(term))} />
             </Box>
             {/* TagFilter - Mobile Only */}
@@ -238,10 +257,10 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                 compact
               />
             )}
-          </HStack>
+          </Group>
           {/* New Task Input */}
-          <Box mt={2} w="100%" maxW="100%">
-            <Input
+          <Box style={{ marginTop: 8, width: "100%", maxWidth: "100%" }}>
+            <TextInput
               placeholder="New Task..."
               value={newTaskTitle}
               onChange={e => setNewTaskTitle(e.target.value)}
@@ -252,22 +271,28 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                   setNewTaskTitle("");
                 }
               }}
-              bg="transparent"
-              borderWidth="0"
-              borderColor="transparent"
-              color={textColor}
-              _placeholder={{ color: mutedText }}
-              _focus={{
-                borderWidth: "0",
-                borderColor: "transparent",
-                boxShadow: "none",
-                outline: "none",
-              }}
-              _focusVisible={{
-                borderWidth: "0",
-                borderColor: "transparent",
-                boxShadow: "none",
-                outline: "none",
+              styles={{
+                input: {
+                  backgroundColor: "transparent",
+                  borderWidth: "0",
+                  borderColor: "transparent",
+                  color: textColor,
+                  "&::placeholder": {
+                    color: mutedText,
+                  },
+                  "&:focus": {
+                    borderWidth: "0",
+                    borderColor: "transparent",
+                    boxShadow: "none",
+                    outline: "none",
+                  },
+                  "&:focusVisible": {
+                    borderWidth: "0",
+                    borderColor: "transparent",
+                    boxShadow: "none",
+                    outline: "none",
+                  },
+                },
               }}
             />
           </Box>
@@ -276,24 +301,32 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
         {/* Droppable area for tasks */}
         <Box
           ref={setNodeRef}
-          flex={1}
-          minH={0}
-          overflowY="auto"
-          p={tasksWithIds.length === 0 ? { base: 3, md: 4 } : { base: 2, md: 2 }}
-          bg={isOver ? dropHighlight : "transparent"}
-          borderRadius="md"
-          transition="background-color 0.2s, padding 0.2s"
-          borderWidth={isOver ? "2px" : "0px"}
-          borderColor={isOver ? dnd.dropTargetBorder : "transparent"}
-          borderStyle="dashed"
-          mx={isOver ? { base: 1, md: 2 } : 0}
-          w="100%"
-          maxW="100%"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            padding: tasksWithIds.length === 0 ? 16 : 8,
+            background: isOver ? dropHighlight : "transparent",
+            borderRadius: "var(--mantine-radius-md)",
+            transition: "background-color 0.2s, padding 0.2s",
+            borderWidth: isOver ? "2px" : "0px",
+            borderColor: isOver ? dnd.dropTargetBorder : "transparent",
+            borderStyle: "dashed",
+            marginLeft: isOver ? 8 : 0,
+            marginRight: isOver ? 8 : 0,
+            width: "100%",
+            maxWidth: "100%",
+          }}
         >
           {/* Unscheduled Tasks */}
           {tasksWithIds.length > 0 ? (
             <Box>
-              <Text fontSize="xs" fontWeight="semibold" color={mutedText} mb={2} ml={2} textTransform="uppercase">
+              <Text
+                size="xs"
+                fw={600}
+                c={mutedText}
+                style={{ marginBottom: 8, marginLeft: 8, textTransform: "uppercase" }}
+              >
                 Unscheduled Tasks
               </Text>
               <SortableContext
@@ -301,7 +334,11 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                 items={tasksWithIds.map(t => t.draggableId)}
                 strategy={verticalListSortingStrategy}
               >
-                <VStack align="stretch" spacing={2} px={{ base: 1, md: 2 }} w="100%" maxW="100%">
+                <Stack
+                  align="stretch"
+                  gap={8}
+                  style={{ paddingLeft: 8, paddingRight: 8, width: "100%", maxWidth: "100%" }}
+                >
                   {tasksWithIds.map(task => (
                     <TaskItem
                       key={task.id}
@@ -315,7 +352,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                       viewDate={viewDate}
                     />
                   ))}
-                  <Input
+                  <TextInput
                     ref={inlineInputRef}
                     value={inlineInputValue}
                     onChange={e => setInlineInputValue(e.target.value)}
@@ -325,30 +362,38 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                     placeholder="New task..."
                     size="sm"
                     variant="unstyled"
-                    bg="transparent"
-                    borderWidth="0px"
-                    px={2}
-                    py={1}
-                    fontSize="sm"
-                    color={isInlineInputActive ? textColor : mutedText}
-                    _focus={{
-                      outline: "none",
-                      color: textColor,
-                    }}
-                    _placeholder={{ color: mutedText }}
-                    _hover={{
-                      color: textColor,
+                    styles={{
+                      input: {
+                        backgroundColor: "transparent",
+                        borderWidth: "0px",
+                        paddingLeft: 8,
+                        paddingRight: 8,
+                        paddingTop: 4,
+                        paddingBottom: 4,
+                        fontSize: "var(--mantine-font-size-sm)",
+                        color: isInlineInputActive ? textColor : mutedText,
+                        "&:focus": {
+                          outline: "none",
+                          color: textColor,
+                        },
+                        "&::placeholder": {
+                          color: mutedText,
+                        },
+                        "&:hover": {
+                          color: textColor,
+                        },
+                      },
                     }}
                   />
-                </VStack>
+                </Stack>
               </SortableContext>
             </Box>
           ) : (
-            <VStack align="stretch" spacing={{ base: 1, md: 2 }}>
-              <Text fontSize={{ base: "xs", md: "sm" }} textAlign="center" py={{ base: 4, md: 8 }} color={mutedText}>
+            <Stack align="stretch" gap={[4, 8]}>
+              <Text size={["xs", "sm"]} ta="center" style={{ paddingTop: 16, paddingBottom: 32 }} c={mutedText}>
                 {isOver ? "Drop here" : "No tasks"}
               </Text>
-              <Input
+              <TextInput
                 ref={inlineInputRef}
                 value={inlineInputValue}
                 onChange={e => setInlineInputValue(e.target.value)}
@@ -358,22 +403,30 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                 placeholder="New task..."
                 size="sm"
                 variant="unstyled"
-                bg="transparent"
-                borderWidth="0px"
-                px={2}
-                py={1}
-                fontSize="sm"
-                color={isInlineInputActive ? textColor : mutedText}
-                _focus={{
-                  outline: "none",
-                  color: textColor,
-                }}
-                _placeholder={{ color: mutedText }}
-                _hover={{
-                  color: textColor,
+                styles={{
+                  input: {
+                    backgroundColor: "transparent",
+                    borderWidth: "0px",
+                    paddingLeft: 8,
+                    paddingRight: 8,
+                    paddingTop: 4,
+                    paddingBottom: 4,
+                    fontSize: "var(--mantine-font-size-sm)",
+                    color: isInlineInputActive ? textColor : mutedText,
+                    "&:focus": {
+                      outline: "none",
+                      color: textColor,
+                    },
+                    "&::placeholder": {
+                      color: mutedText,
+                    },
+                    "&:hover": {
+                      color: textColor,
+                    },
+                  },
                 }}
               />
-            </VStack>
+            </Stack>
           )}
         </Box>
       </Box>

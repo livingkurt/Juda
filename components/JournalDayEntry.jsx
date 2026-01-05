@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useMemo } from "react";
-import { Box, Text, Textarea, VStack, HStack, IconButton, Collapsible } from "@chakra-ui/react";
+import { Box, Text, Textarea, Stack, Group, ActionIcon, Collapse } from "@mantine/core";
 import { Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
 
@@ -67,131 +67,128 @@ export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrent
 
   return (
     <Box
-      borderRadius="lg"
-      borderWidth="1px"
-      borderColor={borderColor}
-      borderLeftWidth={"1px"}
-      borderLeftColor={borderColor}
-      bg={bgColor}
-      p={{ base: 3, md: 4 }}
-      mb={{ base: 3, md: 4 }}
-      opacity={isCurrentYear ? 1 : 0.7}
-      pb={{ base: 0.5, md: 0.5 }}
+      style={{
+        borderRadius: "var(--mantine-radius-lg)",
+        borderWidth: "1px",
+        borderColor: borderColor,
+        borderStyle: "solid",
+        background: bgColor,
+        padding: 16,
+        marginBottom: 16,
+        opacity: isCurrentYear ? 1 : 0.7,
+        paddingBottom: 2,
+      }}
     >
-      <VStack align="stretch" spacing={{ base: 2, md: 3 }}>
+      <Stack align="stretch" gap={[8, 12]}>
         {/* Header with title and expand/collapse button */}
-        <HStack spacing={2} align="center">
+        <Group gap={8} align="center">
           {isCurrentYear && !hasEntry ? (
-            <IconButton
+            <ActionIcon
               onClick={e => {
                 e.stopPropagation();
                 handleAddEntry();
               }}
               onMouseDown={e => e.stopPropagation()}
               onPointerDown={e => e.stopPropagation()}
-              size={{ base: "xs", md: "sm" }}
-              variant="ghost"
+              size={["xs", "sm"]}
+              variant="subtle"
               aria-label="Add Entry"
-              minW={{ base: "24px", md: "32px" }}
-              h={{ base: "24px", md: "32px" }}
-              p={{ base: 0, md: 1 }}
+              style={{ minWidth: 24, height: 24, padding: 0 }}
             >
-              <Box as="span" color="currentColor">
-                <Plus size={14} stroke="currentColor" />
-              </Box>
-            </IconButton>
+              <Plus size={14} stroke="currentColor" />
+            </ActionIcon>
           ) : (
-            <IconButton
+            <ActionIcon
               onClick={e => {
                 e.stopPropagation();
                 handleToggleExpand();
               }}
               onMouseDown={e => e.stopPropagation()}
               onPointerDown={e => e.stopPropagation()}
-              size={{ base: "xs", md: "sm" }}
-              variant="ghost"
+              size={["xs", "sm"]}
+              variant="subtle"
               aria-label="Toggle expand"
-              minW={{ base: "24px", md: "32px" }}
-              h={{ base: "24px", md: "32px" }}
-              p={{ base: 0, md: 1 }}
+              style={{ minWidth: 24, height: 24, padding: 0 }}
             >
-              <Box as="span" color="currentColor">
-                {expanded ? (
-                  <ChevronDown size={14} stroke="currentColor" />
-                ) : (
-                  <ChevronRight size={14} stroke="currentColor" />
-                )}
-              </Box>
-            </IconButton>
+              {expanded ? (
+                <ChevronDown size={14} stroke="currentColor" />
+              ) : (
+                <ChevronRight size={14} stroke="currentColor" />
+              )}
+            </ActionIcon>
           )}
           <Text
-            fontSize={{ base: "md", md: "lg" }}
-            fontWeight="medium"
-            color={isCurrentYear ? textColor : dimmedText}
-            flex={1}
-            cursor="pointer"
+            size={["md", "lg"]}
+            fw={500}
+            c={isCurrentYear ? textColor : dimmedText}
+            style={{ flex: 1, cursor: "pointer" }}
             onClick={handleToggleExpand}
-            _hover={{ opacity: 0.8 }}
+            onMouseEnter={e => {
+              e.currentTarget.style.opacity = "0.8";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.opacity = "1";
+            }}
           >
             {task.title}
           </Text>
-        </HStack>
+        </Group>
 
         {/* Collapsible content */}
-        <Collapsible.Root open={expanded}>
-          <Collapsible.Content>
-            {isCurrentYear ? (
-              <>
-                {showTextarea ? (
-                  <Textarea
-                    ref={textareaRef}
-                    value={noteInput}
-                    onChange={e => setNoteInput(e.target.value)}
-                    onBlur={handleBlur}
-                    placeholder="Enter your journal entry..."
-                    size="sm"
-                    lineHeight={{ base: "1.6", md: "1.4" }}
-                    variant="filled"
-                    resize="vertical"
-                    minH={{ base: "120px", md: "80px" }}
-                    maxH={{ base: "400px", md: "600px" }}
-                    bg={mode.bg.muted}
-                    color={textColor}
-                    scrollMarginTop="100px"
-                    css={{
-                      fieldSizing: "content",
-                      // Prevent scroll jumping on mobile
-                      "@media (max-width: 768px)": {
-                        fieldSizing: "initial",
+        <Collapse in={expanded}>
+          {isCurrentYear ? (
+            <>
+              {showTextarea ? (
+                <Textarea
+                  ref={textareaRef}
+                  value={noteInput}
+                  onChange={e => setNoteInput(e.target.value)}
+                  onBlur={handleBlur}
+                  placeholder="Enter your journal entry..."
+                  size="sm"
+                  variant="filled"
+                  resize="vertical"
+                  styles={{
+                    input: {
+                      lineHeight: 1.6,
+                      minHeight: 120,
+                      maxHeight: 400,
+                      backgroundColor: mode.bg.muted,
+                      color: textColor,
+                      scrollMarginTop: "100px",
+                      "@media (min-width: 768px)": {
+                        lineHeight: 1.4,
+                        minHeight: 80,
+                        maxHeight: 600,
                       },
-                    }}
-                    _focus={{
-                      bg: mode.bg.surface,
-                      borderColor: mode.border.focus,
-                    }}
-                  />
-                ) : (
-                  <Text fontSize="xs" color={dimmedText} fontStyle="italic">
-                    No entry for this day
-                  </Text>
-                )}
-              </>
-            ) : (
-              <>
-                {hasEntry ? (
-                  <Text fontSize={{ base: "xs", md: "sm" }} color={dimmedText} whiteSpace="pre-wrap" lineHeight="1.6">
-                    {completion.note}
-                  </Text>
-                ) : (
-                  <Text fontSize="xs" color={dimmedText} fontStyle="italic">
-                    No entry for this day
-                  </Text>
-                )}
-              </>
-            )}
-          </Collapsible.Content>
-        </Collapsible.Root>
-      </VStack>
+                      "&:focus": {
+                        backgroundColor: mode.bg.surface,
+                        borderColor: mode.border.focus,
+                      },
+                    },
+                  }}
+                />
+              ) : (
+                <Text size="xs" c={dimmedText} style={{ fontStyle: "italic" }}>
+                  No entry for this day
+                </Text>
+              )}
+            </>
+          ) : (
+            <>
+              {hasEntry ? (
+                <Text size={["xs", "sm"]} c={dimmedText} style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+                  {completion.note}
+                </Text>
+              ) : (
+                <Text size="xs" c={dimmedText} style={{ fontStyle: "italic" }}>
+                  No entry for this day
+                </Text>
+              )}
+            </>
+          )}
+        </Collapse>
+      </Stack>
     </Box>
   );
 };

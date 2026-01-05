@@ -1,0 +1,29 @@
+/* Global styles for Juda application */
+
+/* Body styling - Match original design system */
+/* Use Mantine's color scheme data attribute */
+[data-mantine-color-scheme="light"] body {
+  background-color: #f7fafc; /* gray.50 */
+  color: #171923; /* gray.900 */
+}
+
+[data-mantine-color-scheme="dark"] body {
+  background-color: #171923; /* gray.900 - blue-gray navy tone */
+  color: #edf2f7; /* gray.100 */
+}
+
+/* Smooth transitions for color mode changes */
+body {
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Ensure HTML element also has the background */
+[data-mantine-color-scheme="light"] html {
+  background-color: #f7fafc;
+}
+
+[data-mantine-color-scheme="dark"] html {
+  background-color: #171923;
+}

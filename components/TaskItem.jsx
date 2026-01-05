@@ -6,17 +6,16 @@ import {
   Checkbox,
   Text,
   Flex,
-  HStack,
-  IconButton,
-  VStack,
-  Input,
+  Group,
+  ActionIcon,
+  Stack,
+  TextInput,
   Textarea,
   Badge,
   Menu,
-  Portal,
   Button,
-  Collapsible,
-} from "@chakra-ui/react";
+  Collapse,
+} from "@mantine/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -95,9 +94,25 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote, 
         size="sm"
         variant="unstyled"
         disabled={isNotCompleted}
-        resize="none"
-        overflow="hidden"
-        rows={1}
+        styles={{
+          input: {
+            resize: "none",
+            overflow: "hidden",
+            minHeight: "auto",
+            height: "auto",
+            backgroundColor: "transparent",
+            paddingLeft: 0,
+            paddingRight: 0,
+            paddingTop: 4,
+            paddingBottom: 4,
+            fontSize: "var(--mantine-font-size-sm)",
+            color: mode.text.primary,
+            "&:disabled": {
+              opacity: 0.5,
+              cursor: "not-allowed",
+            },
+          },
+        }}
         onClick={e => e.stopPropagation()}
         onMouseDown={e => e.stopPropagation()}
         onKeyDown={e => {
@@ -116,18 +131,9 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote, 
           }
           e.stopPropagation();
         }}
-        bg="transparent"
-        px={0}
-        py={1}
-        fontSize="sm"
-        color={mode.text.primary}
-        _disabled={{
-          opacity: 0.5,
-          cursor: "not-allowed",
-        }}
       />
       {isNotCompleted && (
-        <Text fontSize="xs" color={mode.text.muted} mt={1}>
+        <Text size="xs" c={mode.text.muted} style={{ marginTop: 4 }}>
           Not Completed
         </Text>
       )}
@@ -404,31 +410,53 @@ export const TaskItem = ({
   const taskColor = getTaskDisplayColor(task, theme, colorMode);
 
   return (
-    <Box ref={setNodeRef} style={style} w="100%" maxW="100%" data-task-id={task.id}>
+    <Box ref={setNodeRef} style={{ ...style, width: "100%", maxWidth: "100%" }} data-task-id={task.id}>
       <Box
-        borderRadius="lg"
-        bg={isSelectedComputed ? mode.selection.bg : bgColor}
-        transition="box-shadow 0.2s, border-color 0.2s, background-color 0.2s"
-        borderColor={isSelectedComputed ? mode.selection.border : taskColor || mode.border.default}
-        borderWidth="2px"
-        borderStyle="solid"
-        w="100%"
-        maxW="100%"
-        overflow="hidden"
-        boxShadow={isSelectedComputed ? `0 0 0 2px ${mode.selection.border}` : "none"}
+        style={{
+          borderRadius: "var(--mantine-radius-lg)",
+          background: isSelectedComputed ? mode.selection.bg : bgColor,
+          transition: "box-shadow 0.2s, border-color 0.2s, background-color 0.2s",
+          borderColor: isSelectedComputed ? mode.selection.border : taskColor || mode.border.default,
+          borderWidth: "2px",
+          borderStyle: "solid",
+          width: "100%",
+          maxWidth: "100%",
+          overflow: "hidden",
+          boxShadow: isSelectedComputed ? `0 0 0 2px ${mode.selection.border}` : "none",
+        }}
       >
         <Flex
           align="center"
-          gap={{ base: 1.5, md: 2 }}
-          p={{ base: 2, md: 3 }}
-          _hover={{ bg: hoverBg }}
-          _active={{ cursor: isDragDisabledDuringEdit ? "default" : "grabbing" }}
+          gap={[6, 8]}
+          p={[8, 12]}
+          style={{
+            width: "100%",
+            maxWidth: "100%",
+            overflow: "hidden",
+            cursor: isDragDisabledDuringEdit ? "default" : "grab",
+          }}
+          onMouseEnter={e => {
+            if (!isDragDisabledDuringEdit) {
+              e.currentTarget.style.backgroundColor = hoverBg;
+            }
+          }}
+          onMouseLeave={e => {
+            if (!isDragDisabledDuringEdit) {
+              e.currentTarget.style.backgroundColor = "";
+            }
+          }}
+          onMouseDown={e => {
+            if (!isDragDisabledDuringEdit) {
+              e.currentTarget.style.cursor = "grabbing";
+            }
+          }}
+          onMouseUp={e => {
+            if (!isDragDisabledDuringEdit) {
+              e.currentTarget.style.cursor = "grab";
+            }
+          }}
           {...(isDragDisabledDuringEdit ? {} : attributes)}
           {...(isDragDisabledDuringEdit ? {} : listeners)}
-          cursor={isDragDisabledDuringEdit ? "default" : "grab"}
-          w="100%"
-          maxW="100%"
-          overflow="hidden"
           onClick={e => {
             // Handle cmd/ctrl+click for selection (only for non-subtask variants)
             if ((e.metaKey || e.ctrlKey) && !isSubtask && onSelect) {
@@ -440,30 +468,26 @@ export const TaskItem = ({
           {/* Expand button for subtasks */}
           {task.subtasks && task.subtasks.length > 0 ? (
             onToggleExpand ? (
-              <IconButton
+              <ActionIcon
                 onClick={e => {
                   e.stopPropagation();
                   onToggleExpand(task.id);
                 }}
                 onMouseDown={e => e.stopPropagation()}
                 onPointerDown={e => e.stopPropagation()}
-                size={{ base: "xs", md: "sm" }}
-                variant="ghost"
+                size={["xs", "sm"]}
+                variant="subtle"
                 aria-label="Toggle expand"
-                minW={{ base: "24px", md: "32px" }}
-                h={{ base: "24px", md: "32px" }}
-                p={{ base: 0, md: 1 }}
+                style={{ minWidth: 24, height: 24, padding: 0 }}
               >
-                <Box as="span" color="currentColor">
-                  {task.expanded ? (
-                    <ChevronDown size={14} stroke="currentColor" />
-                  ) : (
-                    <ChevronRight size={14} stroke="currentColor" />
-                  )}
-                </Box>
-              </IconButton>
+                {task.expanded ? (
+                  <ChevronDown size={14} stroke="currentColor" />
+                ) : (
+                  <ChevronRight size={14} stroke="currentColor" />
+                )}
+              </ActionIcon>
             ) : (
-              <Box w={6} />
+              <Box style={{ width: 24 }} />
             )
           ) : (
             <Box />
@@ -471,7 +495,7 @@ export const TaskItem = ({
 
           {/* X button for dialog subtasks */}
           {isDialogSubtask && onRemoveFromParent && (
-            <IconButton
+            <ActionIcon
               onClick={e => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -479,46 +503,36 @@ export const TaskItem = ({
               }}
               onMouseDown={e => e.stopPropagation()}
               onPointerDown={e => e.stopPropagation()}
-              size={{ base: "xs", md: "sm" }}
-              variant="ghost"
+              size={["xs", "sm"]}
+              variant="subtle"
               aria-label="Remove subtask"
-              colorPalette="red"
-              minW={{ base: "24px", md: "32px" }}
-              h={{ base: "24px", md: "32px" }}
-              p={{ base: 0, md: 1 }}
+              color="red"
+              style={{ minWidth: 24, height: 24, padding: 0 }}
             >
-              <Box as="span" color="currentColor">
-                <X size={14} stroke="currentColor" />
-              </Box>
-            </IconButton>
+              <X size={14} stroke="currentColor" />
+            </ActionIcon>
           )}
 
           {/* Checkbox with outcome states */}
           {!isDialogSubtask && (
-            <Box position="relative">
+            <Box style={{ position: "relative" }}>
               {/* Checkbox for all tasks (including text-type and subtasks) */}
               {(isToday || isBacklog || isSubtask) && (
-                <Menu.Root
-                  open={outcomeMenuOpen}
-                  onOpenChange={({ open }) => setOutcomeMenuOpen(open)}
-                  isLazy
-                  placement="right-start"
-                  closeOnSelect
-                >
-                  <Menu.Trigger asChild>
+                <Menu opened={outcomeMenuOpen} onChange={setOutcomeMenuOpen} position="right-start" closeOnItemClick>
+                  <Menu.Target>
                     <Box
-                      as="span"
-                      display="inline-block"
-                      border="none"
-                      outline="none"
-                      boxShadow="none"
-                      bg="transparent"
-                      p={0}
-                      m={0}
-                      _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-                      _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
+                      component="span"
+                      style={{
+                        display: "inline-block",
+                        border: "none",
+                        outline: "none",
+                        boxShadow: "none",
+                        background: "transparent",
+                        padding: 0,
+                        margin: 0,
+                      }}
                     >
-                      <Checkbox.Root
+                      <Checkbox
                         checked={
                           isTextTask
                             ? isTextTaskCompleted
@@ -527,7 +541,7 @@ export const TaskItem = ({
                               : outcome === "completed" || (outcome === null && isChecked)
                         }
                         size="md"
-                        onCheckedChange={() => {
+                        onChange={() => {
                           // For text tasks, complete when checkbox is checked (if there's a saved note)
                           if (isTextTask && !isTextTaskCompleted && savedNote.trim()) {
                             onCompleteWithNote?.(task.id, savedNote.trim());
@@ -564,84 +578,86 @@ export const TaskItem = ({
                           }
                         }}
                         onPointerDown={e => e.stopPropagation()}
-                      >
-                        <Checkbox.HiddenInput />
-                        <Checkbox.Control
-                          bg={outcome === "not_completed" ? "white" : undefined}
-                          boxShadow="none"
-                          outline="none"
-                          _focus={{ boxShadow: "none", outline: "none" }}
-                          _focusVisible={{ boxShadow: "none", outline: "none" }}
-                        >
-                          {outcome === "completed" || isTextTaskCompleted ? (
-                            <Checkbox.Indicator>
-                              <Check size={14} />
-                            </Checkbox.Indicator>
+                        styles={{
+                          input: {
+                            backgroundColor: outcome === "not_completed" ? "white" : undefined,
+                            boxShadow: "none",
+                            outline: "none",
+                            "&:focus": {
+                              boxShadow: "none",
+                              outline: "none",
+                            },
+                            "&:focusVisible": {
+                              boxShadow: "none",
+                              outline: "none",
+                            },
+                          },
+                          icon: {
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          },
+                        }}
+                        icon={() =>
+                          outcome === "completed" || isTextTaskCompleted ? (
+                            <Check size={14} strokeWidth={3} />
                           ) : outcome === "not_completed" ? (
-                            <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
-                              <Box as="span" color={mode.text.muted}>
-                                <X size={18} stroke="currentColor" style={{ strokeWidth: 3 }} />
-                              </Box>
-                            </Box>
-                          ) : null}
-                        </Checkbox.Control>
-                      </Checkbox.Root>
+                            <X size={14} strokeWidth={3} />
+                          ) : undefined
+                        }
+                      />
                     </Box>
-                  </Menu.Trigger>
+                  </Menu.Target>
                   {shouldShowMenu && (
-                    <Portal>
-                      <Menu.Positioner>
-                        <Menu.Content onClick={e => e.stopPropagation()}>
-                          {/* Only show Uncheck if task has an outcome */}
-                          {outcome !== null && (
-                            <>
-                              <Menu.Item
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  onOutcomeChange(task.id, viewDate, null);
-                                }}
-                              >
-                                <HStack>
-                                  <Circle size={14} />
-                                  <Text>Uncheck</Text>
-                                </HStack>
-                              </Menu.Item>
-                              <Menu.Separator />
-                            </>
-                          )}
-                          {/* Only show Completed if not already completed */}
-                          {outcome !== "completed" && (
-                            <Menu.Item
-                              onClick={e => {
-                                e.stopPropagation();
-                                onOutcomeChange(task.id, viewDate, "completed");
-                              }}
-                            >
-                              <HStack>
-                                <Check size={14} />
-                                <Text>Completed</Text>
-                              </HStack>
-                            </Menu.Item>
-                          )}
-                          {/* Only show Not Completed if not already not completed */}
-                          {outcome !== "not_completed" && (
-                            <Menu.Item
-                              onClick={e => {
-                                e.stopPropagation();
-                                onOutcomeChange(task.id, viewDate, "not_completed");
-                              }}
-                            >
-                              <HStack>
-                                <X size={14} />
-                                <Text>Not Completed</Text>
-                              </HStack>
-                            </Menu.Item>
-                          )}
-                        </Menu.Content>
-                      </Menu.Positioner>
-                    </Portal>
+                    <Menu.Dropdown onClick={e => e.stopPropagation()}>
+                      {/* Only show Uncheck if task has an outcome */}
+                      {outcome !== null && (
+                        <>
+                          <Menu.Item
+                            onClick={e => {
+                              e.stopPropagation();
+                              onOutcomeChange(task.id, viewDate, null);
+                            }}
+                          >
+                            <Group gap={8}>
+                              <Circle size={14} />
+                              <Text>Uncheck</Text>
+                            </Group>
+                          </Menu.Item>
+                          <Menu.Divider />
+                        </>
+                      )}
+                      {/* Only show Completed if not already completed */}
+                      {outcome !== "completed" && (
+                        <Menu.Item
+                          onClick={e => {
+                            e.stopPropagation();
+                            onOutcomeChange(task.id, viewDate, "completed");
+                          }}
+                        >
+                          <Group gap={8}>
+                            <Check size={14} />
+                            <Text>Completed</Text>
+                          </Group>
+                        </Menu.Item>
+                      )}
+                      {/* Only show Not Completed if not already not completed */}
+                      {outcome !== "not_completed" && (
+                        <Menu.Item
+                          onClick={e => {
+                            e.stopPropagation();
+                            onOutcomeChange(task.id, viewDate, "not_completed");
+                          }}
+                        >
+                          <Group gap={8}>
+                            <X size={14} />
+                            <Text>Not Completed</Text>
+                          </Group>
+                        </Menu.Item>
+                      )}
+                    </Menu.Dropdown>
                   )}
-                </Menu.Root>
+                </Menu>
               )}
             </Box>
           )}
@@ -649,8 +665,8 @@ export const TaskItem = ({
           {/* <Box w={3} h={3} borderRadius="full" bg={task.color || "#3b82f6"} flexShrink={0} /> */}
 
           {/* Task content */}
-          <Box flex={1} minW={0} overflow="hidden">
-            <Flex align="center" gap={0} w="100%" maxW="100%">
+          <Box style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+            <Flex align="center" gap={0} style={{ width: "100%", maxWidth: "100%" }}>
               {isEditingTitle ? (
                 <Textarea
                   ref={titleInputRef}
@@ -668,60 +684,74 @@ export const TaskItem = ({
                   onMouseDown={e => e.stopPropagation()}
                   onPointerDown={e => e.stopPropagation()}
                   variant="unstyled"
-                  fontWeight="medium"
-                  fontSize="md"
-                  color={textColor}
-                  px={1}
-                  py={0}
-                  minH="auto"
-                  h="auto"
-                  lineHeight="1.5"
-                  bg="transparent"
-                  resize="none"
-                  overflow="hidden"
-                  rows={1}
-                  _hover={{
-                    bg: "transparent",
+                  styles={{
+                    input: {
+                      fontWeight: 500,
+                      fontSize: "var(--mantine-font-size-md)",
+                      color: textColor,
+                      paddingLeft: 4,
+                      paddingRight: 4,
+                      paddingTop: 0,
+                      paddingBottom: 0,
+                      minHeight: "auto",
+                      height: "auto",
+                      lineHeight: 1.5,
+                      backgroundColor: "transparent",
+                      resize: "none",
+                      overflow: "hidden",
+                      width: "100%",
+                      "&:hover": {
+                        backgroundColor: "transparent",
+                      },
+                      "&:focus": {
+                        outline: "none",
+                        backgroundColor: "transparent",
+                        boxShadow: "none",
+                      },
+                      "&:focusVisible": {
+                        outline: "none",
+                        backgroundColor: "transparent",
+                        boxShadow: "none",
+                      },
+                    },
                   }}
-                  _focus={{
-                    outline: "none",
-                    bg: "transparent",
-                    boxShadow: "none",
-                  }}
-                  _focusVisible={{
-                    outline: "none",
-                    bg: "transparent",
-                    boxShadow: "none",
-                  }}
-                  w="100%"
                 />
               ) : (
                 <Text
-                  fontWeight="medium"
-                  fontSize={{ base: "sm", md: "md" }}
-                  textDecoration={shouldShowStrikethrough ? "line-through" : "none"}
-                  opacity={shouldShowStrikethrough ? 0.5 : 1}
-                  color={textColor}
-                  cursor="text"
+                  fw={500}
+                  size={["sm", "md"]}
+                  style={{
+                    textDecoration: shouldShowStrikethrough ? "line-through" : "none",
+                    opacity: shouldShowStrikethrough ? 0.5 : 1,
+                    color: textColor,
+                    cursor: "text",
+                    lineClamp: 2,
+                    wordBreak: "break-word",
+                    flexShrink: 0,
+                  }}
                   onClick={handleTitleClick}
                   onMouseDown={e => e.stopPropagation()}
                   onPointerDown={e => e.stopPropagation()}
-                  _hover={{
-                    opacity: shouldShowStrikethrough ? 0.7 : 1,
+                  onMouseEnter={e => {
+                    if (shouldShowStrikethrough) {
+                      e.currentTarget.style.opacity = "0.7";
+                    }
                   }}
-                  noOfLines={2}
-                  wordBreak="break-word"
+                  onMouseLeave={e => {
+                    if (shouldShowStrikethrough) {
+                      e.currentTarget.style.opacity = "0.5";
+                    } else {
+                      e.currentTarget.style.opacity = "1";
+                    }
+                  }}
                 >
                   {task.title}
                 </Text>
               )}
               {task.subtasks && task.subtasks.length > 0 && (
                 <Text
-                  as="span"
-                  ml={{ base: 1, md: 2 }}
-                  fontSize={{ base: "2xs", md: "xs" }}
-                  color={mutedText}
-                  flexShrink={0}
+                  component="span"
+                  style={{ marginLeft: 8, fontSize: "var(--mantine-font-size-xs)", color: mutedText, flexShrink: 0 }}
                 >
                   ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})
                 </Text>
@@ -729,7 +759,7 @@ export const TaskItem = ({
             </Flex>
             {/* Text Input for text-type tasks */}
             {isTextTask && (isToday || isBacklog) && (
-              <Box w="full" mt={2} key={`text-input-${task.id}-${viewDate?.toISOString()}`}>
+              <Box style={{ width: "100%", marginTop: 8 }} key={`text-input-${task.id}-${viewDate?.toISOString()}`}>
                 <TextInputTask
                   taskId={task.id}
                   savedNote={savedNote}
@@ -741,36 +771,38 @@ export const TaskItem = ({
             )}
             {/* Badges - show for backlog and today variants */}
             {(isBacklog || isToday) && (
-              <HStack spacing={{ base: 1, md: 2 }} mt={{ base: 0.5, md: 1 }} align="center" flexWrap="wrap">
+              <Group gap={[4, 8]} style={{ marginTop: 4 }} align="center" wrap="wrap">
                 {/* Status badge - only show for non-recurring tasks */}
                 {!isRecurring && task.status && (
                   <Badge
-                    size={{ base: "xs", md: "sm" }}
-                    colorPalette={
-                      task.status === "in_progress" ? "blue" : task.status === "complete" ? "green" : "gray"
-                    }
-                    fontSize={{ base: "3xs", md: "2xs" }}
-                    py={{ base: 0, md: 1 }}
-                    px={{ base: 1, md: 2 }}
+                    size="xs"
+                    color={task.status === "in_progress" ? "blue" : task.status === "complete" ? "green" : "gray"}
+                    style={{
+                      fontSize: "0.625rem",
+                      fontWeight: 500,
+                      paddingTop: 0,
+                      paddingBottom: 0,
+                      paddingLeft: 4,
+                      paddingRight: 6,
+                      lineHeight: 1.2,
+                    }}
                   >
-                    <HStack spacing={{ base: 0.5, md: 1 }} align="center">
-                      <Box as="span" color="currentColor">
-                        {task.status === "in_progress" ? (
-                          <PlayCircle size={10} stroke="currentColor" />
-                        ) : task.status === "complete" ? (
-                          <CheckCircle size={10} stroke="currentColor" />
-                        ) : (
-                          <Circle size={10} stroke="currentColor" />
-                        )}
-                      </Box>
-                      <Text as="span">
+                    <Group gap={2} align="center">
+                      {task.status === "in_progress" ? (
+                        <PlayCircle size={8} stroke="currentColor" />
+                      ) : task.status === "complete" ? (
+                        <CheckCircle size={8} stroke="currentColor" />
+                      ) : (
+                        <Circle size={8} stroke="currentColor" />
+                      )}
+                      <Text component="span" size="xs" style={{ fontSize: "0.625rem", lineHeight: 1.2 }}>
                         {task.status === "in_progress"
                           ? "In Progress"
                           : task.status === "complete"
                             ? "Complete"
                             : "Todo"}
                       </Text>
-                    </HStack>
+                    </Group>
                   </Badge>
                 )}
                 {/* Shared task badges component */}
@@ -786,32 +818,26 @@ export const TaskItem = ({
                 {task.tags && task.tags.length > 0 && (
                   <>
                     {task.tags.map(tag => (
-                      <TagChip key={tag.id} tag={tag} size={{ base: "xs", md: "sm" }} />
+                      <TagChip key={tag.id} tag={tag} size={["xs", "sm"]} />
                     ))}
                   </>
                 )}
-              </HStack>
+              </Group>
             )}
             {/* Note content preview - show below badges */}
             {task.content && (
-              <Text
-                fontSize={{ base: "xs", md: "sm" }}
-                color={mutedText}
-                mt={{ base: 0.5, md: 1 }}
-                noOfLines={1}
-                wordBreak="break-word"
-              >
+              <Text size={["xs", "sm"]} c={mutedText} style={{ marginTop: 4, lineClamp: 1, wordBreak: "break-word" }}>
                 {/* Strip HTML tags for preview */}
                 {task.content.replace(/<[^>]*>/g, "").trim() || ""}
               </Text>
             )}
             {/* Tags for kanban variant */}
             {variant === "kanban" && task.tags && task.tags.length > 0 && (
-              <HStack spacing={1.5} mt={1.5} align="center" flexWrap="wrap">
+              <Group gap={6} style={{ marginTop: 6 }} align="center" wrap="wrap">
                 {task.tags.map(tag => (
                   <TagChip key={tag.id} tag={tag} size="sm" />
                 ))}
-              </HStack>
+              </Group>
             )}
           </Box>
 
@@ -819,7 +845,7 @@ export const TaskItem = ({
           {isWorkoutTask && onBeginWorkout && (isToday || isBacklog) && (
             <Button
               size="sm"
-              colorPalette={
+              color={
                 workoutButtonText === "View Results" ? "purple" : workoutButtonText === "Continue" ? "green" : "blue"
               }
               variant="outline"
@@ -829,10 +855,10 @@ export const TaskItem = ({
               }}
               onMouseDown={e => e.stopPropagation()}
               onPointerDown={e => e.stopPropagation()}
-              flexShrink={0}
+              style={{ flexShrink: 0 }}
             >
               <Dumbbell size={14} />
-              <Text ml={1} display={{ base: "none", md: "inline" }}>
+              <Text component="span" style={{ marginLeft: 4, display: "none" }} visibleFrom="md">
                 {workoutButtonText}
               </Text>
             </Button>
@@ -840,169 +866,168 @@ export const TaskItem = ({
 
           {/* Time display */}
           {task.time && (
-            <HStack spacing={{ base: 0.5, md: 1 }} flexShrink={0}>
-              <Box as="span" color={mutedText}>
+            <Group gap={[2, 4]} style={{ flexShrink: 0 }}>
+              <Box component="span" style={{ color: mutedText }}>
                 <Clock size={12} stroke="currentColor" />
               </Box>
-              <Text fontSize={{ base: "xs", md: "sm" }} color={mutedText} whiteSpace="nowrap">
+              <Text size={["xs", "sm"]} c={mutedText} style={{ whiteSpace: "nowrap" }}>
                 {formatTime(task.time)}
               </Text>
-            </HStack>
+            </Group>
           )}
 
           {/* Action menu */}
           {!isDialogSubtask && (
-            <Menu.Root open={actionMenuOpen} onOpenChange={({ open }) => setActionMenuOpen(open)}>
-              <Menu.Trigger asChild>
-                <IconButton
+            <Menu opened={actionMenuOpen} onChange={setActionMenuOpen}>
+              <Menu.Target>
+                <ActionIcon
                   onClick={e => e.stopPropagation()}
                   onMouseDown={e => e.stopPropagation()}
                   onPointerDown={e => e.stopPropagation()}
-                  size={{ base: "xs", md: "sm" }}
-                  variant="ghost"
+                  size={["xs", "sm"]}
+                  variant="subtle"
                   aria-label="Task actions"
-                  border="none"
-                  outline="none"
-                  minW={{ base: "24px", md: "32px" }}
-                  h={{ base: "24px", md: "32px" }}
-                  p={{ base: 0, md: 1 }}
-                  _hover={{ border: "none", outline: "none" }}
-                  _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-                  _active={{ border: "none", outline: "none" }}
+                  style={{
+                    border: "none",
+                    outline: "none",
+                    minWidth: 24,
+                    height: 24,
+                    padding: 0,
+                  }}
                 >
-                  <Box as="span" color="currentColor">
-                    <MoreVertical size={14} stroke="currentColor" />
-                  </Box>
-                </IconButton>
-              </Menu.Trigger>
-              <Portal>
-                <Menu.Positioner>
-                  <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-                    {/* Show Bulk Edit option if multiple tasks are selected */}
-                    {selectedCountComputed > 0 && onBulkEdit && (
-                      <>
-                        <Menu.Item
-                          onClick={e => {
-                            e.stopPropagation();
-                            onBulkEdit();
-                            setActionMenuOpen(false);
+                  <MoreVertical size={14} stroke="currentColor" />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+                {/* Show Bulk Edit option if multiple tasks are selected */}
+                {selectedCountComputed > 0 && onBulkEdit && (
+                  <>
+                    <Menu.Item
+                      onClick={e => {
+                        e.stopPropagation();
+                        onBulkEdit();
+                        setActionMenuOpen(false);
+                      }}
+                    >
+                      <Group gap={8}>
+                        <Box
+                          component="span"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 14,
+                            height: 14,
+                            flexShrink: 0,
                           }}
                         >
-                          <HStack gap={2}>
-                            <Box
-                              as="span"
-                              display="flex"
-                              alignItems="center"
-                              justifyContent="center"
-                              w="14px"
-                              h="14px"
-                              flexShrink={0}
-                            >
-                              <Edit2 size={14} />
-                            </Box>
-                            <Text>Bulk Edit ({selectedCountComputed} selected)</Text>
-                          </HStack>
-                        </Menu.Item>
-                        <Menu.Separator />
-                      </>
-                    )}
-                    {/* Shared context menu for common actions */}
-                    <TaskContextMenu
-                      task={task}
-                      date={viewDate}
-                      isRecurring={isRecurring}
-                      isWorkoutTask={isWorkoutTask}
-                      outcome={outcome}
-                      isSubtask={isSubtask}
-                      parentTaskId={parentTaskId}
-                      onEdit={onEdit}
-                      onEditWorkout={onEditWorkout}
-                      onDuplicate={onDuplicate}
-                      onDelete={isSubtask ? taskId => onDelete?.(parentTaskId, taskId) : onDelete}
-                      onOutcomeChange={onOutcomeChange}
-                      onClose={() => setActionMenuOpen(false)}
-                      tags={tags}
-                      onTagsChange={onTagsChange}
-                      onCreateTag={onCreateTag}
-                      onStatusChange={statusHandlers.handleStatusChange}
-                      onRemoveFromParent={onRemoveFromParent}
-                    />
-                  </Menu.Content>
-                </Menu.Positioner>
-              </Portal>
-            </Menu.Root>
+                          <Edit2 size={14} />
+                        </Box>
+                        <Text>Bulk Edit ({selectedCountComputed} selected)</Text>
+                      </Group>
+                    </Menu.Item>
+                    <Menu.Divider />
+                  </>
+                )}
+                {/* Shared context menu for common actions */}
+                <TaskContextMenu
+                  task={task}
+                  date={viewDate}
+                  isRecurring={isRecurring}
+                  isWorkoutTask={isWorkoutTask}
+                  outcome={outcome}
+                  isSubtask={isSubtask}
+                  parentTaskId={parentTaskId}
+                  onEdit={onEdit}
+                  onEditWorkout={onEditWorkout}
+                  onDuplicate={onDuplicate}
+                  onDelete={isSubtask ? taskId => onDelete?.(parentTaskId, taskId) : onDelete}
+                  onOutcomeChange={onOutcomeChange}
+                  onClose={() => setActionMenuOpen(false)}
+                  tags={tags}
+                  onTagsChange={onTagsChange}
+                  onCreateTag={onCreateTag}
+                  onStatusChange={statusHandlers.handleStatusChange}
+                  onRemoveFromParent={onRemoveFromParent}
+                />
+              </Menu.Dropdown>
+            </Menu>
           )}
         </Flex>
 
         {/* Expanded subtasks */}
         {onToggleSubtask && (
-          <Collapsible.Root open={task.expanded}>
-            <Collapsible.Content>
-              <Box pl={{ base: 8, md: 16 }} pr={{ base: 2, md: 3 }} pb={{ base: 2, md: 3 }}>
-                <VStack align="stretch" spacing={{ base: 1.5, md: 2 }}>
-                  {task.subtasks &&
-                    task.subtasks.length > 0 &&
-                    task.subtasks.map(subtask => (
-                      <TaskItem
-                        key={subtask.id}
-                        task={{
-                          ...subtask,
-                          // Pass parent's recurrence so subtask can show outcome menu
-                          parentRecurrence: task.recurrence,
-                        }}
-                        variant="subtask"
-                        containerId={`subtask-${task.id}`}
-                        parentTaskId={task.id}
-                        draggableId={`subtask-${task.id}-${subtask.id}`}
-                        onToggle={onToggleSubtask}
-                        onEdit={onEdit ? () => onEdit(subtask) : undefined}
-                        onDuplicate={onDuplicate}
-                        onDelete={onDelete ? async (parentId, subtaskId) => onDelete(subtaskId) : undefined}
-                        textColor={textColor}
-                        mutedTextColor={mutedText}
-                        gripColor={gripColor}
-                        viewDate={viewDate}
-                        onOutcomeChange={onOutcomeChange}
-                        getOutcomeOnDate={getOutcomeOnDate}
-                        hasRecordOnDate={hasRecordOnDate}
-                      />
-                    ))}
-                  {/* New subtask input */}
-                  {onCreateSubtask && (
-                    <Input
-                      ref={newSubtaskInputRef}
-                      value={newSubtaskTitle}
-                      onChange={e => setNewSubtaskTitle(e.target.value)}
-                      onKeyDown={handleNewSubtaskKeyDown}
-                      onBlur={handleCreateSubtask}
-                      onClick={e => e.stopPropagation()}
-                      onMouseDown={e => e.stopPropagation()}
-                      onPointerDown={e => e.stopPropagation()}
-                      placeholder="New subtask..."
-                      variant="unstyled"
-                      fontSize={{ base: "sm", md: "md" }}
-                      color={textColor}
-                      px={2}
-                      py={2}
-                      minH="auto"
-                      h="auto"
-                      bg="transparent"
-                      _placeholder={{
-                        color: mutedText,
+          <Collapse in={task.expanded}>
+            <Box style={{ paddingLeft: 32, paddingRight: 12, paddingBottom: 12 }}>
+              <Stack align="stretch" gap={[6, 8]}>
+                {task.subtasks &&
+                  task.subtasks.length > 0 &&
+                  task.subtasks.map(subtask => (
+                    <TaskItem
+                      key={subtask.id}
+                      task={{
+                        ...subtask,
+                        // Pass parent's recurrence so subtask can show outcome menu
+                        parentRecurrence: task.recurrence,
                       }}
-                      _focus={{
-                        outline: "none",
-                        bg: "transparent",
-                      }}
-                      _hover={{
-                        bg: "transparent",
-                      }}
+                      variant="subtask"
+                      containerId={`subtask-${task.id}`}
+                      parentTaskId={task.id}
+                      draggableId={`subtask-${task.id}-${subtask.id}`}
+                      onToggle={onToggleSubtask}
+                      onEdit={onEdit ? () => onEdit(subtask) : undefined}
+                      onDuplicate={onDuplicate}
+                      onDelete={onDelete ? async (parentId, subtaskId) => onDelete(subtaskId) : undefined}
+                      textColor={textColor}
+                      mutedTextColor={mutedText}
+                      gripColor={gripColor}
+                      viewDate={viewDate}
+                      onOutcomeChange={onOutcomeChange}
+                      getOutcomeOnDate={getOutcomeOnDate}
+                      hasRecordOnDate={hasRecordOnDate}
                     />
-                  )}
-                </VStack>
-              </Box>
-            </Collapsible.Content>
-          </Collapsible.Root>
+                  ))}
+                {/* New subtask input */}
+                {onCreateSubtask && (
+                  <TextInput
+                    ref={newSubtaskInputRef}
+                    value={newSubtaskTitle}
+                    onChange={e => setNewSubtaskTitle(e.target.value)}
+                    onKeyDown={handleNewSubtaskKeyDown}
+                    onBlur={handleCreateSubtask}
+                    onClick={e => e.stopPropagation()}
+                    onMouseDown={e => e.stopPropagation()}
+                    onPointerDown={e => e.stopPropagation()}
+                    placeholder="New subtask..."
+                    variant="unstyled"
+                    styles={{
+                      input: {
+                        fontSize: "var(--mantine-font-size-sm)",
+                        color: textColor,
+                        paddingLeft: 8,
+                        paddingRight: 8,
+                        paddingTop: 8,
+                        paddingBottom: 8,
+                        minHeight: "auto",
+                        height: "auto",
+                        backgroundColor: "transparent",
+                        "&::placeholder": {
+                          color: mutedText,
+                        },
+                        "&:focus": {
+                          outline: "none",
+                          backgroundColor: "transparent",
+                        },
+                        "&:hover": {
+                          backgroundColor: "transparent",
+                        },
+                      },
+                    }}
+                  />
+                )}
+              </Stack>
+            </Box>
+          </Collapse>
         )}
       </Box>
     </Box>

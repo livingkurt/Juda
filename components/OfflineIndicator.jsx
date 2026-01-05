@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, HStack, Text, Badge, IconButton, Spinner } from "@chakra-ui/react";
+import { Box, Group, Text, Badge, ActionIcon, Loader } from "@mantine/core";
 import { Wifi, WifiOff, RefreshCw } from "lucide-react";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 
@@ -14,51 +14,53 @@ export function OfflineIndicator() {
 
   return (
     <Box
-      position="fixed"
-      bottom={4}
-      left="50%"
-      transform="translateX(-50%)"
-      zIndex={1000}
-      bg={isOnline ? "orange.500" : "red.500"}
-      color="white"
-      px={4}
-      py={2}
-      borderRadius="full"
-      boxShadow="lg"
+      style={{
+        position: "fixed",
+        bottom: 16,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 1000,
+        background: isOnline ? "var(--mantine-color-orange-5)" : "var(--mantine-color-red-5)",
+        color: "white",
+        padding: "8px 16px",
+        borderRadius: "9999px",
+        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+      }}
     >
-      <HStack gap={2}>
+      <Group gap={8}>
         {/* Connection Status */}
         {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
 
         {/* Status Text */}
-        <Text fontSize="sm" fontWeight="medium">
+        <Text size="sm" fw={500}>
           {isOnline ? "Syncing..." : "Offline"}
         </Text>
 
         {/* Pending Count */}
         {pendingSyncCount > 0 && (
-          <Badge colorScheme={isOnline ? "orange" : "red"} variant="solid">
+          <Badge color={isOnline ? "orange" : "red"} variant="filled">
             {pendingSyncCount}
           </Badge>
         )}
 
-        {/* Sync Button / Spinner */}
+        {/* Sync Button / Loader */}
         {isOnline &&
           pendingSyncCount > 0 &&
           (syncInProgress ? (
-            <Spinner size="sm" color="white" />
+            <Loader size="xs" color="white" />
           ) : (
-            <IconButton
-              icon={<RefreshCw size={14} />}
+            <ActionIcon
               size="xs"
-              variant="ghost"
+              variant="subtle"
               onClick={triggerSync}
               aria-label="Sync now"
               color="white"
-              _hover={{ bg: "whiteAlpha.300" }}
-            />
+              style={{ color: "white" }}
+            >
+              <RefreshCw size={14} />
+            </ActionIcon>
           ))}
-      </HStack>
+      </Group>
     </Box>
   );
 }

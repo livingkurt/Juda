@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Box, VStack, Heading, Text, createListCollection } from "@chakra-ui/react";
+import { Box, Stack, Title, Text } from "@mantine/core";
 import { BookOpen } from "lucide-react";
 import { DateNavigation } from "./DateNavigation";
 import { JournalDayEntry } from "./JournalDayEntry";
@@ -124,16 +124,13 @@ export const JournalView = ({
     await deleteCompletion(taskId, date);
   };
 
-  const viewCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { label: "Day", value: "day" },
-          { label: "Week", value: "week" },
-          { label: "Month", value: "month" },
-          { label: "Year", value: "year" },
-        ],
-      }),
+  const viewData = useMemo(
+    () => [
+      { label: "Day", value: "day" },
+      { label: "Week", value: "week" },
+      { label: "Month", value: "month" },
+      { label: "Year", value: "year" },
+    ],
     []
   );
 
@@ -145,21 +142,21 @@ export const JournalView = ({
   const renderDayView = () => {
     if (journalTasks.length === 0) {
       return (
-        <Box p={8} textAlign="center">
-          <VStack spacing={4}>
-            <Box as={BookOpen} size={48} color={mutedText} />
-            <Text color={mutedText}>No journal tasks found</Text>
-            <Text fontSize="sm" color={mutedText}>
+        <Box style={{ padding: 32, textAlign: "center" }}>
+          <Stack gap={16}>
+            <BookOpen size={48} style={{ color: mutedText }} />
+            <Text c={mutedText}>No journal tasks found</Text>
+            <Text size="sm" c={mutedText}>
               Create a task with completion type &quot;text&quot; and add one of these tags: &quot;Daily Journal&quot;,
               &quot;Weekly Reflection&quot;, &quot;Monthly Reflection&quot;, or &quot;Yearly Reflection&quot;
             </Text>
-          </VStack>
+          </Stack>
         </Box>
       );
     }
 
     return (
-      <VStack align="stretch" spacing={{ base: 8, md: 6 }}>
+      <Stack align="stretch" gap={[32, 24]}>
         {years.map(year => {
           const yearDate = new Date(selectedDate);
           yearDate.setFullYear(year);
@@ -167,9 +164,9 @@ export const JournalView = ({
 
           return (
             <Box key={year}>
-              <Heading size={{ base: "lg", md: "md" }} mb={{ base: 3, md: 4 }} color={textColor} fontWeight="bold">
+              <Title size={["lg", "md"]} style={{ marginBottom: 16 }} c={textColor} fw={700}>
                 {year}
-              </Heading>
+              </Title>
               {journalTasks
                 .filter(task => shouldShowOnDate(task, yearDate))
                 .sort((a, b) => {
@@ -197,47 +194,55 @@ export const JournalView = ({
                   );
                 })}
               {journalTasks.filter(task => shouldShowOnDate(task, yearDate)).length === 0 && (
-                <Text fontSize="sm" color={mutedText} fontStyle="italic" mb={4}>
+                <Text size="sm" c={mutedText} style={{ fontStyle: "italic", marginBottom: 16 }}>
                   No journal tasks scheduled for this day
                 </Text>
               )}
             </Box>
           );
         })}
-      </VStack>
+      </Stack>
     );
   };
 
   // Week/Month/Year views - placeholder for now
   const renderWeekView = () => {
     return (
-      <Box p={8} textAlign="center">
-        <Text color={mutedText}>Week view coming soon</Text>
+      <Box style={{ padding: 32, textAlign: "center" }}>
+        <Text c={mutedText}>Week view coming soon</Text>
       </Box>
     );
   };
 
   const renderMonthView = () => {
     return (
-      <Box p={8} textAlign="center">
-        <Text color={mutedText}>Month view coming soon</Text>
+      <Box style={{ padding: 32, textAlign: "center" }}>
+        <Text c={mutedText}>Month view coming soon</Text>
       </Box>
     );
   };
 
   const renderYearView = () => {
     return (
-      <Box p={8} textAlign="center">
-        <Text color={mutedText}>Year view coming soon</Text>
+      <Box style={{ padding: 32, textAlign: "center" }}>
+        <Text c={mutedText}>Year view coming soon</Text>
       </Box>
     );
   };
 
   return (
-    <Box h="100%" overflow="hidden" display="flex" flexDirection="column" bg={bgColor}>
+    <Box style={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", background: bgColor }}>
       {/* Header with Date Navigation */}
-      <Box p={{ base: 3, md: 4 }} borderBottomWidth="1px" borderColor={mode.border.default} flexShrink={0}>
-        <VStack align="stretch" spacing={3}>
+      <Box
+        style={{
+          padding: 16,
+          borderBottomWidth: "1px",
+          borderBottomColor: mode.border.default,
+          borderBottomStyle: "solid",
+          flexShrink: 0,
+        }}
+      >
+        <Stack align="stretch" gap={12}>
           {/* Date Navigation Controls */}
           <DateNavigation
             selectedDate={selectedDate}
@@ -249,28 +254,27 @@ export const JournalView = ({
             showDateDisplay={false}
             twoRowLayout={isMobile}
             showViewSelector={true}
-            viewCollection={viewCollection}
+            viewData={viewData}
             selectedView={journalView}
             onViewChange={value => dispatch(setJournalView(value))}
             viewSelectorWidth={24}
           />
-        </VStack>
+        </Stack>
       </Box>
 
       {/* Content Area */}
       <Box
-        flex={1}
-        overflowY="auto"
-        p={{ base: 3, md: 4 }}
-        css={{
-          // Improve scroll behavior on mobile
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: 16,
           WebkitOverflowScrolling: "touch",
           scrollBehavior: "smooth",
         }}
       >
         {/* Large Date Display */}
-        <Box textAlign="center" py={2}>
-          <Text fontSize={{ base: "2xl", md: "3xl" }} fontWeight="bold" color={textColor}>
+        <Box style={{ textAlign: "center", paddingTop: 8, paddingBottom: 8 }}>
+          <Text size={["2xl", "3xl"]} fw={700} c={textColor}>
             {selectedDate.toLocaleDateString("en-US", {
               weekday: "long",
               month: "long",

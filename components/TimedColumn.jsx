@@ -1,6 +1,6 @@
 "use client";
 
-import { Box } from "@chakra-ui/react";
+import { Box } from "@mantine/core";
 import { useDroppable } from "@dnd-kit/core";
 import { calculateTaskPositions } from "@/lib/utils";
 import { CalendarTask } from "./CalendarTask";
@@ -46,27 +46,30 @@ export const TimedColumn = ({
   return (
     <Box
       ref={setNodeRef}
-      flex={1}
-      flexShrink={0}
-      flexGrow={1}
-      minW={0}
-      borderLeftWidth={dayIndex === 0 ? "0" : isToday ? "1px" : "1px"}
-      borderRightWidth={isToday ? "1px" : "0"}
-      borderColor={isToday ? calendar.today : borderColor}
-      position="relative"
-      h="full"
-      w="full"
-      zIndex={2}
+      style={{
+        flex: 1,
+        flexShrink: 0,
+        flexGrow: 1,
+        minWidth: 0,
+        borderLeftWidth: dayIndex === 0 ? 0 : isToday ? 1 : 1,
+        borderRightWidth: isToday ? 1 : 0,
+        borderColor: isToday ? calendar.today : borderColor,
+        borderStyle: "solid",
+        position: "relative",
+        height: "100%",
+        width: "100%",
+        zIndex: 2,
+        background: isOver ? dropHighlight : isToday ? calendar.todayBg : "transparent",
+        transition: "background-color 0.2s, border-color 0.2s",
+      }}
+      data-calendar-timed="true"
+      data-calendar-view="week"
+      data-hour-height={hourHeight}
       onClick={e => {
         if (!isOver) {
           handleColumnClick(e, day);
         }
       }}
-      bg={isOver ? dropHighlight : isToday ? calendar.todayBg : "transparent"}
-      transition="background-color 0.2s, border-color 0.2s"
-      data-calendar-timed="true"
-      data-calendar-view="week"
-      data-hour-height={hourHeight}
       onMouseMove={e => {
         if (isOver) {
           handleDropTimeCalculation(e, e.currentTarget.getBoundingClientRect());

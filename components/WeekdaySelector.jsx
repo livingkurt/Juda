@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, HStack } from "@chakra-ui/react";
+import { Button, Group } from "@mantine/core";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 
 /**
@@ -11,7 +11,7 @@ import { DAYS_OF_WEEK } from "@/lib/constants";
  * @param {boolean} allowEmpty - Whether to allow deselecting all days (default: false)
  * @param {string} size - Button size: "xs" | "sm" | "md" (default: "md")
  * @param {boolean} circular - Use circular buttons (default: true)
- * @param {string} spacing - Spacing between buttons (default: 1)
+ * @param {string|number} gap - Spacing between buttons (default: 4)
  */
 export default function WeekdaySelector({
   selectedDays = [],
@@ -19,7 +19,7 @@ export default function WeekdaySelector({
   allowEmpty = false,
   size = "md",
   circular = true,
-  spacing = 1,
+  gap = 4,
 }) {
   const handleToggle = dayValue => {
     const isSelected = selectedDays.includes(dayValue);
@@ -37,15 +37,15 @@ export default function WeekdaySelector({
 
   // Size mappings
   const sizeMap = {
-    xs: { w: 8, h: 8, fontSize: "xs" },
-    sm: { w: 9, h: 9, fontSize: { base: "xs", md: "sm" } },
-    md: { w: 10, h: 10, fontSize: "sm" },
+    xs: { w: 32, h: 32, fz: "0.75rem" },
+    sm: { w: 36, h: 36, fz: "0.875rem" },
+    md: { w: 40, h: 40, fz: "0.875rem" },
   };
 
   const buttonSize = sizeMap[size] || sizeMap.md;
 
   return (
-    <HStack spacing={spacing} w="full">
+    <Group gap={gap} w="100%">
       {DAYS_OF_WEEK.map(day => {
         const isSelected = selectedDays.includes(day.value);
         return (
@@ -53,17 +53,18 @@ export default function WeekdaySelector({
             key={day.value}
             w={buttonSize.w}
             h={buttonSize.h}
-            borderRadius={circular ? "full" : "md"}
-            fontSize={buttonSize.fontSize}
-            fontWeight="medium"
+            radius={circular ? "xl" : "md"}
+            fz={buttonSize.fz}
+            fw={500}
             onClick={() => handleToggle(day.value)}
-            colorPalette={isSelected ? "blue" : "gray"}
-            variant={isSelected ? "solid" : "outline"}
+            variant={isSelected ? "filled" : "outline"}
+            color={isSelected ? "blue" : "gray"}
+            p={0}
           >
             {day.short}
           </Button>
         );
       })}
-    </HStack>
+    </Group>
   );
 }

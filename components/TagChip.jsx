@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Tag } from "@chakra-ui/react";
+import { Badge, CloseButton } from "@mantine/core";
 import { useTheme } from "@/hooks/useTheme";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { mapColorToTheme } from "@/lib/themes";
@@ -11,10 +11,10 @@ import { mapColorToTheme } from "@/lib/themes";
  * Automatically maps stored tag colors to the current theme's palette
  *
  * @param {Object} tag - Tag object with {id, name, color}
- * @param {string} size - Size variant: "xs" | "sm" | "md" | "lg" | {base: "xs", md: "sm"}
+ * @param {string | string[]} size - Size variant: "xs" | "sm" | "md" | "lg" | ["xs", "sm"] (Mantine responsive array)
  * @param {boolean} showClose - Whether to show a close button
  * @param {Function} onClose - Callback when close button is clicked
- * @param {Object} props - Additional props to pass to Tag.Root
+ * @param {Object} props - Additional props to pass to Badge
  */
 export const TagChip = memo(function TagChip({ tag, size = "sm", showClose = false, onClose, ...props }) {
   const { theme } = useTheme();
@@ -25,55 +25,45 @@ export const TagChip = memo(function TagChip({ tag, size = "sm", showClose = fal
   const themePalette = theme.colors[mode].tagColors;
   const displayColor = mapColorToTheme(tag.color, themePalette);
 
-  // Default styling - consistent across all tag displays
-  const defaultProps = {
-    borderRadius: "full",
-    bg: displayColor, // Use theme-mapped color
-    color: "white",
-    textTransform: "uppercase",
-    fontSize: size === "sm" ? "xs" : size === "xs" ? "2xs" : "sm",
-    fontWeight: "bold",
-    py: size === "sm" ? 1 : size === "xs" ? 0.5 : 1.5,
-    px: size === "sm" ? 2.5 : size === "xs" ? 1.5 : 3,
-    variant: "solid",
-  };
-
   // Handle responsive size objects
   const getSizeValue = (sizeObj, key) => {
     if (typeof sizeObj === "string") return sizeObj;
     return sizeObj[key] || sizeObj.base || "sm";
   };
 
-  // Handle responsive fontSize
-  const fontSize =
-    typeof size === "object"
-      ? {
-          base: getSizeValue(size, "base") === "sm" ? "xs" : "2xs",
-          md: getSizeValue(size, "md") === "sm" ? "xs" : "2xs",
-        }
-      : defaultProps.fontSize;
+  // Determine actual size
+  const actualSize = typeof size === "object" ? getSizeValue(size, "base") : size;
 
-  // Handle responsive padding
-  const py =
-    typeof size === "object"
-      ? {
-          base: getSizeValue(size, "base") === "sm" ? 1 : 0.5,
-          md: getSizeValue(size, "md") === "sm" ? 1 : 0.5,
-        }
-      : defaultProps.py;
+  // Size mappings for fontSize and padding
+  const sizeConfig = {
+    xs: { fz: "0.625rem", py: 2, px: 6 },
+    sm: { fz: "0.75rem", py: 4, px: 10 },
+    md: { fz: "0.875rem", py: 6, px: 12 },
+  };
 
-  const px =
-    typeof size === "object"
-      ? {
-          base: getSizeValue(size, "base") === "sm" ? 2.5 : 1.5,
-          md: getSizeValue(size, "md") === "sm" ? 2.5 : 2,
-        }
-      : defaultProps.px;
+  const config = sizeConfig[actualSize] || sizeConfig.sm;
 
   return (
-    <Tag.Root size={size} {...defaultProps} fontSize={fontSize} py={py} px={px} {...props}>
-      <Tag.Label>{tag.name}</Tag.Label>
-      {showClose && onClose && <Tag.CloseTrigger onClick={() => onClose(tag.id)} />}
-    </Tag.Root>
+    <Badge
+      size={size}
+      radius="xl"
+      bg={displayColor}
+      c="white"
+      style={{
+        textTransform: "uppercase",
+        fontSize: config.fz,
+        fontWeight: "bold",
+        paddingTop: config.py,
+        paddingBottom: config.py,
+        paddingLeft: config.px,
+        paddingRight: config.px,
+      }}
+      {...props}
+    >
+      {tag.name}
+      {showClose && onClose && (
+        <CloseButton size="xs" onClick={() => onClose(tag.id)} style={{ marginLeft: 4 }} aria-label="Remove tag" />
+      )}
+    </Badge>
   );
 });

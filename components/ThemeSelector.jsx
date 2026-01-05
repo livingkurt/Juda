@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, HStack, Text, Portal, IconButton, Menu } from "@chakra-ui/react";
+import { Box, Group, Text, ActionIcon, Menu } from "@mantine/core";
 import { Palette, Check } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
@@ -16,77 +16,70 @@ export function ThemeSelector() {
   const { bg, text, border } = useSemanticColors();
 
   return (
-    <Menu.Root>
-      <Menu.Trigger asChild>
-        <IconButton
-          variant="ghost"
-          size={{ base: "xs", md: "md" }}
+    <Menu>
+      <Menu.Target>
+        <ActionIcon
+          variant="subtle"
+          size={["xs", "md"]}
           aria-label="Select theme"
-          minW={{ base: "28px", md: "40px" }}
-          h={{ base: "28px", md: "40px" }}
-          p={{ base: 0, md: 2 }}
-          border="none"
-          outline="none"
-          boxShadow="none"
-          _hover={{ border: "none", outline: "none" }}
-          _active={{ border: "none", outline: "none" }}
-          _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-          _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
+          style={{
+            minWidth: "28px",
+            height: "28px",
+            padding: 0,
+            border: "none",
+            outline: "none",
+            boxShadow: "none",
+          }}
         >
-          <Box as="span" color="currentColor">
-            <Palette size={16} stroke="currentColor" />
-          </Box>
-        </IconButton>
-      </Menu.Trigger>
-      <Portal>
-        <Menu.Positioner>
-          <Menu.Content bg={bg.surface} borderColor={border.default} minW="180px">
-            {themes.map(theme => {
-              const isSelected = themeId === theme.id;
-              const themeColors = theme.colors[colorMode];
+          <Palette size={16} stroke="currentColor" />
+        </ActionIcon>
+      </Menu.Target>
 
-              return (
-                <Menu.Item
-                  key={theme.id}
-                  onClick={() => setTheme(theme.id)}
-                  bg={isSelected ? bg.surfaceHover : "transparent"}
-                  _hover={{ bg: bg.surfaceHover }}
-                >
-                  <HStack justify="space-between" w="full">
-                    <HStack spacing={2}>
-                      {/* Color swatch preview */}
-                      <HStack spacing={0.5}>
-                        <Box
-                          w={3}
-                          h={3}
-                          borderRadius="sm"
-                          bg={themeColors.primary}
-                          borderWidth="1px"
-                          borderColor={border.default}
-                        />
-                        <Box
-                          w={3}
-                          h={3}
-                          borderRadius="sm"
-                          bg={themeColors.accent}
-                          borderWidth="1px"
-                          borderColor={border.default}
-                        />
-                      </HStack>
-                      <Text fontSize="sm">{theme.name}</Text>
-                    </HStack>
-                    {isSelected && (
-                      <Box as="span" color={text.primary}>
-                        <Check size={14} />
-                      </Box>
-                    )}
-                  </HStack>
-                </Menu.Item>
-              );
-            })}
-          </Menu.Content>
-        </Menu.Positioner>
-      </Portal>
-    </Menu.Root>
+      <Menu.Dropdown bg={bg.surface} style={{ borderColor: border.default, minWidth: "180px" }}>
+        {themes.map(theme => {
+          const isSelected = themeId === theme.id;
+          const themeColors = theme.colors[colorMode];
+
+          return (
+            <Menu.Item
+              key={theme.id}
+              onClick={() => setTheme(theme.id)}
+              bg={isSelected ? bg.surfaceHover : "transparent"}
+              style={{
+                backgroundColor: isSelected ? bg.surfaceHover : "transparent",
+              }}
+            >
+              <Group justify="space-between" w="100%">
+                <Group gap={8}>
+                  {/* Color swatch preview */}
+                  <Group gap={2}>
+                    <Box
+                      w={12}
+                      h={12}
+                      style={{
+                        borderRadius: "0.125rem",
+                        background: themeColors.primary,
+                        border: `1px solid ${border.default}`,
+                      }}
+                    />
+                    <Box
+                      w={12}
+                      h={12}
+                      style={{
+                        borderRadius: "0.125rem",
+                        background: themeColors.accent,
+                        border: `1px solid ${border.default}`,
+                      }}
+                    />
+                  </Group>
+                  <Text size="sm">{theme.name}</Text>
+                </Group>
+                {isSelected && <Check size={14} style={{ color: text.primary }} />}
+              </Group>
+            </Menu.Item>
+          );
+        })}
+      </Menu.Dropdown>
+    </Menu>
   );
 }
