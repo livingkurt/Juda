@@ -19,7 +19,7 @@ import { RichTextEditor } from "./RichTextEditor";
 import { TagChip } from "./TagChip";
 import dayjs from "dayjs";
 
-export const NoteEditor = ({ note, folders = [], allTags: _allTags = [], onUpdate, onDelete, onConvertToTask }) => {
+export const NoteEditor = ({ note, folders = [], onUpdate, onDelete, onConvertToTask }) => {
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [localTitle, setLocalTitle] = useState(note?.title || "");
   const saveTimeoutRef = useRef(null);

@@ -21,7 +21,6 @@ export const TimedColumn = ({
   getTaskStyle,
   internalDrag,
   handleInternalDragStart,
-  borderColor: _borderColor,
   dropHighlight,
   showStatusTasks = true,
   hourHeight = 48,

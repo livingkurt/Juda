@@ -17,13 +17,9 @@ const JOURNAL_TYPES = [
 
 export const JournalView = memo(function JournalView({
   tasks = [],
-  tags: _tags = [],
-  completions: _completions = [],
   getCompletionForDate,
   createCompletion,
   updateCompletion,
-  deleteCompletion: _deleteCompletion,
-  updateTask: _updateTask,
 }) {
   const [selectedDate, setSelectedDate] = useState(dayjs());
 

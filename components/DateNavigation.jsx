@@ -27,9 +27,15 @@ export const DateNavigation = memo(function DateNavigation({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const isToday = selectedDate && selectedDate.toDateString() === today.toDateString();
-  const isPast = selectedDate && selectedDate < today;
-  const isFuture = selectedDate && selectedDate > today;
+  // Normalize selectedDate to midnight for accurate comparison
+  const normalizedSelectedDate = selectedDate ? new Date(selectedDate) : null;
+  if (normalizedSelectedDate) {
+    normalizedSelectedDate.setHours(0, 0, 0, 0);
+  }
+
+  const isToday = normalizedSelectedDate && normalizedSelectedDate.toDateString() === today.toDateString();
+  const isPast = normalizedSelectedDate && normalizedSelectedDate < today;
+  const isFuture = normalizedSelectedDate && normalizedSelectedDate > today;
 
   const formatDateDisplay = date => {
     if (!date) return "";
@@ -169,8 +175,8 @@ export const DateNavigation = memo(function DateNavigation({
         <IconButton onClick={onNext} aria-label="Next" size="small" sx={{ flexShrink: 0 }}>
           <ChevronRight fontSize="small" />
         </IconButton>
-        {/* Spacer to center date picker when view selector is shown */}
-        {showViewSelector && showDatePicker && <Box sx={{ flex: 1 }} />}
+        {/* Spacer to center date picker */}
+        {showDatePicker && <Box sx={{ flex: 1 }} />}
         {showDatePicker && (
           <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flexShrink: 0 }}>
             <TextField
@@ -199,6 +205,8 @@ export const DateNavigation = memo(function DateNavigation({
             />
           </Box>
         )}
+        {/* Spacer to balance centering */}
+        {showDatePicker && <Box sx={{ flex: 1 }} />}
         {title && (
           <Typography
             variant="body2"
@@ -211,12 +219,13 @@ export const DateNavigation = memo(function DateNavigation({
             {title}
           </Typography>
         )}
+        {/* Date Display on the far right */}
         {showDateDisplay && (
           <Stack
             direction="row"
             alignItems="center"
             spacing={1}
-            sx={{ minWidth: { xs: 0, md: "120px" }, flexShrink: { xs: 1, md: 0 } }}
+            sx={{ minWidth: { xs: 0, md: "120px" }, flexShrink: 0 }}
           >
             <Typography
               variant="body2"
@@ -261,9 +270,7 @@ export const DateNavigation = memo(function DateNavigation({
             )}
           </Stack>
         )}
-        {/* Spacer to push view selector to the end */}
-        {showViewSelector && <Box sx={{ flex: 1 }} />}
-        {/* View Selector on the right */}
+        {/* View Selector on the far right (after date display) */}
         {showViewSelector && viewCollection && onViewChange && (
           <Box sx={{ flexShrink: 0 }}>
             <Select

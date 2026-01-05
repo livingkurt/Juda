@@ -101,7 +101,7 @@ export const InlineTaskInput = ({
     setSelectedTagIds(newTagIds);
   };
 
-  const handleCreateAndAssignTag = async _colorIndex => {
+  const handleCreateAndAssignTag = async () => {
     if (!searchQuery.trim()) return;
 
     try {

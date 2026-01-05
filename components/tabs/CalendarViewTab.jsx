@@ -372,11 +372,6 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
                 getOutcomeOnDate={getOutcomeOnDate}
                 showCompleted={showCompletedTasksCalendar.year}
                 zoom={calendarZoom.year}
-                onEdit={handleEditTask}
-                onEditWorkout={handleEditWorkout}
-                onOutcomeChange={handleOutcomeChange}
-                onDuplicate={handleDuplicateTask}
-                onDelete={handleDeleteTask}
               />
             )}
           </Box>

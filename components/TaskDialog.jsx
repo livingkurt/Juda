@@ -43,7 +43,7 @@ import { TagChip } from "./TagChip";
 import WorkoutBuilder from "./WorkoutBuilder";
 import WeekdaySelector from "./WeekdaySelector";
 import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
-import { useUpdateTaskMutation, useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery, useCreateTagMutation, useDeleteTagMutation } from "@/lib/store/api/tagsApi";
 import { useDialogState } from "@/hooks/useDialogState";
@@ -144,7 +144,6 @@ function TaskDialogForm({
   // Derive workout program status from Redux query
   const hasWorkoutProgram = Boolean(workoutProgram);
   const workoutProgramWeeks = workoutProgram?.numberOfWeeks || 0;
-  const [updateTaskMutation] = useUpdateTaskMutation();
 
   // Calculate total weeks from recurrence dates
   const totalWeeks = useMemo(() => {
@@ -301,28 +300,6 @@ function TaskDialogForm({
     ]);
     setSearchQuery("");
     setSubtaskTabIndex(0); // Switch back to subtasks list
-  };
-
-  // Handle removing subtask from parent
-  const _handleRemoveSubtaskFromParent = async subtask => {
-    // Check if this is an existing task (has isExisting flag or was loaded from task.subtasks)
-    // New subtasks created in dialog have timestamp IDs (all digits, >= 13 digits)
-    const isNewSubtask = /^\d{13,}$/.test(subtask.id);
-    const isExistingTask = subtask.isExisting === true || !isNewSubtask;
-
-    if (isExistingTask) {
-      // For existing tasks, call API to remove parent relationship
-      try {
-        await updateTaskMutation({ id: subtask.id, parentId: null }).unwrap();
-      } catch (error) {
-        console.error("Failed to remove subtask from parent:", error);
-        // Don't remove from local state if API call failed
-        return;
-      }
-    }
-
-    // Remove from local state (for both new and existing tasks)
-    setSubtasks(subtasks.filter(s => s.id !== subtask.id));
   };
 
   // Convert date/time strings to dayjs objects for DatePicker/TimePicker

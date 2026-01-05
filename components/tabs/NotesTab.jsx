@@ -379,7 +379,6 @@ export function NotesTab({ isLoading: tabLoading }) {
           <NoteEditor
             note={selectedNote}
             folders={[]}
-            allTags={[]}
             onUpdate={handleUpdateNote}
             onDelete={handleDeleteNote}
             onConvertToTask={() => {}}

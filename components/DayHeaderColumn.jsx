@@ -13,10 +13,7 @@ export const DayHeaderColumn = ({
   onDayClick,
   createDroppableId,
   createDraggableId,
-  borderColor: _borderColor,
   dropHighlight,
-  hourTextColor: _hourTextColor,
-  hoverBg: _hoverBg,
 }) => {
   const untimedDroppableId = createDroppableId.calendarWeekUntimed(day);
 

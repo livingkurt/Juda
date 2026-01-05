@@ -343,10 +343,7 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
                 onDayClick={handleDayClick}
                 createDroppableId={createDroppableId}
                 createDraggableId={createDraggableId}
-                borderColor="divider"
                 dropHighlight="action.hover"
-                hourTextColor="text.secondary"
-                hoverBg="action.hover"
               />
             );
           })}
@@ -431,7 +428,6 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
                   getTaskStyle={getTaskStyle}
                   internalDrag={internalDrag}
                   handleInternalDragStart={handleInternalDragStart}
-                  borderColor="divider"
                   dropHighlight="action.hover"
                   showStatusTasks={showStatusTasks}
                   hourHeight={HOUR_HEIGHT}

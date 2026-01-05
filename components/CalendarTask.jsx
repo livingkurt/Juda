@@ -10,6 +10,7 @@ import { TagChip } from "./TagChip";
 import { TaskContextMenu } from "./TaskContextMenu";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { getTaskDisplayColor } from "@/lib/utils";
 import { useColorMode } from "@/hooks/useColorMode";
 
@@ -35,11 +36,6 @@ export const CalendarTask = memo(function CalendarTask({
   variant = "timed", // 'timed' | 'untimed' | 'timed-week' | 'untimed-week'
   createDraggableId,
   getTaskStyle,
-  onEditTask,
-  onDeleteTask,
-  onDuplicateTask,
-  onOutcomeChange,
-  onBeginWorkout: _onBeginWorkout,
   internalDrag,
   handleInternalDragStart,
 }) {
@@ -52,6 +48,7 @@ export const CalendarTask = memo(function CalendarTask({
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
   const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
+  const completionHandlers = useCompletionHandlers();
 
   // Variant flags
   const isTimed = variant === "timed" || variant === "timed-week";
@@ -114,9 +111,7 @@ export const CalendarTask = memo(function CalendarTask({
   const handleOutcomeClick = e => {
     e.stopPropagation();
     const nextOutcome = outcome === "completed" ? "not_completed" : outcome === "not_completed" ? null : "completed";
-    if (onOutcomeChange) {
-      onOutcomeChange(task.id, date, nextOutcome);
-    }
+    completionHandlers.handleOutcomeChange(task.id, date, nextOutcome);
   };
 
   const isNoDuration = !task.duration || task.duration === 0;
@@ -132,11 +127,7 @@ export const CalendarTask = memo(function CalendarTask({
         variant="outlined"
         onContextMenu={handleContextMenu}
         onClick={() => {
-          if (onEditTask) {
-            onEditTask(task);
-          } else {
-            taskOps.handleEditTask(task);
-          }
+          taskOps.handleEditTask(task);
         }}
         {...attributes}
         {...listeners}
@@ -286,9 +277,9 @@ export const CalendarTask = memo(function CalendarTask({
         onClose={() => {
           setAnchorEl(null);
         }}
-        onEdit={onEditTask || taskOps.handleEditTask}
-        onDelete={onDeleteTask || taskOps.handleDeleteTask}
-        onDuplicate={onDuplicateTask || taskOps.handleDuplicateTask}
+        onEdit={taskOps.handleEditTask}
+        onDelete={taskOps.handleDeleteTask}
+        onDuplicate={taskOps.handleDuplicateTask}
       />
     </>
   );

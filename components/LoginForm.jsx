@@ -42,6 +42,9 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
     <Paper elevation={4} sx={{ p: 4, width: "100%", maxWidth: 400, borderRadius: 2 }}>
       <Stack spacing={3}>
         <Box textAlign="center">
+          <Box component="img" src="/apple-icon.png" alt="Logo" width={100} height={100} borderRadius={10}></Box>
+        </Box>
+        <Box textAlign="center">
           <Typography variant="h4" fontWeight={700} gutterBottom>
             Welcome Back
           </Typography>
@@ -65,13 +68,6 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Email sx={{ fontSize: 18 }} />
-                  </InputAdornment>
-                ),
-              }}
             />
             <TextField
               fullWidth
@@ -81,11 +77,6 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
               onChange={e => setPassword(e.target.value)}
               required
               InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock sx={{ fontSize: 18 }} />
-                  </InputAdornment>
-                ),
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">

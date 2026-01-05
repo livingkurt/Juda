@@ -229,7 +229,6 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
                                   key={`${task.id}-${year}`}
                                   task={task}
                                   date={dateStr}
-                                  year={year}
                                   completion={completion}
                                   isCurrentYear={isCurrentYear}
                                   onSave={handleSaveEntry}

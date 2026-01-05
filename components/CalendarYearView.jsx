@@ -7,6 +7,7 @@ import { shouldShowOnDate, getTaskDisplayColor } from "@/lib/utils";
 import { MONTH_OPTIONS } from "@/lib/constants";
 import { TaskCardMini } from "./shared/TaskCardMini";
 import { useColorMode } from "@/hooks/useColorMode";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
 
 export const CalendarYearView = ({
   date,
@@ -16,15 +17,11 @@ export const CalendarYearView = ({
   getOutcomeOnDate,
   showCompleted = true,
   zoom = 1.0,
-  onEdit,
-  onEditWorkout: _onEditWorkout,
-  onOutcomeChange: _onOutcomeChange,
-  onDuplicate: _onDuplicate,
-  onDelete: _onDelete,
 }) => {
   const [openMenuDate, setOpenMenuDate] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const { mode: colorMode } = useColorMode();
+  const taskOps = useTaskOperations();
 
   const year = date.getFullYear();
   const today = new Date();
@@ -338,9 +335,7 @@ export const CalendarYearView = ({
                         }}
                         onClick={e => {
                           e.stopPropagation();
-                          if (onEdit) {
-                            onEdit(task);
-                          }
+                          taskOps.handleEditTask(task);
                           setAnchorEl(null);
                           setOpenMenuDate(null);
                         }}

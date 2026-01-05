@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
-import { Box, Button, Stack, Typography, Badge, useMediaQuery } from "@mui/material";
+import { Box, Button, Stack, Typography, Badge, useMediaQuery, Collapse } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { List, Dashboard as LayoutDashboard, CalendarToday as Calendar } from "@mui/icons-material";
 import { BacklogDrawer } from "@/components/BacklogDrawer";
@@ -439,7 +439,9 @@ export function TasksTab() {
           width: backlogOpen ? `${resizeHandlers.backlogWidth}px` : "0px",
           height: "100%",
           transition:
-            resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? "none" : "width 0.3s ease-in-out",
+            resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
+              ? "none"
+              : "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
           willChange: resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? "width" : "auto",
           overflow: "hidden",
           borderRight: backlogOpen ? "1px solid" : "none",
@@ -451,36 +453,61 @@ export function TasksTab() {
           position: "relative",
         }}
       >
-        {backlogOpen && (
-          <>
-            {isLoading ? <BacklogSkeleton /> : <BacklogDrawer createDraggableId={createDraggableId} />}
-            {/* Resize handle between backlog and today */}
+        <Box
+          sx={{
+            width: `${resizeHandlers.backlogWidth}px`,
+            height: "100%",
+            position: "relative",
+          }}
+        >
+          <Collapse
+            orientation="horizontal"
+            in={backlogOpen}
+            timeout={400}
+            sx={{
+              width: "100%",
+              height: "100%",
+              transition: resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? "none" : undefined,
+            }}
+          >
             <Box
-              onMouseDown={resizeHandlers.handleBacklogResizeStart}
-              onTouchStart={resizeHandlers.handleBacklogResizeStart}
               sx={{
-                position: "absolute",
-                right: 0,
-                top: 0,
-                bottom: 0,
-                width: { md: "12px", lg: "4px" },
-                cursor: "col-resize",
-                bgcolor:
-                  resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
-                    ? "primary.light"
-                    : "transparent",
-                transition: "background-color 0.2s",
-                zIndex: 10,
-                userSelect: "none",
-                touchAction: "none",
-                display: { xs: "none", md: "block" },
-                "&:hover": {
-                  bgcolor: "primary.main",
-                },
+                width: `${resizeHandlers.backlogWidth}px`,
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                position: "relative",
               }}
-            />
-          </>
-        )}
+            >
+              {isLoading ? <BacklogSkeleton /> : <BacklogDrawer createDraggableId={createDraggableId} />}
+              {/* Resize handle between backlog and today */}
+              <Box
+                onMouseDown={resizeHandlers.handleBacklogResizeStart}
+                onTouchStart={resizeHandlers.handleBacklogResizeStart}
+                sx={{
+                  position: "absolute",
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: { md: "12px", lg: "4px" },
+                  cursor: "col-resize",
+                  bgcolor:
+                    resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
+                      ? "primary.light"
+                      : "transparent",
+                  transition: "background-color 0.2s",
+                  zIndex: 10,
+                  userSelect: "none",
+                  touchAction: "none",
+                  display: { xs: "none", md: "block" },
+                  "&:hover": {
+                    bgcolor: "primary.main",
+                  },
+                }}
+              />
+            </Box>
+          </Collapse>
+        </Box>
       </Box>
 
       {/* Today and Calendar Section */}
@@ -496,114 +523,157 @@ export function TasksTab() {
         }}
       >
         {/* Today View */}
-        {showDashboard && (
-          <>
-            <Box
+        <Box
+          sx={{
+            width: showDashboard ? (showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%") : "0px",
+            height: "100%",
+            transition:
+              resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
+                ? "none"
+                : "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            willChange: resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? "width" : "auto",
+            overflow: "hidden",
+            borderRight: showDashboard && showCalendar ? "1px solid" : "none",
+            borderColor: "divider",
+            flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+            position: "relative",
+          }}
+        >
+          <Box
+            sx={{
+              width: showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%",
+              height: "100%",
+              position: "relative",
+            }}
+          >
+            <Collapse
+              orientation="horizontal"
+              in={showDashboard}
+              timeout={400}
               sx={{
-                width: showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%",
+                width: "100%",
                 height: "100%",
-                transition: resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? "none" : "width 0.3s",
-                willChange: resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? "width" : "auto",
-                overflow: "hidden",
-                borderRight: showCalendar ? "1px solid" : "none",
-                borderColor: "divider",
-                flexShrink: 0,
-                display: "flex",
-                flexDirection: "column",
-                position: "relative",
+                flex: 1,
+                transition: resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? "none" : undefined,
               }}
             >
-              <TodayView
-                isLoading={isLoading}
-                sections={sections}
-                todayViewDate={todayViewDate}
-                handleTodayViewDateChange={handleTodayViewDateChange}
-                navigateTodayView={navigateTodayView}
-                handleTodayViewToday={handleTodayViewToday}
-                filteredTodaysTasks={filteredTodaysTasks}
-                todaysTasks={todaysTasks}
-                todaySearchTerm={todaySearchTerm}
-                setTodaySearchTerm={setTodaySearchTerm}
-                todaySelectedTagIds={todaySelectedTagIds}
-                handleTodayTagSelect={handleTodayTagSelect}
-                handleTodayTagDeselect={handleTodayTagDeselect}
-                tags={tags}
-                createTag={createTag}
-                showCompletedTasks={showCompletedTasks}
-                setShowCompletedTasks={setShowCompletedTasks}
-                createDroppableId={createDroppableId}
-                createDraggableId={createDraggableId}
-                todayScrollContainerRef={todayScrollContainerRefCallback}
-                isMobile={isMobile}
-              />
-              {/* Resize handle between today and calendar */}
-              {showCalendar && (
-                <Box
-                  onMouseDown={resizeHandlers.handleTodayResizeStart}
-                  onTouchStart={resizeHandlers.handleTodayResizeStart}
-                  sx={{
-                    position: "absolute",
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: { md: "12px", lg: "4px" },
-                    cursor: "col-resize",
-                    bgcolor:
-                      resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
-                        ? "primary.light"
-                        : "transparent",
-                    transition: "background-color 0.2s",
-                    zIndex: 10,
-                    userSelect: "none",
-                    touchAction: "none",
-                    display: { xs: "none", md: "block" },
-                    "&:hover": {
-                      bgcolor: "primary.main",
-                    },
-                  }}
+              <Box
+                sx={{
+                  width: showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  position: "relative",
+                }}
+              >
+                <TodayView
+                  isLoading={isLoading}
+                  sections={sections}
+                  todayViewDate={todayViewDate}
+                  handleTodayViewDateChange={handleTodayViewDateChange}
+                  navigateTodayView={navigateTodayView}
+                  handleTodayViewToday={handleTodayViewToday}
+                  filteredTodaysTasks={filteredTodaysTasks}
+                  todaysTasks={todaysTasks}
+                  todaySearchTerm={todaySearchTerm}
+                  setTodaySearchTerm={setTodaySearchTerm}
+                  todaySelectedTagIds={todaySelectedTagIds}
+                  handleTodayTagSelect={handleTodayTagSelect}
+                  handleTodayTagDeselect={handleTodayTagDeselect}
+                  tags={tags}
+                  createTag={createTag}
+                  showCompletedTasks={showCompletedTasks}
+                  setShowCompletedTasks={setShowCompletedTasks}
+                  createDroppableId={createDroppableId}
+                  createDraggableId={createDraggableId}
+                  todayScrollContainerRef={todayScrollContainerRefCallback}
+                  isMobile={isMobile}
                 />
-              )}
-            </Box>
-          </>
-        )}
+                {/* Resize handle between today and calendar */}
+                {showCalendar && (
+                  <Box
+                    onMouseDown={resizeHandlers.handleTodayResizeStart}
+                    onTouchStart={resizeHandlers.handleTodayResizeStart}
+                    sx={{
+                      position: "absolute",
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: { md: "12px", lg: "4px" },
+                      cursor: "col-resize",
+                      bgcolor:
+                        resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
+                          ? "primary.light"
+                          : "transparent",
+                      transition: "background-color 0.2s",
+                      zIndex: 10,
+                      userSelect: "none",
+                      touchAction: "none",
+                      display: { xs: "none", md: "block" },
+                      "&:hover": {
+                        bgcolor: "primary.main",
+                      },
+                    }}
+                  />
+                )}
+              </Box>
+            </Collapse>
+          </Box>
+        </Box>
 
         {/* Calendar View */}
-        {showCalendar && (
-          <CalendarViewTab
-            isLoading={isLoading}
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-            navigateCalendar={navigateCalendar}
-            getCalendarTitle={getCalendarTitle}
-            calendarView={calendarView}
-            setCalendarView={setCalendarView}
-            calendarSearchTerm={calendarSearchTerm}
-            setCalendarSearchTerm={setCalendarSearchTerm}
-            calendarSelectedTagIds={calendarSelectedTagIds}
-            handleCalendarTagSelect={handleCalendarTagSelect}
-            handleCalendarTagDeselect={handleCalendarTagDeselect}
-            tags={tags}
-            createTag={createTag}
-            showCompletedTasksCalendar={showCompletedTasksCalendar}
-            setShowCompletedTasksCalendar={setShowCompletedTasksCalendar}
-            showRecurringTasks={showRecurringTasks}
-            setShowRecurringTasks={setShowRecurringTasks}
-            calendarZoom={calendarZoom}
-            setCalendarZoom={setCalendarZoom}
-            createDroppableId={createDroppableId}
-            createDraggableId={createDraggableId}
-            dropTimeRef={dragAndDrop.dropTimeRef}
-            tasks={tasks}
-            isCompletedOnDate={isCompletedOnDate}
-            getOutcomeOnDate={getOutcomeOnDate}
-            handleEditTask={taskOps.handleEditTask}
-            handleEditWorkout={taskOps.handleEditWorkout}
-            handleOutcomeChange={completionHandlers.handleOutcomeChange}
-            handleDuplicateTask={taskOps.handleDuplicateTask}
-            handleDeleteTask={taskOps.handleDeleteTask}
-            isMobile={isMobile}
-          />
-        )}
+        <Box
+          sx={{
+            flex: showCalendar ? 1 : 0,
+            width: showCalendar ? "auto" : "0px",
+            height: "100%",
+            transition: "flex 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            overflow: "hidden",
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            opacity: showCalendar ? 1 : 0,
+          }}
+        >
+          {showCalendar && (
+            <CalendarViewTab
+              isLoading={isLoading}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              navigateCalendar={navigateCalendar}
+              getCalendarTitle={getCalendarTitle}
+              calendarView={calendarView}
+              setCalendarView={setCalendarView}
+              calendarSearchTerm={calendarSearchTerm}
+              setCalendarSearchTerm={setCalendarSearchTerm}
+              calendarSelectedTagIds={calendarSelectedTagIds}
+              handleCalendarTagSelect={handleCalendarTagSelect}
+              handleCalendarTagDeselect={handleCalendarTagDeselect}
+              tags={tags}
+              createTag={createTag}
+              showCompletedTasksCalendar={showCompletedTasksCalendar}
+              setShowCompletedTasksCalendar={setShowCompletedTasksCalendar}
+              showRecurringTasks={showRecurringTasks}
+              setShowRecurringTasks={setShowRecurringTasks}
+              calendarZoom={calendarZoom}
+              setCalendarZoom={setCalendarZoom}
+              createDroppableId={createDroppableId}
+              createDraggableId={createDraggableId}
+              dropTimeRef={dragAndDrop.dropTimeRef}
+              tasks={tasks}
+              isCompletedOnDate={isCompletedOnDate}
+              getOutcomeOnDate={getOutcomeOnDate}
+              handleEditTask={taskOps.handleEditTask}
+              handleEditWorkout={taskOps.handleEditWorkout}
+              handleOutcomeChange={completionHandlers.handleOutcomeChange}
+              handleDuplicateTask={taskOps.handleDuplicateTask}
+              handleDeleteTask={taskOps.handleDeleteTask}
+              isMobile={isMobile}
+            />
+          )}
+        </Box>
       </Box>
     </Box>
   );

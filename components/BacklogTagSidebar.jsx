@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { Box, Typography, IconButton, List, ListItemButton } from "@mui/material";
+import { Box, Typography, IconButton, List, ListItemButton, Collapse } from "@mui/material";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import { useTheme } from "@/hooks/useTheme";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
@@ -58,10 +58,11 @@ export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect,
         borderColor: "divider",
         display: "flex",
         flexDirection: "column",
-        transition: "width 0.2s ease-in-out",
+        transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
         flexShrink: 0,
         position: "relative",
         bgcolor: "background.paper",
+        overflow: "hidden",
       }}
     >
       {/* Toggle Button */}
@@ -85,108 +86,118 @@ export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect,
         </IconButton>
       </Box>
 
-      {/* Tag List */}
-      <List dense sx={{ flex: 1, overflowY: "auto", overflowX: "hidden", py: 0.5, px: isOpen ? 1 : 0.5 }}>
-        {/* Untagged option */}
-        <ListItemButton
-          selected={selectedTagIds.includes(UNTAGGED_ID)}
-          onClick={() => handleTagClick(UNTAGGED_ID)}
-          sx={{
-            borderRadius: 1,
-            mb: 0.5,
-            px: isOpen ? 1 : 0.5,
-            py: 0.75,
-          }}
-          title={isOpen ? undefined : "Untagged"}
-        >
-          <Box
+      {/* Tag List with Collapse Animation */}
+      <Box
+        sx={{
+          flex: 1,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <List dense sx={{ flex: 1, overflowY: "auto", overflowX: "hidden", py: 0.5, px: isOpen ? 1 : 0.5 }}>
+          {/* Untagged option */}
+          <ListItemButton
+            selected={selectedTagIds.includes(UNTAGGED_ID)}
+            onClick={() => handleTagClick(UNTAGGED_ID)}
             sx={{
-              width: 12,
-              height: 12,
-              borderRadius: "50%",
-              bgcolor: "transparent",
-              borderWidth: 1.5,
-              borderStyle: "solid",
-              borderColor: selectedTagIds.includes(UNTAGGED_ID) ? "text.primary" : "text.secondary",
-              flexShrink: 0,
-              mr: isOpen ? 1 : 0,
+              borderRadius: 1,
+              mb: 0.5,
+              px: isOpen ? 1 : 0.5,
+              py: 0.75,
             }}
-          />
-          {isOpen && (
-            <Typography
-              variant="body2"
+            title={isOpen ? undefined : "Untagged"}
+          >
+            <Box
               sx={{
-                fontSize: "0.875rem",
-                fontWeight: selectedTagIds.includes(UNTAGGED_ID) ? 600 : 400,
-                color: selectedTagIds.includes(UNTAGGED_ID) ? "text.primary" : "text.secondary",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                flex: 1,
-                minWidth: 0,
+                width: 12,
+                height: 12,
+                bgcolor: "transparent",
+                borderWidth: 1.5,
+                borderStyle: "solid",
+                borderColor: selectedTagIds.includes(UNTAGGED_ID) ? "text.primary" : "text.secondary",
+                flexShrink: 0,
+                mr: isOpen ? 1 : 0.5,
               }}
-            >
-              Untagged
-            </Typography>
-          )}
-        </ListItemButton>
-
-        {tags.length === 0 ? (
-          <Box sx={{ px: 1, py: 2 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center", display: "block" }}>
-              {isOpen ? "No tags" : ""}
-            </Typography>
-          </Box>
-        ) : (
-          tags.map(tag => {
-            const isSelected = selectedTagIds.includes(tag.id);
-            const displayColor = mapColorToTheme(tag.color, themePalette) || tag.color;
-
-            return (
-              <ListItemButton
-                key={tag.id}
-                selected={isSelected}
-                onClick={() => handleTagClick(tag.id)}
+            />
+            <Collapse orientation="horizontal" in={isOpen} timeout={400}>
+              <Typography
+                variant="body2"
                 sx={{
-                  borderRadius: 1,
-                  mb: 0.5,
-                  px: isOpen ? 1 : 0.5,
-                  py: 0.75,
+                  fontSize: "0.875rem",
+                  fontWeight: selectedTagIds.includes(UNTAGGED_ID) ? 600 : 400,
+                  color: selectedTagIds.includes(UNTAGGED_ID) ? "text.primary" : "text.secondary",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  flex: 1,
+                  minWidth: 0,
                 }}
-                title={isOpen ? undefined : tag.name}
               >
-                <Box
+                Untagged
+              </Typography>
+            </Collapse>
+          </ListItemButton>
+
+          {tags.length === 0 ? (
+            <Collapse orientation="horizontal" in={isOpen} timeout={400}>
+              <Box sx={{ px: 1, py: 2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center", display: "block" }}>
+                  No tags
+                </Typography>
+              </Box>
+            </Collapse>
+          ) : (
+            tags.map(tag => {
+              const isSelected = selectedTagIds.includes(tag.id);
+              const displayColor = mapColorToTheme(tag.color, themePalette) || tag.color;
+
+              return (
+                <ListItemButton
+                  key={tag.id}
+                  selected={isSelected}
+                  onClick={() => handleTagClick(tag.id)}
                   sx={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: "50%",
-                    bgcolor: displayColor,
-                    flexShrink: 0,
-                    mr: isOpen ? 1 : 0,
+                    borderRadius: 1,
+                    mb: 0.5,
+                    px: isOpen ? 1 : 0.5,
+                    py: 0.75,
                   }}
-                />
-                {isOpen && (
-                  <Typography
-                    variant="body2"
+                  title={isOpen ? undefined : tag.name}
+                >
+                  <Box
                     sx={{
-                      fontSize: "0.875rem",
-                      fontWeight: isSelected ? 600 : 400,
-                      color: isSelected ? "text.primary" : "text.secondary",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      flex: 1,
-                      minWidth: 0,
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      bgcolor: displayColor,
+                      flexShrink: 0,
+                      mr: isOpen ? 1 : 0.5,
                     }}
-                  >
-                    {tag.name}
-                  </Typography>
-                )}
-              </ListItemButton>
-            );
-          })
-        )}
-      </List>
+                  />
+                  <Collapse orientation="horizontal" in={isOpen} timeout={400}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontSize: "0.875rem",
+                        fontWeight: isSelected ? 600 : 400,
+                        color: isSelected ? "text.primary" : "text.secondary",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        flex: 1,
+                        minWidth: 0,
+                      }}
+                    >
+                      {tag.name}
+                    </Typography>
+                  </Collapse>
+                </ListItemButton>
+              );
+            })
+          )}
+        </List>
+      </Box>
     </Box>
   );
 };

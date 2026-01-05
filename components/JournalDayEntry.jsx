@@ -5,7 +5,7 @@ import { Box, Typography, TextField, Stack, IconButton, Collapse } from "@mui/ma
 import { Add, ExpandMore, ChevronRight } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 
-export const JournalDayEntry = ({ task, date, year: _year, completion, isCurrentYear, onSave }) => {
+export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave }) => {
   const theme = useTheme();
   // Initialize state from props - component will remount when completion changes (via key prop)
   const [noteInput, setNoteInput] = useState(completion?.note || "");

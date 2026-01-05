@@ -161,7 +161,6 @@ export const TaskItem = ({
   parentTaskId, // For subtask variant
   isSelected, // Whether this task is selected for bulk edit
   selectedCount, // Number of tasks currently selected
-  hoveredDroppable: _hoveredDroppable, // For drag and drop highlighting (unused for now)
   onRemoveFromParent, // Optional handler for removing subtask from parent (used in dialog)
 }) => {
   // Use hooks directly (they use Redux internally)
