@@ -19,7 +19,7 @@ import {
   Button,
   VStack,
 } from "@chakra-ui/react";
-import { Check, X, ChevronLeft, ChevronRight, Dumbbell, Edit2, Copy, Trash2 } from "lucide-react";
+import { Check, X, ChevronLeft, ChevronRight, Dumbbell, Edit2, Copy, Trash2, Circle } from "lucide-react";
 import { shouldShowOnDate, formatDateDisplay } from "@/lib/utils";
 import { SelectDropdown } from "./SelectDropdown";
 import { CellEditorPopover } from "./CellEditorPopover";
@@ -580,15 +580,32 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
 
   // Handle workout completion type
   if (task.completionType === "workout") {
-    const handleWorkoutClick = () => {
+    // Only show checkbox if scheduled OR if there's a completion (off-schedule completion)
+    // If not scheduled and no completion, show empty cell
+    if (!isScheduled && !completion) {
+      return null;
+    }
+
+    const [workoutMenuOpen, setWorkoutMenuOpen] = useState(false);
+    const outcome = completion?.outcome || null;
+
+    const handleOutcomeChange = async newOutcome => {
+      if (newOutcome === null) {
+        onDelete();
+      } else {
+        onUpdate({ outcome: newOutcome });
+      }
+      setWorkoutMenuOpen(false);
+    };
+
+    const handleOpenWorkout = () => {
+      setWorkoutMenuOpen(false);
       setWorkoutModalOpen(true);
     };
 
     return (
       <>
         <Box
-          as="button"
-          onClick={handleWorkoutClick}
           w="100%"
           h="100%"
           minH="40px"
@@ -598,31 +615,161 @@ const TableCell = ({ task, date, completion, isScheduled, onUpdate, onDelete, on
           bg={cellBg}
           _hover={{ bg: mode.bg.muted }}
           cursor="pointer"
-          border="none"
-          outline="none"
-          boxShadow="none"
-          _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-          _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
         >
-          {completion?.outcome === "completed" ? (
-            <Checkbox.Root checked={true} size="md">
-              <Checkbox.HiddenInput />
-              <Checkbox.Control
-                bg="white"
-                boxShadow="none"
-                outline="none"
+          <Menu.Root open={workoutMenuOpen} onOpenChange={({ open }) => setWorkoutMenuOpen(open)} isLazy placement="right-start" closeOnSelect>
+            <Menu.Trigger asChild>
+              <Box
+                as="button"
                 border="none"
-                _focus={{ boxShadow: "none", outline: "none" }}
-                _focusVisible={{ boxShadow: "none", outline: "none" }}
+                outline="none"
+                boxShadow="none"
+                bg="transparent"
+                p={0}
+                m={0}
+                w="100%"
+                h="100%"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                _focus={{ border: "none", outline: "none", boxShadow: "none" }}
+                _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
+                onClick={e => {
+                  e.stopPropagation();
+                }}
               >
-                <Checkbox.Indicator>
-                  <Check size={14} />
-                </Checkbox.Indicator>
-              </Checkbox.Control>
-            </Checkbox.Root>
-          ) : (
-            <Dumbbell size={18} />
-          )}
+                <Checkbox.Root checked={outcome === "completed"} size="md" onCheckedChange={() => {}}>
+                  <Checkbox.HiddenInput />
+                  <Checkbox.Control
+                    bg={outcome === "not_completed" ? "white" : undefined}
+                    boxShadow="none"
+                    outline="none"
+                    border="none"
+                    _focus={{ boxShadow: "none", outline: "none" }}
+                    _focusVisible={{ boxShadow: "none", outline: "none" }}
+                  >
+                    {outcome === "completed" ? (
+                      <Checkbox.Indicator>
+                        <Check size={14} />
+                      </Checkbox.Indicator>
+                    ) : outcome === "not_completed" ? (
+                      <Box as="span" display="flex" alignItems="center" justifyContent="center" w="100%" h="100%">
+                        <Box as="span" color={mode.text.muted}>
+                          <X size={18} stroke="currentColor" style={{ strokeWidth: 3 }} />
+                        </Box>
+                      </Box>
+                    ) : (
+                      // Show empty checkbox when scheduled but no outcome
+                      <Checkbox.Indicator />
+                    )}
+                  </Checkbox.Control>
+                </Checkbox.Root>
+              </Box>
+            </Menu.Trigger>
+          <Portal>
+            <Menu.Positioner>
+              <Menu.Content onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+                {/* Open Workout option - always show */}
+                <Menu.Item
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleOpenWorkout();
+                  }}
+                >
+                  <HStack gap={2}>
+                    <Box
+                      as="span"
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      w="14px"
+                      h="14px"
+                      flexShrink={0}
+                    >
+                      <Dumbbell size={14} />
+                    </Box>
+                    <Text>Open Workout</Text>
+                  </HStack>
+                </Menu.Item>
+                <Menu.Separator />
+                {/* Only show Uncheck if task has an outcome */}
+                {outcome !== null && (
+                  <>
+                    <Menu.Item
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleOutcomeChange(null);
+                      }}
+                    >
+                      <HStack gap={2}>
+                        <Box
+                          as="span"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          w="14px"
+                          h="14px"
+                          flexShrink={0}
+                        >
+                          <Circle size={14} />
+                        </Box>
+                        <Text>Uncheck</Text>
+                      </HStack>
+                    </Menu.Item>
+                    <Menu.Separator />
+                  </>
+                )}
+                {/* Only show Completed if not already completed */}
+                {outcome !== "completed" && (
+                  <Menu.Item
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleOutcomeChange("completed");
+                    }}
+                  >
+                    <HStack gap={2}>
+                      <Box
+                        as="span"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        w="14px"
+                        h="14px"
+                        flexShrink={0}
+                      >
+                        <Check size={14} />
+                      </Box>
+                      <Text>Completed</Text>
+                    </HStack>
+                  </Menu.Item>
+                )}
+                {/* Only show Not Completed if not already not completed */}
+                {outcome !== "not_completed" && (
+                  <Menu.Item
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleOutcomeChange("not_completed");
+                    }}
+                  >
+                    <HStack gap={2}>
+                      <Box
+                        as="span"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        w="14px"
+                        h="14px"
+                        flexShrink={0}
+                      >
+                        <X size={14} />
+                      </Box>
+                      <Text>Not Completed</Text>
+                    </HStack>
+                  </Menu.Item>
+                )}
+              </Menu.Content>
+            </Menu.Positioner>
+          </Portal>
+        </Menu.Root>
         </Box>
         <WorkoutModal
           task={task}
