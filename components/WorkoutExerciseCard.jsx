@@ -81,6 +81,11 @@ export default function WorkoutExerciseCard({
       }
     }
 
+    // Clear actualValue when marking as not_completed (didn't contribute anything)
+    if (outcome === "not_completed") {
+      updatedData.actualValue = null;
+    }
+
     onSetToggle(exercise.id, setNumber, updatedData);
   };
 

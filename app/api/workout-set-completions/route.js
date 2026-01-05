@@ -84,13 +84,22 @@ export async function POST(request) {
     });
 
     if (existing) {
+      // Determine the final outcome value
+      const finalOutcome = outcome !== undefined ? outcome : existing.outcome;
+
+      // Clear actualValue when marking as not_completed (didn't contribute anything)
+      let finalActualValue = actualValue !== undefined ? actualValue : existing.actualValue;
+      if (finalOutcome === "not_completed") {
+        finalActualValue = null;
+      }
+
       // Update existing completion
       const [updated] = await db
         .update(workoutSetCompletions)
         .set({
-          outcome: outcome !== undefined ? outcome : existing.outcome,
+          outcome: finalOutcome,
           completed: completed !== undefined ? completed : existing.completed,
-          actualValue: actualValue !== undefined ? actualValue : existing.actualValue,
+          actualValue: finalActualValue,
           value: value !== undefined ? value : existing.value,
           time: time !== undefined ? time : existing.time,
           distance: distance !== undefined ? distance : existing.distance,
@@ -102,6 +111,12 @@ export async function POST(request) {
 
       return NextResponse.json(updated);
     } else {
+      // Clear actualValue when marking as not_completed (didn't contribute anything)
+      let finalActualValue = actualValue || null;
+      if (outcome === "not_completed") {
+        finalActualValue = null;
+      }
+
       // Create new completion
       const [created] = await db
         .insert(workoutSetCompletions)
@@ -112,7 +127,7 @@ export async function POST(request) {
           setNumber,
           outcome: outcome || null,
           completed: completed || false,
-          actualValue: actualValue || null,
+          actualValue: finalActualValue,
           value: value || null,
           time: time || null,
           distance: distance || null,
