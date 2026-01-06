@@ -4,9 +4,7 @@ import {
   verifyRefreshToken,
   validateStoredRefreshToken,
   generateAccessToken,
-  generateRefreshToken,
   storeRefreshToken,
-  removeRefreshToken,
   getUserById,
 } from "@/lib/auth";
 import { serialize } from "cookie";
@@ -44,21 +42,19 @@ export async function POST(request) {
       return NextResponse.json({ error: "User not found" }, { status: 401 });
     }
 
-    // Rotate refresh token (store new BEFORE removing old for atomic operation)
+    // Generate new access token (but keep the same refresh token)
+    // Don't rotate refresh token on every request - only rotate on login
+    // This prevents race conditions where the browser doesn't receive the new cookie before the old one is deleted
     const newAccessToken = generateAccessToken(user.id);
-    const newRefreshToken = generateRefreshToken(user.id);
 
-    // Store new token first (atomic operation)
-    await storeRefreshToken(user.id, newRefreshToken);
+    // Update the refresh token's expiry in the database to extend the session
+    await storeRefreshToken(user.id, refreshToken);
 
-    // Only remove old token after new one is safely stored
-    await removeRefreshToken(refreshToken);
-
-    // Set new refresh token cookie (365 days to match token expiry)
-    const cookie = serialize("refreshToken", newRefreshToken, {
+    // Re-send the same refresh token cookie to ensure it persists
+    const cookie = serialize("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "strict", // Use strict for better persistence
       maxAge: 60 * 60 * 24 * 365, // 365 days - keep users signed in "forever"
       path: "/",
     });

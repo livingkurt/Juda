@@ -20,7 +20,7 @@ export async function POST(request) {
     const cookie = serialize("refreshToken", "", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "strict", // Match the sameSite setting used when setting the cookie
       maxAge: 0,
       path: "/",
     });
