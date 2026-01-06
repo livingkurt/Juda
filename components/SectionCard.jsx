@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, memo } from "react";
-import { Box, Paper, Stack, Typography, IconButton, Menu, MenuItem, TextField, Collapse } from "@mui/material";
+import { useState, useCallback, memo } from "react";
+import { Box, Paper, Stack, Typography, IconButton, Menu, MenuItem, Collapse } from "@mui/material";
 import { useDroppable } from "@dnd-kit/core";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Add, MoreVert, DragIndicator, LightMode, ExpandMore, ExpandLess } from "@mui/icons-material";
 import { TaskItem } from "./TaskItem";
+import { QuickTaskInput } from "./QuickTaskInput";
 import { SECTION_ICONS } from "@/lib/constants";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
@@ -16,10 +17,7 @@ import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 
 const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDraggableId, viewDate }) => {
-  const [inlineInputValue, setInlineInputValue] = useState("");
-  const [isInlineInputActive, setIsInlineInputActive] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
-  const inlineInputRef = useRef(null);
 
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
@@ -88,33 +86,12 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
     draggableId: createDraggableId.todaySection(task.id, section.id),
   }));
 
-  const handleInlineInputClick = () => {
-    setIsInlineInputActive(true);
-    setTimeout(() => {
-      inlineInputRef.current?.focus();
-    }, 0);
-  };
-
-  const handleInlineInputBlur = async () => {
-    if (inlineInputValue.trim()) {
-      await taskOps.handleCreateTaskInline(section.id, inlineInputValue);
-      setInlineInputValue("");
-    }
-    setIsInlineInputActive(false);
-  };
-
-  const handleInlineInputKeyDown = async e => {
-    if (e.key === "Enter" && inlineInputValue.trim()) {
-      e.preventDefault();
-      await taskOps.handleCreateTaskInline(section.id, inlineInputValue);
-      setInlineInputValue("");
-      setIsInlineInputActive(false);
-    } else if (e.key === "Escape") {
-      setInlineInputValue("");
-      setIsInlineInputActive(false);
-      inlineInputRef.current?.blur();
-    }
-  };
+  const handleCreateQuickTask = useCallback(
+    async title => {
+      await taskOps.handleCreateTaskInline(section.id, title);
+    },
+    [taskOps, section.id]
+  );
 
   const isExpanded = section.expanded !== false;
 
@@ -250,24 +227,11 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
                 >
                   {isOver ? "Drop here" : "No tasks"}
                 </Typography>
-                <TextField
-                  inputRef={inlineInputRef}
-                  fullWidth
+                <QuickTaskInput
+                  placeholder="New task..."
+                  onCreate={handleCreateQuickTask}
                   size="small"
                   variant="standard"
-                  placeholder="New task..."
-                  value={inlineInputValue}
-                  onChange={e => setInlineInputValue(e.target.value)}
-                  onBlur={handleInlineInputBlur}
-                  onKeyDown={handleInlineInputKeyDown}
-                  onClick={handleInlineInputClick}
-                  InputProps={{
-                    disableUnderline: !isInlineInputActive,
-                    sx: {
-                      fontSize: "0.875rem",
-                      color: isInlineInputActive ? "text.primary" : "text.secondary",
-                    },
-                  }}
                 />
               </Stack>
             ) : (
@@ -289,24 +253,11 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
                       viewDate={viewDate}
                     />
                   ))}
-                  <TextField
-                    inputRef={inlineInputRef}
-                    fullWidth
+                  <QuickTaskInput
+                    placeholder="New task..."
+                    onCreate={handleCreateQuickTask}
                     size="small"
                     variant="standard"
-                    placeholder="New task..."
-                    value={inlineInputValue}
-                    onChange={e => setInlineInputValue(e.target.value)}
-                    onBlur={handleInlineInputBlur}
-                    onKeyDown={handleInlineInputKeyDown}
-                    onClick={handleInlineInputClick}
-                    InputProps={{
-                      disableUnderline: !isInlineInputActive,
-                      sx: {
-                        fontSize: "0.875rem",
-                        color: isInlineInputActive ? "text.primary" : "text.secondary",
-                      },
-                    }}
                   />
                 </Stack>
               </SortableContext>

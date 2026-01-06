@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, memo, useCallback, useRef } from "react";
-import { Box, Stack, Typography, TextField, IconButton, Chip } from "@mui/material";
+import { useMemo, memo, useCallback } from "react";
+import { Box, Stack, Typography, IconButton, Chip } from "@mui/material";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Add } from "@mui/icons-material";
@@ -9,6 +9,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
+import { QuickTaskInput } from "./QuickTaskInput";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
@@ -38,10 +39,6 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
   // Get recentlyCompletedTasks from completionHandlers
   const recentlyCompletedTasks = completionHandlers.recentlyCompletedTasks;
 
-  const [inlineInputValue, setInlineInputValue] = useState("");
-  const [isInlineInputActive, setIsInlineInputActive] = useState(false);
-  const inlineInputRef = useRef(null);
-
   // Filter out tasks that are no longer "recently completed" for the Done column
   const visibleTasks = useMemo(() => {
     if (id !== "complete") return tasks;
@@ -55,33 +52,12 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
     [visibleTasks, id, createDraggableId]
   );
 
-  const handleInlineInputClick = () => {
-    setIsInlineInputActive(true);
-    setTimeout(() => {
-      inlineInputRef.current?.focus();
-    }, 0);
-  };
-
-  const handleInlineInputBlur = async () => {
-    if (inlineInputValue.trim()) {
-      await taskOps.handleCreateKanbanTaskInline(id, inlineInputValue);
-      setInlineInputValue("");
-    }
-    setIsInlineInputActive(false);
-  };
-
-  const handleInlineInputKeyDown = async e => {
-    if (e.key === "Enter" && inlineInputValue.trim()) {
-      e.preventDefault();
-      await taskOps.handleCreateKanbanTaskInline(id, inlineInputValue);
-      setInlineInputValue("");
-      setIsInlineInputActive(false);
-    } else if (e.key === "Escape") {
-      setInlineInputValue("");
-      setIsInlineInputActive(false);
-      inlineInputRef.current?.blur();
-    }
-  };
+  const handleCreateQuickTask = useCallback(
+    async title => {
+      await taskOps.handleCreateKanbanTaskInline(id, title);
+    },
+    [taskOps, id]
+  );
 
   const handleAddTask = () => {
     dialogState.setDefaultSectionId(taskOps.sections[0]?.id);
@@ -168,46 +144,20 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
                 <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
                   No tasks
                 </Typography>
-                <TextField
-                  inputRef={inlineInputRef}
-                  value={inlineInputValue}
-                  onChange={e => setInlineInputValue(e.target.value)}
-                  onBlur={handleInlineInputBlur}
-                  onKeyDown={handleInlineInputKeyDown}
-                  onClick={handleInlineInputClick}
+                <QuickTaskInput
                   placeholder="New task..."
+                  onCreate={handleCreateQuickTask}
                   size="small"
                   variant="standard"
-                  fullWidth
-                  InputProps={{
-                    disableUnderline: !isInlineInputActive,
-                    sx: {
-                      fontSize: "0.875rem",
-                      color: isInlineInputActive ? "text.primary" : "text.secondary",
-                    },
-                  }}
                 />
               </Stack>
             )}
             {visibleTasks.length > 0 && (
-              <TextField
-                inputRef={inlineInputRef}
-                value={inlineInputValue}
-                onChange={e => setInlineInputValue(e.target.value)}
-                onBlur={handleInlineInputBlur}
-                onKeyDown={handleInlineInputKeyDown}
-                onClick={handleInlineInputClick}
+              <QuickTaskInput
                 placeholder="New task..."
+                onCreate={handleCreateQuickTask}
                 size="small"
                 variant="standard"
-                fullWidth
-                InputProps={{
-                  disableUnderline: !isInlineInputActive,
-                  sx: {
-                    fontSize: "0.875rem",
-                    color: isInlineInputActive ? "text.primary" : "text.secondary",
-                  },
-                }}
               />
             )}
           </Stack>

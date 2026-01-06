@@ -302,11 +302,13 @@ export function useTaskOperations() {
           subtasks: [],
           order: 999,
         });
+        dispatch(showSuccess({ message: "Task created" }));
       } catch (error) {
         console.error("Failed to create task:", error.message);
+        dispatch(showError({ message: "Failed to create task" }));
       }
     },
-    [createTask, viewDate]
+    [createTask, viewDate, dispatch]
   );
 
   // Create subtask
@@ -361,11 +363,13 @@ export function useTaskOperations() {
         if (tagIds && tagIds.length > 0) {
           await batchUpdateTaskTags(newTask.id, tagIds);
         }
+        dispatch(showSuccess({ message: "Task created" }));
       } catch (error) {
         console.error("Failed to create task:", error.message);
+        dispatch(showError({ message: "Failed to create task" }));
       }
     },
-    [createTask, sections, batchUpdateTaskTags]
+    [createTask, sections, batchUpdateTaskTags, dispatch]
   );
 
   // Create kanban task inline
@@ -387,11 +391,13 @@ export function useTaskOperations() {
           subtasks: [],
           order: 999,
         });
+        dispatch(showSuccess({ message: "Task created" }));
       } catch (error) {
         console.error("Failed to create task:", error.message);
+        dispatch(showError({ message: "Failed to create task" }));
       }
     },
-    [createTask, sections]
+    [createTask, sections, dispatch]
   );
 
   // Toggle task expand

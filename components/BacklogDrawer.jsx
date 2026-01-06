@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useCallback, memo, useRef, useState } from "react";
-import { Box, Stack, Typography, IconButton, Chip, TextField, useMediaQuery } from "@mui/material";
+import { useMemo, useCallback, memo } from "react";
+import { Box, Stack, Typography, IconButton, Chip, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -11,6 +11,7 @@ import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
 import { BacklogTagSidebar, UNTAGGED_ID } from "./BacklogTagSidebar";
+import { QuickTaskInput } from "./QuickTaskInput";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
@@ -61,12 +62,6 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     // Filter tags to only include those used in backlog
     return tags.filter(tag => tagIdsInBacklog.has(tag.id));
   }, [tags, backlogTasks]);
-
-  // Local UI state (not shared)
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [inlineInputValue, setInlineInputValue] = useState("");
-  const [isInlineInputActive, setIsInlineInputActive] = useState(false);
-  const inlineInputRef = useRef(null);
 
   // Filter tasks by search term and tags
   const filteredTasks = useMemo(() => {
@@ -120,33 +115,12 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     dispatch(toggleBacklogTagSidebarOpen());
   }, [dispatch]);
 
-  const handleInlineInputClick = () => {
-    setIsInlineInputActive(true);
-    setTimeout(() => {
-      inlineInputRef.current?.focus();
-    }, 0);
-  };
-
-  const handleInlineInputBlur = async () => {
-    if (inlineInputValue.trim()) {
-      await taskOps.handleCreateBacklogTaskInline(inlineInputValue, selectedTagIds);
-      setInlineInputValue("");
-    }
-    setIsInlineInputActive(false);
-  };
-
-  const handleInlineInputKeyDown = async e => {
-    if (e.key === "Enter" && inlineInputValue.trim()) {
-      e.preventDefault();
-      await taskOps.handleCreateBacklogTaskInline(inlineInputValue, selectedTagIds);
-      setInlineInputValue("");
-      setIsInlineInputActive(false);
-    } else if (e.key === "Escape") {
-      setInlineInputValue("");
-      setIsInlineInputActive(false);
-      inlineInputRef.current?.blur();
-    }
-  };
+  const handleCreateQuickTask = useCallback(
+    async title => {
+      await taskOps.handleCreateBacklogTaskInline(title, selectedTagIds);
+    },
+    [taskOps, selectedTagIds]
+  );
 
   // Use droppable hook for backlog area
   const { setNodeRef, isOver } = useDroppable({
@@ -253,25 +227,11 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
           </Stack>
           {/* New Task Input */}
           <Box sx={{ mt: 1, width: "100%", maxWidth: "100%" }}>
-            <TextField
-              fullWidth
+            <QuickTaskInput
               placeholder="New Task..."
-              value={newTaskTitle}
-              onChange={e => setNewTaskTitle(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter" && newTaskTitle.trim()) {
-                  e.preventDefault();
-                  taskOps.handleCreateBacklogTaskInline(newTaskTitle.trim(), selectedTagIds);
-                  setNewTaskTitle("");
-                }
-              }}
+              onCreate={handleCreateQuickTask}
               variant="standard"
-              InputProps={{
-                disableUnderline: true,
-                sx: {
-                  fontSize: "0.875rem",
-                },
-              }}
+              showUnderlineWhenActive={false}
             />
           </Box>
         </Box>
@@ -327,24 +287,11 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                       viewDate={viewDate}
                     />
                   ))}
-                  <TextField
-                    inputRef={inlineInputRef}
-                    fullWidth
+                  <QuickTaskInput
+                    placeholder="New task..."
+                    onCreate={handleCreateQuickTask}
                     size="small"
                     variant="standard"
-                    placeholder="New task..."
-                    value={inlineInputValue}
-                    onChange={e => setInlineInputValue(e.target.value)}
-                    onBlur={handleInlineInputBlur}
-                    onKeyDown={handleInlineInputKeyDown}
-                    onClick={handleInlineInputClick}
-                    InputProps={{
-                      disableUnderline: !isInlineInputActive,
-                      sx: {
-                        fontSize: "0.875rem",
-                        color: isInlineInputActive ? "text.primary" : "text.secondary",
-                      },
-                    }}
                   />
                 </Stack>
               </SortableContext>
@@ -362,24 +309,11 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
               >
                 {isOver ? "Drop here" : "No tasks"}
               </Typography>
-              <TextField
-                inputRef={inlineInputRef}
-                fullWidth
+              <QuickTaskInput
+                placeholder="New task..."
+                onCreate={handleCreateQuickTask}
                 size="small"
                 variant="standard"
-                placeholder="New task..."
-                value={inlineInputValue}
-                onChange={e => setInlineInputValue(e.target.value)}
-                onBlur={handleInlineInputBlur}
-                onKeyDown={handleInlineInputKeyDown}
-                onClick={handleInlineInputClick}
-                InputProps={{
-                  disableUnderline: !isInlineInputActive,
-                  sx: {
-                    fontSize: "0.875rem",
-                    color: isInlineInputActive ? "text.primary" : "text.secondary",
-                  },
-                }}
               />
             </Stack>
           )}
