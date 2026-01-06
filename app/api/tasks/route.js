@@ -54,6 +54,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     sourceTaskId,
     rolledFromDate,
     isRollover,
+    isOffSchedule,
   } = body;
 
   const section = await db.query.sections.findFirst({
@@ -83,6 +84,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
         sourceTaskId: sourceTaskId || null,
         rolledFromDate: rolledFromDate ? new Date(rolledFromDate) : null,
         isRollover: isRollover || false,
+        isOffSchedule: isOffSchedule || false,
       })
       .returning();
 

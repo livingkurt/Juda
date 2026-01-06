@@ -46,6 +46,11 @@ import {
   useDeleteCompletionMutation,
   useUpdateCompletionMutation,
 } from "@/lib/store/api/completionsApi";
+import {
+  useCreateOffScheduleCompletionMutation,
+  useDeleteOffScheduleCompletionMutation,
+  useRolloverTaskMutation,
+} from "@/lib/store/api/tasksApi";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 import { AutosaveBadge } from "../AutosaveBadge";
@@ -469,6 +474,9 @@ export function HistoryTab({ isLoading: tabLoading }) {
   const [createCompletion] = useCreateCompletionMutation();
   const [deleteCompletion] = useDeleteCompletionMutation();
   const [updateCompletion] = useUpdateCompletionMutation();
+  const [createOffScheduleCompletion] = useCreateOffScheduleCompletionMutation();
+  const [deleteOffScheduleCompletion] = useDeleteOffScheduleCompletionMutation();
+  const [rolloverTask] = useRolloverTaskMutation();
 
   // Task operations
   const taskOps = useTaskOperations();
@@ -554,22 +562,53 @@ export function HistoryTab({ isLoading: tabLoading }) {
   // Handle cell update - memoized
   const handleCellUpdate = useCallback(
     async (task, date, data) => {
-      const existing = getCompletionForDate?.(task.id, date);
-      if (existing) {
-        await updateCompletion({ taskId: task.id, date, ...data }).unwrap();
+      const isScheduled = shouldShowOnDate(task, date);
+
+      // Special handling for Roll Over on scheduled days
+      if (data.outcome === "rolled_over" && isScheduled) {
+        await rolloverTask({ taskId: task.id, date }).unwrap();
+        return;
+      }
+
+      if (!isScheduled) {
+        // Off-schedule: Use the off-schedule API that creates task + completion
+        await createOffScheduleCompletion({
+          taskId: task.id,
+          date,
+          outcome: data.outcome,
+          note: data.note,
+          actualValue: data.actualValue,
+        }).unwrap();
       } else {
-        await createCompletion({ taskId: task.id, date, ...data }).unwrap();
+        // Scheduled: Just create/update completion as before
+        const existing = getCompletionForDate?.(task.id, date);
+        if (existing) {
+          await updateCompletion({ taskId: task.id, date, ...data }).unwrap();
+        } else {
+          await createCompletion({ taskId: task.id, date, ...data }).unwrap();
+        }
       }
     },
-    [getCompletionForDate, createCompletion, updateCompletion]
+    [getCompletionForDate, createCompletion, updateCompletion, createOffScheduleCompletion, rolloverTask]
   );
 
   // Handle cell delete - memoized
   const handleCellDelete = useCallback(
     async (task, date) => {
-      await deleteCompletion({ taskId: task.id, date }).unwrap();
+      const isScheduled = shouldShowOnDate(task, date);
+
+      if (!isScheduled) {
+        // Off-schedule: Delete both completion and the off-schedule task
+        await deleteOffScheduleCompletion({
+          taskId: task.id,
+          date,
+        }).unwrap();
+      } else {
+        // Scheduled: Just delete the completion
+        await deleteCompletion({ taskId: task.id, date }).unwrap();
+      }
     },
-    [deleteCompletion]
+    [deleteCompletion, deleteOffScheduleCompletion]
   );
 
   // Handle workout modal open - memoized

@@ -27,6 +27,7 @@ export const TaskBadges = ({
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
   const isWorkoutTask = task.completionType === "workout";
   const isRolloverTask = task.isRollover === true;
+  const isOffScheduleTask = task.isOffSchedule === true;
   const taskIsOverdue =
     viewDate && hasRecordOnDate ? isOverdue(task, viewDate, hasRecordOnDate(task.id, viewDate)) : false;
   const hasEndDate = task.recurrence?.endDate;
@@ -174,7 +175,25 @@ export const TaskBadges = ({
         />
       )}
 
-      {isRolloverTask && (
+      {isOffScheduleTask && (
+        <Chip
+          label="Off-Schedule"
+          color="info"
+          size={chipSize}
+          sx={{
+            fontSize,
+            height: size === "xs" ? 18 : size === "sm" ? 20 : 24,
+            bgcolor: "#3b82f6",
+            color: "white",
+            "& .MuiChip-label": {
+              px: size === "xs" ? 0.5 : 0.75,
+              fontSize,
+            },
+          }}
+        />
+      )}
+
+      {isRolloverTask && !isOffScheduleTask && (
         <Chip
           label="Rolled Over"
           color="warning"

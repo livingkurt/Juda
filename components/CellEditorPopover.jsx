@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Box, Stack, Typography, Button, TextField, ToggleButton, ToggleButtonGroup, Chip } from "@mui/material";
-import { Check, Close, RadioButtonUnchecked, Delete } from "@mui/icons-material";
+import { Check, Close, RadioButtonUnchecked, Delete, SkipNext } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 import { AutosaveBadge } from "./AutosaveBadge";
@@ -158,6 +158,13 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
           <Close fontSize="small" sx={{ mr: 0.5 }} />
           Missed
         </ToggleButton>
+        {/* Only show Roll Over for scheduled days */}
+        {isScheduled && task.recurrence && task.recurrence.type !== "none" && (
+          <ToggleButton value="rolled_over" sx={{ flex: 1 }}>
+            <SkipNext fontSize="small" sx={{ mr: 0.5 }} />
+            Roll Over
+          </ToggleButton>
+        )}
         <ToggleButton value={null} sx={{ flex: 1 }}>
           <RadioButtonUnchecked fontSize="small" sx={{ mr: 0.5 }} />
           None
