@@ -23,6 +23,8 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
 
   // Expanded by default only for Daily Journal if there's an entry, collapsed for all reflection types
   const [expanded, setExpanded] = useState(isDailyJournal && hasEntry);
+  // Track if user manually expanded it - prevents auto-collapse on blur/re-render
+  const [userExpanded, setUserExpanded] = useState(false);
   const textareaRef = useRef(null);
 
   // Save function wrapper with error handling
@@ -46,6 +48,11 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
   const handleChange = e => {
     const newValue = e.target.value;
     setNoteInput(newValue);
+    // Mark as user-expanded when they start typing
+    if (!userExpanded && newValue.trim()) {
+      setUserExpanded(true);
+      setExpanded(true);
+    }
     debouncedSave(newValue);
   };
 
@@ -62,6 +69,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
   const handleAddEntry = () => {
     setShowTextarea(true);
     setExpanded(true);
+    setUserExpanded(true); // Mark as user-expanded so it won't auto-collapse
     // Delay focus to allow collapsible animation to complete
     // Use longer delay on mobile to prevent scroll jumping
     const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
@@ -78,7 +86,15 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
   };
 
   const handleToggleExpand = () => {
-    setExpanded(prev => !prev);
+    const newExpanded = !expanded;
+    setExpanded(newExpanded);
+    // If collapsing, clear the user-expanded flag so it can auto-expand again if needed
+    if (!newExpanded) {
+      setUserExpanded(false);
+    } else {
+      // If expanding, mark as user-expanded
+      setUserExpanded(true);
+    }
   };
 
   // Check if task existed in this year (simplified - assumes task exists if it's recurring or created before year end)
@@ -168,6 +184,13 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
                   value={noteInput}
                   onChange={handleChange}
                   onBlur={handleBlur}
+                  onFocus={() => {
+                    // Mark as user-expanded when focused
+                    if (!userExpanded) {
+                      setUserExpanded(true);
+                      setExpanded(true);
+                    }
+                  }}
                   placeholder="Enter your journal entry..."
                   size="small"
                   multiline
