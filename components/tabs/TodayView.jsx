@@ -1,12 +1,11 @@
 "use client";
 
-import { Box, Stack, Typography, Chip, Button, IconButton } from "@mui/material";
+import { Box, Stack, Typography, Chip, Button, IconButton, CircularProgress } from "@mui/material";
 import { Visibility as Eye, VisibilityOff as EyeOff } from "@mui/icons-material";
 import { DateNavigation } from "@/components/DateNavigation";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
 import { TagFilter } from "@/components/TagFilter";
 import { Section } from "@/components/Section";
-import { SectionSkeleton } from "@/components/Skeletons";
 
 export function TodayView({
   isLoading,
@@ -42,11 +41,9 @@ export function TodayView({
         p: isMobile ? 0 : { xs: 1, md: 2 },
       }}
     >
-      {isLoading && sections.length === 0 ? (
-        <Box>
-          <SectionSkeleton />
-          <SectionSkeleton />
-          <SectionSkeleton />
+      {isLoading ? (
+        <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <CircularProgress size={48} />
         </Box>
       ) : (
         <>

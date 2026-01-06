@@ -294,8 +294,8 @@ export function KanbanTab({ createDraggableId, isLoading }) {
 
   if (isLoading) {
     return (
-      <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <CircularProgress size="xl" />
+      <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <CircularProgress size={48} />
       </Box>
     );
   }

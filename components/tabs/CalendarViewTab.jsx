@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Stack, Typography, Button, IconButton, useMediaQuery } from "@mui/material";
+import { Box, Stack, Typography, Button, IconButton, useMediaQuery, CircularProgress } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Visibility as Eye, VisibilityOff as EyeOff, Repeat, Close as X, ZoomIn, ZoomOut } from "@mui/icons-material";
 import { DateNavigation } from "@/components/DateNavigation";
@@ -10,7 +10,6 @@ import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
 import { CalendarYearView } from "@/components/CalendarYearView";
-import { CalendarSkeleton } from "@/components/Skeletons";
 import { useViewState } from "@/hooks/useViewState";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -323,7 +322,9 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
         </Box>
       </Box>
       {isActuallyLoading && !selectedDate ? (
-        <CalendarSkeleton />
+        <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <CircularProgress size={48} />
+        </Box>
       ) : (
         <>
           {/* Calendar content */}

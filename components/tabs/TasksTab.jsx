@@ -1,13 +1,12 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
-import { Box, Button, Stack, Typography, Badge, useMediaQuery, Collapse } from "@mui/material";
+import { Box, Button, Stack, Typography, Badge, useMediaQuery, Collapse, CircularProgress } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { List, Dashboard as LayoutDashboard, CalendarToday as Calendar } from "@mui/icons-material";
 import { BacklogDrawer } from "@/components/BacklogDrawer";
 import { TodayView } from "@/components/tabs/TodayView";
 import { CalendarViewTab } from "@/components/tabs/CalendarViewTab";
-import { BacklogSkeleton } from "@/components/Skeletons";
 import { useDispatch, useSelector } from "react-redux";
 import { setMobileActiveView, setBacklogWidth, setTodayViewWidth } from "@/lib/store/slices/uiSlice";
 import { createDraggableId, createDroppableId } from "@/lib/dragHelpers";
@@ -312,8 +311,14 @@ export function TasksTab() {
         {/* Mobile Content Area */}
         <Box sx={{ flex: 1, overflow: "hidden" }}>
           {mobileActiveView === "backlog" && (
-            <Box sx={{ height: "100%", overflow: "auto" }}>
-              {isLoading ? <BacklogSkeleton /> : <BacklogDrawer createDraggableId={createDraggableId} />}
+            <Box sx={{ flex: 1, minHeight: 0, overflow: "auto", display: "flex", flexDirection: "column" }}>
+              {isLoading ? (
+                <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <CircularProgress size={48} />
+                </Box>
+              ) : (
+                <BacklogDrawer createDraggableId={createDraggableId} />
+              )}
             </Box>
           )}
 
@@ -477,9 +482,16 @@ export function TasksTab() {
                 display: "flex",
                 flexDirection: "column",
                 position: "relative",
+                minHeight: 0,
               }}
             >
-              {isLoading ? <BacklogSkeleton /> : <BacklogDrawer createDraggableId={createDraggableId} />}
+              {isLoading ? (
+                <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <CircularProgress size={48} />
+                </Box>
+              ) : (
+                <BacklogDrawer createDraggableId={createDraggableId} />
+              )}
               {/* Resize handle between backlog and today */}
               <Box
                 onMouseDown={resizeHandlers.handleBacklogResizeStart}

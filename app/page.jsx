@@ -91,27 +91,47 @@ const WorkoutBuilder = dynamic(() => import("@/components/WorkoutBuilder"), {
 
 // Lazy load tab components
 const TasksTab = dynamic(() => import("@/components/tabs/TasksTab").then(mod => ({ default: mod.TasksTab })), {
-  loading: () => <LoadingSpinner size="xl" />,
+  loading: () => (
+    <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <CircularProgress size={48} />
+    </Box>
+  ),
   ssr: false,
 });
 
 const KanbanTab = dynamic(() => import("@/components/tabs/KanbanTab").then(mod => ({ default: mod.KanbanTab })), {
-  loading: () => <LoadingSpinner size="xl" />,
+  loading: () => (
+    <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <CircularProgress size={48} />
+    </Box>
+  ),
   ssr: false,
 });
 
 const JournalTab = dynamic(() => import("@/components/tabs/JournalTab").then(mod => ({ default: mod.JournalTab })), {
-  loading: () => <LoadingSpinner size="xl" />,
+  loading: () => (
+    <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <CircularProgress size={48} />
+    </Box>
+  ),
   ssr: false,
 });
 
 const NotesTab = dynamic(() => import("@/components/tabs/NotesTab").then(mod => ({ default: mod.NotesTab })), {
-  loading: () => <LoadingSpinner size="xl" />,
+  loading: () => (
+    <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <CircularProgress size={48} />
+    </Box>
+  ),
   ssr: false,
 });
 
 const HistoryTab = dynamic(() => import("@/components/tabs/HistoryTab").then(mod => ({ default: mod.HistoryTab })), {
-  loading: () => <LoadingSpinner size="xl" />,
+  loading: () => (
+    <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <CircularProgress size={48} />
+    </Box>
+  ),
   ssr: false,
 });
 
@@ -320,7 +340,11 @@ export default function DailyTasksApp() {
 
   // Auth checks
   if (!authInitialized || authLoading) {
-    return <PageSkeleton showBacklog={false} showDashboard={false} showCalendar={false} />;
+    return (
+      <Box sx={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <CircularProgress size={48} />
+      </Box>
+    );
   }
 
   if (!isAuthenticated) {
@@ -329,7 +353,11 @@ export default function DailyTasksApp() {
 
   const hasData = tasks.length > 0 || sections.length > 0;
   if (isLoading || !hasData) {
-    return <PageSkeleton showBacklog={false} showDashboard={false} showCalendar={false} />;
+    return (
+      <Box sx={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <CircularProgress size={48} />
+      </Box>
+    );
   }
 
   return (
@@ -382,7 +410,7 @@ export default function DailyTasksApp() {
           }}
         >
           {/* Tab Content */}
-          <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}>
             {(mainTabIndex === 0 || loadingTab === 0) && <TasksTab />}
 
             {(mainTabIndex === 1 || loadingTab === 1) && (

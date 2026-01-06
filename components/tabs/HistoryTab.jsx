@@ -490,8 +490,8 @@ export function HistoryTab({ isLoading: tabLoading }) {
 
   if (tabLoading) {
     return (
-      <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <CircularProgress size="xl" />
+      <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <CircularProgress size={48} />
       </Box>
     );
   }
