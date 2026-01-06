@@ -46,6 +46,7 @@ import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { useTheme } from "@/hooks/useTheme";
+import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 
 // Small component to handle text input with state that resets on date change
 const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }) => {
@@ -77,6 +78,21 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }
     }
   }, [noteInput, isFocused]);
 
+  // Save function wrapper
+  const saveNote = value => {
+    if (value.trim() && value.trim() !== savedNote) {
+      onCompleteWithNote?.(taskId, value.trim());
+    }
+  };
+
+  const { debouncedSave, immediateSave } = useDebouncedSave(saveNote, 500);
+
+  const handleChange = e => {
+    const newValue = e.target.value;
+    setNoteInput(newValue);
+    debouncedSave(newValue);
+  };
+
   return (
     <>
       <TextField
@@ -84,7 +100,7 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }
         fullWidth
         multiline
         value={noteInput}
-        onChange={e => setNoteInput(e.target.value)}
+        onChange={handleChange}
         onInput={e => {
           // Auto-expand textarea when typing - expand infinitely
           const textarea = e.target;
@@ -96,11 +112,10 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }
           setIsFocused(false);
           // Update ref to current savedNote
           prevSavedNoteRef.current = savedNote;
-          // Save on blur if note has content
-          if (noteInput.trim() && noteInput.trim() !== savedNote) {
-            onCompleteWithNote?.(taskId, noteInput.trim());
-          } else if (!noteInput.trim() && savedNote) {
-            // If cleared, reset to saved note
+          // Save immediately on blur
+          immediateSave(noteInput);
+          // If cleared, reset to saved note
+          if (!noteInput.trim() && savedNote) {
             setNoteInput(savedNote);
           }
         }}
@@ -251,10 +266,25 @@ export const TaskItem = ({
     }
   };
 
+  // Save function wrapper for title
+  const saveTitle = value => {
+    if (value.trim() && value.trim() !== task.title && onUpdateTitle) {
+      onUpdateTitle(task.id, value);
+    }
+  };
+
+  const { debouncedSave: debouncedTitleSave, immediateSave: immediateTitleSave } = useDebouncedSave(saveTitle, 500);
+
+  const handleTitleChange = e => {
+    const newValue = e.target.value;
+    setEditedTitle(newValue);
+    debouncedTitleSave(newValue);
+  };
+
   const handleTitleBlur = async () => {
-    if (editedTitle.trim() && editedTitle !== task.title && onUpdateTitle) {
-      await onUpdateTitle(task.id, editedTitle);
-    } else if (!editedTitle.trim()) {
+    // Save immediately on blur if there are changes
+    immediateTitleSave(editedTitle);
+    if (!editedTitle.trim()) {
       setEditedTitle(task.title || "");
     }
     setIsEditingTitle(false);
@@ -559,7 +589,7 @@ export const TaskItem = ({
                   fullWidth
                   multiline
                   value={editedTitle}
-                  onChange={e => setEditedTitle(e.target.value)}
+                  onChange={handleTitleChange}
                   onInput={e => {
                     // Auto-expand textarea when typing
                     const textarea = e.target;

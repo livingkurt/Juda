@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { Box, Typography, TextField, Stack, IconButton, Collapse } from "@mui/material";
 import { Add, ExpandMore, ChevronRight } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
+import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 
 export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave }) => {
   const theme = useTheme();
@@ -23,18 +24,36 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
   const [expanded, setExpanded] = useState(isDailyJournal && hasEntry);
   const textareaRef = useRef(null);
 
-  const handleBlur = async () => {
-    if (isCurrentYear && noteInput.trim() && noteInput.trim() !== (completion?.note || "")) {
-      try {
-        await onSave(task.id, date, noteInput.trim());
-      } catch (error) {
-        console.error("Failed to save journal entry:", error);
-        // Reset to original note on error
-        setNoteInput(completion?.note || "");
-        // You could also show a toast notification here if you have a toast system
+  // Save function wrapper with error handling
+  const saveNote = useCallback(
+    async value => {
+      if (isCurrentYear && value.trim() && value.trim() !== (completion?.note || "")) {
+        try {
+          await onSave(task.id, date, value.trim());
+        } catch (error) {
+          console.error("Failed to save journal entry:", error);
+          // Reset to original note on error
+          setNoteInput(completion?.note || "");
+        }
       }
-    } else if (!noteInput.trim() && completion?.note) {
-      // Reset to saved note if cleared
+    },
+    [isCurrentYear, task.id, date, completion?.note, onSave]
+  );
+
+  const { debouncedSave, immediateSave } = useDebouncedSave(saveNote, 500);
+
+  const handleChange = e => {
+    const newValue = e.target.value;
+    setNoteInput(newValue);
+    debouncedSave(newValue);
+  };
+
+  const handleBlur = async () => {
+    // Save immediately on blur if there are changes
+    await immediateSave(noteInput);
+
+    // Reset to saved note if cleared
+    if (!noteInput.trim() && completion?.note) {
       setNoteInput(completion?.note);
     }
   };
@@ -144,7 +163,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
                 <TextField
                   inputRef={textareaRef}
                   value={noteInput}
-                  onChange={e => setNoteInput(e.target.value)}
+                  onChange={handleChange}
                   onBlur={handleBlur}
                   placeholder="Enter your journal entry..."
                   size="small"

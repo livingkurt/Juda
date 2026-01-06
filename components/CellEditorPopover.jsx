@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Box, Stack, Typography, Button, TextField, ToggleButton, ToggleButtonGroup, Chip } from "@mui/material";
 import { Check, Close, RadioButtonUnchecked, Delete } from "@mui/icons-material";
 import dayjs from "dayjs";
+import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 
 /**
  * CellEditorPopover - Editor for task completion cells
@@ -29,12 +30,40 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
     note !== (completion?.note || "") ||
     actualValue !== (completion?.actualValue || "");
 
+  // Save function that saves all current state values
+  // Use useRef to always access latest state values
+  const saveAllFieldsRef = useRef();
+
+  // Update ref whenever state changes
+  useEffect(() => {
+    saveAllFieldsRef.current = () => {
+      onSave({
+        outcome,
+        note: note.trim() || null,
+        actualValue: actualValue || null,
+      });
+    };
+  }, [outcome, note, actualValue, onSave]);
+
+  const { debouncedSave, immediateSave } = useDebouncedSave(() => saveAllFieldsRef.current?.(), 500);
+
+  const handleNoteChange = e => {
+    const newValue = e.target.value;
+    setNote(newValue);
+    // Trigger debounced save with all current values
+    debouncedSave();
+  };
+
+  const handleActualValueChange = e => {
+    const newValue = e.target.value;
+    setActualValue(newValue);
+    // Trigger debounced save with all current values
+    debouncedSave();
+  };
+
   const handleSave = () => {
-    onSave({
-      outcome,
-      note: note.trim() || null,
-      actualValue: actualValue || null,
-    });
+    // Save immediately
+    immediateSave();
   };
 
   const handleOutcomeChange = (event, newOutcome) => {
@@ -59,7 +88,8 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
           size="small"
           label="Value"
           value={actualValue}
-          onChange={e => setActualValue(e.target.value)}
+          onChange={handleActualValueChange}
+          onBlur={handleSave}
           placeholder="Enter value..."
           sx={{ mt: 2 }}
           autoFocus
@@ -70,7 +100,8 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
           size="small"
           label="Note (optional)"
           value={note}
-          onChange={e => setNote(e.target.value)}
+          onChange={handleNoteChange}
+          onBlur={handleSave}
           placeholder="Add a note..."
           multiline
           rows={2}
@@ -133,7 +164,8 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
         size="small"
         label="Note (optional)"
         value={note}
-        onChange={e => setNote(e.target.value)}
+        onChange={handleNoteChange}
+        onBlur={handleSave}
         placeholder="Add a note..."
         multiline
         rows={2}

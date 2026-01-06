@@ -46,6 +46,7 @@ import {
   useUpdateCompletionMutation,
 } from "@/lib/store/api/completionsApi";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 import CellEditorPopover from "../CellEditorPopover";
 
 // Flatten tasks including subtasks
@@ -196,16 +197,30 @@ const CompletionCell = memo(function CompletionCell({
     return null;
   };
 
-  const handleTextSave = () => {
-    if (textValue.trim()) {
+  // Save function wrapper
+  const saveText = value => {
+    if (value.trim()) {
       const data =
         task.completionType === "text_input"
-          ? { outcome: "completed", actualValue: textValue }
-          : { outcome: "completed", note: textValue };
+          ? { outcome: "completed", actualValue: value }
+          : { outcome: "completed", note: value };
       onUpdate(data);
     } else if (completion) {
       onDelete();
     }
+  };
+
+  const { debouncedSave, immediateSave } = useDebouncedSave(saveText, 500);
+
+  const handleTextChange = e => {
+    const newValue = e.target.value;
+    setTextValue(newValue);
+    debouncedSave(newValue);
+  };
+
+  const handleTextSave = () => {
+    // Save immediately on blur/enter
+    immediateSave(textValue);
     setIsEditing(false);
   };
 
@@ -254,7 +269,7 @@ const CompletionCell = memo(function CompletionCell({
             <TextField
               size="small"
               value={textValue}
-              onChange={e => setTextValue(e.target.value)}
+              onChange={handleTextChange}
               onBlur={handleTextSave}
               onKeyDown={e => {
                 if (e.key === "Enter") {
