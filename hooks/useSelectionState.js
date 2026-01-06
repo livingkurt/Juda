@@ -79,16 +79,39 @@ export function useSelectionState() {
     [selectedTaskIds, batchUpdateTasksMutation, handleCloseBulkEditDialog]
   );
 
-  return {
-    selectedTaskIds,
-    setSelectedTaskIds: ids => dispatch(setSelectedTaskIds(Array.isArray(ids) ? ids : Array.from(ids))),
-    bulkEditDialogOpen,
-    setBulkEditDialogOpen: open => dispatch(open ? openBulkEditDialog() : closeBulkEditDialog()),
-    handleTaskSelect,
-    clearSelection,
-    handleBulkEdit,
-    closeBulkEditDialog: handleCloseBulkEditDialog,
-    handleBulkEditSave,
-    selectedCount: selectedTaskIds.size,
-  };
+  // Memoize inline functions that were creating new references
+  const handleSetSelectedTaskIds = useCallback(
+    ids => dispatch(setSelectedTaskIds(Array.isArray(ids) ? ids : Array.from(ids))),
+    [dispatch]
+  );
+  const handleSetBulkEditDialogOpen = useCallback(
+    open => dispatch(open ? openBulkEditDialog() : closeBulkEditDialog()),
+    [dispatch]
+  );
+
+  return useMemo(
+    () => ({
+      selectedTaskIds,
+      setSelectedTaskIds: handleSetSelectedTaskIds,
+      bulkEditDialogOpen,
+      setBulkEditDialogOpen: handleSetBulkEditDialogOpen,
+      handleTaskSelect,
+      clearSelection,
+      handleBulkEdit,
+      closeBulkEditDialog: handleCloseBulkEditDialog,
+      handleBulkEditSave,
+      selectedCount: selectedTaskIds.size,
+    }),
+    [
+      selectedTaskIds,
+      handleSetSelectedTaskIds,
+      bulkEditDialogOpen,
+      handleSetBulkEditDialogOpen,
+      handleTaskSelect,
+      clearSelection,
+      handleBulkEdit,
+      handleCloseBulkEditDialog,
+      handleBulkEditSave,
+    ]
+  );
 }

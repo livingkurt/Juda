@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, memo, useDeferredValue } from "react";
 import {
   Box,
   Stack,
@@ -31,6 +31,45 @@ import {
 } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 
+// Memoized note list item component to prevent unnecessary re-renders
+const NoteListItem = memo(function NoteListItem({ note, isSelected, onSelect }) {
+  const handleClick = useCallback(() => {
+    onSelect(note.id);
+  }, [onSelect, note.id]);
+
+  const stripHtml = html => html?.replace(/<[^>]*>/g, "").trim() || "";
+
+  return (
+    <ListItemButton
+      selected={isSelected}
+      onClick={handleClick}
+      sx={{
+        flexDirection: "column",
+        alignItems: "flex-start",
+        py: 1.5,
+        px: 2,
+        borderBottom: 1,
+        borderColor: "divider",
+      }}
+    >
+      <Typography variant="subtitle2" fontWeight={600} noWrap sx={{ width: "100%" }}>
+        {note.title || "Untitled"}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" noWrap sx={{ width: "100%" }}>
+        {stripHtml(note.content) || "No content"}
+      </Typography>
+      <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }}>
+        <Typography variant="caption" color="text.disabled">
+          {dayjs(note.updatedAt).format("MMM D")}
+        </Typography>
+        {note.tags?.slice(0, 2).map(tag => (
+          <TagChip key={tag.id} tag={tag} size="small" sx={{ height: 16, fontSize: "0.6rem" }} />
+        ))}
+      </Stack>
+    </ListItemButton>
+  );
+});
+
 export function NotesTab({ isLoading: tabLoading }) {
   const dispatch = useDispatch();
 
@@ -53,6 +92,7 @@ export function NotesTab({ isLoading: tabLoading }) {
   const [selectedFolderId, setSelectedFolderId] = useState(null);
   const [selectedSmartFolderId, setSelectedSmartFolderId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearch = useDeferredValue(searchQuery);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeType, setResizeType] = useState(null);
 
@@ -154,6 +194,13 @@ export function NotesTab({ isLoading: tabLoading }) {
 
   const selectedNote = useMemo(() => noteTasks.find(n => n.id === selectedNoteId), [noteTasks, selectedNoteId]);
 
+  // Memoized note selection handler
+  const handleSelectNote = useCallback(noteId => {
+    setSelectedNoteId(noteId);
+  }, []);
+
+  const stripHtml = html => html?.replace(/<[^>]*>/g, "").trim() || "";
+
   const filteredNotes = useMemo(() => {
     let result = noteTasks;
 
@@ -165,15 +212,15 @@ export function NotesTab({ isLoading: tabLoading }) {
       // Smart folder logic would go here
     }
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(n => n.title?.toLowerCase().includes(q) || n.content?.toLowerCase().includes(q));
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.toLowerCase();
+      result = result.filter(
+        n => n.title?.toLowerCase().includes(q) || stripHtml(n.content)?.toLowerCase().includes(q)
+      );
     }
 
     return result.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-  }, [noteTasks, selectedFolderId, selectedSmartFolderId, searchQuery]);
-
-  const stripHtml = html => html?.replace(/<[^>]*>/g, "").trim() || "";
+  }, [noteTasks, selectedFolderId, selectedSmartFolderId, deferredSearch]);
 
   const handleCreateNote = async () => {
     await createTask({
@@ -317,34 +364,12 @@ export function NotesTab({ isLoading: tabLoading }) {
         <Box sx={{ flex: 1, overflow: "auto" }}>
           <List disablePadding>
             {filteredNotes.map(note => (
-              <ListItemButton
+              <NoteListItem
                 key={note.id}
-                selected={selectedNoteId === note.id}
-                onClick={() => setSelectedNoteId(note.id)}
-                sx={{
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  py: 1.5,
-                  px: 2,
-                  borderBottom: 1,
-                  borderColor: "divider",
-                }}
-              >
-                <Typography variant="subtitle2" fontWeight={600} noWrap sx={{ width: "100%" }}>
-                  {note.title || "Untitled"}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap sx={{ width: "100%" }}>
-                  {stripHtml(note.content) || "No content"}
-                </Typography>
-                <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }}>
-                  <Typography variant="caption" color="text.disabled">
-                    {dayjs(note.updatedAt).format("MMM D")}
-                  </Typography>
-                  {note.tags?.slice(0, 2).map(tag => (
-                    <TagChip key={tag.id} tag={tag} size="small" sx={{ height: 16, fontSize: "0.6rem" }} />
-                  ))}
-                </Stack>
-              </ListItemButton>
+                note={note}
+                isSelected={selectedNoteId === note.id}
+                onSelect={handleSelectNote}
+              />
             ))}
           </List>
         </Box>

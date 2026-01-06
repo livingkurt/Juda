@@ -723,25 +723,39 @@ export function useDragAndDrop({
     dropTimeRef.current = time;
   }, []);
 
-  return {
-    // State
-    dragState,
+  return useMemo(
+    () => ({
+      // State
+      dragState,
 
-    // Sensors
-    sensors,
+      // Sensors
+      sensors,
 
-    // Handlers
-    handleDragStart,
-    handleDragEnd,
-    handleDragOver,
-    handleDragEndNew,
+      // Handlers
+      handleDragStart,
+      handleDragEnd,
+      handleDragOver,
+      handleDragEndNew,
 
-    // Time calculation
-    dropTimeRef,
-    setDropTime,
-    currentCalendarDroppableRef,
+      // Time calculation
+      dropTimeRef,
+      setDropTime,
+      currentCalendarDroppableRef,
 
-    // Lookup
-    taskLookupMap,
-  };
+      // Lookup
+      taskLookupMap,
+    }),
+    [
+      dragState,
+      sensors,
+      handleDragStart,
+      handleDragEnd,
+      handleDragOver,
+      handleDragEndNew,
+      dropTimeRef,
+      setDropTime,
+      currentCalendarDroppableRef,
+      taskLookupMap,
+    ]
+  );
 }

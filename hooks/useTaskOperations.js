@@ -410,38 +410,69 @@ export function useTaskOperations() {
     [tasks, updateTask]
   );
 
-  return {
-    // Data
-    tasks,
-    sections,
-    viewDate,
+  return useMemo(
+    () => ({
+      // Data
+      tasks,
+      sections,
+      viewDate,
 
-    // Raw operations (for other hooks to use)
-    createTask,
-    updateTask,
-    deleteTask,
-    duplicateTask,
-    saveTask,
-    batchUpdateTaskTags,
-    fetchTasks,
+      // Raw operations (for other hooks to use)
+      createTask,
+      updateTask,
+      deleteTask,
+      duplicateTask,
+      saveTask,
+      batchUpdateTaskTags,
+      fetchTasks,
 
-    // Handler functions
-    handleEditTask,
-    handleEditWorkout,
-    handleUpdateTaskTitle,
-    handleDeleteTask,
-    handleDuplicateTask,
-    handleSaveTask,
-    handleAddTask,
-    handleAddTaskToBacklog,
-    handleCreateTaskFromCalendar,
-    handleTaskTimeChange,
-    handleTaskDurationChange,
-    handleTaskTagsChange,
-    handleCreateTaskInline,
-    handleCreateSubtask,
-    handleCreateBacklogTaskInline,
-    handleCreateKanbanTaskInline,
-    handleToggleExpand,
-  };
+      // Handler functions
+      handleEditTask,
+      handleEditWorkout,
+      handleUpdateTaskTitle,
+      handleDeleteTask,
+      handleDuplicateTask,
+      handleSaveTask,
+      handleAddTask,
+      handleAddTaskToBacklog,
+      handleCreateTaskFromCalendar,
+      handleTaskTimeChange,
+      handleTaskDurationChange,
+      handleTaskTagsChange,
+      handleCreateTaskInline,
+      handleCreateSubtask,
+      handleCreateBacklogTaskInline,
+      handleCreateKanbanTaskInline,
+      handleToggleExpand,
+    }),
+    [
+      tasks,
+      sections,
+      viewDate,
+      createTask,
+      updateTask,
+      deleteTask,
+      duplicateTask,
+      saveTask,
+      batchUpdateTaskTags,
+      fetchTasks,
+      handleEditTask,
+      handleEditWorkout,
+      handleUpdateTaskTitle,
+      handleDeleteTask,
+      handleDuplicateTask,
+      handleSaveTask,
+      handleAddTask,
+      handleAddTaskToBacklog,
+      handleCreateTaskFromCalendar,
+      handleTaskTimeChange,
+      handleTaskDurationChange,
+      handleTaskTagsChange,
+      handleCreateTaskInline,
+      handleCreateSubtask,
+      handleCreateBacklogTaskInline,
+      handleCreateKanbanTaskInline,
+      handleToggleExpand,
+    ]
+  );
 }

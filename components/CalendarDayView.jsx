@@ -49,6 +49,8 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   const containerRef = useRef(null);
+  const rafRef = useRef(null);
+  const draggingTaskIdRef = useRef(null);
 
   // Check if viewing today
   const today = new Date();
@@ -92,20 +94,29 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
     hasMoved: false,
   });
 
-  const getTaskStyle = useCallback(
-    task => {
+  // Pre-compute task styles for all tasks (memoized)
+  const taskStyles = useMemo(() => {
+    const styles = new Map();
+    dayTasks.forEach(task => {
       const isDragging = internalDrag.taskId === task.id;
       const minutes =
         isDragging && internalDrag.type === "move" ? internalDrag.currentMinutes : timeToMinutes(task.time);
       const duration =
         isDragging && internalDrag.type === "resize" ? internalDrag.currentDuration : (task.duration ?? 30);
       const isNoDuration = duration === 0;
-      return {
+      styles.set(task.id, {
         top: `${(minutes / 60) * HOUR_HEIGHT}px`,
         height: `${isNoDuration ? 24 : Math.max((duration / 60) * HOUR_HEIGHT, 24)}px`,
-      };
+      });
+    });
+    return styles;
+  }, [dayTasks, internalDrag, HOUR_HEIGHT]);
+
+  const getTaskStyle = useCallback(
+    task => {
+      return taskStyles.get(task.id) || { top: "0px", height: "30px" };
     },
-    [internalDrag, HOUR_HEIGHT]
+    [taskStyles]
   );
 
   // Start internal drag for time adjustment
@@ -113,6 +124,7 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
     e.preventDefault();
     e.stopPropagation();
     const taskDuration = task.duration ?? 30;
+    draggingTaskIdRef.current = task.id;
     setInternalDrag({
       taskId: task.id,
       type,
@@ -127,34 +139,56 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
 
   const handleInternalDragMove = useCallback(
     clientY => {
-      if (!internalDrag.taskId) return;
-      const deltaY = clientY - internalDrag.startY;
-      const hasMoved = Math.abs(deltaY) > DRAG_THRESHOLD;
+      if (!draggingTaskIdRef.current) return;
 
-      if (internalDrag.type === "move") {
-        const newMinutes = snapToIncrement(internalDrag.startMinutes + (deltaY / HOUR_HEIGHT) * 60, 15);
-        setInternalDrag(prev => ({
-          ...prev,
-          currentMinutes: Math.max(0, Math.min(24 * 60 - prev.startDuration, newMinutes)),
-          hasMoved: hasMoved || prev.hasMoved,
-        }));
-      } else {
-        const newDuration = snapToIncrement(internalDrag.startDuration + (deltaY / HOUR_HEIGHT) * 60, 15);
-        // When resizing, minimum is 15 minutes (converts "No duration" tasks to timed)
-        setInternalDrag(prev => ({
-          ...prev,
-          currentDuration: Math.max(15, newDuration),
-          hasMoved: hasMoved || prev.hasMoved,
-        }));
-      }
+      // Throttle updates to 60fps using requestAnimationFrame
+      if (rafRef.current) return;
+
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+
+        setInternalDrag(prev => {
+          if (!prev.taskId) return prev;
+
+          const deltaY = clientY - prev.startY;
+          const hasMoved = Math.abs(deltaY) > DRAG_THRESHOLD;
+
+          if (prev.type === "move") {
+            const newMinutes = snapToIncrement(prev.startMinutes + (deltaY / HOUR_HEIGHT) * 60, 15);
+            return {
+              ...prev,
+              currentMinutes: Math.max(0, Math.min(24 * 60 - prev.startDuration, newMinutes)),
+              hasMoved: hasMoved || prev.hasMoved,
+            };
+          } else {
+            const newDuration = snapToIncrement(prev.startDuration + (deltaY / HOUR_HEIGHT) * 60, 15);
+            // When resizing, minimum is 15 minutes (converts "No duration" tasks to timed)
+            return {
+              ...prev,
+              currentDuration: Math.max(15, newDuration),
+              hasMoved: hasMoved || prev.hasMoved,
+            };
+          }
+        });
+      });
     },
-    [internalDrag, HOUR_HEIGHT]
+    [HOUR_HEIGHT]
   );
 
   const handleInternalDragEnd = useCallback(() => {
-    if (!internalDrag.taskId) return;
+    if (!draggingTaskIdRef.current) return;
 
     const { taskId, type, currentMinutes, currentDuration, hasMoved } = internalDrag;
+
+    // Cancel any pending animation frame
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+
+    // Clear the ref
+    const endedTaskId = draggingTaskIdRef.current;
+    draggingTaskIdRef.current = null;
 
     // Reset state first
     setInternalDrag({
@@ -176,12 +210,67 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
       }
     } else {
       // Click without drag - open task editor
-      const task = dayTasks.find(t => t.id === taskId);
+      const task = dayTasks.find(t => t.id === endedTaskId);
       if (task) {
         setTimeout(() => taskOps.handleEditTask(task), 100);
       }
     }
   }, [internalDrag, taskOps, dayTasks]);
+
+  // Memoize status tasks calculation
+  const statusTasks = useMemo(() => {
+    if (!showStatusTasks || !getCompletionForDate) return [];
+
+    return tasks
+      .filter(task => {
+        // Only show non-recurring tasks with status tracking
+        if (task.recurrence && task.recurrence.type !== "none") return false;
+        if (task.completionType === "note") return false;
+        if (task.parentId) return false;
+
+        // Show in-progress tasks
+        if (task.status === "in_progress" && task.startedAt) return true;
+
+        // Show completed tasks with timing data
+        const completion = getCompletionForDate(task.id, date);
+        return completion && completion.startedAt && completion.completedAt;
+      })
+      .map(task => {
+        const isInProgress = task.status === "in_progress";
+        let startedAt, completedAt, top, height;
+
+        if (isInProgress) {
+          // In-progress task: use task.startedAt to now
+          startedAt = task.startedAt;
+          completedAt = new Date().toISOString();
+
+          const startTime = new Date(startedAt);
+          const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+          const now = new Date();
+          const nowMinutes = now.getHours() * 60 + now.getMinutes();
+          const durationMinutes = nowMinutes - startMinutes;
+
+          top = (startMinutes / 60) * HOUR_HEIGHT;
+          height = (durationMinutes / 60) * HOUR_HEIGHT;
+        } else {
+          // Completed task: use completion timing data
+          const completion = getCompletionForDate(task.id, date);
+          startedAt = completion.startedAt;
+          completedAt = completion.completedAt;
+
+          const startTime = new Date(startedAt);
+          const endTime = new Date(completedAt);
+          const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+          const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+          const durationMinutes = endMinutes - startMinutes;
+
+          top = (startMinutes / 60) * HOUR_HEIGHT;
+          height = (durationMinutes / 60) * HOUR_HEIGHT;
+        }
+
+        return { task, isInProgress, startedAt, completedAt, top, height };
+      });
+  }, [tasks, date, showStatusTasks, getCompletionForDate, HOUR_HEIGHT]);
 
   useEffect(() => {
     if (!internalDrag.taskId) return;
@@ -195,6 +284,11 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
     return () => {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+      // Clean up any pending animation frame
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
   }, [internalDrag.taskId, handleInternalDragMove, handleInternalDragEnd]);
 
@@ -397,67 +491,17 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
             ))}
 
             {/* Render status task blocks (in-progress and completed with time tracking) */}
-            {showStatusTasks &&
-              getCompletionForDate &&
-              tasks
-                .filter(task => {
-                  // Only show non-recurring tasks with status tracking
-                  if (task.recurrence && task.recurrence.type !== "none") return false;
-                  if (task.completionType === "note") return false;
-                  if (task.parentId) return false;
-
-                  // Show in-progress tasks
-                  if (task.status === "in_progress" && task.startedAt) return true;
-
-                  // Show completed tasks with timing data
-                  const completion = getCompletionForDate(task.id, date);
-                  return completion && completion.startedAt && completion.completedAt;
-                })
-                .map(task => {
-                  const isInProgress = task.status === "in_progress";
-                  let startedAt, completedAt, top, height;
-
-                  if (isInProgress) {
-                    // In-progress task: use task.startedAt to now
-                    startedAt = task.startedAt;
-                    completedAt = new Date().toISOString();
-
-                    const startTime = new Date(startedAt);
-                    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
-                    const now = new Date();
-                    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-                    const durationMinutes = nowMinutes - startMinutes;
-
-                    top = (startMinutes / 60) * HOUR_HEIGHT;
-                    height = (durationMinutes / 60) * HOUR_HEIGHT;
-                  } else {
-                    // Completed task: use completion timing data
-                    const completion = getCompletionForDate(task.id, date);
-                    startedAt = completion.startedAt;
-                    completedAt = completion.completedAt;
-
-                    const startTime = new Date(startedAt);
-                    const endTime = new Date(completedAt);
-                    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
-                    const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
-                    const durationMinutes = endMinutes - startMinutes;
-
-                    top = (startMinutes / 60) * HOUR_HEIGHT;
-                    height = (durationMinutes / 60) * HOUR_HEIGHT;
-                  }
-
-                  return (
-                    <StatusTaskBlock
-                      key={`status-${task.id}`}
-                      task={task}
-                      top={top}
-                      height={height}
-                      isInProgress={isInProgress}
-                      startedAt={startedAt}
-                      completedAt={completedAt}
-                    />
-                  );
-                })}
+            {statusTasks.map(({ task, isInProgress, startedAt, completedAt, top, height }) => (
+              <StatusTaskBlock
+                key={`status-${task.id}`}
+                task={task}
+                top={top}
+                height={height}
+                isInProgress={isInProgress}
+                startedAt={startedAt}
+                completedAt={completedAt}
+              />
+            ))}
           </Box>
         </Box>
       </Box>

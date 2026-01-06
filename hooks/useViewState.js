@@ -175,55 +175,93 @@ export function useViewState() {
     });
   }, [selectedDate, calendarView]);
 
-  return {
-    // Tab state
-    mainTabIndex,
-    setMainTabIndex,
+  return useMemo(
+    () => ({
+      // Tab state
+      mainTabIndex,
+      setMainTabIndex,
 
-    // Date state
-    today,
-    selectedDate,
-    setSelectedDate,
-    todayViewDate,
-    setTodayViewDate,
-    viewDate,
+      // Date state
+      today,
+      selectedDate,
+      setSelectedDate,
+      todayViewDate,
+      setTodayViewDate,
+      viewDate,
 
-    // Navigation
-    goToToday,
-    goToPreviousDay,
-    goToNextDay,
-    navigateCalendar,
-    navigateTodayView,
-    handleTodayViewToday,
-    handleTodayViewDateChange,
+      // Navigation
+      goToToday,
+      goToPreviousDay,
+      goToNextDay,
+      navigateCalendar,
+      navigateTodayView,
+      handleTodayViewToday,
+      handleTodayViewDateChange,
 
-    // Calendar view
-    calendarView,
-    setCalendarView,
+      // Calendar view
+      calendarView,
+      setCalendarView,
 
-    // Search/filter - Today
-    todaySearchTerm,
-    setTodaySearchTerm,
-    todaySelectedTagIds,
-    setTodaySelectedTagIds,
-    handleTodayTagSelect,
-    handleTodayTagDeselect,
-    clearTodayFilters,
+      // Search/filter - Today
+      todaySearchTerm,
+      setTodaySearchTerm,
+      todaySelectedTagIds,
+      setTodaySelectedTagIds,
+      handleTodayTagSelect,
+      handleTodayTagDeselect,
+      clearTodayFilters,
 
-    // Search/filter - Calendar
-    calendarSearchTerm,
-    setCalendarSearchTerm,
-    calendarSelectedTagIds,
-    setCalendarSelectedTagIds,
-    handleCalendarTagSelect,
-    handleCalendarTagDeselect,
-    clearCalendarFilters,
+      // Search/filter - Calendar
+      calendarSearchTerm,
+      setCalendarSearchTerm,
+      calendarSelectedTagIds,
+      setCalendarSelectedTagIds,
+      handleCalendarTagSelect,
+      handleCalendarTagDeselect,
+      clearCalendarFilters,
 
-    // Mobile
-    mobileActiveView,
-    setMobileActiveView,
+      // Mobile
+      mobileActiveView,
+      setMobileActiveView,
 
-    // Calendar title
-    getCalendarTitle,
-  };
+      // Calendar title
+      getCalendarTitle,
+    }),
+    [
+      mainTabIndex,
+      setMainTabIndex,
+      today,
+      selectedDate,
+      setSelectedDate,
+      todayViewDate,
+      setTodayViewDate,
+      viewDate,
+      goToToday,
+      goToPreviousDay,
+      goToNextDay,
+      navigateCalendar,
+      navigateTodayView,
+      handleTodayViewToday,
+      handleTodayViewDateChange,
+      calendarView,
+      setCalendarView,
+      todaySearchTerm,
+      setTodaySearchTerm,
+      todaySelectedTagIds,
+      setTodaySelectedTagIds,
+      handleTodayTagSelect,
+      handleTodayTagDeselect,
+      clearTodayFilters,
+      calendarSearchTerm,
+      setCalendarSearchTerm,
+      calendarSelectedTagIds,
+      setCalendarSelectedTagIds,
+      handleCalendarTagSelect,
+      handleCalendarTagDeselect,
+      clearCalendarFilters,
+      mobileActiveView,
+      setMobileActiveView,
+      getCalendarTitle,
+    ]
+  );
 }

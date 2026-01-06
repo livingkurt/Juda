@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useRef } from "react";
+import { memo, useState, useRef, useCallback } from "react";
 import { Box, Typography, Chip, IconButton, Paper, Stack } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useSortable } from "@dnd-kit/sortable";
@@ -101,18 +101,35 @@ export const CalendarTask = memo(function CalendarTask({
     return theme.palette.divider;
   };
 
-  const handleContextMenu = e => {
+  const handleContextMenu = useCallback(e => {
     e.preventDefault();
     e.stopPropagation();
     setAnchorEl(e.currentTarget);
-  };
+  }, []);
 
   // Cycle through outcomes: none -> completed -> not_completed -> none
-  const handleOutcomeClick = e => {
-    e.stopPropagation();
-    const nextOutcome = outcome === "completed" ? "not_completed" : outcome === "not_completed" ? null : "completed";
-    completionHandlers.handleOutcomeChange(task.id, date, nextOutcome);
-  };
+  const handleOutcomeClick = useCallback(
+    e => {
+      e.stopPropagation();
+      const nextOutcome = outcome === "completed" ? "not_completed" : outcome === "not_completed" ? null : "completed";
+      completionHandlers.handleOutcomeChange(task.id, date, nextOutcome);
+    },
+    [outcome, task.id, date, completionHandlers]
+  );
+
+  // Stable handlers for drag operations
+  const handleTaskClick = useCallback(() => {
+    taskOps.handleEditTask(task);
+  }, [taskOps, task]);
+
+  const handleResizeMouseDown = useCallback(
+    e => {
+      if (!isDragging && handleInternalDragStart) {
+        handleInternalDragStart(e, task, "resize");
+      }
+    },
+    [isDragging, handleInternalDragStart, task]
+  );
 
   const isNoDuration = !task.duration || task.duration === 0;
   const showTimeText = isTimed && (task.duration || 30) >= 45;
@@ -126,9 +143,7 @@ export const CalendarTask = memo(function CalendarTask({
         }}
         variant="outlined"
         onContextMenu={handleContextMenu}
-        onClick={() => {
-          taskOps.handleEditTask(task);
-        }}
+        onClick={handleTaskClick}
         {...attributes}
         {...listeners}
         sx={{
@@ -230,11 +245,7 @@ export const CalendarTask = memo(function CalendarTask({
           <Box
             ref={resizeRef}
             className="resize-handle"
-            onMouseDown={e => {
-              if (!isDragging && handleInternalDragStart) {
-                handleInternalDragStart(e, task, "resize");
-              }
-            }}
+            onMouseDown={handleResizeMouseDown}
             onClick={e => e.stopPropagation()}
             sx={{
               position: "absolute",

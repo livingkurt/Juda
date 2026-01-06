@@ -189,18 +189,21 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
     return tasks.filter(task => task.completionType === "note");
   }, [tasks]);
 
-  return {
-    // Data
-    tasks,
-    sections,
-    today,
-    viewDate,
+  return useMemo(
+    () => ({
+      // Data
+      tasks,
+      sections,
+      today,
+      viewDate,
 
-    // Filtered results
-    todaysTasks,
-    filteredTodaysTasks,
-    tasksBySection,
-    backlogTasks,
-    noteTasks,
-  };
+      // Filtered results
+      todaysTasks,
+      filteredTodaysTasks,
+      tasksBySection,
+      backlogTasks,
+      noteTasks,
+    }),
+    [tasks, sections, today, viewDate, todaysTasks, filteredTodaysTasks, tasksBySection, backlogTasks, noteTasks]
+  );
 }

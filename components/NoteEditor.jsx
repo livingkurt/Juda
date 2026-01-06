@@ -24,19 +24,23 @@ export const NoteEditor = ({ note, folders = [], onUpdate, onDelete, onConvertTo
   const [localTitle, setLocalTitle] = useState(note?.title || "");
   const saveTimeoutRef = useRef(null);
 
+  // Extract noteId to avoid dependency on entire note object
+  const noteId = note?.id;
+
   // Sync title when note changes (using key prop ensures remount on note change)
-  if (note?.title !== localTitle && note?.id) {
+  if (note?.title !== localTitle && noteId) {
     setLocalTitle(note.title || "");
   }
 
+  // Use noteId instead of note object to prevent unnecessary recreations
   const debouncedSave = useCallback(
     updates => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => {
-        onUpdate?.(note?.id, updates);
+        onUpdate?.(noteId, updates);
       }, 500);
     },
-    [note, onUpdate]
+    [noteId, onUpdate]
   );
 
   const handleTitleChange = newTitle => {
@@ -44,9 +48,13 @@ export const NoteEditor = ({ note, folders = [], onUpdate, onDelete, onConvertTo
     debouncedSave({ title: newTitle });
   };
 
-  const handleContentChange = newContent => {
-    debouncedSave({ content: newContent });
-  };
+  // Memoize content change handler to prevent unnecessary re-renders
+  const handleContentChange = useCallback(
+    newContent => {
+      debouncedSave({ content: newContent });
+    },
+    [debouncedSave]
+  );
 
   const handleFolderChange = folderId => {
     onUpdate?.(note.id, { folderId: folderId || null });

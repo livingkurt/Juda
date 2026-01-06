@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   openTaskDialog as openTaskDialogAction,
@@ -66,41 +66,78 @@ export function useDialogState() {
   const handleSetDefaultTime = useCallback(time => dispatch(setDefaultTime(time)), [dispatch]);
   const handleSetDefaultDate = useCallback(date => dispatch(setDefaultDate(date)), [dispatch]);
 
-  return {
-    // Task dialog
-    taskDialogOpen,
-    openTaskDialog,
-    closeTaskDialog,
+  // Memoize inline functions that were creating new references
+  const handleSetWorkoutModalOpen = useCallback(
+    value => dispatch(value ? openWorkoutModal(null) : closeWorkoutModal()),
+    [dispatch]
+  );
+  const handleSetWorkoutModalTask = useCallback(task => dispatch(openWorkoutModal(task)), [dispatch]);
 
-    // Section dialog
-    sectionDialogOpen,
-    openSectionDialog,
-    closeSectionDialog,
+  return useMemo(
+    () => ({
+      // Task dialog
+      taskDialogOpen,
+      openTaskDialog,
+      closeTaskDialog,
 
-    // Tag editor
-    tagEditorOpen,
-    setTagEditorOpen: handleSetTagEditorOpen,
+      // Section dialog
+      sectionDialogOpen,
+      openSectionDialog,
+      closeSectionDialog,
 
-    // Workout modal
-    workoutModalOpen,
-    workoutModalTask,
-    handleBeginWorkout,
-    closeWorkoutModal: handleCloseWorkoutModal,
-    setWorkoutModalOpen: value => dispatch(value ? openWorkoutModal(null) : closeWorkoutModal()),
-    setWorkoutModalTask: task => dispatch(openWorkoutModal(task)),
+      // Tag editor
+      tagEditorOpen,
+      setTagEditorOpen: handleSetTagEditorOpen,
 
-    // Task editing state
-    editingTask,
-    setEditingTask: handleSetEditingTask,
-    editingSection,
-    setEditingSection: handleSetEditingSection,
-    editingWorkoutTask,
-    setEditingWorkoutTask: handleSetEditingWorkoutTask,
-    defaultSectionId,
-    setDefaultSectionId: handleSetDefaultSectionId,
-    defaultTime,
-    setDefaultTime: handleSetDefaultTime,
-    defaultDate,
-    setDefaultDate: handleSetDefaultDate,
-  };
+      // Workout modal
+      workoutModalOpen,
+      workoutModalTask,
+      handleBeginWorkout,
+      closeWorkoutModal: handleCloseWorkoutModal,
+      setWorkoutModalOpen: handleSetWorkoutModalOpen,
+      setWorkoutModalTask: handleSetWorkoutModalTask,
+
+      // Task editing state
+      editingTask,
+      setEditingTask: handleSetEditingTask,
+      editingSection,
+      setEditingSection: handleSetEditingSection,
+      editingWorkoutTask,
+      setEditingWorkoutTask: handleSetEditingWorkoutTask,
+      defaultSectionId,
+      setDefaultSectionId: handleSetDefaultSectionId,
+      defaultTime,
+      setDefaultTime: handleSetDefaultTime,
+      defaultDate,
+      setDefaultDate: handleSetDefaultDate,
+    }),
+    [
+      taskDialogOpen,
+      openTaskDialog,
+      closeTaskDialog,
+      sectionDialogOpen,
+      openSectionDialog,
+      closeSectionDialog,
+      tagEditorOpen,
+      handleSetTagEditorOpen,
+      workoutModalOpen,
+      workoutModalTask,
+      handleBeginWorkout,
+      handleCloseWorkoutModal,
+      handleSetWorkoutModalOpen,
+      handleSetWorkoutModalTask,
+      editingTask,
+      handleSetEditingTask,
+      editingSection,
+      handleSetEditingSection,
+      editingWorkoutTask,
+      handleSetEditingWorkoutTask,
+      defaultSectionId,
+      handleSetDefaultSectionId,
+      defaultTime,
+      handleSetDefaultTime,
+      defaultDate,
+      handleSetDefaultDate,
+    ]
+  );
 }

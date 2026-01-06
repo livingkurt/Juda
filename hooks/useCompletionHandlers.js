@@ -509,21 +509,35 @@ export function useCompletionHandlers({
     [tasks, today, viewDate, createCompletion, updateTask, showCompletedTasks, addToRecentlyCompleted]
   );
 
-  return {
-    // State
-    recentlyCompletedTasks,
-    today,
-    viewDate,
+  return useMemo(
+    () => ({
+      // State
+      recentlyCompletedTasks,
+      today,
+      viewDate,
 
-    // Handlers
-    handleToggleTask,
-    handleToggleSubtask,
-    handleOutcomeChange,
-    handleNotCompletedTask,
-    handleCompleteWithNote,
+      // Handlers
+      handleToggleTask,
+      handleToggleSubtask,
+      handleOutcomeChange,
+      handleNotCompletedTask,
+      handleCompleteWithNote,
 
-    // Helpers
-    addToRecentlyCompleted,
-    removeFromRecentlyCompleted,
-  };
+      // Helpers
+      addToRecentlyCompleted,
+      removeFromRecentlyCompleted,
+    }),
+    [
+      recentlyCompletedTasks,
+      today,
+      viewDate,
+      handleToggleTask,
+      handleToggleSubtask,
+      handleOutcomeChange,
+      handleNotCompletedTask,
+      handleCompleteWithNote,
+      addToRecentlyCompleted,
+      removeFromRecentlyCompleted,
+    ]
+  );
 }

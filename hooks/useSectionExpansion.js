@@ -99,12 +99,22 @@ export function useSectionExpansion({ sections, showCompletedTasks, tasksBySecti
     [dispatch, manuallyExpandedSections]
   );
 
-  return {
-    autoCollapsedSections,
-    setAutoCollapsedSections,
-    manuallyExpandedSections,
-    setManuallyExpandedSections,
-    checkAndAutoCollapseSection,
-    computedSections,
-  };
+  return useMemo(
+    () => ({
+      autoCollapsedSections,
+      setAutoCollapsedSections,
+      manuallyExpandedSections,
+      setManuallyExpandedSections,
+      checkAndAutoCollapseSection,
+      computedSections,
+    }),
+    [
+      autoCollapsedSections,
+      setAutoCollapsedSections,
+      manuallyExpandedSections,
+      setManuallyExpandedSections,
+      checkAndAutoCollapseSection,
+      computedSections,
+    ]
+  );
 }

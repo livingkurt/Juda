@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useDeferredValue, memo } from "react";
+import { useState, useMemo, useDeferredValue, memo, useCallback } from "react";
 import {
   Box,
   Stack,
@@ -140,6 +140,71 @@ const generateDates = (range, page = 0, pageSize = 30) => {
   return filteredDates.reverse();
 };
 
+// Date Header Component
+const DateHeader = memo(function DateHeader({ date, isToday }) {
+  const dateObj = dayjs(date);
+  return (
+    <TableCell
+      sx={{
+        position: "sticky",
+        left: 0,
+        zIndex: 1,
+        bgcolor: isToday ? "primary.dark" : "background.paper",
+        color: isToday ? "primary.contrastText" : "text.primary",
+        fontWeight: isToday ? 600 : 400,
+        borderRight: 1,
+        borderColor: "divider",
+        minWidth: 120,
+      }}
+    >
+      <Typography variant="body2" fontWeight={isToday ? 600 : 400}>
+        {dateObj.format("ddd, MMM D")}
+      </Typography>
+    </TableCell>
+  );
+});
+
+// Memoized wrapper for CompletionCell that creates stable handlers
+const MemoizedCompletionCell = memo(function MemoizedCompletionCell({
+  task,
+  date,
+  completion,
+  isScheduled,
+  onCellUpdate,
+  onCellDelete,
+  onOpenWorkout,
+  showRightBorder,
+}) {
+  // Create stable handlers bound to this task/date combination
+  const handleUpdate = useCallback(
+    data => {
+      onCellUpdate(task, date, data);
+    },
+    [onCellUpdate, task, date]
+  );
+
+  const handleDelete = useCallback(() => {
+    onCellDelete(task, date);
+  }, [onCellDelete, task, date]);
+
+  const handleOpenWorkout = useCallback(() => {
+    onOpenWorkout(task, date);
+  }, [onOpenWorkout, task, date]);
+
+  return (
+    <CompletionCell
+      task={task}
+      date={date}
+      completion={completion}
+      isScheduled={isScheduled}
+      onUpdate={handleUpdate}
+      onDelete={handleDelete}
+      onOpenWorkout={handleOpenWorkout}
+      showRightBorder={showRightBorder}
+    />
+  );
+});
+
 // Completion Cell Component
 const CompletionCell = memo(function CompletionCell({
   task,
@@ -219,11 +284,18 @@ const CompletionCell = memo(function CompletionCell({
     debouncedSave(newValue);
   };
 
-  const handleTextSave = () => {
+  const handleTextSave = useCallback(() => {
     // Save immediately on blur/enter
     immediateSave(textValue);
     setIsEditing(false);
-  };
+  }, [immediateSave, textValue]);
+
+  const handleWorkoutClick = useCallback(() => {
+    const canOpen = isScheduled || completion;
+    if (canOpen) {
+      onOpenWorkout?.(task, date);
+    }
+  }, [isScheduled, completion, onOpenWorkout, task, date]);
 
   // Handle workout type
   if (isWorkoutType) {
@@ -239,7 +311,7 @@ const CompletionCell = memo(function CompletionCell({
           borderRight: showRightBorder ? 1 : 0,
           borderColor: "divider",
         }}
-        onClick={() => canOpen && onOpenWorkout?.(task, date)}
+        onClick={handleWorkoutClick}
       >
         {outcome === "completed" ? (
           <Check fontSize="small" sx={{ color: theme.palette.success.main }} />
@@ -447,47 +519,75 @@ export function HistoryTab({ isLoading: tabLoading }) {
     { label: "Year", value: "year" },
   ];
 
-  // Handle date navigation
-  const handlePrevious = () => {
-    setPage(page - 1);
-  };
+  // Handle date navigation - memoized
+  const handlePrevious = useCallback(() => {
+    setPage(p => p - 1);
+  }, []);
 
-  const handleNext = () => {
-    setPage(page + 1);
-  };
+  const handleNext = useCallback(() => {
+    setPage(p => p + 1);
+  }, []);
 
-  const handleToday = () => {
+  const handleToday = useCallback(() => {
     setPage(0);
-  };
+  }, []);
 
-  const handleViewChange = value => {
+  const handleViewChange = useCallback(value => {
     setRange(value);
     setPage(0);
-  };
+  }, []);
 
   // Handle date change (not really used for range views, but required by DateNavigation)
-  const handleDateChange = () => {
+  const handleDateChange = useCallback(() => {
     // For range views, date changes don't make sense, so we reset to page 0
     setPage(0);
-  };
+  }, []);
 
-  // Check if today is visible
-  const isToday = date => dayjs(date).isSame(dayjs(), "day");
+  // Check if today is visible - memoized
+  const isToday = useCallback(date => dayjs(date).isSame(dayjs(), "day"), []);
 
-  // Handle cell update
-  const handleCellUpdate = async (task, date, data) => {
-    const existing = getCompletionForDate?.(task.id, date);
-    if (existing) {
-      await updateCompletion({ taskId: task.id, date, ...data }).unwrap();
-    } else {
-      await createCompletion({ taskId: task.id, date, ...data }).unwrap();
-    }
-  };
+  // Handle cell update - memoized
+  const handleCellUpdate = useCallback(
+    async (task, date, data) => {
+      const existing = getCompletionForDate?.(task.id, date);
+      if (existing) {
+        await updateCompletion({ taskId: task.id, date, ...data }).unwrap();
+      } else {
+        await createCompletion({ taskId: task.id, date, ...data }).unwrap();
+      }
+    },
+    [getCompletionForDate, createCompletion, updateCompletion]
+  );
 
-  // Handle cell delete
-  const handleCellDelete = async (task, date) => {
-    await deleteCompletion({ taskId: task.id, date }).unwrap();
-  };
+  // Handle cell delete - memoized
+  const handleCellDelete = useCallback(
+    async (task, date) => {
+      await deleteCompletion({ taskId: task.id, date }).unwrap();
+    },
+    [deleteCompletion]
+  );
+
+  // Handle workout modal open - memoized
+  const handleOpenWorkout = useCallback((task, date) => {
+    setWorkoutModal({ open: true, task, date });
+  }, []);
+
+  // Handle workout modal close - memoized
+  const handleCloseWorkout = useCallback(() => {
+    setWorkoutModal({ open: false, task: null, date: null });
+  }, []);
+
+  // Handle workout completion - memoized
+  const handleWorkoutComplete = useCallback(
+    (taskId, date) => {
+      const currentTask = workoutModal.task;
+      if (currentTask) {
+        handleCellUpdate(currentTask, date, { outcome: "completed" });
+      }
+      setWorkoutModal({ open: false, task: null, date: null });
+    },
+    [workoutModal.task, handleCellUpdate]
+  );
 
   if (tabLoading) {
     return (
@@ -663,29 +763,12 @@ export function HistoryTab({ isLoading: tabLoading }) {
           {/* Body - Date rows */}
           <TableBody>
             {dates.map(date => {
-              const dateObj = dayjs(date);
               const isTodayDate = isToday(date);
 
               return (
                 <TableRow key={date} hover={isTodayDate}>
                   {/* Date cell - sticky */}
-                  <TableCell
-                    sx={{
-                      position: "sticky",
-                      left: 0,
-                      zIndex: 1,
-                      bgcolor: isTodayDate ? "primary.dark" : "background.paper",
-                      color: isTodayDate ? "primary.contrastText" : "text.primary",
-                      fontWeight: isTodayDate ? 600 : 400,
-                      borderRight: 1,
-                      borderColor: "divider",
-                      minWidth: 120,
-                    }}
-                  >
-                    <Typography variant="body2" fontWeight={isTodayDate ? 600 : 400}>
-                      {dateObj.format("ddd, MMM D")}
-                    </Typography>
-                  </TableCell>
+                  <DateHeader date={date} isToday={isTodayDate} />
 
                   {/* Task completion cells */}
                   {allTasks.map(task => {
@@ -703,15 +786,15 @@ export function HistoryTab({ isLoading: tabLoading }) {
                     })();
 
                     return (
-                      <CompletionCell
+                      <MemoizedCompletionCell
                         key={`${task.id}-${date}`}
                         task={task}
                         date={date}
                         completion={completion}
                         isScheduled={isScheduled}
-                        onUpdate={data => handleCellUpdate(task, date, data)}
-                        onDelete={() => handleCellDelete(task, date)}
-                        onOpenWorkout={(task, date) => setWorkoutModal({ open: true, task, date })}
+                        onCellUpdate={handleCellUpdate}
+                        onCellDelete={handleCellDelete}
+                        onOpenWorkout={handleOpenWorkout}
                         showRightBorder={isLastInSection}
                       />
                     );
@@ -783,11 +866,8 @@ export function HistoryTab({ isLoading: tabLoading }) {
         <WorkoutModal
           task={workoutModal.task}
           isOpen={workoutModal.open}
-          onClose={() => setWorkoutModal({ open: false, task: null, date: null })}
-          onCompleteTask={(taskId, date) => {
-            handleCellUpdate(workoutModal.task, date, { outcome: "completed" });
-            setWorkoutModal({ open: false, task: null, date: null });
-          }}
+          onClose={handleCloseWorkout}
+          onCompleteTask={handleWorkoutComplete}
           currentDate={workoutModal.date ? new Date(workoutModal.date) : new Date()}
         />
       )}

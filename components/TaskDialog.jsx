@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -151,7 +151,7 @@ function TaskDialogForm({
     })
   );
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (!title.trim()) return;
 
     let recurrence = null;
@@ -223,19 +223,90 @@ function TaskDialogForm({
       status: recurrenceType === "none" ? status || "todo" : "todo",
     });
     onClose();
-  };
+  }, [
+    title,
+    recurrenceType,
+    date,
+    endDate,
+    selectedDays,
+    monthlyMode,
+    selectedDayOfMonth,
+    monthlyOrdinal,
+    monthlyDayOfWeek,
+    monthlyInterval,
+    yearlyMode,
+    yearlyMonth,
+    yearlyDayOfMonth,
+    yearlyOrdinal,
+    yearlyDayOfWeek,
+    yearlyInterval,
+    subtasks,
+    task,
+    sectionId,
+    time,
+    duration,
+    selectedTagIds,
+    completionType,
+    content,
+    status,
+    onSave,
+    onClose,
+  ]);
 
-  const handleFormSubmit = e => {
-    e.preventDefault();
-    handleSave();
-  };
+  const handleFormSubmit = useCallback(
+    e => {
+      e.preventDefault();
+      handleSave();
+    },
+    [handleSave]
+  );
+
+  // Memoized date/time handlers
+  const handleDateChange = useCallback(newDate => {
+    const dateStr = newDate ? newDate.format("YYYY-MM-DD") : "";
+    setDate(dateStr);
+  }, []);
+
+  const handleTimeChange = useCallback(newTime => {
+    const timeStr = newTime ? newTime.format("HH:mm") : "";
+    setTime(timeStr);
+  }, []);
+
+  const handleEndDateChange = useCallback(newDate => {
+    const dateStr = newDate ? newDate.format("YYYY-MM-DD") : "";
+    setEndDate(dateStr);
+  }, []);
+
+  // Memoized WeekdaySelector handler
+  const handleSelectedDaysChange = useCallback(newDays => {
+    setSelectedDays(newDays);
+  }, []);
+
+  // Memoized recurrence type handler
+  const handleRecurrenceTypeChange = useCallback(
+    e => {
+      const newType = e.target.value;
+      setRecurrenceType(newType);
+      // Reset related fields based on type
+      if (newType === "weekly" && selectedDays.length === 0) {
+        setSelectedDays([new Date().getDay()]);
+      }
+    },
+    [selectedDays.length]
+  );
+
+  // Memoized subtask time picker handler
+  const handleSubtaskTimeChange = useCallback(newTime => {
+    const timeStr = newTime ? newTime.format("HH:mm") : "";
+    setSubtaskTime(timeStr);
+  }, []);
 
   // Handle drag and drop for subtasks
-  const handleDragStart = event => {
+  const handleDragStart = useCallback(event => {
     setActiveSubtaskId(event.active.id);
-  };
+  }, []);
 
-  const handleDragEnd = event => {
+  const handleDragEnd = useCallback(event => {
     const { active, over } = event;
     setActiveSubtaskId(null);
 
@@ -243,18 +314,21 @@ function TaskDialogForm({
       return;
     }
 
-    const oldIndex = subtasks.findIndex(st => `subtask-${st.id}` === active.id);
-    const newIndex = subtasks.findIndex(st => `subtask-${st.id}` === over.id);
+    setSubtasks(prev => {
+      const oldIndex = prev.findIndex(st => `subtask-${st.id}` === active.id);
+      const newIndex = prev.findIndex(st => `subtask-${st.id}` === over.id);
 
-    if (oldIndex !== -1 && newIndex !== -1) {
-      const reorderedSubtasks = arrayMove(subtasks, oldIndex, newIndex);
-      setSubtasks(reorderedSubtasks.map((st, idx) => ({ ...st, order: idx })));
-    }
-  };
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reorderedSubtasks = arrayMove(prev, oldIndex, newIndex);
+        return reorderedSubtasks.map((st, idx) => ({ ...st, order: idx }));
+      }
+      return prev;
+    });
+  }, []);
 
-  const handleDragCancel = () => {
+  const handleDragCancel = useCallback(() => {
     setActiveSubtaskId(null);
-  };
+  }, []);
 
   // Get the active subtask for drag overlay
   const activeSubtask = activeSubtaskId ? subtasks.find(st => `subtask-${st.id}` === activeSubtaskId) : null;
@@ -386,10 +460,7 @@ function TaskDialogForm({
                 <DatePicker
                   label="Date"
                   value={dateValue}
-                  onChange={newDate => {
-                    const dateStr = newDate ? newDate.format("YYYY-MM-DD") : "";
-                    setDate(dateStr);
-                  }}
+                  onChange={handleDateChange}
                   slotProps={{
                     textField: { size: "small", fullWidth: true },
                   }}
@@ -404,10 +475,7 @@ function TaskDialogForm({
                 <TimePicker
                   label="Time"
                   value={timeValue}
-                  onChange={newTime => {
-                    const timeStr = newTime ? newTime.format("HH:mm") : "";
-                    setTime(timeStr);
-                  }}
+                  onChange={handleTimeChange}
                   slotProps={{
                     textField: { size: "small", fullWidth: true },
                   }}
@@ -441,10 +509,7 @@ function TaskDialogForm({
                   <DatePicker
                     label="End Date (Optional)"
                     value={endDateValue}
-                    onChange={newDate => {
-                      const dateStr = newDate ? newDate.format("YYYY-MM-DD") : "";
-                      setEndDate(dateStr);
-                    }}
+                    onChange={handleEndDateChange}
                     slotProps={{
                       textField: { size: "small", fullWidth: true },
                     }}
@@ -545,7 +610,7 @@ function TaskDialogForm({
               <GLGrid item xs={12}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Recurrence</InputLabel>
-                  <Select value={recurrenceType} onChange={e => setRecurrenceType(e.target.value)} label="Recurrence">
+                  <Select value={recurrenceType} onChange={handleRecurrenceTypeChange} label="Recurrence">
                     <MenuItem value="none">None (One-time task)</MenuItem>
                     <MenuItem value="daily">Every day</MenuItem>
                     <MenuItem value="weekly">Specific days</MenuItem>
@@ -558,7 +623,7 @@ function TaskDialogForm({
               {/* Weekly recurrence */}
               {recurrenceType === "weekly" && (
                 <GLGrid item xs={12}>
-                  <WeekdaySelector selectedDays={selectedDays} onChange={setSelectedDays} size="sm" />
+                  <WeekdaySelector selectedDays={selectedDays} onChange={handleSelectedDaysChange} size="sm" />
                 </GLGrid>
               )}
 
@@ -974,10 +1039,7 @@ function TaskDialogForm({
                 <TimePicker
                   label="Time"
                   value={subtaskTimeValue}
-                  onChange={newTime => {
-                    const timeStr = newTime ? newTime.format("HH:mm") : "";
-                    setSubtaskTime(timeStr);
-                  }}
+                  onChange={handleSubtaskTimeChange}
                   slotProps={{
                     textField: { size: "small", fullWidth: true },
                   }}

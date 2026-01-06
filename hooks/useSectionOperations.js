@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   useGetSectionsQuery,
@@ -128,21 +128,35 @@ export function useSectionOperations({
     [sections, autoCollapsedSections, setAutoCollapsedSections, setManuallyExpandedSections, updateSection]
   );
 
-  return {
-    // Data
-    sections,
-    editingSection,
+  return useMemo(
+    () => ({
+      // Data
+      sections,
+      editingSection,
 
-    // Raw operations
-    createSection,
-    updateSection,
-    deleteSection,
+      // Raw operations
+      createSection,
+      updateSection,
+      deleteSection,
 
-    // Handler functions
-    handleEditSection,
-    handleAddSection,
-    handleSaveSection,
-    handleDeleteSection,
-    handleToggleSectionExpand,
-  };
+      // Handler functions
+      handleEditSection,
+      handleAddSection,
+      handleSaveSection,
+      handleDeleteSection,
+      handleToggleSectionExpand,
+    }),
+    [
+      sections,
+      editingSection,
+      createSection,
+      updateSection,
+      deleteSection,
+      handleEditSection,
+      handleAddSection,
+      handleSaveSection,
+      handleDeleteSection,
+      handleToggleSectionExpand,
+    ]
+  );
 }
