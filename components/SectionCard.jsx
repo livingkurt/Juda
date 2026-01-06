@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, memo, useMemo } from "react";
 import { Box, Paper, Stack, Typography, IconButton, Menu, MenuItem, Collapse } from "@mui/material";
 import { useDroppable } from "@dnd-kit/core";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -40,13 +40,17 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
     setManuallyExpandedSections: sectionExpansion.setManuallyExpandedSections,
   });
 
-  // Get tasks for this section from Redux
-  const tasks = taskFilters.tasksBySection[section.id] || [];
+  // Get tasks for this section from Redux - memoized to prevent recreation on every render
+  const tasks = useMemo(() => taskFilters.tasksBySection[section.id] || [], [taskFilters.tasksBySection, section.id]);
 
   const IconComponent = SECTION_ICONS.find(i => i.value === section.icon)?.Icon || LightMode;
-  const completedCount = tasks.filter(
-    t => t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed))
-  ).length;
+
+  // Memoize completed count calculation
+  const completedCount = useMemo(() => {
+    return tasks.filter(
+      t => t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed))
+    ).length;
+  }, [tasks]);
 
   const isDropTarget = hoveredDroppable === droppableId;
 
@@ -80,11 +84,15 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
     },
   });
 
-  // Prepare tasks with draggable IDs
-  const tasksWithIds = tasks.map(task => ({
-    ...task,
-    draggableId: createDraggableId.todaySection(task.id, section.id),
-  }));
+  // Prepare tasks with draggable IDs - memoized to prevent recreation on every render
+  const tasksWithIds = useMemo(
+    () =>
+      tasks.map(task => ({
+        ...task,
+        draggableId: createDraggableId.todaySection(task.id, section.id),
+      })),
+    [tasks, createDraggableId, section.id]
+  );
 
   const handleCreateQuickTask = useCallback(
     async title => {

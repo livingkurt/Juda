@@ -14,16 +14,19 @@ The WorkoutBuilder modal was causing the page to freeze/appear crashed when open
 ## Root Causes
 
 ### 1. Dual Rendering Issue
+
 - WorkoutBuilder was rendered in **two places**:
   - `app/page.jsx` line 453: Using `dialogState.editingWorkoutTask`
   - `TaskDialog.jsx` line 1051: Using local props (`isOpen`, `onClose`, `taskId`)
 - Both instances could render simultaneously, causing conflicts
 
 ### 2. Query Running When Closed
+
 - RTK Query was fetching data even when modal was closed
 - `skip: !taskId` wasn't enough - needed `skip: !taskId || !isOpen`
 
 ### 3. Performance Issues
+
 - No memoization of callbacks
 - Functions recreated on every render
 - Child components re-rendering unnecessarily
@@ -81,6 +84,7 @@ const addSection = useCallback(() => {
 ```
 
 **Optimized functions:**
+
 - `toggleExerciseProgression`
 - `addSection`
 - `updateSection`
@@ -107,11 +111,14 @@ This prevents stale closures and improves performance.
 
 ```javascript
 const WeekdaySelector = memo(function WeekdaySelector({ selectedDays, onChange }) {
-  const handleChange = useCallback((event, newDays) => {
-    if (newDays !== null && newDays.length > 0) {
-      onChange(newDays);
-    }
-  }, [onChange]);
+  const handleChange = useCallback(
+    (event, newDays) => {
+      if (newDays !== null && newDays.length > 0) {
+        onChange(newDays);
+      }
+    },
+    [onChange]
+  );
 
   return <ToggleButtonGroup>...</ToggleButtonGroup>;
 });
@@ -147,12 +154,14 @@ Made weekly progression opt-in rather than always rendered:
 ## Performance Improvements
 
 ### Before
+
 - ❌ Page appeared frozen/crashed on modal open
 - ❌ 2-3 second delay with no feedback
 - ❌ Multiple re-renders on every state change
 - ❌ All week cards rendered immediately
 
 ### After
+
 - ✅ Modal opens smoothly
 - ✅ Loading indicator shows immediately
 - ✅ Minimal re-renders (only affected components)
@@ -233,4 +242,3 @@ Prevents infinite loops by tracking which program has been loaded.
 - The nested callback warning (line 290) is acceptable for this complex component
 - Further optimization could include virtualizing the sections list if workouts become extremely large
 - Consider lazy loading exercise cards if performance degrades with 50+ exercises
-

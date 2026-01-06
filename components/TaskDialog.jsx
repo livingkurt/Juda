@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -28,10 +28,9 @@ import {
   InputAdornment,
 } from "@mui/material";
 import GLGrid from "./GLGrid";
-import { Close, Add, Delete, DragIndicator, Search } from "@mui/icons-material";
+import { Close, Add, Delete, DragIndicator, Search, Edit } from "@mui/icons-material";
 import { DatePicker, TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import { FitnessCenter, Edit } from "@mui/icons-material";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { DAYS_OF_WEEK, DURATION_OPTIONS, ORDINAL_OPTIONS, MONTH_OPTIONS, COMPLETION_TYPES } from "@/lib/constants";
@@ -138,22 +137,10 @@ function TaskDialogForm({
   const [completionType, setCompletionType] = useState(task?.completionType || "checkbox");
   const [content, setContent] = useState(task?.content || "");
   // const [workoutBuilderOpen, setWorkoutBuilderOpen] = useState(false);
-  const { data: workoutProgram } = useGetWorkoutProgramQuery(task?.id, {
+  // Note: workoutProgram query kept for potential future use
+  useGetWorkoutProgramQuery(task?.id, {
     skip: !task?.id,
   });
-  // Derive workout program status from Redux query
-  const hasWorkoutProgram = Boolean(workoutProgram);
-  const workoutProgramWeeks = workoutProgram?.numberOfWeeks || 0;
-
-  // Calculate total weeks from recurrence dates
-  const totalWeeks = useMemo(() => {
-    if (!date || !endDate) return 1;
-    const startDate = new Date(date);
-    const end = new Date(endDate);
-    const daysDiff = Math.floor((end - startDate) / (1000 * 60 * 60 * 24));
-    const weeks = Math.ceil(daysDiff / 7);
-    return Math.max(1, weeks);
-  }, [date, endDate]);
 
   // Drag and drop sensors
   const sensors = useSensors(

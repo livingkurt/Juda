@@ -61,6 +61,28 @@ export const CalendarMonthView = ({ date }) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Pre-compute tasks for each day to avoid filtering on every render
+  const tasksByDate = useMemo(() => {
+    const map = new Map();
+    const allDays = weeks.flat();
+    allDays.forEach(day => {
+      const dateKey = day.toDateString();
+      let dayTasks = tasks.filter(t => shouldShowOnDate(t, day));
+      // Filter out completed/not completed tasks if showCompleted is false
+      if (!showCompleted) {
+        dayTasks = dayTasks.filter(task => {
+          const isCompleted = isCompletedOnDate(task.id, day);
+          const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
+          const hasOutcome = outcome !== null && outcome !== undefined;
+          return !isCompleted && !hasOutcome;
+        });
+      }
+      // Limit to 3 tasks per day for display
+      map.set(dateKey, dayTasks.slice(0, 3));
+    });
+    return map;
+  }, [weeks, tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]);
+
   const handleDayClick = useCallback(
     d => {
       viewState.setSelectedDate(d);
@@ -107,17 +129,8 @@ export const CalendarMonthView = ({ date }) => {
             {week.map((day, di) => {
               const isCurrentMonth = day.getMonth() === month;
               const isToday = day.toDateString() === today.toDateString();
-              let dayTasks = tasks.filter(t => shouldShowOnDate(t, day));
-              // Filter out completed/not completed tasks if showCompleted is false
-              if (!showCompleted) {
-                dayTasks = dayTasks.filter(task => {
-                  const isCompleted = isCompletedOnDate(task.id, day);
-                  const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
-                  const hasOutcome = outcome !== null && outcome !== undefined;
-                  return !isCompleted && !hasOutcome;
-                });
-              }
-              dayTasks = dayTasks.slice(0, 3);
+              // Use pre-computed tasks from map
+              const dayTasks = tasksByDate.get(day.toDateString()) || [];
               return (
                 <Grid
                   item

@@ -127,11 +127,15 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     id: "backlog",
   });
 
-  // Prepare tasks with draggable IDs
-  const tasksWithIds = filteredTasks.map(task => ({
-    ...task,
-    draggableId: createDraggableId.backlog(task.id),
-  }));
+  // Prepare tasks with draggable IDs - memoized to prevent recreation on every render
+  const tasksWithIds = useMemo(
+    () =>
+      filteredTasks.map(task => ({
+        ...task,
+        draggableId: createDraggableId.backlog(task.id),
+      })),
+    [filteredTasks, createDraggableId]
+  );
 
   return (
     <Box

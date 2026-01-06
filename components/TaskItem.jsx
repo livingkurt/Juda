@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import {
   Box,
   Typography,
@@ -953,4 +953,5 @@ export const TaskItem = ({
   );
 };
 
-export default TaskItem;
+// Memoize TaskItem to prevent unnecessary re-renders when props haven't meaningfully changed
+export default memo(TaskItem);

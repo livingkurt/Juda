@@ -56,6 +56,34 @@ function parseExerciseSelectValue(value) {
   };
 }
 
+// Helper functions for updating workout data (moved outside component to reduce nesting)
+function updateDayExercises(day, dayId, exerciseId, updates) {
+  if (day.id !== dayId) return day;
+  const updatedExercises = day.exercises.map(e => (e.id === exerciseId ? { ...e, ...updates } : e));
+  return { ...day, exercises: updatedExercises };
+}
+
+function deleteDayExercise(day, dayId, exerciseId) {
+  if (day.id !== dayId) return day;
+  return { ...day, exercises: day.exercises.filter(e => e.id !== exerciseId) };
+}
+
+function updateExerciseProgression(exercise, exerciseId, weekIndex, updates) {
+  if (exercise.id !== exerciseId) return exercise;
+  const newProgressions = [...(exercise.weeklyProgression || [])];
+  newProgressions[weekIndex] = {
+    ...newProgressions[weekIndex],
+    ...updates,
+  };
+  return { ...exercise, weeklyProgression: newProgressions };
+}
+
+function updateDayExercisesProgression(day, dayId, exerciseId, weekIndex, updates) {
+  if (day.id !== dayId) return day;
+  const updatedExercises = day.exercises.map(e => updateExerciseProgression(e, exerciseId, weekIndex, updates));
+  return { ...day, exercises: updatedExercises };
+}
+
 // Simple WeekdaySelector component using MUI - memoized for performance
 const WeekdaySelector = memo(function WeekdaySelector({ selectedDays = [], onChange, size = "small" }) {
   const handleChange = useCallback(
@@ -694,21 +722,9 @@ export default function WorkoutBuilder({
   const updateExercise = useCallback((sectionId, dayId, exerciseId, updates) => {
     setSections(prev =>
       prev.map(s => {
-        if (s.id === sectionId) {
-          return {
-            ...s,
-            days: s.days.map(d => {
-              if (d.id === dayId) {
-                return {
-                  ...d,
-                  exercises: d.exercises.map(e => (e.id === exerciseId ? { ...e, ...updates } : e)),
-                };
-              }
-              return d;
-            }),
-          };
-        }
-        return s;
+        if (s.id !== sectionId) return s;
+        const updatedDays = s.days.map(d => updateDayExercises(d, dayId, exerciseId, updates));
+        return { ...s, days: updatedDays };
       })
     );
   }, []); // Empty deps - uses functional update
@@ -717,18 +733,9 @@ export default function WorkoutBuilder({
   const deleteExercise = useCallback((sectionId, dayId, exerciseId) => {
     setSections(prev =>
       prev.map(s => {
-        if (s.id === sectionId) {
-          return {
-            ...s,
-            days: s.days.map(d => {
-              if (d.id === dayId) {
-                return { ...d, exercises: d.exercises.filter(e => e.id !== exerciseId) };
-              }
-              return d;
-            }),
-          };
-        }
-        return s;
+        if (s.id !== sectionId) return s;
+        const updatedDays = s.days.map(d => deleteDayExercise(d, dayId, exerciseId));
+        return { ...s, days: updatedDays };
       })
     );
   }, []); // Empty deps - uses functional update
@@ -736,30 +743,35 @@ export default function WorkoutBuilder({
   // Update number of weeks (propagate to all exercises) - MEMOIZED with functional update
   const updateNumberOfWeeks = useCallback(weeks => {
     setNumberOfWeeks(weeks);
+
+    // Helper function to build progression array for an exercise
+    const buildProgression = (exercise, weeks) => {
+      const existingProgressions = exercise.weeklyProgression || [];
+      const newProgressions = [];
+      for (let w = 1; w <= weeks; w++) {
+        const existing = existingProgressions.find(p => p.week === w);
+        newProgressions.push(
+          existing || {
+            week: w,
+            targetValue: exercise.targetValue || 0,
+            actualValue: null,
+            isDeload: false,
+            isTest: false,
+          }
+        );
+      }
+      return newProgressions;
+    };
+
     setSections(prevSections =>
       prevSections.map(section => ({
         ...section,
         days: section.days?.map(day => ({
           ...day,
-          exercises: day.exercises?.map(exercise => {
-            const existingProgressions = exercise.weeklyProgression || [];
-            const newProgressions = [];
-
-            for (let w = 1; w <= weeks; w++) {
-              const existing = existingProgressions.find(p => p.week === w);
-              newProgressions.push(
-                existing || {
-                  week: w,
-                  targetValue: exercise.targetValue || 0,
-                  actualValue: null,
-                  isDeload: false,
-                  isTest: false,
-                }
-              );
-            }
-
-            return { ...exercise, weeklyProgression: newProgressions };
-          }),
+          exercises: day.exercises?.map(exercise => ({
+            ...exercise,
+            weeklyProgression: buildProgression(exercise, weeks),
+          })),
         })),
       }))
     );
@@ -769,31 +781,9 @@ export default function WorkoutBuilder({
   const updateWeeklyProgression = useCallback((sectionId, dayId, exerciseId, weekIndex, updates) => {
     setSections(prev =>
       prev.map(s => {
-        if (s.id === sectionId) {
-          return {
-            ...s,
-            days: s.days.map(d => {
-              if (d.id === dayId) {
-                return {
-                  ...d,
-                  exercises: d.exercises.map(e => {
-                    if (e.id === exerciseId) {
-                      const newProgressions = [...(e.weeklyProgression || [])];
-                      newProgressions[weekIndex] = {
-                        ...newProgressions[weekIndex],
-                        ...updates,
-                      };
-                      return { ...e, weeklyProgression: newProgressions };
-                    }
-                    return e;
-                  }),
-                };
-              }
-              return d;
-            }),
-          };
-        }
-        return s;
+        if (s.id !== sectionId) return s;
+        const updatedDays = s.days.map(d => updateDayExercisesProgression(d, dayId, exerciseId, weekIndex, updates));
+        return { ...s, days: updatedDays };
       })
     );
   }, []); // Empty deps - uses functional update

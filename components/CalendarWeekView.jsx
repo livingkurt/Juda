@@ -102,8 +102,11 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
     hasMoved: false,
   });
 
-  const getTasksForDay = useCallback(
-    day => {
+  // Pre-compute tasks for each day to avoid filtering on every render
+  const tasksByDay = useMemo(() => {
+    const map = new Map();
+    weekDays.forEach(day => {
+      const dateKey = day.toDateString();
       let dayTasks = tasks.filter(t => t.time && shouldShowOnDate(t, day));
       if (!showCompleted) {
         dayTasks = dayTasks.filter(task => {
@@ -113,13 +116,15 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
           return !isCompleted && !hasOutcome;
         });
       }
-      return dayTasks;
-    },
-    [tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]
-  );
+      map.set(dateKey, dayTasks);
+    });
+    return map;
+  }, [weekDays, tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]);
 
-  const getUntimedTasksForDay = useCallback(
-    day => {
+  const untimedTasksByDay = useMemo(() => {
+    const map = new Map();
+    weekDays.forEach(day => {
+      const dateKey = day.toDateString();
       let untimedTasks = tasks.filter(t => !t.time && shouldShowOnDate(t, day));
       if (!showCompleted) {
         untimedTasks = untimedTasks.filter(task => {
@@ -129,24 +134,43 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
           return !isCompleted && !hasOutcome;
         });
       }
-      return untimedTasks;
+      map.set(dateKey, untimedTasks);
+    });
+    return map;
+  }, [weekDays, tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]);
+
+  // Stable lookup functions
+  const getTasksForDay = useCallback(
+    day => {
+      return tasksByDay.get(day.toDateString()) || [];
     },
-    [tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]
+    [tasksByDay]
   );
 
-  const getTaskStyle = task => {
-    const isDragging = internalDrag.taskId === task.id;
-    const minutes = isDragging && internalDrag.type === "move" ? internalDrag.currentMinutes : timeToMinutes(task.time);
-    const duration =
-      isDragging && internalDrag.type === "resize" ? internalDrag.currentDuration : (task.duration ?? 30);
-    const isNoDuration = duration === 0;
-    return {
-      top: `${(minutes / 60) * HOUR_HEIGHT}px`,
-      height: `${isNoDuration ? 24 : Math.max((duration / 60) * HOUR_HEIGHT, 18)}px`,
-    };
-  };
+  const getUntimedTasksForDay = useCallback(
+    day => {
+      return untimedTasksByDay.get(day.toDateString()) || [];
+    },
+    [untimedTasksByDay]
+  );
 
-  const handleInternalDragStart = (e, task, type) => {
+  const getTaskStyle = useCallback(
+    task => {
+      const isDragging = internalDrag.taskId === task.id;
+      const minutes =
+        isDragging && internalDrag.type === "move" ? internalDrag.currentMinutes : timeToMinutes(task.time);
+      const duration =
+        isDragging && internalDrag.type === "resize" ? internalDrag.currentDuration : (task.duration ?? 30);
+      const isNoDuration = duration === 0;
+      return {
+        top: `${(minutes / 60) * HOUR_HEIGHT}px`,
+        height: `${isNoDuration ? 24 : Math.max((duration / 60) * HOUR_HEIGHT, 18)}px`,
+      };
+    },
+    [internalDrag, HOUR_HEIGHT]
+  );
+
+  const handleInternalDragStart = useCallback((e, task, type) => {
     e.preventDefault();
     e.stopPropagation();
     const taskDuration = task.duration ?? 30;
@@ -160,7 +184,7 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
       currentDuration: taskDuration,
       hasMoved: false,
     });
-  };
+  }, []);
 
   const handleInternalDragMove = useCallback(
     clientY => {
@@ -237,22 +261,28 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
     };
   }, [internalDrag.taskId, handleInternalDragMove, handleInternalDragEnd]);
 
-  const handleColumnClick = (e, day) => {
-    if (internalDrag.taskId) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const minutes = snapToIncrement((y / HOUR_HEIGHT) * 60, 15);
-    taskOps.handleCreateTaskFromCalendar(minutesToTime(minutes), day);
-  };
+  const handleColumnClick = useCallback(
+    (e, day) => {
+      if (internalDrag.taskId) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const minutes = snapToIncrement((y / HOUR_HEIGHT) * 60, 15);
+      taskOps.handleCreateTaskFromCalendar(minutesToTime(minutes), day);
+    },
+    [internalDrag.taskId, HOUR_HEIGHT, taskOps]
+  );
 
-  const handleDropTimeCalculation = (e, rect) => {
-    const y = e.clientY - rect.top;
-    const minutes = Math.max(0, Math.min(24 * 60 - 1, Math.floor((y / HOUR_HEIGHT) * 60)));
-    const snappedMinutes = snapToIncrement(minutes, 15);
-    if (onDropTimeChange) {
-      onDropTimeChange(minutesToTime(snappedMinutes));
-    }
-  };
+  const handleDropTimeCalculation = useCallback(
+    (e, rect) => {
+      const y = e.clientY - rect.top;
+      const minutes = Math.max(0, Math.min(24 * 60 - 1, Math.floor((y / HOUR_HEIGHT) * 60)));
+      const snappedMinutes = snapToIncrement(minutes, 15);
+      if (onDropTimeChange) {
+        onDropTimeChange(minutesToTime(snappedMinutes));
+      }
+    },
+    [HOUR_HEIGHT, onDropTimeChange]
+  );
 
   const handleDayClick = useCallback(
     d => {

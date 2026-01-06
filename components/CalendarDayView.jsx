@@ -92,20 +92,24 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
     hasMoved: false,
   });
 
-  const getTaskStyle = task => {
-    const isDragging = internalDrag.taskId === task.id;
-    const minutes = isDragging && internalDrag.type === "move" ? internalDrag.currentMinutes : timeToMinutes(task.time);
-    const duration =
-      isDragging && internalDrag.type === "resize" ? internalDrag.currentDuration : (task.duration ?? 30);
-    const isNoDuration = duration === 0;
-    return {
-      top: `${(minutes / 60) * HOUR_HEIGHT}px`,
-      height: `${isNoDuration ? 24 : Math.max((duration / 60) * HOUR_HEIGHT, 24)}px`,
-    };
-  };
+  const getTaskStyle = useCallback(
+    task => {
+      const isDragging = internalDrag.taskId === task.id;
+      const minutes =
+        isDragging && internalDrag.type === "move" ? internalDrag.currentMinutes : timeToMinutes(task.time);
+      const duration =
+        isDragging && internalDrag.type === "resize" ? internalDrag.currentDuration : (task.duration ?? 30);
+      const isNoDuration = duration === 0;
+      return {
+        top: `${(minutes / 60) * HOUR_HEIGHT}px`,
+        height: `${isNoDuration ? 24 : Math.max((duration / 60) * HOUR_HEIGHT, 24)}px`,
+      };
+    },
+    [internalDrag, HOUR_HEIGHT]
+  );
 
   // Start internal drag for time adjustment
-  const handleInternalDragStart = (e, task, type) => {
+  const handleInternalDragStart = useCallback((e, task, type) => {
     e.preventDefault();
     e.stopPropagation();
     const taskDuration = task.duration ?? 30;
@@ -119,7 +123,7 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
       currentDuration: taskDuration,
       hasMoved: false,
     });
-  };
+  }, []);
 
   const handleInternalDragMove = useCallback(
     clientY => {
@@ -195,23 +199,29 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
   }, [internalDrag.taskId, handleInternalDragMove, handleInternalDragEnd]);
 
   // Click on empty calendar space to create task
-  const handleCalendarClick = e => {
-    if (internalDrag.taskId || internalDrag.hasMoved) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const y = e.clientY - rect.top + containerRef.current.scrollTop;
-    const minutes = snapToIncrement((y / HOUR_HEIGHT) * 60, 15);
-    taskOps.handleCreateTaskFromCalendar(minutesToTime(minutes), date);
-  };
+  const handleCalendarClick = useCallback(
+    e => {
+      if (internalDrag.taskId || internalDrag.hasMoved) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const y = e.clientY - rect.top + containerRef.current.scrollTop;
+      const minutes = snapToIncrement((y / HOUR_HEIGHT) * 60, 15);
+      taskOps.handleCreateTaskFromCalendar(minutesToTime(minutes), date);
+    },
+    [internalDrag.taskId, internalDrag.hasMoved, HOUR_HEIGHT, taskOps, date]
+  );
 
   // Calculate drop time from mouse position
-  const handleDropTimeCalculation = (e, rect) => {
-    const y = e.clientY - rect.top;
-    const minutes = Math.max(0, Math.min(24 * 60 - 1, Math.floor((y / HOUR_HEIGHT) * 60)));
-    const snappedMinutes = snapToIncrement(minutes, 15);
-    if (onDropTimeChange) {
-      onDropTimeChange(minutesToTime(snappedMinutes));
-    }
-  };
+  const handleDropTimeCalculation = useCallback(
+    (e, rect) => {
+      const y = e.clientY - rect.top;
+      const minutes = Math.max(0, Math.min(24 * 60 - 1, Math.floor((y / HOUR_HEIGHT) * 60)));
+      const snappedMinutes = snapToIncrement(minutes, 15);
+      if (onDropTimeChange) {
+        onDropTimeChange(minutesToTime(snappedMinutes));
+      }
+    },
+    [HOUR_HEIGHT, onDropTimeChange]
+  );
 
   const timedDroppableId = createDroppableId.calendarDay(date);
   const untimedDroppableId = createDroppableId.calendarDayUntimed(date);
