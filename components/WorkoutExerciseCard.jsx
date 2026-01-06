@@ -47,12 +47,12 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
   // Format target display
   const getTargetDisplay = () => {
     if (exercise.type === "time") {
-      return `${exercise.sets} x ${targetValue} ${exercise.unit || "secs"}`;
+      return `${exercise.sets > 1 ? `${exercise.sets} x` : ""} ${targetValue} ${exercise.unit || "secs"}`;
     }
     if (exercise.type === "distance") {
-      return `${exercise.sets} x ${targetValue} ${exercise.unit || "miles"}`;
+      return `${exercise.sets > 1 ? `${exercise.sets} x` : ""} ${targetValue} ${exercise.unit || "miles"}`;
     }
-    return `${exercise.sets} x ${targetValue} reps`;
+    return `${exercise.sets > 1 ? `${exercise.sets} x` : ""} ${targetValue} reps`;
   };
 
   return (
@@ -74,21 +74,11 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
           <Typography variant="subtitle1" fontWeight={600} mb={0.5}>
             {exercise.name}
           </Typography>
-          {exercise.type !== "distance" && (
-            <>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
-                {getTargetDisplay()}
-              </Typography>
-              {exercise.goal && (
-                <Chip
-                  label={exercise.goal}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  sx={{ height: 24, mt: 0.5 }}
-                />
-              )}
-            </>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+            {getTargetDisplay()}
+          </Typography>
+          {exercise.goal && (
+            <Chip label={exercise.goal} size="small" color="primary" variant="outlined" sx={{ height: 24, mt: 0.5 }} />
           )}
         </Box>
 
@@ -137,7 +127,7 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                       </Stack>
                       <TextField
                         size="small"
-                        placeholder="Reps"
+                        placeholder={exercise.unit}
                         value={setData.actualValue || ""}
                         onChange={e => onActualValueChange?.(exercise.id, setNumber, "actualValue", e.target.value)}
                       />
@@ -197,7 +187,7 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                 </Stack>
                 <TextField
                   size="small"
-                  placeholder="Reps"
+                  placeholder={exercise.unit}
                   value={setData.actualValue || ""}
                   onChange={e => onActualValueChange?.(exercise.id, setNumber, "actualValue", e.target.value)}
                   sx={{ width: 80, ml: "auto" }}
