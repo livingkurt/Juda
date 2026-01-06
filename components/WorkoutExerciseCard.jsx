@@ -61,16 +61,37 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
       }}
     >
       {/* Header */}
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={exercise.type !== "distance" ? 1 : 2}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="flex-start"
+        mb={exercise.type !== "distance" ? 1 : 2}
+      >
         <Box>
-          <Typography variant="subtitle1" fontWeight={600}>
+          <Typography variant="subtitle1" fontWeight={600} mb={0.5}>
             {exercise.name}
           </Typography>
+          {exercise.type !== "distance" && (
+            <>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                {getTargetDisplay()}
+              </Typography>
+              {exercise.goal && (
+                <Chip
+                  label={exercise.goal}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  sx={{ height: 24, mt: 0.5 }}
+                />
+              )}
+            </>
+          )}
         </Box>
 
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack direction="row" spacing={1} alignItems="flex-start">
           {exercise.type !== "distance" && (
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" spacing={1} alignItems="flex-start">
               {Array.from({ length: exercise.sets }, (_, i) => {
                 const setNumber = i + 1;
                 const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
@@ -78,25 +99,48 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                 const isComplete = isSetComplete(setData);
 
                 return (
-                  <Stack key={setNumber} direction="row" spacing={0.5} alignItems="center">
-                    <Typography variant="caption" fontWeight={600} sx={{ minWidth: 45 }}>
-                      Set {setNumber}
-                    </Typography>
-                    <OutcomeCheckbox
-                      outcome={outcome}
-                      onOutcomeChange={newOutcome => {
-                        onSetToggle?.(exercise.id, setNumber, newOutcome);
-                        // Auto-fill target value when checked
-                        if (newOutcome === "completed" && !setData.actualValue) {
-                          onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
-                        }
-                        // Clear value when unchecked
-                        if (newOutcome !== "completed" && setData.actualValue) {
-                          onActualValueChange?.(exercise.id, setNumber, "actualValue", "");
-                        }
+                  <Stack key={setNumber} spacing={0.5} alignItems="center" sx={{ width: 80, minHeight: 60 }}>
+                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ height: 24 }}>
+                      <Typography variant="caption" fontWeight={600} sx={{ minWidth: 45 }}>
+                        Set {setNumber}
+                      </Typography>
+                      <Box
+                        sx={{ width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center" }}
+                      >
+                        <OutcomeCheckbox
+                          outcome={outcome}
+                          onOutcomeChange={newOutcome => {
+                            onSetToggle?.(exercise.id, setNumber, newOutcome);
+                            // Auto-fill target value when checked
+                            if (newOutcome === "completed" && !setData.actualValue) {
+                              onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
+                            }
+                            // Clear value when unchecked
+                            if (newOutcome !== "completed" && setData.actualValue) {
+                              onActualValueChange?.(exercise.id, setNumber, "actualValue", "");
+                            }
+                          }}
+                          isChecked={isComplete}
+                          size="sm"
+                        />
+                      </Box>
+                    </Stack>
+                    <TextField
+                      size="small"
+                      placeholder="Reps"
+                      value={setData.actualValue || ""}
+                      onChange={e => onActualValueChange?.(exercise.id, setNumber, "actualValue", e.target.value)}
+                      sx={{
+                        width: "100%",
+                        "& input": {
+                          fontSize: "0.75rem",
+                          textAlign: "center",
+                          py: 0.5,
+                        },
                       }}
-                      isChecked={isComplete}
-                      size="sm"
+                      inputProps={{
+                        style: { textAlign: "center" },
+                      }}
                     />
                   </Stack>
                 );
@@ -106,18 +150,9 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
           <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
             {isDeload && <Chip label="Deload" size="small" color="info" sx={{ height: 20 }} />}
             {isTest && <Chip label="Test" size="small" color="warning" sx={{ height: 20 }} />}
-            {exercise.goal && (
-              <Chip label={exercise.goal} size="small" color="primary" variant="outlined" sx={{ height: 24 }} />
-            )}
           </Stack>
         </Stack>
       </Stack>
-
-      {exercise.type !== "distance" && (
-        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
-          {getTargetDisplay()}
-        </Typography>
-      )}
 
       {/* Sets - Column Layout */}
       {exercise.type === "distance" ? (
@@ -139,36 +174,46 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                   bgcolor: isComplete ? "success.dark" : "background.default",
                 }}
               >
-                <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                <Stack direction="row" spacing={1} alignItems="center" mb={1} sx={{ height: 24 }}>
                   <Typography variant="caption" fontWeight={600} sx={{ minWidth: 60 }}>
                     Set {setNumber}
                   </Typography>
-                  <OutcomeCheckbox
-                    outcome={outcome}
-                    onOutcomeChange={newOutcome => {
-                      onSetToggle?.(exercise.id, setNumber, newOutcome);
-                      // Auto-fill target value when checked (for distance exercises)
-                      if (newOutcome === "completed") {
-                        if (!setData.distance) {
-                          onActualValueChange?.(exercise.id, setNumber, "distance", targetValue);
-                        }
-                      }
-                      // Clear values when unchecked
-                      if (newOutcome !== "completed") {
-                        if (setData.distance) {
-                          onActualValueChange?.(exercise.id, setNumber, "distance", "");
-                        }
-                        if (setData.time) {
-                          onActualValueChange?.(exercise.id, setNumber, "time", "");
-                        }
-                        if (setData.pace) {
-                          onActualValueChange?.(exercise.id, setNumber, "pace", "");
-                        }
-                      }
+                  <Box
+                    sx={{
+                      width: 20,
+                      height: 20,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
-                    isChecked={isComplete}
-                    size="sm"
-                  />
+                  >
+                    <OutcomeCheckbox
+                      outcome={outcome}
+                      onOutcomeChange={newOutcome => {
+                        onSetToggle?.(exercise.id, setNumber, newOutcome);
+                        // Auto-fill target value when checked (for distance exercises)
+                        if (newOutcome === "completed") {
+                          if (!setData.distance) {
+                            onActualValueChange?.(exercise.id, setNumber, "distance", targetValue);
+                          }
+                        }
+                        // Clear values when unchecked
+                        if (newOutcome !== "completed") {
+                          if (setData.distance) {
+                            onActualValueChange?.(exercise.id, setNumber, "distance", "");
+                          }
+                          if (setData.time) {
+                            onActualValueChange?.(exercise.id, setNumber, "time", "");
+                          }
+                          if (setData.pace) {
+                            onActualValueChange?.(exercise.id, setNumber, "pace", "");
+                          }
+                        }
+                      }}
+                      isChecked={isComplete}
+                      size="sm"
+                    />
+                  </Box>
                 </Stack>
                 <Grid container spacing={1}>
                   <Grid item xs={4}>
@@ -210,39 +255,7 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
             );
           })}
         </Box>
-      ) : (
-        // Reps/Time exercise - reps inputs below checkboxes, right-aligned
-        <Box>
-          <Stack direction="row" spacing={1} justifyContent="flex-end">
-            {Array.from({ length: exercise.sets }, (_, i) => {
-              const setNumber = i + 1;
-              const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
-
-              return (
-                <Box key={setNumber} sx={{ width: 80 }}>
-                  <TextField
-                    size="small"
-                    placeholder="Reps"
-                    value={setData.actualValue || ""}
-                    onChange={e => onActualValueChange?.(exercise.id, setNumber, "actualValue", e.target.value)}
-                    sx={{
-                      width: "100%",
-                      "& input": {
-                        fontSize: "0.75rem",
-                        textAlign: "right",
-                        py: 0.5,
-                      },
-                    }}
-                    inputProps={{
-                      style: { textAlign: "right" },
-                    }}
-                  />
-                </Box>
-              );
-            })}
-          </Stack>
-        </Box>
-      )}
+      ) : null}
 
       {/* Progress indicator */}
       <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: "block" }}>

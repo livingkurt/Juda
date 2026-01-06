@@ -544,7 +544,7 @@ export const TaskItem = ({
                           !shouldShowMenu && isChecked
                   }
                   disabled={false}
-                  size="md"
+                  size="lg"
                 />
               )}
             </Box>

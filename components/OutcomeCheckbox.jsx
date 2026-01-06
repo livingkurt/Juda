@@ -5,6 +5,49 @@ import { Box, Checkbox, Stack, Typography, Menu, MenuItem, Divider } from "@mui/
 import { Check, Close, RadioButtonUnchecked } from "@mui/icons-material";
 
 /**
+ * Get size configuration based on size prop
+ * @param {string} size - Size prop: "sm", "md", "lg", "xl"
+ * @returns {Object} Size configuration object
+ */
+const getSizeConfig = size => {
+  switch (size) {
+    case "sm":
+      return {
+        muiSize: "small",
+        containerSize: 20,
+        iconBoxSize: 18,
+        iconFontSize: "12px",
+        borderRadius: "2px",
+      };
+    case "lg":
+      return {
+        muiSize: "large",
+        containerSize: 32,
+        iconBoxSize: 28,
+        iconFontSize: "18px",
+        borderRadius: "4px",
+      };
+    case "xl":
+      return {
+        muiSize: "large",
+        containerSize: 40,
+        iconBoxSize: 36,
+        iconFontSize: "22px",
+        borderRadius: "5px",
+      };
+    case "md":
+    default:
+      return {
+        muiSize: "medium",
+        containerSize: 24,
+        iconBoxSize: 20,
+        iconFontSize: "14px",
+        borderRadius: "3px",
+      };
+  }
+};
+
+/**
  * OutcomeCheckbox - Reusable multi-state checkbox component
  *
  * Behavior:
@@ -21,13 +64,15 @@ import { Check, Close, RadioButtonUnchecked } from "@mui/icons-material";
  * @param {Function} onOutcomeChange - Callback when outcome changes: (newOutcome) => void
  * @param {boolean} isChecked - Whether checkbox appears checked (for completed state)
  * @param {boolean} disabled - Whether checkbox is disabled
- * @param {string} size - Checkbox size: "sm", "md", "lg"
+ * @param {string} size - Checkbox size: "sm", "md", "lg", "xl" (default: "md")
  */
 export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, disabled = false, size = "md" }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const menuJustOpenedRef = useRef(false);
   const previousOutcomeRef = useRef(outcome);
+
+  const sizeConfig = getSizeConfig(size);
 
   // Determine if we should show the menu (when task has an outcome)
   const shouldShowMenu = outcome !== null;
@@ -90,46 +135,88 @@ export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, d
     setAnchorEl(null);
   };
 
-  const checkboxSize = size === "sm" ? "small" : size === "lg" ? "medium" : "medium";
+  const renderCheckedIcon = () => {
+    if (outcome === "completed") {
+      return (
+        <Box
+          sx={{
+            width: sizeConfig.iconBoxSize,
+            height: sizeConfig.iconBoxSize,
+            borderRadius: sizeConfig.borderRadius,
+            border: "2px solid #a0aec0",
+            bgcolor: "#a0aec0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Check sx={{ color: "black", fontSize: sizeConfig.iconFontSize }} />
+        </Box>
+      );
+    }
+
+    if (outcome === "not_completed") {
+      return (
+        <Box
+          sx={{
+            width: sizeConfig.iconBoxSize,
+            height: sizeConfig.iconBoxSize,
+            borderRadius: sizeConfig.borderRadius,
+            border: "2px solid #a0aec0",
+            bgcolor: "#a0aec0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Close sx={{ color: "black", fontSize: sizeConfig.iconFontSize }} />
+        </Box>
+      );
+    }
+
+    return undefined;
+  };
 
   return (
-    <Box sx={{ position: "relative", display: "inline-flex" }}>
+    <Box
+      sx={{
+        position: "relative",
+        display: "inline-flex",
+        width: sizeConfig.containerSize,
+        height: sizeConfig.containerSize,
+      }}
+    >
       <Checkbox
         checked={outcome !== null || isChecked}
-        size={checkboxSize}
+        size={sizeConfig.muiSize}
         disabled={disabled}
         onChange={handleCheckboxChange}
         onClick={handleClick}
         onMouseDown={handleMouseDown}
         onPointerDown={e => e.stopPropagation()}
-        checkedIcon={
-          outcome === "completed" ? (
-            <Box
-              sx={{
-                width: 18,
-                height: 18,
-                borderRadius: "2px",
-                border: "2px solid #a0aec0",
-                m: 0.5,
-                bgcolor: "#a0aec0",
-              }}
-            >
-              <Check sx={{ color: "black", fontSize: "14px", mb: 0.5 }} />
-            </Box>
-          ) : outcome === "not_completed" ? (
-            <Box
-              sx={{
-                width: 18,
-                height: 18,
-                borderRadius: "2px",
-                border: "2px solid #a0aec0",
-                m: 0.5,
-                bgcolor: "#a0aec0",
-              }}
-            >
-              <Close sx={{ color: "black", fontSize: "14px", mb: 0.5 }} />
-            </Box>
-          ) : undefined
+        sx={{
+          padding: 0,
+          width: sizeConfig.containerSize,
+          height: sizeConfig.containerSize,
+          // fontSize: sizeConfig.iconFontSize,
+          borderRadius: sizeConfig.borderRadius,
+          // "& .MuiSvgIcon-root": { fontSize: sizeConfig.iconFontSize },
+        }}
+        checkedIcon={renderCheckedIcon()}
+        unCheckedIcon={
+          <Box
+            sx={{
+              width: sizeConfig.iconBoxSize,
+              height: sizeConfig.iconBoxSize,
+              fontSize: sizeConfig.iconFontSize,
+              borderRadius: sizeConfig.borderRadius,
+              border: "2px solid #a0aec0",
+              bgcolor: "#a0aec0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          ></Box>
         }
       />
       {shouldShowMenu && (
