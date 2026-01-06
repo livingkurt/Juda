@@ -225,7 +225,6 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                 sx={{
                   p: 1.5,
                   mb: 1,
-                  bgcolor: isComplete ? "success.dark" : "background.default",
                 }}
               >
                 <Stack direction="row" spacing={1} alignItems="center" mb={1} sx={{ height: 24 }}>
