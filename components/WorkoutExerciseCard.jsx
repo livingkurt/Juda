@@ -1,7 +1,8 @@
 "use client";
 
 import { memo } from "react";
-import { Box, Stack, Typography, Paper, TextField, Chip } from "@mui/material";
+import { Box, Stack, Typography, Paper, TextField, Chip, useMediaQuery } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { OutcomeCheckbox } from "./OutcomeCheckbox";
 
 /**
@@ -20,6 +21,9 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
   currentWeek = 1,
   onActualValueChange,
 }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
   // Get target value for current week
   const weekProgression = exercise.weeklyProgression?.find(p => p.week === currentWeek);
   const targetValue = weekProgression?.targetValue || exercise.targetValue || 0;
@@ -61,7 +65,7 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
     >
       {/* Header */}
       <Stack
-        direction="row"
+        direction={isMobile && exercise.type !== "distance" ? "column" : "row"}
         justifyContent="space-between"
         alignItems="flex-start"
         mb={exercise.type !== "distance" ? 1 : 2}
@@ -88,59 +92,121 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
           )}
         </Box>
 
-        <Stack direction="row" spacing={1} alignItems="flex-start">
-          {exercise.type !== "distance" && (
-            <Stack direction="row" spacing={1} alignItems="flex-start">
-              {Array.from({ length: exercise.sets }, (_, i) => {
-                const setNumber = i + 1;
-                const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
-                const outcome = setData.outcome || null;
-                const isComplete = isSetComplete(setData);
+        {!isMobile && (
+          <Stack direction="row" spacing={1} alignItems="flex-start">
+            {exercise.type !== "distance" && (
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                {Array.from({ length: exercise.sets }, (_, i) => {
+                  const setNumber = i + 1;
+                  const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
+                  const outcome = setData.outcome || null;
+                  const isComplete = isSetComplete(setData);
 
-                return (
-                  <Stack key={setNumber} spacing={1} alignItems="center" sx={{ width: 80, minHeight: 60 }}>
-                    <Stack direction="row" spacing={2} alignItems="center" sx={{ height: 24 }}>
-                      <Typography variant="body1" fontWeight={600}>
-                        Set {setNumber}
-                      </Typography>
-                      <Box
-                        sx={{ width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center" }}
-                      >
-                        <OutcomeCheckbox
-                          outcome={outcome}
-                          onOutcomeChange={newOutcome => {
-                            onSetToggle?.(exercise.id, setNumber, newOutcome);
-                            // Auto-fill target value when checked
-                            if (newOutcome === "completed" && !setData.actualValue) {
-                              onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
-                            }
-                            // Clear value when unchecked
-                            if (newOutcome !== "completed" && setData.actualValue) {
-                              onActualValueChange?.(exercise.id, setNumber, "actualValue", "");
-                            }
+                  return (
+                    <Stack key={setNumber} spacing={1} alignItems="center" sx={{ width: 80, minHeight: 60 }}>
+                      <Stack direction="row" spacing={2} alignItems="center" sx={{ height: 24 }}>
+                        <Typography variant="body1" fontWeight={600}>
+                          Set {setNumber}
+                        </Typography>
+                        <Box
+                          sx={{
+                            width: 20,
+                            height: 20,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                           }}
-                          isChecked={isComplete}
-                          size="lg"
-                        />
-                      </Box>
+                        >
+                          <OutcomeCheckbox
+                            outcome={outcome}
+                            onOutcomeChange={newOutcome => {
+                              onSetToggle?.(exercise.id, setNumber, newOutcome);
+                              // Auto-fill target value when checked
+                              if (newOutcome === "completed" && !setData.actualValue) {
+                                onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
+                              }
+                              // Clear value when unchecked
+                              if (newOutcome !== "completed" && setData.actualValue) {
+                                onActualValueChange?.(exercise.id, setNumber, "actualValue", "");
+                              }
+                            }}
+                            isChecked={isComplete}
+                            size="lg"
+                          />
+                        </Box>
+                      </Stack>
+                      <TextField
+                        size="small"
+                        placeholder="Reps"
+                        value={setData.actualValue || ""}
+                        onChange={e => onActualValueChange?.(exercise.id, setNumber, "actualValue", e.target.value)}
+                      />
                     </Stack>
-                    <TextField
-                      size="small"
-                      placeholder="Reps"
-                      value={setData.actualValue || ""}
-                      onChange={e => onActualValueChange?.(exercise.id, setNumber, "actualValue", e.target.value)}
-                    />
-                  </Stack>
-                );
-              })}
+                  );
+                })}
+              </Stack>
+            )}
+            <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
+              {isDeload && <Chip label="Deload" size="small" color="info" sx={{ height: 20 }} />}
+              {isTest && <Chip label="Test" size="small" color="warning" sx={{ height: 20 }} />}
             </Stack>
-          )}
-          <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
+          </Stack>
+        )}
+
+        {isMobile && exercise.type !== "distance" && (
+          <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
             {isDeload && <Chip label="Deload" size="small" color="info" sx={{ height: 20 }} />}
             {isTest && <Chip label="Test" size="small" color="warning" sx={{ height: 20 }} />}
           </Stack>
-        </Stack>
+        )}
       </Stack>
+
+      {/* Mobile: Sets in column layout with label, checkbox, input on same line */}
+      {isMobile && exercise.type !== "distance" && (
+        <Stack spacing={1.5} sx={{ mt: 1 }}>
+          {Array.from({ length: exercise.sets }, (_, i) => {
+            const setNumber = i + 1;
+            const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
+            const outcome = setData.outcome || null;
+            const isComplete = isSetComplete(setData);
+
+            return (
+              <Box key={setNumber} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Typography variant="body2" fontWeight={600} sx={{ minWidth: 50 }}>
+                    Set {setNumber}
+                  </Typography>
+                  <Box sx={{ width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <OutcomeCheckbox
+                      outcome={outcome}
+                      onOutcomeChange={newOutcome => {
+                        onSetToggle?.(exercise.id, setNumber, newOutcome);
+                        // Auto-fill target value when checked
+                        if (newOutcome === "completed" && !setData.actualValue) {
+                          onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
+                        }
+                        // Clear value when unchecked
+                        if (newOutcome !== "completed" && setData.actualValue) {
+                          onActualValueChange?.(exercise.id, setNumber, "actualValue", "");
+                        }
+                      }}
+                      isChecked={isComplete}
+                      size="lg"
+                    />
+                  </Box>
+                </Stack>
+                <TextField
+                  size="small"
+                  placeholder="Reps"
+                  value={setData.actualValue || ""}
+                  onChange={e => onActualValueChange?.(exercise.id, setNumber, "actualValue", e.target.value)}
+                  sx={{ width: 80, ml: "auto" }}
+                />
+              </Box>
+            );
+          })}
+        </Stack>
+      )}
 
       {/* Sets - Column Layout */}
       {exercise.type === "distance" ? (

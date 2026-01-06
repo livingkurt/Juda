@@ -16,20 +16,20 @@ export async function POST(request) {
     // Get refresh token from cookie
     const cookieHeader = request.headers.get("cookie");
     if (!cookieHeader) {
-      return NextResponse.json({ error: "No refresh token" }, { status: 401 });
+      return NextResponse.json({ error: "No cookies" }, { status: 401 });
     }
 
     const cookies = parse(cookieHeader);
     const refreshToken = cookies.refreshToken;
 
     if (!refreshToken) {
-      return NextResponse.json({ error: "No refresh token" }, { status: 401 });
+      return NextResponse.json({ error: "No refresh token cookie" }, { status: 401 });
     }
 
     // Verify token signature
     const result = verifyRefreshToken(refreshToken);
     if (!result.valid) {
-      return NextResponse.json({ error: "Invalid refresh token" }, { status: 401 });
+      return NextResponse.json({ error: "Invalid refresh token signature" }, { status: 401 });
     }
 
     // Validate token exists in database

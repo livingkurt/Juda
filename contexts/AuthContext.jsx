@@ -15,6 +15,8 @@ export function AuthProvider({ children }) {
 
   // Ref to track if refresh is in progress
   const refreshingRef = useRef(false);
+  // Ref to store the pending refresh promise (so multiple callers can await the same refresh)
+  const refreshPromiseRef = useRef(null);
   // Ref for refresh interval
   const refreshIntervalRef = useRef(null);
   // Ref to always have the latest token available (for callbacks that might have stale closures)
@@ -29,45 +31,85 @@ export function AuthProvider({ children }) {
 
   // Refresh access token with retry logic
   const refreshAccessToken = useCallback(async (retryCount = 0) => {
-    if (refreshingRef.current && retryCount === 0) {
-      // If already refreshing and this is the first attempt, wait for it
-      return null;
+    // If already refreshing, return the existing promise (prevents concurrent refreshes)
+    if (refreshingRef.current && retryCount === 0 && refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
     }
 
     refreshingRef.current = true;
 
-    try {
-      const response = await fetch("/api/auth/refresh", {
-        method: "POST",
-        credentials: "include",
-      });
+    // Create a promise that will be shared by concurrent callers
+    const refreshPromise = (async () => {
+      try {
+        const response = await fetch("/api/auth/refresh", {
+          method: "POST",
+          credentials: "include",
+        });
 
-      if (!response.ok) {
-        // Retry on network/server errors (not auth errors)
-        if (response.status >= 500 && retryCount < 3) {
-          const delay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff, max 5s
-          await new Promise(resolve => setTimeout(resolve, delay));
-          refreshingRef.current = false;
-          return refreshAccessToken(retryCount + 1);
-        }
+        if (!response.ok) {
+          // 401 means no valid refresh token - don't retry, just fail
+          if (response.status === 401) {
+            // Clear persistence flag - user needs to log in again
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("juda-auth-persist");
+            }
+            accessTokenRef.current = null;
+            setAuthState(prev => ({
+              ...prev,
+              user: null,
+              accessToken: null,
+            }));
+            return null;
+          }
 
-        // Only clear auth state if it's a real auth error (401) or we've exhausted retries
-        const isAuthError = response.status === 401 || retryCount >= 3;
-        if (!isAuthError) {
+          // Retry on server errors (500+) - these are transient issues
+          if (response.status >= 500 && retryCount < 3) {
+            const delay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff, max 5s
+            await new Promise(resolve => setTimeout(resolve, delay));
+            refreshingRef.current = false;
+            return refreshAccessToken(retryCount + 1);
+          }
+
+          // Other errors - don't retry
+          accessTokenRef.current = null;
+          setAuthState(prev => ({
+            ...prev,
+            user: null,
+            accessToken: null,
+          }));
           return null;
         }
 
-        // Check localStorage - if user was logged in, keep trying
-        const wasLoggedIn = typeof window !== "undefined" ? localStorage.getItem("juda-auth-persist") : null;
-        if (wasLoggedIn && retryCount < 5) {
-          // User was logged in, retry more aggressively
-          const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+        const data = await response.json();
+        // Update ref IMMEDIATELY
+        accessTokenRef.current = data.accessToken;
+
+        // Mark user as logged in in localStorage
+        if (typeof window !== "undefined") {
+          localStorage.setItem("juda-auth-persist", "true");
+        }
+
+        // Reset retry count on success
+        retryCountRef.current = 0;
+
+        setAuthState(prev => ({
+          ...prev,
+          user: data.user,
+          accessToken: data.accessToken,
+        }));
+        return data.accessToken;
+      } catch (error) {
+        console.error("Failed to refresh token:", error);
+
+        // Retry on network errors (not auth errors)
+        if (retryCount < 3) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
           await new Promise(resolve => setTimeout(resolve, delay));
           refreshingRef.current = false;
           return refreshAccessToken(retryCount + 1);
         }
 
-        // Clear persistence flag if auth truly failed
+        // Network error after retries - clear state
         if (typeof window !== "undefined") {
           localStorage.removeItem("juda-auth-persist");
         }
@@ -79,68 +121,22 @@ export function AuthProvider({ children }) {
           accessToken: null,
         }));
         return null;
-      }
-
-      const data = await response.json();
-      // Update ref IMMEDIATELY
-      accessTokenRef.current = data.accessToken;
-
-      // Mark user as logged in in localStorage
-      if (typeof window !== "undefined") {
-        localStorage.setItem("juda-auth-persist", "true");
-      }
-
-      // Reset retry count on success
-      retryCountRef.current = 0;
-
-      setAuthState(prev => ({
-        ...prev,
-        user: data.user,
-        accessToken: data.accessToken,
-      }));
-      return data.accessToken;
-    } catch (error) {
-      console.error("Failed to refresh token:", error);
-
-      // Retry on network errors
-      if (retryCount < 3) {
-        const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
-        await new Promise(resolve => setTimeout(resolve, delay));
+      } finally {
         refreshingRef.current = false;
-        return refreshAccessToken(retryCount + 1);
+        refreshPromiseRef.current = null;
       }
+    })();
 
-      // Check localStorage for persistence
-      if (typeof window !== "undefined") {
-        const wasLoggedIn = localStorage.getItem("juda-auth-persist");
-        if (wasLoggedIn && retryCount < 5) {
-          const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          refreshingRef.current = false;
-          return refreshAccessToken(retryCount + 1);
-        }
-        localStorage.removeItem("juda-auth-persist");
-      }
+    // Store the promise so concurrent callers can await it
+    refreshPromiseRef.current = refreshPromise;
 
-      accessTokenRef.current = null;
-      setAuthState(prev => ({
-        ...prev,
-        user: null,
-        accessToken: null,
-      }));
-      return null;
-    } finally {
-      refreshingRef.current = false;
-    }
+    return refreshPromise;
   }, []);
 
   // Initialize auth state on mount with retry logic
   useEffect(() => {
     const initAuth = async (attempt = 0) => {
       try {
-        // Check localStorage first - if user was logged in, be more persistent
-        const wasLoggedIn = typeof window !== "undefined" && localStorage.getItem("juda-auth-persist");
-
         const response = await fetch("/api/auth/refresh", {
           method: "POST",
           credentials: "include",
@@ -167,15 +163,8 @@ export function AuthProvider({ children }) {
             initialized: true,
           });
         } else {
-          // Retry on server errors or if user was logged in
-          if ((response.status >= 500 || wasLoggedIn) && attempt < 5) {
-            const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            return initAuth(attempt + 1);
-          }
-
-          // Only clear auth if it's a real auth error (401) or we've exhausted retries
-          if (response.status === 401 || attempt >= 5) {
+          // 401 means no refresh token - don't retry, just fail
+          if (response.status === 401) {
             if (typeof window !== "undefined") {
               localStorage.removeItem("juda-auth-persist");
             }
@@ -186,21 +175,17 @@ export function AuthProvider({ children }) {
               loading: false,
               initialized: true,
             });
+            return;
           }
-        }
-      } catch (error) {
-        console.error("Auth init error:", error);
 
-        // Retry on network errors
-        const wasLoggedIn = typeof window !== "undefined" && localStorage.getItem("juda-auth-persist");
-        if (attempt < 5 && wasLoggedIn) {
-          const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          return initAuth(attempt + 1);
-        }
+          // Retry on server errors (500+) - transient issues
+          if (response.status >= 500 && attempt < 3) {
+            const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return initAuth(attempt + 1);
+          }
 
-        // Only clear if we've exhausted retries
-        if (attempt >= 5) {
+          // Other errors or exhausted retries - fail
           if (typeof window !== "undefined") {
             localStorage.removeItem("juda-auth-persist");
           }
@@ -212,6 +197,27 @@ export function AuthProvider({ children }) {
             initialized: true,
           });
         }
+      } catch (error) {
+        console.error("Auth init error:", error);
+
+        // Retry on network errors (not auth errors)
+        if (attempt < 3) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return initAuth(attempt + 1);
+        }
+
+        // Network error after retries - clear state
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("juda-auth-persist");
+        }
+        accessTokenRef.current = null;
+        setAuthState({
+          user: null,
+          accessToken: null,
+          loading: false,
+          initialized: true,
+        });
       }
     };
 

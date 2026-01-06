@@ -376,11 +376,20 @@ export default function WorkoutModal() {
     <Dialog
       open={isOpen}
       onClose={handleClose}
-      maxWidth="sm"
+      maxWidth={false}
       fullWidth
-      PaperProps={{ sx: { height: "90vh", maxHeight: "90vh" } }}
+      PaperProps={{
+        sx: {
+          height: { xs: "100vh", md: "90vh" },
+          maxHeight: { xs: "100vh", md: "90vh" },
+          width: { xs: "100%", md: "auto" },
+          maxWidth: { xs: "100%", md: "600px" },
+          m: { xs: 0, md: "auto" },
+          borderRadius: { xs: 0, md: 1 },
+        },
+      }}
     >
-      <DialogTitle>
+      <DialogTitle sx={{ p: { xs: 1.5, md: 2 } }}>
         <Stack direction="row" alignItems="center" spacing={2}>
           <FitnessCenter fontSize="large" />
           <Box flex={1}>
@@ -396,7 +405,7 @@ export default function WorkoutModal() {
         </Stack>
 
         {/* Overall Progress */}
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: { xs: 1.5, md: 2 } }}>
           <Stack direction="row" justifyContent="space-between" mb={0.5}>
             <Typography variant="body2">Overall Progress</Typography>
             <Typography variant="body2" fontWeight={600}>
@@ -420,7 +429,7 @@ export default function WorkoutModal() {
 
       <Divider />
 
-      <DialogContent sx={{ p: 2, overflow: "auto" }}>
+      <DialogContent sx={{ p: { xs: 1, md: 2 }, overflow: "auto" }}>
         {programLoading || isLoadingCompletions ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
@@ -430,13 +439,13 @@ export default function WorkoutModal() {
             <Typography color="text.secondary">No workout sections defined.</Typography>
           </Box>
         ) : (
-          <Stack spacing={4}>
+          <Stack spacing={{ xs: 2, md: 4 }}>
             {sections.map(section => {
               const currentDay = getCurrentDayForSection(section);
 
               if (!currentDay) {
                 return (
-                  <Paper key={section.id} variant="outlined" sx={{ p: 2 }}>
+                  <Paper key={section.id} variant="outlined" sx={{ p: { xs: 1.5, md: 2 } }}>
                     <Typography variant="h6" fontWeight={600} mb={1}>
                       {section.name || getSectionTypeLabel(section.type)}
                     </Typography>
@@ -446,8 +455,8 @@ export default function WorkoutModal() {
               }
 
               return (
-                <Paper key={section.id} variant="outlined" sx={{ p: 2 }}>
-                  <Typography variant="h6" fontWeight={600} mb={2}>
+                <Paper key={section.id} variant="outlined" sx={{ p: { xs: 1.5, md: 2 } }}>
+                  <Typography variant="h6" fontWeight={600} mb={{ xs: 1.5, md: 2 }}>
                     {section.name || getSectionTypeLabel(section.type)}
                   </Typography>
                   <WorkoutDaySection
@@ -468,7 +477,7 @@ export default function WorkoutModal() {
         )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
+      <DialogActions sx={{ p: { xs: 1, md: 2 }, borderTop: 1, borderColor: "divider" }}>
         <Button onClick={handleClose}>Close</Button>
         {overallProgress === 100 && (
           <Button variant="contained" color="success" startIcon={<Check fontSize="small" />} onClick={handleComplete}>
