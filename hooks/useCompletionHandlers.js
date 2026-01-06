@@ -173,14 +173,15 @@ export function useCompletionHandlers({
   // Collect subtask completions for batch operations
   const collectSubtaskCompletionsToDelete = useCallback(
     (task, targetDate) => {
-      const completionsToDelete = [{ taskId: task.id, date: targetDate.toISOString() }];
+      const dateStr = formatLocalDate(targetDate);
+      const completionsToDelete = [{ taskId: task.id, date: dateStr }];
       if (!task.subtasks || task.subtasks.length === 0) {
         return completionsToDelete;
       }
 
       for (const subtask of task.subtasks) {
         if (isCompletedOnDate(subtask.id, targetDate)) {
-          completionsToDelete.push({ taskId: subtask.id, date: targetDate.toISOString() });
+          completionsToDelete.push({ taskId: subtask.id, date: dateStr });
         }
       }
       return completionsToDelete;
@@ -190,14 +191,15 @@ export function useCompletionHandlers({
 
   const collectSubtaskCompletionsToCreate = useCallback(
     (task, targetDate) => {
-      const completionsToCreate = [{ taskId: task.id, date: targetDate.toISOString() }];
+      const dateStr = formatLocalDate(targetDate);
+      const completionsToCreate = [{ taskId: task.id, date: dateStr, outcome: "completed" }];
       if (!task.subtasks || task.subtasks.length === 0) {
         return completionsToCreate;
       }
 
       for (const subtask of task.subtasks) {
         if (!isCompletedOnDate(subtask.id, targetDate)) {
-          completionsToCreate.push({ taskId: subtask.id, date: targetDate.toISOString() });
+          completionsToCreate.push({ taskId: subtask.id, date: dateStr, outcome: "completed" });
         }
       }
       return completionsToCreate;
