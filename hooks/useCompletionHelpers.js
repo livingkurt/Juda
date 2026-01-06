@@ -5,9 +5,30 @@ import { useGetCompletionsQuery } from "@/lib/store/api/completionsApi";
 import { useAuth } from "@/hooks/useAuth";
 
 // Helper function to normalize date to UTC midnight for consistent comparison
+// Handles Date objects, ISO strings, and date strings (YYYY-MM-DD)
 const normalizeDate = date => {
-  const d = date ? new Date(date) : new Date();
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+  if (!date) {
+    // Use local date parts for "today"
+    const now = new Date();
+    return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0));
+  }
+
+  // If it's already a date string in YYYY-MM-DD format, parse it as UTC
+  if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [year, month, day] = date.split("-").map(Number);
+    return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  }
+
+  // If it's an ISO string (contains T or Z), it's already in UTC - use UTC parts
+  if (typeof date === "string" && (date.includes("T") || date.includes("Z"))) {
+    const d = new Date(date);
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+  }
+
+  // For Date objects, use LOCAL date parts (the date the user sees)
+  // This ensures Jan 7 local time becomes Jan 7 UTC midnight, not Jan 6
+  const d = new Date(date);
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0));
 };
 
 // Helper function to create lookup key from taskId and date

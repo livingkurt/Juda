@@ -375,10 +375,12 @@ export function useCompletionHandlers({
           });
         }
 
+        // Format date as YYYY-MM-DD to avoid timezone issues
+        const dateStr = formatLocalDate(targetDate);
         if (isCompletedOnTargetDate) {
-          await deleteCompletion(subtaskId, targetDate.toISOString());
+          await deleteCompletion(subtaskId, dateStr);
         } else {
-          await createCompletion(subtaskId, targetDate.toISOString());
+          await createCompletion(subtaskId, dateStr);
         }
       } catch (error) {
         console.error("Error toggling subtask completion:", error);
@@ -392,12 +394,14 @@ export function useCompletionHandlers({
     async (taskId, date, outcome) => {
       try {
         const dateObj = date instanceof Date ? date : new Date(date);
+        // Format date as YYYY-MM-DD to avoid timezone issues
+        const dateStr = formatLocalDate(dateObj);
         const task = tasks.find(t => t.id === taskId);
         const isSubtask = task?.parentId != null;
         const isRecurringTask = task?.recurrence && task.recurrence.type && task.recurrence.type !== "none";
 
         if (outcome === null) {
-          await deleteCompletion(taskId, dateObj.toISOString());
+          await deleteCompletion(taskId, dateStr);
 
           if (!isRecurringTask) {
             await updateTask(taskId, { status: "todo" });
@@ -408,7 +412,7 @@ export function useCompletionHandlers({
           }
 
           if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
-            await Promise.all(task.subtasks.map(subtask => deleteCompletion(subtask.id, dateObj.toISOString())));
+            await Promise.all(task.subtasks.map(subtask => deleteCompletion(subtask.id, dateStr)));
           }
         } else {
           if (outcome === "completed" && !showCompletedTasks) {
@@ -416,16 +420,14 @@ export function useCompletionHandlers({
           }
 
           try {
-            await createCompletion(taskId, dateObj.toISOString(), { outcome });
+            await createCompletion(taskId, dateStr, { outcome });
 
             if (outcome === "completed" && !isRecurringTask) {
               await updateTask(taskId, { status: "complete" });
             }
 
             if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
-              await Promise.all(
-                task.subtasks.map(subtask => createCompletion(subtask.id, dateObj.toISOString(), { outcome }))
-              );
+              await Promise.all(task.subtasks.map(subtask => createCompletion(subtask.id, dateStr, { outcome })));
             }
           } catch (completionError) {
             if (outcome === "completed" && !showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
@@ -463,7 +465,9 @@ export function useCompletionHandlers({
       try {
         const task = tasks.find(t => t.id === taskId);
         const targetDate = viewDate || today;
-        await createCompletion(taskId, targetDate.toISOString(), { outcome: "not_completed" });
+        // Format date as YYYY-MM-DD to avoid timezone issues
+        const dateStr = formatLocalDate(targetDate);
+        await createCompletion(taskId, dateStr, { outcome: "not_completed" });
 
         if (!showCompletedTasks) {
           addToRecentlyCompleted(taskId, task?.sectionId);
@@ -481,7 +485,9 @@ export function useCompletionHandlers({
       try {
         const task = tasks.find(t => t.id === taskId);
         const targetDate = viewDate || today;
-        await createCompletion(taskId, targetDate.toISOString(), {
+        // Format date as YYYY-MM-DD to avoid timezone issues
+        const dateStr = formatLocalDate(targetDate);
+        await createCompletion(taskId, dateStr, {
           outcome: "completed",
           note,
         });

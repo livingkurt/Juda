@@ -79,7 +79,10 @@ export const JournalView = memo(function JournalView({
 
   // Handle saving journal entries
   const handleSaveEntry = async (taskId, date, note) => {
-    const dateStr = dayjs(date).format("YYYY-MM-DD");
+    // If date is already a string in YYYY-MM-DD format, use it directly
+    // Otherwise, format it properly to avoid timezone issues
+    const dateStr =
+      typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : dayjs(date).format("YYYY-MM-DD");
     const existingCompletion = getCompletionForDate?.(taskId, dateStr);
 
     try {

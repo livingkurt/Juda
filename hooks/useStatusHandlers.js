@@ -92,8 +92,9 @@ export function useStatusHandlers({
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
         updates.time = minutesToTime(currentMinutes);
 
-        // Create completion record
-        await createCompletion(taskId, now.toISOString(), {
+        // Create completion record - format date as YYYY-MM-DD to avoid timezone issues
+        const dateStr = formatLocalDate(now);
+        await createCompletion(taskId, dateStr, {
           outcome: "completed",
           startedAt: startedAt.toISOString(),
           completedAt: completedAt.toISOString(),
