@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -33,13 +33,16 @@ function generateCuid() {
   return `c${Date.now().toString(36)}${Math.random().toString(36).substring(2, 15)}`;
 }
 
-// Simple WeekdaySelector component using MUI
-function WeekdaySelector({ selectedDays = [], onChange, size = "small" }) {
-  const handleChange = (event, newDays) => {
-    if (newDays !== null && newDays.length > 0) {
-      onChange(newDays);
-    }
-  };
+// Simple WeekdaySelector component using MUI - memoized for performance
+const WeekdaySelector = memo(function WeekdaySelector({ selectedDays = [], onChange, size = "small" }) {
+  const handleChange = useCallback(
+    (event, newDays) => {
+      if (newDays !== null && newDays.length > 0) {
+        onChange(newDays);
+      }
+    },
+    [onChange]
+  );
 
   return (
     <ToggleButtonGroup value={selectedDays} onChange={handleChange} size={size} sx={{ flexWrap: "wrap", gap: 0.5 }}>
@@ -50,65 +53,108 @@ function WeekdaySelector({ selectedDays = [], onChange, size = "small" }) {
       ))}
     </ToggleButtonGroup>
   );
-}
+});
 
-export default function WorkoutBuilder() {
+export default function WorkoutBuilder({
+  isOpen: propsIsOpen,
+  onClose: propsOnClose,
+  taskId: propsTaskId,
+  onSaveComplete: propsOnSaveComplete,
+} = {}) {
   const dialogState = useDialogState();
   const { refetch: refetchTasks } = useGetTasksQuery();
 
-  const taskId = dialogState.editingWorkoutTask?.id;
-  const isOpen = Boolean(dialogState.editingWorkoutTask);
+  // Support both prop-controlled and dialogState-controlled modes
+  const taskId = propsTaskId || dialogState.editingWorkoutTask?.id;
+  const isOpen = propsIsOpen !== undefined ? propsIsOpen : Boolean(dialogState.editingWorkoutTask);
 
   const { data: existingProgram, isLoading: programLoading } = useGetWorkoutProgramQuery(taskId, {
-    skip: !taskId,
+    skip: !taskId || !isOpen,
   });
   const [saveWorkoutProgramMutation] = useSaveWorkoutProgramMutation();
 
-  const handleClose = () => {
-    dialogState.setEditingWorkoutTask(null);
-  };
-
-  const handleSaveComplete = () => {
-    dialogState.setEditingWorkoutTask(null);
-    refetchTasks();
-  };
-
+  // State declarations - MUST come before functions that use them
   const [sections, setSections] = useState([]);
   const [expandedSections, setExpandedSections] = useState({});
   const [expandedDays, setExpandedDays] = useState({});
+  const [expandedExercises, setExpandedExercises] = useState({});
   const [numberOfWeeks, setNumberOfWeeks] = useState(0);
   const [name, setName] = useState("");
+  const loadedProgramIdRef = useRef(null);
 
-  // Load existing program
-  useEffect(() => {
-    if (existingProgram) {
-      setName(existingProgram.name || "");
-      setNumberOfWeeks(existingProgram.numberOfWeeks || 0);
-      setSections(existingProgram.sections || []);
+  // Reset all state helper
+  const resetState = () => {
+    loadedProgramIdRef.current = null;
+    setName("");
+    setNumberOfWeeks(0);
+    setSections([]);
+    setExpandedSections({});
+    setExpandedDays({});
+    setExpandedExercises({});
+  };
+
+  const handleClose = () => {
+    if (propsOnClose) {
+      propsOnClose();
+    } else {
+      dialogState.setEditingWorkoutTask(null);
     }
-  }, [existingProgram]);
+    resetState();
+  };
+
+  const handleSaveComplete = () => {
+    if (propsOnSaveComplete) {
+      propsOnSaveComplete();
+    } else {
+      dialogState.setEditingWorkoutTask(null);
+    }
+    resetState();
+    refetchTasks();
+  };
+
+  // Toggle exercise progression expansion
+  const toggleExerciseProgression = useCallback(exerciseId => {
+    setExpandedExercises(prev => ({ ...prev, [exerciseId]: !prev[exerciseId] }));
+  }, []);
+
+  // Load existing program - only run once per program
+  useEffect(() => {
+    if (!existingProgram || !isOpen) return;
+
+    // Only load if this is a different program than what we've already loaded
+    if (existingProgram.taskId === loadedProgramIdRef.current) return;
+
+    loadedProgramIdRef.current = existingProgram.taskId;
+
+    setName(existingProgram.name || "");
+    setNumberOfWeeks(existingProgram.numberOfWeeks || 0);
+
+    // Ensure sections is always an array
+    const sectionsData = Array.isArray(existingProgram.sections) ? existingProgram.sections : [];
+    setSections(sectionsData);
+  }, [existingProgram, isOpen]);
 
   // Add section
-  const addSection = () => {
+  const addSection = useCallback(() => {
     const newSection = {
       id: generateCuid(),
       name: "New Section",
       type: "workout",
       days: [],
     };
-    setSections([...sections, newSection]);
-    setExpandedSections({ ...expandedSections, [newSection.id]: true });
-  };
+    setSections(prev => [...prev, newSection]);
+    setExpandedSections(prev => ({ ...prev, [newSection.id]: true }));
+  }, []);
 
   // Update section
-  const updateSection = (sectionId, updates) => {
-    setSections(sections.map(s => (s.id === sectionId ? { ...s, ...updates } : s)));
-  };
+  const updateSection = useCallback((sectionId, updates) => {
+    setSections(prev => prev.map(s => (s.id === sectionId ? { ...s, ...updates } : s)));
+  }, []);
 
   // Delete section
-  const deleteSection = sectionId => {
-    setSections(sections.filter(s => s.id !== sectionId));
-  };
+  const deleteSection = useCallback(sectionId => {
+    setSections(prev => prev.filter(s => s.id !== sectionId));
+  }, []);
 
   // Add day to section
   const addDay = sectionId => {
@@ -231,8 +277,8 @@ export default function WorkoutBuilder() {
   // Update number of weeks (propagate to all exercises)
   const updateNumberOfWeeks = weeks => {
     setNumberOfWeeks(weeks);
-    setSections(
-      sections.map(section => ({
+    setSections(prevSections =>
+      prevSections.map(section => ({
         ...section,
         days: section.days?.map(day => ({
           ...day,
@@ -314,14 +360,19 @@ export default function WorkoutBuilder() {
   };
 
   // Toggle section expansion
-  const toggleSection = sectionId => {
-    setExpandedSections({ ...expandedSections, [sectionId]: !expandedSections[sectionId] });
-  };
+  const toggleSection = useCallback(sectionId => {
+    setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
+  }, []);
 
   // Toggle day expansion
-  const toggleDay = dayId => {
-    setExpandedDays({ ...expandedDays, [dayId]: !expandedDays[dayId] });
-  };
+  const toggleDay = useCallback(dayId => {
+    setExpandedDays(prev => ({ ...prev, [dayId]: !prev[dayId] }));
+  }, []);
+
+  // Don't render anything if not open
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <Dialog
@@ -341,226 +392,356 @@ export default function WorkoutBuilder() {
       </DialogTitle>
 
       <DialogContent dividers sx={{ p: 2 }}>
-        <Stack spacing={3}>
-          {/* Workout Name */}
-          <TextField
-            label="Workout Name (optional)"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="My Workout Program"
-            size="small"
-            sx={{ maxWidth: 400 }}
-          />
-
-          {/* Number of Weeks */}
-          <Box>
-            <TextField
-              label="Number of Weeks"
-              type="number"
-              value={numberOfWeeks}
-              onChange={e => updateNumberOfWeeks(parseInt(e.target.value) || 0)}
-              size="small"
-              inputProps={{ min: 0 }}
-              sx={{ maxWidth: 200 }}
-            />
-            <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-              Controls weekly progression for all exercises
-            </Typography>
-          </Box>
-
-          {/* Sections */}
-          <Stack spacing={2}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="subtitle1" fontWeight={600}>
-                Sections
+        {programLoading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 400 }}>
+            <Stack spacing={2} alignItems="center">
+              <Typography variant="body2" color="text.secondary">
+                Loading workout program...
               </Typography>
-              <Button startIcon={<Plus fontSize="small" />} onClick={addSection} size="small">
-                Add Section
-              </Button>
             </Stack>
+          </Box>
+        ) : (
+          <Stack spacing={3}>
+            {/* Workout Name */}
+            <TextField
+              label="Workout Name (optional)"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="My Workout Program"
+              size="small"
+              sx={{ maxWidth: 400 }}
+            />
 
-            {sections.map(section => (
-              <Paper key={section.id} variant="outlined" sx={{ p: 2 }}>
-                {/* Section Header */}
-                <Stack direction="row" spacing={2} alignItems="center" mb={expandedSections[section.id] ? 2 : 0}>
-                  <IconButton size="small" onClick={() => toggleSection(section.id)}>
-                    {expandedSections[section.id] ? (
-                      <ChevronDown fontSize="small" />
-                    ) : (
-                      <ChevronRight fontSize="small" />
-                    )}
-                  </IconButton>
+            {/* Number of Weeks */}
+            <Box>
+              <TextField
+                label="Number of Weeks"
+                type="number"
+                value={numberOfWeeks}
+                onChange={e => updateNumberOfWeeks(parseInt(e.target.value) || 0)}
+                size="small"
+                inputProps={{ min: 0 }}
+                sx={{ maxWidth: 200 }}
+              />
+              <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                Controls weekly progression for all exercises
+              </Typography>
+            </Box>
 
-                  <TextField
-                    value={section.name}
-                    onChange={e => updateSection(section.id, { name: e.target.value })}
-                    size="small"
-                    sx={{ flex: 1 }}
-                  />
+            {/* Sections */}
+            <Stack spacing={2}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="subtitle1" fontWeight={600}>
+                  Sections
+                </Typography>
+                <Button startIcon={<Plus fontSize="small" />} onClick={addSection} size="small">
+                  Add Section
+                </Button>
+              </Stack>
 
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <InputLabel>Type</InputLabel>
-                    <Select
-                      value={section.type}
-                      onChange={e => updateSection(section.id, { type: e.target.value })}
-                      label="Type"
-                    >
-                      {WORKOUT_SECTION_TYPES.map(t => (
-                        <MenuItem key={t.value} value={t.value}>
-                          {t.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+              {sections.map(section => (
+                <Paper key={section.id} variant="outlined" sx={{ p: 2 }}>
+                  {/* Section Header */}
+                  <Stack direction="row" spacing={2} alignItems="center" mb={expandedSections[section.id] ? 2 : 0}>
+                    <IconButton size="small" onClick={() => toggleSection(section.id)}>
+                      {expandedSections[section.id] ? (
+                        <ChevronDown fontSize="small" />
+                      ) : (
+                        <ChevronRight fontSize="small" />
+                      )}
+                    </IconButton>
 
-                  <IconButton size="small" color="error" onClick={() => deleteSection(section.id)}>
-                    <Trash2 fontSize="small" />
-                  </IconButton>
-                </Stack>
-
-                {/* Section Content */}
-                <Collapse in={expandedSections[section.id]}>
-                  <Stack spacing={2} sx={{ pl: 4 }}>
-                    <Button
-                      startIcon={<Plus fontSize="small" />}
-                      onClick={() => addDay(section.id)}
+                    <TextField
+                      value={section.name}
+                      onChange={e => updateSection(section.id, { name: e.target.value })}
                       size="small"
-                      sx={{ alignSelf: "flex-start" }}
-                    >
-                      Add Day
-                    </Button>
+                      sx={{ flex: 1 }}
+                    />
 
-                    {section.days?.map(day => (
-                      <Paper key={day.id} variant="outlined" sx={{ p: 1.5 }}>
-                        {/* Day Header */}
-                        <Stack direction="row" spacing={2} alignItems="center" mb={expandedDays[day.id] ? 1.5 : 0}>
-                          <IconButton size="small" onClick={() => toggleDay(day.id)}>
-                            {expandedDays[day.id] ? (
-                              <ChevronDown fontSize="small" />
-                            ) : (
-                              <ChevronRight fontSize="small" />
-                            )}
-                          </IconButton>
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Type</InputLabel>
+                      <Select
+                        value={section.type}
+                        onChange={e => updateSection(section.id, { type: e.target.value })}
+                        label="Type"
+                      >
+                        {WORKOUT_SECTION_TYPES.map(t => (
+                          <MenuItem key={t.value} value={t.value}>
+                            {t.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
 
-                          <TextField
-                            value={day.name}
-                            onChange={e => updateDay(section.id, day.id, { name: e.target.value })}
-                            size="small"
-                            sx={{ flex: 1 }}
-                          />
-
-                          <Box onClick={e => e.stopPropagation()} flexShrink={0}>
-                            <Typography variant="caption" display="block" mb={0.5}>
-                              Days of Week
-                            </Typography>
-                            <WeekdaySelector
-                              selectedDays={day.daysOfWeek || (day.dayOfWeek !== undefined ? [day.dayOfWeek] : [])}
-                              onChange={newDays => updateDaysOfWeek(section.id, day.id, newDays)}
-                              size="small"
-                            />
-                          </Box>
-
-                          <IconButton size="small" color="error" onClick={() => deleteDay(section.id, day.id)}>
-                            <Trash2 fontSize="small" />
-                          </IconButton>
-                        </Stack>
-
-                        {/* Day Content */}
-                        <Collapse in={expandedDays[day.id]}>
-                          <Stack spacing={1.5} sx={{ pl: 4 }}>
-                            <Button
-                              startIcon={<Plus fontSize="small" />}
-                              onClick={() => addExercise(section.id, day.id)}
-                              size="small"
-                              sx={{ alignSelf: "flex-start" }}
-                            >
-                              Add Exercise
-                            </Button>
-
-                            {day.exercises?.map(exercise => (
-                              <Paper key={exercise.id} variant="outlined" sx={{ p: 1.5 }}>
-                                <Grid container spacing={1} alignItems="center">
-                                  <Grid item xs={12} sm={4}>
-                                    <TextField
-                                      label="Exercise Name"
-                                      value={exercise.name}
-                                      onChange={e =>
-                                        updateExercise(section.id, day.id, exercise.id, { name: e.target.value })
-                                      }
-                                      size="small"
-                                      fullWidth
-                                    />
-                                  </Grid>
-                                  <Grid item xs={6} sm={2}>
-                                    <FormControl size="small" fullWidth>
-                                      <InputLabel>Type</InputLabel>
-                                      <Select
-                                        value={getExerciseSelectValue(exercise.type, exercise.unit)}
-                                        onChange={e => {
-                                          const { type, unit } = parseExerciseSelectValue(e.target.value);
-                                          updateExercise(section.id, day.id, exercise.id, { type, unit });
-                                        }}
-                                        label="Type"
-                                      >
-                                        {EXERCISE_TYPES.map(t => (
-                                          <MenuItem key={t.value} value={t.value}>
-                                            {t.label}
-                                          </MenuItem>
-                                        ))}
-                                      </Select>
-                                    </FormControl>
-                                  </Grid>
-                                  <Grid item xs={6} sm={2}>
-                                    <TextField
-                                      label="Sets"
-                                      type="number"
-                                      value={exercise.sets}
-                                      onChange={e =>
-                                        updateExercise(section.id, day.id, exercise.id, {
-                                          sets: parseInt(e.target.value) || 1,
-                                        })
-                                      }
-                                      size="small"
-                                      fullWidth
-                                      inputProps={{ min: 1 }}
-                                    />
-                                  </Grid>
-                                  <Grid item xs={6} sm={2}>
-                                    <TextField
-                                      label="Target"
-                                      type="number"
-                                      value={exercise.targetValue}
-                                      onChange={e =>
-                                        updateExercise(section.id, day.id, exercise.id, {
-                                          targetValue: parseFloat(e.target.value) || 0,
-                                        })
-                                      }
-                                      size="small"
-                                      fullWidth
-                                    />
-                                  </Grid>
-                                  <Grid item xs={6} sm={2}>
-                                    <IconButton
-                                      size="small"
-                                      color="error"
-                                      onClick={() => deleteExercise(section.id, day.id, exercise.id)}
-                                    >
-                                      <Trash2 fontSize="small" />
-                                    </IconButton>
-                                  </Grid>
-                                </Grid>
-                              </Paper>
-                            ))}
-                          </Stack>
-                        </Collapse>
-                      </Paper>
-                    ))}
+                    <IconButton size="small" color="error" onClick={() => deleteSection(section.id)}>
+                      <Trash2 fontSize="small" />
+                    </IconButton>
                   </Stack>
-                </Collapse>
-              </Paper>
-            ))}
+
+                  {/* Section Content */}
+                  <Collapse in={expandedSections[section.id]}>
+                    <Stack spacing={2} sx={{ pl: 4 }}>
+                      <Button
+                        startIcon={<Plus fontSize="small" />}
+                        onClick={() => addDay(section.id)}
+                        size="small"
+                        sx={{ alignSelf: "flex-start" }}
+                      >
+                        Add Day
+                      </Button>
+
+                      {section.days?.map(day => (
+                        <Paper key={day.id} variant="outlined" sx={{ p: 1.5 }}>
+                          {/* Day Header */}
+                          <Stack direction="row" spacing={2} alignItems="center" mb={expandedDays[day.id] ? 1.5 : 0}>
+                            <IconButton size="small" onClick={() => toggleDay(day.id)}>
+                              {expandedDays[day.id] ? (
+                                <ChevronDown fontSize="small" />
+                              ) : (
+                                <ChevronRight fontSize="small" />
+                              )}
+                            </IconButton>
+
+                            <TextField
+                              value={day.name}
+                              onChange={e => updateDay(section.id, day.id, { name: e.target.value })}
+                              size="small"
+                              sx={{ flex: 1 }}
+                            />
+
+                            <Box onClick={e => e.stopPropagation()} flexShrink={0}>
+                              <Typography variant="caption" display="block" mb={0.5}>
+                                Days of Week
+                              </Typography>
+                              <WeekdaySelector
+                                selectedDays={day.daysOfWeek || (day.dayOfWeek !== undefined ? [day.dayOfWeek] : [])}
+                                onChange={newDays => updateDaysOfWeek(section.id, day.id, newDays)}
+                                size="small"
+                              />
+                            </Box>
+
+                            <IconButton size="small" color="error" onClick={() => deleteDay(section.id, day.id)}>
+                              <Trash2 fontSize="small" />
+                            </IconButton>
+                          </Stack>
+
+                          {/* Day Content */}
+                          <Collapse in={expandedDays[day.id]}>
+                            <Stack spacing={1.5} sx={{ pl: 4 }}>
+                              <Button
+                                startIcon={<Plus fontSize="small" />}
+                                onClick={() => addExercise(section.id, day.id)}
+                                size="small"
+                                sx={{ alignSelf: "flex-start" }}
+                              >
+                                Add Exercise
+                              </Button>
+
+                              {day.exercises?.map(exercise => (
+                                <Paper key={exercise.id} variant="outlined" sx={{ p: 1.5 }}>
+                                  <Grid container spacing={1} alignItems="center">
+                                    <Grid item xs={12} sm={4}>
+                                      <TextField
+                                        label="Exercise Name"
+                                        value={exercise.name}
+                                        onChange={e =>
+                                          updateExercise(section.id, day.id, exercise.id, { name: e.target.value })
+                                        }
+                                        size="small"
+                                        fullWidth
+                                      />
+                                    </Grid>
+                                    <Grid item xs={6} sm={2}>
+                                      <FormControl size="small" fullWidth>
+                                        <InputLabel>Type</InputLabel>
+                                        <Select
+                                          value={getExerciseSelectValue(exercise.type, exercise.unit)}
+                                          onChange={e => {
+                                            const { type, unit } = parseExerciseSelectValue(e.target.value);
+                                            updateExercise(section.id, day.id, exercise.id, { type, unit });
+                                          }}
+                                          label="Type"
+                                        >
+                                          {EXERCISE_TYPES.map(t => (
+                                            <MenuItem key={t.value} value={t.value}>
+                                              {t.label}
+                                            </MenuItem>
+                                          ))}
+                                        </Select>
+                                      </FormControl>
+                                    </Grid>
+                                    <Grid item xs={6} sm={2}>
+                                      <TextField
+                                        label="Sets"
+                                        type="number"
+                                        value={exercise.sets}
+                                        onChange={e =>
+                                          updateExercise(section.id, day.id, exercise.id, {
+                                            sets: parseInt(e.target.value) || 1,
+                                          })
+                                        }
+                                        size="small"
+                                        fullWidth
+                                        inputProps={{ min: 1 }}
+                                      />
+                                    </Grid>
+                                    <Grid item xs={6} sm={2}>
+                                      <TextField
+                                        label="Target"
+                                        type="number"
+                                        value={exercise.targetValue}
+                                        onChange={e =>
+                                          updateExercise(section.id, day.id, exercise.id, {
+                                            targetValue: parseFloat(e.target.value) || 0,
+                                          })
+                                        }
+                                        size="small"
+                                        fullWidth
+                                      />
+                                    </Grid>
+                                    <Grid item xs={6} sm={2}>
+                                      <IconButton
+                                        size="small"
+                                        color="error"
+                                        onClick={() => deleteExercise(section.id, day.id, exercise.id)}
+                                      >
+                                        <Trash2 fontSize="small" />
+                                      </IconButton>
+                                    </Grid>
+                                  </Grid>
+
+                                  {/* Weekly Progression Toggle */}
+                                  {numberOfWeeks > 0 &&
+                                    exercise.weeklyProgression &&
+                                    exercise.weeklyProgression.length > 0 && (
+                                      <Box sx={{ mt: 1 }}>
+                                        <Button
+                                          size="small"
+                                          onClick={() => toggleExerciseProgression(exercise.id)}
+                                          startIcon={
+                                            expandedExercises[exercise.id] ? (
+                                              <ChevronDown fontSize="small" />
+                                            ) : (
+                                              <ChevronRight fontSize="small" />
+                                            )
+                                          }
+                                          sx={{ textTransform: "none", fontSize: "0.75rem" }}
+                                        >
+                                          Weekly Progression ({numberOfWeeks} weeks)
+                                        </Button>
+                                        <Collapse in={expandedExercises[exercise.id]}>
+                                          <Grid container spacing={1} sx={{ mt: 0.5 }}>
+                                            {exercise.weeklyProgression.map((progression, weekIndex) => (
+                                              <Grid item xs={6} sm={4} md={3} lg={2} key={progression.week}>
+                                                <Paper
+                                                  variant="outlined"
+                                                  sx={{
+                                                    p: 1,
+                                                    bgcolor: progression.isDeload
+                                                      ? "info.dark"
+                                                      : progression.isTest
+                                                        ? "warning.dark"
+                                                        : "background.paper",
+                                                    borderColor: progression.isDeload
+                                                      ? "info.main"
+                                                      : progression.isTest
+                                                        ? "warning.main"
+                                                        : "divider",
+                                                  }}
+                                                >
+                                                  <Stack spacing={0.5}>
+                                                    <Typography variant="caption" fontWeight={600}>
+                                                      Week {progression.week}
+                                                    </Typography>
+                                                    <TextField
+                                                      size="small"
+                                                      type="number"
+                                                      value={progression.targetValue ?? ""}
+                                                      onChange={e => {
+                                                        const newProgressions = [...exercise.weeklyProgression];
+                                                        newProgressions[weekIndex] = {
+                                                          ...progression,
+                                                          targetValue: parseFloat(e.target.value) || 0,
+                                                        };
+                                                        updateExercise(section.id, day.id, exercise.id, {
+                                                          weeklyProgression: newProgressions,
+                                                        });
+                                                      }}
+                                                      placeholder="Target"
+                                                      fullWidth
+                                                      sx={{ "& input": { fontSize: "0.75rem" } }}
+                                                    />
+                                                    <Stack direction="row" spacing={0.5}>
+                                                      <ToggleButton
+                                                        value="deload"
+                                                        selected={progression.isDeload}
+                                                        onChange={() => {
+                                                          const newProgressions = [...exercise.weeklyProgression];
+                                                          newProgressions[weekIndex] = {
+                                                            ...progression,
+                                                            isDeload: !progression.isDeload,
+                                                            isTest: false,
+                                                          };
+                                                          updateExercise(section.id, day.id, exercise.id, {
+                                                            weeklyProgression: newProgressions,
+                                                          });
+                                                        }}
+                                                        size="small"
+                                                        sx={{
+                                                          flex: 1,
+                                                          py: 0.25,
+                                                          fontSize: "0.625rem",
+                                                          textTransform: "none",
+                                                        }}
+                                                      >
+                                                        Deload
+                                                      </ToggleButton>
+                                                      <ToggleButton
+                                                        value="test"
+                                                        selected={progression.isTest}
+                                                        onChange={() => {
+                                                          const newProgressions = [...exercise.weeklyProgression];
+                                                          newProgressions[weekIndex] = {
+                                                            ...progression,
+                                                            isTest: !progression.isTest,
+                                                            isDeload: false,
+                                                          };
+                                                          updateExercise(section.id, day.id, exercise.id, {
+                                                            weeklyProgression: newProgressions,
+                                                          });
+                                                        }}
+                                                        size="small"
+                                                        sx={{
+                                                          flex: 1,
+                                                          py: 0.25,
+                                                          fontSize: "0.625rem",
+                                                          textTransform: "none",
+                                                        }}
+                                                      >
+                                                        Test
+                                                      </ToggleButton>
+                                                    </Stack>
+                                                  </Stack>
+                                                </Paper>
+                                              </Grid>
+                                            ))}
+                                          </Grid>
+                                        </Collapse>
+                                      </Box>
+                                    )}
+                                </Paper>
+                              ))}
+                            </Stack>
+                          </Collapse>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  </Collapse>
+                </Paper>
+              ))}
+            </Stack>
           </Stack>
-        </Stack>
+        )}
       </DialogContent>
 
       <DialogActions sx={{ p: 2 }}>

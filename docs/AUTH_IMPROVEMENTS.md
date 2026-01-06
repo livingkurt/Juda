@@ -20,7 +20,7 @@ This document details the improvements made to the authentication system to ensu
 
 ```javascript
 const REFRESH_TOKEN_EXPIRY_DAYS = 365; // Was 7
-maxAge: 60 * 60 * 24 * 365 // Cookie maxAge matches token expiry
+maxAge: 60 * 60 * 24 * 365; // Cookie maxAge matches token expiry
 ```
 
 **Why**: Users should stay signed in for a full year, not just a week.
@@ -32,6 +32,7 @@ maxAge: 60 * 60 * 24 * 365 // Cookie maxAge matches token expiry
 **Changed in**: `app/api/auth/refresh/route.js`
 
 **Before** (Problematic):
+
 ```javascript
 // Generate new refresh token
 const newRefreshToken = generateRefreshToken(user.id);
@@ -40,6 +41,7 @@ await removeRefreshToken(refreshToken); // ❌ Deletes old token before browser 
 ```
 
 **After** (Fixed):
+
 ```javascript
 // Keep the same refresh token (no rotation)
 const newAccessToken = generateAccessToken(user.id);
@@ -56,6 +58,7 @@ await storeRefreshToken(user.id, refreshToken); // Just extend expiry
 **Changed in**: `contexts/AuthContext.jsx`
 
 **Key Changes**:
+
 - **401 errors**: Fail immediately (no refresh token = user needs to log in)
 - **500+ errors**: Retry with exponential backoff (transient server issues)
 - **Network errors**: Retry with exponential backoff (connection issues)
@@ -85,11 +88,13 @@ if (response.status >= 500 && retryCount < 3) {
 **Changed in**: `contexts/AuthContext.jsx`
 
 **Before** (Problematic):
+
 ```javascript
 if (refreshingRef.current) return null; // ❌ Concurrent calls fail
 ```
 
 **After** (Fixed):
+
 ```javascript
 // If already refreshing, return the existing promise
 if (refreshingRef.current && refreshPromiseRef.current) {
@@ -113,10 +118,11 @@ return refreshPromise;
 **Changed in**: All auth routes
 
 ```javascript
-sameSite: "strict" // Was "lax"
+sameSite: "strict"; // Was "lax"
 ```
 
 **Why**:
+
 - `strict` provides better cookie persistence across page refreshes
 - `lax` can cause cookies to be dropped in certain scenarios in production
 - Since this is a same-site app (not cross-origin), `strict` is appropriate
@@ -129,12 +135,20 @@ sameSite: "strict" // Was "lax"
 
 ```javascript
 // Before
-{ error: "No refresh token" }
+{
+  error: "No refresh token";
+}
 
 // After
-{ error: "No cookies" }           // No cookie header at all
-{ error: "No refresh token cookie" } // Cookie header exists but no refreshToken
-{ error: "Invalid refresh token signature" } // JWT verification failed
+{
+  error: "No cookies";
+} // No cookie header at all
+{
+  error: "No refresh token cookie";
+} // Cookie header exists but no refreshToken
+{
+  error: "Invalid refresh token signature";
+} // JWT verification failed
 ```
 
 **Why**: Helps debug production issues by identifying exactly where the auth flow fails.
@@ -208,6 +222,7 @@ Fetch /api/auth/refresh
 ## Testing Checklist
 
 ### Local Development
+
 - [x] Login persists across page refreshes
 - [x] Access token auto-refreshes every 13 minutes
 - [x] No duplicate refresh requests
@@ -215,6 +230,7 @@ Fetch /api/auth/refresh
 - [x] Server errors retry appropriately
 
 ### Production
+
 - [ ] Login persists across page refreshes
 - [ ] Cookies persist with `sameSite: "strict"`
 - [ ] No race conditions on token refresh
@@ -256,14 +272,17 @@ None required. The `RefreshToken` table schema remains unchanged.
 ### Why Not Rotate Refresh Tokens?
 
 **Traditional approach**: Rotate refresh token on every use
+
 - **Pro**: Limits exposure if token is stolen
 - **Con**: Causes race conditions in web apps (page refresh, concurrent requests)
 
 **Our approach**: Keep same refresh token, extend expiry
+
 - **Pro**: No race conditions, better UX
 - **Con**: Slightly longer exposure window if token is stolen
 
 **Mitigation**:
+
 - Refresh tokens are HTTP-only (JavaScript can't access)
 - Refresh tokens are stored in database (can be revoked)
 - `sameSite: "strict"` prevents CSRF
@@ -296,11 +315,13 @@ None required. The `RefreshToken` table schema remains unchanged.
 **Symptoms**: Works locally, fails in production
 
 **Possible causes**:
+
 1. Cookie not being set due to domain mismatch
 2. HTTPS not configured (cookies with `secure: true` require HTTPS)
 3. Browser blocking third-party cookies (shouldn't affect same-site)
 
 **Debug steps**:
+
 1. Check browser DevTools → Application → Cookies
 2. Verify `refreshToken` cookie exists and has correct attributes
 3. Check Network tab → `/api/auth/refresh` → Request Headers → Cookie
@@ -313,6 +334,7 @@ None required. The `RefreshToken` table schema remains unchanged.
 **Cause**: Should not happen with new code (401s fail immediately)
 
 **If it happens**:
+
 1. Check that latest code is deployed
 2. Clear browser cookies and localStorage
 3. Check server logs for the specific 401 error message
@@ -322,11 +344,13 @@ None required. The `RefreshToken` table schema remains unchanged.
 ## Performance Impact
 
 ### Before
+
 - Token rotation on every refresh: 2 DB queries (insert + delete)
 - Concurrent refreshes: N duplicate requests
 - Retries on 401: Infinite loop until timeout
 
 ### After
+
 - No rotation: 1 DB query (update expiry)
 - Concurrent refreshes: 1 shared request
 - Retries on 401: 0 (fails immediately)
@@ -347,4 +371,3 @@ The authentication system is now significantly more reliable:
 6. ✅ Clear error messages for debugging
 
 Users should now stay signed in reliably until they explicitly log out.
-

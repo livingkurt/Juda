@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { Box, CircularProgress } from "@mui/material";
 import { useAuth } from "@/hooks/useAuth";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
@@ -156,6 +156,12 @@ const customCollisionDetection = args => {
 
 export default function DailyTasksApp() {
   const { isAuthenticated, loading: authLoading, initialized: authInitialized } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  // Ensure component is mounted before rendering to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Redux RTK Query hooks
   const { data: tasks = [], isLoading: tasksLoading } = useGetTasksQuery(undefined, {
@@ -338,8 +344,8 @@ export default function DailyTasksApp() {
   const handleDragOver = dragAndDrop.handleDragOver;
   const handleDragEndNew = dragAndDrop.handleDragEndNew;
 
-  // Auth checks
-  if (!authInitialized || authLoading) {
+  // Auth checks - only show loading after mount to prevent hydration mismatch
+  if (!mounted || !authInitialized || authLoading) {
     return (
       <Box sx={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <CircularProgress size={48} />

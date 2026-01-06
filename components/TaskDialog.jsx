@@ -40,7 +40,7 @@ import { TagSelector } from "./TagSelector";
 import { TaskItem } from "./TaskItem";
 import { RichTextEditor } from "./RichTextEditor";
 import { TagChip } from "./TagChip";
-import WorkoutBuilder from "./WorkoutBuilder";
+// import WorkoutBuilder from "./WorkoutBuilder";
 import WeekdaySelector from "./WeekdaySelector";
 import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
@@ -137,7 +137,7 @@ function TaskDialogForm({
   const [activeSubtaskId, setActiveSubtaskId] = useState(null);
   const [completionType, setCompletionType] = useState(task?.completionType || "checkbox");
   const [content, setContent] = useState(task?.content || "");
-  const [workoutBuilderOpen, setWorkoutBuilderOpen] = useState(false);
+  // const [workoutBuilderOpen, setWorkoutBuilderOpen] = useState(false);
   const { data: workoutProgram } = useGetWorkoutProgramQuery(task?.id, {
     skip: !task?.id,
   });
@@ -494,7 +494,7 @@ function TaskDialogForm({
                   </Typography>
                 </GLGrid>
               )}
-              {completionType === "workout" && (
+              {/* {completionType === "workout" && (
                 <GLGrid item xs={12}>
                   <Box>
                     <Button
@@ -513,7 +513,7 @@ function TaskDialogForm({
                     )}
                   </Box>
                 </GLGrid>
-              )}
+              )} */}
 
               {/* Status field - only show for non-recurring tasks */}
               {recurrenceType === "none" && (
@@ -1047,7 +1047,7 @@ function TaskDialogForm({
       </Dialog>
 
       {/* Workout Builder Modal */}
-      {workoutBuilderOpen && task?.id && (
+      {/* {workoutBuilderOpen && task?.id && (
         <WorkoutBuilder
           isOpen={workoutBuilderOpen}
           onClose={() => setWorkoutBuilderOpen(false)}
@@ -1057,7 +1057,7 @@ function TaskDialogForm({
             setWorkoutBuilderOpen(false);
           }}
         />
-      )}
+      )} */}
     </>
   );
 }
