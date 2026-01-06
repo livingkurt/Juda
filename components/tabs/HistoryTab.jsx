@@ -484,13 +484,13 @@ export function HistoryTab({ isLoading: tabLoading }) {
       <Stack
         direction="column"
         spacing={2}
-        alignItems="center"
+        alignItems="stretch"
         sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}
         flexWrap="wrap"
         useFlexGap
       >
         {/* Date Navigation */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ width: "100%" }}>
           <DateNavigation
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
@@ -512,6 +512,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
           placeholder="Search tasks..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
+          sx={{ width: "100%" }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
