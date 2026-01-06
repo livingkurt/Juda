@@ -222,7 +222,7 @@ export const JournalView = memo(function JournalView({
 
                               return (
                                 <JournalDayEntry
-                                  key={`${task.id}-${year}`}
+                                  key={`${task.id}-${year}-${completion?.note || ""}`}
                                   task={task}
                                   date={dateStr}
                                   year={year}

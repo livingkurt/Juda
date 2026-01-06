@@ -44,20 +44,22 @@ export async function POST(request) {
       return NextResponse.json({ error: "User not found" }, { status: 401 });
     }
 
-    // Rotate refresh token (remove old, create new)
-    await removeRefreshToken(refreshToken);
-
+    // Rotate refresh token (store new BEFORE removing old for atomic operation)
     const newAccessToken = generateAccessToken(user.id);
     const newRefreshToken = generateRefreshToken(user.id);
 
+    // Store new token first (atomic operation)
     await storeRefreshToken(user.id, newRefreshToken);
 
-    // Set new refresh token cookie
+    // Only remove old token after new one is safely stored
+    await removeRefreshToken(refreshToken);
+
+    // Set new refresh token cookie (365 days to match token expiry)
     const cookie = serialize("refreshToken", newRefreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 365, // 365 days - keep users signed in "forever"
       path: "/",
     });
 

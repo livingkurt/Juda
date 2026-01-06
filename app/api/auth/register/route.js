@@ -43,12 +43,12 @@ export async function POST(request) {
     // Store refresh token
     await storeRefreshToken(user.id, refreshToken);
 
-    // Set refresh token as HTTP-only cookie
+    // Set refresh token as HTTP-only cookie (365 days to match token expiry)
     const cookie = serialize("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 365, // 365 days - keep users signed in "forever"
       path: "/",
     });
 

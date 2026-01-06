@@ -12,13 +12,10 @@ import { CalendarMonthView } from "@/components/CalendarMonthView";
 import { CalendarYearView } from "@/components/CalendarYearView";
 import { useViewState } from "@/hooks/useViewState";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
-import { useTaskOperations } from "@/hooks/useTaskOperations";
-import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { createDroppableId, createDraggableId } from "@/lib/dragHelpers";
-import { useSectionExpansion } from "@/hooks/useSectionExpansion";
 
 const calendarViews = [
   { label: "Day", value: "day" },
@@ -36,7 +33,6 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
     selectedDate,
     setSelectedDate,
     navigateCalendar,
-    getCalendarTitle,
     calendarView,
     setCalendarView,
     calendarSearchTerm,
@@ -92,28 +88,6 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
   // Get completion helpers
   const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
 
-  // Get task operations
-  const taskOps = useTaskOperations();
-  const handleEditTask = taskOps.handleEditTask;
-  const handleEditWorkout = taskOps.handleEditWorkout;
-  const handleDuplicateTask = taskOps.handleDuplicateTask;
-  const handleDeleteTask = taskOps.handleDeleteTask;
-
-  // Get completion handlers (need to provide required params)
-  const sectionExpansionInitial = useSectionExpansion({
-    sections: [],
-    showCompletedTasks: true,
-    tasksBySection: {},
-  });
-
-  const completionHandlers = useCompletionHandlers({
-    autoCollapsedSections: sectionExpansionInitial.autoCollapsedSections,
-    setAutoCollapsedSections: sectionExpansionInitial.setAutoCollapsedSections,
-    checkAndAutoCollapseSection: sectionExpansionInitial.checkAndAutoCollapseSection,
-  });
-
-  const handleOutcomeChange = completionHandlers.handleOutcomeChange;
-
   // Combine loading states
   const isActuallyLoading = isLoading || tasksLoading;
   // Filter tasks based on recurring preference for current view
@@ -153,7 +127,7 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
         flexDirection: "column",
         overflow: "hidden",
         height: "100%",
-        p: isMobile ? 0 : { xs: 1, md: 2 },
+        p: isMobile ? 1 : { xs: 1, md: 2 },
       }}
     >
       {/* Calendar Header */}
@@ -290,14 +264,13 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
               today.setHours(0, 0, 0, 0);
               setSelectedDate(today);
             }}
-            title={getCalendarTitle()}
-            showDatePicker={false}
-            showDateDisplay={false}
+            showDatePicker={true}
+            showDateDisplay={true}
             showViewSelector={true}
             viewCollection={calendarViews}
             selectedView={calendarView}
             onViewChange={value => setCalendarView(value)}
-            viewSelectorWidth={isMobile ? 20 : 24}
+            viewSelectorWidth="150px"
           />
         </Box>
         {/* Search and Tag Filter */}

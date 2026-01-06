@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { AuthPage } from "@/components/AuthPage";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { AppHeader } from "@/components/AppHeader";
 import { DragOverlayContent } from "@/components/DragOverlayContent";
 import { DndContext, DragOverlay, pointerWithin, closestCenter } from "@dnd-kit/core";
@@ -44,7 +45,6 @@ import { useSectionExpansion } from "@/hooks/useSectionExpansion";
 import { useViewState } from "@/hooks/useViewState";
 import { useDialogState } from "@/hooks/useDialogState";
 import { createDroppableId, createDraggableId, extractTaskId } from "@/lib/dragHelpers";
-import { PageSkeleton, LoadingSpinner } from "@/components/Skeletons";
 import { ViewTogglesAndProgress } from "@/components/ViewTogglesAndProgress";
 import { MainTabs, useLoadingTab } from "@/components/MainTabs";
 import dynamic from "next/dynamic";
@@ -446,6 +446,7 @@ export default function DailyTasksApp() {
       <WorkoutModal />
       <WorkoutBuilder key={dialogState.editingWorkoutTask?.id || "new"} />
       <OfflineIndicator />
+      <SyncStatusIndicator />
     </Box>
   );
 }

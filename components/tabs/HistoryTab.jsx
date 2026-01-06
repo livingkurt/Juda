@@ -421,24 +421,6 @@ export function HistoryTab({ isLoading: tabLoading }) {
     return groupedTasks.reduce((sum, g) => sum + g.tasks.length, 0);
   }, [groupedTasks]);
 
-  // Navigation label (title for DateNavigation)
-  const getNavigationLabel = () => {
-    if (dates.length === 0) return "";
-    const start = dayjs(dates[0]);
-    const end = dayjs(dates[dates.length - 1]);
-
-    if (range === "week") {
-      return `${start.format("MMM D")} - ${end.format("MMM D, YYYY")}`;
-    }
-    if (range === "month") {
-      return start.format("MMMM YYYY");
-    }
-    if (range === "year") {
-      return start.format("YYYY");
-    }
-    return `${start.format("MMM D")} - ${end.format("MMM D")}`;
-  };
-
   // View options for DateNavigation
   const viewOptions = [
     { label: "Week", value: "week" },
@@ -500,13 +482,30 @@ export function HistoryTab({ isLoading: tabLoading }) {
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Header */}
       <Stack
-        direction="row"
+        direction="column"
         spacing={2}
         alignItems="center"
         sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}
         flexWrap="wrap"
         useFlexGap
       >
+        {/* Date Navigation */}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <DateNavigation
+            selectedDate={selectedDate}
+            onDateChange={handleDateChange}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            onToday={handleToday}
+            showDatePicker={true}
+            showDateDisplay={true}
+            showViewSelector={true}
+            viewCollection={viewOptions}
+            selectedView={range}
+            onViewChange={handleViewChange}
+            viewSelectorWidth="100px"
+          />
+        </Box>
         {/* Search */}
         <TextField
           size="small"
@@ -520,27 +519,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
               </InputAdornment>
             ),
           }}
-          sx={{ minWidth: 200 }}
         />
-
-        {/* Date Navigation */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <DateNavigation
-            selectedDate={selectedDate}
-            onDateChange={handleDateChange}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            onToday={handleToday}
-            title={getNavigationLabel()}
-            showDatePicker={false}
-            showDateDisplay={false}
-            showViewSelector={true}
-            viewCollection={viewOptions}
-            selectedView={range}
-            onViewChange={handleViewChange}
-            viewSelectorWidth={24}
-          />
-        </Box>
 
         {/* Task count */}
         <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>

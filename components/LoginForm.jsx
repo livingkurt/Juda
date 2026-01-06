@@ -14,7 +14,7 @@ import {
   Alert,
   CircularProgress,
 } from "@mui/material";
-import { Visibility, VisibilityOff, Email, Lock } from "@mui/icons-material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useAuth } from "@/hooks/useAuth";
 
 export function LoginForm({ onSwitchToRegister, onForgotPassword }) {

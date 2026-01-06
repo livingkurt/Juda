@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
-import { Box, Button, Stack, Typography, Badge, useMediaQuery, Collapse, CircularProgress } from "@mui/material";
+import { Box, Tabs, Tab, Badge, Typography, useMediaQuery, Collapse, CircularProgress } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { List, Dashboard as LayoutDashboard, CalendarToday as Calendar } from "@mui/icons-material";
 import { BacklogDrawer } from "@/components/BacklogDrawer";
@@ -235,78 +235,100 @@ export function TasksTab() {
     };
   }, [filteredTodaysTasks, isCompletedOnDate, getOutcomeOnDate, viewDate]);
 
+  // Map mobileActiveView to tab index
+  const getTabIndex = useCallback(() => {
+    switch (mobileActiveView) {
+      case "backlog":
+        return 0;
+      case "today":
+        return 1;
+      case "calendar":
+        return 2;
+      default:
+        return 0;
+    }
+  }, [mobileActiveView]);
+
+  // Map tab index to mobileActiveView
+  const handleTabChange = useCallback(
+    (e, newValue) => {
+      switch (newValue) {
+        case 0:
+          dispatch(setMobileActiveView("backlog"));
+          break;
+        case 1:
+          dispatch(setMobileActiveView("today"));
+          break;
+        case 2:
+          dispatch(setMobileActiveView("calendar"));
+          break;
+        default:
+          dispatch(setMobileActiveView("backlog"));
+      }
+    },
+    [dispatch]
+  );
+
   if (isMobile) {
     return (
       <>
         {/* Mobile Tab Bar */}
-        <Box
+        <Tabs
+          value={getTabIndex()}
+          onChange={handleTabChange}
+          variant="fullWidth"
           sx={{
-            display: "flex",
             borderBottom: "1px solid",
             borderColor: "divider",
             bgcolor: "background.paper",
             flexShrink: 0,
           }}
         >
-          <Button
-            sx={{ flex: 1, borderRadius: 0, py: 2 }}
-            variant="text"
-            onClick={() => dispatch(setMobileActiveView("backlog"))}
-          >
-            <Stack direction="row" spacing={1} alignItems="center">
-              <List fontSize="small" />
-              <Typography variant="body2">Backlog</Typography>
-              {backlogTasks.length > 0 && (
-                <Badge
-                  badgeContent={backlogTasks.length}
-                  color="error"
-                  sx={{
-                    "& .MuiBadge-badge": {
-                      fontSize: "0.625rem",
-                      height: "16px",
-                      minWidth: "16px",
-                      px: 0.5,
-                    },
-                  }}
-                />
-              )}
-            </Stack>
-          </Button>
-          <Button
+          <Tab
+            icon={<List fontSize="small" />}
+            iconPosition="start"
+            label={
+              <Box
+                sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: 1 }}
+              >
+                <Box component="span">Backlog</Box>
+                {backlogTasks.length > 0 && (
+                  <Badge
+                    badgeContent={backlogTasks.length}
+                    color="error"
+                    sx={{
+                      "& .MuiBadge-badge": {
+                        fontSize: "0.625rem",
+                        height: "16px",
+                        minWidth: "16px",
+                        px: 0.5,
+                      },
+                    }}
+                  />
+                )}
+              </Box>
+            }
             sx={{
-              flex: 1,
-              borderRadius: 0,
-              py: 2,
-              borderBottom: mobileActiveView === "today" ? "2px solid" : "none",
-              borderBottomColor: "primary.main",
-              color: mobileActiveView === "today" ? "primary.main" : "text.primary",
+              fontSize: "0.875rem",
+              minHeight: 48,
+              "& .MuiTab-wrapper": {
+                width: "100%",
+              },
             }}
-            variant="text"
-            onClick={() => dispatch(setMobileActiveView("today"))}
-          >
-            <Stack direction="row" spacing={1} alignItems="center">
-              <LayoutDashboard fontSize="small" />
-              <Typography variant="body2">Today</Typography>
-            </Stack>
-          </Button>
-          <Button
-            sx={{
-              flex: 1,
-              borderRadius: 0,
-              py: 2,
-              borderBottom: mobileActiveView === "calendar" ? "2px solid" : "none",
-              borderBottomColor: "primary.main",
-              color: mobileActiveView === "calendar" ? "primary.main" : "text.primary",
-            }}
-            variant="text"
-            onClick={() => dispatch(setMobileActiveView("calendar"))}
-          >
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Calendar fontSize="small" />
-              <Typography variant="body2">Calendar</Typography>
-            </Stack>
-          </Button>
-        </Box>
+          />
+          <Tab
+            icon={<LayoutDashboard fontSize="small" />}
+            iconPosition="start"
+            label="Today"
+            sx={{ fontSize: "0.875rem", minHeight: 48 }}
+          />
+          <Tab
+            icon={<Calendar fontSize="small" />}
+            iconPosition="start"
+            label="Calendar"
+            sx={{ fontSize: "0.875rem", minHeight: 48 }}
+          />
+        </Tabs>
 
         {/* Mobile Content Area */}
         <Box sx={{ flex: 1, overflow: "hidden" }}>

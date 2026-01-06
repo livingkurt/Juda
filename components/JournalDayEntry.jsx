@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Box, Typography, TextField, Stack, IconButton, Collapse } from "@mui/material";
 import { Add, ExpandMore, ChevronRight } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 
 export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave }) => {
   const theme = useTheme();
-  // Initialize state from props
-  const [noteInput, setNoteInput] = useState(completion?.note || "");
-  const [showTextarea, setShowTextarea] = useState(Boolean(completion?.note));
-  const hasEntry = completion?.note && completion.note.trim().length > 0;
+  // Initialize state from props - state will reset when key changes (completion note changes)
+  const currentNote = completion?.note || "";
+  const [noteInput, setNoteInput] = useState(currentNote);
+  const [showTextarea, setShowTextarea] = useState(Boolean(currentNote));
+  const hasEntry = currentNote && currentNote.trim().length > 0;
 
   // Check if this is a Daily Journal (not a reflection type)
   const isDailyJournal = useMemo(() => {
@@ -21,23 +22,6 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
   // Expanded by default only for Daily Journal if there's an entry, collapsed for all reflection types
   const [expanded, setExpanded] = useState(isDailyJournal && hasEntry);
   const textareaRef = useRef(null);
-
-  // Sync state when completion prop changes (e.g., when data loads after mount)
-  useEffect(() => {
-    const note = completion?.note || "";
-    const hasNote = Boolean(note);
-
-    // Update noteInput to match completion note
-    setNoteInput(note);
-
-    // Show textarea if there's a note
-    setShowTextarea(hasNote);
-
-    // Auto-expand for daily journal if there's an entry
-    if (isDailyJournal && hasNote) {
-      setExpanded(true);
-    }
-  }, [completion?.note, isDailyJournal]);
 
   const handleBlur = async () => {
     if (isCurrentYear && noteInput.trim() && noteInput.trim() !== (completion?.note || "")) {

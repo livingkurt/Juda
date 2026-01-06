@@ -157,7 +157,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           viewCollection={viewOptions}
           selectedView="day"
           onViewChange={() => {}}
-          viewSelectorWidth={20}
+          viewSelectorWidth="100px"
         />
       </Box>
 
@@ -239,7 +239,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
 
                               return (
                                 <JournalDayEntry
-                                  key={`${task.id}-${year}`}
+                                  key={`${task.id}-${year}-${completion?.note || ""}`}
                                   task={task}
                                   date={dateStr}
                                   completion={completion}

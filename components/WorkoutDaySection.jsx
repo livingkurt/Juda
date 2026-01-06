@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Box, Stack, Typography, Chip } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import WorkoutExerciseCard from "./WorkoutExerciseCard";
 
 /**

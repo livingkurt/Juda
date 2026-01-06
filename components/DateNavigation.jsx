@@ -1,9 +1,9 @@
 "use client";
 
 import { memo } from "react";
-import { Box, Button, IconButton, Typography, Stack, TextField, Chip, Select, MenuItem } from "@mui/material";
-import { ChevronLeft, ChevronRight } from "@mui/icons-material";
+import { Box, Button, IconButton, Typography, Stack, TextField, Select, MenuItem, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 
 export const DateNavigation = memo(function DateNavigation({
   selectedDate,
@@ -11,10 +11,8 @@ export const DateNavigation = memo(function DateNavigation({
   onPrevious,
   onNext,
   onToday,
-  title,
   showDatePicker = true,
   showDateDisplay = true,
-  twoRowLayout = false,
   // View selector props
   showViewSelector = false,
   viewCollection = null,
@@ -23,7 +21,8 @@ export const DateNavigation = memo(function DateNavigation({
   viewSelectorWidth = "150px",
 }) {
   const theme = useTheme();
-
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const useTwoRowLayout = isMobile;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -70,7 +69,7 @@ export const DateNavigation = memo(function DateNavigation({
   };
 
   const containerSx = {
-    p: { xs: 1, md: 2 },
+    p: { xs: 1.5, md: 2 },
     borderRadius: 2,
     bgcolor: "background.paper",
     border: "1px solid",
@@ -81,37 +80,129 @@ export const DateNavigation = memo(function DateNavigation({
     overflow: "hidden",
   };
 
-  if (twoRowLayout) {
+  if (useTwoRowLayout) {
     return (
       <Box sx={containerSx}>
-        <Stack spacing={2}>
-          {/* First Row: Navigation Controls + View Selector */}
-          <Stack direction="row" alignItems="center" spacing={{ xs: 1.5, md: 2 }} sx={{ width: "100%" }}>
-            <Button variant="outlined" size="small" onClick={onToday} sx={{ flexShrink: 0 }}>
-              Today
-            </Button>
-            <IconButton onClick={onPrevious} aria-label="Previous" size="small" sx={{ flexShrink: 0 }}>
-              <ChevronLeft fontSize="small" />
-            </IconButton>
-            <IconButton onClick={onNext} aria-label="Next" size="small" sx={{ flexShrink: 0 }}>
-              <ChevronRight fontSize="small" />
-            </IconButton>
-            {/* Spacer */}
-            <Box sx={{ flex: 1 }} />
-            {/* View Selector on the right */}
+        <Stack spacing={{ xs: 1.5, md: 2 }}>
+          {/* First Row: Navigation Controls + Date Display + View Selector */}
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={{ xs: 1, md: 2 }}
+            sx={{ width: "100%", flexWrap: { xs: "wrap", md: "nowrap" }, gap: { xs: 1, md: 0 } }}
+          >
+            {/* Left: Navigation Controls + Date Display */}
+            <Stack direction="row" alignItems="center" spacing={{ xs: 0.5, md: 1 }} sx={{ flexShrink: 0 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={onToday}
+                sx={{
+                  flexShrink: 0,
+                  minWidth: { xs: "60px", md: "auto" },
+                  px: { xs: 1.5, md: 2 },
+                  fontSize: { xs: "0.75rem", md: "0.875rem" },
+                }}
+              >
+                Today
+              </Button>
+              <IconButton
+                onClick={onPrevious}
+                aria-label="Previous"
+                size="small"
+                sx={{
+                  flexShrink: 0,
+                  width: { xs: "36px", md: "32px" },
+                  height: { xs: "36px", md: "32px" },
+                }}
+              >
+                <ChevronLeft fontSize="small" />
+              </IconButton>
+              <IconButton
+                onClick={onNext}
+                aria-label="Next"
+                size="small"
+                sx={{
+                  flexShrink: 0,
+                  width: { xs: "36px", md: "32px" },
+                  height: { xs: "36px", md: "32px" },
+                }}
+              >
+                <ChevronRight fontSize="small" />
+              </IconButton>
+            </Stack>
+            {/* Date Display on same line */}
+            {showDateDisplay && (
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 500,
+                  fontSize: { xs: "0.875rem", md: "1rem" },
+                  color: isToday ? "text.primary" : isPast ? "warning.dark" : "info.dark",
+                  whiteSpace: "nowrap",
+                  ml: { xs: 0.5, md: 1 },
+                }}
+              >
+                {formatDateDisplay(selectedDate)}
+              </Typography>
+            )}
+
+            {/* Right: View Selector */}
+          </Stack>
+
+          {/* Second Row: Centered Date Picker */}
+          <Box sx={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {showDatePicker && (
+              <Box
+                sx={{
+                  width: "100%",
+                  display: "flex",
+                  justifyContent: showViewSelector && viewCollection && onViewChange ? "space-between" : "center",
+                }}
+              >
+                <TextField
+                  type="date"
+                  value={formatDateInput(selectedDate)}
+                  onChange={handleDateInputChange}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    width: { xs: "100%", sm: "auto" },
+                    maxWidth: { xs: "200px", md: "none" },
+                    minWidth: { xs: "160px", md: "150px" },
+                    "& input": {
+                      textAlign: "center",
+                      fontSize: { xs: "0.875rem", md: "1rem" },
+                      py: { xs: 1.25, md: 0.75 },
+                    },
+                    "& .MuiOutlinedInput-root": {
+                      cursor: "pointer",
+                    },
+                  }}
+                  InputProps={{
+                    sx: {
+                      "&::-webkit-calendar-picker-indicator": {
+                        cursor: "pointer",
+                        padding: { xs: "4px", md: "2px" },
+                      },
+                    },
+                  }}
+                />
+              </Box>
+            )}
             {showViewSelector && viewCollection && onViewChange && (
               <Box sx={{ flexShrink: 0 }}>
                 <Select
                   value={selectedView || (viewCollection.length > 0 ? viewCollection[0].value : "")}
                   onChange={e => onViewChange(e.target.value)}
-                  style={{
-                    width: viewSelectorWidth,
-                    padding: "4px 8px",
-                    fontSize: "0.875rem",
-                    borderRadius: "4px",
-                    border: `1px solid ${theme.palette.divider}`,
-                    backgroundColor: theme.palette.background.paper,
-                    color: theme.palette.text.primary,
+                  sx={{
+                    width: { xs: "100px", md: viewSelectorWidth },
+                    fontSize: { xs: "0.875rem", md: "1rem" },
+                    height: "42px",
+                    "& .MuiSelect-select": {
+                      py: { xs: 1, md: 0.75 },
+                    },
                   }}
                 >
                   {viewCollection.map(view => (
@@ -122,11 +213,91 @@ export const DateNavigation = memo(function DateNavigation({
                 </Select>
               </Box>
             )}
-          </Stack>
+          </Box>
+        </Stack>
+      </Box>
+    );
+  }
 
-          {/* Second Row: Centered Date Picker */}
-          {showDatePicker && (
-            <Box sx={{ width: "100%", display: "flex", justifyContent: "center" }}>
+  // Desktop: Single row layout with date picker centered
+  return (
+    <Box sx={containerSx}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={2}
+        sx={{
+          width: "100%",
+          maxWidth: "100%",
+        }}
+      >
+        {/* Left: Navigation Controls + Date Display */}
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ flexShrink: 0 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={onToday}
+            sx={{
+              flexShrink: 0,
+              px: 2,
+              fontSize: "0.875rem",
+            }}
+          >
+            Today
+          </Button>
+          <IconButton
+            onClick={onPrevious}
+            aria-label="Previous"
+            size="small"
+            sx={{
+              flexShrink: 0,
+              width: "32px",
+              height: "32px",
+            }}
+          >
+            <ChevronLeft fontSize="small" />
+          </IconButton>
+          <IconButton
+            onClick={onNext}
+            aria-label="Next"
+            size="small"
+            sx={{
+              flexShrink: 0,
+              width: "32px",
+              height: "32px",
+            }}
+          >
+            <ChevronRight fontSize="small" />
+          </IconButton>
+          {/* Date Display on same line */}
+          {showDateDisplay && (
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 500,
+                fontSize: "0.875rem",
+                color: isToday ? "text.primary" : isPast ? "warning.dark" : "info.dark",
+                whiteSpace: "nowrap",
+                ml: 1,
+              }}
+            >
+              {formatDateDisplay(selectedDate)}
+            </Typography>
+          )}
+        </Stack>
+
+        {/* Center: Date Picker */}
+        {showDatePicker && (
+          <>
+            <Box sx={{ flex: 1 }} />
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                flexShrink: 0,
+              }}
+            >
               <TextField
                 type="date"
                 value={formatDateInput(selectedDate)}
@@ -138,6 +309,8 @@ export const DateNavigation = memo(function DateNavigation({
                   minWidth: "150px",
                   "& input": {
                     textAlign: "center",
+                    fontSize: "1rem",
+                    py: 0.75,
                   },
                   "& .MuiOutlinedInput-root": {
                     cursor: "pointer",
@@ -147,130 +320,17 @@ export const DateNavigation = memo(function DateNavigation({
                   sx: {
                     "&::-webkit-calendar-picker-indicator": {
                       cursor: "pointer",
+                      padding: "2px",
                     },
                   },
                 }}
               />
             </Box>
-          )}
-        </Stack>
-      </Box>
-    );
-  }
+            <Box sx={{ flex: 1 }} />
+          </>
+        )}
 
-  return (
-    <Box sx={containerSx}>
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={{ xs: 1.5, md: 2 }}
-        sx={{ width: "100%", maxWidth: "100%", flexWrap: { xs: "wrap", md: "nowrap" } }}
-      >
-        <Button variant="outlined" size="small" onClick={onToday} sx={{ flexShrink: 0 }}>
-          Today
-        </Button>
-        <IconButton onClick={onPrevious} aria-label="Previous" size="small" sx={{ flexShrink: 0 }}>
-          <ChevronLeft fontSize="small" />
-        </IconButton>
-        <IconButton onClick={onNext} aria-label="Next" size="small" sx={{ flexShrink: 0 }}>
-          <ChevronRight fontSize="small" />
-        </IconButton>
-        {/* Spacer to center date picker */}
-        {showDatePicker && <Box sx={{ flex: 1 }} />}
-        {showDatePicker && (
-          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flexShrink: 0 }}>
-            <TextField
-              type="date"
-              value={formatDateInput(selectedDate)}
-              onChange={handleDateInputChange}
-              size="small"
-              variant="outlined"
-              sx={{
-                width: "auto",
-                minWidth: "150px",
-                "& input": {
-                  textAlign: "center",
-                },
-                "& .MuiOutlinedInput-root": {
-                  cursor: "pointer",
-                },
-              }}
-              InputProps={{
-                sx: {
-                  "&::-webkit-calendar-picker-indicator": {
-                    cursor: "pointer",
-                  },
-                },
-              }}
-            />
-          </Box>
-        )}
-        {/* Spacer to balance centering */}
-        {showDatePicker && <Box sx={{ flex: 1 }} />}
-        {title && (
-          <Typography
-            variant="body2"
-            sx={{
-              fontWeight: 500,
-              minWidth: "120px",
-              display: { xs: "none", md: "block" },
-            }}
-          >
-            {title}
-          </Typography>
-        )}
-        {/* Date Display on the far right */}
-        {showDateDisplay && (
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={1}
-            sx={{ minWidth: { xs: 0, md: "120px" }, flexShrink: 0 }}
-          >
-            <Typography
-              variant="body2"
-              sx={{
-                fontWeight: 500,
-                color: isToday ? "text.primary" : isPast ? "warning.dark" : "info.dark",
-              }}
-            >
-              {formatDateDisplay(selectedDate)}
-            </Typography>
-            {isPast && (
-              <Chip
-                label="Past Date"
-                size="small"
-                color="warning"
-                sx={{
-                  display: { xs: "none", md: "inline-flex" },
-                  height: "20px",
-                  fontSize: "0.625rem",
-                  "& .MuiChip-label": {
-                    px: 1,
-                    py: 0,
-                  },
-                }}
-              />
-            )}
-            {isFuture && (
-              <Chip
-                label="Future Date"
-                size="small"
-                color="info"
-                sx={{
-                  display: { xs: "none", md: "inline-flex" },
-                  height: "20px",
-                  fontSize: "0.625rem",
-                  "& .MuiChip-label": {
-                    px: 1,
-                    py: 0,
-                  },
-                }}
-              />
-            )}
-          </Stack>
-        )}
-        {/* View Selector on the far right (after date display) */}
+        {/* Right: View Selector */}
         {showViewSelector && viewCollection && onViewChange && (
           <Box sx={{ flexShrink: 0 }}>
             <Select
@@ -281,6 +341,10 @@ export const DateNavigation = memo(function DateNavigation({
               sx={{
                 width: viewSelectorWidth,
                 minWidth: "150px",
+                fontSize: "0.875rem",
+                "& .MuiSelect-select": {
+                  py: 0.75,
+                },
               }}
             >
               {viewCollection.map(view => (

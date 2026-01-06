@@ -9,7 +9,6 @@ import { Section } from "@/components/Section";
 
 export function TodayView({
   isLoading,
-  sections,
   todayViewDate,
   handleTodayViewDateChange,
   navigateTodayView,
@@ -131,6 +130,8 @@ export function TodayView({
                   onPrevious={() => navigateTodayView(-1)}
                   onNext={() => navigateTodayView(1)}
                   onToday={handleTodayViewToday}
+                  showDatePicker={true}
+                  showDateDisplay={true}
                 />
               </Box>
             )}

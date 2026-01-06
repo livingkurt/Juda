@@ -7,7 +7,6 @@ import { useColorMode } from "@/hooks/useColorMode";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialogState } from "@/hooks/useDialogState";
 import { ThemeSelector } from "@/components/ThemeSelector";
-import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { getGreeting } from "@/lib/utils";
 
 export function AppHeader() {
@@ -62,7 +61,6 @@ export function AppHeader() {
         <IconButton onClick={logout} size={isMobile ? "small" : "medium"} aria-label="Logout" color="error">
           <LogOut fontSize="small" sx={{ color: "currentColor" }} />
         </IconButton>
-        <SyncStatusIndicator />
       </Stack>
     </Stack>
   );

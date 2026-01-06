@@ -19,15 +19,20 @@ export function AuthProvider({ children }) {
   const refreshIntervalRef = useRef(null);
   // Ref to always have the latest token available (for callbacks that might have stale closures)
   const accessTokenRef = useRef(null);
+  // Ref to track retry attempts
+  const retryCountRef = useRef(0);
 
   // Keep the ref in sync with state
   useEffect(() => {
     accessTokenRef.current = authState.accessToken;
   }, [authState.accessToken]);
 
-  // Refresh access token
-  const refreshAccessToken = useCallback(async () => {
-    if (refreshingRef.current) return null;
+  // Refresh access token with retry logic
+  const refreshAccessToken = useCallback(async (retryCount = 0) => {
+    if (refreshingRef.current && retryCount === 0) {
+      // If already refreshing and this is the first attempt, wait for it
+      return null;
+    }
 
     refreshingRef.current = true;
 
@@ -38,6 +43,35 @@ export function AuthProvider({ children }) {
       });
 
       if (!response.ok) {
+        // Retry on network/server errors (not auth errors)
+        if (response.status >= 500 && retryCount < 3) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff, max 5s
+          await new Promise(resolve => setTimeout(resolve, delay));
+          refreshingRef.current = false;
+          return refreshAccessToken(retryCount + 1);
+        }
+
+        // Only clear auth state if it's a real auth error (401) or we've exhausted retries
+        const isAuthError = response.status === 401 || retryCount >= 3;
+        if (!isAuthError) {
+          return null;
+        }
+
+        // Check localStorage - if user was logged in, keep trying
+        const wasLoggedIn = typeof window !== "undefined" ? localStorage.getItem("juda-auth-persist") : null;
+        if (wasLoggedIn && retryCount < 5) {
+          // User was logged in, retry more aggressively
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          refreshingRef.current = false;
+          return refreshAccessToken(retryCount + 1);
+        }
+
+        // Clear persistence flag if auth truly failed
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("juda-auth-persist");
+        }
+
         accessTokenRef.current = null;
         setAuthState(prev => ({
           ...prev,
@@ -50,6 +84,15 @@ export function AuthProvider({ children }) {
       const data = await response.json();
       // Update ref IMMEDIATELY
       accessTokenRef.current = data.accessToken;
+
+      // Mark user as logged in in localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("juda-auth-persist", "true");
+      }
+
+      // Reset retry count on success
+      retryCountRef.current = 0;
+
       setAuthState(prev => ({
         ...prev,
         user: data.user,
@@ -58,6 +101,27 @@ export function AuthProvider({ children }) {
       return data.accessToken;
     } catch (error) {
       console.error("Failed to refresh token:", error);
+
+      // Retry on network errors
+      if (retryCount < 3) {
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        refreshingRef.current = false;
+        return refreshAccessToken(retryCount + 1);
+      }
+
+      // Check localStorage for persistence
+      if (typeof window !== "undefined") {
+        const wasLoggedIn = localStorage.getItem("juda-auth-persist");
+        if (wasLoggedIn && retryCount < 5) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          refreshingRef.current = false;
+          return refreshAccessToken(retryCount + 1);
+        }
+        localStorage.removeItem("juda-auth-persist");
+      }
+
       accessTokenRef.current = null;
       setAuthState(prev => ({
         ...prev,
@@ -70,10 +134,13 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Initialize auth state on mount
+  // Initialize auth state on mount with retry logic
   useEffect(() => {
-    const initAuth = async () => {
+    const initAuth = async (attempt = 0) => {
       try {
+        // Check localStorage first - if user was logged in, be more persistent
+        const wasLoggedIn = typeof window !== "undefined" && localStorage.getItem("juda-auth-persist");
+
         const response = await fetch("/api/auth/refresh", {
           method: "POST",
           credentials: "include",
@@ -83,6 +150,15 @@ export function AuthProvider({ children }) {
           const data = await response.json();
           // Update ref IMMEDIATELY
           accessTokenRef.current = data.accessToken;
+
+          // Mark as logged in
+          if (typeof window !== "undefined") {
+            localStorage.setItem("juda-auth-persist", "true");
+          }
+
+          // Reset retry count
+          retryCountRef.current = 0;
+
           // SET EVERYTHING AT ONCE
           setAuthState({
             user: data.user,
@@ -91,6 +167,43 @@ export function AuthProvider({ children }) {
             initialized: true,
           });
         } else {
+          // Retry on server errors or if user was logged in
+          if ((response.status >= 500 || wasLoggedIn) && attempt < 5) {
+            const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return initAuth(attempt + 1);
+          }
+
+          // Only clear auth if it's a real auth error (401) or we've exhausted retries
+          if (response.status === 401 || attempt >= 5) {
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("juda-auth-persist");
+            }
+            accessTokenRef.current = null;
+            setAuthState({
+              user: null,
+              accessToken: null,
+              loading: false,
+              initialized: true,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Auth init error:", error);
+
+        // Retry on network errors
+        const wasLoggedIn = typeof window !== "undefined" && localStorage.getItem("juda-auth-persist");
+        if (attempt < 5 && wasLoggedIn) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return initAuth(attempt + 1);
+        }
+
+        // Only clear if we've exhausted retries
+        if (attempt >= 5) {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("juda-auth-persist");
+          }
           accessTokenRef.current = null;
           setAuthState({
             user: null,
@@ -99,15 +212,6 @@ export function AuthProvider({ children }) {
             initialized: true,
           });
         }
-      } catch (error) {
-        console.error("Auth init error:", error);
-        accessTokenRef.current = null;
-        setAuthState({
-          user: null,
-          accessToken: null,
-          loading: false,
-          initialized: true,
-        });
       }
     };
 
@@ -189,6 +293,11 @@ export function AuthProvider({ children }) {
       // Update ref IMMEDIATELY before state (so it's available for any queries that fire)
       accessTokenRef.current = data.accessToken;
 
+      // Mark user as logged in in localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("juda-auth-persist", "true");
+      }
+
       setAuthState({
         user: data.user,
         accessToken: data.accessToken,
@@ -224,6 +333,11 @@ export function AuthProvider({ children }) {
       // Update ref IMMEDIATELY before state (so it's available for any queries that fire)
       accessTokenRef.current = data.accessToken;
 
+      // Mark user as logged in in localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("juda-auth-persist", "true");
+      }
+
       setAuthState({
         user: data.user,
         accessToken: data.accessToken,
@@ -249,6 +363,10 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
+      // Clear localStorage persistence flag
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("juda-auth-persist");
+      }
       accessTokenRef.current = null;
       setAuthState({
         user: null,
