@@ -310,8 +310,14 @@ function TaskDialogForm({
 
   return (
     <>
-      <Dialog open={true} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { maxHeight: "90vh" } }}>
-        <form onSubmit={handleFormSubmit}>
+      <Dialog
+        open={true}
+        onClose={onClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { height: "90vh", maxHeight: "90vh", display: "flex", flexDirection: "column" } }}
+      >
+        <form onSubmit={handleFormSubmit} style={{ display: "flex", flexDirection: "column", height: "100%" }}>
           <DialogTitle>
             {task ? "Edit Task" : "New Task"}
             <IconButton onClick={onClose} sx={{ position: "absolute", right: 8, top: 8 }} size="small">
@@ -319,7 +325,7 @@ function TaskDialogForm({
             </IconButton>
           </DialogTitle>
 
-          <DialogContent dividers sx={{ p: 2, overflowY: "auto" }}>
+          <DialogContent dividers sx={{ p: 2, overflow: "auto", flex: 1 }}>
             <GLGrid container spacing={2}>
               {/* Task Name */}
               <GLGrid item xs={12}>
@@ -954,7 +960,7 @@ function TaskDialogForm({
             </GLGrid>
           </DialogContent>
 
-          <DialogActions>
+          <DialogActions sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
             <Button onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave} variant="contained" disabled={!title.trim()}>
               Save
