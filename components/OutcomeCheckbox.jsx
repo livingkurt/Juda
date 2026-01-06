@@ -22,9 +22,9 @@ const getSizeConfig = size => {
     case "lg":
       return {
         muiSize: "large",
-        containerSize: 32,
+        containerSize: 34,
         iconBoxSize: 28,
-        iconFontSize: "18px",
+        iconFontSize: "20px",
         borderRadius: "4px",
       };
     case "xl":
@@ -135,6 +135,23 @@ export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, d
     setAnchorEl(null);
   };
 
+  const renderUncheckedIcon = () => {
+    return (
+      <Box
+        sx={{
+          width: sizeConfig.iconBoxSize,
+          height: sizeConfig.iconBoxSize,
+          borderRadius: sizeConfig.borderRadius,
+          border: "3px solid #a0aec0",
+          bgcolor: "transparent",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      />
+    );
+  };
+
   const renderCheckedIcon = () => {
     if (outcome === "completed") {
       return (
@@ -198,26 +215,11 @@ export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, d
           padding: 0,
           width: sizeConfig.containerSize,
           height: sizeConfig.containerSize,
-          // fontSize: sizeConfig.iconFontSize,
+          fontSize: sizeConfig.iconFontSize,
           borderRadius: sizeConfig.borderRadius,
-          // "& .MuiSvgIcon-root": { fontSize: sizeConfig.iconFontSize },
         }}
+        icon={renderUncheckedIcon()}
         checkedIcon={renderCheckedIcon()}
-        unCheckedIcon={
-          <Box
-            sx={{
-              width: sizeConfig.iconBoxSize,
-              height: sizeConfig.iconBoxSize,
-              fontSize: sizeConfig.iconFontSize,
-              borderRadius: sizeConfig.borderRadius,
-              border: "2px solid #a0aec0",
-              bgcolor: "#a0aec0",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          ></Box>
-        }
       />
       {shouldShowMenu && (
         <Menu

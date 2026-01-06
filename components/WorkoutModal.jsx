@@ -460,7 +460,6 @@ export default function WorkoutModal() {
                       handleActualValueChange(section.id, dayId, exerciseId, setNumber, field, value);
                     }}
                     currentWeek={currentWeek}
-                    isCurrentDay={true}
                   />
                 </Paper>
               );

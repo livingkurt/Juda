@@ -56,7 +56,6 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
       variant="outlined"
       sx={{
         p: 2,
-        bgcolor: completedSets === exercise.sets ? "success.dark" : "background.paper",
         transition: "background-color 0.3s",
       }}
     >
@@ -99,7 +98,7 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                 const isComplete = isSetComplete(setData);
 
                 return (
-                  <Stack key={setNumber} spacing={0.5} alignItems="center" sx={{ width: 80, minHeight: 60 }}>
+                  <Stack key={setNumber} spacing={1} alignItems="center" sx={{ width: 80, minHeight: 60 }}>
                     <Stack direction="row" spacing={0.5} alignItems="center" sx={{ height: 24 }}>
                       <Typography variant="caption" fontWeight={600} sx={{ minWidth: 45 }}>
                         Set {setNumber}
@@ -121,7 +120,7 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                             }
                           }}
                           isChecked={isComplete}
-                          size="sm"
+                          size="lg"
                         />
                       </Box>
                     </Stack>

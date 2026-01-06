@@ -18,7 +18,6 @@ const WorkoutDaySection = memo(function WorkoutDaySection({
   completionData = {},
   onSetToggle,
   currentWeek = 1,
-  isCurrentDay = false,
   onActualValueChange,
 }) {
   // Check if set is complete based on exercise type
@@ -48,7 +47,6 @@ const WorkoutDaySection = memo(function WorkoutDaySection({
           <Typography variant="h6" fontWeight={600}>
             {day.name}
           </Typography>
-          {isCurrentDay && <Chip label="TODAY" size="small" color="primary" />}
         </Stack>
         <Typography variant="body2" fontWeight={600} color="text.secondary">
           {completedSets} / {totalSets} sets
