@@ -33,6 +33,29 @@ function generateCuid() {
   return `c${Date.now().toString(36)}${Math.random().toString(36).substring(2, 15)}`;
 }
 
+// Helper to convert exercise type/unit to Select value
+function getExerciseSelectValue(type, unit) {
+  if (type === "time") {
+    return unit === "mins" ? "time_mins" : "time_secs";
+  }
+  return type; // 'reps' or 'distance'
+}
+
+// Helper to parse Select value back to type/unit
+function parseExerciseSelectValue(value) {
+  if (value === "time_secs") {
+    return { type: "time", unit: "secs" };
+  }
+  if (value === "time_mins") {
+    return { type: "time", unit: "mins" };
+  }
+  const exerciseType = EXERCISE_TYPES.find(t => t.value === value);
+  return {
+    type: exerciseType?.value || value,
+    unit: exerciseType?.unit || "reps",
+  };
+}
+
 // Simple WeekdaySelector component using MUI - memoized for performance
 const WeekdaySelector = memo(function WeekdaySelector({ selectedDays = [], onChange, size = "small" }) {
   const handleChange = useCallback(
@@ -52,6 +75,436 @@ const WeekdaySelector = memo(function WeekdaySelector({ selectedDays = [], onCha
         </ToggleButton>
       ))}
     </ToggleButtonGroup>
+  );
+});
+
+// Memoized Weekly Progression Card Component
+const WeekProgressionCard = memo(function WeekProgressionCard({
+  progression,
+  weekIndex,
+  exerciseId,
+  sectionId,
+  dayId,
+  onUpdateProgression,
+}) {
+  const handleTargetChange = useCallback(
+    e => {
+      const newValue = parseFloat(e.target.value) || 0;
+      onUpdateProgression(sectionId, dayId, exerciseId, weekIndex, { targetValue: newValue });
+    },
+    [onUpdateProgression, sectionId, dayId, exerciseId, weekIndex]
+  );
+
+  const handleDeloadToggle = useCallback(() => {
+    onUpdateProgression(sectionId, dayId, exerciseId, weekIndex, {
+      isDeload: !progression.isDeload,
+      isTest: false,
+    });
+  }, [onUpdateProgression, sectionId, dayId, exerciseId, weekIndex, progression.isDeload]);
+
+  const handleTestToggle = useCallback(() => {
+    onUpdateProgression(sectionId, dayId, exerciseId, weekIndex, {
+      isTest: !progression.isTest,
+      isDeload: false,
+    });
+  }, [onUpdateProgression, sectionId, dayId, exerciseId, weekIndex, progression.isTest]);
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 1,
+        bgcolor: progression.isDeload ? "info.dark" : progression.isTest ? "warning.dark" : "background.paper",
+        borderColor: progression.isDeload ? "info.main" : progression.isTest ? "warning.main" : "divider",
+      }}
+    >
+      <Stack spacing={0.5}>
+        <Typography variant="caption" fontWeight={600}>
+          Week {progression.week}
+        </Typography>
+        <TextField
+          size="small"
+          type="number"
+          value={progression.targetValue ?? ""}
+          onChange={handleTargetChange}
+          placeholder="Target"
+          fullWidth
+          sx={{ "& input": { fontSize: "0.75rem" } }}
+        />
+        <Stack direction="row" spacing={0.5}>
+          <ToggleButton
+            value="deload"
+            selected={progression.isDeload}
+            onChange={handleDeloadToggle}
+            size="small"
+            sx={{
+              flex: 1,
+              py: 0.25,
+              fontSize: "0.625rem",
+              textTransform: "none",
+            }}
+          >
+            Deload
+          </ToggleButton>
+          <ToggleButton
+            value="test"
+            selected={progression.isTest}
+            onChange={handleTestToggle}
+            size="small"
+            sx={{
+              flex: 1,
+              py: 0.25,
+              fontSize: "0.625rem",
+              textTransform: "none",
+            }}
+          >
+            Test
+          </ToggleButton>
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+});
+
+// Memoized Exercise Component
+const WorkoutExercise = memo(function WorkoutExercise({
+  exercise,
+  sectionId,
+  dayId,
+  onUpdate,
+  onDelete,
+  numberOfWeeks,
+  progressionExpanded,
+  onToggleProgression,
+  onUpdateProgression,
+}) {
+  const handleNameChange = useCallback(
+    e => {
+      onUpdate(sectionId, dayId, exercise.id, { name: e.target.value });
+    },
+    [onUpdate, sectionId, dayId, exercise.id]
+  );
+
+  const handleTypeChange = useCallback(
+    e => {
+      const { type, unit } = parseExerciseSelectValue(e.target.value);
+      onUpdate(sectionId, dayId, exercise.id, { type, unit });
+    },
+    [onUpdate, sectionId, dayId, exercise.id]
+  );
+
+  const handleSetsChange = useCallback(
+    e => {
+      onUpdate(sectionId, dayId, exercise.id, { sets: parseInt(e.target.value) || 1 });
+    },
+    [onUpdate, sectionId, dayId, exercise.id]
+  );
+
+  const handleTargetChange = useCallback(
+    e => {
+      onUpdate(sectionId, dayId, exercise.id, { targetValue: parseFloat(e.target.value) || 0 });
+    },
+    [onUpdate, sectionId, dayId, exercise.id]
+  );
+
+  const handleDelete = useCallback(() => {
+    onDelete(sectionId, dayId, exercise.id);
+  }, [onDelete, sectionId, dayId, exercise.id]);
+
+  const handleToggleProgression = useCallback(() => {
+    onToggleProgression(exercise.id);
+  }, [onToggleProgression, exercise.id]);
+
+  const showProgression = numberOfWeeks > 0 && exercise.weeklyProgression && exercise.weeklyProgression.length > 0;
+
+  return (
+    <Paper key={exercise.id} variant="outlined" sx={{ p: 1.5 }}>
+      <Grid container spacing={1} alignItems="center">
+        <Grid item xs={12} sm={4}>
+          <TextField label="Exercise Name" value={exercise.name} onChange={handleNameChange} size="small" fullWidth />
+        </Grid>
+        <Grid item xs={6} sm={2}>
+          <FormControl size="small" fullWidth>
+            <InputLabel>Type</InputLabel>
+            <Select
+              value={getExerciseSelectValue(exercise.type, exercise.unit)}
+              onChange={handleTypeChange}
+              label="Type"
+            >
+              {EXERCISE_TYPES.map(t => (
+                <MenuItem key={t.value} value={t.value}>
+                  {t.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={6} sm={2}>
+          <TextField
+            label="Sets"
+            type="number"
+            value={exercise.sets}
+            onChange={handleSetsChange}
+            size="small"
+            fullWidth
+            inputProps={{ min: 1 }}
+          />
+        </Grid>
+        <Grid item xs={6} sm={2}>
+          <TextField
+            label="Target"
+            type="number"
+            value={exercise.targetValue}
+            onChange={handleTargetChange}
+            size="small"
+            fullWidth
+          />
+        </Grid>
+        <Grid item xs={6} sm={2}>
+          <IconButton size="small" color="error" onClick={handleDelete}>
+            <Trash2 fontSize="small" />
+          </IconButton>
+        </Grid>
+      </Grid>
+
+      {/* Weekly Progression Toggle */}
+      {showProgression && (
+        <Box sx={{ mt: 1 }}>
+          <Button
+            size="small"
+            onClick={handleToggleProgression}
+            startIcon={progressionExpanded ? <ChevronDown fontSize="small" /> : <ChevronRight fontSize="small" />}
+            sx={{ textTransform: "none", fontSize: "0.75rem" }}
+          >
+            Weekly Progression ({numberOfWeeks} weeks)
+          </Button>
+          <Collapse in={progressionExpanded} unmountOnExit>
+            <Grid container spacing={1} sx={{ mt: 0.5 }}>
+              {exercise.weeklyProgression.map((progression, weekIndex) => (
+                <Grid item xs={6} sm={4} md={3} lg={2} key={progression.week}>
+                  <WeekProgressionCard
+                    progression={progression}
+                    weekIndex={weekIndex}
+                    exerciseId={exercise.id}
+                    sectionId={sectionId}
+                    dayId={dayId}
+                    onUpdateProgression={onUpdateProgression}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          </Collapse>
+        </Box>
+      )}
+    </Paper>
+  );
+});
+
+// Memoized Day Component
+const WorkoutDay = memo(function WorkoutDay({
+  day,
+  sectionId,
+  expanded,
+  onToggle,
+  onUpdate,
+  onDelete,
+  onAddExercise,
+  numberOfWeeks,
+  expandedExercises,
+  onToggleExercise,
+  onUpdateExercise,
+  onDeleteExercise,
+  onUpdateProgression,
+}) {
+  const handleNameChange = useCallback(
+    e => {
+      onUpdate(sectionId, day.id, { name: e.target.value });
+    },
+    [onUpdate, sectionId, day.id]
+  );
+
+  const handleDaysOfWeekChange = useCallback(
+    newDays => {
+      onUpdate(sectionId, day.id, { daysOfWeek: newDays });
+    },
+    [onUpdate, sectionId, day.id]
+  );
+
+  const handleDelete = useCallback(() => {
+    onDelete(sectionId, day.id);
+  }, [onDelete, sectionId, day.id]);
+
+  const handleAddExercise = useCallback(() => {
+    onAddExercise(sectionId, day.id);
+  }, [onAddExercise, sectionId, day.id]);
+
+  const handleToggle = useCallback(() => {
+    onToggle(day.id);
+  }, [onToggle, day.id]);
+
+  return (
+    <Paper key={day.id} variant="outlined" sx={{ p: 1.5 }}>
+      {/* Day Header */}
+      <Stack direction="row" spacing={2} alignItems="center" mb={expanded ? 1.5 : 0}>
+        <IconButton size="small" onClick={handleToggle}>
+          {expanded ? <ChevronDown fontSize="small" /> : <ChevronRight fontSize="small" />}
+        </IconButton>
+
+        <TextField value={day.name} onChange={handleNameChange} size="small" sx={{ flex: 1 }} />
+
+        <Box onClick={e => e.stopPropagation()} flexShrink={0}>
+          <Typography variant="caption" display="block" mb={0.5}>
+            Days of Week
+          </Typography>
+          <WeekdaySelector
+            selectedDays={day.daysOfWeek || (day.dayOfWeek !== undefined ? [day.dayOfWeek] : [])}
+            onChange={handleDaysOfWeekChange}
+            size="small"
+          />
+        </Box>
+
+        <IconButton size="small" color="error" onClick={handleDelete}>
+          <Trash2 fontSize="small" />
+        </IconButton>
+      </Stack>
+
+      {/* Day Content */}
+      <Collapse in={expanded} unmountOnExit>
+        <Stack spacing={1.5} sx={{ pl: 4 }}>
+          <Button
+            startIcon={<Plus fontSize="small" />}
+            onClick={handleAddExercise}
+            size="small"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Add Exercise
+          </Button>
+
+          {day.exercises?.map(exercise => (
+            <WorkoutExercise
+              key={exercise.id}
+              exercise={exercise}
+              sectionId={sectionId}
+              dayId={day.id}
+              onUpdate={onUpdateExercise}
+              onDelete={onDeleteExercise}
+              numberOfWeeks={numberOfWeeks}
+              progressionExpanded={expandedExercises[exercise.id]}
+              onToggleProgression={onToggleExercise}
+              onUpdateProgression={onUpdateProgression}
+            />
+          ))}
+        </Stack>
+      </Collapse>
+    </Paper>
+  );
+});
+
+// Memoized Section Component
+const WorkoutSection = memo(function WorkoutSection({
+  section,
+  expanded,
+  onToggle,
+  onUpdate,
+  onDelete,
+  onAddDay,
+  numberOfWeeks,
+  expandedDays,
+  onToggleDay,
+  expandedExercises,
+  onToggleExercise,
+  onUpdateDay,
+  onDeleteDay,
+  onAddExercise,
+  onUpdateExercise,
+  onDeleteExercise,
+  onUpdateProgression,
+}) {
+  const handleNameChange = useCallback(
+    e => {
+      onUpdate(section.id, { name: e.target.value });
+    },
+    [onUpdate, section.id]
+  );
+
+  const handleTypeChange = useCallback(
+    e => {
+      onUpdate(section.id, { type: e.target.value });
+    },
+    [onUpdate, section.id]
+  );
+
+  const handleDelete = useCallback(() => {
+    onDelete(section.id);
+  }, [onDelete, section.id]);
+
+  const handleAddDay = useCallback(() => {
+    onAddDay(section.id);
+  }, [onAddDay, section.id]);
+
+  const handleToggle = useCallback(() => {
+    onToggle(section.id);
+  }, [onToggle, section.id]);
+
+  return (
+    <Paper key={section.id} variant="outlined" sx={{ p: 2 }}>
+      {/* Section Header */}
+      <Stack direction="row" spacing={2} alignItems="center" mb={expanded ? 2 : 0}>
+        <IconButton size="small" onClick={handleToggle}>
+          {expanded ? <ChevronDown fontSize="small" /> : <ChevronRight fontSize="small" />}
+        </IconButton>
+
+        <TextField value={section.name} onChange={handleNameChange} size="small" sx={{ flex: 1 }} />
+
+        <FormControl size="small" sx={{ minWidth: 150 }}>
+          <InputLabel>Type</InputLabel>
+          <Select value={section.type} onChange={handleTypeChange} label="Type">
+            {WORKOUT_SECTION_TYPES.map(t => (
+              <MenuItem key={t.value} value={t.value}>
+                {t.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <IconButton size="small" color="error" onClick={handleDelete}>
+          <Trash2 fontSize="small" />
+        </IconButton>
+      </Stack>
+
+      {/* Section Content */}
+      <Collapse in={expanded} unmountOnExit>
+        <Stack spacing={2} sx={{ pl: 4 }}>
+          <Button
+            startIcon={<Plus fontSize="small" />}
+            onClick={handleAddDay}
+            size="small"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Add Day
+          </Button>
+
+          {section.days?.map(day => (
+            <WorkoutDay
+              key={day.id}
+              day={day}
+              sectionId={section.id}
+              expanded={expandedDays[day.id]}
+              onToggle={onToggleDay}
+              onUpdate={onUpdateDay}
+              onDelete={onDeleteDay}
+              onAddExercise={onAddExercise}
+              numberOfWeeks={numberOfWeeks}
+              expandedExercises={expandedExercises}
+              onToggleExercise={onToggleExercise}
+              onUpdateExercise={onUpdateExercise}
+              onDeleteExercise={onDeleteExercise}
+              onUpdateProgression={onUpdateProgression}
+            />
+          ))}
+        </Stack>
+      </Collapse>
+    </Paper>
   );
 });
 
@@ -83,7 +536,7 @@ export default function WorkoutBuilder({
   const loadedProgramIdRef = useRef(null);
 
   // Reset all state helper
-  const resetState = () => {
+  const resetState = useCallback(() => {
     loadedProgramIdRef.current = null;
     setName("");
     setNumberOfWeeks(0);
@@ -91,18 +544,18 @@ export default function WorkoutBuilder({
     setExpandedSections({});
     setExpandedDays({});
     setExpandedExercises({});
-  };
+  }, []);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (propsOnClose) {
       propsOnClose();
     } else {
       dialogState.setEditingWorkoutTask(null);
     }
     resetState();
-  };
+  }, [propsOnClose, dialogState, resetState]);
 
-  const handleSaveComplete = () => {
+  const handleSaveComplete = useCallback(() => {
     if (propsOnSaveComplete) {
       propsOnSaveComplete();
     } else {
@@ -110,7 +563,7 @@ export default function WorkoutBuilder({
     }
     resetState();
     refetchTasks();
-  };
+  }, [propsOnSaveComplete, dialogState, resetState, refetchTasks]);
 
   // Toggle exercise progression expansion
   const toggleExerciseProgression = useCallback(exerciseId => {
@@ -156,29 +609,32 @@ export default function WorkoutBuilder({
     setSections(prev => prev.filter(s => s.id !== sectionId));
   }, []);
 
-  // Add day to section
-  const addDay = sectionId => {
-    const newDay = {
-      id: generateCuid(),
-      name: "New Day",
-      dayOfWeek: 1,
-      exercises: [],
-    };
-    setSections(
-      sections.map(s => {
-        if (s.id === sectionId) {
-          return { ...s, days: [...(s.days || []), newDay] };
-        }
-        return s;
-      })
-    );
-    setExpandedDays({ ...expandedDays, [newDay.id]: true });
-  };
+  // Add day to section - MEMOIZED with functional update
+  const addDay = useCallback(
+    sectionId => {
+      const newDay = {
+        id: generateCuid(),
+        name: "New Day",
+        dayOfWeek: 1,
+        exercises: [],
+      };
+      setSections(prev =>
+        prev.map(s => {
+          if (s.id === sectionId) {
+            return { ...s, days: [...(s.days || []), newDay] };
+          }
+          return s;
+        })
+      );
+      setExpandedDays(prev => ({ ...prev, [newDay.id]: true }));
+    },
+    [] // Empty deps - uses functional update
+  );
 
-  // Update day
-  const updateDay = (sectionId, dayId, updates) => {
-    setSections(
-      sections.map(s => {
+  // Update day - MEMOIZED with functional update
+  const updateDay = useCallback((sectionId, dayId, updates) => {
+    setSections(prev =>
+      prev.map(s => {
         if (s.id === sectionId) {
           return {
             ...s,
@@ -188,53 +644,56 @@ export default function WorkoutBuilder({
         return s;
       })
     );
-  };
+  }, []); // Empty deps - uses functional update
 
-  // Delete day
-  const deleteDay = (sectionId, dayId) => {
-    setSections(
-      sections.map(s => {
+  // Delete day - MEMOIZED with functional update
+  const deleteDay = useCallback((sectionId, dayId) => {
+    setSections(prev =>
+      prev.map(s => {
         if (s.id === sectionId) {
           return { ...s, days: s.days.filter(d => d.id !== dayId) };
         }
         return s;
       })
     );
-  };
+  }, []); // Empty deps - uses functional update
 
-  // Add exercise to day
-  const addExercise = (sectionId, dayId) => {
-    const newExercise = {
-      id: generateCuid(),
-      name: "New Exercise",
-      type: "reps",
-      sets: 3,
-      targetValue: 10,
-      unit: "reps",
-      weeklyProgression: [],
-    };
-    setSections(
-      sections.map(s => {
-        if (s.id === sectionId) {
-          return {
-            ...s,
-            days: s.days.map(d => {
-              if (d.id === dayId) {
-                return { ...d, exercises: [...(d.exercises || []), newExercise] };
-              }
-              return d;
-            }),
-          };
-        }
-        return s;
-      })
-    );
-  };
+  // Add exercise to day - MEMOIZED with functional update
+  const addExercise = useCallback(
+    (sectionId, dayId) => {
+      const newExercise = {
+        id: generateCuid(),
+        name: "New Exercise",
+        type: "reps",
+        sets: 3,
+        targetValue: 10,
+        unit: "reps",
+        weeklyProgression: [],
+      };
+      setSections(prev =>
+        prev.map(s => {
+          if (s.id === sectionId) {
+            return {
+              ...s,
+              days: s.days.map(d => {
+                if (d.id === dayId) {
+                  return { ...d, exercises: [...(d.exercises || []), newExercise] };
+                }
+                return d;
+              }),
+            };
+          }
+          return s;
+        })
+      );
+    },
+    [] // Empty deps - uses functional update
+  );
 
-  // Update exercise
-  const updateExercise = (sectionId, dayId, exerciseId, updates) => {
-    setSections(
-      sections.map(s => {
+  // Update exercise - MEMOIZED with functional update
+  const updateExercise = useCallback((sectionId, dayId, exerciseId, updates) => {
+    setSections(prev =>
+      prev.map(s => {
         if (s.id === sectionId) {
           return {
             ...s,
@@ -252,12 +711,12 @@ export default function WorkoutBuilder({
         return s;
       })
     );
-  };
+  }, []); // Empty deps - uses functional update
 
-  // Delete exercise
-  const deleteExercise = (sectionId, dayId, exerciseId) => {
-    setSections(
-      sections.map(s => {
+  // Delete exercise - MEMOIZED with functional update
+  const deleteExercise = useCallback((sectionId, dayId, exerciseId) => {
+    setSections(prev =>
+      prev.map(s => {
         if (s.id === sectionId) {
           return {
             ...s,
@@ -272,10 +731,10 @@ export default function WorkoutBuilder({
         return s;
       })
     );
-  };
+  }, []); // Empty deps - uses functional update
 
-  // Update number of weeks (propagate to all exercises)
-  const updateNumberOfWeeks = weeks => {
+  // Update number of weeks (propagate to all exercises) - MEMOIZED with functional update
+  const updateNumberOfWeeks = useCallback(weeks => {
     setNumberOfWeeks(weeks);
     setSections(prevSections =>
       prevSections.map(section => ({
@@ -304,47 +763,43 @@ export default function WorkoutBuilder({
         })),
       }))
     );
-  };
+  }, []); // Empty deps - uses functional update
 
-  // Helper to convert exercise type/unit to Select value
-  const getExerciseSelectValue = (type, unit) => {
-    if (type === "time") {
-      return unit === "mins" ? "time_mins" : "time_secs";
-    }
-    return type; // 'reps' or 'distance'
-  };
-
-  // Helper to parse Select value back to type/unit
-  const parseExerciseSelectValue = value => {
-    if (value === "time_secs") {
-      return { type: "time", unit: "secs" };
-    }
-    if (value === "time_mins") {
-      return { type: "time", unit: "mins" };
-    }
-    const exerciseType = EXERCISE_TYPES.find(t => t.value === value);
-    return {
-      type: exerciseType?.value || value,
-      unit: exerciseType?.unit || "reps",
-    };
-  };
-
-  // Helper to update days of week for a day
-  const updateDaysOfWeek = (sectionId, dayId, newDaysOfWeek) => {
-    setSections(
-      sections.map(s =>
-        s.id === sectionId
-          ? {
-              ...s,
-              days: s.days.map(d => (d.id === dayId ? { ...d, daysOfWeek: newDaysOfWeek } : d)),
-            }
-          : s
-      )
+  // Update weekly progression - MEMOIZED with functional update
+  const updateWeeklyProgression = useCallback((sectionId, dayId, exerciseId, weekIndex, updates) => {
+    setSections(prev =>
+      prev.map(s => {
+        if (s.id === sectionId) {
+          return {
+            ...s,
+            days: s.days.map(d => {
+              if (d.id === dayId) {
+                return {
+                  ...d,
+                  exercises: d.exercises.map(e => {
+                    if (e.id === exerciseId) {
+                      const newProgressions = [...(e.weeklyProgression || [])];
+                      newProgressions[weekIndex] = {
+                        ...newProgressions[weekIndex],
+                        ...updates,
+                      };
+                      return { ...e, weeklyProgression: newProgressions };
+                    }
+                    return e;
+                  }),
+                };
+              }
+              return d;
+            }),
+          };
+        }
+        return s;
+      })
     );
-  };
+  }, []); // Empty deps - uses functional update
 
   // Save workout
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     try {
       await saveWorkoutProgramMutation({
         taskId,
@@ -357,7 +812,7 @@ export default function WorkoutBuilder({
     } catch (err) {
       console.error("Failed to save workout:", err);
     }
-  };
+  }, [saveWorkoutProgramMutation, taskId, name, numberOfWeeks, sections, handleSaveComplete, handleClose]);
 
   // Toggle section expansion
   const toggleSection = useCallback(sectionId => {
@@ -368,6 +823,19 @@ export default function WorkoutBuilder({
   const toggleDay = useCallback(dayId => {
     setExpandedDays(prev => ({ ...prev, [dayId]: !prev[dayId] }));
   }, []);
+
+  // Handle name change
+  const handleNameChange = useCallback(e => {
+    setName(e.target.value);
+  }, []);
+
+  // Handle number of weeks change
+  const handleNumberOfWeeksChange = useCallback(
+    e => {
+      updateNumberOfWeeks(parseInt(e.target.value) || 0);
+    },
+    [updateNumberOfWeeks]
+  );
 
   // Don't render anything if not open
   if (!isOpen) {
@@ -406,7 +874,7 @@ export default function WorkoutBuilder({
             <TextField
               label="Workout Name (optional)"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={handleNameChange}
               placeholder="My Workout Program"
               size="small"
               sx={{ maxWidth: 400 }}
@@ -418,7 +886,7 @@ export default function WorkoutBuilder({
                 label="Number of Weeks"
                 type="number"
                 value={numberOfWeeks}
-                onChange={e => updateNumberOfWeeks(parseInt(e.target.value) || 0)}
+                onChange={handleNumberOfWeeksChange}
                 size="small"
                 inputProps={{ min: 0 }}
                 sx={{ maxWidth: 200 }}
@@ -440,304 +908,26 @@ export default function WorkoutBuilder({
               </Stack>
 
               {sections.map(section => (
-                <Paper key={section.id} variant="outlined" sx={{ p: 2 }}>
-                  {/* Section Header */}
-                  <Stack direction="row" spacing={2} alignItems="center" mb={expandedSections[section.id] ? 2 : 0}>
-                    <IconButton size="small" onClick={() => toggleSection(section.id)}>
-                      {expandedSections[section.id] ? (
-                        <ChevronDown fontSize="small" />
-                      ) : (
-                        <ChevronRight fontSize="small" />
-                      )}
-                    </IconButton>
-
-                    <TextField
-                      value={section.name}
-                      onChange={e => updateSection(section.id, { name: e.target.value })}
-                      size="small"
-                      sx={{ flex: 1 }}
-                    />
-
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
-                      <InputLabel>Type</InputLabel>
-                      <Select
-                        value={section.type}
-                        onChange={e => updateSection(section.id, { type: e.target.value })}
-                        label="Type"
-                      >
-                        {WORKOUT_SECTION_TYPES.map(t => (
-                          <MenuItem key={t.value} value={t.value}>
-                            {t.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    <IconButton size="small" color="error" onClick={() => deleteSection(section.id)}>
-                      <Trash2 fontSize="small" />
-                    </IconButton>
-                  </Stack>
-
-                  {/* Section Content */}
-                  <Collapse in={expandedSections[section.id]}>
-                    <Stack spacing={2} sx={{ pl: 4 }}>
-                      <Button
-                        startIcon={<Plus fontSize="small" />}
-                        onClick={() => addDay(section.id)}
-                        size="small"
-                        sx={{ alignSelf: "flex-start" }}
-                      >
-                        Add Day
-                      </Button>
-
-                      {section.days?.map(day => (
-                        <Paper key={day.id} variant="outlined" sx={{ p: 1.5 }}>
-                          {/* Day Header */}
-                          <Stack direction="row" spacing={2} alignItems="center" mb={expandedDays[day.id] ? 1.5 : 0}>
-                            <IconButton size="small" onClick={() => toggleDay(day.id)}>
-                              {expandedDays[day.id] ? (
-                                <ChevronDown fontSize="small" />
-                              ) : (
-                                <ChevronRight fontSize="small" />
-                              )}
-                            </IconButton>
-
-                            <TextField
-                              value={day.name}
-                              onChange={e => updateDay(section.id, day.id, { name: e.target.value })}
-                              size="small"
-                              sx={{ flex: 1 }}
-                            />
-
-                            <Box onClick={e => e.stopPropagation()} flexShrink={0}>
-                              <Typography variant="caption" display="block" mb={0.5}>
-                                Days of Week
-                              </Typography>
-                              <WeekdaySelector
-                                selectedDays={day.daysOfWeek || (day.dayOfWeek !== undefined ? [day.dayOfWeek] : [])}
-                                onChange={newDays => updateDaysOfWeek(section.id, day.id, newDays)}
-                                size="small"
-                              />
-                            </Box>
-
-                            <IconButton size="small" color="error" onClick={() => deleteDay(section.id, day.id)}>
-                              <Trash2 fontSize="small" />
-                            </IconButton>
-                          </Stack>
-
-                          {/* Day Content */}
-                          <Collapse in={expandedDays[day.id]}>
-                            <Stack spacing={1.5} sx={{ pl: 4 }}>
-                              <Button
-                                startIcon={<Plus fontSize="small" />}
-                                onClick={() => addExercise(section.id, day.id)}
-                                size="small"
-                                sx={{ alignSelf: "flex-start" }}
-                              >
-                                Add Exercise
-                              </Button>
-
-                              {day.exercises?.map(exercise => (
-                                <Paper key={exercise.id} variant="outlined" sx={{ p: 1.5 }}>
-                                  <Grid container spacing={1} alignItems="center">
-                                    <Grid item xs={12} sm={4}>
-                                      <TextField
-                                        label="Exercise Name"
-                                        value={exercise.name}
-                                        onChange={e =>
-                                          updateExercise(section.id, day.id, exercise.id, { name: e.target.value })
-                                        }
-                                        size="small"
-                                        fullWidth
-                                      />
-                                    </Grid>
-                                    <Grid item xs={6} sm={2}>
-                                      <FormControl size="small" fullWidth>
-                                        <InputLabel>Type</InputLabel>
-                                        <Select
-                                          value={getExerciseSelectValue(exercise.type, exercise.unit)}
-                                          onChange={e => {
-                                            const { type, unit } = parseExerciseSelectValue(e.target.value);
-                                            updateExercise(section.id, day.id, exercise.id, { type, unit });
-                                          }}
-                                          label="Type"
-                                        >
-                                          {EXERCISE_TYPES.map(t => (
-                                            <MenuItem key={t.value} value={t.value}>
-                                              {t.label}
-                                            </MenuItem>
-                                          ))}
-                                        </Select>
-                                      </FormControl>
-                                    </Grid>
-                                    <Grid item xs={6} sm={2}>
-                                      <TextField
-                                        label="Sets"
-                                        type="number"
-                                        value={exercise.sets}
-                                        onChange={e =>
-                                          updateExercise(section.id, day.id, exercise.id, {
-                                            sets: parseInt(e.target.value) || 1,
-                                          })
-                                        }
-                                        size="small"
-                                        fullWidth
-                                        inputProps={{ min: 1 }}
-                                      />
-                                    </Grid>
-                                    <Grid item xs={6} sm={2}>
-                                      <TextField
-                                        label="Target"
-                                        type="number"
-                                        value={exercise.targetValue}
-                                        onChange={e =>
-                                          updateExercise(section.id, day.id, exercise.id, {
-                                            targetValue: parseFloat(e.target.value) || 0,
-                                          })
-                                        }
-                                        size="small"
-                                        fullWidth
-                                      />
-                                    </Grid>
-                                    <Grid item xs={6} sm={2}>
-                                      <IconButton
-                                        size="small"
-                                        color="error"
-                                        onClick={() => deleteExercise(section.id, day.id, exercise.id)}
-                                      >
-                                        <Trash2 fontSize="small" />
-                                      </IconButton>
-                                    </Grid>
-                                  </Grid>
-
-                                  {/* Weekly Progression Toggle */}
-                                  {numberOfWeeks > 0 &&
-                                    exercise.weeklyProgression &&
-                                    exercise.weeklyProgression.length > 0 && (
-                                      <Box sx={{ mt: 1 }}>
-                                        <Button
-                                          size="small"
-                                          onClick={() => toggleExerciseProgression(exercise.id)}
-                                          startIcon={
-                                            expandedExercises[exercise.id] ? (
-                                              <ChevronDown fontSize="small" />
-                                            ) : (
-                                              <ChevronRight fontSize="small" />
-                                            )
-                                          }
-                                          sx={{ textTransform: "none", fontSize: "0.75rem" }}
-                                        >
-                                          Weekly Progression ({numberOfWeeks} weeks)
-                                        </Button>
-                                        <Collapse in={expandedExercises[exercise.id]}>
-                                          <Grid container spacing={1} sx={{ mt: 0.5 }}>
-                                            {exercise.weeklyProgression.map((progression, weekIndex) => (
-                                              <Grid item xs={6} sm={4} md={3} lg={2} key={progression.week}>
-                                                <Paper
-                                                  variant="outlined"
-                                                  sx={{
-                                                    p: 1,
-                                                    bgcolor: progression.isDeload
-                                                      ? "info.dark"
-                                                      : progression.isTest
-                                                        ? "warning.dark"
-                                                        : "background.paper",
-                                                    borderColor: progression.isDeload
-                                                      ? "info.main"
-                                                      : progression.isTest
-                                                        ? "warning.main"
-                                                        : "divider",
-                                                  }}
-                                                >
-                                                  <Stack spacing={0.5}>
-                                                    <Typography variant="caption" fontWeight={600}>
-                                                      Week {progression.week}
-                                                    </Typography>
-                                                    <TextField
-                                                      size="small"
-                                                      type="number"
-                                                      value={progression.targetValue ?? ""}
-                                                      onChange={e => {
-                                                        const newProgressions = [...exercise.weeklyProgression];
-                                                        newProgressions[weekIndex] = {
-                                                          ...progression,
-                                                          targetValue: parseFloat(e.target.value) || 0,
-                                                        };
-                                                        updateExercise(section.id, day.id, exercise.id, {
-                                                          weeklyProgression: newProgressions,
-                                                        });
-                                                      }}
-                                                      placeholder="Target"
-                                                      fullWidth
-                                                      sx={{ "& input": { fontSize: "0.75rem" } }}
-                                                    />
-                                                    <Stack direction="row" spacing={0.5}>
-                                                      <ToggleButton
-                                                        value="deload"
-                                                        selected={progression.isDeload}
-                                                        onChange={() => {
-                                                          const newProgressions = [...exercise.weeklyProgression];
-                                                          newProgressions[weekIndex] = {
-                                                            ...progression,
-                                                            isDeload: !progression.isDeload,
-                                                            isTest: false,
-                                                          };
-                                                          updateExercise(section.id, day.id, exercise.id, {
-                                                            weeklyProgression: newProgressions,
-                                                          });
-                                                        }}
-                                                        size="small"
-                                                        sx={{
-                                                          flex: 1,
-                                                          py: 0.25,
-                                                          fontSize: "0.625rem",
-                                                          textTransform: "none",
-                                                        }}
-                                                      >
-                                                        Deload
-                                                      </ToggleButton>
-                                                      <ToggleButton
-                                                        value="test"
-                                                        selected={progression.isTest}
-                                                        onChange={() => {
-                                                          const newProgressions = [...exercise.weeklyProgression];
-                                                          newProgressions[weekIndex] = {
-                                                            ...progression,
-                                                            isTest: !progression.isTest,
-                                                            isDeload: false,
-                                                          };
-                                                          updateExercise(section.id, day.id, exercise.id, {
-                                                            weeklyProgression: newProgressions,
-                                                          });
-                                                        }}
-                                                        size="small"
-                                                        sx={{
-                                                          flex: 1,
-                                                          py: 0.25,
-                                                          fontSize: "0.625rem",
-                                                          textTransform: "none",
-                                                        }}
-                                                      >
-                                                        Test
-                                                      </ToggleButton>
-                                                    </Stack>
-                                                  </Stack>
-                                                </Paper>
-                                              </Grid>
-                                            ))}
-                                          </Grid>
-                                        </Collapse>
-                                      </Box>
-                                    )}
-                                </Paper>
-                              ))}
-                            </Stack>
-                          </Collapse>
-                        </Paper>
-                      ))}
-                    </Stack>
-                  </Collapse>
-                </Paper>
+                <WorkoutSection
+                  key={section.id}
+                  section={section}
+                  expanded={expandedSections[section.id]}
+                  onToggle={toggleSection}
+                  onUpdate={updateSection}
+                  onDelete={deleteSection}
+                  onAddDay={addDay}
+                  numberOfWeeks={numberOfWeeks}
+                  expandedDays={expandedDays}
+                  onToggleDay={toggleDay}
+                  expandedExercises={expandedExercises}
+                  onToggleExercise={toggleExerciseProgression}
+                  onUpdateDay={updateDay}
+                  onDeleteDay={deleteDay}
+                  onAddExercise={addExercise}
+                  onUpdateExercise={updateExercise}
+                  onDeleteExercise={deleteExercise}
+                  onUpdateProgression={updateWeeklyProgression}
+                />
               ))}
             </Stack>
           </Stack>
