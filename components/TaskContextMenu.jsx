@@ -11,6 +11,7 @@ import {
   FitnessCenter,
   AccessTime,
   LinkOff,
+  SkipNext,
 } from "@mui/icons-material";
 import { TagMenuSelector } from "./TagMenuSelector";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -161,6 +162,21 @@ export const TaskContextMenu = ({
                 <Close fontSize="small" />
               </ListItemIcon>
               <ListItemText>Not Completed</ListItemText>
+            </MenuItem>
+          ),
+          outcome !== "rolled_over" && (
+            <MenuItem
+              key="rollover-recurring"
+              onClick={e => {
+                e.stopPropagation();
+                completionHandlers.handleRolloverTask(task.id, date);
+                onClose?.();
+              }}
+            >
+              <ListItemIcon>
+                <SkipNext fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Roll Over to Tomorrow</ListItemText>
             </MenuItem>
           ),
           <Divider key="divider-recurring-end" />,

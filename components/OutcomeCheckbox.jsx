@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Box, Checkbox, Stack, Typography, Menu, MenuItem, Divider } from "@mui/material";
-import { Check, Close, RadioButtonUnchecked } from "@mui/icons-material";
+import { Check, Close, RadioButtonUnchecked, SkipNext } from "@mui/icons-material";
 
 /**
  * Get size configuration based on size prop
@@ -59,14 +59,29 @@ const getSizeConfig = size => {
  * - null/unchecked: Empty checkbox
  * - "completed": Checked with checkmark
  * - "not_completed": Checkbox with X
+ * - "rolled_over": Checkbox with skip icon
  *
- * @param {string|null} outcome - Current outcome: null, "completed", or "not_completed"
+ * @param {string|null} outcome - Current outcome: null, "completed", "not_completed", or "rolled_over"
  * @param {Function} onOutcomeChange - Callback when outcome changes: (newOutcome) => void
  * @param {boolean} isChecked - Whether checkbox appears checked (for completed state)
  * @param {boolean} disabled - Whether checkbox is disabled
  * @param {string} size - Checkbox size: "sm", "md", "lg", "xl" (default: "md")
+ * @param {boolean} isRecurring - Whether the task is recurring (for showing rollover option)
+ * @param {Date} viewDate - The date being viewed (for rollover)
+ * @param {Function} onRollover - Callback when rollover is requested: (taskId, date) => void
+ * @param {string} taskId - Task ID (for rollover)
  */
-export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, disabled = false, size = "md" }) => {
+export const OutcomeCheckbox = ({
+  outcome,
+  onOutcomeChange,
+  isChecked = false,
+  disabled = false,
+  size = "md",
+  isRecurring = false,
+  viewDate,
+  onRollover,
+  taskId,
+}) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const menuJustOpenedRef = useRef(false);
@@ -74,8 +89,8 @@ export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, d
 
   const sizeConfig = getSizeConfig(size);
 
-  // Determine if we should show the menu (when task has an outcome)
-  const shouldShowMenu = outcome !== null;
+  // Determine if we should show the menu (when task has an outcome OR is recurring and can be rolled over)
+  const shouldShowMenu = outcome !== null || (isRecurring && onRollover && taskId && viewDate);
 
   // Close menu when outcome changes, but not when menu first opens
   useEffect(() => {
@@ -106,7 +121,9 @@ export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, d
       return;
     }
     // First click - mark as completed
-    onOutcomeChange("completed");
+    if (onOutcomeChange) {
+      onOutcomeChange("completed");
+    }
   };
 
   const handleClick = e => {
@@ -191,6 +208,25 @@ export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, d
       );
     }
 
+    if (outcome === "rolled_over") {
+      return (
+        <Box
+          sx={{
+            width: sizeConfig.iconBoxSize,
+            height: sizeConfig.iconBoxSize,
+            borderRadius: sizeConfig.borderRadius,
+            border: "2px solid #a0aec0",
+            bgcolor: "#a0aec0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <SkipNext sx={{ color: "black", fontSize: sizeConfig.iconFontSize }} />
+        </Box>
+      );
+    }
+
     return undefined;
   };
 
@@ -236,7 +272,9 @@ export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, d
               key="uncheck"
               onClick={e => {
                 e.stopPropagation();
-                onOutcomeChange(null);
+                if (onOutcomeChange) {
+                  onOutcomeChange(null);
+                }
                 handleMenuClose();
               }}
             >
@@ -248,35 +286,62 @@ export const OutcomeCheckbox = ({ outcome, onOutcomeChange, isChecked = false, d
             <Divider key="divider-uncheck" />,
           ]}
           {/* Only show Completed if not already completed */}
-          {outcome !== "completed" && (
-            <MenuItem
-              onClick={e => {
-                e.stopPropagation();
-                onOutcomeChange("completed");
-                handleMenuClose();
-              }}
-            >
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Check fontSize="small" />
-                <Typography variant="body2">Completed</Typography>
-              </Stack>
-            </MenuItem>
-          )}
+          {outcome !== "completed" &&
+            onOutcomeChange && [
+              <MenuItem
+                key="completed"
+                onClick={e => {
+                  e.stopPropagation();
+                  onOutcomeChange("completed");
+                  handleMenuClose();
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Check fontSize="small" />
+                  <Typography variant="body2">Completed</Typography>
+                </Stack>
+              </MenuItem>,
+            ]}
           {/* Only show Not Completed if not already not completed */}
-          {outcome !== "not_completed" && (
-            <MenuItem
-              onClick={e => {
-                e.stopPropagation();
-                onOutcomeChange("not_completed");
-                handleMenuClose();
-              }}
-            >
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Close fontSize="small" />
-                <Typography variant="body2">Not Completed</Typography>
-              </Stack>
-            </MenuItem>
-          )}
+          {outcome !== "not_completed" &&
+            onOutcomeChange && [
+              <MenuItem
+                key="not-completed"
+                onClick={e => {
+                  e.stopPropagation();
+                  onOutcomeChange("not_completed");
+                  handleMenuClose();
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Close fontSize="small" />
+                  <Typography variant="body2">Not Completed</Typography>
+                </Stack>
+              </MenuItem>,
+            ]}
+          {/* Show Roll Over option for recurring tasks that aren't already rolled over */}
+          {isRecurring &&
+            outcome !== "rolled_over" &&
+            onRollover &&
+            taskId &&
+            viewDate && [
+              (outcome !== null || (onOutcomeChange && outcome !== "completed" && outcome !== "not_completed")) && (
+                <Divider key="divider-rollover" />
+              ),
+              <MenuItem
+                key="rollover"
+                onClick={e => {
+                  e.stopPropagation();
+                  onRollover(taskId, viewDate);
+                  handleMenuClose();
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <SkipNext fontSize="small" />
+                  <Typography variant="body2">Roll Over to Tomorrow</Typography>
+                </Stack>
+              </MenuItem>,
+            ]}
         </Menu>
       )}
     </Box>

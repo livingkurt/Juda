@@ -83,7 +83,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
   const { taskId, date, outcome = "completed", note, time, startedAt, completedAt } = body;
 
   validateRequired(body, ["taskId"]);
-  validateEnum("outcome", outcome, ["completed", "not_completed"]);
+  validateEnum("outcome", outcome, ["completed", "not_completed", "rolled_over"]);
 
   const task = await db.query.tasks.findFirst({
     where: and(eq(tasks.id, taskId), eq(tasks.userId, userId)),

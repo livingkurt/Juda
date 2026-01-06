@@ -39,8 +39,22 @@ export const GET = withApi(async (request, { userId }) => {
 export const POST = withApi(async (request, { userId, getBody }) => {
   const clientId = getClientIdFromRequest(request);
   const body = await getBody();
-  const { title, sectionId, parentId, time, duration, recurrence, order, completionType, content, folderId, tagIds } =
-    body;
+  const {
+    title,
+    sectionId,
+    parentId,
+    time,
+    duration,
+    recurrence,
+    order,
+    completionType,
+    content,
+    folderId,
+    tagIds,
+    sourceTaskId,
+    rolledFromDate,
+    isRollover,
+  } = body;
 
   const section = await db.query.sections.findFirst({
     where: and(eq(sections.id, sectionId), eq(sections.userId, userId)),
@@ -66,6 +80,9 @@ export const POST = withApi(async (request, { userId, getBody }) => {
         completionType: completionType || "checkbox",
         content: content || null,
         folderId: folderId || null,
+        sourceTaskId: sourceTaskId || null,
+        rolledFromDate: rolledFromDate ? new Date(rolledFromDate) : null,
+        isRollover: isRollover || false,
       })
       .returning();
 

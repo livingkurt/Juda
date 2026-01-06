@@ -11,6 +11,7 @@ import {
   useBatchCreateCompletionsMutation,
   useBatchDeleteCompletionsMutation,
 } from "@/lib/store/api/completionsApi";
+import { useRolloverTaskMutation } from "@/lib/store/api/tasksApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import {
@@ -59,6 +60,7 @@ export function useCompletionHandlers({
   const [deleteCompletionMutation] = useDeleteCompletionMutation();
   const [batchCreateCompletionsMutation] = useBatchCreateCompletionsMutation();
   const [batchDeleteCompletionsMutation] = useBatchDeleteCompletionsMutation();
+  const [rolloverTaskMutation] = useRolloverTaskMutation();
 
   // Completion helpers
   const { isCompletedOnDate } = useCompletionHelpers();
@@ -509,6 +511,33 @@ export function useCompletionHandlers({
     [tasks, today, viewDate, createCompletion, updateTask, showCompletedTasks, addToRecentlyCompleted]
   );
 
+  // Roll over task to next day
+  const handleRolloverTask = useCallback(
+    async (taskId, date) => {
+      try {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) {
+          throw new Error("Task not found");
+        }
+
+        // Verify it's a recurring task
+        if (!task.recurrence || task.recurrence.type === "none") {
+          throw new Error("Only recurring tasks can be rolled over");
+        }
+
+        const targetDate = date instanceof Date ? date : new Date(date);
+        const dateStr = formatLocalDate(targetDate);
+
+        // Call the rollover API endpoint
+        await rolloverTaskMutation({ taskId, date: dateStr }).unwrap();
+      } catch (error) {
+        console.error("Error rolling over task:", error);
+        throw error;
+      }
+    },
+    [tasks, rolloverTaskMutation]
+  );
+
   return useMemo(
     () => ({
       // State
@@ -522,6 +551,7 @@ export function useCompletionHandlers({
       handleOutcomeChange,
       handleNotCompletedTask,
       handleCompleteWithNote,
+      handleRolloverTask,
 
       // Helpers
       addToRecentlyCompleted,
@@ -536,6 +566,7 @@ export function useCompletionHandlers({
       handleOutcomeChange,
       handleNotCompletedTask,
       handleCompleteWithNote,
+      handleRolloverTask,
       addToRecentlyCompleted,
       removeFromRecentlyCompleted,
     ]

@@ -582,6 +582,10 @@ export const TaskItem = ({
                   }
                   disabled={false}
                   size="lg"
+                  isRecurring={effectivelyRecurring}
+                  viewDate={viewDate}
+                  onRollover={completionHandlers.handleRolloverTask}
+                  taskId={task.id}
                 />
               )}
             </Box>

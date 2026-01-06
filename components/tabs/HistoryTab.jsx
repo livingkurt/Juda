@@ -33,6 +33,7 @@ import {
   RadioButtonUnchecked,
   MoreVert,
   Search,
+  SkipNext,
 } from "@mui/icons-material";
 import { shouldShowOnDate } from "@/lib/utils";
 import WorkoutModal from "../WorkoutModal";
@@ -230,6 +231,7 @@ const CompletionCell = memo(function CompletionCell({
     if (!isScheduled && !completion) return "transparent";
     if (outcome === "completed") return theme.palette.success.dark + "40";
     if (outcome === "not_completed") return theme.palette.error.dark + "40";
+    if (outcome === "rolled_over") return "#f59e0b40";
     if (isScheduled) return theme.palette.action.hover;
     return "transparent";
   };
@@ -256,6 +258,9 @@ const CompletionCell = memo(function CompletionCell({
     }
     if (outcome === "not_completed") {
       return <Close fontSize="small" sx={{ color: theme.palette.error.main }} />;
+    }
+    if (outcome === "rolled_over") {
+      return <SkipNext fontSize="small" sx={{ color: "#f59e0b" }} />;
     }
     if (isScheduled) {
       return <RadioButtonUnchecked fontSize="small" sx={{ opacity: 0.3 }} />;
