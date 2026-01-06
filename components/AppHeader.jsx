@@ -2,7 +2,7 @@
 
 import { Box, Stack, Typography, IconButton, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { LightMode as Sun, WbTwilight as Sunset, DarkMode as Moon, Logout as LogOut, Label } from "@mui/icons-material";
+import { LightMode, WbTwilight, DarkMode, Logout, Label, Refresh } from "@mui/icons-material";
 import { useColorMode } from "@/hooks/useColorMode";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialogState } from "@/hooks/useDialogState";
@@ -17,7 +17,7 @@ export function AppHeader() {
   const dialogState = useDialogState();
 
   const greeting = getGreeting();
-  const GreetingIcon = greeting.icon === "Sun" ? Sun : greeting.icon === "Sunset" ? Sunset : Moon;
+  const GreetingIcon = greeting.icon === "Sun" ? LightMode : greeting.icon === "Sunset" ? WbTwilight : DarkMode;
 
   return (
     <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -53,13 +53,20 @@ export function AppHeader() {
           aria-label={colorMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         >
           {colorMode === "dark" ? (
-            <Sun fontSize="small" sx={{ color: "currentColor" }} />
+            <LightMode fontSize="small" sx={{ color: "currentColor" }} />
           ) : (
-            <Moon fontSize="small" sx={{ color: "currentColor" }} />
+            <DarkMode fontSize="small" sx={{ color: "currentColor" }} />
           )}
         </IconButton>
+        <IconButton
+          onClick={() => window.location.reload()}
+          size={isMobile ? "small" : "medium"}
+          aria-label="Refresh page"
+        >
+          <Refresh fontSize="small" sx={{ color: "currentColor" }} />
+        </IconButton>
         <IconButton onClick={logout} size={isMobile ? "small" : "medium"} aria-label="Logout" color="error">
-          <LogOut fontSize="small" sx={{ color: "currentColor" }} />
+          <Logout fontSize="small" sx={{ color: "currentColor" }} />
         </IconButton>
       </Stack>
     </Stack>
