@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Box, Stack, Typography, Paper, TextField, Chip, Grid } from "@mui/material";
+import { Box, Stack, Typography, Paper, TextField, Chip } from "@mui/material";
 import { OutcomeCheckbox } from "./OutcomeCheckbox";
 
 /**
@@ -99,8 +99,8 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
 
                 return (
                   <Stack key={setNumber} spacing={1} alignItems="center" sx={{ width: 80, minHeight: 60 }}>
-                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ height: 24 }}>
-                      <Typography variant="caption" fontWeight={600} sx={{ minWidth: 45 }}>
+                    <Stack direction="row" spacing={2} alignItems="center" sx={{ height: 24 }}>
+                      <Typography variant="body1" fontWeight={600}>
                         Set {setNumber}
                       </Typography>
                       <Box
@@ -129,17 +129,6 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                       placeholder="Reps"
                       value={setData.actualValue || ""}
                       onChange={e => onActualValueChange?.(exercise.id, setNumber, "actualValue", e.target.value)}
-                      sx={{
-                        width: "100%",
-                        "& input": {
-                          fontSize: "0.75rem",
-                          textAlign: "center",
-                          py: 0.5,
-                        },
-                      }}
-                      inputProps={{
-                        style: { textAlign: "center" },
-                      }}
                     />
                   </Stack>
                 );
@@ -214,8 +203,8 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                     />
                   </Box>
                 </Stack>
-                <Grid container spacing={1}>
-                  <Grid item xs={4}>
+                <Stack direction="column" spacing={1}>
+                  <Box sx={{ width: "100%", maxWidth: "100%" }}>
                     <TextField
                       size="small"
                       fullWidth
@@ -225,8 +214,8 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                       onChange={e => onActualValueChange?.(exercise.id, setNumber, "time", e.target.value)}
                       sx={{ "& input": { fontSize: "0.75rem" } }}
                     />
-                  </Grid>
-                  <Grid item xs={4}>
+                  </Box>
+                  <Box sx={{ width: "100%", maxWidth: "100%" }}>
                     <TextField
                       size="small"
                       fullWidth
@@ -237,8 +226,8 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                       onChange={e => onActualValueChange?.(exercise.id, setNumber, "distance", e.target.value)}
                       sx={{ "& input": { fontSize: "0.75rem" } }}
                     />
-                  </Grid>
-                  <Grid item xs={4}>
+                  </Box>
+                  <Box sx={{ width: "100%", maxWidth: "100%" }}>
                     <TextField
                       size="small"
                       fullWidth
@@ -248,8 +237,8 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                       onChange={e => onActualValueChange?.(exercise.id, setNumber, "pace", e.target.value)}
                       sx={{ "& input": { fontSize: "0.75rem" } }}
                     />
-                  </Grid>
-                </Grid>
+                  </Box>
+                </Stack>
               </Paper>
             );
           })}

@@ -376,7 +376,7 @@ export default function WorkoutModal() {
     <Dialog
       open={isOpen}
       onClose={handleClose}
-      maxWidth="lg"
+      maxWidth="sm"
       fullWidth
       PaperProps={{ sx: { height: "90vh", maxHeight: "90vh" } }}
     >
