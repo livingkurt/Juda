@@ -32,6 +32,7 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
     sections: taskOps.sections,
     showCompletedTasks,
     tasksBySection: {},
+    viewDate,
   });
 
   // Initialize completion handlers (needs sectionExpansionInitial callbacks)
@@ -51,6 +52,7 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
     sections: taskOps.sections,
     showCompletedTasks,
     tasksBySection: taskFilters.tasksBySection,
+    viewDate,
   });
 
   // Update section ops with section expansion callbacks
@@ -58,6 +60,8 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
     autoCollapsedSections: sectionExpansion.autoCollapsedSections,
     setAutoCollapsedSections: sectionExpansion.setAutoCollapsedSections,
     setManuallyExpandedSections: sectionExpansion.setManuallyExpandedSections,
+    manuallyCollapsedSections: sectionExpansion.manuallyCollapsedSections,
+    setManuallyCollapsedSections: sectionExpansion.setManuallyCollapsedSections,
   });
 
   // Use droppable for section reordering
@@ -69,7 +73,7 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
   return (
     <SortableContext
       id="sections"
-      items={taskOps.sections.map(s => `section-${s.id}`)}
+      items={sectionExpansion.computedSections.map(s => `section-${s.id}`)}
       strategy={verticalListSortingStrategy}
     >
       <Box
@@ -81,7 +85,7 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
           maxWidth: "100%",
         }}
       >
-        {taskOps.sections.map((section, index) => (
+        {sectionExpansion.computedSections.map((section, index) => (
           <SectionCard
             key={section.id}
             section={section}

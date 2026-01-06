@@ -17,10 +17,18 @@ import { openSectionDialog, closeSectionDialog, setEditingSection } from "@/lib/
 export function useSectionOperations({
   // These are passed from parent because they're managed by useSectionExpansion hook
   autoCollapsedSections,
-  setAutoCollapsedSections,
   setManuallyExpandedSections,
+  manuallyCollapsedSections,
+  setManuallyCollapsedSections,
 } = {}) {
   const dispatch = useDispatch();
+
+  // Get manuallyExpandedSections from Redux
+  const manuallyExpandedSectionsArray = useSelector(state => state.sectionExpansion.manuallyExpandedSections);
+  const manuallyExpandedSections = useMemo(
+    () => new Set(manuallyExpandedSectionsArray),
+    [manuallyExpandedSectionsArray]
+  );
 
   // Get state from Redux
   const editingSection = useSelector(state => state.ui.editingSection);
@@ -94,38 +102,62 @@ export function useSectionOperations({
     [sections.length, deleteSection]
   );
 
-  // Toggle section expand
+  // Toggle section expand (Redux only, no database updates)
   const handleToggleSectionExpand = useCallback(
-    async sectionId => {
-      const section = sections.find(s => s.id === sectionId);
-      if (!section) return;
+    sectionId => {
+      if (!setManuallyCollapsedSections || !setManuallyExpandedSections) {
+        console.warn("Section expansion setters not provided");
+        return;
+      }
 
-      const isCurrentlyCollapsed = section.expanded === false || autoCollapsedSections?.has(section.id) || false;
-      const willBeExpanded = !isCurrentlyCollapsed;
+      const isManuallyCollapsed = manuallyCollapsedSections?.has(sectionId) || false;
+      const isAutoCollapsed = autoCollapsedSections?.has(sectionId) || false;
+      const isManuallyExpanded = manuallyExpandedSections?.has(sectionId) || false;
 
-      // If user is expanding a section that was auto-collapsed, mark it as manually expanded
-      if (willBeExpanded && autoCollapsedSections?.has(section.id)) {
-        if (setManuallyExpandedSections) {
+      // Current collapsed state
+      const isCurrentlyCollapsed = isManuallyCollapsed || (isAutoCollapsed && !isManuallyExpanded);
+
+      if (isCurrentlyCollapsed) {
+        // Currently collapsed, so expand it
+        // Remove from manually collapsed
+        setManuallyCollapsedSections(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(sectionId);
+          return newSet;
+        });
+
+        // If it's auto-collapsed, mark as manually expanded
+        if (isAutoCollapsed) {
           setManuallyExpandedSections(prev => {
             const newSet = new Set(prev);
             newSet.add(sectionId);
             return newSet;
           });
         }
-        // Clear auto-collapse state
-        if (setAutoCollapsedSections) {
-          setAutoCollapsedSections(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(sectionId);
-            return newSet;
-          });
-        }
-      }
+      } else {
+        // Currently expanded, so collapse it
+        // Add to manually collapsed
+        setManuallyCollapsedSections(prev => {
+          const newSet = new Set(prev);
+          newSet.add(sectionId);
+          return newSet;
+        });
 
-      // Update manual expanded state
-      await updateSection(sectionId, { expanded: !(section.expanded !== false) });
+        // Remove from manually expanded
+        setManuallyExpandedSections(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(sectionId);
+          return newSet;
+        });
+      }
     },
-    [sections, autoCollapsedSections, setAutoCollapsedSections, setManuallyExpandedSections, updateSection]
+    [
+      manuallyCollapsedSections,
+      autoCollapsedSections,
+      manuallyExpandedSections,
+      setManuallyExpandedSections,
+      setManuallyCollapsedSections,
+    ]
   );
 
   return useMemo(

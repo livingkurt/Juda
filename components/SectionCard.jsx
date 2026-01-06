@@ -33,11 +33,14 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
     sections: taskOps.sections,
     showCompletedTasks,
     tasksBySection: taskFilters.tasksBySection,
+    viewDate,
   });
   const sectionOps = useSectionOperations({
     autoCollapsedSections: sectionExpansion.autoCollapsedSections,
     setAutoCollapsedSections: sectionExpansion.setAutoCollapsedSections,
     setManuallyExpandedSections: sectionExpansion.setManuallyExpandedSections,
+    manuallyCollapsedSections: sectionExpansion.manuallyCollapsedSections,
+    setManuallyCollapsedSections: sectionExpansion.setManuallyCollapsedSections,
   });
 
   // Get tasks for this section from Redux - memoized to prevent recreation on every render

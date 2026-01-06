@@ -231,13 +231,14 @@ export default function DailyTasksApp() {
   const { loadingTab } = useLoadingTab();
 
   // Extract commonly used values from viewState
-  const { mainTabIndex } = viewState;
+  const { mainTabIndex, viewDate } = viewState;
 
   // Initialize section expansion state
   const sectionExpansionInitial = useSectionExpansion({
     sections,
     showCompletedTasks: preferences.showCompletedTasks,
     tasksBySection: {},
+    viewDate,
   });
 
   // Sync Redux UI state with preferences on mount

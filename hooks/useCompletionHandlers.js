@@ -4,7 +4,6 @@ import { useRef, useCallback, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
 import { useGetTasksQuery, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
-import { useGetSectionsQuery, useUpdateSectionMutation } from "@/lib/store/api/sectionsApi";
 import {
   useCreateCompletionMutation,
   useDeleteCompletionMutation,
@@ -53,9 +52,7 @@ export function useCompletionHandlers({
 
   // RTK Query hooks
   const { data: tasks = [] } = useGetTasksQuery();
-  const { data: sections = [] } = useGetSectionsQuery();
   const [updateTaskMutation] = useUpdateTaskMutation();
-  const [updateSectionMutation] = useUpdateSectionMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();
   const [deleteCompletionMutation] = useDeleteCompletionMutation();
   const [batchCreateCompletionsMutation] = useBatchCreateCompletionsMutation();
@@ -74,13 +71,6 @@ export function useCompletionHandlers({
       return await updateTaskMutation({ id, ...taskData }).unwrap();
     },
     [updateTaskMutation]
-  );
-
-  const updateSection = useCallback(
-    async (id, sectionData) => {
-      return await updateSectionMutation({ id, ...sectionData }).unwrap();
-    },
-    [updateSectionMutation]
   );
 
   const createCompletion = useCallback(
@@ -221,27 +211,21 @@ export function useCompletionHandlers({
 
       // Check if we need to temporarily expand a section when checking from backlog
       let wasSectionCollapsed = false;
-      let sectionWasManuallyCollapsed = false;
       let sectionWasAutoCollapsed = false;
 
       if (hasNoRecurrence && !isCompletedOnTargetDate && task.sectionId) {
-        const section = sections.find(s => s.id === task.sectionId);
-        if (section) {
-          sectionWasManuallyCollapsed = section.expanded === false;
-          sectionWasAutoCollapsed = autoCollapsedSections?.has(section.id) || false;
-          wasSectionCollapsed = sectionWasManuallyCollapsed || sectionWasAutoCollapsed;
+        // Check if section is collapsed (Redux state only)
+        sectionWasAutoCollapsed = autoCollapsedSections?.has(task.sectionId) || false;
+        wasSectionCollapsed = sectionWasAutoCollapsed;
 
-          if (wasSectionCollapsed) {
-            if (sectionWasAutoCollapsed && setAutoCollapsedSections) {
-              setAutoCollapsedSections(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(section.id);
-                return newSet;
-              });
-            }
-            if (sectionWasManuallyCollapsed) {
-              await updateSection(section.id, { expanded: true });
-            }
+        if (wasSectionCollapsed) {
+          // Temporarily expand auto-collapsed section to show the task being checked
+          if (sectionWasAutoCollapsed && setAutoCollapsedSections) {
+            setAutoCollapsedSections(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(task.sectionId);
+              return newSet;
+            });
           }
         }
       }
@@ -282,6 +266,15 @@ export function useCompletionHandlers({
             });
           }
 
+          // Unchecking - clear auto-collapse for this section so it expands
+          if (task.sectionId && autoCollapsedSections?.has(task.sectionId)) {
+            setAutoCollapsedSections(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(task.sectionId);
+              return newSet;
+            });
+          }
+
           if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
             removeFromRecentlyCompleted(taskId);
           }
@@ -302,33 +295,17 @@ export function useCompletionHandlers({
         }
 
         if (wasSectionCollapsed && !showCompletedTasks && task.sectionId) {
-          const sectionIdToCollapse = task.sectionId;
-          setTimeout(() => {
-            if (sectionWasManuallyCollapsed) {
-              updateSection(sectionIdToCollapse, { expanded: false }).catch(err => {
-                console.error("Error collapsing section:", err);
-              });
-            }
-            if (sectionWasAutoCollapsed) {
-              if (checkAndAutoCollapseSection) {
-                checkAndAutoCollapseSection(sectionIdToCollapse);
-              }
-            }
-          }, 100);
+          // Auto-collapse will be handled by addToRecentlyCompleted after the delay
+          // No need to restore manual collapse state since we're not using database anymore
         }
       } catch (error) {
         console.error("Error toggling task completion:", error);
         if (wasSectionCollapsed && task.sectionId) {
-          const sectionIdToRestore = task.sectionId;
-          if (sectionWasManuallyCollapsed) {
-            updateSection(sectionIdToRestore, { expanded: false }).catch(err => {
-              console.error("Error restoring section state:", err);
-            });
-          }
+          // Restore auto-collapse state on error
           if (sectionWasAutoCollapsed && setAutoCollapsedSections) {
             setAutoCollapsedSections(prev => {
               const newSet = new Set(prev);
-              newSet.add(sectionIdToRestore);
+              newSet.add(task.sectionId);
               return newSet;
             });
           }
@@ -337,7 +314,6 @@ export function useCompletionHandlers({
     },
     [
       tasks,
-      sections,
       today,
       viewDate,
       isCompletedOnDate,
@@ -348,8 +324,6 @@ export function useCompletionHandlers({
       recentlyCompletedTasks,
       autoCollapsedSections,
       setAutoCollapsedSections,
-      updateSection,
-      checkAndAutoCollapseSection,
       collectSubtaskCompletionsToDelete,
       collectSubtaskCompletionsToCreate,
       addToRecentlyCompleted,
@@ -440,12 +414,7 @@ export function useCompletionHandlers({
             throw completionError;
           }
         }
-
-        setTimeout(() => {
-          if (task?.sectionId && checkAndAutoCollapseSection) {
-            checkAndAutoCollapseSection(task.sectionId);
-          }
-        }, 100);
+        // Auto-collapse check will happen in addToRecentlyCompleted after the delay
       } catch (error) {
         console.error("Failed to update task:", error.message);
       }
@@ -457,7 +426,6 @@ export function useCompletionHandlers({
       updateTask,
       showCompletedTasks,
       recentlyCompletedTasks,
-      checkAndAutoCollapseSection,
       addToRecentlyCompleted,
       removeFromRecentlyCompleted,
     ]

@@ -164,6 +164,7 @@ export function TasksTab() {
     sections,
     showCompletedTasks,
     tasksBySection,
+    viewDate,
   });
 
   // Status handlers
