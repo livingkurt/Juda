@@ -47,6 +47,7 @@ import { useDialogState } from "@/hooks/useDialogState";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { useTheme } from "@/hooks/useTheme";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
+import { AutosaveBadge } from "./AutosaveBadge";
 
 // Small component to handle text input with state that resets on date change
 const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }) => {
@@ -85,7 +86,7 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }
     }
   };
 
-  const { debouncedSave, immediateSave } = useDebouncedSave(saveNote, 500);
+  const { debouncedSave, immediateSave, isSaving, justSaved } = useDebouncedSave(saveNote, 500);
 
   const handleChange = e => {
     const newValue = e.target.value;
@@ -94,7 +95,8 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }
   };
 
   return (
-    <>
+    <Box sx={{ position: "relative", width: "100%" }}>
+      <AutosaveBadge isSaving={isSaving} justSaved={justSaved} position="top-right" size="sm" />
       <TextField
         inputRef={noteInputRef}
         fullWidth
@@ -160,7 +162,7 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }
           Not Completed
         </Typography>
       )}
-    </>
+    </Box>
   );
 };
 
@@ -273,7 +275,12 @@ export const TaskItem = ({
     }
   };
 
-  const { debouncedSave: debouncedTitleSave, immediateSave: immediateTitleSave } = useDebouncedSave(saveTitle, 500);
+  const {
+    debouncedSave: debouncedTitleSave,
+    immediateSave: immediateTitleSave,
+    isSaving: isSavingTitle,
+    justSaved: justSavedTitle,
+  } = useDebouncedSave(saveTitle, 500);
 
   const handleTitleChange = e => {
     const newValue = e.target.value;
@@ -581,7 +588,10 @@ export const TaskItem = ({
           )}
 
           {/* Task content */}
-          <Box sx={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+          <Box sx={{ flex: 1, minWidth: 0, overflow: "hidden", position: "relative" }}>
+            {isEditingTitle && (
+              <AutosaveBadge isSaving={isSavingTitle} justSaved={justSavedTitle} position="top-right" size="sm" />
+            )}
             <Stack direction="row" alignItems="center" spacing={0.5} sx={{ width: "100%", maxWidth: "100%" }}>
               {isEditingTitle ? (
                 <TextField

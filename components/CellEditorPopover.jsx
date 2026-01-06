@@ -5,6 +5,7 @@ import { Box, Stack, Typography, Button, TextField, ToggleButton, ToggleButtonGr
 import { Check, Close, RadioButtonUnchecked, Delete } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
+import { AutosaveBadge } from "./AutosaveBadge";
 
 /**
  * CellEditorPopover - Editor for task completion cells
@@ -45,7 +46,10 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
     };
   }, [outcome, note, actualValue, onSave]);
 
-  const { debouncedSave, immediateSave } = useDebouncedSave(() => saveAllFieldsRef.current?.(), 500);
+  const { debouncedSave, immediateSave, isSaving, justSaved } = useDebouncedSave(
+    () => saveAllFieldsRef.current?.(),
+    500
+  );
 
   const handleNoteChange = e => {
     const newValue = e.target.value;
@@ -75,7 +79,8 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
   // For text_input type, show a text field instead of outcome buttons
   if (task.completionType === "text_input" || task.completionType === "text") {
     return (
-      <Box sx={{ p: 2, minWidth: 250 }}>
+      <Box sx={{ p: 2, minWidth: 250, position: "relative" }}>
+        <AutosaveBadge isSaving={isSaving} justSaved={justSaved} position="top-right" size="sm" />
         <Typography variant="subtitle2" gutterBottom>
           {task.title}
         </Typography>
@@ -128,7 +133,8 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
 
   // For checkbox type (default)
   return (
-    <Box sx={{ p: 2, minWidth: 280 }}>
+    <Box sx={{ p: 2, minWidth: 280, position: "relative" }}>
+      <AutosaveBadge isSaving={isSaving} justSaved={justSaved} position="top-right" size="sm" />
       <Typography variant="subtitle2" gutterBottom>
         {task.title}
       </Typography>

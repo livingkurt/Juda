@@ -5,6 +5,7 @@ import { Box, Typography, TextField, Stack, IconButton, Collapse } from "@mui/ma
 import { Add, ExpandMore, ChevronRight } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
+import { AutosaveBadge } from "./AutosaveBadge";
 
 export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave }) => {
   const theme = useTheme();
@@ -40,7 +41,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
     [isCurrentYear, task.id, date, completion?.note, onSave]
   );
 
-  const { debouncedSave, immediateSave } = useDebouncedSave(saveNote, 500);
+  const { debouncedSave, immediateSave, isSaving, justSaved } = useDebouncedSave(saveNote, 500);
 
   const handleChange = e => {
     const newValue = e.target.value;
@@ -98,8 +99,10 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
         mb: { xs: 3, md: 4 },
         opacity: isCurrentYear ? 1 : 0.7,
         pb: 0.5,
+        position: "relative",
       }}
     >
+      {isCurrentYear && <AutosaveBadge isSaving={isSaving} justSaved={justSaved} position="top-right" />}
       <Stack spacing={{ xs: 2, md: 3 }}>
         {/* Header with title and expand/collapse button */}
         <Stack direction="row" spacing={2} alignItems="center">

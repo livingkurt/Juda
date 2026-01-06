@@ -47,6 +47,7 @@ import {
 } from "@/lib/store/api/completionsApi";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
+import { AutosaveBadge } from "../AutosaveBadge";
 import CellEditorPopover from "../CellEditorPopover";
 
 // Flatten tasks including subtasks
@@ -210,7 +211,7 @@ const CompletionCell = memo(function CompletionCell({
     }
   };
 
-  const { debouncedSave, immediateSave } = useDebouncedSave(saveText, 500);
+  const { debouncedSave, immediateSave, isSaving, justSaved } = useDebouncedSave(saveText, 500);
 
   const handleTextChange = e => {
     const newValue = e.target.value;
@@ -266,19 +267,22 @@ const CompletionCell = memo(function CompletionCell({
           onClick={() => setIsEditing(true)}
         >
           {isEditing ? (
-            <TextField
-              size="small"
-              value={textValue}
-              onChange={handleTextChange}
-              onBlur={handleTextSave}
-              onKeyDown={e => {
-                if (e.key === "Enter") {
-                  handleTextSave();
-                }
-              }}
-              autoFocus
-              sx={{ width: "100%", "& .MuiInputBase-root": { fontSize: "0.75rem" } }}
-            />
+            <Box sx={{ position: "relative", width: "100%" }}>
+              <AutosaveBadge isSaving={isSaving} justSaved={justSaved} position="top-right" size="sm" />
+              <TextField
+                size="small"
+                value={textValue}
+                onChange={handleTextChange}
+                onBlur={handleTextSave}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    handleTextSave();
+                  }
+                }}
+                autoFocus
+                sx={{ width: "100%", "& .MuiInputBase-root": { fontSize: "0.75rem" } }}
+              />
+            </Box>
           ) : (
             getCellContent()
           )}
