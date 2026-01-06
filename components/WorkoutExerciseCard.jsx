@@ -227,82 +227,84 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                   mb: 1,
                 }}
               >
-                <Stack direction="row" spacing={1} alignItems="center" mb={1} sx={{ height: 24 }}>
-                  <Typography variant="caption" fontWeight={600} sx={{ minWidth: 60 }}>
-                    Set {setNumber}
-                  </Typography>
-                  <Box
-                    sx={{
-                      width: 20,
-                      height: 20,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <OutcomeCheckbox
-                      outcome={outcome}
-                      onOutcomeChange={newOutcome => {
-                        onSetToggle?.(exercise.id, setNumber, newOutcome);
-                        // Auto-fill target value when checked (for distance exercises)
-                        if (newOutcome === "completed") {
-                          if (!setData.distance) {
-                            onActualValueChange?.(exercise.id, setNumber, "distance", targetValue);
-                          }
-                        }
-                        // Clear values when unchecked
-                        if (newOutcome !== "completed") {
-                          if (setData.distance) {
-                            onActualValueChange?.(exercise.id, setNumber, "distance", "");
-                          }
-                          if (setData.time) {
-                            onActualValueChange?.(exercise.id, setNumber, "time", "");
-                          }
-                          if (setData.pace) {
-                            onActualValueChange?.(exercise.id, setNumber, "pace", "");
-                          }
-                        }
+                <Stack direction="row" spacing={2} alignItems="center" justifyContent="center">
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Typography variant="body1" fontWeight={600} sx={{ minWidth: 50 }}>
+                      Set {setNumber}
+                    </Typography>
+                    <Box
+                      sx={{
+                        width: 20,
+                        height: 20,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
-                      isChecked={isComplete}
-                      size="sm"
-                    />
-                  </Box>
-                </Stack>
-                <Stack direction="column" spacing={1}>
-                  <Box sx={{ width: "100%", maxWidth: "100%" }}>
-                    <TextField
-                      size="small"
-                      fullWidth
-                      label="Time"
-                      placeholder="08:05"
-                      value={setData.time || ""}
-                      onChange={e => onActualValueChange?.(exercise.id, setNumber, "time", e.target.value)}
-                      sx={{ "& input": { fontSize: "0.75rem" } }}
-                    />
-                  </Box>
-                  <Box sx={{ width: "100%", maxWidth: "100%" }}>
-                    <TextField
-                      size="small"
-                      fullWidth
-                      label="Distance"
-                      type="number"
-                      placeholder={String(targetValue)}
-                      value={setData.distance || ""}
-                      onChange={e => onActualValueChange?.(exercise.id, setNumber, "distance", e.target.value)}
-                      sx={{ "& input": { fontSize: "0.75rem" } }}
-                    />
-                  </Box>
-                  <Box sx={{ width: "100%", maxWidth: "100%" }}>
-                    <TextField
-                      size="small"
-                      fullWidth
-                      label="Pace"
-                      placeholder="7:55"
-                      value={setData.pace || ""}
-                      onChange={e => onActualValueChange?.(exercise.id, setNumber, "pace", e.target.value)}
-                      sx={{ "& input": { fontSize: "0.75rem" } }}
-                    />
-                  </Box>
+                    >
+                      <OutcomeCheckbox
+                        outcome={outcome}
+                        onOutcomeChange={newOutcome => {
+                          onSetToggle?.(exercise.id, setNumber, newOutcome);
+                          // Auto-fill target value when checked (for distance exercises)
+                          if (newOutcome === "completed") {
+                            if (!setData.distance) {
+                              onActualValueChange?.(exercise.id, setNumber, "distance", targetValue);
+                            }
+                          }
+                          // Clear values when unchecked
+                          if (newOutcome !== "completed") {
+                            if (setData.distance) {
+                              onActualValueChange?.(exercise.id, setNumber, "distance", "");
+                            }
+                            if (setData.time) {
+                              onActualValueChange?.(exercise.id, setNumber, "time", "");
+                            }
+                            if (setData.pace) {
+                              onActualValueChange?.(exercise.id, setNumber, "pace", "");
+                            }
+                          }
+                        }}
+                        isChecked={isComplete}
+                        size="lg"
+                      />
+                    </Box>
+                  </Stack>
+                  <Stack direction="column" spacing={2}>
+                    <Box sx={{ width: "100%", maxWidth: "100%" }}>
+                      <TextField
+                        size="small"
+                        fullWidth
+                        label="Time"
+                        placeholder="08:05"
+                        value={setData.time || ""}
+                        onChange={e => onActualValueChange?.(exercise.id, setNumber, "time", e.target.value)}
+                        sx={{ "& input": { fontSize: "0.75rem" } }}
+                      />
+                    </Box>
+                    <Box sx={{ width: "100%", maxWidth: "100%" }}>
+                      <TextField
+                        size="small"
+                        fullWidth
+                        label="Distance"
+                        type="number"
+                        placeholder={String(targetValue)}
+                        value={setData.distance || ""}
+                        onChange={e => onActualValueChange?.(exercise.id, setNumber, "distance", e.target.value)}
+                        sx={{ "& input": { fontSize: "0.75rem" } }}
+                      />
+                    </Box>
+                    <Box sx={{ width: "100%", maxWidth: "100%" }}>
+                      <TextField
+                        size="small"
+                        fullWidth
+                        label="Pace"
+                        placeholder="7:55"
+                        value={setData.pace || ""}
+                        onChange={e => onActualValueChange?.(exercise.id, setNumber, "pace", e.target.value)}
+                        sx={{ "& input": { fontSize: "0.75rem" } }}
+                      />
+                    </Box>
+                  </Stack>
                 </Stack>
               </Paper>
             );

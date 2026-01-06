@@ -15,6 +15,8 @@ import {
   Divider,
   CircularProgress,
   Paper,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import { Close, FitnessCenter, Check } from "@mui/icons-material";
 import WorkoutDaySection from "./WorkoutDaySection";
@@ -28,6 +30,8 @@ import { useViewState } from "@/hooks/useViewState";
  * WorkoutModal - Main modal for executing workouts
  */
 export default function WorkoutModal() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const dialogState = useDialogState();
   const viewState = useViewState();
   const task = dialogState.workoutModalTask;
@@ -376,14 +380,12 @@ export default function WorkoutModal() {
     <Dialog
       open={isOpen}
       onClose={handleClose}
-      maxWidth={false}
+      maxWidth={isMobile ? false : "md"}
       fullWidth
       PaperProps={{
         sx: {
           height: { xs: "100vh", md: "90vh" },
           maxHeight: { xs: "100vh", md: "90vh" },
-          width: { xs: "100%", md: "auto" },
-          maxWidth: { xs: "100%", md: "600px" },
           m: { xs: 0, md: "auto" },
           borderRadius: { xs: 0, md: 1 },
         },
