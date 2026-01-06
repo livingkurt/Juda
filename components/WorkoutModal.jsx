@@ -192,6 +192,7 @@ export default function WorkoutModal() {
                     outcome: completion.outcome,
                     completed: completion.completed,
                     actualValue: completion.actualValue,
+                    unit: completion.unit, // Include unit from completion record
                     time: completion.time,
                     distance: completion.distance,
                     pace: completion.pace,
@@ -236,6 +237,18 @@ export default function WorkoutModal() {
 
         const processExerciseSets = (exerciseId, exerciseData) => {
           if (!exerciseData?.sets) return;
+          // Find the exercise from sections to get its unit
+          let exerciseUnit = null;
+          for (const section of sections) {
+            for (const day of section.days || []) {
+              const exercise = day.exercises?.find(ex => ex.id === exerciseId);
+              if (exercise) {
+                exerciseUnit = exercise.unit;
+                break;
+              }
+            }
+            if (exerciseUnit) break;
+          }
           exerciseData.sets.forEach(setData => {
             savePromises.push(
               authFetch("/api/workout-set-completions", {
@@ -249,6 +262,7 @@ export default function WorkoutModal() {
                   outcome: setData.outcome,
                   completed: setData.completed,
                   actualValue: setData.actualValue,
+                  unit: exerciseUnit, // Include unit when saving
                   time: setData.time,
                   distance: setData.distance,
                   pace: setData.pace,
@@ -284,7 +298,7 @@ export default function WorkoutModal() {
         pendingSaveRef.current = false;
       }
     },
-    [task?.id, currentDate, authFetch]
+    [task?.id, currentDate, authFetch, sections]
   );
 
   // Debounced save

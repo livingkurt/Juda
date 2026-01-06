@@ -52,7 +52,8 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { taskId, date, exerciseId, setNumber, outcome, completed, actualValue, value, time, distance, pace } = body;
+    const { taskId, date, exerciseId, setNumber, outcome, completed, actualValue, unit, value, time, distance, pace } =
+      body;
 
     if (!taskId || !date || !exerciseId || setNumber === undefined) {
       return NextResponse.json({ error: "taskId, date, exerciseId, and setNumber are required" }, { status: 400 });
@@ -100,6 +101,7 @@ export async function POST(request) {
           outcome: finalOutcome,
           completed: completed !== undefined ? completed : existing.completed,
           actualValue: finalActualValue,
+          unit: unit !== undefined ? unit : existing.unit,
           value: value !== undefined ? value : existing.value,
           time: time !== undefined ? time : existing.time,
           distance: distance !== undefined ? distance : existing.distance,
@@ -128,6 +130,7 @@ export async function POST(request) {
           outcome: outcome || null,
           completed: completed || false,
           actualValue: finalActualValue,
+          unit: unit || null,
           value: value || null,
           time: time || null,
           distance: distance || null,

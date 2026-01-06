@@ -56,9 +56,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
   // Handle clearing (outcome is null)
   if (outcome === null || outcome === undefined) {
     // Delete completion
-    await db
-      .delete(taskCompletions)
-      .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)));
+    await db.delete(taskCompletions).where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)));
 
     completionBroadcast.onDelete(userId, { taskId, date: utcDate.toISOString() }, clientId);
 
@@ -247,4 +245,3 @@ export const DELETE = withApi(async (request, { userId, getBody }) => {
 
   return NextResponse.json({ success: true });
 });
-
