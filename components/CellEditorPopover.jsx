@@ -37,13 +37,29 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
   // Update ref whenever state changes
   useEffect(() => {
     saveAllFieldsRef.current = () => {
-      onSave({
-        outcome,
-        note: note.trim() || null,
-        actualValue: actualValue || null,
-      });
+      // For text type, save to note field; for text_input, save to actualValue field
+      if (task.completionType === "text") {
+        onSave({
+          outcome: "completed",
+          note: note.trim() || null,
+          actualValue: null,
+        });
+      } else if (task.completionType === "text_input") {
+        onSave({
+          outcome: "completed",
+          note: null,
+          actualValue: actualValue || null,
+        });
+      } else {
+        // For other types, save all fields
+        onSave({
+          outcome,
+          note: note.trim() || null,
+          actualValue: actualValue || null,
+        });
+      }
     };
-  }, [outcome, note, actualValue, onSave]);
+  }, [outcome, note, actualValue, onSave, task.completionType]);
 
   const { debouncedSave, immediateSave, isSaving, justSaved } = useDebouncedSave(
     () => saveAllFieldsRef.current?.(),
@@ -77,6 +93,13 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
 
   // For text_input type, show a text field instead of outcome buttons
   if (task.completionType === "text_input" || task.completionType === "text") {
+    // For text type, use note field; for text_input, use actualValue field
+    const textValue = task.completionType === "text" ? note : actualValue;
+    const handleTextChange = task.completionType === "text" ? handleNoteChange : handleActualValueChange;
+
+    // Minimum 10 rows, expandable up to 30 rows
+    const minRows = 10;
+
     return (
       <Box sx={{ p: 2, minWidth: 250, position: "relative" }}>
         <Typography variant="subtitle2" gutterBottom>
@@ -89,26 +112,16 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
         <TextField
           fullWidth
           size="small"
-          label="Value"
-          value={actualValue}
-          onChange={handleActualValueChange}
+          label={task.completionType === "text" ? "Journal Entry" : "Value"}
+          value={textValue}
+          onChange={handleTextChange}
           onBlur={handleSave}
-          placeholder="Enter value..."
-          sx={{ mt: 2 }}
-          autoFocus
-        />
-
-        <TextField
-          fullWidth
-          size="small"
-          label="Note (optional)"
-          value={note}
-          onChange={handleNoteChange}
-          onBlur={handleSave}
-          placeholder="Add a note..."
+          placeholder={task.completionType === "text" ? "Enter your journal entry..." : "Enter value..."}
           multiline
-          rows={2}
-          sx={{ mt: 1.5 }}
+          minRows={minRows}
+          maxRows={30}
+          sx={{ mt: 2, "& .MuiInputBase-input": { overflow: "auto" } }}
+          autoFocus
         />
 
         <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 2 }}>
@@ -121,7 +134,7 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
           <Button size="small" onClick={onClose}>
             Cancel
           </Button>
-          <Button size="small" variant="contained" onClick={handleSave} disabled={!actualValue && !hasChanges}>
+          <Button size="small" variant="contained" onClick={handleSave} disabled={!textValue.trim() && !hasChanges}>
             Save
           </Button>
         </Stack>

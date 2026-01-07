@@ -20,6 +20,9 @@ import {
   Divider,
   InputAdornment,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import dayjs from "dayjs";
@@ -52,7 +55,6 @@ import {
   useRolloverTaskMutation,
 } from "@/lib/store/api/tasksApi";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
-import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 import CellEditorPopover from "../CellEditorPopover";
 
 // Flatten tasks including subtasks
@@ -179,6 +181,7 @@ const MemoizedCompletionCell = memo(function MemoizedCompletionCell({
   onCellDelete,
   onOpenWorkout,
   showRightBorder,
+  onOpenTextModal,
 }) {
   // Create stable handlers bound to this task/date combination
   const handleUpdate = useCallback(
@@ -206,6 +209,7 @@ const MemoizedCompletionCell = memo(function MemoizedCompletionCell({
       onDelete={handleDelete}
       onOpenWorkout={handleOpenWorkout}
       showRightBorder={showRightBorder}
+      onOpenTextModal={onOpenTextModal}
     />
   );
 });
@@ -220,11 +224,10 @@ const CompletionCell = memo(function CompletionCell({
   onDelete,
   onOpenWorkout,
   showRightBorder = false,
+  onOpenTextModal,
 }) {
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState(null);
-  const [textValue, setTextValue] = useState(completion?.note || completion?.actualValue || "");
-  const [isEditing, setIsEditing] = useState(false);
 
   const outcome = completion?.outcome;
   const isTextType = task.completionType === "text" || task.completionType === "text_input";
@@ -243,17 +246,25 @@ const CompletionCell = memo(function CompletionCell({
   // Cell content
   const getCellContent = () => {
     if (task.completionType === "text_input" && completion?.actualValue) {
+      const text = completion.actualValue;
+      const truncated = text.length > 20 ? text.substring(0, 20) + "..." : text;
       return (
-        <Typography variant="caption" noWrap sx={{ maxWidth: 60 }}>
-          {completion.actualValue}
-        </Typography>
+        <Tooltip title={text.length > 20 ? text : ""}>
+          <Typography variant="caption" noWrap sx={{ maxWidth: 100, display: "block" }}>
+            {truncated}
+          </Typography>
+        </Tooltip>
       );
     }
     if (task.completionType === "text" && completion?.note) {
+      const text = completion.note;
+      const truncated = text.length > 20 ? text.substring(0, 20) + "..." : text;
       return (
-        <Typography variant="caption" noWrap sx={{ maxWidth: 60 }}>
-          {completion.note}
-        </Typography>
+        <Tooltip title={text.length > 20 ? text : ""}>
+          <Typography variant="caption" noWrap sx={{ maxWidth: 100, display: "block" }}>
+            {truncated}
+          </Typography>
+        </Tooltip>
       );
     }
 
@@ -272,32 +283,11 @@ const CompletionCell = memo(function CompletionCell({
     return null;
   };
 
-  // Save function wrapper
-  const saveText = value => {
-    if (value.trim()) {
-      const data =
-        task.completionType === "text_input"
-          ? { outcome: "completed", actualValue: value }
-          : { outcome: "completed", note: value };
-      onUpdate(data);
-    } else if (completion) {
-      onDelete();
+  const handleTextClick = useCallback(() => {
+    if (onOpenTextModal) {
+      onOpenTextModal(task, date, completion, isScheduled);
     }
-  };
-
-  const { debouncedSave, immediateSave } = useDebouncedSave(saveText, 500);
-
-  const handleTextChange = e => {
-    const newValue = e.target.value;
-    setTextValue(newValue);
-    debouncedSave(newValue);
-  };
-
-  const handleTextSave = useCallback(() => {
-    // Save immediately on blur/enter
-    immediateSave(textValue);
-    setIsEditing(false);
-  }, [immediateSave, textValue]);
+  }, [onOpenTextModal, task, date, completion, isScheduled]);
 
   const handleWorkoutClick = useCallback(() => {
     const canOpen = isScheduled || completion;
@@ -331,7 +321,7 @@ const CompletionCell = memo(function CompletionCell({
     );
   }
 
-  // Handle text input type - inline editing
+  // Handle text input type - open modal on click
   if (isTextType) {
     if (isScheduled || completion) {
       return (
@@ -344,28 +334,12 @@ const CompletionCell = memo(function CompletionCell({
             "&:hover": { bgcolor: "action.selected" },
             borderRight: showRightBorder ? 1 : 0,
             borderColor: "divider",
+            maxWidth: 120,
+            overflow: "hidden",
           }}
-          onClick={() => setIsEditing(true)}
+          onClick={handleTextClick}
         >
-          {isEditing ? (
-            <Box sx={{ position: "relative", width: "100%" }}>
-              <TextField
-                size="small"
-                value={textValue}
-                onChange={handleTextChange}
-                onBlur={handleTextSave}
-                onKeyDown={e => {
-                  if (e.key === "Enter") {
-                    handleTextSave();
-                  }
-                }}
-                autoFocus
-                sx={{ width: "100%", "& .MuiInputBase-root": { fontSize: "0.75rem" } }}
-              />
-            </Box>
-          ) : (
-            getCellContent()
-          )}
+          {getCellContent()}
         </TableCell>
       );
     }
@@ -485,6 +459,13 @@ export function HistoryTab({ isLoading: tabLoading }) {
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearch = useDeferredValue(searchQuery);
   const [workoutModal, setWorkoutModal] = useState({ open: false, task: null, date: null });
+  const [textModal, setTextModal] = useState({
+    open: false,
+    task: null,
+    date: null,
+    completion: null,
+    isScheduled: false,
+  });
   const [taskMenuAnchor, setTaskMenuAnchor] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
 
@@ -618,6 +599,35 @@ export function HistoryTab({ isLoading: tabLoading }) {
   const handleCloseWorkout = useCallback(() => {
     setWorkoutModal({ open: false, task: null, date: null });
   }, []);
+
+  // Handle text modal open - memoized
+  const handleOpenTextModal = useCallback((task, date, completion, isScheduled) => {
+    setTextModal({ open: true, task, date, completion, isScheduled });
+  }, []);
+
+  // Handle text modal close - memoized
+  const handleCloseTextModal = useCallback(() => {
+    setTextModal({ open: false, task: null, date: null, completion: null, isScheduled: false });
+  }, []);
+
+  // Handle text modal save - memoized
+  const handleTextModalSave = useCallback(
+    async data => {
+      if (textModal.task && textModal.date) {
+        await handleCellUpdate(textModal.task, textModal.date, data);
+        handleCloseTextModal();
+      }
+    },
+    [textModal.task, textModal.date, handleCellUpdate, handleCloseTextModal]
+  );
+
+  // Handle text modal delete - memoized
+  const handleTextModalDelete = useCallback(async () => {
+    if (textModal.task && textModal.date) {
+      await handleCellDelete(textModal.task, textModal.date);
+      handleCloseTextModal();
+    }
+  }, [textModal.task, textModal.date, handleCellDelete, handleCloseTextModal]);
 
   // Handle workout completion - memoized
   const handleWorkoutComplete = useCallback(
@@ -838,6 +848,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
                         onCellDelete={handleCellDelete}
                         onOpenWorkout={handleOpenWorkout}
                         showRightBorder={isLastInSection}
+                        onOpenTextModal={handleOpenTextModal}
                       />
                     );
                   })}
@@ -913,6 +924,43 @@ export function HistoryTab({ isLoading: tabLoading }) {
           currentDate={workoutModal.date ? new Date(workoutModal.date) : new Date()}
         />
       )}
+
+      {/* Text/Journal Entry Modal */}
+      <Dialog
+        open={textModal.open}
+        onClose={handleCloseTextModal}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            maxHeight: "90vh",
+            display: "flex",
+            flexDirection: "column",
+          },
+        }}
+      >
+        <DialogTitle>
+          {textModal.task?.title}
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+            {textModal.date ? dayjs(textModal.date).format("MMM D, YYYY") : ""}
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ flex: 1, overflow: "auto" }}>
+          {textModal.task && (
+            <Box sx={{ "& > div": { pt: 0 } }}>
+              <CellEditorPopover
+                task={textModal.task}
+                date={textModal.date}
+                completion={textModal.completion}
+                isScheduled={textModal.isScheduled}
+                onSave={handleTextModalSave}
+                onDelete={handleTextModalDelete}
+                onClose={handleCloseTextModal}
+              />
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }
