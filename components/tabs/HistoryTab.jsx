@@ -37,6 +37,8 @@ import {
   MoreVert,
   Search,
   SkipNext,
+  ExpandMore,
+  ChevronRight,
 } from "@mui/icons-material";
 import { shouldShowOnDate } from "@/lib/utils";
 import WorkoutModal from "../WorkoutModal";
@@ -57,25 +59,45 @@ import {
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import CellEditorPopover from "../CellEditorPopover";
 
-// Flatten tasks including subtasks
-const flattenTasks = tasks => {
+// Filter only recurring tasks (keep subtasks nested, don't flatten)
+// Show subtasks even if they don't have recurrence, as long as parent has recurrence
+const getRecurringTasks = tasks => {
+  const filterRecurring = (taskList, parentHasRecurrence = false) => {
+    return taskList
+      .filter(t => {
+        // Include task if it has recurrence OR if parent has recurrence (for subtasks)
+        const hasRecurrence = t.recurrence?.type && t.recurrence.type !== "none";
+        return (hasRecurrence || parentHasRecurrence) && t.completionType !== "note";
+      })
+      .map(task => {
+        const taskHasRecurrence = task.recurrence?.type && task.recurrence.type !== "none";
+        // Always include subtasks if parent has recurrence, even if subtasks don't
+        if (task.subtasks?.length > 0) {
+          return {
+            ...task,
+            subtasks: filterRecurring(task.subtasks, taskHasRecurrence),
+          };
+        }
+        return task;
+      });
+  };
+  return filterRecurring(tasks);
+};
+
+// Flatten tasks including expanded subtasks
+const flattenTasksWithSubtasks = (tasks, expandedTaskIds) => {
   const result = [];
-  const traverse = taskList => {
+  const traverse = (taskList, depth = 0) => {
     taskList.forEach(task => {
-      result.push(task);
-      if (task.subtasks?.length > 0) {
-        traverse(task.subtasks);
+      result.push({ ...task, depth });
+      // Include subtasks if parent is expanded
+      if (task.subtasks?.length > 0 && expandedTaskIds.has(task.id)) {
+        traverse(task.subtasks, depth + 1);
       }
     });
   };
   traverse(tasks);
   return result;
-};
-
-// Filter only recurring tasks
-const getRecurringTasks = tasks => {
-  const flatTasks = flattenTasks(tasks);
-  return flatTasks.filter(t => t.recurrence?.type && t.recurrence.type !== "none" && t.completionType !== "note");
 };
 
 // Group tasks by section
@@ -468,6 +490,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
   });
   const [taskMenuAnchor, setTaskMenuAnchor] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [expandedTaskIds, setExpandedTaskIds] = useState(new Set());
 
   // Generate dates
   const dates = useMemo(() => generateDates(range, page), [range, page]);
@@ -483,26 +506,54 @@ export function HistoryTab({ isLoading: tabLoading }) {
   const groupedTasks = useMemo(() => {
     let recurring = getRecurringTasks(tasks);
 
-    // Search filter
+    // Search filter - preserve parent-child relationships
     if (deferredSearch.trim()) {
       const q = deferredSearch.toLowerCase();
-      recurring = recurring.filter(
-        t => t.title?.toLowerCase().includes(q) || t.tags?.some(tag => tag.name.toLowerCase().includes(q))
-      );
+      const filterTasks = taskList => {
+        return taskList
+          .map(task => {
+            const taskMatches =
+              task.title?.toLowerCase().includes(q) || task.tags?.some(tag => tag.name.toLowerCase().includes(q));
+            const hasMatchingSubtasks = task.subtasks?.length > 0 && filterTasks(task.subtasks).length > 0;
+
+            if (taskMatches || hasMatchingSubtasks) {
+              return {
+                ...task,
+                subtasks: task.subtasks?.length > 0 ? filterTasks(task.subtasks) : [],
+              };
+            }
+            return null;
+          })
+          .filter(Boolean);
+      };
+      recurring = filterTasks(recurring);
     }
 
     return groupTasksBySection(recurring, sections);
   }, [tasks, sections, deferredSearch]);
 
-  // Flatten all tasks for column headers
+  // Flatten all tasks including expanded subtasks for column headers
   const allTasks = useMemo(() => {
-    return groupedTasks.flatMap(g => g.tasks);
-  }, [groupedTasks]);
+    return groupedTasks.flatMap(g => flattenTasksWithSubtasks(g.tasks, expandedTaskIds));
+  }, [groupedTasks, expandedTaskIds]);
 
-  // Total task count
+  // Total task count (including expanded subtasks)
   const totalTasks = useMemo(() => {
-    return groupedTasks.reduce((sum, g) => sum + g.tasks.length, 0);
-  }, [groupedTasks]);
+    return allTasks.length;
+  }, [allTasks]);
+
+  // Toggle task expansion
+  const toggleTaskExpansion = useCallback(taskId => {
+    setExpandedTaskIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  }, []);
 
   // View options for DateNavigation
   const viewOptions = [
@@ -720,21 +771,25 @@ export function HistoryTab({ isLoading: tabLoading }) {
                 Date
               </TableCell>
               {/* Section headers spanning task columns */}
-              {groupedTasks.map(({ section, tasks: sectionTasks }) => (
-                <TableCell
-                  key={section.id}
-                  colSpan={sectionTasks.length}
-                  align="center"
-                  sx={{
-                    bgcolor: "action.hover",
-                    fontWeight: 600,
-                    borderRight: 1,
-                    borderColor: "divider",
-                  }}
-                >
-                  {section.name} ({sectionTasks.length})
-                </TableCell>
-              ))}
+              {groupedTasks.map(({ section, tasks: sectionTasks }) => {
+                // Count all tasks including expanded subtasks
+                const taskCount = flattenTasksWithSubtasks(sectionTasks, expandedTaskIds).length;
+                return (
+                  <TableCell
+                    key={section.id}
+                    colSpan={taskCount}
+                    align="center"
+                    sx={{
+                      bgcolor: "action.hover",
+                      fontWeight: 600,
+                      borderRight: 1,
+                      borderColor: "divider",
+                    }}
+                  >
+                    {section.name} ({taskCount})
+                  </TableCell>
+                );
+              })}
             </TableRow>
             {/* Task name headers row */}
             <TableRow>
@@ -753,14 +808,21 @@ export function HistoryTab({ isLoading: tabLoading }) {
               {allTasks.map(task => {
                 // Check if this is the last task in its section
                 const isLastInSection = (() => {
+                  // Find which section this task belongs to
                   for (const group of groupedTasks) {
-                    const taskIndexInSection = group.tasks.findIndex(t => t.id === task.id);
-                    if (taskIndexInSection !== -1) {
-                      return taskIndexInSection === group.tasks.length - 1;
+                    const sectionTasks = flattenTasksWithSubtasks(group.tasks, expandedTaskIds);
+                    const indexInSection = sectionTasks.findIndex(t => t.id === task.id);
+                    if (indexInSection !== -1) {
+                      return indexInSection === sectionTasks.length - 1;
                     }
                   }
                   return false;
                 })();
+
+                const hasSubtasks = task.subtasks?.length > 0;
+                const subtaskCount = task.subtasks?.length || 0;
+                const isExpanded = expandedTaskIds.has(task.id);
+                const isSubtask = task.depth > 0;
 
                 return (
                   <TableCell
@@ -773,9 +835,41 @@ export function HistoryTab({ isLoading: tabLoading }) {
                       borderRight: isLastInSection ? 1 : 0,
                       borderColor: "divider",
                       position: "relative",
+                      pl: isSubtask ? 3 : 1,
+                      bgcolor: isSubtask ? "action.hover" : "transparent",
                     }}
                   >
-                    <Stack direction="row" alignItems="center" spacing={0.5} justifyContent="center">
+                    <Stack direction="row" alignItems="center" spacing={0.5} justifyContent="flex-start">
+                      {hasSubtasks ? (
+                        <IconButton
+                          size="small"
+                          onClick={e => {
+                            e.stopPropagation();
+                            toggleTaskExpansion(task.id);
+                          }}
+                          sx={{
+                            p: 0.5,
+                            minWidth: 24,
+                            width: 24,
+                            height: 24,
+                            "&:hover": { bgcolor: "action.hover" },
+                            color: "text.secondary",
+                          }}
+                          title={
+                            isExpanded
+                              ? `Collapse ${subtaskCount} subtask${subtaskCount !== 1 ? "s" : ""}`
+                              : `Expand ${subtaskCount} subtask${subtaskCount !== 1 ? "s" : ""}`
+                          }
+                        >
+                          {isExpanded ? (
+                            <ExpandMore fontSize="small" sx={{ fontSize: "1rem" }} />
+                          ) : (
+                            <ChevronRight fontSize="small" sx={{ fontSize: "1rem" }} />
+                          )}
+                        </IconButton>
+                      ) : (
+                        <Box sx={{ width: 24 }} /> // Spacer for alignment
+                      )}
                       <Tooltip title={task.title}>
                         <Typography
                           variant="caption"
@@ -784,10 +878,24 @@ export function HistoryTab({ isLoading: tabLoading }) {
                             flex: 1,
                             cursor: "pointer",
                             "&:hover": { color: "primary.main" },
+                            fontWeight: isSubtask ? 400 : 500,
                           }}
                           onClick={() => taskOps.handleEditTask(task)}
                         >
                           {task.title}
+                          {hasSubtasks && !isExpanded && (
+                            <Typography
+                              component="span"
+                              variant="caption"
+                              sx={{
+                                ml: 0.5,
+                                color: "text.secondary",
+                                fontSize: "0.7rem",
+                              }}
+                            >
+                              ({subtaskCount})
+                            </Typography>
+                          )}
                         </Typography>
                       </Tooltip>
                       {task.completionType === "workout" && (
@@ -828,10 +936,12 @@ export function HistoryTab({ isLoading: tabLoading }) {
                     const isScheduled = shouldShowOnDate(task, date);
                     // Check if this is the last task in its section
                     const isLastInSection = (() => {
+                      // Find which section this task belongs to
                       for (const group of groupedTasks) {
-                        const taskIndexInSection = group.tasks.findIndex(t => t.id === task.id);
-                        if (taskIndexInSection !== -1) {
-                          return taskIndexInSection === group.tasks.length - 1;
+                        const sectionTasks = flattenTasksWithSubtasks(group.tasks, expandedTaskIds);
+                        const indexInSection = sectionTasks.findIndex(t => t.id === task.id);
+                        if (indexInSection !== -1) {
+                          return indexInSection === sectionTasks.length - 1;
                         }
                       }
                       return false;
