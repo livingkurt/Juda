@@ -200,7 +200,7 @@ export const CalendarTask = memo(function CalendarTask({
           // Apple Calendar style - task stays visible and elevated during drag
           opacity: isCompleted || isNotCompleted ? 0.6 : 1,
           filter: isCompleted || isNotCompleted ? "brightness(0.7)" : "none",
-          p: padding,
+          p: 0,
           bgcolor: getBgColor(),
           borderColor: getBorderColor(),
           borderWidth: isNoDuration ? 2 : 1,
