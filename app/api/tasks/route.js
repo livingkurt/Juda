@@ -57,12 +57,16 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     isOffSchedule,
   } = body;
 
-  const section = await db.query.sections.findFirst({
-    where: and(eq(sections.id, sectionId), eq(sections.userId, userId)),
-  });
+  // Validate section exists if sectionId is provided
+  // Allow null sectionId for backlog tasks
+  if (sectionId !== null && sectionId !== undefined) {
+    const section = await db.query.sections.findFirst({
+      where: and(eq(sections.id, sectionId), eq(sections.userId, userId)),
+    });
 
-  if (!section) {
-    throw Errors.notFound("Section");
+    if (!section) {
+      throw Errors.notFound("Section");
+    }
   }
 
   // Create task and assign tags in a transaction
@@ -166,8 +170,12 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
 
   const updateData = {};
   if (title !== undefined) updateData.title = title;
-  if (sectionId !== undefined && sectionId !== null) {
-    if (sectionId !== existingTask.sectionId) {
+  if (sectionId !== undefined) {
+    if (sectionId === null) {
+      // Allow clearing sectionId (for backlog tasks)
+      updateData.sectionId = null;
+    } else if (sectionId !== existingTask.sectionId) {
+      // Validate new section exists
       const section = await db.query.sections.findFirst({
         where: and(eq(sections.id, sectionId), eq(sections.userId, userId)),
       });

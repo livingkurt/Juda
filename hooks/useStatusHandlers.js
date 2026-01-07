@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
 import { useGetTasksQuery, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useCreateCompletionMutation } from "@/lib/store/api/completionsApi";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
@@ -16,6 +17,7 @@ export function useStatusHandlers({
 } = {}) {
   // RTK Query hooks
   const { data: tasks = [] } = useGetTasksQuery();
+  const { data: sections = [] } = useGetSectionsQuery();
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();
 
@@ -78,9 +80,10 @@ export function useStatusHandlers({
             startDate: `${todayStr}T00:00:00.000Z`,
           };
 
-          // If task doesn't have a sectionId (backlog task), keep it null
-          // It will appear in the virtual "No Section" section
-          // (Don't assign to first section - let user choose)
+          // If task doesn't have a sectionId (backlog task), assign it to the first section
+          if (!task.sectionId && sections.length > 0) {
+            updates.sectionId = sections[0].id;
+          }
         }
         // If task is non-recurring (one-time) and doesn't have a startDate, set it to today
         else if (!isRecurringTask && !task.recurrence.startDate) {
@@ -90,8 +93,10 @@ export function useStatusHandlers({
             startDate: `${todayStr}T00:00:00.000Z`,
           };
 
-          // If task doesn't have a sectionId (backlog task), keep it null
-          // It will appear in the virtual "No Section" section
+          // If task doesn't have a sectionId (backlog task), assign it to the first section
+          if (!task.sectionId && sections.length > 0) {
+            updates.sectionId = sections[0].id;
+          }
         }
 
         // Set the time to the current time so it shows up on the calendar at that specific time
@@ -118,7 +123,7 @@ export function useStatusHandlers({
 
       await updateTask(taskId, updates);
     },
-    [tasks, updateTask, createCompletion, showCompletedTasks, addToRecentlyCompleted]
+    [tasks, sections, updateTask, createCompletion, showCompletedTasks, addToRecentlyCompleted]
   );
 
   return {

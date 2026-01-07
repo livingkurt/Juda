@@ -287,7 +287,7 @@ export function useTaskOperations() {
         taskDate.setHours(0, 0, 0, 0);
         const now = new Date();
 
-        await createTask({
+        const newTask = await createTask({
           title: title.trim(),
           sectionId,
           time: null,
@@ -303,6 +303,7 @@ export function useTaskOperations() {
           order: 999,
         });
         dispatch(showSuccess({ message: "Task created" }));
+        return newTask;
       } catch (error) {
         console.error("Failed to create task:", error.message);
         dispatch(showError({ message: "Failed to create task" }));
@@ -364,7 +365,9 @@ export function useTaskOperations() {
         if (tagIds && tagIds.length > 0) {
           await batchUpdateTaskTags(newTask.id, tagIds);
         }
+
         dispatch(showSuccess({ message: "Task created" }));
+        return newTask;
       } catch (error) {
         console.error("Failed to create task:", error.message);
         dispatch(showError({ message: "Failed to create task" }));

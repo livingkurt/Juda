@@ -4,6 +4,7 @@ import { useRef, useCallback, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
 import { useGetTasksQuery, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import {
   useCreateCompletionMutation,
   useDeleteCompletionMutation,
@@ -52,6 +53,7 @@ export function useCompletionHandlers({
 
   // RTK Query hooks
   const { data: tasks = [] } = useGetTasksQuery();
+  const { data: sections = [] } = useGetSectionsQuery();
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();
   const [deleteCompletionMutation] = useDeleteCompletionMutation();
@@ -246,9 +248,10 @@ export function useCompletionHandlers({
             status: "complete",
           };
 
-          // If task doesn't have a sectionId (backlog task), keep it null
-          // It will appear in the virtual "No Section" section
-          // (Don't assign to first section - let user choose via drag/drop or task dialog)
+          // If task doesn't have a sectionId (backlog task), assign it to the first section
+          if (!task.sectionId && sections.length > 0) {
+            updates.sectionId = sections[0].id;
+          }
 
           await updateTask(taskId, updates);
         } else if (!isRecurringTask && !task.time && !isCompletedOnTargetDate) {
@@ -257,8 +260,10 @@ export function useCompletionHandlers({
             status: "complete",
           };
 
-          // If task doesn't have a sectionId (backlog task), keep it null
-          // It will appear in the virtual "No Section" section
+          // If task doesn't have a sectionId (backlog task), assign it to the first section
+          if (!task.sectionId && sections.length > 0) {
+            updates.sectionId = sections[0].id;
+          }
 
           await updateTask(taskId, updates);
         } else if (!isRecurringTask && !isCompletedOnTargetDate) {
@@ -266,8 +271,10 @@ export function useCompletionHandlers({
             status: "complete",
           };
 
-          // If task doesn't have a sectionId (backlog task), keep it null
-          // It will appear in the virtual "No Section" section
+          // If task doesn't have a sectionId (backlog task), assign it to the first section
+          if (!task.sectionId && sections.length > 0) {
+            updates.sectionId = sections[0].id;
+          }
 
           await updateTask(taskId, updates);
         }
@@ -330,6 +337,7 @@ export function useCompletionHandlers({
     },
     [
       tasks,
+      sections,
       today,
       viewDate,
       isCompletedOnDate,

@@ -64,7 +64,8 @@ function TaskDialogForm({
 }) {
   // Initialize state from task or defaults
   const [title, setTitle] = useState(task?.title || "");
-  const [sectionId, setSectionId] = useState(task?.sectionId || defaultSectionId || sections[0]?.id || "");
+  // Use null for sectionId if task has null, otherwise use defaultSectionId (don't auto-select first section)
+  const [sectionId, setSectionId] = useState(task ? (task.sectionId ?? null) : (defaultSectionId ?? null));
   const [time, setTime] = useState(task?.time || defaultTime || "");
   const [date, setDate] = useState(() => {
     if (task?.recurrence?.startDate) {
