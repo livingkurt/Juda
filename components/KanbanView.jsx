@@ -2,8 +2,7 @@
 
 import { useMemo, memo, useCallback } from "react";
 import { Box, Stack, Typography, IconButton, Chip } from "@mui/material";
-import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { Droppable } from "@hello-pangea/dnd";
 import { Add } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
 import { TaskItem } from "./TaskItem";
@@ -19,14 +18,6 @@ import { setKanbanSearchTerm, setKanbanSelectedTagIds } from "@/lib/store/slices
 
 // Kanban column component
 const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, createDraggableId }) {
-  const { setNodeRef, isOver, active } = useDroppable({
-    id: `kanban-column|${id}`,
-    data: { type: "KANBAN_COLUMN", status: id },
-  });
-
-  // Check if we're dragging a task over this column
-  const isDraggingOver = isOver && active;
-
   // Use hooks directly
   const taskOps = useTaskOperations();
   const completionHandlers = useCompletionHandlers();
@@ -45,12 +36,6 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
     // Show tasks that are either still in complete status OR recently completed
     return tasks.filter(task => task.status === "complete" || recentlyCompletedTasks?.has(task.id));
   }, [id, tasks, recentlyCompletedTasks]);
-
-  // Memoize sortable IDs to prevent unnecessary recalculations
-  const sortableIds = useMemo(
-    () => visibleTasks.map(task => createDraggableId.kanban(task.id, id)),
-    [visibleTasks, id, createDraggableId]
-  );
 
   const handleCreateQuickTask = useCallback(
     async title => {
@@ -89,80 +74,84 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
       </Stack>
 
       {/* Column Content */}
-      <Box
-        ref={setNodeRef}
-        sx={{
-          bgcolor: isDraggingOver ? "action.selected" : "background.paper",
-          borderRadius: 1,
-          border: 2,
-          borderColor: isDraggingOver ? "primary.main" : "divider",
-          minHeight: 200,
-          maxHeight: "calc(100vh - 300px)",
-          overflowY: "auto",
-          p: 1,
-          transition: "all 0.2s",
-          position: "relative",
-        }}
-      >
-        <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-          <Stack spacing={1} sx={{ minHeight: isDraggingOver ? 100 : "auto" }}>
-            {visibleTasks.map(task => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                variant="kanban"
-                containerId={`kanban-column|${id}`}
-                draggableId={createDraggableId.kanban(task.id, id)}
-                viewDate={viewDate}
-              />
-            ))}
-            {/* Drop placeholder */}
-            {isDraggingOver && (
-              <Box
-                sx={{
-                  minHeight: 80,
-                  border: 2,
-                  borderStyle: "dashed",
-                  borderColor: "primary.main",
-                  borderRadius: 1,
-                  bgcolor: "action.selected",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity: 0.8,
-                  transition: "all 0.2s",
-                  flex: visibleTasks.length === 0 ? 1 : undefined,
-                }}
-              >
-                <Typography variant="body2" color="primary.main" fontWeight={500}>
-                  Drop here
-                </Typography>
-              </Box>
-            )}
-            {visibleTasks.length === 0 && !isDraggingOver && (
-              <Stack spacing={1}>
-                <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
-                  No tasks
-                </Typography>
+      <Droppable droppableId={`kanban-${id}`} type="TASK">
+        {(provided, snapshot) => (
+          <Box
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            sx={{
+              bgcolor: "background.paper",
+              borderRadius: 1,
+              border: 2,
+              borderColor: "divider",
+              minHeight: 200,
+              maxHeight: "calc(100vh - 300px)",
+              overflowY: "auto",
+              p: 1,
+              transition: "all 0.2s",
+              position: "relative",
+            }}
+          >
+            <Stack spacing={1} sx={{ minHeight: snapshot.isDraggingOver ? 100 : "auto" }}>
+              {visibleTasks.map((task, index) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  variant="kanban"
+                  index={index}
+                  containerId={`kanban-column|${id}`}
+                  draggableId={createDraggableId.kanban(task.id, id)}
+                  viewDate={viewDate}
+                />
+              ))}
+              {provided.placeholder}
+              {/* Drop placeholder */}
+              {snapshot.isDraggingOver && visibleTasks.length === 0 && (
+                <Box
+                  sx={{
+                    minHeight: 80,
+                    border: 2,
+                    borderStyle: "dashed",
+                    borderColor: "primary.main",
+                    borderRadius: 1,
+                    bgcolor: "action.selected",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    opacity: 0.8,
+                    transition: "all 0.2s",
+                  }}
+                >
+                  <Typography variant="body2" color="primary.main" fontWeight={500}>
+                    Drop here
+                  </Typography>
+                </Box>
+              )}
+              {visibleTasks.length === 0 && !snapshot.isDraggingOver && (
+                <Stack spacing={1}>
+                  <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
+                    No tasks
+                  </Typography>
+                  <QuickTaskInput
+                    placeholder="New task..."
+                    onCreate={handleCreateQuickTask}
+                    size="small"
+                    variant="standard"
+                  />
+                </Stack>
+              )}
+              {visibleTasks.length > 0 && (
                 <QuickTaskInput
                   placeholder="New task..."
                   onCreate={handleCreateQuickTask}
                   size="small"
                   variant="standard"
                 />
-              </Stack>
-            )}
-            {visibleTasks.length > 0 && (
-              <QuickTaskInput
-                placeholder="New task..."
-                onCreate={handleCreateQuickTask}
-                size="small"
-                variant="standard"
-              />
-            )}
-          </Stack>
-        </SortableContext>
-      </Box>
+              )}
+            </Stack>
+          </Box>
+        )}
+      </Droppable>
     </Box>
   );
 });

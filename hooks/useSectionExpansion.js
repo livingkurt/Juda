@@ -149,7 +149,7 @@ export function useSectionExpansion({ sections, showCompletedTasks, tasksBySecti
 
   // Create computed sections with combined expanded state (Redux only, ignores database expanded field)
   const computedSections = useMemo(() => {
-    return sortedSections.map(section => {
+    const sectionsWithState = sortedSections.map(section => {
       // Check Redux state only - ignore section.expanded from database
       const isManuallyCollapsed = manuallyCollapsedSections.has(section.id);
       const isAutoCollapsed = autoCollapsedSections.has(section.id);
@@ -165,7 +165,33 @@ export function useSectionExpansion({ sections, showCompletedTasks, tasksBySecti
         expanded: !isCollapsed, // expanded is true when NOT collapsed
       };
     });
-  }, [sortedSections, manuallyCollapsedSections, autoCollapsedSections, manuallyExpandedSections]);
+
+    // Add virtual "No Section" section at the beginning (order -1)
+    // Only show if there are tasks without a section
+    const noSectionTasks = tasksBySection["no-section"] || [];
+    if (noSectionTasks.length > 0) {
+      const isManuallyCollapsed = manuallyCollapsedSections.has("no-section");
+      const isAutoCollapsed = autoCollapsedSections.has("no-section");
+      const isManuallyExpanded = manuallyExpandedSections.has("no-section");
+      const isCollapsed = isManuallyCollapsed || (isAutoCollapsed && !isManuallyExpanded);
+
+      const noSection = {
+        id: "no-section",
+        name: "No Section",
+        icon: "📋",
+        order: -1,
+        expanded: !isCollapsed,
+        userId: sectionsWithState[0]?.userId, // Use first section's userId
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isVirtual: true, // Mark as virtual so we know not to try to edit/delete it
+      };
+
+      return [noSection, ...sectionsWithState];
+    }
+
+    return sectionsWithState;
+  }, [sortedSections, manuallyCollapsedSections, autoCollapsedSections, manuallyExpandedSections, tasksBySection]);
 
   // Wrapper functions to maintain backward compatibility with existing code
   const setAutoCollapsedSections = useCallback(

@@ -3,8 +3,7 @@
 import { useMemo, useCallback, memo } from "react";
 import { Box, Stack, Typography, IconButton, Chip, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { Droppable } from "@hello-pangea/dnd";
 import { Add } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
 import { TaskItem } from "./TaskItem";
@@ -122,11 +121,6 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     [taskOps, selectedTagIds]
   );
 
-  // Use droppable hook for backlog area
-  const { setNodeRef, isOver } = useDroppable({
-    id: "backlog",
-  });
-
   // Prepare tasks with draggable IDs - memoized to prevent recreation on every render
   const tasksWithIds = useMemo(
     () =>
@@ -241,56 +235,73 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
         </Box>
 
         {/* Droppable area for tasks */}
-        <Box
-          ref={setNodeRef}
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-            p: tasksWithIds.length === 0 ? { xs: 1.5, md: 2 } : { xs: 0.5, md: 1 },
-            bgcolor: isOver ? "action.hover" : "transparent",
-            borderRadius: 1,
-            transition: "background-color 0.2s, padding 0.2s",
-            borderWidth: isOver ? 2 : 0,
-            borderColor: isOver ? "primary.main" : "transparent",
-            borderStyle: "dashed",
-            mx: isOver ? { xs: 0.5, md: 1 } : 0,
-            width: "100%",
-            maxWidth: "100%",
-          }}
-        >
-          {/* Unscheduled Tasks */}
-          {tasksWithIds.length > 0 ? (
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  color: "text.secondary",
-                  mb: 1,
-                  ml: 1,
-                  textTransform: "uppercase",
-                }}
-              >
-                Unscheduled Tasks
-              </Typography>
-              <SortableContext
-                id="backlog"
-                items={tasksWithIds.map(t => t.draggableId)}
-                strategy={verticalListSortingStrategy}
-              >
-                <Stack spacing={1} sx={{ px: { xs: 0.5, md: 1 }, width: "100%", maxWidth: "100%" }}>
-                  {tasksWithIds.map(task => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      variant="backlog"
-                      containerId="backlog"
-                      draggableId={task.draggableId}
-                      viewDate={viewDate}
+        <Droppable droppableId="backlog" type="TASK">
+          {(provided, snapshot) => (
+            <Box
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: "auto",
+                p: tasksWithIds.length === 0 ? { xs: 1.5, md: 2 } : { xs: 0.5, md: 1 },
+                borderRadius: 1,
+                transition: "background-color 0.2s, padding 0.2s",
+                width: "100%",
+                maxWidth: "100%",
+              }}
+            >
+              {/* Unscheduled Tasks */}
+              {tasksWithIds.length > 0 ? (
+                <Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      color: "text.secondary",
+                      mb: 1,
+                      ml: 1,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Unscheduled Tasks
+                  </Typography>
+                  <Stack spacing={1} sx={{ px: { xs: 0.5, md: 1 }, width: "100%", maxWidth: "100%" }}>
+                    {tasksWithIds.map((task, index) => (
+                      <TaskItem
+                        key={task.id}
+                        task={task}
+                        variant="backlog"
+                        index={index}
+                        containerId="backlog"
+                        draggableId={task.draggableId}
+                        viewDate={viewDate}
+                      />
+                    ))}
+                    {provided.placeholder}
+                    <QuickTaskInput
+                      placeholder="New task..."
+                      onCreate={handleCreateQuickTask}
+                      size="small"
+                      variant="standard"
                     />
-                  ))}
+                  </Stack>
+                </Box>
+              ) : (
+                <Stack spacing={1}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: { xs: "0.75rem", md: "0.875rem" },
+                      textAlign: "center",
+                      py: { xs: 2, md: 4 },
+                      color: "text.secondary",
+                    }}
+                  >
+                    {snapshot.isDraggingOver ? "Drop here" : "No tasks"}
+                  </Typography>
+                  {provided.placeholder}
                   <QuickTaskInput
                     placeholder="New task..."
                     onCreate={handleCreateQuickTask}
@@ -298,30 +309,10 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                     variant="standard"
                   />
                 </Stack>
-              </SortableContext>
+              )}
             </Box>
-          ) : (
-            <Stack spacing={1}>
-              <Typography
-                variant="body2"
-                sx={{
-                  fontSize: { xs: "0.75rem", md: "0.875rem" },
-                  textAlign: "center",
-                  py: { xs: 2, md: 4 },
-                  color: "text.secondary",
-                }}
-              >
-                {isOver ? "Drop here" : "No tasks"}
-              </Typography>
-              <QuickTaskInput
-                placeholder="New task..."
-                onCreate={handleCreateQuickTask}
-                size="small"
-                variant="standard"
-              />
-            </Stack>
           )}
-        </Box>
+        </Droppable>
       </Box>
     </Box>
   );

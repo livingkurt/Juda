@@ -1,15 +1,16 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
-import { Box, Tabs, Tab, Badge, Typography, useMediaQuery, Collapse, CircularProgress } from "@mui/material";
+import { Box, Tabs, Tab, Typography, useMediaQuery, Collapse, CircularProgress } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { List, Dashboard as LayoutDashboard, CalendarToday as Calendar } from "@mui/icons-material";
+import { DragDropContext } from "@hello-pangea/dnd";
 import { BacklogDrawer } from "@/components/BacklogDrawer";
 import { TodayView } from "@/components/tabs/TodayView";
 import { CalendarViewTab } from "@/components/tabs/CalendarViewTab";
 import { useDispatch, useSelector } from "react-redux";
 import { setMobileActiveView, setBacklogWidth, setTodayViewWidth } from "@/lib/store/slices/uiSlice";
-import { createDraggableId, createDroppableId } from "@/lib/dragHelpers";
+import { createDroppableId, createDraggableId, extractTaskId } from "@/lib/dragHelpers";
 import { useViewState } from "@/hooks/useViewState";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -21,8 +22,13 @@ import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
-import { useGetTasksQuery, useReorderTaskMutation } from "@/lib/store/api/tasksApi";
-import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
+import {
+  useGetTasksQuery,
+  useReorderTaskMutation,
+  useBatchReorderTasksMutation,
+  useUpdateTaskMutation,
+} from "@/lib/store/api/tasksApi";
+import { useGetSectionsQuery, useReorderSectionsMutation } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useColorMode } from "@/hooks/useColorMode";
 import { useLoadingTab } from "@/components/MainTabs";
@@ -114,6 +120,9 @@ export function TasksTab() {
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
   const [reorderTaskMutation] = useReorderTaskMutation();
+  const [batchReorderTasksMutation] = useBatchReorderTasksMutation();
+  const [updateTaskMutation] = useUpdateTaskMutation();
+  const [reorderSectionsMutation] = useReorderSectionsMutation();
 
   const createTag = useCallback(
     async (name, color) => {
@@ -139,25 +148,261 @@ export function TasksTab() {
     [reorderTaskMutation]
   );
 
-  // Completion helpers
-  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
-
-  // Completion handlers
+  // Completion handlers (needed for taskFilters)
   const completionHandlers = useCompletionHandlers({
     autoCollapsedSections: new Set(),
     setAutoCollapsedSections: () => {},
     checkAndAutoCollapseSection: () => {},
   });
 
-  // Task filters
+  // Task filters (needed for handleDragEnd)
   const taskFilters = useTaskFilters({
     recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
   });
 
   const backlogTasks = taskFilters.backlogTasks;
+  const tasksBySection = taskFilters.tasksBySection;
+
+  // Drag handler for @hello-pangea/dnd
+  // Note: We don't await API calls here - optimistic updates in RTK Query handle the UI instantly
+  // The mutations have onQueryStarted handlers that update the cache immediately
+  const handleDragEnd = useCallback(
+    result => {
+      const { destination, source, type, draggableId } = result;
+
+      // Dropped outside a droppable area
+      if (!destination) return;
+
+      // Dropped in the same position
+      if (destination.droppableId === source.droppableId && destination.index === source.index) {
+        return;
+      }
+
+      // Handle section reordering
+      if (type === "SECTION") {
+        const sortedSections = [...sections].sort((a, b) => (a.order || 0) - (b.order || 0));
+        const [removed] = sortedSections.splice(source.index, 1);
+        sortedSections.splice(destination.index, 0, removed);
+
+        const reorderedSections = sortedSections.map((section, index) => ({
+          ...section,
+          order: index,
+        }));
+
+        // Fire and forget - optimistic update handles UI
+        reorderSectionsMutation(reorderedSections);
+        return;
+      }
+
+      // Handle task dragging
+      if (type === "TASK") {
+        // Extract task ID using the helper (handles context-aware IDs like "task-{id}-backlog")
+        const taskId = extractTaskId(draggableId);
+        const sourceId = source.droppableId;
+        const destId = destination.droppableId;
+
+        // Find the task
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) {
+          console.error(
+            "Task not found:",
+            taskId,
+            "Available tasks:",
+            tasks.map(t => t.id)
+          );
+          return;
+        }
+
+        // Backlog to Backlog (reorder within backlog)
+        if (sourceId === "backlog" && destId === "backlog") {
+          // Use the backlogTasks from taskFilters (already filtered and sorted correctly)
+          const backlogTasksList = [...taskFilters.backlogTasks].sort((a, b) => (a.order || 0) - (b.order || 0));
+
+          // Find the task being moved
+          const taskIndex = backlogTasksList.findIndex(t => t.id === taskId);
+          if (taskIndex === -1) {
+            console.error(
+              "Task not found in backlogTasks:",
+              taskId,
+              "Backlog tasks:",
+              backlogTasksList.map(t => ({ id: t.id, order: t.order }))
+            );
+            return;
+          }
+
+          // Remove and reinsert
+          const [removed] = backlogTasksList.splice(taskIndex, 1);
+          if (!removed) {
+            console.error("Failed to remove task from backlogTasks");
+            return;
+          }
+          backlogTasksList.splice(destination.index, 0, removed);
+
+          const updates = backlogTasksList.map((t, idx) => ({ id: t.id, order: idx }));
+          // Fire and forget - optimistic update handles UI
+          batchReorderTasksMutation(updates);
+          return;
+        }
+
+        // Backlog to Section
+        if (sourceId === "backlog" && destId.startsWith("section-")) {
+          const destSectionId = destId.replace("section-", "");
+
+          // Get the filtered tasks that are actually displayed in the destination section
+          const sectionTasks = tasksBySection[destSectionId] || [];
+          const destTasks = [...sectionTasks]
+            .filter(t => !t.parentId && t.id !== taskId)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+          // Create updated task object with new properties
+          const today = new Date(viewDate);
+          today.setHours(0, 0, 0, 0);
+          const updatedTask = {
+            ...task,
+            sectionId: destSectionId,
+            recurrence: {
+              type: "none",
+              startDate: today.toISOString(),
+            },
+            status: "in_progress", // Set status when moving from backlog to section
+          };
+
+          // Insert updated task at the drop position
+          destTasks.splice(destination.index, 0, updatedTask);
+
+          // Calculate all updates including the moved task
+          const updates = destTasks.map((t, idx) => ({ id: t.id, order: idx }));
+
+          // Update task properties AND reorder in a single batch
+          // This ensures the task appears in the section and not in backlog
+          updateTaskMutation({
+            id: taskId,
+            sectionId: destSectionId,
+            recurrence: {
+              type: "none",
+              startDate: today.toISOString(),
+            },
+            status: "in_progress",
+          });
+
+          // Update orders for all tasks in the section
+          batchReorderTasksMutation(updates);
+          return;
+        }
+
+        // Section to Backlog
+        if (sourceId.startsWith("section-") && destId === "backlog") {
+          // Get current backlog tasks (excluding the one being moved)
+          const backlogTasksList = [...backlogTasks]
+            .filter(t => t.id !== taskId)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+          // Create updated task object with backlog properties
+          const updatedTask = {
+            ...task,
+            sectionId: null,
+            time: null,
+            recurrence: null,
+            status: "todo", // Set status to todo when moving to backlog
+          };
+
+          // Insert updated task at the drop position
+          backlogTasksList.splice(destination.index, 0, updatedTask);
+
+          // Calculate all updates including the moved task
+          const updates = backlogTasksList.map((t, idx) => ({ id: t.id, order: idx }));
+
+          // Update task properties to move it to backlog
+          updateTaskMutation({
+            id: taskId,
+            sectionId: null,
+            time: null,
+            recurrence: null,
+            status: "todo",
+          });
+
+          // Update orders for all tasks in backlog
+          batchReorderTasksMutation(updates);
+          return;
+        }
+
+        // Section to Section (same or different)
+        if (sourceId.startsWith("section-") && destId.startsWith("section-")) {
+          const sourceSectionId = sourceId.replace("section-", "");
+          const destSectionId = destId.replace("section-", "");
+
+          // Get the filtered tasks that are actually displayed in the destination section
+          const destSectionTasks = tasksBySection[destSectionId] || [];
+          const destTasks = [...destSectionTasks]
+            .filter(t => !t.parentId && t.id !== taskId)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+          // If moving to same section, use batch reorder for accurate positioning
+          if (sourceSectionId === destSectionId) {
+            const sourceTasks = [...destSectionTasks]
+              .filter(t => !t.parentId)
+              .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            // Find current position and remove
+            const currentIndex = sourceTasks.findIndex(t => t.id === taskId);
+            if (currentIndex !== -1) {
+              sourceTasks.splice(currentIndex, 1);
+            }
+
+            // Insert at new position
+            sourceTasks.splice(destination.index, 0, task);
+
+            // Update all task orders
+            const updates = sourceTasks.map((t, idx) => ({ id: t.id, order: idx }));
+            batchReorderTasksMutation(updates);
+            return;
+          }
+
+          // Moving between different sections - need to update both sections
+          // First update the task's section
+          updateTaskMutation({
+            id: taskId,
+            sectionId: destSectionId,
+          });
+
+          // Get source section tasks
+          const sourceSectionTasks = tasksBySection[sourceSectionId] || [];
+          const sourceTasks = [...sourceSectionTasks]
+            .filter(t => !t.parentId && t.id !== taskId)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+          // Reorder source section (without the moved task)
+          const sourceUpdates = sourceTasks.map((t, idx) => ({ id: t.id, order: idx }));
+
+          // Insert moved task into destination and reorder
+          destTasks.splice(destination.index, 0, task);
+          const destUpdates = destTasks.map((t, idx) => ({ id: t.id, order: idx }));
+
+          // Batch update both sections
+          batchReorderTasksMutation([...sourceUpdates, ...destUpdates]);
+          return;
+        }
+      }
+    },
+    [
+      sections,
+      tasks,
+      viewDate,
+      taskFilters,
+      backlogTasks,
+      tasksBySection,
+      reorderSectionsMutation,
+      batchReorderTasksMutation,
+      updateTaskMutation,
+    ]
+  );
+
+  // Completion helpers
+  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
+
+  // Note: completionHandlers and taskFilters are now defined earlier (before handleDragEnd)
   const filteredTodaysTasks = taskFilters.filteredTodaysTasks;
   const todaysTasks = taskFilters.todaysTasks;
-  const tasksBySection = taskFilters.tasksBySection;
 
   // Section expansion
   const sectionExpansion = useSectionExpansion({
@@ -273,7 +518,7 @@ export function TasksTab() {
 
   if (isMobile) {
     return (
-      <>
+      <DragDropContext onDragEnd={handleDragEnd}>
         {/* Mobile Tab Bar */}
         <Tabs
           value={getTabIndex()}
@@ -435,122 +680,28 @@ export function TasksTab() {
             </Box>
           )}
         </Box>
-      </>
+      </DragDropContext>
     );
   }
 
   // Desktop Layout
   return (
-    <Box sx={{ width: "100%", height: "100%", display: "flex", overflow: "hidden" }}>
-      {/* Backlog Section */}
-      <Box
-        sx={{
-          width: backlogOpen ? `${resizeHandlers.backlogWidth}px` : "0px",
-          height: "100%",
-          transition:
-            resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
-              ? "none"
-              : "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-          willChange: resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? "width" : "auto",
-          overflow: "hidden",
-          borderRight: backlogOpen ? "1px solid" : "none",
-          borderColor: "divider",
-          bgcolor: "background.default",
-          flexShrink: 0,
-          display: "flex",
-          flexDirection: "column",
-          position: "relative",
-        }}
-      >
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <Box sx={{ width: "100%", height: "100%", display: "flex", overflow: "hidden" }}>
+        {/* Backlog Section */}
         <Box
           sx={{
-            width: `${resizeHandlers.backlogWidth}px`,
-            height: "100%",
-            position: "relative",
-          }}
-        >
-          <Collapse
-            orientation="horizontal"
-            in={backlogOpen}
-            timeout={400}
-            sx={{
-              width: "100%",
-              height: "100%",
-              transition: resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? "none" : undefined,
-            }}
-          >
-            <Box
-              sx={{
-                width: `${resizeHandlers.backlogWidth}px`,
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                position: "relative",
-                minHeight: 0,
-              }}
-            >
-              {isLoading ? (
-                <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <CircularProgress size={48} />
-                </Box>
-              ) : (
-                <BacklogDrawer createDraggableId={createDraggableId} />
-              )}
-              {/* Resize handle between backlog and today */}
-              <Box
-                onMouseDown={resizeHandlers.handleBacklogResizeStart}
-                onTouchStart={resizeHandlers.handleBacklogResizeStart}
-                sx={{
-                  position: "absolute",
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: { md: "12px", lg: "4px" },
-                  cursor: "col-resize",
-                  bgcolor:
-                    resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
-                      ? "primary.light"
-                      : "transparent",
-                  transition: "background-color 0.2s",
-                  zIndex: 10,
-                  userSelect: "none",
-                  touchAction: "none",
-                  display: { xs: "none", md: "block" },
-                  "&:hover": {
-                    bgcolor: "primary.main",
-                  },
-                }}
-              />
-            </Box>
-          </Collapse>
-        </Box>
-      </Box>
-
-      {/* Today and Calendar Section */}
-      <Box
-        sx={{
-          flex: 1,
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "row",
-          height: "100%",
-          minHeight: 0,
-          minWidth: 0,
-        }}
-      >
-        {/* Today View */}
-        <Box
-          sx={{
-            width: showDashboard ? (showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%") : "0px",
+            width: backlogOpen ? `${resizeHandlers.backlogWidth}px` : "0px",
             height: "100%",
             transition:
-              resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
+              resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
                 ? "none"
                 : "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-            willChange: resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? "width" : "auto",
+            willChange: resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? "width" : "auto",
             overflow: "hidden",
-            borderRight: showDashboard && showCalendar ? "1px solid" : "none",
+            borderRight: backlogOpen ? "1px solid" : "none",
             borderColor: "divider",
+            bgcolor: "background.default",
             flexShrink: 0,
             display: "flex",
             flexDirection: "column",
@@ -559,138 +710,234 @@ export function TasksTab() {
         >
           <Box
             sx={{
-              width: showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%",
+              width: `${resizeHandlers.backlogWidth}px`,
               height: "100%",
               position: "relative",
             }}
           >
             <Collapse
               orientation="horizontal"
-              in={showDashboard}
+              in={backlogOpen}
               timeout={400}
               sx={{
                 width: "100%",
                 height: "100%",
-                flex: 1,
-                transition: resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? "none" : undefined,
+                transition: resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog" ? "none" : undefined,
               }}
             >
               <Box
                 sx={{
-                  width: showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%",
+                  width: `${resizeHandlers.backlogWidth}px`,
                   height: "100%",
                   display: "flex",
                   flexDirection: "column",
                   position: "relative",
+                  minHeight: 0,
                 }}
               >
-                <TodayView
-                  isLoading={isLoading}
-                  sections={sections}
-                  todayViewDate={todayViewDate}
-                  handleTodayViewDateChange={handleTodayViewDateChange}
-                  navigateTodayView={navigateTodayView}
-                  handleTodayViewToday={handleTodayViewToday}
-                  filteredTodaysTasks={filteredTodaysTasks}
-                  todaysTasks={todaysTasks}
-                  todaySearchTerm={todaySearchTerm}
-                  setTodaySearchTerm={setTodaySearchTerm}
-                  todaySelectedTagIds={todaySelectedTagIds}
-                  handleTodayTagSelect={handleTodayTagSelect}
-                  handleTodayTagDeselect={handleTodayTagDeselect}
-                  tags={tags}
-                  createTag={createTag}
-                  showCompletedTasks={showCompletedTasks}
-                  setShowCompletedTasks={setShowCompletedTasks}
-                  createDroppableId={createDroppableId}
-                  createDraggableId={createDraggableId}
-                  todayScrollContainerRef={todayScrollContainerRefCallback}
-                  isMobile={isMobile}
-                />
-                {/* Resize handle between today and calendar */}
-                {showCalendar && (
-                  <Box
-                    onMouseDown={resizeHandlers.handleTodayResizeStart}
-                    onTouchStart={resizeHandlers.handleTodayResizeStart}
-                    sx={{
-                      position: "absolute",
-                      right: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: { md: "12px", lg: "4px" },
-                      cursor: "col-resize",
-                      bgcolor:
-                        resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
-                          ? "primary.light"
-                          : "transparent",
-                      transition: "background-color 0.2s",
-                      zIndex: 10,
-                      userSelect: "none",
-                      touchAction: "none",
-                      display: { xs: "none", md: "block" },
-                      "&:hover": {
-                        bgcolor: "primary.main",
-                      },
-                    }}
-                  />
+                {isLoading ? (
+                  <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <CircularProgress size={48} />
+                  </Box>
+                ) : (
+                  <BacklogDrawer createDraggableId={createDraggableId} />
                 )}
+                {/* Resize handle between backlog and today */}
+                <Box
+                  onMouseDown={resizeHandlers.handleBacklogResizeStart}
+                  onTouchStart={resizeHandlers.handleBacklogResizeStart}
+                  sx={{
+                    position: "absolute",
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: { md: "12px", lg: "4px" },
+                    cursor: "col-resize",
+                    bgcolor:
+                      resizeHandlers.isResizing && resizeHandlers.resizeType === "backlog"
+                        ? "primary.light"
+                        : "transparent",
+                    transition: "background-color 0.2s",
+                    zIndex: 10,
+                    userSelect: "none",
+                    touchAction: "none",
+                    display: { xs: "none", md: "block" },
+                    "&:hover": {
+                      bgcolor: "primary.main",
+                    },
+                  }}
+                />
               </Box>
             </Collapse>
           </Box>
         </Box>
 
-        {/* Calendar View */}
+        {/* Today and Calendar Section */}
         <Box
           sx={{
-            flex: showCalendar ? 1 : 0,
-            width: showCalendar ? "auto" : "0px",
-            height: "100%",
-            transition: "flex 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            flex: 1,
             overflow: "hidden",
-            minWidth: 0,
             display: "flex",
-            flexDirection: "column",
-            opacity: showCalendar ? 1 : 0,
+            flexDirection: "row",
+            height: "100%",
+            minHeight: 0,
+            minWidth: 0,
           }}
         >
-          {showCalendar && (
-            <CalendarViewTab
-              isLoading={isLoading}
-              selectedDate={selectedDate}
-              setSelectedDate={setSelectedDate}
-              navigateCalendar={navigateCalendar}
-              getCalendarTitle={getCalendarTitle}
-              calendarView={calendarView}
-              setCalendarView={setCalendarView}
-              calendarSearchTerm={calendarSearchTerm}
-              setCalendarSearchTerm={setCalendarSearchTerm}
-              calendarSelectedTagIds={calendarSelectedTagIds}
-              handleCalendarTagSelect={handleCalendarTagSelect}
-              handleCalendarTagDeselect={handleCalendarTagDeselect}
-              tags={tags}
-              createTag={createTag}
-              showCompletedTasksCalendar={showCompletedTasksCalendar}
-              setShowCompletedTasksCalendar={setShowCompletedTasksCalendar}
-              showRecurringTasks={showRecurringTasks}
-              setShowRecurringTasks={setShowRecurringTasks}
-              calendarZoom={calendarZoom}
-              setCalendarZoom={setCalendarZoom}
-              createDroppableId={createDroppableId}
-              createDraggableId={createDraggableId}
-              dropTimeRef={dragAndDrop.dropTimeRef}
-              tasks={tasks}
-              isCompletedOnDate={isCompletedOnDate}
-              getOutcomeOnDate={getOutcomeOnDate}
-              handleEditTask={taskOps.handleEditTask}
-              handleEditWorkout={taskOps.handleEditWorkout}
-              handleOutcomeChange={completionHandlers.handleOutcomeChange}
-              handleDuplicateTask={taskOps.handleDuplicateTask}
-              handleDeleteTask={taskOps.handleDeleteTask}
-              isMobile={isMobile}
-            />
-          )}
+          {/* Today View */}
+          <Box
+            sx={{
+              width: showDashboard ? (showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%") : "0px",
+              height: "100%",
+              transition:
+                resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
+                  ? "none"
+                  : "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+              willChange: resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? "width" : "auto",
+              overflow: "hidden",
+              borderRight: showDashboard && showCalendar ? "1px solid" : "none",
+              borderColor: "divider",
+              flexShrink: 0,
+              display: "flex",
+              flexDirection: "column",
+              position: "relative",
+            }}
+          >
+            <Box
+              sx={{
+                width: showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%",
+                height: "100%",
+                position: "relative",
+              }}
+            >
+              <Collapse
+                orientation="horizontal"
+                in={showDashboard}
+                timeout={400}
+                sx={{
+                  width: "100%",
+                  height: "100%",
+                  flex: 1,
+                  transition: resizeHandlers.isResizing && resizeHandlers.resizeType === "today" ? "none" : undefined,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%",
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    position: "relative",
+                  }}
+                >
+                  <TodayView
+                    isLoading={isLoading}
+                    sections={sections}
+                    todayViewDate={todayViewDate}
+                    handleTodayViewDateChange={handleTodayViewDateChange}
+                    navigateTodayView={navigateTodayView}
+                    handleTodayViewToday={handleTodayViewToday}
+                    filteredTodaysTasks={filteredTodaysTasks}
+                    todaysTasks={todaysTasks}
+                    todaySearchTerm={todaySearchTerm}
+                    setTodaySearchTerm={setTodaySearchTerm}
+                    todaySelectedTagIds={todaySelectedTagIds}
+                    handleTodayTagSelect={handleTodayTagSelect}
+                    handleTodayTagDeselect={handleTodayTagDeselect}
+                    tags={tags}
+                    createTag={createTag}
+                    showCompletedTasks={showCompletedTasks}
+                    setShowCompletedTasks={setShowCompletedTasks}
+                    createDroppableId={createDroppableId}
+                    createDraggableId={createDraggableId}
+                    todayScrollContainerRef={todayScrollContainerRefCallback}
+                    isMobile={isMobile}
+                  />
+                  {/* Resize handle between today and calendar */}
+                  {showCalendar && (
+                    <Box
+                      onMouseDown={resizeHandlers.handleTodayResizeStart}
+                      onTouchStart={resizeHandlers.handleTodayResizeStart}
+                      sx={{
+                        position: "absolute",
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: { md: "12px", lg: "4px" },
+                        cursor: "col-resize",
+                        bgcolor:
+                          resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
+                            ? "primary.light"
+                            : "transparent",
+                        transition: "background-color 0.2s",
+                        zIndex: 10,
+                        userSelect: "none",
+                        touchAction: "none",
+                        display: { xs: "none", md: "block" },
+                        "&:hover": {
+                          bgcolor: "primary.main",
+                        },
+                      }}
+                    />
+                  )}
+                </Box>
+              </Collapse>
+            </Box>
+          </Box>
+
+          {/* Calendar View */}
+          <Box
+            sx={{
+              flex: showCalendar ? 1 : 0,
+              width: showCalendar ? "auto" : "0px",
+              height: "100%",
+              transition: "flex 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+              overflow: "hidden",
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              opacity: showCalendar ? 1 : 0,
+            }}
+          >
+            {showCalendar && (
+              <CalendarViewTab
+                isLoading={isLoading}
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                navigateCalendar={navigateCalendar}
+                getCalendarTitle={getCalendarTitle}
+                calendarView={calendarView}
+                setCalendarView={setCalendarView}
+                calendarSearchTerm={calendarSearchTerm}
+                setCalendarSearchTerm={setCalendarSearchTerm}
+                calendarSelectedTagIds={calendarSelectedTagIds}
+                handleCalendarTagSelect={handleCalendarTagSelect}
+                handleCalendarTagDeselect={handleCalendarTagDeselect}
+                tags={tags}
+                createTag={createTag}
+                showCompletedTasksCalendar={showCompletedTasksCalendar}
+                setShowCompletedTasksCalendar={setShowCompletedTasksCalendar}
+                showRecurringTasks={showRecurringTasks}
+                setShowRecurringTasks={setShowRecurringTasks}
+                calendarZoom={calendarZoom}
+                setCalendarZoom={setCalendarZoom}
+                createDroppableId={createDroppableId}
+                createDraggableId={createDraggableId}
+                dropTimeRef={dragAndDrop.dropTimeRef}
+                tasks={tasks}
+                isCompletedOnDate={isCompletedOnDate}
+                getOutcomeOnDate={getOutcomeOnDate}
+                handleEditTask={taskOps.handleEditTask}
+                handleEditWorkout={taskOps.handleEditWorkout}
+                handleOutcomeChange={completionHandlers.handleOutcomeChange}
+                handleDuplicateTask={taskOps.handleDuplicateTask}
+                handleDeleteTask={taskOps.handleDeleteTask}
+                isMobile={isMobile}
+              />
+            )}
+          </Box>
         </Box>
       </Box>
-    </Box>
+    </DragDropContext>
   );
 }

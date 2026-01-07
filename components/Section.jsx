@@ -1,8 +1,7 @@
 "use client";
 
 import { Box, Button } from "@mui/material";
-import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { Droppable } from "@hello-pangea/dnd";
 import { Add } from "@mui/icons-material";
 import { useSelector } from "react-redux";
 import { SectionCard } from "./SectionCard";
@@ -66,54 +65,49 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
     setManuallyCollapsedSections: sectionExpansion.setManuallyCollapsedSections,
   });
 
-  // Use droppable for section reordering
-  const { setNodeRef, isOver } = useDroppable({
-    id: "sections",
-    data: { type: "SECTION" },
-  });
-
   return (
-    <SortableContext
-      id="sections"
-      items={sectionExpansion.computedSections.map(s => `section-${s.id}`)}
-      strategy={verticalListSortingStrategy}
-    >
-      <Box
-        ref={setNodeRef}
-        sx={{
-          bgcolor: isOver ? "action.hover" : "transparent",
-          borderRadius: 1,
-          width: "100%",
-          maxWidth: "100%",
-        }}
-      >
-        {sectionExpansion.computedSections.map((section, index) => (
-          <SectionCard
-            key={section.id}
-            section={section}
-            index={index}
-            hoveredDroppable={hoveredDroppable}
-            droppableId={createDroppableId.todaySection(section.id)}
-            createDraggableId={createDraggableId}
-            viewDate={viewDate}
-          />
-        ))}
-        <Button
-          variant="outlined"
-          onClick={sectionOps.handleAddSection}
-          fullWidth
+    <Droppable droppableId="sections-list" type="SECTION">
+      {(provided, snapshot) => (
+        <Box
+          ref={provided.innerRef}
+          {...provided.droppableProps}
           sx={{
-            py: { xs: 2, md: 3 },
-            borderStyle: "dashed",
-            mt: { xs: 1, md: 2 },
-            fontSize: { xs: "0.875rem", md: "1rem" },
+            bgcolor: snapshot.isDraggingOver ? "action.hover" : "transparent",
+            borderRadius: 1,
+            width: "100%",
+            maxWidth: "100%",
+            minHeight: 100,
           }}
-          startIcon={<Add fontSize="small" />}
         >
-          Add Section
-        </Button>
-      </Box>
-    </SortableContext>
+          {sectionExpansion.computedSections.map((section, index) => (
+            <SectionCard
+              key={section.id}
+              section={section}
+              index={index}
+              hoveredDroppable={hoveredDroppable}
+              droppableId={createDroppableId.todaySection(section.id)}
+              createDraggableId={createDraggableId}
+              viewDate={viewDate}
+            />
+          ))}
+          {provided.placeholder}
+          <Button
+            variant="outlined"
+            onClick={sectionOps.handleAddSection}
+            fullWidth
+            sx={{
+              py: { xs: 2, md: 3 },
+              borderStyle: "dashed",
+              mt: { xs: 1, md: 2 },
+              fontSize: { xs: "0.875rem", md: "1rem" },
+            }}
+            startIcon={<Add fontSize="small" />}
+          >
+            Add Section
+          </Button>
+        </Box>
+      )}
+    </Droppable>
   );
 };
 

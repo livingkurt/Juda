@@ -308,16 +308,42 @@ async function restoreToLocal(dump) {
           return processed;
         });
 
-        // Special handling for Task table: insert parent tasks first
+        // Special handling for Task table: insert tasks with no foreign key references first
         if (tableName === "Task") {
-          // Separate tasks with and without parents
-          const tasksWithoutParent = processedRows.filter(t => !t.parentId);
-          const tasksWithParent = processedRows.filter(t => t.parentId);
+          // Separate tasks based on self-referencing foreign keys (parentId and sourceTaskId)
+          const tasksWithoutRefs = processedRows.filter(t => !t.parentId && !t.sourceTaskId);
+          const tasksWithRefs = processedRows.filter(t => t.parentId || t.sourceTaskId);
 
-          // Insert parent tasks first
-          await insertRows(localClient, tableName, tasksWithoutParent);
-          // Then insert child tasks
-          await insertRows(localClient, tableName, tasksWithParent);
+          // Insert tasks without references first
+          await insertRows(localClient, tableName, tasksWithoutRefs);
+
+          // Then insert tasks with references (may need multiple passes for nested references)
+          let remaining = tasksWithRefs;
+          let maxAttempts = 10; // Prevent infinite loops
+
+          while (remaining.length > 0 && maxAttempts > 0) {
+            const inserted = [];
+            const failed = [];
+
+            for (const task of remaining) {
+              try {
+                await insertRows(localClient, tableName, [task]);
+                inserted.push(task);
+              } catch (error) {
+                // Task depends on another task that hasn't been inserted yet
+                failed.push(task);
+              }
+            }
+
+            if (inserted.length === 0) {
+              // No progress made - break to avoid infinite loop
+              console.warn(`   ⚠️  Could not insert ${failed.length} tasks due to circular or missing references`);
+              break;
+            }
+
+            remaining = failed;
+            maxAttempts--;
+          }
         } else {
           await insertRows(localClient, tableName, processedRows);
         }

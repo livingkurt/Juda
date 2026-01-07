@@ -253,6 +253,20 @@
       "when": 1767734825055,
       "tag": "0035_add_unit_to_workout_set_completion",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1767806000584,
+      "tag": "0036_clear_sectionid_from_todo_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1767807257984,
+      "tag": "0037_fix_backlog_task_sections",
+      "breakpoints": true
     }
   ]
 }

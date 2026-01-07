@@ -2,9 +2,7 @@
 
 import { useState, useCallback, memo, useMemo } from "react";
 import { Box, Paper, Stack, Typography, IconButton, Menu, MenuItem, Collapse } from "@mui/material";
-import { useDroppable } from "@dnd-kit/core";
-import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { Draggable, Droppable } from "@hello-pangea/dnd";
 import { Add, MoreVert, DragIndicator, LightMode, ExpandMore, ExpandLess } from "@mui/icons-material";
 import { TaskItem } from "./TaskItem";
 import { QuickTaskInput } from "./QuickTaskInput";
@@ -58,36 +56,6 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
 
   const isDropTarget = hoveredDroppable === droppableId;
 
-  // Use sortable for section reordering
-  const {
-    attributes: sectionAttributes,
-    listeners: sectionListeners,
-    setNodeRef: setSectionNodeRef,
-    transform: sectionTransform,
-    transition: sectionTransition,
-    isDragging: sectionIsDragging,
-  } = useSortable({
-    id: `section-${section.id}`,
-    data: {
-      type: "SECTION",
-      containerId: "sections",
-    },
-  });
-
-  const sectionStyle = {
-    transform: sectionTransform ? CSS.Transform.toString(sectionTransform) : undefined,
-    transition: sectionTransition || "transform 200ms ease",
-  };
-
-  // Use droppable for task drop zone
-  const { setNodeRef: setDropNodeRef, isOver } = useDroppable({
-    id: droppableId,
-    data: {
-      type: "TASK",
-      sectionId: section.id,
-    },
-  });
-
   // Prepare tasks with draggable IDs - memoized to prevent recreation on every render
   const tasksWithIds = useMemo(
     () =>
@@ -107,16 +75,14 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
 
   const isExpanded = section.expanded !== false;
 
-  return (
+  // Virtual sections (like "No Section") should not be draggable
+  const content = (
     <Paper
-      ref={setSectionNodeRef}
-      style={sectionStyle}
       variant="outlined"
       sx={{
         mb: { xs: 1, md: 2 },
-        opacity: sectionIsDragging ? 0.5 : 1,
-        borderWidth: isDropTarget || isOver ? 2 : 1,
-        borderColor: isDropTarget || isOver ? "primary.main" : "divider",
+        borderWidth: isDropTarget ? 2 : 1,
+        borderColor: isDropTarget ? "primary.main" : "divider",
         transition: "border-color 0.2s, border-width 0.2s",
         width: "100%",
         maxWidth: "100%",
@@ -139,18 +105,19 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
         }}
       >
         <Stack direction="row" alignItems="center" spacing={1} flex={1} minWidth={0}>
-          <Box
-            {...sectionAttributes}
-            {...sectionListeners}
-            sx={{
-              cursor: "grab",
-              color: "text.secondary",
-              display: { xs: "none", md: "block" },
-              "&:active": { cursor: "grabbing" },
-            }}
-          >
-            <DragIndicator fontSize="small" />
-          </Box>
+          {/* Only show drag handle for real sections */}
+          {!section.isVirtual && (
+            <Box
+              sx={{
+                cursor: "grab",
+                color: "text.secondary",
+                display: { xs: "none", md: "block" },
+                "&:active": { cursor: "grabbing" },
+              }}
+            >
+              <DragIndicator fontSize="small" />
+            </Box>
+          )}
           <IconComponent fontSize="small" sx={{ color: "inherit" }} />
           <Typography
             variant="subtitle1"
@@ -179,32 +146,37 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
           <IconButton onClick={() => taskOps.handleAddTask(section.id)} size="small" aria-label="Add task">
             <Add fontSize="small" />
           </IconButton>
-          <IconButton size="small" aria-label="Section menu" onClick={e => setMenuAnchor(e.currentTarget)}>
-            <MoreVert fontSize="small" />
-          </IconButton>
+          {/* Only show menu for real sections, not virtual "No Section" */}
+          {!section.isVirtual && (
+            <IconButton size="small" aria-label="Section menu" onClick={e => setMenuAnchor(e.currentTarget)}>
+              <MoreVert fontSize="small" />
+            </IconButton>
+          )}
         </Stack>
       </Stack>
 
-      {/* Menu */}
-      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
-        <MenuItem
-          onClick={() => {
-            sectionOps.handleEditSection(section);
-            setMenuAnchor(null);
-          }}
-        >
-          Edit
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            sectionOps.handleDeleteSection(section.id);
-            setMenuAnchor(null);
-          }}
-          sx={{ color: "error.main" }}
-        >
-          Delete
-        </MenuItem>
-      </Menu>
+      {/* Menu - Only for real sections */}
+      {!section.isVirtual && (
+        <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+          <MenuItem
+            onClick={() => {
+              sectionOps.handleEditSection(section);
+              setMenuAnchor(null);
+            }}
+          >
+            Edit
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              sectionOps.handleDeleteSection(section.id);
+              setMenuAnchor(null);
+            }}
+            sx={{ color: "error.main" }}
+          >
+            Delete
+          </MenuItem>
+        </Menu>
+      )}
 
       {/* Content */}
       <Collapse in={isExpanded}>
@@ -213,71 +185,86 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
             p: { xs: 1, md: 1.5 },
           }}
         >
-          <Box
-            ref={setDropNodeRef}
-            sx={{
-              bgcolor: isOver ? "action.hover" : "transparent",
-              borderRadius: 1,
-              minHeight: tasksWithIds.length === 0 ? { xs: 80, md: 120 } : { xs: 40, md: 60 },
-              p: tasksWithIds.length === 0 ? { xs: 2, md: 3 } : { xs: 1, md: 1.5 },
-              transition: "background-color 0.2s, padding 0.2s, min-height 0.2s",
-              borderWidth: isOver ? 2 : 0,
-              borderColor: isOver ? "primary.main" : "transparent",
-              borderStyle: "dashed",
-            }}
-          >
-            {tasksWithIds.length === 0 ? (
-              <Stack spacing={1}>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontSize: { xs: "0.75rem", md: "0.875rem" },
-                    textAlign: "center",
-                    py: { xs: 2, md: 4 },
-                    color: "text.secondary",
-                  }}
-                >
-                  {isOver ? "Drop here" : "No tasks"}
-                </Typography>
-                <QuickTaskInput
-                  placeholder="New task..."
-                  onCreate={handleCreateQuickTask}
-                  size="small"
-                  variant="standard"
-                />
-              </Stack>
-            ) : (
-              <SortableContext
-                id={droppableId}
-                items={tasksWithIds.map(t => t.draggableId)}
-                strategy={verticalListSortingStrategy}
+          <Droppable droppableId={`section-${section.id}`} type="TASK">
+            {(droppableProvided, droppableSnapshot) => (
+              <Box
+                ref={droppableProvided.innerRef}
+                {...droppableProvided.droppableProps}
+                sx={{
+                  borderRadius: 1,
+                  minHeight: tasksWithIds.length === 0 ? { xs: 80, md: 120 } : { xs: 40, md: 60 },
+                  p: tasksWithIds.length === 0 ? { xs: 2, md: 3 } : { xs: 1, md: 1.5 },
+                  transition: "background-color 0.2s, padding 0.2s, min-height 0.2s",
+                }}
               >
-                <Stack spacing={{ xs: 1, md: 1.5 }} sx={{ py: { xs: 0.5, md: 1 } }}>
-                  {tasksWithIds.map((task, index) => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      variant="today"
-                      index={index}
-                      containerId={droppableId}
-                      hoveredDroppable={hoveredDroppable}
-                      draggableId={task.draggableId}
-                      viewDate={viewDate}
+                {tasksWithIds.length === 0 ? (
+                  <Stack spacing={1}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontSize: { xs: "0.75rem", md: "0.875rem" },
+                        textAlign: "center",
+                        py: { xs: 2, md: 4 },
+                        color: "text.secondary",
+                      }}
+                    >
+                      {droppableSnapshot.isDraggingOver ? "Drop here" : "No tasks"}
+                    </Typography>
+                    <QuickTaskInput
+                      placeholder="New task..."
+                      onCreate={handleCreateQuickTask}
+                      size="small"
+                      variant="standard"
                     />
-                  ))}
-                  <QuickTaskInput
-                    placeholder="New task..."
-                    onCreate={handleCreateQuickTask}
-                    size="small"
-                    variant="standard"
-                  />
-                </Stack>
-              </SortableContext>
+                  </Stack>
+                ) : (
+                  <Stack spacing={{ xs: 1, md: 1.5 }} sx={{ py: { xs: 0.5, md: 1 } }}>
+                    {tasksWithIds.map((task, index) => (
+                      <TaskItem
+                        key={task.id}
+                        task={task}
+                        variant="today"
+                        index={index}
+                        containerId={droppableId}
+                        hoveredDroppable={hoveredDroppable}
+                        draggableId={task.draggableId}
+                        viewDate={viewDate}
+                      />
+                    ))}
+                    {droppableProvided.placeholder}
+                    <QuickTaskInput
+                      placeholder="New task..."
+                      onCreate={handleCreateQuickTask}
+                      size="small"
+                      variant="standard"
+                    />
+                  </Stack>
+                )}
+              </Box>
             )}
-          </Box>
+          </Droppable>
         </Box>
       </Collapse>
     </Paper>
+  );
+
+  // Wrap in Draggable only if it's a real section (not virtual)
+  if (section.isVirtual) {
+    return content;
+  }
+
+  return (
+    <Draggable draggableId={`section-${section.id}`} index={section.order || 0} isDragDisabled={section.isVirtual}>
+      {(sectionProvided, sectionSnapshot) => (
+        <Box
+          ref={sectionProvided.innerRef}
+          {...sectionProvided.draggableProps}
+          sx={{ opacity: sectionSnapshot.isDragging ? 0.5 : 1 }}
+        >
+          <Box {...sectionProvided.dragHandleProps}>{content}</Box>
+        </Box>
+      )}
+    </Draggable>
   );
 };
 

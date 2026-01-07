@@ -230,11 +230,11 @@ export function useTaskOperations() {
   // Add task to backlog
   const handleAddTaskToBacklog = useCallback(() => {
     dispatch(setEditingTask(null));
-    dispatch(setDefaultSectionId(sections[0]?.id));
+    dispatch(setDefaultSectionId(null)); // Backlog tasks should NOT have a sectionId
     dispatch(setDefaultTime(null));
     dispatch(setDefaultDate(null));
     dispatch(openTaskDialog());
-  }, [dispatch, sections]);
+  }, [dispatch]);
 
   // Create task from calendar
   const handleCreateTaskFromCalendar = useCallback(
@@ -350,11 +350,12 @@ export function useTaskOperations() {
       try {
         const newTask = await createTask({
           title: title.trim(),
-          sectionId: sections[0]?.id,
+          sectionId: null, // Backlog tasks should NOT have a sectionId
           time: null,
           duration: 0,
           color: "#3b82f6",
           recurrence: null,
+          status: "todo", // Backlog tasks should have status: todo
           subtasks: [],
           order: 999,
         });
@@ -369,7 +370,7 @@ export function useTaskOperations() {
         dispatch(showError({ message: "Failed to create task" }));
       }
     },
-    [createTask, sections, batchUpdateTaskTags, dispatch]
+    [createTask, batchUpdateTaskTags, dispatch]
   );
 
   // Create kanban task inline

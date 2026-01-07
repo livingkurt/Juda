@@ -421,9 +421,7 @@ export default function DailyTasksApp() {
           <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}>
             {(mainTabIndex === 0 || loadingTab === 0) && <TasksTab />}
 
-            {(mainTabIndex === 1 || loadingTab === 1) && (
-              <KanbanTab createDraggableId={createDraggableId} isLoading={loadingTab === 1} />
-            )}
+            {(mainTabIndex === 1 || loadingTab === 1) && <KanbanTab isLoading={loadingTab === 1} />}
 
             {(mainTabIndex === 2 || loadingTab === 2) && <JournalTab isLoading={loadingTab === 2} />}
 

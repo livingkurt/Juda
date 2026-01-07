@@ -445,7 +445,10 @@ function TaskDialogForm({
               <GLGrid item xs={12}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Section</InputLabel>
-                  <Select value={sectionId} onChange={e => setSectionId(e.target.value)} label="Section">
+                  <Select value={sectionId || ""} onChange={e => setSectionId(e.target.value || null)} label="Section">
+                    <MenuItem value="">
+                      <em>No Section</em>
+                    </MenuItem>
                     {sections.map(section => (
                       <MenuItem key={section.id} value={section.id}>
                         {section.name}

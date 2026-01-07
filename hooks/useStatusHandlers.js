@@ -77,6 +77,10 @@ export function useStatusHandlers({
             type: "none",
             startDate: `${todayStr}T00:00:00.000Z`,
           };
+
+          // If task doesn't have a sectionId (backlog task), keep it null
+          // It will appear in the virtual "No Section" section
+          // (Don't assign to first section - let user choose)
         }
         // If task is non-recurring (one-time) and doesn't have a startDate, set it to today
         else if (!isRecurringTask && !task.recurrence.startDate) {
@@ -85,6 +89,9 @@ export function useStatusHandlers({
             ...task.recurrence,
             startDate: `${todayStr}T00:00:00.000Z`,
           };
+
+          // If task doesn't have a sectionId (backlog task), keep it null
+          // It will appear in the virtual "No Section" section
         }
 
         // Set the time to the current time so it shows up on the calendar at that specific time

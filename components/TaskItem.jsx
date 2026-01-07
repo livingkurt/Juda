@@ -17,8 +17,7 @@ import {
   Collapse,
   Paper,
 } from "@mui/material";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { Draggable } from "@hello-pangea/dnd";
 import {
   ExpandMore,
   ChevronRight,
@@ -169,6 +168,7 @@ export const TaskItem = ({
   variant = "today", // "today", "backlog", "subtask", or "kanban"
   containerId, // Container ID for sortable context
   draggableId,
+  index = 0, // Index for draggable items
   textColor: textColorProp, // Optional override
   mutedTextColor: mutedTextColorProp, // Optional override
   gripColor: gripColorProp, // Optional override
@@ -453,27 +453,12 @@ export const TaskItem = ({
   // Also disable drag when editing title to prevent interference with text input
   const isDragDisabledDuringEdit = isDragDisabled || isEditingTitle;
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: draggableId,
-    disabled: isDragDisabledDuringEdit,
-    data: {
-      type: "TASK",
-      containerId: containerId,
-      taskId: task.id,
-    },
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition: transition || "transform 200ms ease",
-    opacity: isDragging ? 0.5 : 1,
-  };
-
   // Get task color from first tag, or use neutral gray if no tags
   const taskColor = getTaskDisplayColor(task, theme, colorMode);
 
-  return (
-    <Box ref={setNodeRef} style={style} sx={{ width: "100%", maxWidth: "100%" }} data-task-id={task.id}>
+  // Render the task content
+  const taskContent = (
+    <Box sx={{ width: "100%", maxWidth: "100%", opacity: 1 }} data-task-id={task.id}>
       <Paper
         variant="outlined"
         sx={{
@@ -508,8 +493,6 @@ export const TaskItem = ({
               onSelect(task.id, e);
             }
           }}
-          {...(isDragDisabledDuringEdit ? {} : attributes)}
-          {...(isDragDisabledDuringEdit ? {} : listeners)}
         >
           {/* Expand button for subtasks */}
           {task.subtasks && task.subtasks.length > 0 ? (
@@ -949,6 +932,27 @@ export const TaskItem = ({
         )}
       </Paper>
     </Box>
+  );
+
+  // For subtasks or dialog subtasks that can't be dragged, render without Draggable
+  if (isDragDisabledDuringEdit) {
+    return taskContent;
+  }
+
+  // For draggable tasks, wrap with Draggable
+  return (
+    <Draggable draggableId={draggableId} index={index}>
+      {(provided, snapshot) => (
+        <Box
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          {...provided.dragHandleProps}
+          sx={{ width: "100%", maxWidth: "100%", opacity: snapshot.isDragging ? 0.5 : 1 }}
+        >
+          {taskContent}
+        </Box>
+      )}
+    </Draggable>
   );
 };
 

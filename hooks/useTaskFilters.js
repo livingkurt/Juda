@@ -105,6 +105,8 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
   // Group today's tasks by section, optionally filtering out completed tasks
   const tasksBySection = useMemo(() => {
     const grouped = {};
+
+    // Add tasks for each real section
     sections.forEach(s => {
       let sectionTasks = filteredTodaysTasks.filter(t => t.sectionId === s.id);
       // Filter out completed/not completed tasks if showCompletedTasks is false
@@ -131,6 +133,26 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
         return a.id.localeCompare(b.id);
       });
     });
+
+    // Add virtual "No Section" for tasks with no sectionId but have a date
+    let noSectionTasks = filteredTodaysTasks.filter(t => !t.sectionId);
+    if (!showCompletedTasks) {
+      noSectionTasks = noSectionTasks.filter(t => {
+        const isCompleted =
+          t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
+        const hasOutcome = t.outcome !== null && t.outcome !== undefined;
+        if (isCompleted && recentlyCompleted.has(t.id)) {
+          return true;
+        }
+        return !isCompleted && !hasOutcome;
+      });
+    }
+    grouped["no-section"] = noSectionTasks.sort((a, b) => {
+      const orderDiff = (a.order || 0) - (b.order || 0);
+      if (orderDiff !== 0) return orderDiff;
+      return a.id.localeCompare(b.id);
+    });
+
     return grouped;
   }, [filteredTodaysTasks, sections, showCompletedTasks, recentlyCompleted]);
 
@@ -138,6 +160,10 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
   const backlogTasks = useMemo(() => {
     return tasks
       .filter(task => {
+        // CRITICAL: Tasks with a sectionId should NEVER appear in backlog
+        // They belong to a specific section in the Today view
+        if (task.sectionId) return false;
+
         // If task shows on today's calendar/today view, don't show in backlog
         if (shouldShowOnDate(task, today)) return false;
         // Exclude tasks with future date/time

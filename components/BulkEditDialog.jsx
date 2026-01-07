@@ -172,8 +172,9 @@ export const BulkEditDialog = () => {
     // Only include fields that were actually edited
     const updates = {};
 
-    if (editedFields.has("sectionId") && sectionId) {
-      updates.sectionId = sectionId;
+    if (editedFields.has("sectionId")) {
+      // Handle "null" string value (No Section option)
+      updates.sectionId = sectionId === "null" ? null : sectionId || null;
     }
     if (editedFields.has("time")) {
       updates.time = time || null;
@@ -276,6 +277,9 @@ export const BulkEditDialog = () => {
               >
                 <MenuItem value="">
                   <em>No change</em>
+                </MenuItem>
+                <MenuItem value="null">
+                  <em>No Section</em>
                 </MenuItem>
                 {sections.map(section => (
                   <MenuItem key={section.id} value={section.id}>

@@ -237,23 +237,39 @@ export function useCompletionHandlers({
 
         if (hasNoRecurrence && !isCompletedOnTargetDate) {
           const todayDateStr = formatLocalDate(today);
-          await updateTask(taskId, {
+          const updates = {
             recurrence: {
               type: "none",
               startDate: `${todayDateStr}T00:00:00.000Z`,
             },
             time: currentTime,
             status: "complete",
-          });
+          };
+
+          // If task doesn't have a sectionId (backlog task), keep it null
+          // It will appear in the virtual "No Section" section
+          // (Don't assign to first section - let user choose via drag/drop or task dialog)
+
+          await updateTask(taskId, updates);
         } else if (!isRecurringTask && !task.time && !isCompletedOnTargetDate) {
-          await updateTask(taskId, {
+          const updates = {
             time: currentTime,
             status: "complete",
-          });
+          };
+
+          // If task doesn't have a sectionId (backlog task), keep it null
+          // It will appear in the virtual "No Section" section
+
+          await updateTask(taskId, updates);
         } else if (!isRecurringTask && !isCompletedOnTargetDate) {
-          await updateTask(taskId, {
+          const updates = {
             status: "complete",
-          });
+          };
+
+          // If task doesn't have a sectionId (backlog task), keep it null
+          // It will appear in the virtual "No Section" section
+
+          await updateTask(taskId, updates);
         }
 
         if (isCompletedOnTargetDate) {
