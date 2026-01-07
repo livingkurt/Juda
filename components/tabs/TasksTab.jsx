@@ -289,27 +289,7 @@ export function TasksTab() {
           <Tab
             icon={<List fontSize="small" />}
             iconPosition="start"
-            label={
-              <Box
-                sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: 1 }}
-              >
-                <Box component="span">Backlog</Box>
-                {backlogTasks.length > 0 && (
-                  <Badge
-                    badgeContent={backlogTasks.length}
-                    color="error"
-                    sx={{
-                      "& .MuiBadge-badge": {
-                        fontSize: "0.625rem",
-                        height: "16px",
-                        minWidth: "16px",
-                        px: 0.5,
-                      },
-                    }}
-                  />
-                )}
-              </Box>
-            }
+            label={"Backlog"}
             sx={{
               fontSize: "0.875rem",
               minHeight: 48,
