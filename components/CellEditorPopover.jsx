@@ -5,7 +5,6 @@ import { Box, Stack, Typography, Button, TextField, ToggleButton, ToggleButtonGr
 import { Check, Close, RadioButtonUnchecked, Delete, SkipNext } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
-import { AutosaveBadge } from "./AutosaveBadge";
 
 /**
  * CellEditorPopover - Editor for task completion cells
@@ -80,7 +79,6 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
   if (task.completionType === "text_input" || task.completionType === "text") {
     return (
       <Box sx={{ p: 2, minWidth: 250, position: "relative" }}>
-        <AutosaveBadge isSaving={isSaving} justSaved={justSaved} position="top-right" size="sm" />
         <Typography variant="subtitle2" gutterBottom>
           {task.title}
         </Typography>
@@ -134,7 +132,6 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
   // For checkbox type (default)
   return (
     <Box sx={{ p: 2, minWidth: 280, position: "relative" }}>
-      <AutosaveBadge isSaving={isSaving} justSaved={justSaved} position="top-right" size="sm" />
       <Typography variant="subtitle2" gutterBottom>
         {task.title}
       </Typography>

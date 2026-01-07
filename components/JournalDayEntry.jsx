@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { Box, Typography, TextField, Stack, IconButton, Collapse } from "@mui/material";
 import { Add, ExpandMore, ChevronRight } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
-import { AutosaveBadge } from "./AutosaveBadge";
 
 export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave }) => {
   const theme = useTheme();
@@ -26,6 +25,8 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
   // Track if user manually expanded it - prevents auto-collapse on blur/re-render
   const [userExpanded, setUserExpanded] = useState(false);
   const textareaRef = useRef(null);
+  // Track if textarea is focused to restore focus after re-renders
+  const wasFocusedRef = useRef(false);
 
   // Save function wrapper with error handling
   const saveNote = useCallback(
@@ -45,6 +46,23 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
 
   const { debouncedSave, immediateSave, isSaving, justSaved } = useDebouncedSave(saveNote, 500);
 
+  // Restore focus after re-renders caused by autosave state changes
+  useEffect(() => {
+    // Only restore focus if:
+    // 1. The textarea was previously focused
+    // 2. We're not currently saving (to avoid interrupting user)
+    // 3. The textarea ref exists
+    // 4. The textarea is not currently focused (lost focus due to re-render)
+    if (wasFocusedRef.current && !isSaving && textareaRef.current && document.activeElement !== textareaRef.current) {
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        if (textareaRef.current && wasFocusedRef.current) {
+          textareaRef.current.focus({ preventScroll: true });
+        }
+      });
+    }
+  }, [justSaved, isSaving]);
+
   const handleChange = e => {
     const newValue = e.target.value;
     setNoteInput(newValue);
@@ -57,6 +75,9 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
   };
 
   const handleBlur = async () => {
+    // Clear focus tracking on intentional blur
+    wasFocusedRef.current = false;
+
     // Save immediately on blur if there are changes
     await immediateSave(noteInput);
 
@@ -75,10 +96,13 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
     const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
     setTimeout(
       () => {
-        textareaRef.current?.focus({ preventScroll: true });
-        // Smooth scroll into view after focus
-        if (isMobile) {
-          textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (textareaRef.current) {
+          wasFocusedRef.current = true;
+          textareaRef.current.focus({ preventScroll: true });
+          // Smooth scroll into view after focus
+          if (isMobile) {
+            textareaRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
         }
       },
       isMobile ? 300 : 10
@@ -118,7 +142,6 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
         position: "relative",
       }}
     >
-      {isCurrentYear && <AutosaveBadge isSaving={isSaving} justSaved={justSaved} position="top-right" />}
       <Stack spacing={{ xs: 2, md: 3 }}>
         {/* Header with title and expand/collapse button */}
         <Stack direction="row" spacing={2} alignItems="center">
@@ -185,6 +208,8 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
                   onChange={handleChange}
                   onBlur={handleBlur}
                   onFocus={() => {
+                    // Track that textarea is focused
+                    wasFocusedRef.current = true;
                     // Mark as user-expanded when focused
                     if (!userExpanded) {
                       setUserExpanded(true);
