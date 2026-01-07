@@ -279,7 +279,7 @@ export function useTaskOperations() {
 
   // Create task inline
   const handleCreateTaskInline = useCallback(
-    async (sectionId, title) => {
+    async (sectionId, title, tagIds = []) => {
       if (!title.trim()) return;
 
       try {
@@ -307,6 +307,12 @@ export function useTaskOperations() {
           subtasks: [],
           order: 999,
         });
+
+        // Apply tags if provided
+        if (tagIds && tagIds.length > 0) {
+          await batchUpdateTaskTags(newTask.id, tagIds);
+        }
+
         dispatch(showSuccess({ message: "Task created" }));
         return newTask;
       } catch (error) {
@@ -316,7 +322,7 @@ export function useTaskOperations() {
         throw error; // Re-throw so caller can handle it
       }
     },
-    [createTask, viewDate, dispatch]
+    [createTask, viewDate, batchUpdateTaskTags, dispatch]
   );
 
   // Create subtask

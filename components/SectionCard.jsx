@@ -4,6 +4,7 @@ import { useState, useCallback, memo, useMemo } from "react";
 import { Box, Paper, Stack, Typography, IconButton, Menu, MenuItem, Collapse } from "@mui/material";
 import { Draggable, Droppable } from "@hello-pangea/dnd";
 import { Add, MoreVert, DragIndicator, LightMode, ExpandMore, ExpandLess } from "@mui/icons-material";
+import { useSelector } from "react-redux";
 import { TaskItem } from "./TaskItem";
 import { QuickTaskInput } from "./QuickTaskInput";
 import { SECTION_ICONS } from "@/lib/constants";
@@ -16,6 +17,9 @@ import { useTaskFilters } from "@/hooks/useTaskFilters";
 
 const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDraggableId, viewDate }) => {
   const [menuAnchor, setMenuAnchor] = useState(null);
+
+  // Get selected tag IDs from Redux for auto-tagging new tasks
+  const todaySelectedTagIds = useSelector(state => state.ui.todaySelectedTagIds);
 
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
@@ -70,9 +74,10 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
     async title => {
       // Convert "no-section" virtual section to null
       const sectionId = section.id === "no-section" ? null : section.id;
-      await taskOps.handleCreateTaskInline(sectionId, title);
+      // Pass selected tag IDs so new tasks automatically get filtered tags
+      await taskOps.handleCreateTaskInline(sectionId, title, todaySelectedTagIds);
     },
-    [taskOps, section.id]
+    [taskOps, section.id, todaySelectedTagIds]
   );
 
   const isExpanded = section.expanded !== false;
