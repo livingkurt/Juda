@@ -3,8 +3,6 @@
 import { memo, useState, useRef, useCallback } from "react";
 import { Box, Typography, Chip, IconButton, Paper, Stack } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { CheckCircle, RadioButtonUnchecked, Cancel, Repeat, FitnessCenter } from "@mui/icons-material";
 import { TagChip } from "./TagChip";
 import { TaskContextMenu } from "./TaskContextMenu";
@@ -34,7 +32,7 @@ export const CalendarTask = memo(function CalendarTask({
   task,
   date,
   variant = "timed", // 'timed' | 'untimed' | 'timed-week' | 'untimed-week'
-  createDraggableId,
+  createDraggableId: _createDraggableId, // Kept for API compatibility but not used for internal calendar drags
   getTaskStyle,
   internalDrag,
   handleInternalDragStart,
@@ -56,17 +54,6 @@ export const CalendarTask = memo(function CalendarTask({
   const fontSize = isWeek ? "0.7rem" : "0.8rem";
   const padding = isWeek ? 0.5 : 1;
 
-  // Create appropriate draggable ID based on variant
-  const draggableId = isTimed
-    ? createDraggableId.calendarTimed(task.id, date)
-    : createDraggableId.calendarUntimed(task.id, date);
-
-  // DnD Kit
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: draggableId,
-    data: { task, date, type: "TASK" },
-  });
-
   // Completion state for recurring tasks
   const outcome = getOutcomeOnDate(task.id, date);
   const isCompleted = isCompletedOnDate(task.id, date);
@@ -77,15 +64,11 @@ export const CalendarTask = memo(function CalendarTask({
   // Get task color from first tag, or use neutral gray if no tags
   const taskColor = getTaskDisplayColor(task, null, colorMode);
 
+  // Check if this task is currently being dragged internally
+  const isInternalDragging = internalDrag?.taskId === task.id;
+
   // Style for positioning (timed variants only)
   const positionStyle = isTimed && getTaskStyle ? getTaskStyle(task) : {};
-  const dragStyle = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging && !internalDrag?.taskId ? 0.5 : isCompleted || isNotCompleted ? 0.6 : 1,
-    filter: isCompleted || isNotCompleted ? "brightness(0.7)" : "none",
-    pointerEvents: isDragging && !internalDrag?.taskId ? "none" : "auto",
-  };
 
   // Background based on completion state
   const getBgColor = () => {
@@ -117,18 +100,30 @@ export const CalendarTask = memo(function CalendarTask({
     [outcome, task.id, date, completionHandlers]
   );
 
-  // Stable handlers for drag operations
-  const handleTaskClick = useCallback(() => {
-    taskOps.handleEditTask(task);
-  }, [taskOps, task]);
+  // Handle mouse down for move (internal drag - Apple Calendar style)
+  const handleMoveMouseDown = useCallback(
+    e => {
+      // Only left click
+      if (e.button !== 0) return;
+      // Don't start drag if clicking on resize handle
+      if (resizeRef.current && resizeRef.current.contains(e.target)) return;
+      // For timed tasks, use internal drag system for moving (Apple Calendar feel)
+      if (isTimed && handleInternalDragStart) {
+        handleInternalDragStart(e, task, "move");
+      }
+    },
+    [isTimed, handleInternalDragStart, task]
+  );
 
+  // Handle resize mouse down
   const handleResizeMouseDown = useCallback(
     e => {
-      if (!isDragging && handleInternalDragStart) {
+      e.stopPropagation();
+      if (handleInternalDragStart) {
         handleInternalDragStart(e, task, "resize");
       }
     },
-    [isDragging, handleInternalDragStart, task]
+    [handleInternalDragStart, task]
   );
 
   const isNoDuration = !task.duration || task.duration === 0;
@@ -137,15 +132,10 @@ export const CalendarTask = memo(function CalendarTask({
   return (
     <>
       <Paper
-        ref={node => {
-          taskRef.current = node;
-          setNodeRef(node);
-        }}
+        ref={taskRef}
         variant="outlined"
         onContextMenu={handleContextMenu}
-        onClick={handleTaskClick}
-        {...attributes}
-        {...listeners}
+        onMouseDown={handleMoveMouseDown}
         sx={{
           ...(isTimed
             ? {
@@ -157,22 +147,32 @@ export const CalendarTask = memo(function CalendarTask({
             : {
                 position: "relative",
               }),
-          ...dragStyle,
+          // Apple Calendar style - task stays visible and elevated during drag
+          opacity: isCompleted || isNotCompleted ? 0.6 : 1,
+          filter: isCompleted || isNotCompleted ? "brightness(0.7)" : "none",
           p: padding,
           bgcolor: getBgColor(),
           borderColor: getBorderColor(),
           borderWidth: isNoDuration ? 2 : 1,
           borderRadius: 1,
-          cursor: "grab",
+          cursor: isTimed ? "grab" : "default",
           overflow: "hidden",
           backgroundImage: isNotCompleted ? getStripedBg(theme) : "none",
           color: taskColor ? "white" : theme.palette.text.primary,
-          boxShadow: internalDrag?.taskId === task.id ? theme.shadows[8] : "none",
-          zIndex: internalDrag?.taskId === task.id ? 50 : "auto",
+          // Elevated appearance when dragging (Apple Calendar style)
+          boxShadow: isInternalDragging ? theme.shadows[8] : "none",
+          zIndex: isInternalDragging ? 100 : "auto",
+          // Subtle scale when dragging
+          transform: isInternalDragging ? "scale(1.02)" : "none",
+          transition: isInternalDragging ? "none" : "box-shadow 0.15s, transform 0.15s",
           minHeight: isTimed ? (isNoDuration ? 24 : undefined) : undefined,
+          userSelect: "none",
           "&:hover": {
             bgcolor: isNotCompleted ? undefined : "action.hover",
             "& .resize-handle": { opacity: 1 },
+          },
+          "&:active": {
+            cursor: "grabbing",
           },
         }}
       >
@@ -182,6 +182,7 @@ export const CalendarTask = memo(function CalendarTask({
             <IconButton
               size="small"
               onClick={handleOutcomeClick}
+              onMouseDown={e => e.stopPropagation()} // Prevent drag start when clicking
               sx={{
                 p: 0,
                 color: getCompletionColor(outcome, theme),
@@ -246,13 +247,12 @@ export const CalendarTask = memo(function CalendarTask({
             ref={resizeRef}
             className="resize-handle"
             onMouseDown={handleResizeMouseDown}
-            onClick={e => e.stopPropagation()}
             sx={{
               position: "absolute",
               bottom: 0,
               left: 0,
               right: 0,
-              height: isWeek ? 2 : 3,
+              height: isWeek ? 4 : 6,
               bgcolor: "primary.main",
               cursor: "ns-resize",
               opacity: 0,
@@ -260,15 +260,18 @@ export const CalendarTask = memo(function CalendarTask({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              "&:hover": {
+                opacity: 1,
+              },
             }}
           >
             {!isWeek && (
               <Box
                 sx={{
                   width: 32,
-                  height: 1,
+                  height: 2,
                   borderRadius: "full",
-                  bgcolor: "rgba(255, 255, 255, 0.5)",
+                  bgcolor: "rgba(255, 255, 255, 0.7)",
                 }}
               />
             )}
