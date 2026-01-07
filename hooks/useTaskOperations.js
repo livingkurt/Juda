@@ -283,13 +283,18 @@ export function useTaskOperations() {
       if (!title.trim()) return;
 
       try {
-        const taskDate = new Date(viewDate || new Date());
-        taskDate.setHours(0, 0, 0, 0);
+        // Handle "no-section" virtual section - convert to null
+        const actualSectionId =
+          sectionId === "no-section" || sectionId === null || sectionId === undefined ? null : sectionId;
+
+        // Use formatLocalDate to avoid timezone issues - get YYYY-MM-DD format
+        const taskDate = viewDate || new Date();
+        const dateStr = formatLocalDate(taskDate);
         const now = new Date();
 
         const newTask = await createTask({
           title: title.trim(),
-          sectionId,
+          sectionId: actualSectionId,
           time: null,
           duration: 0,
           color: "#3b82f6",
@@ -297,7 +302,7 @@ export function useTaskOperations() {
           startedAt: now.toISOString(),
           recurrence: {
             type: "none",
-            startDate: taskDate.toISOString(),
+            startDate: `${dateStr}T00:00:00.000Z`,
           },
           subtasks: [],
           order: 999,
@@ -305,8 +310,10 @@ export function useTaskOperations() {
         dispatch(showSuccess({ message: "Task created" }));
         return newTask;
       } catch (error) {
-        console.error("Failed to create task:", error.message);
+        const errorMessage = error?.message || error?.toString() || "Unknown error";
+        console.error("Failed to create task:", errorMessage);
         dispatch(showError({ message: "Failed to create task" }));
+        throw error; // Re-throw so caller can handle it
       }
     },
     [createTask, viewDate, dispatch]
@@ -337,7 +344,8 @@ export function useTaskOperations() {
 
         console.warn("Subtask created");
       } catch (error) {
-        console.error("Failed to create subtask:", error.message);
+        const errorMessage = error?.message || error?.toString() || "Unknown error";
+        console.error("Failed to create subtask:", errorMessage);
       }
     },
     [tasks, createTask, fetchTasks]
@@ -369,8 +377,10 @@ export function useTaskOperations() {
         dispatch(showSuccess({ message: "Task created" }));
         return newTask;
       } catch (error) {
-        console.error("Failed to create task:", error.message);
+        const errorMessage = error?.message || error?.toString() || "Unknown error";
+        console.error("Failed to create task:", errorMessage);
         dispatch(showError({ message: "Failed to create task" }));
+        throw error; // Re-throw so caller can handle it
       }
     },
     [createTask, batchUpdateTaskTags, dispatch]
@@ -383,6 +393,9 @@ export function useTaskOperations() {
 
       try {
         const now = new Date();
+        // Use formatLocalDate to avoid timezone issues - get YYYY-MM-DD format
+        const dateStr = formatLocalDate(viewDate || new Date());
+
         await createTask({
           title: title.trim(),
           sectionId: sections[0]?.id,
@@ -391,17 +404,22 @@ export function useTaskOperations() {
           color: "#3b82f6",
           status: status,
           startedAt: status === "in_progress" ? now.toISOString() : null,
-          recurrence: null,
+          recurrence: {
+            type: "none",
+            startDate: `${dateStr}T00:00:00.000Z`,
+          },
           subtasks: [],
           order: 999,
         });
         dispatch(showSuccess({ message: "Task created" }));
       } catch (error) {
-        console.error("Failed to create task:", error.message);
+        const errorMessage = error?.message || error?.toString() || "Unknown error";
+        console.error("Failed to create task:", errorMessage);
         dispatch(showError({ message: "Failed to create task" }));
+        throw error; // Re-throw so caller can handle it
       }
     },
-    [createTask, sections, dispatch]
+    [createTask, sections, viewDate, dispatch]
   );
 
   // Toggle task expand

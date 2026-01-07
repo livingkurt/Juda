@@ -68,7 +68,9 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
 
   const handleCreateQuickTask = useCallback(
     async title => {
-      await taskOps.handleCreateTaskInline(section.id, title);
+      // Convert "no-section" virtual section to null
+      const sectionId = section.id === "no-section" ? null : section.id;
+      await taskOps.handleCreateTaskInline(sectionId, title);
     },
     [taskOps, section.id]
   );
