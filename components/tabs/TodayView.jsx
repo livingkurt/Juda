@@ -6,6 +6,7 @@ import { DateNavigation } from "@/components/DateNavigation";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
 import { TagFilter } from "@/components/TagFilter";
 import { Section } from "@/components/Section";
+import { useOverdueSound } from "@/hooks/useOverdueSound";
 
 export function TodayView({
   isLoading,
@@ -29,6 +30,12 @@ export function TodayView({
   todayScrollContainerRef,
   isMobile,
 }) {
+  // Convert todayViewDate to Date object if it's a string
+  const viewDate = todayViewDate instanceof Date ? todayViewDate : todayViewDate ? new Date(todayViewDate) : new Date();
+
+  // Monitor tasks for overdue status and play sound when they become overdue
+  useOverdueSound(todaysTasks, viewDate);
+
   return (
     <Box
       sx={{
