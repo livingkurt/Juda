@@ -3,7 +3,6 @@
 import { memo, useMemo, useCallback } from "react";
 import { Box } from "@mui/material";
 import { useDroppable } from "@dnd-kit/core";
-import { calculateTaskPositions } from "@/lib/utils";
 import { CalendarTask } from "./CalendarTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
 import { CurrentTimeLine } from "./CurrentTimeLine";
@@ -45,8 +44,9 @@ export const TimedColumn = memo(function TimedColumn({
   const showStatusTasksPref = preferences.showStatusTasks !== false;
   const actualShowStatusTasks = showStatusTasks && showStatusTasksPref;
 
-  // Memoize calculated task positions
-  const positionedTasks = useMemo(() => calculateTaskPositions(timedTasks), [timedTasks]);
+  // Tasks are already positioned from parent (CalendarWeekView)
+  // Just use them directly
+  const positionedTasks = timedTasks;
 
   // Create stable handlers for CalendarTask components
   const handleTaskDragStart = useCallback(
@@ -104,14 +104,14 @@ export const TimedColumn = memo(function TimedColumn({
       {isToday && <CurrentTimeLine hourHeight={hourHeight} startHour={0} />}
 
       {/* Render tasks */}
-      {positionedTasks.map(task => (
+      {positionedTasks.map(positionedTask => (
         <CalendarTask
-          key={task.id}
-          task={task}
+          key={positionedTask.id}
+          task={positionedTask}
           createDraggableId={createDraggableId}
           date={day}
           variant="timed-week"
-          getTaskStyle={getTaskStyle}
+          getTaskStyle={task => getTaskStyle(task, positionedTask)}
           internalDrag={internalDrag}
           handleInternalDragStart={handleTaskDragStart}
         />

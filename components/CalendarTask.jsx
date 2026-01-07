@@ -1,23 +1,17 @@
 "use client";
 
 import { memo, useState, useRef, useCallback, useEffect } from "react";
-import { Box, Typography, Chip, IconButton, Paper, Stack } from "@mui/material";
+import { Box, Typography, Chip, Paper, Stack } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { CheckCircle, RadioButtonUnchecked, Cancel, Repeat, FitnessCenter } from "@mui/icons-material";
+import { Repeat, FitnessCenter } from "@mui/icons-material";
 import { TagChip } from "./TagChip";
 import { TaskContextMenu } from "./TaskContextMenu";
+import { OutcomeCheckbox } from "./OutcomeCheckbox";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { getTaskDisplayColor } from "@/lib/utils";
 import { useColorMode } from "@/hooks/useColorMode";
-
-// Completion status colors
-const getCompletionColor = (outcome, theme) => {
-  if (outcome === "completed") return theme.palette.success.main;
-  if (outcome === "not_completed") return theme.palette.error.main;
-  return theme.palette.action.disabled;
-};
 
 // Striped pattern for not_completed
 const getStripedBg = theme => `repeating-linear-gradient(
@@ -53,7 +47,6 @@ export const CalendarTask = memo(function CalendarTask({
   const isTimed = variant === "timed" || variant === "timed-week";
   const isWeek = variant === "timed-week" || variant === "untimed-week";
   const fontSize = isWeek ? "0.7rem" : "0.8rem";
-  const padding = isWeek ? 0.5 : 1;
 
   // Completion state for recurring tasks
   const outcome = getOutcomeOnDate(task.id, date);
@@ -118,14 +111,20 @@ export const CalendarTask = memo(function CalendarTask({
     setAnchorEl(e.currentTarget);
   }, []);
 
-  // Cycle through outcomes: none -> completed -> not_completed -> none
-  const handleOutcomeClick = useCallback(
-    e => {
-      e.stopPropagation();
-      const nextOutcome = outcome === "completed" ? "not_completed" : outcome === "not_completed" ? null : "completed";
-      completionHandlers.handleOutcomeChange(task.id, date, nextOutcome);
+  // Handle outcome change (reused from OutcomeCheckbox logic)
+  const handleOutcomeChange = useCallback(
+    newOutcome => {
+      completionHandlers.handleOutcomeChange(task.id, date, newOutcome);
     },
-    [outcome, task.id, date, completionHandlers]
+    [task.id, date, completionHandlers]
+  );
+
+  // Handle rollover (for recurring tasks)
+  const handleRollover = useCallback(
+    (taskId, viewDate) => {
+      completionHandlers.handleRolloverTask(taskId, viewDate);
+    },
+    [completionHandlers]
   );
 
   // Handle mouse down for move (internal drag - Apple Calendar style)
@@ -190,9 +189,18 @@ export const CalendarTask = memo(function CalendarTask({
           ...(isTimed
             ? {
                 position: "absolute",
-                left: 4,
-                right: 4,
-                ...positionStyle,
+                // Use percentage-based positioning with small gaps between overlapping tasks
+                left: positionStyle.left ? positionStyle.left : "0%",
+                ...(positionStyle.top ? { top: positionStyle.top } : {}),
+                ...(positionStyle.height ? { height: positionStyle.height } : {}),
+                // Add small gaps between overlapping tasks (more space on left edge)
+                marginLeft: positionStyle.left === "0%" ? "4px" : "2px",
+                marginRight: "2px",
+                boxSizing: "border-box",
+                // Adjust width to account for margins
+                width: positionStyle.width
+                  ? `calc(${positionStyle.width} - ${positionStyle.left === "0%" ? "6px" : "4px"})`
+                  : "calc(100% - 6px)",
               }
             : {
                 position: "relative",
@@ -227,25 +235,27 @@ export const CalendarTask = memo(function CalendarTask({
         }}
       >
         <Stack direction="row" spacing={0.5} alignItems="flex-start">
-          {/* Completion Circle (for recurring tasks) */}
+          {/* Outcome Checkbox (for recurring tasks) */}
           {isRecurring && (
-            <IconButton
-              size="small"
-              onClick={handleOutcomeClick}
+            <Box
               onMouseDown={e => e.stopPropagation()} // Prevent drag start when clicking
+              onClick={e => e.stopPropagation()} // Prevent task click when clicking checkbox
               sx={{
-                p: 0,
-                color: getCompletionColor(outcome, theme),
+                px: 0.5,
+                pt: 0.25,
               }}
             >
-              {isCompleted ? (
-                <CheckCircle size={isWeek ? 12 : 14} />
-              ) : isNotCompleted ? (
-                <Cancel fontSize={isWeek ? "inherit" : "small"} />
-              ) : (
-                <RadioButtonUnchecked fontSize={isWeek ? "inherit" : "small"} />
-              )}
-            </IconButton>
+              <OutcomeCheckbox
+                outcome={outcome}
+                onOutcomeChange={handleOutcomeChange}
+                isChecked={isCompleted}
+                size={isWeek ? "sm" : "md"}
+                isRecurring={isRecurring}
+                viewDate={date}
+                onRollover={handleRollover}
+                taskId={task.id}
+              />
+            </Box>
           )}
 
           {/* Task Content */}
@@ -272,7 +282,7 @@ export const CalendarTask = memo(function CalendarTask({
             )}
 
             {/* Tags (non-week view only to save space) */}
-            {!isWeek && task.tags?.length > 0 && (
+            {/* {!isWeek && task.tags?.length > 0 && (
               <Stack direction="row" spacing={0.25} sx={{ mt: 0.25 }} flexWrap="wrap">
                 {task.tags.slice(0, 2).map(tag => (
                   <TagChip key={tag.id} tag={tag} size="small" sx={{ height: 16, fontSize: "0.6rem" }} />
@@ -281,7 +291,7 @@ export const CalendarTask = memo(function CalendarTask({
                   <Chip label={`+${task.tags.length - 2}`} size="small" sx={{ height: 16, fontSize: "0.6rem" }} />
                 )}
               </Stack>
-            )}
+            )} */}
           </Box>
 
           {/* Indicators */}

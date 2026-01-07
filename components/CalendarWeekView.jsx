@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Box } from "@mui/material";
 import { useDispatch } from "react-redux";
-import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate } from "@/lib/utils";
+import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate, calculateTaskPositions } from "@/lib/utils";
 import { HOUR_HEIGHT_WEEK, DRAG_THRESHOLD } from "@/lib/calendarConstants";
 import { DayHeaderColumn } from "./DayHeaderColumn";
 import { TimedColumn } from "./TimedColumn";
@@ -121,6 +121,18 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
     return map;
   }, [weekDays, tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]);
 
+  // Pre-compute positioned tasks for each day
+  const positionedTasksByDay = useMemo(() => {
+    const map = new Map();
+    weekDays.forEach(day => {
+      const dateKey = day.toDateString();
+      const dayTasks = tasksByDay.get(dateKey) || [];
+      const positioned = calculateTaskPositions(dayTasks);
+      map.set(dateKey, positioned);
+    });
+    return map;
+  }, [weekDays, tasksByDay]);
+
   const untimedTasksByDay = useMemo(() => {
     const map = new Map();
     weekDays.forEach(day => {
@@ -155,7 +167,7 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
   );
 
   const getTaskStyle = useCallback(
-    task => {
+    (task, positionedTask) => {
       const isDragging = internalDrag.taskId === task.id;
       const minutes =
         isDragging && internalDrag.type === "move" ? internalDrag.currentMinutes : timeToMinutes(task.time);
@@ -165,9 +177,19 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
       return {
         top: `${(minutes / 60) * HOUR_HEIGHT}px`,
         height: `${isNoDuration ? 24 : Math.max((duration / 60) * HOUR_HEIGHT, 18)}px`,
+        left: positionedTask?.left || "0%",
+        width: positionedTask?.width || "100%",
       };
     },
     [internalDrag, HOUR_HEIGHT]
+  );
+
+  // Stable lookup function for positioned tasks
+  const getPositionedTasksForDay = useCallback(
+    day => {
+      return positionedTasksByDay.get(day.toDateString()) || [];
+    },
+    [positionedTasksByDay]
   );
 
   const handleInternalDragStart = useCallback((e, task, type) => {
@@ -442,6 +464,7 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
           >
             {weekDays.map((day, i) => {
               const dayTasks = getTasksForDay(day);
+              const positionedTasks = getPositionedTasksForDay(day);
               const isTodayColumn = i === todayIndex;
 
               return (
@@ -449,7 +472,7 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
                   key={i}
                   day={day}
                   dayIndex={i}
-                  timedTasks={dayTasks}
+                  timedTasks={positionedTasks}
                   allTasks={tasks}
                   handleColumnClick={handleColumnClick}
                   handleDropTimeCalculation={handleDropTimeCalculation}

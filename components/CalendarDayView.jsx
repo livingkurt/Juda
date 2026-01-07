@@ -94,10 +94,15 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
     hasMoved: false,
   });
 
+  // Pre-compute positioned tasks with overlap handling
+  const positionedTasks = useMemo(() => {
+    return calculateTaskPositions(dayTasks);
+  }, [dayTasks]);
+
   // Pre-compute task styles for all tasks (memoized)
   const taskStyles = useMemo(() => {
     const styles = new Map();
-    dayTasks.forEach(task => {
+    positionedTasks.forEach(task => {
       const isDragging = internalDrag.taskId === task.id;
       const minutes =
         isDragging && internalDrag.type === "move" ? internalDrag.currentMinutes : timeToMinutes(task.time);
@@ -107,14 +112,16 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
       styles.set(task.id, {
         top: `${(minutes / 60) * HOUR_HEIGHT}px`,
         height: `${isNoDuration ? 24 : Math.max((duration / 60) * HOUR_HEIGHT, 24)}px`,
+        left: task.left || "0%",
+        width: task.width || "100%",
       });
     });
     return styles;
-  }, [dayTasks, internalDrag, HOUR_HEIGHT]);
+  }, [positionedTasks, internalDrag, HOUR_HEIGHT]);
 
   const getTaskStyle = useCallback(
     task => {
-      return taskStyles.get(task.id) || { top: "0px", height: "30px" };
+      return taskStyles.get(task.id) || { top: "0px", height: "30px", left: "0%", width: "100%" };
     },
     [taskStyles]
   );
@@ -477,7 +484,7 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
             }}
           >
             {/* Render positioned tasks */}
-            {calculateTaskPositions(dayTasks).map(task => (
+            {positionedTasks.map(task => (
               <CalendarTask
                 key={task.id}
                 task={task}
