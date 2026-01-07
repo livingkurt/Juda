@@ -61,10 +61,7 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
     };
   }, [outcome, note, actualValue, onSave, task.completionType]);
 
-  const { debouncedSave, immediateSave, isSaving, justSaved } = useDebouncedSave(
-    () => saveAllFieldsRef.current?.(),
-    500
-  );
+  const { debouncedSave, immediateSave } = useDebouncedSave(() => saveAllFieldsRef.current?.(), 500);
 
   const handleNoteChange = e => {
     const newValue = e.target.value;
@@ -168,13 +165,13 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
           <Close fontSize="small" sx={{ mr: 0.5 }} />
           Missed
         </ToggleButton>
-        {/* Only show Roll Over for scheduled days */}
-        {isScheduled && task.recurrence && task.recurrence.type !== "none" && (
-          <ToggleButton value="rolled_over" sx={{ flex: 1 }}>
-            <SkipNext fontSize="small" sx={{ mr: 0.5 }} />
-            Roll Over
-          </ToggleButton>
-        )}
+        {/* Only show Roll Over for scheduled days on recurring tasks or subtasks of recurring tasks */}
+
+        <ToggleButton value="rolled_over" sx={{ flex: 1 }}>
+          <SkipNext fontSize="small" sx={{ mr: 0.5 }} />
+          Roll Over
+        </ToggleButton>
+
         <ToggleButton value={null} sx={{ flex: 1 }}>
           <RadioButtonUnchecked fontSize="small" sx={{ mr: 0.5 }} />
           None
