@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useRef, useCallback } from "react";
+import { memo, useState, useRef, useCallback, useEffect } from "react";
 import { Box, Typography, Chip, IconButton, Paper, Stack } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { CheckCircle, RadioButtonUnchecked, Cancel, Repeat, FitnessCenter } from "@mui/icons-material";
@@ -42,6 +42,7 @@ export const CalendarTask = memo(function CalendarTask({
   const [anchorEl, setAnchorEl] = useState(null);
   const resizeRef = useRef(null);
   const taskRef = useRef(null);
+  const justDraggedRef = useRef(false);
 
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
@@ -66,6 +67,33 @@ export const CalendarTask = memo(function CalendarTask({
 
   // Check if this task is currently being dragged internally
   const isInternalDragging = internalDrag?.taskId === task.id;
+  const wasDraggingRef = useRef(false);
+  const hadMovedRef = useRef(false);
+
+  // Track when drag ends to prevent click from firing
+  useEffect(() => {
+    if (isInternalDragging) {
+      // Currently dragging - mark that we were dragging and store hasMoved
+      wasDraggingRef.current = true;
+      hadMovedRef.current = internalDrag?.hasMoved || false;
+    } else if (wasDraggingRef.current) {
+      // Drag just ended - check if we moved
+      if (hadMovedRef.current) {
+        // We moved - prevent click from firing
+        justDraggedRef.current = true;
+        // Reset flag after a short delay to allow click events to be processed
+        const timeoutId = setTimeout(() => {
+          justDraggedRef.current = false;
+        }, 150);
+        wasDraggingRef.current = false;
+        hadMovedRef.current = false;
+        return () => clearTimeout(timeoutId);
+      }
+      // Didn't move - allow click to fire
+      wasDraggingRef.current = false;
+      hadMovedRef.current = false;
+    }
+  }, [isInternalDragging, internalDrag?.hasMoved]);
 
   // Style for positioning (timed variants only)
   const positionStyle = isTimed && getTaskStyle ? getTaskStyle(task) : {};
@@ -107,12 +135,33 @@ export const CalendarTask = memo(function CalendarTask({
       if (e.button !== 0) return;
       // Don't start drag if clicking on resize handle
       if (resizeRef.current && resizeRef.current.contains(e.target)) return;
+      // Reset drag flag when starting a new drag
+      justDraggedRef.current = false;
       // For timed tasks, use internal drag system for moving (Apple Calendar feel)
       if (isTimed && handleInternalDragStart) {
         handleInternalDragStart(e, task, "move");
       }
     },
     [isTimed, handleInternalDragStart, task]
+  );
+
+  // Handle click - only open dialog if we didn't just drag
+  const handleTaskClick = useCallback(
+    e => {
+      // Don't open if we just finished dragging
+      if (justDraggedRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      // Don't open if clicking on resize handle or outcome button
+      if (resizeRef.current?.contains(e.target)) return;
+      if (e.target.closest("button[aria-label]")) return;
+
+      // Open task editor
+      taskOps.handleEditTask(task);
+    },
+    [taskOps, task]
   );
 
   // Handle resize mouse down
@@ -136,6 +185,7 @@ export const CalendarTask = memo(function CalendarTask({
         variant="outlined"
         onContextMenu={handleContextMenu}
         onMouseDown={handleMoveMouseDown}
+        onClick={handleTaskClick}
         sx={{
           ...(isTimed
             ? {
