@@ -239,6 +239,7 @@ export default function DailyTasksApp() {
     showCompletedTasks: preferences.showCompletedTasks,
     tasksBySection: {},
     viewDate,
+    todaysTasks: [],
   });
 
   // Sync Redux UI state with preferences on mount

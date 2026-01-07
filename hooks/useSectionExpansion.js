@@ -7,7 +7,7 @@ import {
   setManuallyCollapsedSections as setManuallyCollapsedSectionsAction,
 } from "@/lib/store/slices/sectionExpansionSlice";
 
-export function useSectionExpansion({ sections, showCompletedTasks, tasksBySection, viewDate }) {
+export function useSectionExpansion({ sections, showCompletedTasks, tasksBySection, viewDate, todaysTasks }) {
   const dispatch = useDispatch();
 
   // Get from Redux instead of useState
@@ -91,11 +91,12 @@ export function useSectionExpansion({ sections, showCompletedTasks, tasksBySecti
     // Check if date changed (need to reset manual expansions and recalculate)
     const viewDateStr = viewDate?.toISOString?.() || viewDate?.toString() || "today";
     if (lastViewDateRef.current !== viewDateStr) {
-      // Date changed - reset manual expansions and recalculate
-      // Keep manually collapsed sections as they're user preferences
+      // Date changed - reset ALL manual state (both expanded and collapsed)
+      // This allows sections to react to the new day's data
       lastViewDateRef.current = viewDateStr;
       initialCalculationDoneRef.current = false;
       dispatch(setManuallyExpandedSectionsAction([]));
+      dispatch(setManuallyCollapsedSectionsAction([]));
     }
 
     // Only calculate once per view date
@@ -110,17 +111,36 @@ export function useSectionExpansion({ sections, showCompletedTasks, tasksBySecti
     initialCalculationDoneRef.current = true;
 
     // Calculate which sections should be auto-collapsed
+    // A section should be auto-collapsed if:
+    // 1. It has no tasks at all (empty section), OR
+    // 2. ALL its tasks have completions (completed or not_completed)
     const sectionsToCollapse = [];
     sections.forEach(section => {
-      const visibleTasks = tasksBySection[section.id] || [];
-      if (visibleTasks.length === 0) {
+      // Get ALL tasks for this section (not just visible ones)
+      const allSectionTasks = todaysTasks?.filter(t => t.sectionId === section.id) || [];
+
+      if (allSectionTasks.length === 0) {
+        // No tasks in section - auto-collapse empty sections
+        sectionsToCollapse.push(section.id);
+        return;
+      }
+
+      // Check if ALL tasks have an outcome (completed or not_completed)
+      const allTasksHaveOutcome = allSectionTasks.every(task => {
+        const isCompleted =
+          task.completed || (task.subtasks && task.subtasks.length > 0 && task.subtasks.every(st => st.completed));
+        const hasOutcome = task.outcome !== null && task.outcome !== undefined;
+        return isCompleted || hasOutcome;
+      });
+
+      if (allTasksHaveOutcome) {
         sectionsToCollapse.push(section.id);
       }
     });
 
     // Set initial auto-collapsed state
     dispatch(setAutoCollapsedSectionsAction(sectionsToCollapse));
-  }, [showCompletedTasks, tasksBySection, sections, viewDate, dispatch]);
+  }, [showCompletedTasks, tasksBySection, sections, viewDate, todaysTasks, dispatch]);
 
   // Sort sections by order
   const sortedSections = useMemo(() => {

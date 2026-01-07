@@ -34,6 +34,7 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
     showCompletedTasks,
     tasksBySection: taskFilters.tasksBySection,
     viewDate,
+    todaysTasks: taskFilters.todaysTasks,
   });
   const sectionOps = useSectionOperations({
     autoCollapsedSections: sectionExpansion.autoCollapsedSections,

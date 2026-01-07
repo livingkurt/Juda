@@ -92,8 +92,7 @@ export function useSectionOperations({
 
   // Delete section
   const handleDeleteSection = useCallback(
-    async sectionId => {
-      if (sections.length <= 1) {
+
         console.warn("Cannot delete section: You need at least one section");
         return;
       }

@@ -33,6 +33,7 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
     showCompletedTasks,
     tasksBySection: {},
     viewDate,
+    todaysTasks: [],
   });
 
   // Initialize completion handlers (needs sectionExpansionInitial callbacks)
@@ -53,6 +54,7 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
     showCompletedTasks,
     tasksBySection: taskFilters.tasksBySection,
     viewDate,
+    todaysTasks: taskFilters.todaysTasks,
   });
 
   // Update section ops with section expansion callbacks
