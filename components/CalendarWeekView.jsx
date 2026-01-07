@@ -367,38 +367,61 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
       >
         <Box
           sx={{
-            display: "flex",
+            position: { xs: "relative", md: "sticky" },
+            top: { xs: "auto", md: 0 },
             borderBottom: 1,
             borderColor: "divider",
             bgcolor: "background.paper",
-            position: { xs: "relative", md: "sticky" },
-            top: { xs: "auto", md: 0 },
             minWidth: "fit-content",
+            minHeight: "100px",
             zIndex: { xs: "auto", md: 10 },
             pointerEvents: "auto",
           }}
         >
           {/* Spacer to match hour labels width */}
-          <Box sx={{ width: 48, flexShrink: 0, borderRight: 1, borderColor: "divider" }} />
+          <Box
+            sx={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 48,
+              borderRight: 1,
+              borderColor: "divider",
+            }}
+          />
 
-          {weekDays.map((day, i) => {
-            const untimedTasksForDay = getUntimedTasksForDay(day);
-            const isToday = day.toDateString() === today.toDateString();
+          {/* Day headers container - matches timed columns structure exactly */}
+          <Box
+            sx={{
+              position: "absolute",
+              left: 48,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              display: "flex",
+              minWidth: "fit-content",
+            }}
+          >
+            {weekDays.map((day, i) => {
+              const untimedTasksForDay = getUntimedTasksForDay(day);
+              const isToday = day.toDateString() === today.toDateString();
 
-            return (
-              <DayHeaderColumn
-                key={i}
-                day={day}
-                dayIndex={i}
-                untimedTasks={untimedTasksForDay}
-                isToday={isToday}
-                onDayClick={handleDayClick}
-                createDroppableId={createDroppableId}
-                createDraggableId={createDraggableId}
-                dropHighlight="action.hover"
-              />
-            );
-          })}
+              return (
+                <DayHeaderColumn
+                  key={i}
+                  day={day}
+                  dayIndex={i}
+                  untimedTasks={untimedTasksForDay}
+                  isToday={isToday}
+                  onDayClick={handleDayClick}
+                  createDroppableId={createDroppableId}
+                  createDraggableId={createDraggableId}
+                  dropHighlight="action.hover"
+                />
+              );
+            })}
+          </Box>
         </Box>
       </Box>
 
@@ -463,7 +486,6 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
             }}
           >
             {weekDays.map((day, i) => {
-              const dayTasks = getTasksForDay(day);
               const positionedTasks = getPositionedTasksForDay(day);
               const isTodayColumn = i === todayIndex;
 
