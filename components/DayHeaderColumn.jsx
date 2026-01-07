@@ -1,11 +1,12 @@
 "use client";
 
+import { memo } from "react";
 import { Box, Typography, Stack } from "@mui/material";
 import { useDroppable } from "@dnd-kit/core";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 import { CalendarTask } from "./CalendarTask";
 
-export const DayHeaderColumn = ({
+export const DayHeaderColumn = memo(function DayHeaderColumn({
   day,
   dayIndex,
   untimedTasks,
@@ -14,7 +15,7 @@ export const DayHeaderColumn = ({
   createDroppableId,
   createDraggableId,
   dropHighlight,
-}) => {
+}) {
   const untimedDroppableId = createDroppableId.calendarWeekUntimed(day);
 
   const { setNodeRef, isOver } = useDroppable({
@@ -107,6 +108,6 @@ export const DayHeaderColumn = ({
       </Box>
     </Box>
   );
-};
+});
 
 export default DayHeaderColumn;

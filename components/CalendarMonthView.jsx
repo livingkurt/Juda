@@ -2,7 +2,7 @@
 
 import { useMemo, useCallback } from "react";
 import { useDispatch } from "react-redux";
-import { Box, Grid } from "@mui/material";
+import { Box } from "@mui/material";
 import { shouldShowOnDate } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 import { TaskCardCompact } from "./shared/TaskCardCompact";
@@ -12,6 +12,7 @@ import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useViewState } from "@/hooks/useViewState";
 import { setCalendarView } from "@/lib/store/slices/uiSlice";
+import GLGrid from "./GLGrid";
 
 export const CalendarMonthView = ({ date }) => {
   const dispatch = useDispatch();
@@ -102,12 +103,12 @@ export const CalendarMonthView = ({ date }) => {
         overflow: "hidden",
       }}
     >
-      <Grid
+      <GLGrid
         container
         sx={{ borderBottom: 1, borderColor: "divider", bgcolor: "background.paper", width: "100%", maxWidth: "100%" }}
       >
         {DAYS_OF_WEEK.map(day => (
-          <Grid
+          <GLGrid
             item
             xs
             key={day.value}
@@ -120,19 +121,19 @@ export const CalendarMonthView = ({ date }) => {
             }}
           >
             {day.label}
-          </Grid>
+          </GLGrid>
         ))}
-      </Grid>
+      </GLGrid>
       <Box sx={{ flex: 1 }}>
         {weeks.map((week, wi) => (
-          <Grid container key={wi} sx={{ borderBottom: wi < 5 ? 1 : 0, borderColor: "divider" }}>
+          <GLGrid container key={wi} sx={{ borderBottom: wi < 5 ? 1 : 0, borderColor: "divider" }}>
             {week.map((day, di) => {
               const isCurrentMonth = day.getMonth() === month;
               const isToday = day.toDateString() === today.toDateString();
               // Use pre-computed tasks from map
               const dayTasks = tasksByDate.get(day.toDateString()) || [];
               return (
-                <Grid
+                <GLGrid
                   item
                   xs
                   key={di}
@@ -199,10 +200,10 @@ export const CalendarMonthView = ({ date }) => {
                       />
                     );
                   })}
-                </Grid>
+                </GLGrid>
               );
             })}
-          </Grid>
+          </GLGrid>
         ))}
       </Box>
     </Box>
