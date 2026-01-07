@@ -12,7 +12,6 @@ import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useViewState } from "@/hooks/useViewState";
 import { setCalendarView } from "@/lib/store/slices/uiSlice";
-import GLGrid from "./GLGrid";
 
 export const CalendarMonthView = ({ date }) => {
   const dispatch = useDispatch();
@@ -99,18 +98,24 @@ export const CalendarMonthView = ({ date }) => {
         flexDirection: "column",
         height: "100%",
         width: "100%",
-        maxWidth: "100%",
-        overflow: "hidden",
+        overflow: "auto",
       }}
     >
-      <GLGrid
-        container
-        sx={{ borderBottom: 1, borderColor: "divider", bgcolor: "background.paper", width: "100%", maxWidth: "100%" }}
+      {/* Day of week headers */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          borderBottom: 1,
+          borderColor: "divider",
+          bgcolor: "background.paper",
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+        }}
       >
         {DAYS_OF_WEEK.map(day => (
-          <GLGrid
-            item
-            xs
+          <Box
             key={day.value}
             sx={{
               textAlign: "center",
@@ -118,73 +123,91 @@ export const CalendarMonthView = ({ date }) => {
               fontSize: { xs: "0.75rem", md: "0.875rem" },
               fontWeight: 500,
               color: "text.secondary",
+              borderRight: 1,
+              borderColor: "divider",
+              "&:last-child": {
+                borderRight: 0,
+              },
             }}
           >
             {day.label}
-          </GLGrid>
+          </Box>
         ))}
-      </GLGrid>
-      <Box sx={{ flex: 1 }}>
-        {weeks.map((week, wi) => (
-          <GLGrid container key={wi} sx={{ borderBottom: wi < 5 ? 1 : 0, borderColor: "divider" }}>
-            {week.map((day, di) => {
-              const isCurrentMonth = day.getMonth() === month;
-              const isToday = day.toDateString() === today.toDateString();
-              // Use pre-computed tasks from map
-              const dayTasks = tasksByDate.get(day.toDateString()) || [];
-              return (
-                <GLGrid
-                  item
-                  xs
-                  key={di}
+      </Box>
+
+      {/* Calendar grid */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gridTemplateRows: `repeat(${weeks.length}, 1fr)`,
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+        {weeks.map((week, wi) =>
+          week.map((day, di) => {
+            const isCurrentMonth = day.getMonth() === month;
+            const isToday = day.toDateString() === today.toDateString();
+            const dayTasks = tasksByDate.get(day.toDateString()) || [];
+
+            return (
+              <Box
+                key={`${wi}-${di}`}
+                sx={{
+                  borderRight: di < 6 ? 1 : 0,
+                  borderBottom: wi < weeks.length - 1 ? 1 : 0,
+                  borderColor: "divider",
+                  p: 1,
+                  minHeight: `${80 * zoom}px`,
+                  cursor: "pointer",
+                  bgcolor: isToday ? "action.selected" : !isCurrentMonth ? "action.disabledBackground" : "transparent",
+                  opacity: isCurrentMonth ? 1 : 0.4,
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                  position: "relative",
+                  // Highlight today with a border
+                  ...(isToday && {
+                    outline: "2px solid",
+                    outlineColor: "primary.main",
+                    outlineOffset: "-2px",
+                    zIndex: 1,
+                  }),
+                  "&:hover": {
+                    bgcolor: isToday ? "action.selected" : "action.hover",
+                  },
+                }}
+                onClick={e => {
+                  // Only navigate to day if clicking on the cell background, not a task
+                  if (e.target === e.currentTarget || e.target.tagName === "SPAN") {
+                    handleDayClick(day);
+                  }
+                }}
+              >
+                <Box
+                  component="span"
                   sx={{
-                    borderTop: isToday ? 1.5 : 1,
-                    borderBottom: isToday ? 1.5 : 1,
-                    borderLeft: isToday ? 1.5 : 1,
-                    borderRight: isToday ? 1.5 : 1,
-                    borderColor: isToday ? "primary.main" : "divider",
-                    p: 1,
-                    minHeight: `${80 * zoom}px`,
-                    cursor: "pointer",
-                    bgcolor: isToday
-                      ? "action.selected"
-                      : !isCurrentMonth
-                        ? "action.disabledBackground"
-                        : "transparent",
-                    opacity: isCurrentMonth ? 1 : 0.4,
-                    "&:hover": {
-                      bgcolor: isToday ? "action.selected" : "action.hover",
+                    fontSize: {
+                      xs: zoom >= 1.5 ? "0.875rem" : zoom >= 1.0 ? "0.75rem" : "0.625rem",
+                      md: zoom >= 1.5 ? "1rem" : zoom >= 1.0 ? "0.875rem" : "0.75rem",
                     },
-                  }}
-                  onClick={e => {
-                    // Only navigate to day if clicking on the cell background, not a task
-                    if (e.target === e.currentTarget || e.target.tagName === "SPAN") {
-                      handleDayClick(day);
-                    }
+                    mb: 0.5,
+                    display: "inline-block",
+                    bgcolor: isToday ? "primary.main" : "transparent",
+                    color: isToday ? "primary.contrastText" : !isCurrentMonth ? "text.secondary" : "text.primary",
+                    borderRadius: "50%",
+                    width: 24 * zoom,
+                    height: 24 * zoom,
+                    lineHeight: `${24 * zoom}px`,
+                    textAlign: "center",
+                    fontWeight: isToday ? 600 : 400,
+                    boxShadow: isToday ? 1 : "none",
                   }}
                 >
-                  <Box
-                    component="span"
-                    sx={{
-                      fontSize: {
-                        xs: zoom >= 1.5 ? "0.875rem" : zoom >= 1.0 ? "0.75rem" : "0.625rem",
-                        md: zoom >= 1.5 ? "1rem" : zoom >= 1.0 ? "0.875rem" : "0.75rem",
-                      },
-                      mb: 1,
-                      display: "inline-block",
-                      bgcolor: isToday ? "primary.main" : "transparent",
-                      color: isToday ? "primary.contrastText" : !isCurrentMonth ? "text.secondary" : "text.primary",
-                      borderRadius: "50%",
-                      width: 24 * zoom,
-                      height: 24 * zoom,
-                      lineHeight: `${24 * zoom}px`,
-                      textAlign: "center",
-                      fontWeight: isToday ? 600 : 400,
-                      boxShadow: isToday ? 1 : "none",
-                    }}
-                  >
-                    {day.getDate()}
-                  </Box>
+                  {day.getDate()}
+                </Box>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, overflow: "hidden" }}>
                   {dayTasks.map(task => {
                     const isCompleted = isCompletedOnDate(task.id, day);
                     const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
@@ -200,11 +223,11 @@ export const CalendarMonthView = ({ date }) => {
                       />
                     );
                   })}
-                </GLGrid>
-              );
-            })}
-          </GLGrid>
-        ))}
+                </Box>
+              </Box>
+            );
+          })
+        )}
       </Box>
     </Box>
   );
