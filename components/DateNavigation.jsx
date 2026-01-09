@@ -289,44 +289,88 @@ export const DateNavigation = memo(function DateNavigation({
         {/* Center: Date Picker */}
         {showDatePicker && (
           <>
-            <Box sx={{ flex: 1 }} />
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                flexShrink: 0,
-              }}
-            >
-              <TextField
-                type="date"
-                value={formatDateInput(selectedDate)}
-                onChange={handleDateInputChange}
-                size="small"
-                variant="outlined"
-                sx={{
-                  width: "auto",
-                  minWidth: "150px",
-                  "& input": {
-                    textAlign: "center",
-                    fontSize: "1rem",
-                    py: 0.75,
-                  },
-                  "& .MuiOutlinedInput-root": {
-                    cursor: "pointer",
-                  },
-                }}
-                InputProps={{
-                  sx: {
-                    "&::-webkit-calendar-picker-indicator": {
-                      cursor: "pointer",
-                      padding: "2px",
-                    },
-                  },
-                }}
-              />
-            </Box>
-            <Box sx={{ flex: 1 }} />
+            {showViewSelector && viewCollection && onViewChange ? (
+              <>
+                <Box sx={{ flex: 1 }} />
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <TextField
+                    type="date"
+                    value={formatDateInput(selectedDate)}
+                    onChange={handleDateInputChange}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      width: "auto",
+                      minWidth: "150px",
+                      "& input": {
+                        textAlign: "center",
+                        fontSize: "1rem",
+                        py: 0.75,
+                      },
+                      "& .MuiOutlinedInput-root": {
+                        cursor: "pointer",
+                      },
+                    }}
+                    InputProps={{
+                      sx: {
+                        "&::-webkit-calendar-picker-indicator": {
+                          cursor: "pointer",
+                          padding: "2px",
+                        },
+                      },
+                    }}
+                  />
+                </Box>
+                <Box sx={{ flex: 1 }} />
+              </>
+            ) : (
+              <>
+                <Box sx={{ flex: 1 }} />
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    alignItems: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <TextField
+                    type="date"
+                    value={formatDateInput(selectedDate)}
+                    onChange={handleDateInputChange}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      width: "auto",
+                      minWidth: "150px",
+                      "& input": {
+                        textAlign: "center",
+                        fontSize: "1rem",
+                        py: 0.75,
+                      },
+                      "& .MuiOutlinedInput-root": {
+                        cursor: "pointer",
+                      },
+                    }}
+                    InputProps={{
+                      sx: {
+                        "&::-webkit-calendar-picker-indicator": {
+                          cursor: "pointer",
+                          padding: "2px",
+                        },
+                      },
+                    }}
+                  />
+                </Box>
+              </>
+            )}
           </>
         )}
 
