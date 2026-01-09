@@ -399,33 +399,49 @@ export default function WorkoutModal() {
   const handleSetComplete = (exerciseId, setNumber) => {
     // Find the next incomplete set across all exercises
     setTimeout(() => {
-      // Get all exercises in order
-      const allExercises = [];
+      // Get all exercises grouped by section
+      const exercisesBySection = [];
       sections.forEach(section => {
         const currentDay = getCurrentDayForSection(section);
         if (currentDay?.exercises) {
-          currentDay.exercises.forEach(exercise => {
-            allExercises.push({
-              id: exercise.id,
-              sets: exercise.sets,
-              sectionId: section.id,
-              dayId: currentDay.id,
-            });
+          const sectionExercises = currentDay.exercises.map(exercise => ({
+            id: exercise.id,
+            sets: exercise.sets,
+            sectionId: section.id,
+            dayId: currentDay.id,
+          }));
+          exercisesBySection.push({
+            sectionId: section.id,
+            dayId: currentDay.id,
+            exercises: sectionExercises,
           });
         }
       });
 
-      // Find the current exercise index
-      const currentIndex = allExercises.findIndex(ex => ex.id === exerciseId);
-      if (currentIndex === -1) return;
+      // Find which section the current exercise belongs to
+      let currentSectionIndex = -1;
+      let currentExerciseIndexInSection = -1;
 
+      for (let i = 0; i < exercisesBySection.length; i++) {
+        const sectionData = exercisesBySection[i];
+        const exerciseIndex = sectionData.exercises.findIndex(ex => ex.id === exerciseId);
+        if (exerciseIndex !== -1) {
+          currentSectionIndex = i;
+          currentExerciseIndexInSection = exerciseIndex;
+          break;
+        }
+      }
+
+      if (currentSectionIndex === -1) return;
+
+      const currentSection = exercisesBySection[currentSectionIndex];
       let nextExerciseId = null;
       let nextSetNumber = null;
 
-      // Strategy: Look for the same set number in exercises AFTER the current one
-      // Then wrap around to set+1 starting from the first exercise
-      for (let i = currentIndex + 1; i < allExercises.length; i++) {
-        const exercise = allExercises[i];
+      // Strategy: Stay within the current section until all sets are complete
+      // 1. Look for the same set number in exercises AFTER the current one in the SAME section
+      for (let i = currentExerciseIndexInSection + 1; i < currentSection.exercises.length; i++) {
+        const exercise = currentSection.exercises[i];
         if (
           setNumber <= exercise.sets &&
           !isSetCompleteCheck(exercise.sectionId, exercise.dayId, exercise.id, setNumber)
@@ -436,14 +452,13 @@ export default function WorkoutModal() {
         }
       }
 
-      // If not found, wrap around to next set number starting from first exercise
+      // 2. If not found, wrap around to next set number starting from first exercise in SAME section
       if (!nextExerciseId) {
         const nextSet = setNumber + 1;
-        // Find max sets across all exercises
-        const maxSets = Math.max(...allExercises.map(ex => ex.sets));
+        const maxSetsInSection = Math.max(...currentSection.exercises.map(ex => ex.sets));
 
-        if (nextSet <= maxSets) {
-          for (const exercise of allExercises) {
+        if (nextSet <= maxSetsInSection) {
+          for (const exercise of currentSection.exercises) {
             if (
               nextSet <= exercise.sets &&
               !isSetCompleteCheck(exercise.sectionId, exercise.dayId, exercise.id, nextSet)
@@ -453,6 +468,26 @@ export default function WorkoutModal() {
               break;
             }
           }
+        }
+      }
+
+      // 3. If still not found, move to the next section
+      if (!nextExerciseId && currentSectionIndex + 1 < exercisesBySection.length) {
+        const nextSection = exercisesBySection[currentSectionIndex + 1];
+        // Find the first incomplete set in the next section (starting with set 1)
+        for (let setNum = 1; setNum <= 10; setNum++) {
+          // Check up to 10 sets
+          for (const exercise of nextSection.exercises) {
+            if (
+              setNum <= exercise.sets &&
+              !isSetCompleteCheck(exercise.sectionId, exercise.dayId, exercise.id, setNum)
+            ) {
+              nextExerciseId = exercise.id;
+              nextSetNumber = setNum;
+              break;
+            }
+          }
+          if (nextExerciseId) break;
         }
       }
 

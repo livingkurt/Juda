@@ -43,7 +43,7 @@ const WorkoutExerciseCard = memo(
             const parentRect = scrollParent.getBoundingClientRect();
             const elementRect = setElement.getBoundingClientRect();
             const relativeTop = elementRect.top - parentRect.top;
-            const offset = 30;
+            const offset = 50;
 
             scrollParent.scrollTo({
               top: scrollParent.scrollTop + relativeTop - offset,
