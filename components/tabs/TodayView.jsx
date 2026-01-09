@@ -48,9 +48,7 @@ export function TodayView({
       }}
     >
       {isLoading ? (
-        <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <CircularProgress size={48} />
-        </Box>
+        <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}></Box>
       ) : (
         <>
           {/* Today View Header - Sticky */}

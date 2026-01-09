@@ -50,44 +50,15 @@ import { MainTabs, useLoadingTab } from "@/components/MainTabs";
 import dynamic from "next/dynamic";
 
 // Lazy load heavy components
-const BulkEditDialog = dynamic(
-  () => import("@/components/BulkEditDialog").then(mod => ({ default: mod.BulkEditDialog })),
-  {
-    loading: () => (
-      <Box sx={{ p: 8, display: "flex", justifyContent: "center" }}>
-        <CircularProgress />
-      </Box>
-    ),
-    ssr: false,
-  }
+const BulkEditDialog = dynamic(() =>
+  import("@/components/BulkEditDialog").then(mod => ({ default: mod.BulkEditDialog }))
 );
 
-const TagEditor = dynamic(() => import("@/components/TagEditor").then(mod => ({ default: mod.TagEditor })), {
-  loading: () => (
-    <Box sx={{ p: 8, display: "flex", justifyContent: "center" }}>
-      <CircularProgress />
-    </Box>
-  ),
-  ssr: false,
-});
+const TagEditor = dynamic(() => import("@/components/TagEditor").then(mod => ({ default: mod.TagEditor })));
 
-const WorkoutModal = dynamic(() => import("@/components/WorkoutModal"), {
-  loading: () => (
-    <Box sx={{ p: 8, display: "flex", justifyContent: "center" }}>
-      <CircularProgress />
-    </Box>
-  ),
-  ssr: false,
-});
+const WorkoutModal = dynamic(() => import("@/components/WorkoutModal"));
 
-const WorkoutBuilder = dynamic(() => import("@/components/WorkoutBuilder"), {
-  loading: () => (
-    <Box sx={{ p: 8, display: "flex", justifyContent: "center" }}>
-      <CircularProgress />
-    </Box>
-  ),
-  ssr: false,
-});
+const WorkoutBuilder = dynamic(() => import("@/components/WorkoutBuilder"));
 
 // Lazy load tab components
 const TasksTab = dynamic(() => import("@/components/tabs/TasksTab").then(mod => ({ default: mod.TasksTab })), {

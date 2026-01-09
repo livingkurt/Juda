@@ -295,9 +295,7 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
         </Box>
       </Box>
       {isActuallyLoading && !selectedDate ? (
-        <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <CircularProgress size={48} />
-        </Box>
+        <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}></Box>
       ) : (
         <>
           {/* Calendar content */}
