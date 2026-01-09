@@ -204,10 +204,12 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
     e.preventDefault();
     e.stopPropagation();
     const taskDuration = task.duration ?? 30;
+    // Support both mouse and touch events
+    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
     setInternalDrag({
       taskId: task.id,
       type,
-      startY: e.clientY,
+      startY: clientY,
       startMinutes: timeToMinutes(task.time),
       startDuration: taskDuration,
       currentMinutes: timeToMinutes(task.time),
@@ -281,13 +283,27 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
 
     const onMouseMove = e => handleInternalDragMove(e.clientY);
     const onMouseUp = () => handleInternalDragEnd();
+    const onTouchMove = e => {
+      e.preventDefault(); // Prevent scrolling while dragging
+      if (e.touches.length === 1) {
+        handleInternalDragMove(e.touches[0].clientY);
+      }
+    };
+    const onTouchEnd = e => {
+      e.preventDefault();
+      handleInternalDragEnd();
+    };
 
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd, { passive: false });
 
     return () => {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
     };
   }, [internalDrag.taskId, handleInternalDragMove, handleInternalDragEnd]);
 

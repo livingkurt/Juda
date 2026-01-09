@@ -131,11 +131,13 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
     e.preventDefault();
     e.stopPropagation();
     const taskDuration = task.duration ?? 30;
+    // Support both mouse and touch events
+    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
     draggingTaskIdRef.current = task.id;
     setInternalDrag({
       taskId: task.id,
       type,
-      startY: e.clientY,
+      startY: clientY,
       startMinutes: timeToMinutes(task.time),
       startDuration: taskDuration,
       currentMinutes: timeToMinutes(task.time),
@@ -284,13 +286,27 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
 
     const onMouseMove = e => handleInternalDragMove(e.clientY);
     const onMouseUp = () => handleInternalDragEnd();
+    const onTouchMove = e => {
+      e.preventDefault(); // Prevent scrolling while dragging
+      if (e.touches.length === 1) {
+        handleInternalDragMove(e.touches[0].clientY);
+      }
+    };
+    const onTouchEnd = e => {
+      e.preventDefault();
+      handleInternalDragEnd();
+    };
 
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd, { passive: false });
 
     return () => {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
       // Clean up any pending animation frame
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);

@@ -144,6 +144,30 @@ export const CalendarTask = memo(
       [isTimed, handleInternalDragStart, task]
     );
 
+    // Handle touch start for move (iPad/tablet support)
+    const handleMoveTouchStart = useCallback(
+      e => {
+        // Don't start drag if touching on resize handle
+        if (resizeRef.current && resizeRef.current.contains(e.target)) return;
+        // Reset drag flag when starting a new drag
+        justDraggedRef.current = false;
+        // For timed tasks, use internal drag system for moving
+        if (isTimed && handleInternalDragStart && e.touches.length === 1) {
+          // Prevent default touch behaviors (scrolling, zooming)
+          e.preventDefault();
+          // Create a synthetic event-like object with clientY from touch
+          const syntheticEvent = {
+            ...e,
+            clientY: e.touches[0].clientY,
+            preventDefault: () => e.preventDefault(),
+            stopPropagation: () => e.stopPropagation(),
+          };
+          handleInternalDragStart(syntheticEvent, task, "move");
+        }
+      },
+      [isTimed, handleInternalDragStart, task]
+    );
+
     // Handle click - only open dialog if we didn't just drag
     const handleTaskClick = useCallback(
       e => {
@@ -174,6 +198,25 @@ export const CalendarTask = memo(
       [handleInternalDragStart, task]
     );
 
+    // Handle resize touch start (iPad/tablet support)
+    const handleResizeTouchStart = useCallback(
+      e => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (handleInternalDragStart && e.touches.length === 1) {
+          // Create a synthetic event-like object with clientY from touch
+          const syntheticEvent = {
+            ...e,
+            clientY: e.touches[0].clientY,
+            preventDefault: () => e.preventDefault(),
+            stopPropagation: () => e.stopPropagation(),
+          };
+          handleInternalDragStart(syntheticEvent, task, "resize");
+        }
+      },
+      [handleInternalDragStart, task]
+    );
+
     const isNoDuration = !task.duration || task.duration === 0;
     const showTimeText = isTimed && (task.duration || 30) >= 45;
 
@@ -184,6 +227,7 @@ export const CalendarTask = memo(
           variant="outlined"
           onContextMenu={handleContextMenu}
           onMouseDown={handleMoveMouseDown}
+          onTouchStart={handleMoveTouchStart}
           onClick={handleTaskClick}
           sx={{
             ...(isTimed
@@ -215,6 +259,7 @@ export const CalendarTask = memo(
             borderRadius: 1,
             cursor: isTimed ? "grab" : "default",
             overflow: "hidden",
+            touchAction: isTimed ? "none" : "auto", // Prevent default touch behaviors during drag
             backgroundImage: isNotCompleted ? getStripedBg(theme) : "none",
             color: taskColor ? "white" : theme.palette.text.primary,
             // Elevated appearance when dragging (Apple Calendar style)
@@ -307,6 +352,7 @@ export const CalendarTask = memo(
               ref={resizeRef}
               className="resize-handle"
               onMouseDown={handleResizeMouseDown}
+              onTouchStart={handleResizeTouchStart}
               sx={{
                 position: "absolute",
                 bottom: 0,
