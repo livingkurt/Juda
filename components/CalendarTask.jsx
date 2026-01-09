@@ -181,10 +181,10 @@ export const CalendarTask = memo(
         if (resizeRef.current?.contains(e.target)) return;
         if (e.target.closest("button[aria-label]")) return;
 
-        // Open task editor
-        taskOps.handleEditTask(task);
+        // Open task editor - pass the date for recurring tasks
+        taskOps.handleEditTask(task, date);
       },
-      [taskOps, task]
+      [taskOps, task, date]
     );
 
     // Handle resize mouse down

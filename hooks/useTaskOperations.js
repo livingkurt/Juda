@@ -19,6 +19,7 @@ import {
   setDefaultSectionId,
   setDefaultTime,
   setDefaultDate,
+  setClickedRecurringDate,
 } from "@/lib/store/slices/uiSlice";
 import { showSuccess, showError } from "@/lib/store/slices/snackbarSlice";
 
@@ -158,11 +159,16 @@ export function useTaskOperations() {
   );
 
   // Edit task - opens dialog with task data
+  // clickedDate is optional - the date from the calendar column that was clicked
   const handleEditTask = useCallback(
-    task => {
+    (task, clickedDate = null) => {
       dispatch(setEditingTask(task));
       dispatch(setDefaultSectionId(null));
       dispatch(setDefaultTime(null));
+      // Set defaultDate if a date was clicked from calendar (like Today view does)
+      dispatch(setDefaultDate(clickedDate ? formatLocalDate(clickedDate) : null));
+      // Also set clickedRecurringDate for recurring task series splitting logic
+      dispatch(setClickedRecurringDate(clickedDate));
       dispatch(openTaskDialog());
     },
     [dispatch]

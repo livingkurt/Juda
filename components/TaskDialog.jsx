@@ -47,6 +47,12 @@ import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery, useCreateTagMutation, useDeleteTagMutation } from "@/lib/store/api/tagsApi";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
+import RecurringEditScopeDialog from "./RecurringEditScopeDialog";
+import {
+  requiresSeriesScopeDecision,
+  prepareThisOccurrenceEdit,
+  prepareFutureOccurrencesEdit,
+} from "@/lib/recurringSeriesUtils";
 
 // Internal component that resets when key changes
 function TaskDialogForm({
@@ -57,6 +63,7 @@ function TaskDialogForm({
   defaultSectionId,
   defaultTime,
   defaultDate,
+  clickedRecurringDate,
   tags,
   onCreateTag,
   onDeleteTag,
@@ -68,10 +75,19 @@ function TaskDialogForm({
   const [sectionId, setSectionId] = useState(task ? (task.sectionId ?? null) : (defaultSectionId ?? null));
   const [time, setTime] = useState(task?.time || defaultTime || "");
   const [date, setDate] = useState(() => {
+    // Use defaultDate if provided (set when clicking from calendar, like Today view)
+    if (defaultDate) {
+      return defaultDate;
+    }
+    // For recurring tasks, use the startDate if no default date
     if (task?.recurrence?.startDate) {
       return task.recurrence.startDate.split("T")[0];
     }
-    return defaultDate || (defaultTime ? formatLocalDate(new Date()) : "");
+    // Use clickedRecurringDate as fallback (for recurring task series splitting)
+    if (clickedRecurringDate) {
+      return formatLocalDate(new Date(clickedRecurringDate));
+    }
+    return defaultTime ? formatLocalDate(new Date()) : "";
   });
   const [duration, setDuration] = useState(task?.duration ?? (defaultTime ? 30 : 0));
   const [recurrenceType, setRecurrenceType] = useState(task?.recurrence?.type || "none");
@@ -137,6 +153,8 @@ function TaskDialogForm({
   const [activeSubtaskId, setActiveSubtaskId] = useState(null);
   const [completionType, setCompletionType] = useState(task?.completionType || "checkbox");
   const [content, setContent] = useState(task?.content || "");
+  const [showScopeDialog, setShowScopeDialog] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState(null);
   // const [workoutBuilderOpen, setWorkoutBuilderOpen] = useState(false);
   // Note: workoutProgram query kept for potential future use
   useGetWorkoutProgramQuery(task?.id, {
@@ -150,6 +168,135 @@ function TaskDialogForm({
         distance: 8, // 8px movement required before drag starts
       },
     })
+  );
+
+  const performSave = useCallback(
+    async (saveData, scope = null) => {
+      // If scope is provided, this is a recurring task edit that needs series splitting
+      if (scope && task) {
+        const editDate = date ? new Date(date) : new Date();
+
+        // Prepare newValues object for the helper functions
+        const newValues = {
+          title: saveData.title,
+          sectionId: saveData.sectionId,
+          time: saveData.time,
+          duration: saveData.duration,
+          recurrenceType: recurrenceType,
+          selectedDays: selectedDays,
+          monthlyMode: monthlyMode,
+          selectedDayOfMonth: selectedDayOfMonth,
+          monthlyOrdinal: monthlyOrdinal,
+          monthlyDayOfWeek: monthlyDayOfWeek,
+          monthlyInterval: monthlyInterval,
+          yearlyMode: yearlyMode,
+          yearlyMonth: yearlyMonth,
+          yearlyDayOfMonth: yearlyDayOfMonth,
+          yearlyOrdinal: yearlyOrdinal,
+          yearlyDayOfWeek: yearlyDayOfWeek,
+          yearlyInterval: yearlyInterval,
+        };
+
+        if (scope === "all") {
+          // Edit all occurrences - normal save that updates the entire series
+          await onSave(saveData);
+        } else if (scope === "this") {
+          const { originalTaskUpdate, newTask } = prepareThisOccurrenceEdit(task, newValues, editDate);
+
+          // Update original task (add exception) - only update recurrence, keep all other fields unchanged
+          await onSave({
+            id: task.id,
+            title: task.title,
+            sectionId: task.sectionId,
+            time: task.time,
+            duration: task.duration,
+            recurrence: originalTaskUpdate.recurrence,
+            tagIds: Array.isArray(task.tags) ? task.tags.map(t => t.id) : [],
+            subtasks: Array.isArray(task.subtasks) ? task.subtasks : [],
+            completionType: task.completionType,
+            content: task.content,
+            expanded: task.expanded || false,
+            order: task.order ?? 999,
+            status: task.status || "todo",
+          });
+
+          // Create new one-time task with the edited values (remove id to force creation)
+          const { sourceTaskId, ...newTaskWithoutId } = newTask;
+          await onSave({
+            ...newTaskWithoutId,
+            sourceTaskId,
+            tagIds: selectedTagIds,
+            subtasks: [],
+            order: 999,
+            status: "todo",
+          });
+        } else if (scope === "future") {
+          const { originalTaskUpdate, newTask } = prepareFutureOccurrencesEdit(task, newValues, editDate);
+
+          // Update original task (set endDate) - only update recurrence, keep all other fields unchanged
+          await onSave({
+            id: task.id,
+            title: task.title,
+            sectionId: task.sectionId,
+            time: task.time,
+            duration: task.duration,
+            recurrence: originalTaskUpdate.recurrence,
+            tagIds: Array.isArray(task.tags) ? task.tags.map(t => t.id) : [],
+            subtasks: Array.isArray(task.subtasks) ? task.subtasks : [],
+            completionType: task.completionType,
+            content: task.content,
+            expanded: task.expanded || false,
+            order: task.order ?? 999,
+            status: task.status || "todo",
+          });
+
+          // Create new recurring task with the edited values (remove id to force creation)
+          const { sourceTaskId, ...newTaskWithoutId } = newTask;
+          await onSave({
+            ...newTaskWithoutId,
+            sourceTaskId,
+            tagIds: selectedTagIds,
+            subtasks: [],
+            order: 999,
+            status: "todo",
+          });
+        }
+      } else {
+        // Normal save logic
+        await onSave(saveData);
+      }
+      onClose();
+    },
+    [
+      task,
+      date,
+      selectedTagIds,
+      recurrenceType,
+      selectedDays,
+      monthlyMode,
+      selectedDayOfMonth,
+      monthlyOrdinal,
+      monthlyDayOfWeek,
+      monthlyInterval,
+      yearlyMode,
+      yearlyMonth,
+      yearlyDayOfMonth,
+      yearlyOrdinal,
+      yearlyDayOfWeek,
+      yearlyInterval,
+      onSave,
+      onClose,
+    ]
+  );
+
+  const handleScopeSelect = useCallback(
+    async scope => {
+      if (!pendingChanges) return;
+      await performSave(pendingChanges, scope);
+      setPendingChanges(null);
+      setShowScopeDialog(false);
+    },
+    [pendingChanges, performSave]
   );
 
   const handleSave = useCallback(() => {
@@ -206,7 +353,7 @@ function TaskDialogForm({
       order: idx,
     }));
 
-    onSave({
+    const saveData = {
       id: task?.id,
       title,
       sectionId,
@@ -222,8 +369,36 @@ function TaskDialogForm({
       content: content || null,
       // workoutData removed - now saved separately via WorkoutBuilder
       status: recurrenceType === "none" ? status || "todo" : "todo",
-    });
-    onClose();
+    };
+
+    // If editing an existing recurring task, check if we need scope decision
+    if (
+      task &&
+      requiresSeriesScopeDecision(task, {
+        date,
+        time,
+        recurrenceType,
+        selectedDays,
+        monthlyMode,
+        selectedDayOfMonth,
+        monthlyOrdinal,
+        monthlyDayOfWeek,
+        monthlyInterval,
+        yearlyMode,
+        yearlyMonth,
+        yearlyDayOfMonth,
+        yearlyOrdinal,
+        yearlyDayOfWeek,
+        yearlyInterval,
+      })
+    ) {
+      setPendingChanges(saveData);
+      setShowScopeDialog(true);
+      return;
+    }
+
+    // Otherwise, proceed with normal save
+    performSave(saveData);
   }, [
     title,
     recurrenceType,
@@ -250,8 +425,7 @@ function TaskDialogForm({
     completionType,
     content,
     status,
-    onSave,
-    onClose,
+    performSave,
   ]);
 
   const handleFormSubmit = useCallback(
@@ -1099,6 +1273,18 @@ function TaskDialogForm({
         </DialogActions>
       </Dialog>
 
+      {/* Recurring Edit Scope Dialog */}
+      <RecurringEditScopeDialog
+        open={showScopeDialog}
+        onClose={() => {
+          setShowScopeDialog(false);
+          setPendingChanges(null);
+        }}
+        onSelect={handleScopeSelect}
+        taskTitle={task?.title || ""}
+        editDate={date || new Date()}
+      />
+
       {/* Workout Builder Modal */}
       {/* {workoutBuilderOpen && task?.id && (
         <WorkoutBuilder
@@ -1159,6 +1345,7 @@ export const TaskDialog = () => {
       defaultSectionId={dialogState.defaultSectionId}
       defaultTime={dialogState.defaultTime}
       defaultDate={dialogState.defaultDate}
+      clickedRecurringDate={dialogState.clickedRecurringDate}
       tags={tags}
       onCreateTag={handleCreateTag}
       onDeleteTag={handleDeleteTag}
