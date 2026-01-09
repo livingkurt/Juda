@@ -64,6 +64,10 @@ export default function WorkoutModal() {
   const pendingSaveRef = useRef(false);
   const saveTimeoutRef = useRef(null);
   const exerciseRefs = useRef({});
+  const completionDataRef = useRef(completionData);
+
+  // Keep ref in sync with state
+  completionDataRef.current = completionData;
 
   // Calculate total weeks from task recurrence
   const totalWeeks = useMemo(() => {
@@ -382,6 +386,15 @@ export default function WorkoutModal() {
     });
   };
 
+  // Helper to check if a set is complete (uses ref for latest data in setTimeout)
+  const isSetCompleteCheck = (sectionId, dayId, exerciseId, setNum) => {
+    const data = completionDataRef.current;
+    const setData = data[sectionId]?.days?.[dayId]?.exercises?.[exerciseId]?.sets?.find(s => s.setNumber === setNum);
+    return (
+      setData?.outcome === "completed" || setData?.completed || (setData?.time && setData?.distance && setData?.pace)
+    );
+  };
+
   // Handle set completion and auto-scroll to next incomplete set
   const handleSetComplete = (exerciseId, setNumber) => {
     // Find the next incomplete set across all exercises
@@ -402,49 +415,43 @@ export default function WorkoutModal() {
         }
       });
 
-      // Find next incomplete set
-      let foundCurrent = false;
+      // Find the current exercise index
+      const currentIndex = allExercises.findIndex(ex => ex.id === exerciseId);
+      if (currentIndex === -1) return;
+
       let nextExerciseId = null;
       let nextSetNumber = null;
 
-      // First, look for the next set in the same exercise
-      const currentExercise = allExercises.find(ex => ex.id === exerciseId);
-      if (currentExercise && setNumber < currentExercise.sets) {
-        const nextSet = setNumber + 1;
-        const nextSetData = completionData[currentExercise.sectionId]?.days?.[currentExercise.dayId]?.exercises?.[
-          exerciseId
-        ]?.sets?.find(s => s.setNumber === nextSet);
-        const isNextSetComplete =
-          nextSetData?.outcome === "completed" ||
-          nextSetData?.completed ||
-          (nextSetData?.time && nextSetData?.distance && nextSetData?.pace);
-
-        if (!isNextSetComplete) {
-          nextExerciseId = exerciseId;
-          nextSetNumber = nextSet;
+      // Strategy: Look for the same set number in exercises AFTER the current one
+      // Then wrap around to set+1 starting from the first exercise
+      for (let i = currentIndex + 1; i < allExercises.length; i++) {
+        const exercise = allExercises[i];
+        if (
+          setNumber <= exercise.sets &&
+          !isSetCompleteCheck(exercise.sectionId, exercise.dayId, exercise.id, setNumber)
+        ) {
+          nextExerciseId = exercise.id;
+          nextSetNumber = setNumber;
+          break;
         }
       }
 
-      // If no next set in same exercise, look for the same set number in next exercise
+      // If not found, wrap around to next set number starting from first exercise
       if (!nextExerciseId) {
-        for (const exercise of allExercises) {
-          if (foundCurrent && setNumber <= exercise.sets) {
-            const setData = completionData[exercise.sectionId]?.days?.[exercise.dayId]?.exercises?.[
-              exercise.id
-            ]?.sets?.find(s => s.setNumber === setNumber);
-            const isComplete =
-              setData?.outcome === "completed" ||
-              setData?.completed ||
-              (setData?.time && setData?.distance && setData?.pace);
+        const nextSet = setNumber + 1;
+        // Find max sets across all exercises
+        const maxSets = Math.max(...allExercises.map(ex => ex.sets));
 
-            if (!isComplete) {
+        if (nextSet <= maxSets) {
+          for (const exercise of allExercises) {
+            if (
+              nextSet <= exercise.sets &&
+              !isSetCompleteCheck(exercise.sectionId, exercise.dayId, exercise.id, nextSet)
+            ) {
               nextExerciseId = exercise.id;
-              nextSetNumber = setNumber;
+              nextSetNumber = nextSet;
               break;
             }
-          }
-          if (exercise.id === exerciseId) {
-            foundCurrent = true;
           }
         }
       }

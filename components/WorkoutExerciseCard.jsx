@@ -28,14 +28,39 @@ const WorkoutExerciseCard = memo(
       scrollToSet: setNumber => {
         const setElement = setRefs.current[setNumber];
         if (setElement) {
-          setElement.scrollIntoView({ behavior: "smooth", block: "start" });
+          // Find the scrollable parent (DialogContent)
+          let scrollParent = setElement.parentElement;
+          while (scrollParent) {
+            const overflowY = window.getComputedStyle(scrollParent).overflowY;
+            if (overflowY === "auto" || overflowY === "scroll") {
+              break;
+            }
+            scrollParent = scrollParent.parentElement;
+          }
+
+          if (scrollParent) {
+            // Calculate position relative to scroll container with 5px offset
+            const parentRect = scrollParent.getBoundingClientRect();
+            const elementRect = setElement.getBoundingClientRect();
+            const relativeTop = elementRect.top - parentRect.top;
+            const offset = 30;
+
+            scrollParent.scrollTo({
+              top: scrollParent.scrollTop + relativeTop - offset,
+              behavior: "smooth",
+            });
+          } else {
+            // Fallback to scrollIntoView with offset
+            setElement.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
         }
       },
     }));
 
-    const handleSetComplete = (exerciseId, setNumber, outcome) => {
+    const handleSetComplete = (exerciseId, setNumber, outcome, previousOutcome) => {
       onSetToggle?.(exerciseId, setNumber, outcome);
-      if (outcome === "completed" && onSetComplete) {
+      // Only trigger scroll if we're transitioning TO "completed" (not already completed)
+      if (outcome === "completed" && previousOutcome !== "completed" && onSetComplete) {
         onSetComplete(exerciseId, setNumber);
       }
     };
@@ -140,7 +165,7 @@ const WorkoutExerciseCard = memo(
                             <OutcomeCheckbox
                               outcome={outcome}
                               onOutcomeChange={newOutcome => {
-                                handleSetComplete(exercise.id, setNumber, newOutcome);
+                                handleSetComplete(exercise.id, setNumber, newOutcome, outcome);
                                 // Auto-fill target value when checked
                                 if (newOutcome === "completed" && !setData.actualValue) {
                                   onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
@@ -221,7 +246,7 @@ const WorkoutExerciseCard = memo(
                       <OutcomeCheckbox
                         outcome={outcome}
                         onOutcomeChange={newOutcome => {
-                          handleSetComplete(exercise.id, setNumber, newOutcome);
+                          handleSetComplete(exercise.id, setNumber, newOutcome, outcome);
                           // Auto-fill target value when checked
                           if (newOutcome === "completed" && !setData.actualValue) {
                             onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
@@ -250,7 +275,7 @@ const WorkoutExerciseCard = memo(
                     onComplete={() => {
                       // Auto-check when timer completes
                       if (!isComplete) {
-                        handleSetComplete(exercise.id, setNumber, "completed");
+                        handleSetComplete(exercise.id, setNumber, "completed", outcome);
                         onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
                       }
                     }}
@@ -286,7 +311,7 @@ const WorkoutExerciseCard = memo(
                       <OutcomeCheckbox
                         outcome={outcome}
                         onOutcomeChange={newOutcome => {
-                          handleSetComplete(exercise.id, setNumber, newOutcome);
+                          handleSetComplete(exercise.id, setNumber, newOutcome, outcome);
                           // Auto-fill target value when checked
                           if (newOutcome === "completed" && !setData.actualValue) {
                             onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
@@ -351,7 +376,7 @@ const WorkoutExerciseCard = memo(
                         <OutcomeCheckbox
                           outcome={outcome}
                           onOutcomeChange={newOutcome => {
-                            handleSetComplete(exercise.id, setNumber, newOutcome);
+                            handleSetComplete(exercise.id, setNumber, newOutcome, outcome);
                             // Auto-fill target value when checked (for distance exercises)
                             if (newOutcome === "completed") {
                               if (!setData.distance) {
