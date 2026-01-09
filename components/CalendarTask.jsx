@@ -171,10 +171,12 @@ export const CalendarTask = memo(
     // Handle click - only open dialog if we didn't just drag
     const handleTaskClick = useCallback(
       e => {
+        // Prevent event bubbling to avoid triggering parent handlers
+        e.stopPropagation();
+        e.preventDefault();
+
         // Don't open if we just finished dragging
         if (justDraggedRef.current) {
-          e.preventDefault();
-          e.stopPropagation();
           return;
         }
         // Don't open if clicking on resize handle or outcome button

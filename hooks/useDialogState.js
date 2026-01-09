@@ -16,6 +16,7 @@ import {
   setDefaultSectionId,
   setDefaultTime,
   setDefaultDate,
+  setClickedRecurringDate,
 } from "@/lib/store/slices/uiSlice";
 
 /**
@@ -66,6 +67,7 @@ export function useDialogState() {
   const handleSetDefaultSectionId = useCallback(id => dispatch(setDefaultSectionId(id)), [dispatch]);
   const handleSetDefaultTime = useCallback(time => dispatch(setDefaultTime(time)), [dispatch]);
   const handleSetDefaultDate = useCallback(date => dispatch(setDefaultDate(date)), [dispatch]);
+  const handleSetClickedRecurringDate = useCallback(date => dispatch(setClickedRecurringDate(date)), [dispatch]);
 
   // Memoize inline functions that were creating new references
   const handleSetWorkoutModalOpen = useCallback(
@@ -112,6 +114,7 @@ export function useDialogState() {
       defaultDate,
       setDefaultDate: handleSetDefaultDate,
       clickedRecurringDate,
+      setClickedRecurringDate: handleSetClickedRecurringDate,
     }),
     [
       taskDialogOpen,
@@ -141,6 +144,7 @@ export function useDialogState() {
       defaultDate,
       handleSetDefaultDate,
       clickedRecurringDate,
+      handleSetClickedRecurringDate,
     ]
   );
 }

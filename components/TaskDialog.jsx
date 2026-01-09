@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -75,17 +75,21 @@ function TaskDialogForm({
   const [sectionId, setSectionId] = useState(task ? (task.sectionId ?? null) : (defaultSectionId ?? null));
   const [time, setTime] = useState(task?.time || defaultTime || "");
   const [date, setDate] = useState(() => {
-    // Use defaultDate if provided (set when clicking from calendar, like Today view)
+    // For recurring tasks being edited from calendar, use the clicked date
+    // This is the date the user clicked on, not the series start date
     if (defaultDate) {
       return defaultDate;
     }
-    // For recurring tasks, use the startDate if no default date
+    if (clickedRecurringDate) {
+      // Handle both Date objects and ISO strings
+      const clickedDate =
+        typeof clickedRecurringDate === "string" ? new Date(clickedRecurringDate) : clickedRecurringDate;
+      return formatLocalDate(clickedDate);
+    }
+    // Only fall back to startDate if no clicked date was provided
+    // This handles opening a recurring task from Backlog/Today list view
     if (task?.recurrence?.startDate) {
       return task.recurrence.startDate.split("T")[0];
-    }
-    // Use clickedRecurringDate as fallback (for recurring task series splitting)
-    if (clickedRecurringDate) {
-      return formatLocalDate(new Date(clickedRecurringDate));
     }
     return defaultTime ? formatLocalDate(new Date()) : "";
   });
@@ -161,6 +165,21 @@ function TaskDialogForm({
     skip: !task?.id,
   });
 
+  // Store the date that was clicked when opening this dialog (for recurring series splitting)
+  // This should NOT change even if the user edits the date picker
+  // Since the key includes the clicked date, component remounts when clicking different occurrences,
+  // so this will capture the correct original date for each mount
+  const originalClickedDate = useMemo(() => {
+    if (defaultDate) return defaultDate;
+    if (clickedRecurringDate) {
+      // Handle both Date objects and ISO strings
+      const clickedDate =
+        typeof clickedRecurringDate === "string" ? new Date(clickedRecurringDate) : clickedRecurringDate;
+      return formatLocalDate(clickedDate);
+    }
+    return null;
+  }, [defaultDate, clickedRecurringDate]);
+
   // Drag and drop sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -174,7 +193,8 @@ function TaskDialogForm({
     async (saveData, scope = null) => {
       // If scope is provided, this is a recurring task edit that needs series splitting
       if (scope && task) {
-        const editDate = date ? new Date(date) : new Date();
+        // Use the original clicked date as the edit boundary, not the potentially-modified date
+        const editDate = originalClickedDate ? new Date(originalClickedDate) : date ? new Date(date) : new Date();
 
         // Prepare newValues object for the helper functions
         const newValues = {
@@ -270,6 +290,7 @@ function TaskDialogForm({
     [
       task,
       date,
+      originalClickedDate,
       selectedTagIds,
       recurrenceType,
       selectedDays,
@@ -1320,6 +1341,7 @@ export const TaskDialog = () => {
     dialogState.setDefaultSectionId(null);
     dialogState.setDefaultTime(null);
     dialogState.setDefaultDate(null);
+    dialogState.setClickedRecurringDate(null);
   };
 
   const handleCreateTag = async (name, color) => {
@@ -1333,7 +1355,9 @@ export const TaskDialog = () => {
   if (!isOpen) return null;
 
   // Use key to reset form state when task changes or dialog opens with new task
-  const key = task?.id || `new-${isOpen}`;
+  // For recurring tasks, include the clicked date so clicking different occurrences remounts
+  const clickedDateKey = dialogState.defaultDate || dialogState.clickedRecurringDate || "";
+  const key = task?.id ? `${task.id}-${clickedDateKey}` : `new-${isOpen}-${clickedDateKey}`;
 
   return (
     <TaskDialogForm

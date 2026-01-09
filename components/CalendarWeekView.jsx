@@ -266,16 +266,9 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
       } else {
         taskOps.handleTaskDurationChange(taskId, currentDuration);
       }
-    } else {
-      // Find and click task
-      let task = null;
-      for (const day of weekDays) {
-        task = getTasksForDay(day).find(t => t.id === taskId);
-        if (task) break;
-      }
-      if (!task) task = tasks.find(t => t.id === taskId);
-      if (task) setTimeout(() => taskOps.handleEditTask(task), 100);
     }
+    // Note: For clicks without drag, let the onClick handler in CalendarTask handle it
+    // to avoid double calls to handleEditTask
   }, [internalDrag, taskOps, weekDays, tasks, getTasksForDay]);
 
   useEffect(() => {

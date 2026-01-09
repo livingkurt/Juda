@@ -90,7 +90,8 @@ export const TaskContextMenu = ({
         <MenuItem
           onClick={e => {
             e.stopPropagation();
-            taskOps.handleEditTask(task);
+            // Pass date for recurring tasks so the dialog shows the correct occurrence
+            taskOps.handleEditTask(task, date ? new Date(date) : null);
             onClose?.();
           }}
         >

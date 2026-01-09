@@ -196,7 +196,6 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
     }
 
     // Clear the ref
-    const endedTaskId = draggingTaskIdRef.current;
     draggingTaskIdRef.current = null;
 
     // Reset state first
@@ -217,14 +216,10 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
       } else {
         taskOps.handleTaskDurationChange(taskId, currentDuration);
       }
-    } else {
-      // Click without drag - open task editor
-      const task = dayTasks.find(t => t.id === endedTaskId);
-      if (task) {
-        setTimeout(() => taskOps.handleEditTask(task), 100);
-      }
     }
-  }, [internalDrag, taskOps, dayTasks]);
+    // Note: For clicks without drag, let the onClick handler in CalendarTask handle it
+    // to avoid double calls to handleEditTask
+  }, [internalDrag, taskOps]);
 
   // Memoize status tasks calculation
   const statusTasks = useMemo(() => {

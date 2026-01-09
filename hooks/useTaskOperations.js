@@ -19,7 +19,7 @@ import {
   setDefaultSectionId,
   setDefaultTime,
   setDefaultDate,
-  setClickedRecurringDate,
+  openEditTaskDialog,
 } from "@/lib/store/slices/uiSlice";
 import { showSuccess, showError } from "@/lib/store/slices/snackbarSlice";
 
@@ -162,14 +162,23 @@ export function useTaskOperations() {
   // clickedDate is optional - the date from the calendar column that was clicked
   const handleEditTask = useCallback(
     (task, clickedDate = null) => {
-      dispatch(setEditingTask(task));
-      dispatch(setDefaultSectionId(null));
-      dispatch(setDefaultTime(null));
-      // Set defaultDate if a date was clicked from calendar (like Today view does)
-      dispatch(setDefaultDate(clickedDate ? formatLocalDate(clickedDate) : null));
-      // Also set clickedRecurringDate for recurring task series splitting logic
-      dispatch(setClickedRecurringDate(clickedDate));
-      dispatch(openTaskDialog());
+      // Use single combined action to avoid race conditions
+      // This ensures all state is set atomically before the dialog opens
+      // DEBUG: Uncomment to trace dispatch calls
+      if (process.env.NODE_ENV === "development") {
+        console.log("[handleEditTask] Called", {
+          taskId: task?.id,
+          clickedDate,
+          stack: new Error().stack,
+        });
+      }
+      dispatch(
+        openEditTaskDialog({
+          task,
+          defaultDate: clickedDate ? formatLocalDate(clickedDate) : null,
+          clickedRecurringDate: clickedDate ? clickedDate.toISOString() : null,
+        })
+      );
     },
     [dispatch]
   );
