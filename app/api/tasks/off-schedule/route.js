@@ -177,14 +177,12 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     where: and(eq(taskCompletions.taskId, offScheduleTaskId), eq(taskCompletions.date, utcDate)),
   });
 
-  let offScheduleCompletion;
   if (existingOffScheduleCompletion) {
     const [updated] = await db
       .update(taskCompletions)
       .set({ outcome, note: note || null })
       .where(eq(taskCompletions.id, existingOffScheduleCompletion.id))
       .returning();
-    offScheduleCompletion = updated;
     completionBroadcast.onUpdate(userId, updated, clientId);
   } else {
     const [created] = await db
@@ -196,7 +194,6 @@ export const POST = withApi(async (request, { userId, getBody }) => {
         note: note || null,
       })
       .returning();
-    offScheduleCompletion = created;
     completionBroadcast.onCreate(userId, created, clientId);
   }
 

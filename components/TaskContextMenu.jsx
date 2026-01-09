@@ -17,6 +17,7 @@ import { TagMenuSelector } from "./TagMenuSelector";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
+import { useSelectionState } from "@/hooks/useSelectionState";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
 
 export const TaskContextMenu = ({
@@ -37,7 +38,11 @@ export const TaskContextMenu = ({
   const statusHandlers = useStatusHandlers({
     addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
   });
+  const selectionState = useSelectionState();
   const [updateTaskMutation] = useUpdateTaskMutation();
+
+  // Check if multiple tasks are selected
+  const hasMultipleSelected = selectionState.selectedCount > 1;
 
   const handleRemoveFromParent = async () => {
     // If a custom handler is provided (e.g., from dialog), use it
@@ -67,19 +72,34 @@ export const TaskContextMenu = ({
       onClick={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
     >
-      {/* Edit - always show */}
-      <MenuItem
-        onClick={e => {
-          e.stopPropagation();
-          taskOps.handleEditTask(task);
-          onClose?.();
-        }}
-      >
-        <ListItemIcon>
-          <Edit fontSize="small" />
-        </ListItemIcon>
-        <ListItemText>Edit</ListItemText>
-      </MenuItem>
+      {/* Edit or Bulk Edit - show Bulk Edit when multiple tasks selected */}
+      {hasMultipleSelected ? (
+        <MenuItem
+          onClick={e => {
+            e.stopPropagation();
+            selectionState.handleBulkEdit();
+            onClose?.();
+          }}
+        >
+          <ListItemIcon>
+            <Edit fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Bulk Edit ({selectionState.selectedCount} selected)</ListItemText>
+        </MenuItem>
+      ) : (
+        <MenuItem
+          onClick={e => {
+            e.stopPropagation();
+            taskOps.handleEditTask(task);
+            onClose?.();
+          }}
+        >
+          <ListItemIcon>
+            <Edit fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit</ListItemText>
+        </MenuItem>
+      )}
 
       {/* Remove from Parent - only show for subtasks */}
       {isSubtask && [

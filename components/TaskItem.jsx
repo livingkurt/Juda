@@ -1,28 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect, memo } from "react";
-import {
-  Box,
-  Typography,
-  Stack,
-  IconButton,
-  TextField,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
-  Button,
-  Chip,
-  Collapse,
-  Paper,
-} from "@mui/material";
+import { Box, Typography, Stack, IconButton, TextField, Menu, Button, Chip, Collapse, Paper } from "@mui/material";
 import { Draggable } from "@hello-pangea/dnd";
 import {
   ExpandMore,
   ChevronRight,
   AccessTime,
-  Edit,
   MoreVert,
   Close,
   RadioButtonUnchecked,
@@ -84,7 +68,7 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }
     }
   };
 
-  const { debouncedSave, immediateSave, isSaving, justSaved } = useDebouncedSave(saveNote, 500);
+  const { debouncedSave, immediateSave, isSaving: _isSaving, justSaved: _justSaved } = useDebouncedSave(saveNote, 500);
 
   const handleChange = e => {
     const newValue = e.target.value;
@@ -175,7 +159,6 @@ export const TaskItem = ({
   viewDate, // Date being viewed (for overdue calculation)
   parentTaskId, // For subtask variant
   isSelected, // Whether this task is selected for bulk edit
-  selectedCount, // Number of tasks currently selected
   onRemoveFromParent, // Optional handler for removing subtask from parent (used in dialog)
 }) => {
   // Use hooks directly (they use Redux internally)
@@ -202,7 +185,6 @@ export const TaskItem = ({
   const onOutcomeChange = completionHandlers.handleOutcomeChange;
   const onCompleteWithNote = completionHandlers.handleCompleteWithNote;
   const onSelect = selectionState.handleTaskSelect;
-  const onBulkEdit = selectionState.handleBulkEdit;
   const onBeginWorkout = dialogState.handleBeginWorkout;
   const onTagsChange = taskOps.handleTaskTagsChange;
   const onCreateTag = async (name, color) => {
@@ -212,7 +194,6 @@ export const TaskItem = ({
 
   // Compute selection state from Redux (use props if provided, otherwise use Redux)
   const isSelectedComputed = isSelected !== undefined ? isSelected : selectionState.selectedTaskIds.has(task.id);
-  const selectedCountComputed = selectedCount !== undefined ? selectedCount : selectionState.selectedCount;
 
   const isBacklog = variant === "backlog";
   const isToday = variant === "today";
@@ -276,8 +257,8 @@ export const TaskItem = ({
   const {
     debouncedSave: debouncedTitleSave,
     immediateSave: immediateTitleSave,
-    isSaving: isSavingTitle,
-    justSaved: justSavedTitle,
+    isSaving: _isSavingTitle,
+    justSaved: _justSavedTitle,
   } = useDebouncedSave(saveTitle, 500);
 
   const handleTitleChange = e => {
@@ -817,25 +798,6 @@ export const TaskItem = ({
                 onClick={e => e.stopPropagation()}
                 onMouseDown={e => e.stopPropagation()}
               >
-                {/* Show Bulk Edit option if multiple tasks are selected */}
-                {selectedCountComputed > 0 &&
-                  onBulkEdit && [
-                    <MenuItem
-                      key="bulk-edit"
-                      onClick={e => {
-                        e.stopPropagation();
-                        onBulkEdit();
-                        setActionMenuOpen(false);
-                        setActionMenuAnchor(null);
-                      }}
-                    >
-                      <ListItemIcon>
-                        <Edit fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText>Bulk Edit ({selectedCountComputed} selected)</ListItemText>
-                    </MenuItem>,
-                    <Divider key="divider-bulk-edit" />,
-                  ]}
                 {/* Shared context menu for common actions */}
                 <TaskContextMenu
                   task={task}

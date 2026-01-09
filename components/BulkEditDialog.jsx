@@ -74,7 +74,7 @@ export const BulkEditDialog = () => {
 
     const first = selectedTasks[0];
     const common = {
-      sectionId: selectedTasks.every(t => t.sectionId === first.sectionId) ? first.sectionId : "",
+      sectionId: selectedTasks.every(t => t.sectionId === first.sectionId) ? first.sectionId || "" : "",
       time: selectedTasks.every(t => t.time === first.time) ? first.time || "" : "",
       duration: selectedTasks.every(t => t.duration === first.duration) ? first.duration.toString() : "",
       status: selectedTasks.every(t => t.status === first.status) ? first.status || "" : "",
@@ -470,7 +470,7 @@ export const BulkEditDialog = () => {
 
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={selectionState.handleBulkEditSave} variant="contained" disabled={editedFields.size === 0}>
+          <Button onClick={handleSave} variant="contained" disabled={editedFields.size === 0}>
             Update {selectedCount} Task(s)
           </Button>
         </DialogActions>

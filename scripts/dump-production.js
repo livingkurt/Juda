@@ -329,7 +329,7 @@ async function restoreToLocal(dump) {
               try {
                 await insertRows(localClient, tableName, [task]);
                 inserted.push(task);
-              } catch (error) {
+              } catch (_error) {
                 // Task depends on another task that hasn't been inserted yet
                 failed.push(task);
               }
