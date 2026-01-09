@@ -21,12 +21,12 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
   }, [task.tags]);
 
   // Expanded by default only for Daily Journal if there's an entry, collapsed for all reflection types
-  const [expanded, setExpanded] = useState(isDailyJournal && hasEntry);
-  // Track if user manually expanded it - prevents auto-collapse on blur/re-render
-  const [userExpanded, setUserExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(() => isDailyJournal && hasEntry);
   const textareaRef = useRef(null);
-  // Track if textarea is focused to restore focus after re-renders
-  const wasFocusedRef = useRef(false);
+  // Track if textarea is focused
+  const isFocusedRef = useRef(false);
+  // Track previous saved note to detect external changes
+  const prevSavedNoteRef = useRef(currentNote);
 
   // Save function wrapper with error handling
   const saveNote = useCallback(
@@ -44,31 +44,25 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
     [isCurrentYear, task.id, date, completion?.note, onSave]
   );
 
-  const { debouncedSave, immediateSave, isSaving, justSaved } = useDebouncedSave(saveNote, 500);
+  const { debouncedSave, immediateSave } = useDebouncedSave(saveNote, 500);
 
-  // Restore focus after re-renders caused by autosave state changes
+  // Sync with savedNote when it changes externally (not during typing)
   useEffect(() => {
-    // Only restore focus if:
-    // 1. The textarea was previously focused
-    // 2. We're not currently saving (to avoid interrupting user)
-    // 3. The textarea ref exists
-    // 4. The textarea is not currently focused (lost focus due to re-render)
-    if (wasFocusedRef.current && !isSaving && textareaRef.current && document.activeElement !== textareaRef.current) {
-      // Use requestAnimationFrame to ensure DOM is ready
-      requestAnimationFrame(() => {
-        if (textareaRef.current && wasFocusedRef.current) {
-          textareaRef.current.focus({ preventScroll: true });
-        }
-      });
+    if (prevSavedNoteRef.current !== currentNote && !isFocusedRef.current) {
+      prevSavedNoteRef.current = currentNote;
+      // Defer update to avoid synchronous setState
+      const timeoutId = setTimeout(() => {
+        setNoteInput(currentNote);
+      }, 0);
+      return () => clearTimeout(timeoutId);
     }
-  }, [justSaved, isSaving]);
+  }, [currentNote]);
 
   const handleChange = e => {
     const newValue = e.target.value;
     setNoteInput(newValue);
-    // Mark as user-expanded when they start typing
-    if (!userExpanded && newValue.trim()) {
-      setUserExpanded(true);
+    // Ensure expanded when typing
+    if (!expanded) {
       setExpanded(true);
     }
     debouncedSave(newValue);
@@ -76,10 +70,13 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
 
   const handleBlur = async () => {
     // Clear focus tracking on intentional blur
-    wasFocusedRef.current = false;
+    isFocusedRef.current = false;
 
     // Save immediately on blur if there are changes
     await immediateSave(noteInput);
+
+    // Update ref to current note
+    prevSavedNoteRef.current = currentNote;
 
     // Reset to saved note if cleared
     if (!noteInput.trim() && completion?.note) {
@@ -90,14 +87,13 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
   const handleAddEntry = () => {
     setShowTextarea(true);
     setExpanded(true);
-    setUserExpanded(true); // Mark as user-expanded so it won't auto-collapse
     // Delay focus to allow collapsible animation to complete
     // Use longer delay on mobile to prevent scroll jumping
     const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
     setTimeout(
       () => {
         if (textareaRef.current) {
-          wasFocusedRef.current = true;
+          isFocusedRef.current = true;
           textareaRef.current.focus({ preventScroll: true });
           // Smooth scroll into view after focus
           if (isMobile) {
@@ -112,13 +108,6 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
   const handleToggleExpand = () => {
     const newExpanded = !expanded;
     setExpanded(newExpanded);
-    // If collapsing, clear the user-expanded flag so it can auto-expand again if needed
-    if (!newExpanded) {
-      setUserExpanded(false);
-    } else {
-      // If expanding, mark as user-expanded
-      setUserExpanded(true);
-    }
   };
 
   // Check if task existed in this year (simplified - assumes task exists if it's recurring or created before year end)
@@ -135,14 +124,12 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
         border: "1px solid",
         borderColor: "divider",
         bgcolor: "background.paper",
-        p: { xs: 3, md: 4 },
-        mb: { xs: 3, md: 4 },
+        p: { xs: 3, md: 3 },
         opacity: isCurrentYear ? 1 : 0.7,
-        pb: 0.5,
         position: "relative",
       }}
     >
-      <Stack spacing={{ xs: 2, md: 3 }}>
+      <Stack spacing={0}>
         {/* Header with title and expand/collapse button */}
         <Stack direction="row" spacing={2} alignItems="center">
           {isCurrentYear && !hasEntry ? (
@@ -209,13 +196,13 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
                   onBlur={handleBlur}
                   onFocus={() => {
                     // Track that textarea is focused
-                    wasFocusedRef.current = true;
-                    // Mark as user-expanded when focused
-                    if (!userExpanded) {
-                      setUserExpanded(true);
+                    isFocusedRef.current = true;
+                    // Ensure expanded when focused
+                    if (!expanded) {
                       setExpanded(true);
                     }
                   }}
+                  sx={{ mt: 2 }}
                   placeholder="Enter your journal entry..."
                   size="small"
                   multiline

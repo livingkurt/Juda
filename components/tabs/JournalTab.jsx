@@ -242,7 +242,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
 
                               return (
                                 <JournalDayEntry
-                                  key={`${task.id}-${year}-${completion?.note || ""}`}
+                                  key={`${task.id}-${year}-${dateStr}`}
                                   task={task}
                                   date={dateStr}
                                   completion={completion}

@@ -209,7 +209,7 @@ export const JournalView = memo(function JournalView({
 
                   // Group tasks by type and display
                   return (
-                    <Stack spacing={2}>
+                    <Stack spacing={0}>
                       {JOURNAL_TYPES.map(type => {
                         const relevantTasks = allRelevantTasks.filter(t => t.journalType.tag === type.tag);
 
@@ -218,14 +218,14 @@ export const JournalView = memo(function JournalView({
                         }
 
                         return (
-                          <Stack key={type.tag} spacing={1}>
+                          <Stack key={type.tag} spacing={0}>
                             {relevantTasks.map(task => {
                               const dateStr = yearDate.format("YYYY-MM-DD");
                               const completion = getCompletionForDate?.(task.id, dateStr);
 
                               return (
                                 <JournalDayEntry
-                                  key={`${task.id}-${year}-${completion?.note || ""}`}
+                                  key={`${task.id}-${year}-${dateStr}`}
                                   task={task}
                                   date={dateStr}
                                   year={year}
