@@ -159,7 +159,7 @@ export function useCompletionHandlers({
             }
           }, 50);
         }
-      }, 2000);
+      }, 5000);
     },
     [dispatch, removeFromRecentlyCompleted, checkAndAutoCollapseSection]
   );
