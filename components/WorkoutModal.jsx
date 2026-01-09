@@ -63,6 +63,7 @@ export default function WorkoutModal() {
 
   const pendingSaveRef = useRef(false);
   const saveTimeoutRef = useRef(null);
+  const exerciseRefs = useRef({});
 
   // Calculate total weeks from task recurrence
   const totalWeeks = useMemo(() => {
@@ -381,6 +382,83 @@ export default function WorkoutModal() {
     });
   };
 
+  // Handle set completion and auto-scroll to next incomplete set
+  const handleSetComplete = (exerciseId, setNumber) => {
+    // Find the next incomplete set across all exercises
+    setTimeout(() => {
+      // Get all exercises in order
+      const allExercises = [];
+      sections.forEach(section => {
+        const currentDay = getCurrentDayForSection(section);
+        if (currentDay?.exercises) {
+          currentDay.exercises.forEach(exercise => {
+            allExercises.push({
+              id: exercise.id,
+              sets: exercise.sets,
+              sectionId: section.id,
+              dayId: currentDay.id,
+            });
+          });
+        }
+      });
+
+      // Find next incomplete set
+      let foundCurrent = false;
+      let nextExerciseId = null;
+      let nextSetNumber = null;
+
+      // First, look for the next set in the same exercise
+      const currentExercise = allExercises.find(ex => ex.id === exerciseId);
+      if (currentExercise && setNumber < currentExercise.sets) {
+        const nextSet = setNumber + 1;
+        const nextSetData = completionData[currentExercise.sectionId]?.days?.[currentExercise.dayId]?.exercises?.[
+          exerciseId
+        ]?.sets?.find(s => s.setNumber === nextSet);
+        const isNextSetComplete =
+          nextSetData?.outcome === "completed" ||
+          nextSetData?.completed ||
+          (nextSetData?.time && nextSetData?.distance && nextSetData?.pace);
+
+        if (!isNextSetComplete) {
+          nextExerciseId = exerciseId;
+          nextSetNumber = nextSet;
+        }
+      }
+
+      // If no next set in same exercise, look for the same set number in next exercise
+      if (!nextExerciseId) {
+        for (const exercise of allExercises) {
+          if (foundCurrent && setNumber <= exercise.sets) {
+            const setData = completionData[exercise.sectionId]?.days?.[exercise.dayId]?.exercises?.[
+              exercise.id
+            ]?.sets?.find(s => s.setNumber === setNumber);
+            const isComplete =
+              setData?.outcome === "completed" ||
+              setData?.completed ||
+              (setData?.time && setData?.distance && setData?.pace);
+
+            if (!isComplete) {
+              nextExerciseId = exercise.id;
+              nextSetNumber = setNumber;
+              break;
+            }
+          }
+          if (exercise.id === exerciseId) {
+            foundCurrent = true;
+          }
+        }
+      }
+
+      // Scroll to the next incomplete set
+      if (nextExerciseId && nextSetNumber) {
+        const exerciseCard = exerciseRefs.current[nextExerciseId];
+        if (exerciseCard?.scrollToSet) {
+          exerciseCard.scrollToSet(nextSetNumber);
+        }
+      }
+    }, 300); // Small delay to allow state updates
+  };
+
   // Handle complete workout
   const handleComplete = () => {
     const dateStr = currentDate.toISOString().split("T")[0];
@@ -485,6 +563,8 @@ export default function WorkoutModal() {
                       handleActualValueChange(section.id, dayId, exerciseId, setNumber, field, value);
                     }}
                     currentWeek={currentWeek}
+                    exerciseRefs={exerciseRefs}
+                    onSetComplete={handleSetComplete}
                   />
                 </Paper>
               );

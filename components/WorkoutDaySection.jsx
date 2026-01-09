@@ -12,6 +12,8 @@ import WorkoutExerciseCard from "./WorkoutExerciseCard";
  * @param {Function} onSetToggle - Callback when set is toggled
  * @param {number} currentWeek - Current week number
  * @param {boolean} isCurrentDay - Whether this is the current day of week
+ * @param {Object} exerciseRefs - Refs object for exercise cards
+ * @param {Function} onSetComplete - Callback when set is completed
  */
 const WorkoutDaySection = memo(function WorkoutDaySection({
   day,
@@ -19,6 +21,8 @@ const WorkoutDaySection = memo(function WorkoutDaySection({
   onSetToggle,
   currentWeek = 1,
   onActualValueChange,
+  exerciseRefs,
+  onSetComplete,
 }) {
   // Check if set is complete based on exercise type
   const isSetComplete = (setData, exerciseType) => {
@@ -58,6 +62,12 @@ const WorkoutDaySection = memo(function WorkoutDaySection({
         {day.exercises.map(exercise => (
           <WorkoutExerciseCard
             key={exercise.id}
+            ref={el => {
+              if (exerciseRefs?.current && el) {
+                const refs = exerciseRefs.current;
+                refs[exercise.id] = el;
+              }
+            }}
             exercise={exercise}
             completionData={completionData.exercises?.[exercise.id] || {}}
             onSetToggle={(exerciseId, setNumber, outcome) => {
@@ -66,6 +76,9 @@ const WorkoutDaySection = memo(function WorkoutDaySection({
             currentWeek={currentWeek}
             onActualValueChange={(exerciseId, setNumber, field, value) => {
               onActualValueChange?.(day.id, exerciseId, setNumber, field, value);
+            }}
+            onSetComplete={(exerciseId, setNumber) => {
+              onSetComplete?.(exerciseId, setNumber);
             }}
           />
         ))}
