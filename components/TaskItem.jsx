@@ -417,6 +417,13 @@ export const TaskItem = ({
         } else {
           onToggle?.(task.id);
         }
+      } else {
+        // For "not_completed" and other outcomes, still call onOutcomeChange if available
+        // This handles cases where OutcomeCheckbox shows menu (due to existing outcome)
+        // but TaskItem's shouldShowMenu is false
+        if (onOutcomeChange && viewDate) {
+          onOutcomeChange(task.id, viewDate, newOutcome);
+        }
       }
       return;
     }
