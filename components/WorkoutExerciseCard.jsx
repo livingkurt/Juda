@@ -133,7 +133,7 @@ const WorkoutExerciseCard = memo(
 
           {!isMobile && (
             <Stack direction="row" spacing={1} alignItems="flex-start">
-              {exercise.type !== "distance" && exercise.type !== "time" && (
+              {exercise.type !== "distance" && (
                 <Stack direction="row" spacing={1} alignItems="flex-start">
                   {Array.from({ length: exercise.sets }, (_, i) => {
                     const setNumber = i + 1;
@@ -229,58 +229,18 @@ const WorkoutExerciseCard = memo(
               };
 
               return (
-                <Box key={setNumber} ref={el => (setRefs.current[setNumber] = el)}>
-                  <Stack direction="row" spacing={2} alignItems="center" mb={1}>
-                    <Typography variant="body1" fontWeight={600}>
-                      Set {setNumber}
-                    </Typography>
-                    <Box
-                      sx={{
-                        width: 20,
-                        height: 20,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <OutcomeCheckbox
-                        outcome={outcome}
-                        onOutcomeChange={newOutcome => {
-                          handleSetComplete(exercise.id, setNumber, newOutcome, outcome);
-                          // Auto-fill target value when checked
-                          if (newOutcome === "completed" && !setData.actualValue) {
-                            onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
-                          }
-                          // Clear value when unchecked
-                          if (newOutcome !== "completed" && setData.actualValue) {
-                            onActualValueChange?.(exercise.id, setNumber, "actualValue", "");
-                          }
-                        }}
-                        isChecked={isComplete}
-                        size="lg"
-                      />
-                    </Box>
-                    <TextField
-                      size="small"
-                      placeholder={exercise.unit}
-                      value={setData.actualValue || ""}
-                      onChange={e => onActualValueChange?.(exercise.id, setNumber, "actualValue", e.target.value)}
-                      sx={{ width: 100 }}
-                    />
-                  </Stack>
-                  <CountdownTimer
-                    key={`${exercise.id}-${setNumber}-${targetValue}`}
-                    targetSeconds={getTargetSeconds()}
-                    isCompleted={isComplete}
-                    onComplete={() => {
-                      // Auto-check when timer completes
-                      if (!isComplete) {
-                        handleSetComplete(exercise.id, setNumber, "completed", outcome);
-                        onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
-                      }
-                    }}
-                  />
-                </Box>
+                <CountdownTimer
+                  key={`${exercise.id}-${setNumber}-${targetValue}`}
+                  targetSeconds={getTargetSeconds()}
+                  isCompleted={isComplete}
+                  onComplete={() => {
+                    // Auto-check when timer completes
+                    if (!isComplete) {
+                      handleSetComplete(exercise.id, setNumber, "completed", outcome);
+                      onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
+                    }
+                  }}
+                />
               );
             })}
           </Stack>
