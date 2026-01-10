@@ -15,8 +15,100 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
   // Track elapsed time instead of remaining time
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const [prepCountdown, setPrepCountdown] = useState(null); // null = not in prep, 5-0 = prep countdown
   const intervalRef = useRef(null);
+  const prepIntervalRef = useRef(null);
   const hasPlayedSoundRef = useRef(false);
+  const lastCountdownSecondRef = useRef(null);
+  const hasPlayedStartSoundRef = useRef(false);
+  const lastPrepCountdownRef = useRef(null);
+
+  // Play starting sound using Web Audio API
+  const playStartSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const duration = 0.2;
+      const sampleRate = audioContext.sampleRate;
+      const numSamples = duration * sampleRate;
+      const buffer = audioContext.createBuffer(1, numSamples, sampleRate);
+      const data = buffer.getChannelData(0);
+
+      // Create a short, pleasant starting beep (single tone)
+      for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        // Single tone: 440 Hz (A4)
+        const tone = Math.sin(2 * Math.PI * 440 * t);
+        // Envelope (fade out)
+        const envelope = Math.max(0, 1 - t / duration);
+        data[i] = tone * envelope * 0.3;
+      }
+
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.destination);
+      source.start();
+    } catch (err) {
+      console.warn("Could not play start sound:", err);
+    }
+  };
+
+  // Play countdown beep (for 3, 2, 1)
+  const playCountdownBeep = () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const duration = 0.15;
+      const sampleRate = audioContext.sampleRate;
+      const numSamples = duration * sampleRate;
+      const buffer = audioContext.createBuffer(1, numSamples, sampleRate);
+      const data = buffer.getChannelData(0);
+
+      // Create a short beep (higher pitch for urgency)
+      for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        // Tone: 600 Hz (higher than start sound)
+        const tone = Math.sin(2 * Math.PI * 600 * t);
+        // Envelope (fade out)
+        const envelope = Math.max(0, 1 - t / duration);
+        data[i] = tone * envelope * 0.25;
+      }
+
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.destination);
+      source.start();
+    } catch (err) {
+      console.warn("Could not play countdown beep:", err);
+    }
+  };
+
+  // Play "Start" beep (higher tone for start)
+  const playStartBeep = () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const duration = 0.2;
+      const sampleRate = audioContext.sampleRate;
+      const numSamples = duration * sampleRate;
+      const buffer = audioContext.createBuffer(1, numSamples, sampleRate);
+      const data = buffer.getChannelData(0);
+
+      // Create a higher-pitched start beep
+      for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        // Higher tone: 800 Hz
+        const tone = Math.sin(2 * Math.PI * 800 * t);
+        // Envelope (fade out)
+        const envelope = Math.max(0, 1 - t / duration);
+        data[i] = tone * envelope * 0.3;
+      }
+
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.destination);
+      source.start();
+    } catch (err) {
+      console.warn("Could not play start beep:", err);
+    }
+  };
 
   // Play completion sound using Web Audio API
   const playCompletionSound = () => {
@@ -65,20 +157,95 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
 
   // Start/Resume timer
   const handleStart = () => {
-    setIsRunning(true);
+    // If starting from the beginning, start preparation countdown
+    if (timeRemaining === targetSeconds && prepCountdown === null) {
+      setPrepCountdown(5);
+      lastPrepCountdownRef.current = null;
+    } else {
+      // Resume from pause - start timer directly
+      setIsRunning(true);
+    }
   };
 
   // Pause timer
   const handlePause = () => {
     setIsRunning(false);
+    // Cancel preparation countdown if in progress
+    if (prepCountdown !== null) {
+      setPrepCountdown(null);
+    }
   };
 
   // Reset timer
   const handleReset = () => {
     setIsRunning(false);
     setElapsedSeconds(0);
+    setPrepCountdown(null);
     hasPlayedSoundRef.current = false;
+    lastCountdownSecondRef.current = null;
+    hasPlayedStartSoundRef.current = false;
+    lastPrepCountdownRef.current = null;
   };
+
+  // Preparation countdown effect (5, 4, 3, 2, 1, Start)
+  useEffect(() => {
+    if (prepCountdown !== null && prepCountdown >= 0) {
+      prepIntervalRef.current = setInterval(() => {
+        setPrepCountdown(prev => {
+          if (prev === null) return null;
+
+          const next = prev - 1;
+
+          // Play sounds at appropriate times
+          if (next === 3 && lastPrepCountdownRef.current !== 3) {
+            playCountdownBeep();
+            lastPrepCountdownRef.current = 3;
+          } else if (next === 2 && lastPrepCountdownRef.current !== 2) {
+            playCountdownBeep();
+            lastPrepCountdownRef.current = 2;
+          } else if (next === 1 && lastPrepCountdownRef.current !== 1) {
+            playCountdownBeep();
+            lastPrepCountdownRef.current = 1;
+          } else if (next === 0 && lastPrepCountdownRef.current !== 0) {
+            // "Start" beep (higher tone) when transitioning to 0
+            playStartBeep();
+            lastPrepCountdownRef.current = 0;
+          }
+
+          // After 0, exit preparation phase
+          if (next < 0) {
+            return null; // Exit preparation phase
+          }
+
+          return next;
+        });
+      }, 1000);
+    } else {
+      if (prepIntervalRef.current) {
+        clearInterval(prepIntervalRef.current);
+        prepIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (prepIntervalRef.current) {
+        clearInterval(prepIntervalRef.current);
+      }
+    };
+  }, [prepCountdown]);
+
+  // When preparation countdown reaches 0, start the timer after a brief delay
+  useEffect(() => {
+    if (prepCountdown === 0) {
+      const timer = setTimeout(() => {
+        setIsRunning(true);
+        hasPlayedStartSoundRef.current = true;
+        setPrepCountdown(null); // Exit preparation phase
+      }, 800); // Brief delay to show "START"
+
+      return () => clearTimeout(timer);
+    }
+  }, [prepCountdown]);
 
   // Countdown effect
   useEffect(() => {
@@ -87,6 +254,12 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
         setElapsedSeconds(prev => {
           const newElapsed = prev + 1;
           const newRemaining = targetSeconds - newElapsed;
+
+          // Play countdown beeps at 3, 2, 1 seconds remaining
+          if (newRemaining > 0 && newRemaining <= 3 && newRemaining !== lastCountdownSecondRef.current) {
+            playCountdownBeep();
+            lastCountdownSecondRef.current = newRemaining;
+          }
 
           if (newRemaining <= 0) {
             setIsRunning(false);
@@ -118,15 +291,48 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
     };
   }, [isRunning, timeRemaining, targetSeconds, onComplete]);
 
-  // Reset sound flag when timer is reset or starts running again
+  // Reset completion sound flag when timer starts running again (but not countdown/start sounds)
   useEffect(() => {
     if (isRunning && timeRemaining > 0) {
       hasPlayedSoundRef.current = false;
+      // Reset countdown tracking when timer restarts from a pause
+      if (elapsedSeconds > 0) {
+        lastCountdownSecondRef.current = null;
+        hasPlayedStartSoundRef.current = false;
+      }
     }
-  }, [isRunning, timeRemaining]);
+  }, [isRunning, timeRemaining, elapsedSeconds]);
 
   // Calculate progress percentage
-  const progress = ((targetSeconds - timeRemaining) / targetSeconds) * 100;
+  const progress = prepCountdown !== null ? 0 : ((targetSeconds - timeRemaining) / targetSeconds) * 100;
+
+  // Display text based on state
+  const getDisplayText = () => {
+    if (prepCountdown !== null) {
+      if (prepCountdown > 3) {
+        return formatTime(prepCountdown);
+      } else if (prepCountdown > 0) {
+        return String(prepCountdown);
+      } else {
+        return "START";
+      }
+    }
+    return formatTime(timeRemaining);
+  };
+
+  // Display color based on state
+  const getDisplayColor = () => {
+    if (prepCountdown !== null) {
+      if (prepCountdown === 0) {
+        return "warning.main"; // Orange/yellow for "START"
+      }
+      return "primary.main"; // Blue for countdown
+    }
+    if (timeRemaining === 0) {
+      return "success.main";
+    }
+    return "text.primary";
+  };
 
   return (
     <Paper
@@ -144,10 +350,10 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
           fontWeight={700}
           sx={{
             fontFamily: "monospace",
-            color: timeRemaining === 0 ? "success.main" : "text.primary",
+            color: getDisplayColor(),
           }}
         >
-          {formatTime(timeRemaining)}
+          {getDisplayText()}
         </Typography>
 
         {/* Progress Bar */}
@@ -172,7 +378,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
 
         {/* Controls */}
         <Stack direction="row" spacing={1}>
-          {!isRunning ? (
+          {!isRunning && prepCountdown === null ? (
             <IconButton
               onClick={handleStart}
               disabled={timeRemaining === 0 || isCompleted}
@@ -182,7 +388,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
               <PlayArrow />
             </IconButton>
           ) : (
-            <IconButton onClick={handlePause} color="warning" size="small">
+            <IconButton onClick={handlePause} color="warning" size="small" disabled={prepCountdown === null && isCompleted}>
               <Pause />
             </IconButton>
           )}
