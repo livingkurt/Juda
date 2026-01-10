@@ -27,6 +27,7 @@ import { EXERCISE_TYPES, WORKOUT_SECTION_TYPES, DAYS_OF_WEEK } from "@/lib/const
 import { useGetWorkoutProgramQuery, useSaveWorkoutProgramMutation } from "@/lib/store/api/workoutProgramsApi";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useTheme, useMediaQuery } from "@mui/material";
 
 // Generate unique IDs
 function generateCuid() {
@@ -544,7 +545,8 @@ export default function WorkoutBuilder({
 } = {}) {
   const dialogState = useDialogState();
   const { refetch: refetchTasks } = useGetTasksQuery();
-
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   // Support both prop-controlled and dialogState-controlled modes
   const taskId = propsTaskId || dialogState.editingWorkoutTask?.id;
   const isOpen = propsIsOpen !== undefined ? propsIsOpen : Boolean(dialogState.editingWorkoutTask);
@@ -836,9 +838,17 @@ export default function WorkoutBuilder({
     <Dialog
       open={isOpen}
       onClose={handleClose}
-      maxWidth="lg"
+      maxWidth={isMobile ? undefined : "lg"}
       fullWidth
-      PaperProps={{ sx: { height: "90vh", maxHeight: "90vh" } }}
+      PaperProps={{
+        sx: {
+          height: { xs: "100vh", md: "90vh" },
+          maxHeight: { xs: "100vh", md: "90vh" },
+          m: { xs: 0, md: "auto" },
+          width: { xs: "100%", md: "600px" },
+          borderRadius: { xs: 0, md: 1 },
+        },
+      }}
     >
       <DialogTitle>
         <Stack direction="row" alignItems="center" justifyContent="space-between">

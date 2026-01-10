@@ -19,6 +19,8 @@ import {
   Alert,
   ToggleButton,
   ToggleButtonGroup,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { Close } from "@mui/icons-material";
 import { DatePicker, TimePicker } from "@mui/x-date-pickers";
@@ -38,7 +40,8 @@ export const BulkEditDialog = () => {
   const { data: allTasks = [] } = useGetTasksQuery();
   const [createTagMutation] = useCreateTagMutation();
   const [deleteTagMutation] = useDeleteTagMutation();
-
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const theme = useTheme();
   const isOpen = selectionState.bulkEditDialogOpen;
   const selectedCount = selectionState.selectedTaskIds.size;
   const selectedTasks = useMemo(() => {
@@ -248,7 +251,21 @@ export const BulkEditDialog = () => {
   if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={isOpen}
+      onClose={handleClose}
+      maxWidth={isMobile ? undefined : "md"}
+      fullWidth
+      PaperProps={{
+        sx: {
+          height: { xs: "100vh", md: "90vh" },
+          maxHeight: { xs: "100vh", md: "90vh" },
+          m: { xs: 0, md: "auto" },
+          width: { xs: "100%", md: "600px" },
+          borderRadius: { xs: 0, md: 1 },
+        },
+      }}
+    >
       <form onSubmit={handleFormSubmit}>
         <DialogTitle>
           Bulk Edit ({selectedCount} tasks)
