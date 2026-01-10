@@ -40,8 +40,8 @@ export const BulkEditDialog = () => {
   const { data: allTasks = [] } = useGetTasksQuery();
   const [createTagMutation] = useCreateTagMutation();
   const [deleteTagMutation] = useDeleteTagMutation();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isOpen = selectionState.bulkEditDialogOpen;
   const selectedCount = selectionState.selectedTaskIds.size;
   const selectedTasks = useMemo(() => {
