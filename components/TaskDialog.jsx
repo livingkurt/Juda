@@ -26,6 +26,8 @@ import {
   Tab,
   Chip,
   InputAdornment,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import GLGrid from "./GLGrid";
 import { Close, Add, Delete, DragIndicator, Search, Edit } from "@mui/icons-material";
@@ -69,6 +71,8 @@ function TaskDialogForm({
   onDeleteTag,
   allTasks,
 }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   // Initialize state from task or defaults
   const [title, setTitle] = useState(task?.title || "");
   // Use null for sectionId if task has null, otherwise use defaultSectionId (don't auto-select first section)
@@ -570,9 +574,17 @@ function TaskDialogForm({
       <Dialog
         open={true}
         onClose={onClose}
-        maxWidth="sm"
+        maxWidth={isMobile ? undefined : "md"}
         fullWidth
-        PaperProps={{ sx: { height: "90vh", maxHeight: "90vh", display: "flex", flexDirection: "column" } }}
+        PaperProps={{
+          sx: {
+            height: { xs: "100vh", md: "90vh" },
+            maxHeight: { xs: "100vh", md: "90vh" },
+            m: { xs: 0, md: "auto" },
+            width: { xs: "100%", md: "600px" },
+            borderRadius: { xs: 0, md: 1 },
+          },
+        }}
       >
         <form onSubmit={handleFormSubmit} style={{ display: "flex", flexDirection: "column", height: "100%" }}>
           <DialogTitle>
