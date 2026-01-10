@@ -514,13 +514,14 @@ export default function WorkoutModal() {
     <Dialog
       open={isOpen}
       onClose={handleClose}
-      maxWidth={isMobile ? false : "md"}
+      maxWidth={isMobile ? undefined : "md"}
       fullWidth
       PaperProps={{
         sx: {
           height: { xs: "100vh", md: "90vh" },
           maxHeight: { xs: "100vh", md: "90vh" },
           m: { xs: 0, md: "auto" },
+          width: { xs: "100%", md: "600px" },
           borderRadius: { xs: 0, md: 1 },
         },
       }}

@@ -16,6 +16,42 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef(null);
+  const hasPlayedSoundRef = useRef(false);
+
+  // Play completion sound using Web Audio API
+  const playCompletionSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const duration = 0.3;
+      const sampleRate = audioContext.sampleRate;
+      const numSamples = duration * sampleRate;
+      const buffer = audioContext.createBuffer(1, numSamples, sampleRate);
+      const data = buffer.getChannelData(0);
+
+      // Create a pleasant chime sound (two-tone ascending)
+      for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        // First tone: 523.25 Hz (C5)
+        const tone1 = Math.sin(2 * Math.PI * 523.25 * t);
+        // Second tone: 659.25 Hz (E5) - starts after 0.1s
+        const tone2 = t > 0.1 ? Math.sin(2 * Math.PI * 659.25 * (t - 0.1)) : 0;
+        // Third tone: 783.99 Hz (G5) - starts after 0.2s
+        const tone3 = t > 0.2 ? Math.sin(2 * Math.PI * 783.99 * (t - 0.2)) : 0;
+
+        // Combine tones with envelope (fade out)
+        const envelope = Math.max(0, 1 - t / duration);
+        data[i] = (tone1 * 0.3 + tone2 * 0.3 + tone3 * 0.4) * envelope * 0.3;
+      }
+
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.destination);
+      source.start();
+    } catch (err) {
+      // Fallback: use a simple beep if Web Audio API fails
+      console.warn("Could not play completion sound:", err);
+    }
+  };
 
   // Derive remaining time from target and elapsed
   const timeRemaining = Math.max(0, targetSeconds - elapsedSeconds);
@@ -41,6 +77,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
   const handleReset = () => {
     setIsRunning(false);
     setElapsedSeconds(0);
+    hasPlayedSoundRef.current = false;
   };
 
   // Countdown effect
@@ -53,6 +90,11 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
 
           if (newRemaining <= 0) {
             setIsRunning(false);
+            // Play completion sound (only once per completion)
+            if (!hasPlayedSoundRef.current) {
+              playCompletionSound();
+              hasPlayedSoundRef.current = true;
+            }
             // Call onComplete when timer reaches 0
             if (onComplete) {
               onComplete();
@@ -75,6 +117,13 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
       }
     };
   }, [isRunning, timeRemaining, targetSeconds, onComplete]);
+
+  // Reset sound flag when timer is reset or starts running again
+  useEffect(() => {
+    if (isRunning && timeRemaining > 0) {
+      hasPlayedSoundRef.current = false;
+    }
+  }, [isRunning, timeRemaining]);
 
   // Calculate progress percentage
   const progress = ((targetSeconds - timeRemaining) / targetSeconds) * 100;

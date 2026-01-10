@@ -206,8 +206,8 @@ const WorkoutExerciseCard = memo(
           )}
         </Stack>
 
-        {/* Time-based exercises with countdown timers */}
-        {exercise.type === "time" && (
+        {/* Time-based exercises with countdown timers - Desktop */}
+        {exercise.type === "time" && !isMobile && (
           <Stack spacing={2} sx={{ mt: 2 }}>
             {Array.from({ length: exercise.sets }, (_, i) => {
               const setNumber = i + 1;
@@ -247,7 +247,7 @@ const WorkoutExerciseCard = memo(
         )}
 
         {/* Mobile: Sets in column layout with label, checkbox, input on same line */}
-        {isMobile && exercise.type !== "distance" && exercise.type !== "time" && (
+        {isMobile && exercise.type !== "distance" && (
           <Stack spacing={1.5} sx={{ mt: 1 }}>
             {Array.from({ length: exercise.sets }, (_, i) => {
               const setNumber = i + 1;
@@ -294,6 +294,46 @@ const WorkoutExerciseCard = memo(
                     sx={{ width: 80, ml: "auto" }}
                   />
                 </Box>
+              );
+            })}
+          </Stack>
+        )}
+
+        {/* Mobile: Time-based exercises - show timers after sets */}
+        {exercise.type === "time" && isMobile && (
+          <Stack spacing={2} sx={{ mt: 2 }}>
+            {Array.from({ length: exercise.sets }, (_, i) => {
+              const setNumber = i + 1;
+              const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
+              const outcome = setData.outcome || null;
+              const isComplete = isSetComplete(setData);
+
+              // Convert target value to seconds based on unit
+              const getTargetSeconds = () => {
+                const unit = exercise.unit?.toLowerCase() || "secs";
+                if (unit === "mins" || unit === "min" || unit === "minutes") {
+                  return targetValue * 60;
+                }
+                if (unit === "hours" || unit === "hour" || unit === "hrs") {
+                  return targetValue * 3600;
+                }
+                // Default to seconds
+                return targetValue;
+              };
+
+              return (
+                <CountdownTimer
+                  key={`${exercise.id}-${setNumber}-${targetValue}`}
+                  targetSeconds={getTargetSeconds()}
+                  isCompleted={isComplete}
+                  onComplete={() => {
+                    // Auto-check when timer completes
+                    if (!isComplete) {
+                      handleSetComplete(exercise.id, setNumber, "completed", outcome);
+                      onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
+                    }
+                  }}
+                />
               );
             })}
           </Stack>
