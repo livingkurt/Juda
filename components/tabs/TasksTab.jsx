@@ -782,12 +782,21 @@ export function TasksTab() {
             height: "100%",
             minHeight: 0,
             minWidth: 0,
+            justifyContent: !backlogOpen && !showCalendar && showDashboard ? "center" : "flex-start",
           }}
         >
           {/* Today View */}
           <Box
             sx={{
-              width: showDashboard ? (showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%") : "0px",
+              width: showDashboard
+                ? showCalendar
+                  ? `${resizeHandlers.todayViewWidth}px`
+                  : !backlogOpen && !showCalendar
+                    ? `${resizeHandlers.todayViewWidth * 1.75}px`
+                    : "100%"
+                : "0px",
+              maxWidth:
+                !backlogOpen && !showCalendar && showDashboard ? `${resizeHandlers.todayViewWidth * 1.75}px` : "none",
               height: "100%",
               transition:
                 resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
@@ -805,7 +814,11 @@ export function TasksTab() {
           >
             <Box
               sx={{
-                width: showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%",
+                width: showCalendar
+                  ? `${resizeHandlers.todayViewWidth}px`
+                  : !backlogOpen && !showCalendar
+                    ? `${resizeHandlers.todayViewWidth * 1.75}px`
+                    : "100%",
                 height: "100%",
                 position: "relative",
               }}
@@ -823,7 +836,11 @@ export function TasksTab() {
               >
                 <Box
                   sx={{
-                    width: showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%",
+                    width: showCalendar
+                      ? `${resizeHandlers.todayViewWidth}px`
+                      : !backlogOpen && !showCalendar
+                        ? `${resizeHandlers.todayViewWidth * 1.75}px`
+                        : "100%",
                     height: "100%",
                     display: "flex",
                     flexDirection: "column",
