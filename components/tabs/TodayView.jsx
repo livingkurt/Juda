@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Stack, Typography, Chip, Button, IconButton, CircularProgress } from "@mui/material";
+import { Box, Stack, Typography, Chip, Button, IconButton } from "@mui/material";
 import { Visibility as Eye, VisibilityOff as EyeOff } from "@mui/icons-material";
 import { DateNavigation } from "@/components/DateNavigation";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
@@ -39,12 +39,14 @@ export function TodayView({
   return (
     <Box
       sx={{
+        width: "100%",
         height: "100%",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
         position: "relative",
         p: isMobile ? 0 : { xs: 1, md: 2 },
+        minWidth: 0,
       }}
     >
       {isLoading ? (
@@ -140,23 +142,25 @@ export function TodayView({
                 />
               </Box>
             )}
-            <Box sx={{ width: "100%", maxWidth: "100%" }}>
+            <Box sx={{ width: "100%", maxWidth: "100%", overflow: "hidden" }}>
               <Stack
-                direction="row"
+                direction={{ xs: "column", sm: "row" }}
                 spacing={{ xs: 1, md: 4 }}
-                alignItems="center"
+                alignItems={{ xs: "stretch", sm: "center" }}
                 sx={{ width: "100%", maxWidth: "100%", mb: 2 }}
               >
-                <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>
                   <TaskSearchInput onSearchChange={setTodaySearchTerm} />
                 </Box>
-                <TagFilter
-                  tags={tags}
-                  selectedTagIds={todaySelectedTagIds}
-                  onTagSelect={handleTodayTagSelect}
-                  onTagDeselect={handleTodayTagDeselect}
-                  onCreateTag={createTag}
-                />
+                <Box sx={{ flexShrink: 0, width: { xs: "100%", sm: "auto" } }}>
+                  <TagFilter
+                    tags={tags}
+                    selectedTagIds={todaySelectedTagIds}
+                    onTagSelect={handleTodayTagSelect}
+                    onTagDeselect={handleTodayTagDeselect}
+                    onCreateTag={createTag}
+                  />
+                </Box>
               </Stack>
             </Box>
           </Box>
@@ -164,10 +168,12 @@ export function TodayView({
           <Box
             ref={todayScrollContainerRef}
             sx={{
+              flex: 1,
               overflowY: "auto",
               minHeight: 0,
               width: "100%",
               maxWidth: "100%",
+              overflowX: "hidden",
             }}
           >
             <Section createDroppableId={createDroppableId} createDraggableId={createDraggableId} />

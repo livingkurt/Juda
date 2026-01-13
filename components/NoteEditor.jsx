@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Box,
   Stack,
@@ -23,14 +23,19 @@ export const NoteEditor = ({ note, folders = [], onUpdate, onDelete, onConvertTo
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [localTitle, setLocalTitle] = useState(note?.title || "");
   const saveTimeoutRef = useRef(null);
+  const previousNoteIdRef = useRef(null);
 
   // Extract noteId to avoid dependency on entire note object
   const noteId = note?.id;
 
-  // Sync title when note changes (using key prop ensures remount on note change)
-  if (note?.title !== localTitle && noteId) {
-    setLocalTitle(note.title || "");
-  }
+  // Sync title only when switching to a different note, not during user edits
+  useEffect(() => {
+    if (noteId && noteId !== previousNoteIdRef.current) {
+      setLocalTitle(note?.title || "");
+      previousNoteIdRef.current = noteId;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteId]);
 
   // Use noteId instead of note object to prevent unnecessary recreations
   const debouncedSave = useCallback(

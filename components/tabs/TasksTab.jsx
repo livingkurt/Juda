@@ -792,11 +792,10 @@ export function TasksTab() {
                 ? showCalendar
                   ? `${resizeHandlers.todayViewWidth}px`
                   : !backlogOpen && !showCalendar
-                    ? `${resizeHandlers.todayViewWidth * 1.75}px`
+                    ? "100%"
                     : "100%"
                 : "0px",
-              maxWidth:
-                !backlogOpen && !showCalendar && showDashboard ? `${resizeHandlers.todayViewWidth * 1.75}px` : "none",
+              maxWidth: !backlogOpen && !showCalendar && showDashboard ? "1200px" : "none",
               height: "100%",
               transition:
                 resizeHandlers.isResizing && resizeHandlers.resizeType === "today"
@@ -806,21 +805,19 @@ export function TasksTab() {
               overflow: "hidden",
               borderRight: showDashboard && showCalendar ? "1px solid" : "none",
               borderColor: "divider",
-              flexShrink: 0,
+              flexShrink: showCalendar ? 0 : 1,
               display: "flex",
               flexDirection: "column",
               position: "relative",
+              minWidth: 0,
             }}
           >
             <Box
               sx={{
-                width: showCalendar
-                  ? `${resizeHandlers.todayViewWidth}px`
-                  : !backlogOpen && !showCalendar
-                    ? `${resizeHandlers.todayViewWidth * 1.75}px`
-                    : "100%",
+                width: showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%",
                 height: "100%",
                 position: "relative",
+                minWidth: 0,
               }}
             >
               <Collapse
@@ -836,15 +833,12 @@ export function TasksTab() {
               >
                 <Box
                   sx={{
-                    width: showCalendar
-                      ? `${resizeHandlers.todayViewWidth}px`
-                      : !backlogOpen && !showCalendar
-                        ? `${resizeHandlers.todayViewWidth * 1.75}px`
-                        : "100%",
+                    width: showCalendar ? `${resizeHandlers.todayViewWidth}px` : "100%",
                     height: "100%",
                     display: "flex",
                     flexDirection: "column",
                     position: "relative",
+                    minWidth: 0,
                   }}
                 >
                   <TodayView
