@@ -16,13 +16,28 @@ import {
   ListItemText,
   Badge,
   CircularProgress,
+  Tabs,
+  Tab,
+  Collapse,
+  Divider,
+  useMediaQuery,
 } from "@mui/material";
-import { Search, Add, Description } from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
+import { Search, Add, Description, Folder, Tag, ArrowBack, Edit } from "@mui/icons-material";
 import { NoteEditor } from "@/components/NoteEditor";
 import { TagChip } from "@/components/TagChip";
+import { QuickTaskInput } from "@/components/QuickTaskInput";
+import { FolderDialog } from "@/components/dialogs/FolderDialog";
+import { SmartFolderDialog } from "@/components/dialogs/SmartFolderDialog";
 import dayjs from "dayjs";
 import { useDispatch, useSelector } from "react-redux";
-import { setNotesSidebarWidth, setNotesListWidth } from "@/lib/store/slices/uiSlice";
+import {
+  setNotesSidebarWidth,
+  setNotesListWidth,
+  toggleNotesSidebarOpen,
+  toggleNotesListOpen,
+  setNotesActiveMobileView,
+} from "@/lib/store/slices/uiSlice";
 import {
   useGetTasksQuery,
   useCreateTaskMutation,
@@ -30,6 +45,10 @@ import {
   useUpdateTaskMutation,
 } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
+import { useGetFoldersQuery } from "@/lib/store/api/foldersApi";
+import { useGetSmartFoldersQuery } from "@/lib/store/api/smartFoldersApi";
+import { useGetTagsQuery, useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
+import { useLoadingTab } from "@/components/MainTabs";
 
 // Memoized note list item component to prevent unnecessary re-renders
 const NoteListItem = memo(function NoteListItem({ note, isSelected, onSelect }) {
@@ -70,22 +89,19 @@ const NoteListItem = memo(function NoteListItem({ note, isSelected, onSelect }) 
   );
 });
 
-export function NotesTab({ isLoading: tabLoading }) {
+export function NotesTab({ isLoading }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const dispatch = useDispatch();
 
-  // Get data from Redux
-  const { data: tasks = [] } = useGetTasksQuery();
-  const { data: sections = [] } = useGetSectionsQuery();
-  const notesSidebarWidth = useSelector(state => state.ui.notesSidebarWidth || 280);
-  const notesListWidth = useSelector(state => state.ui.notesListWidth || 300);
+  const { loadingTab } = useLoadingTab();
+  const tabLoading = isLoading ?? loadingTab === 3;
 
-  // Mutations
-  const [createTask] = useCreateTaskMutation();
-  const [updateTask] = useUpdateTaskMutation();
-  const [deleteTask] = useDeleteTaskMutation();
-
-  // Filter note tasks
-  const noteTasks = useMemo(() => tasks.filter(t => t.completionType === "note"), [tasks]);
+  // Dialog states
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false);
+  const [smartFolderDialogOpen, setSmartFolderDialogOpen] = useState(false);
+  const [editingFolder, setEditingFolder] = useState(null);
+  const [editingSmartFolder, setEditingSmartFolder] = useState(null);
 
   // Local state
   const [selectedNoteId, setSelectedNoteId] = useState(null);
@@ -98,6 +114,27 @@ export function NotesTab({ isLoading: tabLoading }) {
 
   const resizeStartRef = useRef(null);
   const rafRef = useRef(null);
+
+  // Redux state
+  const notesSidebarOpen = useSelector(state => state.ui.notesSidebarOpen ?? true);
+  const notesListOpen = useSelector(state => state.ui.notesListOpen ?? true);
+  const notesSidebarWidth = useSelector(state => state.ui.notesSidebarWidth ?? 280);
+  const notesListWidth = useSelector(state => state.ui.notesListWidth ?? 300);
+  const notesActiveMobileView = useSelector(state => state.ui.notesActiveMobileView ?? "notes");
+
+  // RTK Query
+  const { data: tasks = [] } = useGetTasksQuery();
+  const { data: sections = [] } = useGetSectionsQuery();
+  const { data: folders = [] } = useGetFoldersQuery();
+  const { data: smartFolders = [] } = useGetSmartFoldersQuery();
+  const { data: tags = [] } = useGetTagsQuery();
+  const [updateTaskTags] = useUpdateTaskTagsMutation();
+  const [createTask] = useCreateTaskMutation();
+  const [updateTask] = useUpdateTaskMutation();
+  const [deleteTask] = useDeleteTaskMutation();
+
+  // Filter note tasks
+  const noteTasks = useMemo(() => tasks.filter(t => t.completionType === "note"), [tasks]);
 
   // Helper to get X coordinate from mouse or touch event
   const getClientX = e => {
@@ -194,11 +231,6 @@ export function NotesTab({ isLoading: tabLoading }) {
 
   const selectedNote = useMemo(() => noteTasks.find(n => n.id === selectedNoteId), [noteTasks, selectedNoteId]);
 
-  // Memoized note selection handler
-  const handleSelectNote = useCallback(noteId => {
-    setSelectedNoteId(noteId);
-  }, []);
-
   const stripHtml = html => html?.replace(/<[^>]*>/g, "").trim() || "";
 
   const filteredNotes = useMemo(() => {
@@ -209,7 +241,25 @@ export function NotesTab({ isLoading: tabLoading }) {
     }
 
     if (selectedSmartFolderId) {
-      // Smart folder logic would go here
+      const sf = smartFolders.find(s => s.id === selectedSmartFolderId);
+      const tagIds = sf?.filters?.tags || [];
+      const operator = sf?.filters?.operator || "any";
+
+      if (tagIds.length > 0) {
+        result = result.filter(note => {
+          const noteTagIds = note.tags?.map(t => t.id) || [];
+          if (operator === "any") {
+            return tagIds.some(id => noteTagIds.includes(id));
+          }
+          if (operator === "all") {
+            return tagIds.every(id => noteTagIds.includes(id));
+          }
+          if (operator === "none") {
+            return !tagIds.some(id => noteTagIds.includes(id));
+          }
+          return true;
+        });
+      }
     }
 
     if (deferredSearch.trim()) {
@@ -220,21 +270,73 @@ export function NotesTab({ isLoading: tabLoading }) {
     }
 
     return result.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-  }, [noteTasks, selectedFolderId, selectedSmartFolderId, deferredSearch]);
+  }, [noteTasks, selectedFolderId, selectedSmartFolderId, deferredSearch, smartFolders]);
 
-  const handleCreateNote = async () => {
-    await createTask({
-      title: "Untitled Note",
-      sectionId: sections[0]?.id,
-      completionType: "note",
-      content: "",
-    }).unwrap();
-  };
+  const handleCreateNote = useCallback(
+    async titleOverride => {
+      if (!sections[0]?.id) return;
+      const title = titleOverride?.trim() || "Untitled Note";
+      const result = await createTask({
+        title,
+        sectionId: sections[0]?.id,
+        completionType: "note",
+        content: "",
+        folderId: selectedFolderId || null,
+      }).unwrap();
+      const createdId = result?.id || null;
+      setSelectedNoteId(createdId);
+
+      if (createdId && selectedSmartFolderId) {
+        const smartFolder = smartFolders.find(folder => folder.id === selectedSmartFolderId);
+        const smartTagIds = smartFolder?.filters?.tags || [];
+        const operator = smartFolder?.filters?.operator || "any";
+
+        if (smartTagIds.length > 0 && operator !== "none") {
+          await updateTaskTags({ taskId: createdId, tagIds: smartTagIds }).unwrap();
+        }
+      }
+      if (isMobile) {
+        dispatch(setNotesActiveMobileView("editor"));
+      }
+    },
+    [createTask, sections, selectedFolderId, selectedSmartFolderId, smartFolders, updateTaskTags, isMobile, dispatch]
+  );
+
+  const handleSelectNote = useCallback(
+    noteId => {
+      setSelectedNoteId(noteId);
+      if (isMobile) {
+        dispatch(setNotesActiveMobileView("editor"));
+      }
+    },
+    [dispatch, isMobile]
+  );
+
+  const handleBackToNotes = useCallback(() => {
+    dispatch(setNotesActiveMobileView("notes"));
+  }, [dispatch]);
+
+  const handleMobileTabChange = useCallback(
+    (_, newValue) => {
+      const views = ["folders", "notes", "editor"];
+      dispatch(setNotesActiveMobileView(views[newValue]));
+    },
+    [dispatch]
+  );
+
+  const getMobileTabIndex = useCallback(() => {
+    const views = ["folders", "notes", "editor"];
+    const index = views.indexOf(notesActiveMobileView);
+    return index === -1 ? 1 : index;
+  }, [notesActiveMobileView]);
 
   const handleDeleteNote = async taskId => {
     await deleteTask(taskId).unwrap();
     if (selectedNoteId === taskId) {
       setSelectedNoteId(null);
+      if (isMobile) {
+        dispatch(setNotesActiveMobileView("notes"));
+      }
     }
   };
 
@@ -250,184 +352,512 @@ export function NotesTab({ isLoading: tabLoading }) {
     );
   }
 
-  return (
-    <Box sx={{ display: "flex", height: "100%", overflow: "hidden" }}>
-      {/* Left Sidebar - Folders */}
-      <Paper
-        variant="outlined"
-        sx={{
-          width: `${notesSidebarWidth}px`,
-          minWidth: `${notesSidebarWidth}px`,
-          display: "flex",
-          flexDirection: "column",
-          borderRadius: 0,
-          borderTop: 0,
-          borderBottom: 0,
-          borderLeft: 0,
-          position: "relative",
-          transition: isResizing && resizeType === "sidebar" ? "none" : "width 0.3s",
-          willChange: isResizing && resizeType === "sidebar" ? "width" : "auto",
-        }}
-      >
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}
+  if (isMobile) {
+    return (
+      <>
+        <Tabs
+          value={getMobileTabIndex()}
+          onChange={handleMobileTabChange}
+          variant="fullWidth"
+          sx={{
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            bgcolor: "background.paper",
+            flexShrink: 0,
+          }}
         >
-          <Typography variant="subtitle2" fontWeight={600}>
-            Folders
-          </Typography>
-          <IconButton size="small" onClick={() => {}}>
-            <Add fontSize="small" />
-          </IconButton>
-        </Stack>
+          <Tab
+            icon={<Folder fontSize="small" />}
+            iconPosition="start"
+            label="Folders"
+            sx={{ fontSize: "0.875rem", minHeight: 48 }}
+          />
+          <Tab
+            icon={<Description fontSize="small" />}
+            iconPosition="start"
+            label={`Notes (${filteredNotes.length})`}
+            sx={{ fontSize: "0.875rem", minHeight: 48 }}
+          />
+          <Tab
+            icon={<Edit fontSize="small" />}
+            iconPosition="start"
+            label="Editor"
+            disabled={!selectedNote}
+            sx={{ fontSize: "0.875rem", minHeight: 48 }}
+          />
+        </Tabs>
 
-        <Box sx={{ flex: 1, overflow: "auto" }}>
-          <List dense disablePadding>
-            <ListItemButton
-              selected={!selectedFolderId && !selectedSmartFolderId}
-              onClick={() => {
-                setSelectedFolderId(null);
-                setSelectedSmartFolderId(null);
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 32 }}>
-                <Description fontSize="small" />
-              </ListItemIcon>
-              <ListItemText primary="All Notes" />
-              <Badge badgeContent={noteTasks.length} color="primary" max={99} />
-            </ListItemButton>
-          </List>
+        <Box sx={{ flex: 1, overflow: "hidden" }}>
+          {notesActiveMobileView === "folders" && (
+            <Box sx={{ height: "100%", overflow: "auto" }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 2 }}>
+                <Typography variant="h6">Folders</Typography>
+                <Stack direction="row" spacing={1}>
+                  <IconButton size="small" onClick={() => setFolderDialogOpen(true)}>
+                    <Add fontSize="small" />
+                  </IconButton>
+                </Stack>
+              </Stack>
+
+              <List dense>
+                <ListItemButton
+                  selected={!selectedFolderId && !selectedSmartFolderId}
+                  onClick={() => {
+                    setSelectedFolderId(null);
+                    setSelectedSmartFolderId(null);
+                    dispatch(setNotesActiveMobileView("notes"));
+                  }}
+                >
+                  <ListItemIcon>
+                    <Description fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary="All Notes" />
+                  <Badge badgeContent={noteTasks.length} color="primary" max={99} />
+                </ListItemButton>
+
+                <>
+                  <Divider sx={{ my: 1 }} />
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 2 }}>
+                    <Typography variant="overline">Smart Folders</Typography>
+                    <IconButton size="small" onClick={() => setSmartFolderDialogOpen(true)}>
+                      <Add fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                  {smartFolders.map(sf => (
+                    <ListItemButton
+                      key={sf.id}
+                      selected={selectedSmartFolderId === sf.id}
+                      onClick={() => {
+                        setSelectedSmartFolderId(sf.id);
+                        setSelectedFolderId(null);
+                        dispatch(setNotesActiveMobileView("notes"));
+                      }}
+                    >
+                      <ListItemIcon>
+                        <Tag fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary={sf.name} />
+                    </ListItemButton>
+                  ))}
+                </>
+
+                <Divider sx={{ my: 1 }} />
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 2 }}>
+                  <Typography variant="overline">Folders</Typography>
+                  <IconButton size="small" onClick={() => setFolderDialogOpen(true)}>
+                    <Add fontSize="small" />
+                  </IconButton>
+                </Stack>
+                {folders.map(folder => (
+                  <ListItemButton
+                    key={folder.id}
+                    selected={selectedFolderId === folder.id}
+                    onClick={() => {
+                      setSelectedFolderId(folder.id);
+                      setSelectedSmartFolderId(null);
+                      dispatch(setNotesActiveMobileView("notes"));
+                    }}
+                  >
+                    <ListItemIcon>
+                      <Folder fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={folder.name} />
+                  </ListItemButton>
+                ))}
+              </List>
+            </Box>
+          )}
+
+          {notesActiveMobileView === "notes" && (
+            <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+              <Stack spacing={1} sx={{ p: 2 }}>
+                <TextField
+                  size="small"
+                  placeholder="Search notes..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  fullWidth
+                />
+                <QuickTaskInput
+                  placeholder="New note title..."
+                  onCreate={handleCreateNote}
+                  size="small"
+                  variant="outlined"
+                  fullWidth
+                  showUnderlineWhenActive={false}
+                />
+              </Stack>
+
+              <Box sx={{ flex: 1, overflow: "auto" }}>
+                {filteredNotes.map(note => (
+                  <NoteListItem
+                    key={note.id}
+                    note={note}
+                    isSelected={selectedNoteId === note.id}
+                    onSelect={handleSelectNote}
+                  />
+                ))}
+                {filteredNotes.length === 0 && (
+                  <Typography color="text.secondary" sx={{ p: 2, textAlign: "center" }}>
+                    No notes found
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          )}
+
+          {notesActiveMobileView === "editor" && (
+            <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+              <Stack direction="row" alignItems="center" sx={{ p: 1, borderBottom: 1, borderColor: "divider" }}>
+                <IconButton onClick={handleBackToNotes}>
+                  <ArrowBack />
+                </IconButton>
+                <Typography variant="subtitle2">Back to Notes</Typography>
+              </Stack>
+              <Box sx={{ flex: 1, overflow: "hidden" }}>
+                {selectedNote ? (
+                  <NoteEditor
+                    note={selectedNote}
+                    folders={folders}
+                    allTags={tags}
+                    onUpdate={handleUpdateNote}
+                    onDelete={handleDeleteNote}
+                    onConvertToTask={(note, type) => {
+                      updateTask({ id: note.id, completionType: type });
+                      setSelectedNoteId(null);
+                      dispatch(setNotesActiveMobileView("notes"));
+                    }}
+                  />
+                ) : (
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                    <Typography color="text.secondary">Select a note to edit</Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          )}
         </Box>
 
-        {/* Resize handle between sidebar and notes list */}
-        <Box
-          onMouseDown={handleSidebarResizeStart}
-          onTouchStart={handleSidebarResizeStart}
-          sx={{
-            position: "absolute",
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: { md: "12px", lg: "4px" },
-            cursor: "col-resize",
-            bgcolor: isResizing && resizeType === "sidebar" ? "primary.light" : "transparent",
-            transition: "background-color 0.2s",
-            zIndex: 10,
-            userSelect: "none",
-            touchAction: "none",
-            display: { xs: "none", md: "block" },
-            "&:hover": {
-              bgcolor: "primary.main",
-            },
+        <FolderDialog
+          open={folderDialogOpen}
+          onClose={() => {
+            setFolderDialogOpen(false);
+            setEditingFolder(null);
           }}
+          editingFolder={editingFolder}
         />
-      </Paper>
+        <SmartFolderDialog
+          open={smartFolderDialogOpen}
+          onClose={() => {
+            setSmartFolderDialogOpen(false);
+            setEditingSmartFolder(null);
+          }}
+          editingSmartFolder={editingSmartFolder}
+        />
+      </>
+    );
+  }
 
-      {/* Middle - Notes List */}
-      <Paper
-        variant="outlined"
-        sx={{
-          width: `${notesListWidth}px`,
-          minWidth: `${notesListWidth}px`,
-          display: "flex",
-          flexDirection: "column",
-          borderRadius: 0,
-          borderTop: 0,
-          borderBottom: 0,
-          position: "relative",
-          transition: isResizing && resizeType === "noteList" ? "none" : "width 0.3s",
-          willChange: isResizing && resizeType === "noteList" ? "width" : "auto",
-        }}
-      >
-        <Stack sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }} spacing={1}>
-          <TextField
+  return (
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Button
             size="small"
-            fullWidth
-            placeholder="Search notes..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-          />
-          <Button fullWidth variant="contained" startIcon={<Add fontSize="small" />} onClick={handleCreateNote}>
+            variant={notesSidebarOpen ? "contained" : "outlined"}
+            color={notesSidebarOpen ? "primary" : "inherit"}
+            onClick={() => dispatch(toggleNotesSidebarOpen())}
+            startIcon={<Folder fontSize="small" />}
+          >
+            Folders
+          </Button>
+          <Button
+            size="small"
+            variant={notesListOpen ? "contained" : "outlined"}
+            color={notesListOpen ? "primary" : "inherit"}
+            onClick={() => dispatch(toggleNotesListOpen())}
+            startIcon={<Description fontSize="small" />}
+          >
+            Notes List
+          </Button>
+
+          <Box sx={{ flex: 1 }} />
+
+          <Button variant="contained" size="small" startIcon={<Add fontSize="small" />} onClick={handleCreateNote}>
             New Note
           </Button>
         </Stack>
+      </Box>
 
-        <Box sx={{ flex: 1, overflow: "auto" }}>
-          <List disablePadding>
-            {filteredNotes.map(note => (
-              <NoteListItem
-                key={note.id}
-                note={note}
-                isSelected={selectedNoteId === note.id}
-                onSelect={handleSelectNote}
-              />
-            ))}
-          </List>
-        </Box>
-
-        {/* Resize handle between notes list and editor */}
-        <Box
-          onMouseDown={handleNoteListResizeStart}
-          onTouchStart={handleNoteListResizeStart}
-          sx={{
-            position: "absolute",
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: { md: "12px", lg: "4px" },
-            cursor: "col-resize",
-            bgcolor: isResizing && resizeType === "noteList" ? "primary.light" : "transparent",
-            transition: "background-color 0.2s",
-            zIndex: 10,
-            userSelect: "none",
-            touchAction: "none",
-            display: { xs: "none", md: "block" },
-            "&:hover": {
-              bgcolor: "primary.main",
-            },
-          }}
-        />
-      </Paper>
-
-      {/* Right - Editor */}
-      <Box sx={{ flex: 1, overflow: "hidden", height: "100%" }}>
-        {selectedNote ? (
-          <NoteEditor
-            note={selectedNote}
-            folders={[]}
-            onUpdate={handleUpdateNote}
-            onDelete={handleDeleteNote}
-            onConvertToTask={() => {}}
-          />
-        ) : (
-          <Box
+      <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <Collapse orientation="horizontal" in={notesSidebarOpen} timeout={300}>
+          <Paper
+            variant="outlined"
             sx={{
+              width: notesSidebarWidth,
               height: "100%",
               display: "flex",
               flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
+              borderRadius: 0,
+              borderTop: 0,
+              borderBottom: 0,
+              borderLeft: 0,
+              position: "relative",
+              transition: isResizing && resizeType === "sidebar" ? "none" : "width 0.3s",
+              willChange: isResizing && resizeType === "sidebar" ? "width" : "auto",
             }}
           >
-            <Description fontSize="large" sx={{ opacity: 0.3 }} />
-            <Typography color="text.secondary" sx={{ mt: 2 }}>
-              Select a note
-            </Typography>
-            <Button variant="contained" startIcon={<Add fontSize="small" />} onClick={handleCreateNote} sx={{ mt: 2 }}>
-              New Note
-            </Button>
-          </Box>
-        )}
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}
+            >
+              <Typography variant="subtitle2" fontWeight={600}>
+                Folders
+              </Typography>
+              <Stack direction="row" spacing={0.5}>
+                <IconButton size="small" onClick={() => setFolderDialogOpen(true)} title="New Folder">
+                  <Add fontSize="small" />
+                </IconButton>
+              </Stack>
+            </Stack>
+
+            <Box sx={{ flex: 1, overflow: "auto" }}>
+              <List dense disablePadding>
+                <ListItemButton
+                  selected={!selectedFolderId && !selectedSmartFolderId}
+                  onClick={() => {
+                    setSelectedFolderId(null);
+                    setSelectedSmartFolderId(null);
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 32 }}>
+                    <Description fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary="All Notes" />
+                  <Badge badgeContent={noteTasks.length} color="primary" max={99} />
+                </ListItemButton>
+
+                <Divider sx={{ my: 1 }} />
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 2 }}>
+                  <Typography variant="overline" color="text.secondary">
+                    Smart Folders
+                  </Typography>
+                  <IconButton size="small" onClick={() => setSmartFolderDialogOpen(true)} title="New Smart Folder">
+                    <Add fontSize="small" />
+                  </IconButton>
+                </Stack>
+                {smartFolders.map(sf => (
+                  <ListItemButton
+                    key={sf.id}
+                    selected={selectedSmartFolderId === sf.id}
+                    onClick={() => {
+                      setSelectedSmartFolderId(sf.id);
+                      setSelectedFolderId(null);
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <Tag fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={sf.name} />
+                  </ListItemButton>
+                ))}
+
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="overline" sx={{ px: 2, color: "text.secondary" }}>
+                  Folders
+                </Typography>
+                {folders.map(folder => (
+                  <ListItemButton
+                    key={folder.id}
+                    selected={selectedFolderId === folder.id}
+                    onClick={() => {
+                      setSelectedFolderId(folder.id);
+                      setSelectedSmartFolderId(null);
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <Folder fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={folder.name} />
+                  </ListItemButton>
+                ))}
+              </List>
+            </Box>
+
+            <Box
+              onMouseDown={handleSidebarResizeStart}
+              onTouchStart={handleSidebarResizeStart}
+              sx={{
+                position: "absolute",
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: { md: "12px", lg: "4px" },
+                cursor: "col-resize",
+                bgcolor: isResizing && resizeType === "sidebar" ? "primary.light" : "transparent",
+                transition: "background-color 0.2s",
+                zIndex: 10,
+                userSelect: "none",
+                touchAction: "none",
+                display: { xs: "none", md: "block" },
+                "&:hover": {
+                  bgcolor: "primary.main",
+                },
+              }}
+            />
+          </Paper>
+        </Collapse>
+
+        <Collapse orientation="horizontal" in={notesListOpen} timeout={300}>
+          <Paper
+            variant="outlined"
+            sx={{
+              width: notesListWidth,
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              borderRadius: 0,
+              borderTop: 0,
+              borderBottom: 0,
+              position: "relative",
+              transition: isResizing && resizeType === "noteList" ? "none" : "width 0.3s",
+              willChange: isResizing && resizeType === "noteList" ? "width" : "auto",
+            }}
+          >
+            <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
+              <TextField
+                size="small"
+                placeholder="Search notes..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+                fullWidth
+              />
+              <Box sx={{ mt: 2 }}>
+                <QuickTaskInput
+                  placeholder="New note title..."
+                  onCreate={handleCreateNote}
+                  size="small"
+                  fullWidth
+                  showUnderlineWhenActive={false}
+                />
+              </Box>
+            </Box>
+
+            <Box sx={{ flex: 1, overflow: "auto" }}>
+              {filteredNotes.map(note => (
+                <NoteListItem
+                  key={note.id}
+                  note={note}
+                  isSelected={selectedNoteId === note.id}
+                  onSelect={handleSelectNote}
+                />
+              ))}
+              <Box sx={{ p: 1.5 }}>
+                <QuickTaskInput
+                  placeholder="New note title..."
+                  onCreate={handleCreateNote}
+                  size="small"
+                  fullWidth
+                  showUnderlineWhenActive={false}
+                />
+              </Box>
+              {filteredNotes.length === 0 && (
+                <Typography color="text.secondary" sx={{ p: 2, textAlign: "center" }}>
+                  No notes found
+                </Typography>
+              )}
+            </Box>
+
+            <Box
+              onMouseDown={handleNoteListResizeStart}
+              onTouchStart={handleNoteListResizeStart}
+              sx={{
+                position: "absolute",
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: { md: "12px", lg: "4px" },
+                cursor: "col-resize",
+                bgcolor: isResizing && resizeType === "noteList" ? "primary.light" : "transparent",
+                transition: "background-color 0.2s",
+                zIndex: 10,
+                userSelect: "none",
+                touchAction: "none",
+                display: { xs: "none", md: "block" },
+                "&:hover": {
+                  bgcolor: "primary.main",
+                },
+              }}
+            />
+          </Paper>
+        </Collapse>
+
+        <Box sx={{ flex: 1, overflow: "hidden" }}>
+          {selectedNote ? (
+            <NoteEditor
+              note={selectedNote}
+              folders={folders}
+              allTags={tags}
+              onUpdate={handleUpdateNote}
+              onDelete={handleDeleteNote}
+              onConvertToTask={(note, type) => {
+                updateTask({ id: note.id, completionType: type });
+                setSelectedNoteId(null);
+              }}
+            />
+          ) : (
+            <Box
+              sx={{
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Description fontSize="large" sx={{ opacity: 0.3 }} />
+              <Typography color="text.secondary" sx={{ mt: 2 }}>
+                Select a note or create a new one
+              </Typography>
+            </Box>
+          )}
+        </Box>
       </Box>
+
+      <FolderDialog
+        open={folderDialogOpen}
+        onClose={() => {
+          setFolderDialogOpen(false);
+          setEditingFolder(null);
+        }}
+        editingFolder={editingFolder}
+      />
+      <SmartFolderDialog
+        open={smartFolderDialogOpen}
+        onClose={() => {
+          setSmartFolderDialogOpen(false);
+          setEditingSmartFolder(null);
+        }}
+        editingSmartFolder={editingSmartFolder}
+      />
     </Box>
   );
 }
+
+export default NotesTab;

@@ -35,6 +35,10 @@ import {
   setBacklogWidth,
   setBacklogTagSidebarOpen,
   setTodayViewWidth,
+  setNotesSidebarOpen,
+  setNotesListOpen,
+  setNotesSidebarWidth,
+  setNotesListWidth,
   openTaskDialog,
 } from "@/lib/store/slices/uiSlice";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
@@ -196,6 +200,10 @@ export default function DailyTasksApp() {
   const showCalendar = useSelector(state => state.ui.showCalendar);
   const backlogWidth = useSelector(state => state.ui.backlogWidth);
   const todayViewWidth = useSelector(state => state.ui.todayViewWidth);
+  const notesSidebarOpen = useSelector(state => state.ui.notesSidebarOpen);
+  const notesListOpen = useSelector(state => state.ui.notesListOpen);
+  const notesSidebarWidth = useSelector(state => state.ui.notesSidebarWidth);
+  const notesListWidth = useSelector(state => state.ui.notesListWidth);
   const isLoading = tasksLoading || sectionsLoading || tagsLoading || completionsLoading || !prefsInitialized;
 
   // Get loadingTab state from MainTabs component
@@ -222,6 +230,10 @@ export default function DailyTasksApp() {
       dispatch(setShowCalendar(preferences.showCalendar ?? true));
       dispatch(setBacklogWidth(preferences.backlogWidth ?? 500));
       dispatch(setTodayViewWidth(preferences.todayViewWidth ?? 600));
+      dispatch(setNotesSidebarOpen(preferences.notesSidebarOpen ?? true));
+      dispatch(setNotesListOpen(preferences.notesListOpen ?? true));
+      dispatch(setNotesSidebarWidth(preferences.notesSidebarWidth ?? 280));
+      dispatch(setNotesListWidth(preferences.notesListWidth ?? 300));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefsInitialized, dispatch]);
@@ -262,6 +274,30 @@ export default function DailyTasksApp() {
       updatePreference("todayViewWidth", todayViewWidth);
     }
   }, [todayViewWidth, prefsInitialized, updatePreference]);
+
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("notesSidebarOpen", notesSidebarOpen);
+    }
+  }, [notesSidebarOpen, prefsInitialized, updatePreference]);
+
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("notesListOpen", notesListOpen);
+    }
+  }, [notesListOpen, prefsInitialized, updatePreference]);
+
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("notesSidebarWidth", notesSidebarWidth);
+    }
+  }, [notesSidebarWidth, prefsInitialized, updatePreference]);
+
+  useEffect(() => {
+    if (prefsInitialized) {
+      updatePreference("notesListWidth", notesListWidth);
+    }
+  }, [notesListWidth, prefsInitialized, updatePreference]);
 
   // Load completions on mount
   useEffect(() => {
