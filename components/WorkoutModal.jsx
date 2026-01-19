@@ -63,7 +63,6 @@ export default function WorkoutModal() {
 
   const pendingSaveRef = useRef(false);
   const saveTimeoutRef = useRef(null);
-  const exerciseRefs = useRef({});
   const completionDataRef = useRef(completionData);
 
   // Keep ref in sync with state
@@ -94,20 +93,7 @@ export default function WorkoutModal() {
     // Calculate difference in days
     const daysDiff = Math.floor((currentDateLocal - startDateLocal) / (1000 * 60 * 60 * 24));
     const weekNumber = Math.floor(daysDiff / 7) + 1;
-    const calculatedWeek = Math.min(Math.max(1, weekNumber), totalWeeks);
-
-    // Debug logging (remove after testing)
-    console.log("Week Calculation:", {
-      startDateStr,
-      startDateLocal: startDateLocal.toISOString(),
-      currentDateLocal: currentDateLocal.toISOString(),
-      daysDiff,
-      weekNumber,
-      totalWeeks,
-      calculatedWeek,
-    });
-
-    return calculatedWeek;
+    return Math.min(Math.max(1, weekNumber), totalWeeks);
   }, [task?.recurrence, currentDate, totalWeeks]);
 
   // Get current day of week (0-6)
@@ -408,122 +394,6 @@ export default function WorkoutModal() {
       return newData;
     });
   };
-
-  // Helper to check if a set is complete (uses ref for latest data in setTimeout)
-  const isSetCompleteCheck = (sectionId, dayId, exerciseId, setNum) => {
-    const data = completionDataRef.current;
-    const setData = data[sectionId]?.days?.[dayId]?.exercises?.[exerciseId]?.sets?.find(s => s.setNumber === setNum);
-    return (
-      setData?.outcome === "completed" || setData?.completed || (setData?.time && setData?.distance && setData?.pace)
-    );
-  };
-
-  // Handle set completion and auto-scroll to next incomplete set
-  const handleSetComplete = (exerciseId, setNumber) => {
-    // Find the next incomplete set across all exercises
-    setTimeout(() => {
-      // Get all exercises grouped by section
-      const exercisesBySection = [];
-      sections.forEach(section => {
-        const currentDay = getCurrentDayForSection(section);
-        if (currentDay?.exercises) {
-          const sectionExercises = currentDay.exercises.map(exercise => ({
-            id: exercise.id,
-            sets: exercise.sets,
-            sectionId: section.id,
-            dayId: currentDay.id,
-          }));
-          exercisesBySection.push({
-            sectionId: section.id,
-            dayId: currentDay.id,
-            exercises: sectionExercises,
-          });
-        }
-      });
-
-      // Find which section the current exercise belongs to
-      let currentSectionIndex = -1;
-      let currentExerciseIndexInSection = -1;
-
-      for (let i = 0; i < exercisesBySection.length; i++) {
-        const sectionData = exercisesBySection[i];
-        const exerciseIndex = sectionData.exercises.findIndex(ex => ex.id === exerciseId);
-        if (exerciseIndex !== -1) {
-          currentSectionIndex = i;
-          currentExerciseIndexInSection = exerciseIndex;
-          break;
-        }
-      }
-
-      if (currentSectionIndex === -1) return;
-
-      const currentSection = exercisesBySection[currentSectionIndex];
-      let nextExerciseId = null;
-      let nextSetNumber = null;
-
-      // Strategy: Stay within the current section until all sets are complete
-      // 1. Look for the same set number in exercises AFTER the current one in the SAME section
-      for (let i = currentExerciseIndexInSection + 1; i < currentSection.exercises.length; i++) {
-        const exercise = currentSection.exercises[i];
-        if (
-          setNumber <= exercise.sets &&
-          !isSetCompleteCheck(exercise.sectionId, exercise.dayId, exercise.id, setNumber)
-        ) {
-          nextExerciseId = exercise.id;
-          nextSetNumber = setNumber;
-          break;
-        }
-      }
-
-      // 2. If not found, wrap around to next set number starting from first exercise in SAME section
-      if (!nextExerciseId) {
-        const nextSet = setNumber + 1;
-        const maxSetsInSection = Math.max(...currentSection.exercises.map(ex => ex.sets));
-
-        if (nextSet <= maxSetsInSection) {
-          for (const exercise of currentSection.exercises) {
-            if (
-              nextSet <= exercise.sets &&
-              !isSetCompleteCheck(exercise.sectionId, exercise.dayId, exercise.id, nextSet)
-            ) {
-              nextExerciseId = exercise.id;
-              nextSetNumber = nextSet;
-              break;
-            }
-          }
-        }
-      }
-
-      // 3. If still not found, move to the next section
-      if (!nextExerciseId && currentSectionIndex + 1 < exercisesBySection.length) {
-        const nextSection = exercisesBySection[currentSectionIndex + 1];
-        // Find the first incomplete set in the next section (starting with set 1)
-        for (let setNum = 1; setNum <= 10; setNum++) {
-          // Check up to 10 sets
-          for (const exercise of nextSection.exercises) {
-            if (
-              setNum <= exercise.sets &&
-              !isSetCompleteCheck(exercise.sectionId, exercise.dayId, exercise.id, setNum)
-            ) {
-              nextExerciseId = exercise.id;
-              nextSetNumber = setNum;
-              break;
-            }
-          }
-          if (nextExerciseId) break;
-        }
-      }
-
-      // Scroll to the next incomplete set
-      if (nextExerciseId && nextSetNumber) {
-        const exerciseCard = exerciseRefs.current[nextExerciseId];
-        if (exerciseCard?.scrollToSet) {
-          exerciseCard.scrollToSet(nextSetNumber);
-        }
-      }
-    }, 300); // Small delay to allow state updates
-  };
-
   // Handle complete workout
   const handleComplete = () => {
     const dateStr = currentDate.toISOString().split("T")[0];
@@ -629,8 +499,6 @@ export default function WorkoutModal() {
                       handleActualValueChange(section.id, dayId, exerciseId, setNumber, field, value);
                     }}
                     currentWeek={currentWeek}
-                    exerciseRefs={exerciseRefs}
-                    onSetComplete={handleSetComplete}
                   />
                 </Paper>
               );
