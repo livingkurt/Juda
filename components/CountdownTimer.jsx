@@ -20,37 +20,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
   const prepIntervalRef = useRef(null);
   const hasPlayedSoundRef = useRef(false);
   const lastCountdownSecondRef = useRef(null);
-  const hasPlayedStartSoundRef = useRef(false);
   const lastPrepCountdownRef = useRef(null);
-
-  // Play starting sound using Web Audio API
-  const playStartSound = () => {
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const duration = 0.2;
-      const sampleRate = audioContext.sampleRate;
-      const numSamples = duration * sampleRate;
-      const buffer = audioContext.createBuffer(1, numSamples, sampleRate);
-      const data = buffer.getChannelData(0);
-
-      // Create a short, pleasant starting beep (single tone)
-      for (let i = 0; i < numSamples; i++) {
-        const t = i / sampleRate;
-        // Single tone: 440 Hz (A4)
-        const tone = Math.sin(2 * Math.PI * 440 * t);
-        // Envelope (fade out)
-        const envelope = Math.max(0, 1 - t / duration);
-        data[i] = tone * envelope * 0.3;
-      }
-
-      const source = audioContext.createBufferSource();
-      source.buffer = buffer;
-      source.connect(audioContext.destination);
-      source.start();
-    } catch (err) {
-      console.warn("Could not play start sound:", err);
-    }
-  };
 
   // Play countdown beep (for 3, 2, 1)
   const playCountdownBeep = () => {
@@ -132,7 +102,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
 
         // Combine tones with envelope (fade out)
         const envelope = Math.max(0, 1 - t / duration);
-        data[i] = (tone1 * 0.3 + tone2 * 0.3 + tone3 * 0.4) * envelope * 0.3;
+        data[i] = (tone1 * 0.3 + tone2 * 0.3 + tone3 * 0.4) * envelope * 0.6;
       }
 
       const source = audioContext.createBufferSource();
@@ -183,7 +153,6 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
     setPrepCountdown(null);
     hasPlayedSoundRef.current = false;
     lastCountdownSecondRef.current = null;
-    hasPlayedStartSoundRef.current = false;
     lastPrepCountdownRef.current = null;
   };
 
@@ -239,7 +208,6 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
     if (prepCountdown === 0) {
       const timer = setTimeout(() => {
         setIsRunning(true);
-        hasPlayedStartSoundRef.current = true;
         setPrepCountdown(null); // Exit preparation phase
       }, 800); // Brief delay to show "START"
 
@@ -298,7 +266,6 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
       // Reset countdown tracking when timer restarts from a pause
       if (elapsedSeconds > 0) {
         lastCountdownSecondRef.current = null;
-        hasPlayedStartSoundRef.current = false;
       }
     }
   }, [isRunning, timeRemaining, elapsedSeconds]);
@@ -388,7 +355,12 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
               <PlayArrow />
             </IconButton>
           ) : (
-            <IconButton onClick={handlePause} color="warning" size="small" disabled={prepCountdown === null && isCompleted}>
+            <IconButton
+              onClick={handlePause}
+              color="warning"
+              size="small"
+              disabled={prepCountdown === null && isCompleted}
+            >
               <Pause />
             </IconButton>
           )}
