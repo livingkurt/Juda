@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Box, Stack, Typography, IconButton, Paper } from "@mui/material";
 import { PlayArrow, Pause, Refresh } from "@mui/icons-material";
 
@@ -10,8 +10,9 @@ import { PlayArrow, Pause, Refresh } from "@mui/icons-material";
  * @param {number} targetSeconds - Target time in seconds
  * @param {Function} onComplete - Callback when timer reaches 0
  * @param {boolean} isCompleted - Whether the set is already completed
+ * @param {boolean} autoStart - Whether to automatically start the timer (for transitions)
  */
-export default function CountdownTimer({ targetSeconds, onComplete, isCompleted }) {
+export default function CountdownTimer({ targetSeconds, onComplete, isCompleted, autoStart = false }) {
   // Track elapsed time instead of remaining time
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
@@ -126,7 +127,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
   };
 
   // Start/Resume timer
-  const handleStart = () => {
+  const handleStart = useCallback(() => {
     // If starting from the beginning, start preparation countdown
     if (timeRemaining === targetSeconds && prepCountdown === null) {
       setPrepCountdown(5);
@@ -135,7 +136,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
       // Resume from pause - start timer directly
       setIsRunning(true);
     }
-  };
+  }, [timeRemaining, targetSeconds, prepCountdown]);
 
   // Pause timer
   const handlePause = () => {
@@ -145,6 +146,17 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted 
       setPrepCountdown(null);
     }
   };
+
+  // Auto-start if requested (for transitions)
+  useEffect(() => {
+    if (autoStart && timeRemaining === targetSeconds && prepCountdown === null && !isCompleted) {
+      // Use setTimeout to avoid synchronous setState in effect
+      const timer = setTimeout(() => {
+        handleStart();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [autoStart, timeRemaining, targetSeconds, prepCountdown, isCompleted, handleStart]);
 
   // Reset timer
   const handleReset = () => {

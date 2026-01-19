@@ -267,6 +267,20 @@
       "when": 1767807257984,
       "tag": "0037_fix_backlog_task_sections",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1768816634339,
+      "tag": "0038_add_both_sides_to_exercises",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1768816728831,
+      "tag": "0039_ensure_both_sides_column_exists",
+      "breakpoints": true
     }
   ]
 }

@@ -21,6 +21,8 @@ import {
   Grid,
   ToggleButton,
   ToggleButtonGroup,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material";
 import { Close, Add as Plus, Delete as Trash2, ExpandMore as ChevronDown, ChevronRight } from "@mui/icons-material";
 import { EXERCISE_TYPES, WORKOUT_SECTION_TYPES, DAYS_OF_WEEK } from "@/lib/constants";
@@ -244,7 +246,16 @@ const WorkoutExercise = memo(function WorkoutExercise({
     onToggleProgression(exercise.id);
   }, [onToggleProgression, exercise.id]);
 
+  const handleBothSidesChange = useCallback(
+    e => {
+      onUpdate(sectionId, dayId, exercise.id, { bothSides: e.target.checked });
+    },
+    [onUpdate, sectionId, dayId, exercise.id]
+  );
+
   const showProgression = numberOfWeeks > 0 && exercise.weeklyProgression && exercise.weeklyProgression.length > 0;
+
+  const isTimeExercise = exercise.type === "time";
 
   return (
     <Paper key={exercise.id} variant="outlined" sx={{ p: 1.5 }}>
@@ -295,6 +306,16 @@ const WorkoutExercise = memo(function WorkoutExercise({
           </IconButton>
         </Grid>
       </Grid>
+
+      {/* Both Sides Checkbox - Only show for time exercises */}
+      {isTimeExercise && (
+        <Box sx={{ mt: 1 }}>
+          <FormControlLabel
+            control={<Checkbox checked={exercise.bothSides || false} onChange={handleBothSidesChange} size="small" />}
+            label="Both Sides (runs timer twice with 5s transition)"
+          />
+        </Box>
+      )}
 
       {/* Weekly Progression Toggle */}
       {showProgression && (
@@ -698,6 +719,7 @@ export default function WorkoutBuilder({
         sets: 3,
         targetValue: 10,
         unit: "reps",
+        bothSides: false,
         weeklyProgression: [],
       };
       setSections(prev =>
@@ -845,7 +867,7 @@ export default function WorkoutBuilder({
           height: { xs: "100vh", md: "90vh" },
           maxHeight: { xs: "100vh", md: "90vh" },
           m: { xs: 0, md: "auto" },
-          width: { xs: "100%", md: "600px" },
+          width: { xs: "100%" },
           borderRadius: { xs: 0, md: 1 },
         },
       }}

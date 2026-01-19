@@ -67,6 +67,7 @@ export const GET = withApi(async (request, { userId, getRequiredParam }) => {
           unit: exercise.unit,
           goal: exercise.goal,
           notes: exercise.notes,
+          bothSides: exercise.bothSides || false,
           order: exercise.order,
           weeklyProgression: exercise.weeklyProgressions.map(wp => ({
             week: wp.week,
@@ -150,6 +151,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
           unit: exerciseData.unit || "reps",
           goal: exerciseData.goal || null,
           notes: exerciseData.notes || null,
+          bothSides: exerciseData.bothSides || false,
           order,
         })
         .returning();

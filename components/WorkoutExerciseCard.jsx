@@ -1,10 +1,78 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState, useEffect, useRef } from "react";
 import { Box, Stack, Typography, Paper, TextField, Chip, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { OutcomeCheckbox } from "./OutcomeCheckbox";
 import CountdownTimer from "./CountdownTimer";
+
+/**
+ * BothSidesTimer - Handles timer for exercises that need both sides
+ * Runs timer twice with a 5-second transition between sides
+ */
+function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
+  const [completedFirstSide, setCompletedFirstSide] = useState(false);
+  const [showSecondTimer, setShowSecondTimer] = useState(false);
+  const prevSetKeyRef = useRef(setKey);
+
+  const handleTimerComplete = () => {
+    if (!completedFirstSide) {
+      // First side just completed, wait a moment then show second timer
+      setCompletedFirstSide(true);
+      // Delay showing second timer to let completion sound play
+      setTimeout(() => {
+        setShowSecondTimer(true);
+      }, 500);
+    } else {
+      // Second side completed, mark the whole exercise as complete
+      if (onComplete) {
+        onComplete();
+      }
+    }
+  };
+
+  // Reset when setKey changes (when user unchecks checkbox or moves to next set)
+  useEffect(() => {
+    if (prevSetKeyRef.current !== setKey) {
+      prevSetKeyRef.current = setKey;
+      // Use setTimeout to avoid synchronous setState in effect
+      const timer = setTimeout(() => {
+        setCompletedFirstSide(false);
+        setShowSecondTimer(false);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [setKey]);
+
+  // Show "Switch sides" message between timers
+  if (completedFirstSide && !showSecondTimer) {
+    return (
+      <Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, textAlign: "center" }}>
+          Switch sides in...
+        </Typography>
+        <Typography variant="h4" sx={{ textAlign: "center", color: "primary.main" }}>
+          5
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1, textAlign: "center" }}>
+        {showSecondTimer ? "Second Side" : "First Side"}
+      </Typography>
+      <CountdownTimer
+        key={showSecondTimer ? "second" : "first"}
+        targetSeconds={targetSeconds}
+        isCompleted={isCompleted}
+        onComplete={handleTimerComplete}
+        autoStart={showSecondTimer}
+      />
+    </Box>
+  );
+}
 
 /**
  * WorkoutExerciseCard - Displays a single exercise with its sets
@@ -229,17 +297,32 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                       sx={{ width: isMobile ? 80 : 100, ml: "auto" }}
                     />
                   </Box>
-                  <CountdownTimer
-                    targetSeconds={getTargetSeconds()}
-                    isCompleted={isComplete}
-                    onComplete={() => {
-                      // Auto-check when timer completes
-                      if (!isComplete) {
-                        onSetToggle?.(exercise.id, setNumber, "completed");
-                        onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
-                      }
-                    }}
-                  />
+                  {exercise.bothSides ? (
+                    <BothSidesTimer
+                      targetSeconds={getTargetSeconds()}
+                      isCompleted={isComplete}
+                      setKey={`${exercise.id}-${setNumber}-${isComplete}`}
+                      onComplete={() => {
+                        // Auto-check when both sides complete
+                        if (!isComplete) {
+                          onSetToggle?.(exercise.id, setNumber, "completed");
+                          onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <CountdownTimer
+                      targetSeconds={getTargetSeconds()}
+                      isCompleted={isComplete}
+                      onComplete={() => {
+                        // Auto-check when timer completes
+                        if (!isComplete) {
+                          onSetToggle?.(exercise.id, setNumber, "completed");
+                          onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
+                        }
+                      }}
+                    />
+                  )}
                 </Stack>
               </Box>
             );
