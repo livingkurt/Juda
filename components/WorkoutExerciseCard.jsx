@@ -69,9 +69,27 @@ const WorkoutExerciseCard = memo(
 
     // Get target value for current week
     const weekProgression = exercise.weeklyProgression?.find(p => p.week === currentWeek);
-    const targetValue = weekProgression?.targetValue || exercise.targetValue || 0;
-    const isDeload = weekProgression?.isDeload;
-    const isTest = weekProgression?.isTest;
+
+    // Debug logging (remove after testing)
+    if (exercise.weeklyProgression && exercise.weeklyProgression.length > 0) {
+      console.log(`Exercise: ${exercise.name}`, {
+        currentWeek,
+        weeklyProgression: exercise.weeklyProgression,
+        foundProgression: weekProgression,
+        targetValue: weekProgression?.targetValue,
+        baseTargetValue: exercise.targetValue,
+      });
+    }
+
+    // Parse targetValue as number since it's stored as text in DB
+    // If no progression found for current week, fall back to exercise.targetValue
+    const targetValue = weekProgression?.targetValue
+      ? typeof weekProgression.targetValue === "string"
+        ? parseFloat(weekProgression.targetValue)
+        : weekProgression.targetValue
+      : exercise.targetValue || 0;
+    const isDeload = weekProgression?.isDeload || false;
+    const isTest = weekProgression?.isTest || false;
 
     // Check if a set is complete
     const isSetComplete = setData => {

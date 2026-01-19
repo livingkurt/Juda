@@ -69,22 +69,45 @@ export default function WorkoutModal() {
   // Keep ref in sync with state
   completionDataRef.current = completionData;
 
-  // Calculate total weeks from task recurrence
+  // Get total weeks from workout program (not from task recurrence)
   const totalWeeks = useMemo(() => {
-    if (!task?.recurrence?.startDate || !task?.recurrence?.endDate) return 1;
-    const startDate = new Date(task.recurrence.startDate);
-    const endDate = new Date(task.recurrence.endDate);
-    const daysDiff = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
-    return Math.max(1, Math.ceil(daysDiff / 7));
-  }, [task?.recurrence]);
+    return workoutProgram?.numberOfWeeks || 1;
+  }, [workoutProgram?.numberOfWeeks]);
 
-  // Calculate current week
+  // Calculate current week based on the workout program start date
   const currentWeek = useMemo(() => {
     if (!task?.recurrence?.startDate) return 1;
-    const startDate = new Date(task.recurrence.startDate);
-    const daysDiff = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24));
+
+    // Parse start date from ISO string (YYYY-MM-DD format)
+    const startDateStr = task.recurrence.startDate.split("T")[0]; // Get just the date part
+    const [startYear, startMonth, startDay] = startDateStr.split("-").map(Number);
+
+    // Get current date parts
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1; // getMonth() is 0-indexed
+    const currentDay = currentDate.getDate();
+
+    // Create dates at midnight local time for comparison
+    const startDateLocal = new Date(startYear, startMonth - 1, startDay);
+    const currentDateLocal = new Date(currentYear, currentMonth - 1, currentDay);
+
+    // Calculate difference in days
+    const daysDiff = Math.floor((currentDateLocal - startDateLocal) / (1000 * 60 * 60 * 24));
     const weekNumber = Math.floor(daysDiff / 7) + 1;
-    return Math.min(Math.max(1, weekNumber), totalWeeks);
+    const calculatedWeek = Math.min(Math.max(1, weekNumber), totalWeeks);
+
+    // Debug logging (remove after testing)
+    console.log("Week Calculation:", {
+      startDateStr,
+      startDateLocal: startDateLocal.toISOString(),
+      currentDateLocal: currentDateLocal.toISOString(),
+      daysDiff,
+      weekNumber,
+      totalWeeks,
+      calculatedWeek,
+    });
+
+    return calculatedWeek;
   }, [task?.recurrence, currentDate, totalWeeks]);
 
   // Get current day of week (0-6)
