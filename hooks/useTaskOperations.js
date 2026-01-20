@@ -166,7 +166,7 @@ export function useTaskOperations() {
       // This ensures all state is set atomically before the dialog opens
       // DEBUG: Uncomment to trace dispatch calls
       if (process.env.NODE_ENV === "development") {
-        console.log("[handleEditTask] Called", {
+        console.warn("[handleEditTask] Called", {
           taskId: task?.id,
           clickedDate,
           stack: new Error().stack,

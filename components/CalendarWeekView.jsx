@@ -159,14 +159,6 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
     return { timedMap, untimedMap, positionedMap };
   }, [weekDays, tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]);
 
-  // Stable lookup functions (OPTIMIZED - direct map access)
-  const getTasksForDay = useCallback(
-    day => {
-      return tasksByDay.timedMap.get(day.toDateString()) || [];
-    },
-    [tasksByDay]
-  );
-
   const getUntimedTasksForDay = useCallback(
     day => {
       return tasksByDay.untimedMap.get(day.toDateString()) || [];
@@ -269,7 +261,7 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
     }
     // Note: For clicks without drag, let the onClick handler in CalendarTask handle it
     // to avoid double calls to handleEditTask
-  }, [internalDrag, taskOps, weekDays, tasks, getTasksForDay]);
+  }, [internalDrag, taskOps]);
 
   useEffect(() => {
     if (!internalDrag.taskId) return;

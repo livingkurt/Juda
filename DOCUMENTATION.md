@@ -28,3 +28,9 @@
 - Updated workout program save logic to upsert sections, days, and exercises instead of deleting all sections on each save.
 - Preserved exercise IDs during updates so `WorkoutSetCompletion` records remain intact for current and past workouts.
 - Added targeted cleanup to remove only sections/days/exercises that were explicitly removed in the builder.
+
+### Lint warning cleanup
+
+- Removed unused dependencies from calendar drag handlers to satisfy hook linting.
+- Replaced debug log with a warning to comply with console lint rules.
+- Refactored dump/restore helper logic to reduce nesting depth.

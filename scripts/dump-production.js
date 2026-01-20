@@ -232,6 +232,77 @@ function topologicalSort(tables, dependencies) {
   return sorted;
 }
 
+async function getValidColumns(client, tableName) {
+  const tableInfo = await client.unsafe(
+    `
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_name = $1 AND table_schema = 'public'
+  `,
+    [tableName]
+  );
+  return new Set(tableInfo.map(c => c.column_name));
+}
+
+function normalizeRows(rows, validColumns) {
+  return rows.map(row => {
+    const processed = {};
+    for (const [key, value] of Object.entries(row)) {
+      if (!validColumns.has(key)) {
+        continue;
+      }
+
+      if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+        processed[key] = new Date(value);
+      } else {
+        processed[key] = value;
+      }
+    }
+    return processed;
+  });
+}
+
+async function restoreTaskRows(client, tableName, processedRows) {
+  const tasksWithoutRefs = processedRows.filter(t => !t.parentId && !t.sourceTaskId);
+  const tasksWithRefs = processedRows.filter(t => t.parentId || t.sourceTaskId);
+
+  await insertRows(client, tableName, tasksWithoutRefs);
+
+  let remaining = tasksWithRefs;
+  let maxAttempts = 10;
+
+  while (remaining.length > 0 && maxAttempts > 0) {
+    const inserted = [];
+    const failed = [];
+
+    for (const task of remaining) {
+      try {
+        await insertRows(client, tableName, [task]);
+        inserted.push(task);
+      } catch (_error) {
+        failed.push(task);
+      }
+    }
+
+    if (inserted.length === 0) {
+      console.warn(`   ⚠️  Could not insert ${failed.length} tasks due to circular or missing references`);
+      break;
+    }
+
+    remaining = failed;
+    maxAttempts--;
+  }
+}
+
+async function restoreTableRows(client, tableName, processedRows) {
+  if (tableName === "Task") {
+    await restoreTaskRows(client, tableName, processedRows);
+    return;
+  }
+
+  await insertRows(client, tableName, processedRows);
+}
+
 async function restoreToLocal(dump) {
   if (!localUrl) {
     // eslint-disable-next-line no-console
@@ -278,75 +349,9 @@ async function restoreToLocal(dump) {
       }
 
       try {
-        // Get the actual columns that exist in the local database table
-        const tableInfo = await localClient.unsafe(
-          `
-          SELECT column_name
-          FROM information_schema.columns
-          WHERE table_name = $1 AND table_schema = 'public'
-        `,
-          [tableName]
-        );
-        const validColumns = new Set(tableInfo.map(c => c.column_name));
-
-        // Convert date strings to Date objects and filter out invalid columns
-        const processedRows = rows.map(row => {
-          const processed = {};
-          for (const [key, value] of Object.entries(row)) {
-            // Skip columns that don't exist in the local schema
-            if (!validColumns.has(key)) {
-              continue;
-            }
-
-            // Convert ISO date strings to Date objects
-            if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
-              processed[key] = new Date(value);
-            } else {
-              processed[key] = value;
-            }
-          }
-          return processed;
-        });
-
-        // Special handling for Task table: insert tasks with no foreign key references first
-        if (tableName === "Task") {
-          // Separate tasks based on self-referencing foreign keys (parentId and sourceTaskId)
-          const tasksWithoutRefs = processedRows.filter(t => !t.parentId && !t.sourceTaskId);
-          const tasksWithRefs = processedRows.filter(t => t.parentId || t.sourceTaskId);
-
-          // Insert tasks without references first
-          await insertRows(localClient, tableName, tasksWithoutRefs);
-
-          // Then insert tasks with references (may need multiple passes for nested references)
-          let remaining = tasksWithRefs;
-          let maxAttempts = 10; // Prevent infinite loops
-
-          while (remaining.length > 0 && maxAttempts > 0) {
-            const inserted = [];
-            const failed = [];
-
-            for (const task of remaining) {
-              try {
-                await insertRows(localClient, tableName, [task]);
-                inserted.push(task);
-              } catch (_error) {
-                // Task depends on another task that hasn't been inserted yet
-                failed.push(task);
-              }
-            }
-
-            if (inserted.length === 0) {
-              // No progress made - break to avoid infinite loop
-              console.warn(`   ⚠️  Could not insert ${failed.length} tasks due to circular or missing references`);
-              break;
-            }
-
-            remaining = failed;
-            maxAttempts--;
-          }
-        } else {
-          await insertRows(localClient, tableName, processedRows);
-        }
+        const validColumns = await getValidColumns(localClient, tableName);
+        const processedRows = normalizeRows(rows, validColumns);
+        await restoreTableRows(localClient, tableName, processedRows);
 
         // eslint-disable-next-line no-console
         console.log(`   ✓ ${tableName}: ${rows.length} rows`);
