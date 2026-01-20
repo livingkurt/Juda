@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -29,17 +29,21 @@ export const SmartFolderDialog = ({ open, onClose, editingSmartFolder = null }) 
   const [createSmartFolder, { isLoading: isCreating }] = useCreateSmartFolderMutation();
   const [updateSmartFolder, { isLoading: isUpdating }] = useUpdateSmartFolderMutation();
 
-  useEffect(() => {
+  const resetForm = () => {
+    setName("");
+    setSelectedTagIds([]);
+    setOperator("any");
+  };
+
+  const syncFormState = () => {
     if (editingSmartFolder) {
       setName(editingSmartFolder.name || "");
       setSelectedTagIds(editingSmartFolder.filters?.tags || []);
       setOperator(editingSmartFolder.filters?.operator || "any");
     } else {
-      setName("");
-      setSelectedTagIds([]);
-      setOperator("any");
+      resetForm();
     }
-  }, [editingSmartFolder, open]);
+  };
 
   const selectedTags = useMemo(() => tags.filter(t => selectedTagIds.includes(t.id)), [tags, selectedTagIds]);
 
@@ -71,7 +75,14 @@ export const SmartFolderDialog = ({ open, onClose, editingSmartFolder = null }) 
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      onTransitionEnter={syncFormState}
+      onTransitionExited={resetForm}
+      maxWidth="sm"
+      fullWidth
+    >
       <DialogTitle>{editingSmartFolder ? "Edit Smart Folder" : "New Smart Folder"}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>

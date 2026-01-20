@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -25,17 +25,21 @@ export const FolderDialog = ({ open, onClose, editingFolder = null }) => {
   const [createFolder, { isLoading: isCreating }] = useCreateFolderMutation();
   const [updateFolder, { isLoading: isUpdating }] = useUpdateFolderMutation();
 
-  useEffect(() => {
+  const resetForm = () => {
+    setName("");
+    setParentId("");
+    setColor("#6b7280");
+  };
+
+  const syncFormState = () => {
     if (editingFolder) {
       setName(editingFolder.name || "");
       setParentId(editingFolder.parentId || "");
       setColor(editingFolder.color || "#6b7280");
     } else {
-      setName("");
-      setParentId("");
-      setColor("#6b7280");
+      resetForm();
     }
-  }, [editingFolder, open]);
+  };
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
@@ -62,7 +66,14 @@ export const FolderDialog = ({ open, onClose, editingFolder = null }) => {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      onTransitionEnter={syncFormState}
+      onTransitionExited={resetForm}
+      maxWidth="xs"
+      fullWidth
+    >
       <DialogTitle>{editingFolder ? "Edit Folder" : "New Folder"}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>

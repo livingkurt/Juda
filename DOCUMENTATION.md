@@ -20,3 +20,11 @@
 ### Follow-ups
 
 - If category selection for tasks is still required, clarify the desired data model and UI entry points before implementation.
+
+## 2026-01-20
+
+### Workout program save behavior
+
+- Updated workout program save logic to upsert sections, days, and exercises instead of deleting all sections on each save.
+- Preserved exercise IDs during updates so `WorkoutSetCompletion` records remain intact for current and past workouts.
+- Added targeted cleanup to remove only sections/days/exercises that were explicitly removed in the builder.

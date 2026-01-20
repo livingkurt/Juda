@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Stack, Typography, Button, IconButton, useMediaQuery, CircularProgress } from "@mui/material";
+import { Box, Stack, Typography, Button, IconButton, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Visibility as Eye, VisibilityOff as EyeOff, Repeat, Close as X, ZoomIn, ZoomOut } from "@mui/icons-material";
 import { DateNavigation } from "@/components/DateNavigation";
