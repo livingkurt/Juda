@@ -34,3 +34,9 @@
 - Removed unused dependencies from calendar drag handlers to satisfy hook linting.
 - Replaced debug log with a warning to comply with console lint rules.
 - Refactored dump/restore helper logic to reduce nesting depth.
+
+### History workout cell modal
+
+- Changed workout cells in `HistoryTab` to open the same completion editor modal used for other task types.
+- Added an optional "Open Workout" button to the completion editor for workout tasks, which opens the workout modal for the clicked date.
+- Routed workout modal opening through `useDialogState` and set the view date so the workout modal loads the correct day’s completion data.

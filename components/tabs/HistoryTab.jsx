@@ -41,7 +41,6 @@ import {
   ChevronRight,
 } from "@mui/icons-material";
 import { shouldShowOnDate } from "@/lib/utils";
-import WorkoutModal from "../WorkoutModal";
 import { DateNavigation } from "../DateNavigation";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
@@ -57,6 +56,8 @@ import {
   useRolloverTaskMutation,
 } from "@/lib/store/api/tasksApi";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useViewState } from "@/hooks/useViewState";
 import CellEditorPopover from "../CellEditorPopover";
 
 // Filter only recurring tasks (keep subtasks nested, don't flatten)
@@ -201,7 +202,6 @@ const MemoizedCompletionCell = memo(function MemoizedCompletionCell({
   isScheduled,
   onCellUpdate,
   onCellDelete,
-  onOpenWorkout,
   showRightBorder,
   onOpenTextModal,
 }) {
@@ -217,10 +217,6 @@ const MemoizedCompletionCell = memo(function MemoizedCompletionCell({
     onCellDelete(task, date);
   }, [onCellDelete, task, date]);
 
-  const handleOpenWorkout = useCallback(() => {
-    onOpenWorkout(task, date);
-  }, [onOpenWorkout, task, date]);
-
   return (
     <CompletionCell
       task={task}
@@ -229,7 +225,6 @@ const MemoizedCompletionCell = memo(function MemoizedCompletionCell({
       isScheduled={isScheduled}
       onUpdate={handleUpdate}
       onDelete={handleDelete}
-      onOpenWorkout={handleOpenWorkout}
       showRightBorder={showRightBorder}
       onOpenTextModal={onOpenTextModal}
     />
@@ -244,7 +239,6 @@ const CompletionCell = memo(function CompletionCell({
   isScheduled,
   onUpdate,
   onDelete,
-  onOpenWorkout,
   showRightBorder = false,
   onOpenTextModal,
 }) {
@@ -313,10 +307,10 @@ const CompletionCell = memo(function CompletionCell({
 
   const handleWorkoutClick = useCallback(() => {
     const canOpen = isScheduled || completion;
-    if (canOpen) {
-      onOpenWorkout?.(task, date);
+    if (canOpen && onOpenTextModal) {
+      onOpenTextModal(task, date, completion, isScheduled);
     }
-  }, [isScheduled, completion, onOpenWorkout, task, date]);
+  }, [isScheduled, completion, onOpenTextModal, task, date]);
 
   // Handle workout type
   if (isWorkoutType) {
@@ -463,6 +457,8 @@ export function HistoryTab({ isLoading: tabLoading }) {
   const { data: tasks = [] } = useGetTasksQuery();
   const { data: sections = [] } = useGetSectionsQuery();
   const { getCompletionForDate } = useCompletionHelpers();
+  const dialogState = useDialogState();
+  const viewState = useViewState();
 
   // Mutations
   const [createCompletion] = useCreateCompletionMutation();
@@ -480,7 +476,6 @@ export function HistoryTab({ isLoading: tabLoading }) {
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearch = useDeferredValue(searchQuery);
-  const [workoutModal, setWorkoutModal] = useState({ open: false, task: null, date: null });
   const [textModal, setTextModal] = useState({
     open: false,
     task: null,
@@ -641,16 +636,6 @@ export function HistoryTab({ isLoading: tabLoading }) {
     [deleteCompletion, deleteOffScheduleCompletion]
   );
 
-  // Handle workout modal open - memoized
-  const handleOpenWorkout = useCallback((task, date) => {
-    setWorkoutModal({ open: true, task, date });
-  }, []);
-
-  // Handle workout modal close - memoized
-  const handleCloseWorkout = useCallback(() => {
-    setWorkoutModal({ open: false, task: null, date: null });
-  }, []);
-
   // Handle text modal open - memoized
   const handleOpenTextModal = useCallback((task, date, completion, isScheduled) => {
     setTextModal({ open: true, task, date, completion, isScheduled });
@@ -660,6 +645,17 @@ export function HistoryTab({ isLoading: tabLoading }) {
   const handleCloseTextModal = useCallback(() => {
     setTextModal({ open: false, task: null, date: null, completion: null, isScheduled: false });
   }, []);
+
+  const handleOpenWorkoutFromCell = useCallback(
+    (task, date) => {
+      const targetDate = dayjs(date).toDate();
+      targetDate.setHours(0, 0, 0, 0);
+      viewState.setTodayViewDate(targetDate);
+      dialogState.handleBeginWorkout(task);
+      handleCloseTextModal();
+    },
+    [dialogState, viewState, handleCloseTextModal]
+  );
 
   // Handle text modal save - memoized
   const handleTextModalSave = useCallback(
@@ -679,18 +675,6 @@ export function HistoryTab({ isLoading: tabLoading }) {
       handleCloseTextModal();
     }
   }, [textModal.task, textModal.date, handleCellDelete, handleCloseTextModal]);
-
-  // Handle workout completion - memoized
-  const handleWorkoutComplete = useCallback(
-    (taskId, date) => {
-      const currentTask = workoutModal.task;
-      if (currentTask) {
-        handleCellUpdate(currentTask, date, { outcome: "completed" });
-      }
-      setWorkoutModal({ open: false, task: null, date: null });
-    },
-    [workoutModal.task, handleCellUpdate]
-  );
 
   if (tabLoading) {
     return (
@@ -956,7 +940,6 @@ export function HistoryTab({ isLoading: tabLoading }) {
                         isScheduled={isScheduled}
                         onCellUpdate={handleCellUpdate}
                         onCellDelete={handleCellDelete}
-                        onOpenWorkout={handleOpenWorkout}
                         showRightBorder={isLastInSection}
                         onOpenTextModal={handleOpenTextModal}
                       />
@@ -1024,18 +1007,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
         )}
       </Menu>
 
-      {/* Workout Modal */}
-      {workoutModal.task && (
-        <WorkoutModal
-          task={workoutModal.task}
-          isOpen={workoutModal.open}
-          onClose={handleCloseWorkout}
-          onCompleteTask={handleWorkoutComplete}
-          currentDate={workoutModal.date ? new Date(workoutModal.date) : new Date()}
-        />
-      )}
-
-      {/* Text/Journal Entry Modal */}
+      {/* Cell Editor Modal */}
       <Dialog
         open={textModal.open}
         onClose={handleCloseTextModal}
@@ -1066,6 +1038,11 @@ export function HistoryTab({ isLoading: tabLoading }) {
                 onSave={handleTextModalSave}
                 onDelete={handleTextModalDelete}
                 onClose={handleCloseTextModal}
+                onOpenWorkout={
+                  textModal.task?.completionType === "workout" && textModal.date
+                    ? () => handleOpenWorkoutFromCell(textModal.task, textModal.date)
+                    : null
+                }
               />
             </Box>
           )}

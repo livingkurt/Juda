@@ -17,7 +17,16 @@ import { useDebouncedSave } from "@/hooks/useDebouncedSave";
  * @param {Function} onDelete - () => void
  * @param {Function} onClose - () => void
  */
-export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave, onDelete, onClose }) => {
+export const CellEditorPopover = ({
+  task,
+  date,
+  completion,
+  isScheduled,
+  onSave,
+  onDelete,
+  onClose,
+  onOpenWorkout,
+}) => {
   // Normalize date to dayjs
   const dateObj = typeof date === "string" ? dayjs(date) : dayjs(date);
 
@@ -139,6 +148,8 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
     );
   }
 
+  const canOpenWorkout = task.completionType === "workout" && typeof onOpenWorkout === "function";
+
   // For checkbox type (default)
   return (
     <Box sx={{ p: 2, minWidth: 280, position: "relative" }}>
@@ -197,6 +208,11 @@ export const CellEditorPopover = ({ task, date, completion, isScheduled, onSave,
         {completion && (
           <Button size="small" color="error" startIcon={<Delete fontSize="small" />} onClick={onDelete}>
             Delete
+          </Button>
+        )}
+        {canOpenWorkout && (
+          <Button size="small" variant="outlined" onClick={onOpenWorkout}>
+            Open Workout
           </Button>
         )}
         <Box flex={1} />
