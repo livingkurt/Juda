@@ -288,6 +288,13 @@
       "when": 1769007667752,
       "tag": "0040_add_section_time_range",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1769097080605,
+      "tag": "0041_add_task_priority",
+      "breakpoints": true
     }
   ]
 }

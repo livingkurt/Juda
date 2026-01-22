@@ -43,6 +43,9 @@ export const POST = withApi(async (request, { userId, getBody }) => {
   }
 
   validateEnum("status", updates.status, ["todo", "in_progress", "complete"]);
+  if (updates.priority !== undefined && updates.priority !== null) {
+    validateEnum("priority", updates.priority, ["low", "medium", "high", "urgent"]);
+  }
 
   const updateData = {};
   if (updates.sectionId !== undefined) updateData.sectionId = updates.sectionId;
@@ -56,6 +59,9 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     } else if (updates.status === "todo") {
       updateData.startedAt = null;
     }
+  }
+  if (updates.priority !== undefined) {
+    updateData.priority = updates.priority === null ? null : updates.priority;
   }
 
   await db.transaction(async tx => {

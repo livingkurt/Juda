@@ -16,6 +16,7 @@ import {
 } from "@mui/icons-material";
 import { formatTime, getTaskDisplayColor, isOverdue } from "@/lib/utils";
 import { TagChip } from "./TagChip";
+import { PriorityChip } from "./PriorityChip";
 import { TaskBadges } from "./shared/TaskBadges";
 import { TaskContextMenu } from "./TaskContextMenu";
 import { OutcomeCheckbox } from "./OutcomeCheckbox";
@@ -686,6 +687,8 @@ export const TaskItem = ({
                     }}
                   />
                 )}
+                {/* Priority badge */}
+                {task.priority && <PriorityChip priority={task.priority} size="sm" />}
                 {/* Shared task badges component */}
                 <TaskBadges
                   task={task}
@@ -726,9 +729,10 @@ export const TaskItem = ({
               </Typography>
             )}
             {/* Tags for kanban variant */}
-            {variant === "kanban" && task.tags && task.tags.length > 0 && (
+            {variant === "kanban" && (task.priority || (task.tags && task.tags.length > 0)) && (
               <Stack direction="row" spacing={1} sx={{ mt: 1.5, alignItems: "center", flexWrap: "wrap" }}>
-                {task.tags.map(tag => (
+                {task.priority && <PriorityChip priority={task.priority} size="xs" />}
+                {(task.tags || []).map(tag => (
                   <TagChip key={tag.id} tag={tag} size="sm" />
                 ))}
               </Stack>

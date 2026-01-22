@@ -83,6 +83,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     order,
     completionType,
     content,
+    priority,
     folderId,
     tagIds,
     sourceTaskId,
@@ -105,6 +106,10 @@ export const POST = withApi(async (request, { userId, getBody }) => {
 
   // Create task and assign tags in a transaction
   const result = await db.transaction(async tx => {
+    if (priority !== undefined && priority !== null) {
+      validateEnum("priority", priority, ["low", "medium", "high", "urgent"]);
+    }
+
     const [task] = await tx
       .insert(tasks)
       .values({
@@ -118,6 +123,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
         order: order ?? 0,
         completionType: completionType || "checkbox",
         content: content || null,
+        priority: priority ?? null,
         folderId: folderId || null,
         sourceTaskId: sourceTaskId || null,
         rolledFromDate: rolledFromDate ? new Date(rolledFromDate) : null,
@@ -186,6 +192,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     expanded,
     order,
     status,
+    priority,
     startedAt,
     completionType,
     content,
@@ -245,6 +252,14 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
   }
   if (content !== undefined) updateData.content = content;
   if (folderId !== undefined) updateData.folderId = folderId;
+  if (priority !== undefined) {
+    if (priority === null) {
+      updateData.priority = null;
+    } else {
+      validateEnum("priority", priority, ["low", "medium", "high", "urgent"]);
+      updateData.priority = priority;
+    }
+  }
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json(existingTask);
