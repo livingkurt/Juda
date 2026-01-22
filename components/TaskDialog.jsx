@@ -33,8 +33,7 @@ import GLGrid from "./GLGrid";
 import { Close, Add, Delete, DragIndicator, Search, Edit } from "@mui/icons-material";
 import { DatePicker, TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { DAYS_OF_WEEK, DURATION_OPTIONS, ORDINAL_OPTIONS, MONTH_OPTIONS, COMPLETION_TYPES } from "@/lib/constants";
 import { formatLocalDate } from "@/lib/utils";
 import { TagSelector } from "./TagSelector";
@@ -158,7 +157,6 @@ function TaskDialogForm({
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [subtaskTabIndex, setSubtaskTabIndex] = useState(0);
-  const [activeSubtaskId, setActiveSubtaskId] = useState(null);
   const [completionType, setCompletionType] = useState(task?.completionType || "checkbox");
   const [content, setContent] = useState(task?.content || "");
   const [showScopeDialog, setShowScopeDialog] = useState(false);
@@ -183,15 +181,6 @@ function TaskDialogForm({
     }
     return null;
   }, [defaultDate, clickedRecurringDate]);
-
-  // Drag and drop sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // 8px movement required before drag starts
-      },
-    })
-  );
 
   const performSave = useCallback(
     async (saveData, scope = null) => {
@@ -502,36 +491,19 @@ function TaskDialogForm({
   }, []);
 
   // Handle drag and drop for subtasks
-  const handleDragStart = useCallback(event => {
-    setActiveSubtaskId(event.active.id);
-  }, []);
+  const handleDragEnd = useCallback(result => {
+    const { destination, source } = result;
 
-  const handleDragEnd = useCallback(event => {
-    const { active, over } = event;
-    setActiveSubtaskId(null);
-
-    if (!over || active.id === over.id) {
-      return;
-    }
+    if (!destination) return;
+    if (destination.index === source.index) return;
 
     setSubtasks(prev => {
-      const oldIndex = prev.findIndex(st => `subtask-${st.id}` === active.id);
-      const newIndex = prev.findIndex(st => `subtask-${st.id}` === over.id);
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const reorderedSubtasks = arrayMove(prev, oldIndex, newIndex);
-        return reorderedSubtasks.map((st, idx) => ({ ...st, order: idx }));
-      }
-      return prev;
+      const reordered = Array.from(prev);
+      const [removed] = reordered.splice(source.index, 1);
+      reordered.splice(destination.index, 0, removed);
+      return reordered.map((st, idx) => ({ ...st, order: idx }));
     });
   }, []);
-
-  const handleDragCancel = useCallback(() => {
-    setActiveSubtaskId(null);
-  }, []);
-
-  // Get the active subtask for drag overlay
-  const activeSubtask = activeSubtaskId ? subtasks.find(st => `subtask-${st.id}` === activeSubtaskId) : null;
 
   // Search and add existing task as subtask
   const filteredTasks = allTasks.filter(t => {
@@ -1039,61 +1011,59 @@ function TaskDialogForm({
                     {subtaskTabIndex === 0 && (
                       <Box sx={{ p: 2 }}>
                         {subtasks.length > 0 ? (
-                          <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragStart={handleDragStart}
-                            onDragEnd={handleDragEnd}
-                            onDragCancel={handleDragCancel}
-                          >
-                            <SortableContext
-                              items={subtasks.map(st => `subtask-${st.id}`)}
-                              strategy={verticalListSortingStrategy}
-                            >
-                              <List dense sx={{ mb: 2 }}>
-                                {subtasks.map((st, index) => (
-                                  <ListItem key={st.id} divider={index < subtasks.length - 1} sx={{ py: 1, px: 0 }}>
-                                    <DragIndicator sx={{ mr: 1, color: "text.disabled", cursor: "grab" }} />
-                                    <ListItemText primary={st.title} secondary={st.time || undefined} />
-                                    <ListItemSecondaryAction>
-                                      <IconButton
-                                        edge="end"
-                                        size="small"
-                                        onClick={() => {
-                                          setEditingSubtask(st);
-                                          setSubtaskTitle(st.title);
-                                          setSubtaskTime(st.time || "");
-                                          setSubtaskDuration(st.duration || 30);
-                                        }}
-                                        sx={{ mr: 1 }}
-                                      >
-                                        <Edit fontSize="small" />
-                                      </IconButton>
-                                      <IconButton
-                                        edge="end"
-                                        size="small"
-                                        onClick={() => {
-                                          setSubtasks(subtasks.filter(s => s.id !== st.id));
-                                        }}
-                                      >
-                                        <Delete fontSize="small" />
-                                      </IconButton>
-                                    </ListItemSecondaryAction>
-                                  </ListItem>
-                                ))}
-                              </List>
-                            </SortableContext>
-                            <DragOverlay>
-                              {activeSubtask ? (
-                                <TaskItem
-                                  task={activeSubtask}
-                                  variant="subtask"
-                                  containerId="task-dialog-subtasks"
-                                  draggableId={`subtask-${activeSubtask.id}`}
-                                />
-                              ) : null}
-                            </DragOverlay>
-                          </DndContext>
+                          <DragDropContext onDragEnd={handleDragEnd}>
+                            <Droppable droppableId="task-dialog-subtasks" type="SUBTASK">
+                              {provided => (
+                                <List ref={provided.innerRef} {...provided.droppableProps} dense sx={{ mb: 2 }}>
+                                  {subtasks.map((st, index) => (
+                                    <Draggable key={st.id} draggableId={`subtask-${st.id}`} index={index}>
+                                      {(provided, snapshot) => (
+                                        <ListItem
+                                          ref={provided.innerRef}
+                                          {...provided.draggableProps}
+                                          {...provided.dragHandleProps}
+                                          divider={index < subtasks.length - 1}
+                                          sx={{
+                                            py: 1,
+                                            px: 0,
+                                            opacity: snapshot.isDragging ? 0.5 : 1,
+                                          }}
+                                        >
+                                          <DragIndicator sx={{ mr: 1, color: "text.disabled", cursor: "grab" }} />
+                                          <ListItemText primary={st.title} secondary={st.time || undefined} />
+                                          <ListItemSecondaryAction>
+                                            <IconButton
+                                              edge="end"
+                                              size="small"
+                                              onClick={() => {
+                                                setEditingSubtask(st);
+                                                setSubtaskTitle(st.title);
+                                                setSubtaskTime(st.time || "");
+                                                setSubtaskDuration(st.duration || 30);
+                                              }}
+                                              sx={{ mr: 1 }}
+                                            >
+                                              <Edit fontSize="small" />
+                                            </IconButton>
+                                            <IconButton
+                                              edge="end"
+                                              size="small"
+                                              onClick={() => {
+                                                setSubtasks(subtasks.filter(s => s.id !== st.id));
+                                              }}
+                                            >
+                                              <Delete fontSize="small" />
+                                            </IconButton>
+                                          </ListItemSecondaryAction>
+                                        </ListItem>
+                                      )}
+                                    </Draggable>
+                                  ))}
+                                  {provided.placeholder}
+                                </List>
+                              )}
+                            </Droppable>
+                          </DragDropContext>
                         ) : (
                           <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
                             No subtasks yet

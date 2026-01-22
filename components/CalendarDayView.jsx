@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useRef, useEffect, useCallback, useMemo } from "react";
 import { Box, Stack, Typography } from "@mui/material";
-import { useDroppable } from "@dnd-kit/core";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate, calculateTaskPositions } from "@/lib/utils";
-import { HOUR_HEIGHT_DAY, DRAG_THRESHOLD } from "@/lib/calendarConstants";
+import { HOUR_HEIGHT_DAY } from "@/lib/calendarConstants";
 import { CalendarTask } from "./CalendarTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
 import { CurrentTimeLine } from "./CurrentTimeLine";
@@ -16,7 +15,7 @@ import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_DAY;
 
-export const CalendarDayView = ({ date, createDroppableId, createDraggableId, onDropTimeChange }) => {
+export const CalendarDayView = ({ date, createDraggableId, onDropTimeChange }) => {
   // Get preferences
   const { preferences } = usePreferencesContext();
   const zoom = preferences.calendarZoom?.day || 1.0;
@@ -49,8 +48,6 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   const containerRef = useRef(null);
-  const rafRef = useRef(null);
-  const draggingTaskIdRef = useRef(null);
 
   // Check if viewing today
   const today = new Date();
@@ -82,18 +79,6 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
     return () => clearTimeout(timeoutId);
   }, [isToday, HOUR_HEIGHT, date]);
 
-  // Internal drag state for time/duration adjustments (not cross-container)
-  const [internalDrag, setInternalDrag] = useState({
-    taskId: null,
-    type: null, // "move" or "resize"
-    startY: 0,
-    startMinutes: 0,
-    startDuration: 0,
-    currentMinutes: 0,
-    currentDuration: 0,
-    hasMoved: false,
-  });
-
   // Pre-compute positioned tasks with overlap handling
   const positionedTasks = useMemo(() => {
     return calculateTaskPositions(dayTasks);
@@ -103,11 +88,8 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
   const taskStyles = useMemo(() => {
     const styles = new Map();
     positionedTasks.forEach(task => {
-      const isDragging = internalDrag.taskId === task.id;
-      const minutes =
-        isDragging && internalDrag.type === "move" ? internalDrag.currentMinutes : timeToMinutes(task.time);
-      const duration =
-        isDragging && internalDrag.type === "resize" ? internalDrag.currentDuration : (task.duration ?? 30);
+      const minutes = timeToMinutes(task.time);
+      const duration = task.duration ?? 30;
       const isNoDuration = duration === 0;
       styles.set(task.id, {
         top: `${(minutes / 60) * HOUR_HEIGHT}px`,
@@ -117,7 +99,7 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
       });
     });
     return styles;
-  }, [positionedTasks, internalDrag, HOUR_HEIGHT]);
+  }, [positionedTasks, HOUR_HEIGHT]);
 
   const getTaskStyle = useCallback(
     task => {
@@ -125,101 +107,6 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
     },
     [taskStyles]
   );
-
-  // Start internal drag for time adjustment
-  const handleInternalDragStart = useCallback((e, task, type) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const taskDuration = task.duration ?? 30;
-    // Support both mouse and touch events
-    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
-    draggingTaskIdRef.current = task.id;
-    setInternalDrag({
-      taskId: task.id,
-      type,
-      startY: clientY,
-      startMinutes: timeToMinutes(task.time),
-      startDuration: taskDuration,
-      currentMinutes: timeToMinutes(task.time),
-      currentDuration: taskDuration,
-      hasMoved: false,
-    });
-  }, []);
-
-  const handleInternalDragMove = useCallback(
-    clientY => {
-      if (!draggingTaskIdRef.current) return;
-
-      // Throttle updates to 60fps using requestAnimationFrame
-      if (rafRef.current) return;
-
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = null;
-
-        setInternalDrag(prev => {
-          if (!prev.taskId) return prev;
-
-          const deltaY = clientY - prev.startY;
-          const hasMoved = Math.abs(deltaY) > DRAG_THRESHOLD;
-
-          if (prev.type === "move") {
-            const newMinutes = snapToIncrement(prev.startMinutes + (deltaY / HOUR_HEIGHT) * 60, 15);
-            return {
-              ...prev,
-              currentMinutes: Math.max(0, Math.min(24 * 60 - prev.startDuration, newMinutes)),
-              hasMoved: hasMoved || prev.hasMoved,
-            };
-          } else {
-            const newDuration = snapToIncrement(prev.startDuration + (deltaY / HOUR_HEIGHT) * 60, 15);
-            // When resizing, minimum is 15 minutes (converts "No duration" tasks to timed)
-            return {
-              ...prev,
-              currentDuration: Math.max(15, newDuration),
-              hasMoved: hasMoved || prev.hasMoved,
-            };
-          }
-        });
-      });
-    },
-    [HOUR_HEIGHT]
-  );
-
-  const handleInternalDragEnd = useCallback(() => {
-    if (!draggingTaskIdRef.current) return;
-
-    const { taskId, type, currentMinutes, currentDuration, hasMoved } = internalDrag;
-
-    // Cancel any pending animation frame
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-
-    // Clear the ref
-    draggingTaskIdRef.current = null;
-
-    // Reset state first
-    setInternalDrag({
-      taskId: null,
-      type: null,
-      startY: 0,
-      startMinutes: 0,
-      startDuration: 0,
-      currentMinutes: 0,
-      currentDuration: 0,
-      hasMoved: false,
-    });
-
-    if (hasMoved) {
-      if (type === "move") {
-        taskOps.handleTaskTimeChange(taskId, minutesToTime(currentMinutes));
-      } else {
-        taskOps.handleTaskDurationChange(taskId, currentDuration);
-      }
-    }
-    // Note: For clicks without drag, let the onClick handler in CalendarTask handle it
-    // to avoid double calls to handleEditTask
-  }, [internalDrag, taskOps]);
 
   // Memoize status tasks calculation
   const statusTasks = useMemo(() => {
@@ -276,50 +163,15 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
       });
   }, [tasks, date, showStatusTasks, getCompletionForDate, HOUR_HEIGHT]);
 
-  useEffect(() => {
-    if (!internalDrag.taskId) return;
-
-    const onMouseMove = e => handleInternalDragMove(e.clientY);
-    const onMouseUp = () => handleInternalDragEnd();
-    const onTouchMove = e => {
-      e.preventDefault(); // Prevent scrolling while dragging
-      if (e.touches.length === 1) {
-        handleInternalDragMove(e.touches[0].clientY);
-      }
-    };
-    const onTouchEnd = e => {
-      e.preventDefault();
-      handleInternalDragEnd();
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("touchend", onTouchEnd, { passive: false });
-
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
-      // Clean up any pending animation frame
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-    };
-  }, [internalDrag.taskId, handleInternalDragMove, handleInternalDragEnd]);
-
   // Click on empty calendar space to create task
   const handleCalendarClick = useCallback(
     e => {
-      if (internalDrag.taskId || internalDrag.hasMoved) return;
       const rect = containerRef.current.getBoundingClientRect();
       const y = e.clientY - rect.top + containerRef.current.scrollTop;
       const minutes = snapToIncrement((y / HOUR_HEIGHT) * 60, 15);
       taskOps.handleCreateTaskFromCalendar(minutesToTime(minutes), date);
     },
-    [internalDrag.taskId, internalDrag.hasMoved, HOUR_HEIGHT, taskOps, date]
+    [HOUR_HEIGHT, taskOps, date]
   );
 
   // Calculate drop time from mouse position
@@ -335,19 +187,9 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
     [HOUR_HEIGHT, onDropTimeChange]
   );
 
-  const timedDroppableId = createDroppableId.calendarDay(date);
-  const untimedDroppableId = createDroppableId.calendarDayUntimed(date);
-
-  // Use droppable hooks
-  const { setNodeRef: setUntimedRef, isOver: isOverUntimed } = useDroppable({
-    id: untimedDroppableId,
-    data: { type: "TASK", date, isUntimed: true },
-  });
-
-  const { setNodeRef: setTimedRef, isOver: isOverTimed } = useDroppable({
-    id: timedDroppableId,
-    data: { type: "TASK", date, isUntimed: false },
-  });
+  // Refs for drop zones
+  const untimedRef = useRef(null);
+  const timedRef = useRef(null);
 
   return (
     <Box
@@ -381,19 +223,19 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
 
       {/* Untimed tasks area */}
       <Box
-        ref={setUntimedRef}
+        ref={untimedRef}
         sx={{
           borderBottom: 1,
           borderColor: "divider",
-          bgcolor: isOverUntimed ? "action.hover" : "background.paper",
-          minHeight: untimedTasks.length > 0 || isOverUntimed ? "auto" : 0,
+          bgcolor: "background.paper",
+          minHeight: untimedTasks.length > 0 ? "auto" : 0,
           transition: "background-color 0.2s",
           width: "100%",
           maxWidth: "100%",
           flexShrink: 0,
         }}
       >
-        {(untimedTasks.length > 0 || isOverUntimed) && (
+        {untimedTasks.length > 0 && (
           <Stack spacing={0}>
             {/* All Day header - fixed, not scrollable */}
             <Box sx={{ px: { xs: 2, md: 4 }, pt: 1, pb: 0.5, flexShrink: 0 }}>
@@ -416,19 +258,6 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
                     variant="untimed"
                   />
                 ))}
-                {isOverUntimed && untimedTasks.length === 0 && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: { xs: "0.6rem", md: "0.75rem" },
-                      color: "text.secondary",
-                      textAlign: "center",
-                      py: 2,
-                    }}
-                  >
-                    Drop here for all-day task
-                  </Typography>
-                )}
               </Stack>
             </Box>
           </Stack>
@@ -473,14 +302,14 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
 
           {/* Droppable timed area */}
           <Box
-            ref={setTimedRef}
+            ref={timedRef}
             sx={{
               position: "absolute",
               left: 64,
               right: 8,
               top: 0,
               bottom: 0,
-              bgcolor: isOverTimed ? "action.hover" : "transparent",
+              bgcolor: "transparent",
               borderRadius: 1,
               transition: "background-color 0.2s",
             }}
@@ -489,9 +318,7 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
             data-calendar-view="day"
             data-hour-height={HOUR_HEIGHT}
             onMouseMove={e => {
-              if (isOverTimed) {
-                handleDropTimeCalculation(e, e.currentTarget.getBoundingClientRect());
-              }
+              handleDropTimeCalculation(e, e.currentTarget.getBoundingClientRect());
             }}
           >
             {/* Render positioned tasks */}
@@ -503,8 +330,6 @@ export const CalendarDayView = ({ date, createDroppableId, createDraggableId, on
                 date={date}
                 variant="timed"
                 getTaskStyle={getTaskStyle}
-                internalDrag={internalDrag}
-                handleInternalDragStart={handleInternalDragStart}
               />
             ))}
 

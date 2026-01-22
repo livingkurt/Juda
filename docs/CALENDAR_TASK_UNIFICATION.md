@@ -41,7 +41,7 @@ Created a single unified `CalendarTask` component that:
    - Internal drag support for time adjustment
 
 3. **Maintains all features** from the original components:
-   - Drag & drop with @dnd-kit
+   - Drag & drop with @hello-pangea/dnd
    - Context menu with TaskContextMenu
    - Tag management with TagMenuSelector
    - Completion states (completed, not_completed)

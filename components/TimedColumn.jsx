@@ -1,8 +1,7 @@
 "use client";
 
-import { memo, useMemo, useCallback } from "react";
+import { memo, useCallback, useRef } from "react";
 import { Box } from "@mui/material";
-import { useDroppable } from "@dnd-kit/core";
 import { CalendarTask } from "./CalendarTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
 import { CurrentTimeLine } from "./CurrentTimeLine";
@@ -17,25 +16,14 @@ export const TimedColumn = memo(
     allTasks = [],
     handleColumnClick,
     handleDropTimeCalculation,
-    createDroppableId,
     createDraggableId,
     getTaskStyle,
-    internalDrag,
-    handleInternalDragStart,
-    dropHighlight,
+    dropHighlight: _dropHighlight,
     showStatusTasks = true,
     hourHeight = 48,
     isToday = false,
   }) {
-    const timedDroppableId = createDroppableId.calendarWeek(day);
-
-    // Memoize droppable data to prevent unnecessary re-renders
-    const droppableData = useMemo(() => ({ type: "TASK", date: day, isUntimed: false }), [day]);
-
-    const { setNodeRef, isOver } = useDroppable({
-      id: timedDroppableId,
-      data: droppableData,
-    });
+    const columnRef = useRef(null);
 
     // Use hooks directly (they use Redux internally)
     const { getCompletionForDate } = useCompletionHelpers();
@@ -49,37 +37,27 @@ export const TimedColumn = memo(
     // Just use them directly
     const positionedTasks = timedTasks;
 
-    // Create stable handlers for CalendarTask components
-    const handleTaskDragStart = useCallback(
-      (e, task, type) => {
-        handleInternalDragStart(e, task, type);
-      },
-      [handleInternalDragStart]
-    );
-
     // Stable column click handler
     const handleColumnClickWrapper = useCallback(
       e => {
-        if (!isOver) {
-          handleColumnClick(e, day);
-        }
+        handleColumnClick(e, day);
       },
-      [isOver, handleColumnClick, day]
+      [handleColumnClick, day]
     );
 
     // Stable mouse move handler
     const handleMouseMove = useCallback(
       e => {
-        if (isOver) {
-          handleDropTimeCalculation(e, e.currentTarget.getBoundingClientRect());
+        if (columnRef.current) {
+          handleDropTimeCalculation(e, columnRef.current.getBoundingClientRect());
         }
       },
-      [isOver, handleDropTimeCalculation]
+      [handleDropTimeCalculation]
     );
 
     return (
       <Box
-        ref={setNodeRef}
+        ref={columnRef}
         sx={{
           flex: 1,
           flexShrink: 0,
@@ -92,7 +70,7 @@ export const TimedColumn = memo(
           height: "100%",
           width: "100%",
           zIndex: 2,
-          bgcolor: isOver ? dropHighlight : isToday ? "action.selected" : "transparent",
+          bgcolor: isToday ? "action.selected" : "transparent",
           transition: "background-color 0.2s, border-color 0.2s",
         }}
         onClick={handleColumnClickWrapper}
@@ -113,8 +91,6 @@ export const TimedColumn = memo(
             date={day}
             variant="timed-week"
             getTaskStyle={task => getTaskStyle(task, positionedTask)}
-            internalDrag={internalDrag}
-            handleInternalDragStart={handleTaskDragStart}
           />
         ))}
 
@@ -192,8 +168,6 @@ export const TimedColumn = memo(
       prevProps.isToday === nextProps.isToday &&
       prevProps.hourHeight === nextProps.hourHeight &&
       prevProps.showStatusTasks === nextProps.showStatusTasks &&
-      prevProps.internalDrag?.taskId === nextProps.internalDrag?.taskId &&
-      prevProps.internalDrag?.hasMoved === nextProps.internalDrag?.hasMoved &&
       // Only check if tasks array reference changed (shallow comparison)
       prevProps.timedTasks === nextProps.timedTasks
     );
