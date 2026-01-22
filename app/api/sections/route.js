@@ -26,7 +26,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
   const body = await getBody();
   validateRequired(body, ["name"]);
 
-  const { name, icon, order, expanded } = body;
+  const { name, icon, order, expanded, startTime, endTime } = body;
 
   const [section] = await db
     .insert(sections)
@@ -36,6 +36,8 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       icon: icon || "list",
       order: order ?? 0,
       expanded: expanded ?? true,
+      startTime: startTime || null,
+      endTime: endTime || null,
     })
     .returning();
 
@@ -50,7 +52,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
   const body = await getBody();
   validateRequired(body, ["id"]);
 
-  const { id, name, icon, order, expanded } = body;
+  const { id, name, icon, order, expanded, startTime, endTime } = body;
 
   const existingSection = await db.query.sections.findFirst({
     where: and(eq(sections.id, id), eq(sections.userId, userId)),
@@ -65,6 +67,8 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
   if (icon !== undefined) updateData.icon = icon;
   if (order !== undefined) updateData.order = order;
   if (expanded !== undefined) updateData.expanded = expanded;
+  if (startTime !== undefined) updateData.startTime = startTime || null;
+  if (endTime !== undefined) updateData.endTime = endTime || null;
 
   const [section] = await db
     .update(sections)
