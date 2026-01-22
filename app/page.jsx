@@ -88,6 +88,15 @@ const NotesTab = dynamic(() => import("@/components/tabs/NotesTab").then(mod => 
   ssr: false,
 });
 
+const WorkoutTab = dynamic(() => import("@/components/tabs/WorkoutTab").then(mod => ({ default: mod.WorkoutTab })), {
+  loading: () => (
+    <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <CircularProgress size={48} />
+    </Box>
+  ),
+  ssr: false,
+});
+
 const HistoryTab = dynamic(() => import("@/components/tabs/HistoryTab").then(mod => ({ default: mod.HistoryTab })), {
   loading: () => (
     <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -400,7 +409,9 @@ export default function DailyTasksApp() {
 
             {(mainTabIndex === 3 || loadingTab === 3) && <NotesTab isLoading={loadingTab === 3} />}
 
-            {(mainTabIndex === 4 || loadingTab === 4) && <HistoryTab isLoading={loadingTab === 4} />}
+            {(mainTabIndex === 4 || loadingTab === 4) && <WorkoutTab isLoading={loadingTab === 4} />}
+
+            {(mainTabIndex === 5 || loadingTab === 5) && <HistoryTab isLoading={loadingTab === 5} />}
           </Box>
         </Box>
 
