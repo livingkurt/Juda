@@ -5,18 +5,12 @@ import { Box, Stack, Typography, Tooltip, ButtonBase, useTheme } from "@mui/mate
 import { shouldShowOnDate } from "@/lib/utils";
 
 const getCellStyle = (outcome, isScheduled, isFuture, theme) => {
-  // Future dates should be greyed out (scheduled but not yet due)
-  if (isFuture) {
-    return { bgcolor: "action.hover", color: "text.secondary", opacity: 0.5 };
-  }
-
-  // Match History tab logic EXACTLY:
-  // 1. If not scheduled and no completion → transparent
-  if (!isScheduled && !outcome) {
+  // 1. If not scheduled → always transparent (regardless of future/past or outcome)
+  if (!isScheduled) {
     return { bgcolor: "transparent", color: "text.secondary" };
   }
 
-  // 2. Check completion outcome
+  // 2. Check completion outcome (only for scheduled days)
   if (outcome === "completed") {
     return { bgcolor: theme.palette.success.dark + "40", color: "success.contrastText" };
   }
@@ -27,13 +21,13 @@ const getCellStyle = (outcome, isScheduled, isFuture, theme) => {
     return { bgcolor: "#f59e0b40", color: "warning.contrastText" };
   }
 
-  // 3. If scheduled but no completion → light hover (not done yet)
-  if (isScheduled) {
-    return { bgcolor: "action.hover", color: "text.secondary" };
+  // 3. Scheduled but no completion:
+  //    - Future dates → greyed out
+  //    - Past dates → light hover (not done yet)
+  if (isFuture) {
+    return { bgcolor: "action.hover", color: "text.secondary", opacity: 0.5 };
   }
-
-  // 4. Default → transparent
-  return { bgcolor: "transparent", color: "text.secondary" };
+  return { bgcolor: "action.hover", color: "text.secondary" };
 };
 
 const getWorkoutWeek = (date, programStartDate, totalWeeks) => {
