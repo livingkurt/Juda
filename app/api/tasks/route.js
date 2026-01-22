@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, sections, taskTags, tags } from "@/lib/schema";
-import { eq, and, asc, inArray } from "drizzle-orm";
+import { eq, and, asc, inArray, sql } from "drizzle-orm";
 import {
   withApi,
   Errors,
@@ -14,8 +14,16 @@ import {
 
 const taskBroadcast = withBroadcast(ENTITY_TYPES.TASK);
 
-export const GET = withApi(async (request, { userId }) => {
-  const allTasks = await db.query.tasks.findMany({
+export const GET = withApi(async (request, { userId, getSearchParams }) => {
+  const searchParams = getSearchParams();
+  const pageParam = searchParams.get("page");
+  const limitParam = searchParams.get("limit");
+  const includeAll = searchParams.get("all") === "true" || (!pageParam && !limitParam);
+  const page = parseInt(pageParam || "1");
+  const limit = parseInt(limitParam || "500");
+  const offset = (page - 1) * limit;
+
+  const baseQuery = {
     where: eq(tasks.userId, userId),
     with: {
       section: true,
@@ -26,14 +34,40 @@ export const GET = withApi(async (request, { userId }) => {
       },
     },
     orderBy: [asc(tasks.sectionId), asc(tasks.order)],
-  });
+  };
+
+  const allTasks = includeAll
+    ? await db.query.tasks.findMany(baseQuery)
+    : await db.query.tasks.findMany({
+        ...baseQuery,
+        limit,
+        offset,
+      });
 
   const tasksWithTags = allTasks.map(task => ({
     ...task,
     tags: task.taskTags?.map(tt => tt.tag) || [],
   }));
 
-  return NextResponse.json(tasksWithTags);
+  if (includeAll) {
+    return NextResponse.json(tasksWithTags);
+  }
+
+  const [{ count: totalCount }] = await db
+    .select({ count: sql`count(*)` })
+    .from(tasks)
+    .where(eq(tasks.userId, userId));
+
+  return NextResponse.json({
+    tasks: tasksWithTags,
+    pagination: {
+      page,
+      limit,
+      totalCount: Number(totalCount),
+      totalPages: Math.ceil(Number(totalCount) / limit),
+      hasMore: offset + tasksWithTags.length < Number(totalCount),
+    },
+  });
 });
 
 export const POST = withApi(async (request, { userId, getBody }) => {
