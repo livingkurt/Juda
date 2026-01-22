@@ -1,5 +1,14 @@
 # Project Decisions Log
 
+## 2026-01-22
+
+### Tasks tab main content toggle
+
+- Consolidated Today and Calendar into a single `mainContentView` state with a mutually exclusive toggle group.
+- Removed Today/Calendar split-panel layout and the associated `todayViewWidth` resize logic.
+- Kept Backlog as an independent toggle and preserved mobile view switching via `mobileActiveView`.
+- Added preference migration logic to derive `mainContentView` from older `showDashboard`/`showCalendar` values.
+
 ## 2026-01-19
 
 ### Notes Tab completion

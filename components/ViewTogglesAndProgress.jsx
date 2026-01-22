@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { Box, Stack, Typography, Button, Badge, useMediaQuery } from "@mui/material";
+import { Box, Stack, Typography, Badge, ToggleButton, ToggleButtonGroup, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { CalendarToday as Calendar, Dashboard as LayoutDashboard, List } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
-import { setBacklogOpen, setShowDashboard, setShowCalendar } from "@/lib/store/slices/uiSlice";
+import { setBacklogOpen, setMainContentView } from "@/lib/store/slices/uiSlice";
 import { useViewState } from "@/hooks/useViewState";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
@@ -22,8 +22,7 @@ export function ViewTogglesAndProgress() {
 
   // Get UI state from Redux
   const backlogOpen = useSelector(state => state.ui.backlogOpen);
-  const showDashboard = useSelector(state => state.ui.showDashboard);
-  const showCalendar = useSelector(state => state.ui.showCalendar);
+  const mainContentView = useSelector(state => state.ui.mainContentView);
   const recentlyCompletedTasksArray = useSelector(state => state.ui.recentlyCompletedTasks);
 
   // Convert recently completed tasks array to Set
@@ -75,17 +74,23 @@ export function ViewTogglesAndProgress() {
   return (
     <Box sx={{ mt: 4 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={1} alignItems="center">
           <Box sx={{ position: "relative" }}>
-            <Button
-              size="small"
-              variant={backlogOpen ? "contained" : "outlined"}
-              color={backlogOpen ? "primary" : "inherit"}
-              onClick={() => dispatch(setBacklogOpen(!backlogOpen))}
-              startIcon={<List fontSize="small" />}
-            >
-              Backlog
-            </Button>
+            <ToggleButtonGroup value={backlogOpen ? "backlog" : null} exclusive size="small" color="primary">
+              <ToggleButton
+                value="backlog"
+                onClick={() => dispatch(setBacklogOpen(!backlogOpen))}
+                sx={{
+                  textTransform: "none",
+                  position: "relative",
+                  minWidth: 100,
+                  px: 1.5,
+                }}
+              >
+                <List fontSize="small" sx={{ mr: 0.5 }} />
+                Backlog
+              </ToggleButton>
+            </ToggleButtonGroup>
             {backlogTasks.length > 0 && (
               <Badge
                 badgeContent={backlogTasks.length}
@@ -96,36 +101,39 @@ export function ViewTogglesAndProgress() {
                   right: -8,
                   "& .MuiBadge-badge": {
                     fontSize: "0.625rem",
-                    height: 20,
-                    minWidth: 20,
+                    height: 18,
+                    minWidth: 18,
+                    padding: "0 4px",
                   },
                 }}
               />
             )}
           </Box>
-          <Button
+          <ToggleButtonGroup
+            value={mainContentView}
+            exclusive
+            onChange={(event, newView) => {
+              if (newView) {
+                dispatch(setMainContentView(newView));
+              }
+            }}
             size="small"
-            variant={showDashboard ? "contained" : "outlined"}
-            color={showDashboard ? "primary" : "inherit"}
-            onClick={() => dispatch(setShowDashboard(!showDashboard))}
-            startIcon={<LayoutDashboard fontSize="small" />}
+            color="primary"
           >
-            Today
-          </Button>
-          <Button
-            size="small"
-            variant={showCalendar ? "contained" : "outlined"}
-            color={showCalendar ? "primary" : "inherit"}
-            onClick={() => dispatch(setShowCalendar(!showCalendar))}
-            startIcon={<Calendar fontSize="small" />}
-          >
-            Calendar
-          </Button>
+            <ToggleButton value="today" sx={{ textTransform: "none", minWidth: 100, px: 1.5 }}>
+              <LayoutDashboard fontSize="small" sx={{ mr: 0.5 }} />
+              Today
+            </ToggleButton>
+            <ToggleButton value="calendar" sx={{ textTransform: "none", minWidth: 100, px: 1.5 }}>
+              <Calendar fontSize="small" sx={{ mr: 0.5 }} />
+              Calendar
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Stack>
       </Stack>
 
       {/* Progress bar */}
-      {showDashboard && (
+      {mainContentView === "today" && (
         <Box>
           <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
             <Typography variant="body2" color="text.secondary">

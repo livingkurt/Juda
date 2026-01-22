@@ -12,34 +12,21 @@ import { DragOverlayContent } from "@/components/DragOverlayContent";
 import { DndContext, DragOverlay, pointerWithin, closestCenter } from "@dnd-kit/core";
 import { TaskDialog } from "@/components/TaskDialog";
 import { SectionDialog } from "@/components/SectionDialog";
-import {
-  useGetTasksQuery,
-  useCreateTaskMutation,
-  useUpdateTaskMutation,
-  useDeleteTaskMutation,
-  useReorderTaskMutation,
-} from "@/lib/store/api/tasksApi";
+import { useGetTasksQuery, useReorderTaskMutation } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
-import {
-  useCreateCompletionMutation,
-  useDeleteCompletionMutation,
-  useUpdateCompletionMutation,
-} from "@/lib/store/api/completionsApi";
 import { useGetTagsQuery } from "@/lib/store/api/tagsApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useDispatch, useSelector } from "react-redux";
 import {
   setBacklogOpen,
-  setShowDashboard,
-  setShowCalendar,
   setBacklogWidth,
   setBacklogTagSidebarOpen,
-  setTodayViewWidth,
   setNotesSidebarOpen,
   setNotesListOpen,
   setNotesSidebarWidth,
   setNotesListWidth,
   openTaskDialog,
+  setMainContentView,
 } from "@/lib/store/slices/uiSlice";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
@@ -142,9 +129,6 @@ export default function DailyTasksApp() {
   const { data: tasks = [], isLoading: tasksLoading } = useGetTasksQuery(undefined, {
     skip: !isAuthenticated,
   });
-  const [_createTaskMutation] = useCreateTaskMutation();
-  const [_updateTaskMutation] = useUpdateTaskMutation();
-  const [_deleteTaskMutation] = useDeleteTaskMutation();
   const [reorderTaskMutation] = useReorderTaskMutation();
 
   const { data: sections = [], isLoading: sectionsLoading } = useGetSectionsQuery(undefined, {
@@ -154,10 +138,6 @@ export default function DailyTasksApp() {
   const { isLoading: tagsLoading } = useGetTagsQuery(undefined, {
     skip: !isAuthenticated,
   });
-
-  const [_createCompletionMutation] = useCreateCompletionMutation();
-  const [_deleteCompletionMutation] = useDeleteCompletionMutation();
-  const [_updateCompletionMutation] = useUpdateCompletionMutation();
 
   // Completion helpers
   const { loading: completionsLoading } = useCompletionHelpers();
@@ -196,10 +176,8 @@ export default function DailyTasksApp() {
   // Panel visibility and width from Redux
   const backlogOpen = useSelector(state => state.ui.backlogOpen);
   const backlogTagSidebarOpen = useSelector(state => state.ui.backlogTagSidebarOpen);
-  const showDashboard = useSelector(state => state.ui.showDashboard);
-  const showCalendar = useSelector(state => state.ui.showCalendar);
+  const mainContentView = useSelector(state => state.ui.mainContentView);
   const backlogWidth = useSelector(state => state.ui.backlogWidth);
-  const todayViewWidth = useSelector(state => state.ui.todayViewWidth);
   const notesSidebarOpen = useSelector(state => state.ui.notesSidebarOpen);
   const notesListOpen = useSelector(state => state.ui.notesListOpen);
   const notesSidebarWidth = useSelector(state => state.ui.notesSidebarWidth);
@@ -226,10 +204,10 @@ export default function DailyTasksApp() {
     if (prefsInitialized) {
       dispatch(setBacklogOpen(preferences.backlogOpen ?? true));
       dispatch(setBacklogTagSidebarOpen(preferences.backlogTagSidebarOpen ?? true));
-      dispatch(setShowDashboard(preferences.showDashboard ?? true));
-      dispatch(setShowCalendar(preferences.showCalendar ?? true));
+      const derivedMainContentView =
+        preferences.mainContentView ?? (preferences.showCalendar && !preferences.showDashboard ? "calendar" : "today");
+      dispatch(setMainContentView(derivedMainContentView));
       dispatch(setBacklogWidth(preferences.backlogWidth ?? 500));
-      dispatch(setTodayViewWidth(preferences.todayViewWidth ?? 600));
       dispatch(setNotesSidebarOpen(preferences.notesSidebarOpen ?? true));
       dispatch(setNotesListOpen(preferences.notesListOpen ?? true));
       dispatch(setNotesSidebarWidth(preferences.notesSidebarWidth ?? 280));
@@ -253,27 +231,15 @@ export default function DailyTasksApp() {
 
   useEffect(() => {
     if (prefsInitialized) {
-      updatePreference("showDashboard", showDashboard);
+      updatePreference("mainContentView", mainContentView);
     }
-  }, [showDashboard, prefsInitialized, updatePreference]);
-
-  useEffect(() => {
-    if (prefsInitialized) {
-      updatePreference("showCalendar", showCalendar);
-    }
-  }, [showCalendar, prefsInitialized, updatePreference]);
+  }, [mainContentView, prefsInitialized, updatePreference]);
 
   useEffect(() => {
     if (prefsInitialized) {
       updatePreference("backlogWidth", backlogWidth);
     }
   }, [backlogWidth, prefsInitialized, updatePreference]);
-
-  useEffect(() => {
-    if (prefsInitialized) {
-      updatePreference("todayViewWidth", todayViewWidth);
-    }
-  }, [todayViewWidth, prefsInitialized, updatePreference]);
 
   useEffect(() => {
     if (prefsInitialized) {
