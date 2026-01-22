@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
-import { shouldShowOnDate, hasFutureDateTime } from "@/lib/utils";
+import { shouldShowOnDate, hasFutureDateTime, timeToMinutes } from "@/lib/utils";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
@@ -106,36 +106,111 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
   const tasksBySection = useMemo(() => {
     const grouped = {};
 
-    // Add tasks for each real section
-    sections.forEach(s => {
-      let sectionTasks = filteredTodaysTasks.filter(t => t.sectionId === s.id);
-      // Filter out completed/not completed tasks if showCompletedTasks is false
-      // But keep recently completed tasks visible for a delay period
-      if (!showCompletedTasks) {
-        sectionTasks = sectionTasks.filter(t => {
-          const isCompleted =
-            t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
-          // Check if task has any outcome (completed or not completed)
-          const hasOutcome = t.outcome !== null && t.outcome !== undefined;
-          // Keep task visible if it's recently completed (within delay period)
-          if (isCompleted && recentlyCompleted.has(t.id)) {
+    // Helper to check if a time falls within a range
+    const isTimeInRange = (taskTime, startTime, endTime) => {
+      if (!taskTime || !startTime || !endTime) return false;
+      const taskMinutes = timeToMinutes(taskTime);
+      const startMinutes = timeToMinutes(startTime);
+      const endMinutes = timeToMinutes(endTime);
+
+      // Handle overnight ranges (e.g., 22:00 - 06:00)
+      if (endMinutes < startMinutes) {
+        return taskMinutes >= startMinutes || taskMinutes < endMinutes;
+      }
+      return taskMinutes >= startMinutes && taskMinutes < endMinutes;
+    };
+
+    // Helper to sort tasks by time
+    const sortByTime = tasks => {
+      return [...tasks].sort((a, b) => {
+        // Tasks with time come before tasks without time
+        if (a.time && !b.time) return -1;
+        if (!a.time && b.time) return 1;
+        if (!a.time && !b.time) {
+          // Both have no time - sort by order as fallback
+          return (a.order || 0) - (b.order || 0);
+        }
+        // Both have time - sort by time
+        const aMinutes = timeToMinutes(a.time);
+        const bMinutes = timeToMinutes(b.time);
+        if (aMinutes !== bMinutes) return aMinutes - bMinutes;
+        // Same time - use order as tiebreaker
+        return (a.order || 0) - (b.order || 0);
+      });
+    };
+
+    // Track which tasks have been assigned to time-ranged sections
+    const assignedTaskIds = new Set();
+
+    // Sort sections by order to ensure consistent assignment priority
+    const sortedSections = [...sections].sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    // First pass: assign tasks to time-ranged sections
+    for (const section of sortedSections) {
+      if (section.startTime && section.endTime) {
+        // This section has a time range - filter tasks by time
+        const sectionTasks = filteredTodaysTasks.filter(task => {
+          if (assignedTaskIds.has(task.id)) return false;
+          if (isTimeInRange(task.time, section.startTime, section.endTime)) {
+            assignedTaskIds.add(task.id);
             return true;
           }
-          // Hide if completed or has any outcome (not completed)
-          return !isCompleted && !hasOutcome;
+          return false;
         });
+
+        // Filter out completed/not completed tasks if showCompletedTasks is false
+        let filteredSectionTasks = sectionTasks;
+        if (!showCompletedTasks) {
+          filteredSectionTasks = sectionTasks.filter(t => {
+            const isCompleted =
+              t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
+            const hasOutcome = t.outcome !== null && t.outcome !== undefined;
+            if (isCompleted && recentlyCompleted.has(t.id)) {
+              return true;
+            }
+            return !isCompleted && !hasOutcome;
+          });
+        }
+
+        grouped[section.id] = sortByTime(filteredSectionTasks);
       }
-      // Sort by order, with stable secondary sort by id for consistent ordering
-      grouped[s.id] = sectionTasks.sort((a, b) => {
-        const orderDiff = (a.order || 0) - (b.order || 0);
-        if (orderDiff !== 0) return orderDiff;
-        // Stable secondary sort by id to ensure consistent ordering when orders are equal
-        return a.id.localeCompare(b.id);
-      });
+    }
+
+    // Second pass: assign remaining tasks by sectionId (non-time-ranged sections)
+    for (const section of sortedSections) {
+      if (!section.startTime || !section.endTime) {
+        // This section has no time range - use sectionId assignment
+        let sectionTasks = filteredTodaysTasks.filter(task => {
+          if (assignedTaskIds.has(task.id)) return false;
+          return task.sectionId === section.id;
+        });
+
+        // Mark as assigned
+        sectionTasks.forEach(t => assignedTaskIds.add(t.id));
+
+        // Filter out completed/not completed tasks if showCompletedTasks is false
+        if (!showCompletedTasks) {
+          sectionTasks = sectionTasks.filter(t => {
+            const isCompleted =
+              t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
+            const hasOutcome = t.outcome !== null && t.outcome !== undefined;
+            if (isCompleted && recentlyCompleted.has(t.id)) {
+              return true;
+            }
+            return !isCompleted && !hasOutcome;
+          });
+        }
+
+        grouped[section.id] = sortByTime(sectionTasks);
+      }
+    }
+
+    // Handle "no-section" virtual section
+    let noSectionTasks = filteredTodaysTasks.filter(t => {
+      if (assignedTaskIds.has(t.id)) return false;
+      return !t.sectionId;
     });
 
-    // Add virtual "No Section" for tasks with no sectionId but have a date
-    let noSectionTasks = filteredTodaysTasks.filter(t => !t.sectionId);
     if (!showCompletedTasks) {
       noSectionTasks = noSectionTasks.filter(t => {
         const isCompleted =
@@ -147,11 +222,8 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
         return !isCompleted && !hasOutcome;
       });
     }
-    grouped["no-section"] = noSectionTasks.sort((a, b) => {
-      const orderDiff = (a.order || 0) - (b.order || 0);
-      if (orderDiff !== 0) return orderDiff;
-      return a.id.localeCompare(b.id);
-    });
+
+    grouped["no-section"] = sortByTime(noSectionTasks);
 
     return grouped;
   }, [filteredTodaysTasks, sections, showCompletedTasks, recentlyCompleted]);

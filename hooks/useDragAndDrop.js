@@ -5,9 +5,60 @@ import { useSelector } from "react-redux";
 import { useSensor, useSensors, PointerSensor, KeyboardSensor } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import { parseDroppableId, extractTaskId } from "@/lib/dragHelpers";
-import { formatLocalDate, snapToIncrement, minutesToTime } from "@/lib/utils";
+import { formatLocalDate, snapToIncrement, minutesToTime, timeToMinutes } from "@/lib/utils";
 import { useGetTasksQuery, useUpdateTaskMutation, useBatchReorderTasksMutation } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery, useReorderSectionsMutation } from "@/lib/store/api/sectionsApi";
+
+/**
+ * Calculate time for a task dropped into a time-ranged section
+ * Always interpolates based on drop position between neighboring tasks
+ */
+const getSectionDropTime = ({ targetSection, targetSectionTasks, destIndex, taskId }) => {
+  if (!targetSection?.startTime || !targetSection?.endTime) return null;
+
+  // Filter out the task being moved (for reordering within same section)
+  const tasksWithoutCurrent = targetSectionTasks.filter(t => t.id !== taskId);
+
+  // Dropping at the beginning
+  if (destIndex <= 0) {
+    return targetSection.startTime;
+  }
+
+  // Dropping at the end
+  if (destIndex >= tasksWithoutCurrent.length) {
+    const lastTask = tasksWithoutCurrent[tasksWithoutCurrent.length - 1];
+    if (lastTask?.time) {
+      const lastMinutes = timeToMinutes(lastTask.time);
+      const endMinutes = timeToMinutes(targetSection.endTime);
+      // Add 1 minute after last task, but don't exceed section end
+      const newMinutes = Math.min(lastMinutes + 1, endMinutes - 1);
+      return minutesToTime(newMinutes);
+    }
+    return targetSection.startTime;
+  }
+
+  // Dropping between tasks - interpolate
+  const prevTask = tasksWithoutCurrent[destIndex - 1];
+  const nextTask = tasksWithoutCurrent[destIndex];
+
+  if (prevTask?.time && nextTask?.time) {
+    const prevMinutes = timeToMinutes(prevTask.time);
+    const nextMinutes = timeToMinutes(nextTask.time);
+    // Interpolate between the two times
+    const midMinutes = Math.floor((prevMinutes + nextMinutes) / 2);
+    return minutesToTime(midMinutes);
+  }
+
+  if (prevTask?.time) {
+    const prevMinutes = timeToMinutes(prevTask.time);
+    const endMinutes = timeToMinutes(targetSection.endTime);
+    // Add 1 minute after previous task
+    const newMinutes = Math.min(prevMinutes + 1, endMinutes - 1);
+    return minutesToTime(newMinutes);
+  }
+
+  return targetSection.startTime;
+};
 
 /**
  * Manages all drag-and-drop state and handlers
@@ -270,11 +321,27 @@ export function useDragAndDrop({
         }
         // DESTINATION: Today section
         else if (destParsed.type === "today-section") {
+          const targetSectionId = destParsed.sectionId;
+          const targetSection = sections.find(s => s.id === targetSectionId);
           const targetDate = viewDate || today;
           const targetDateStr = formatLocalDate(targetDate);
           const currentDateStr = task.recurrence?.startDate?.split("T")[0];
           const needsDateUpdate = currentDateStr !== targetDateStr;
           const isRecurring = task.recurrence && task.recurrence.type && task.recurrence.type !== "none";
+
+          // Determine what time to assign based on section time range
+          let newTime = null;
+          if (targetSection?.startTime && targetSection?.endTime) {
+            const targetSectionTasks = tasksBySection[targetSectionId] || [];
+            const destIndex = destination.index ?? targetSectionTasks.length;
+            newTime = getSectionDropTime({
+              targetSection,
+              targetSectionTasks,
+              destIndex,
+              taskId,
+            });
+          }
+          // If section has no time range, keep existing time (or null)
 
           if (isRecurring) {
             updates = {};
@@ -289,6 +356,11 @@ export function useDragAndDrop({
             } else {
               updates = {};
             }
+          }
+
+          // Set time if section has a time range
+          if (newTime !== null) {
+            updates.time = newTime;
           }
 
           if (!isRecurring && sourceParsed.type === "backlog") {
@@ -354,11 +426,14 @@ export function useDragAndDrop({
           const targetSectionId = destParsed.sectionId;
           const sourceSectionId = sourceParsed.type === "today-section" ? sourceParsed.sectionId : task.sectionId;
 
-          await reorderTask(taskId, sourceSectionId, targetSectionId, destination.index);
-
+          // IMPORTANT: Update time FIRST so the task appears in the correct section
+          // (time-ranged sections filter by time, not sectionId)
           if (Object.keys(updates).length > 0) {
             await updateTask(taskId, updates);
           }
+
+          // Then update sectionId and order (for non-time-ranged section fallback)
+          await reorderTask(taskId, sourceSectionId, targetSectionId, destination.index);
           updates = {};
         }
 
@@ -368,7 +443,7 @@ export function useDragAndDrop({
         }
       }
     },
-    [tasks, sections, reorderSections, reorderTask, updateTask, today, viewDate, selectedDate]
+    [tasks, sections, reorderSections, reorderTask, updateTask, today, viewDate, selectedDate, tasksBySection]
   );
 
   // Handle drag end - properly handle @dnd-kit events (includes Kanban logic)
@@ -661,19 +736,38 @@ export function useDragAndDrop({
           const currentDateStr = task.recurrence?.startDate?.split("T")[0];
           const needsDateUpdate = currentDateStr !== targetDateStr;
 
-          await reorderTask(taskId, sourceSectionId, targetSectionId, destIndex);
+          // Build all updates first
+          const allUpdates = {};
 
+          // For time-ranged sections, calculate new time based on drop position
+          if (targetSection?.startTime && targetSection?.endTime) {
+            const targetSectionTasks = tasksBySection[targetSectionId] || [];
+            allUpdates.time = getSectionDropTime({
+              targetSection,
+              targetSectionTasks,
+              destIndex,
+              taskId,
+            });
+          }
+
+          // Handle date/recurrence updates for non-recurring tasks
           if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
-            // Recurring task - no updates needed
+            // Recurring task - no date updates needed
           } else if (needsDateUpdate || !task.recurrence) {
-            const recurrenceUpdate = {
+            allUpdates.recurrence = {
               type: "none",
               startDate: `${targetDateStr}T00:00:00.000Z`,
             };
-            await updateTask(taskId, {
-              recurrence: recurrenceUpdate,
-            });
           }
+
+          // IMPORTANT: Update time FIRST so the task appears in the correct section
+          // (sections filter by time range, not sectionId)
+          if (Object.keys(allUpdates).length > 0) {
+            await updateTask(taskId, allUpdates);
+          }
+
+          // Then update sectionId and order (for non-time-ranged section fallback)
+          await reorderTask(taskId, sourceSectionId, targetSectionId, destIndex);
 
           return;
         }
