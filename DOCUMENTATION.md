@@ -40,3 +40,9 @@
 - Changed workout cells in `HistoryTab` to open the same completion editor modal used for other task types.
 - Added an optional "Open Workout" button to the completion editor for workout tasks, which opens the workout modal for the clicked date.
 - Routed workout modal opening through `useDialogState` and set the view date so the workout modal loads the correct day’s completion data.
+
+### Time-based section drag behavior
+
+- Dropping tasks into time-ranged sections now sets `time` to the section `startTime`.
+- Reordering within the same time-ranged section recalculates `time` by interpolating between neighbors.
+- Non-time-ranged sections keep existing time values on drop.
