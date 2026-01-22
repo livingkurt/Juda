@@ -6,7 +6,7 @@ import { Add, ExpandMore, ChevronRight } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 
-export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave }) => {
+export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave, viewType = "day" }) => {
   const theme = useTheme();
   // Initialize state from props - state will reset when key changes (completion note changes)
   const currentNote = completion?.note || "";
@@ -14,19 +14,56 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
   const [showTextarea, setShowTextarea] = useState(Boolean(currentNote));
   const hasEntry = currentNote && currentNote.trim().length > 0;
 
-  // Check if this is a Daily Journal (not a reflection type)
-  const isDailyJournal = useMemo(() => {
+  // Check task type by tags
+  const taskType = useMemo(() => {
     const tagNames = (task.tags || []).map(t => (t.name || "").toLowerCase());
-    return tagNames.includes("daily journal");
+    if (tagNames.includes("daily journal")) return "daily";
+    if (tagNames.includes("weekly reflection")) return "weekly";
+    if (tagNames.includes("monthly reflection")) return "monthly";
+    if (tagNames.includes("yearly reflection")) return "yearly";
+    return "other";
   }, [task.tags]);
 
-  // Expanded by default only for Daily Journal if there's an entry, collapsed for all reflection types
-  const [expanded, setExpanded] = useState(() => isDailyJournal && hasEntry);
+  // Determine default expansion based on view type and task type
+  const defaultExpanded = useMemo(() => {
+    if (viewType === "day") {
+      // Day view: expand daily journals if they have entries
+      return taskType === "daily" && hasEntry;
+    }
+    if (viewType === "week") {
+      // Week view: expand weekly reflections if they have entries
+      return taskType === "weekly" && hasEntry;
+    }
+    if (viewType === "month") {
+      // Month view: expand monthly reflections if they have entries
+      return taskType === "monthly" && hasEntry;
+    }
+    if (viewType === "year") {
+      // Year view: expand yearly reflections if they have entries
+      return taskType === "yearly" && hasEntry;
+    }
+    return false;
+  }, [viewType, taskType, hasEntry]);
+
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const textareaRef = useRef(null);
   // Track if textarea is focused
   const isFocusedRef = useRef(false);
   // Track previous saved note to detect external changes
   const prevSavedNoteRef = useRef(currentNote);
+  // Track if user has manually toggled expansion
+  const userToggledRef = useRef(false);
+
+  // Update expansion state when defaultExpanded changes (but only if user hasn't manually toggled)
+  useEffect(() => {
+    if (!userToggledRef.current) {
+      // Defer setState to avoid synchronous setState in effect
+      const timeoutId = setTimeout(() => {
+        setExpanded(defaultExpanded);
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [defaultExpanded]);
 
   // Save function wrapper with error handling
   const saveNote = useCallback(
@@ -108,6 +145,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave 
   const handleToggleExpand = () => {
     const newExpanded = !expanded;
     setExpanded(newExpanded);
+    userToggledRef.current = true;
   };
 
   // Check if task existed in this year (simplified - assumes task exists if it's recurring or created before year end)

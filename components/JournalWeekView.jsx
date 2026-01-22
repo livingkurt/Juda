@@ -52,78 +52,96 @@ export const JournalWeekView = ({
       </Typography>
 
       <Stack spacing={{ xs: 3, md: 4 }}>
-        {years.map(year => {
-          const isCurrentYear = year === currentYear;
-          const fridays = getFridaysForYear(year);
+        {years
+          .filter(year => {
+            // Always show current year
+            if (year === currentYear) return true;
+            // For other years, check if any Friday has entries
+            const fridays = getFridaysForYear(year);
+            return fridays.some(friday => {
+              const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, friday, year));
+              return relevantTasks.length > 0;
+            });
+          })
+          .map(year => {
+            const isCurrentYear = year === currentYear;
+            const fridays = getFridaysForYear(year);
 
-          return (
-            <Box key={year}>
-              <Typography
-                variant="h6"
-                sx={{
-                  mb: 2,
-                  fontWeight: 500,
-                  color: isCurrentYear ? "text.primary" : "text.secondary",
-                }}
-              >
-                {year}
-              </Typography>
+            return (
+              <Box key={year}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    mb: 2,
+                    fontWeight: 500,
+                    color: isCurrentYear ? "text.primary" : "text.secondary",
+                  }}
+                >
+                  {year}
+                </Typography>
 
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, 1fr)" },
-                  gap: 2,
-                }}
-              >
-                {fridays.map((friday, index) => {
-                  const dateStr = friday.format("YYYY-MM-DD");
-                  const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, friday, year));
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, 1fr)" },
+                    gap: 2,
+                  }}
+                >
+                  {fridays
+                    .filter(friday => {
+                      // Only show dates <= today
+                      const today = dayjs().startOf("day");
+                      return !friday.isAfter(today, "day");
+                    })
+                    .map((friday, index) => {
+                      const dateStr = friday.format("YYYY-MM-DD");
+                      const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, friday, year));
 
-                  return (
-                    <Box
-                      key={`${year}-week-${index}`}
-                      sx={{
-                        borderRadius: 2,
-                        border: "1px solid",
-                        borderColor: "divider",
-                        p: 2,
-                        minHeight: 120,
-                        bgcolor: "background.paper",
-                      }}
-                    >
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                        Week {index + 1} - {friday.format("MMM D")}
-                      </Typography>
+                      return (
+                        <Box
+                          key={`${year}-week-${index}`}
+                          sx={{
+                            borderRadius: 2,
+                            border: "1px solid",
+                            borderColor: "divider",
+                            p: 2,
+                            minHeight: 120,
+                            bgcolor: "background.paper",
+                          }}
+                        >
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                            Week {index + 1} - {friday.format("MMM D")}
+                          </Typography>
 
-                      {relevantTasks.length === 0 ? (
-                        <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic" }}>
-                          No journal entries
-                        </Typography>
-                      ) : (
-                        <Stack spacing={1.5}>
-                          {relevantTasks.map(task => {
-                            const completion = getCompletionForDate?.(task.id, dateStr);
-                            return (
-                              <JournalDayEntry
-                                key={`${task.id}-${year}-${dateStr}`}
-                                task={task}
-                                date={dateStr}
-                                completion={completion}
-                                isCurrentYear={isCurrentYear}
-                                onSave={onSaveEntry}
-                              />
-                            );
-                          })}
-                        </Stack>
-                      )}
-                    </Box>
-                  );
-                })}
+                          {relevantTasks.length === 0 ? (
+                            <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic" }}>
+                              No journal entries
+                            </Typography>
+                          ) : (
+                            <Stack spacing={1.5}>
+                              {relevantTasks.map(task => {
+                                const completion = getCompletionForDate?.(task.id, dateStr);
+                                return (
+                                  <JournalDayEntry
+                                    key={`${task.id}-${year}-${dateStr}`}
+                                    task={task}
+                                    date={dateStr}
+                                    completion={completion}
+                                    isCurrentYear={isCurrentYear}
+                                    onSave={onSaveEntry}
+                                    viewType="week"
+                                  />
+                                );
+                              })}
+                            </Stack>
+                          )}
+                        </Box>
+                      );
+                    })}
+                </Box>
               </Box>
-            </Box>
-          );
-        })}
+            );
+          })}
       </Stack>
     </Box>
   );

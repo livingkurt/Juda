@@ -30,60 +30,69 @@ export const JournalDayView = ({
 
       {/* Year Sections */}
       <Stack spacing={{ xs: 3, md: 4 }}>
-        {years.map(year => {
-          const isCurrentYear = year === currentYear;
-          const yearDate = selectedDate.year(year);
+        {years
+          .filter(year => {
+            // Always show current year
+            if (year === currentYear) return true;
+            // For other years, only show if they have entries
+            const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, selectedDate, year));
+            return relevantTasks.length > 0;
+          })
+          .map(year => {
+            const isCurrentYear = year === currentYear;
+            const yearDate = selectedDate.year(year);
 
-          const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, selectedDate, year));
+            const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, selectedDate, year));
 
-          return (
-            <Box key={year}>
-              {/* Year Header */}
-              <Typography
-                variant="h6"
-                sx={{
-                  mb: 2,
-                  fontWeight: 500,
-                  color: isCurrentYear ? "text.primary" : "text.secondary",
-                }}
-              >
-                {year}
-              </Typography>
-
-              {/* Journal Entries */}
-              {relevantTasks.length === 0 ? (
+            return (
+              <Box key={year}>
+                {/* Year Header */}
                 <Typography
-                  variant="body2"
+                  variant="h6"
                   sx={{
-                    color: "text.secondary",
-                    fontStyle: "italic",
-                    pl: 4,
+                    mb: 2,
+                    fontWeight: 500,
+                    color: isCurrentYear ? "text.primary" : "text.secondary",
                   }}
                 >
-                  No journal tasks scheduled for this day
+                  {year}
                 </Typography>
-              ) : (
-                <Stack spacing={2}>
-                  {relevantTasks.map(task => {
-                    const dateStr = yearDate.format("YYYY-MM-DD");
-                    const completion = getCompletionForDate?.(task.id, dateStr);
 
-                    return (
-                      <JournalDayEntry
-                        key={`${task.id}-${year}-${dateStr}`}
-                        task={task}
-                        date={dateStr}
-                        completion={completion}
-                        isCurrentYear={isCurrentYear}
-                        onSave={onSaveEntry}
-                      />
-                    );
-                  })}
-                </Stack>
-              )}
-            </Box>
-          );
-        })}
+                {/* Journal Entries */}
+                {relevantTasks.length === 0 ? (
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "text.secondary",
+                      fontStyle: "italic",
+                      pl: 4,
+                    }}
+                  >
+                    No journal tasks scheduled for this day
+                  </Typography>
+                ) : (
+                  <Stack spacing={2}>
+                    {relevantTasks.map(task => {
+                      const dateStr = yearDate.format("YYYY-MM-DD");
+                      const completion = getCompletionForDate?.(task.id, dateStr);
+
+                      return (
+                        <JournalDayEntry
+                          key={`${task.id}-${year}-${dateStr}`}
+                          task={task}
+                          date={dateStr}
+                          completion={completion}
+                          isCurrentYear={isCurrentYear}
+                          onSave={onSaveEntry}
+                          viewType="day"
+                        />
+                      );
+                    })}
+                  </Stack>
+                )}
+              </Box>
+            );
+          })}
       </Stack>
     </Box>
   );
