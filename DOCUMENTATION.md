@@ -2,6 +2,14 @@
 
 ## 2026-01-22
 
+### Workout progress tab
+
+- Added a dedicated Workout tab between Notes and History with a selector for workout tasks and view toggles.
+- Built a new workout history API endpoint that aggregates set completions by date and includes the full program structure.
+- Added RTK Query support and UI state for selected workout, view mode, and date range filters.
+- Implemented a calendar-style progress grid for per-day completion percentages and click-through to the workout modal.
+- Implemented an exercise progress table that rolls up weekly completions and shows outcomes vs goals.
+
 ### Task priority system
 
 - Added a nullable `priority` field on tasks (text) with a dedicated migration for safe schema updates.

@@ -7,6 +7,7 @@ import {
   ViewColumn as Columns,
   MenuBook as BookOpen,
   Note as StickyNote,
+  FitnessCenter,
   AccessTime as Clock,
 } from "@mui/icons-material";
 import { useViewState } from "@/hooks/useViewState";
@@ -81,6 +82,12 @@ export function MainTabs() {
           icon={<StickyNote fontSize="small" />}
           iconPosition="start"
           label="Notes"
+          sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
+        />
+        <Tab
+          icon={<FitnessCenter fontSize="small" />}
+          iconPosition="start"
+          label="Workout"
           sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
         />
         <Tab
