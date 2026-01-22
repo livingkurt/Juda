@@ -1,17 +1,21 @@
 "use client";
 
 import { useState, useMemo, memo } from "react";
-import { Box, Stack, Typography, CircularProgress } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 import dayjs from "dayjs";
-import { JournalDayEntry } from "@/components/JournalDayEntry";
 import { shouldShowOnDate as checkTaskShouldShowOnDate } from "@/lib/utils";
 import { DateNavigation } from "@/components/DateNavigation";
+import { JournalDayView } from "@/components/JournalDayView";
+import { JournalWeekView } from "@/components/JournalWeekView";
+import { JournalMonthView } from "@/components/JournalMonthView";
+import { JournalYearView } from "@/components/JournalYearView";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useCreateCompletionMutation, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
 
 export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
   const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [currentView, setCurrentView] = useState("day");
 
   // Get data from Redux
   const { data: tasks = [] } = useGetTasksQuery();
@@ -34,11 +38,27 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
   };
 
   const handlePrev = () => {
-    setSelectedDate(d => d.subtract(1, "day"));
+    if (currentView === "day") {
+      setSelectedDate(d => d.subtract(1, "day"));
+    } else if (currentView === "week") {
+      setSelectedDate(d => d.subtract(1, "week"));
+    } else if (currentView === "month") {
+      setSelectedDate(d => d.subtract(1, "month"));
+    } else if (currentView === "year") {
+      setSelectedDate(d => d.subtract(1, "year"));
+    }
   };
 
   const handleNext = () => {
-    setSelectedDate(d => d.add(1, "day"));
+    if (currentView === "day") {
+      setSelectedDate(d => d.add(1, "day"));
+    } else if (currentView === "week") {
+      setSelectedDate(d => d.add(1, "week"));
+    } else if (currentView === "month") {
+      setSelectedDate(d => d.add(1, "month"));
+    } else if (currentView === "year") {
+      setSelectedDate(d => d.add(1, "year"));
+    }
   };
 
   const handleToday = () => {
@@ -96,11 +116,13 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
     return matchesRecurrence || hasCompletion;
   };
 
-  // Format display date
-  const displayDate = selectedDate.format("dddd, MMMM D, YYYY");
-
-  // View options for DateNavigation (Day view only for Journal)
-  const viewOptions = [{ label: "Day", value: "day" }];
+  // View options for DateNavigation
+  const viewOptions = [
+    { label: "Day", value: "day" },
+    { label: "Week", value: "week" },
+    { label: "Month", value: "month" },
+    { label: "Year", value: "year" },
+  ];
 
   if (tabLoading) {
     return (
@@ -131,93 +153,57 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           showDateDisplay={true}
           showViewSelector={true}
           viewCollection={viewOptions}
-          selectedView="day"
-          onViewChange={() => {}}
+          selectedView={currentView}
+          onViewChange={setCurrentView}
           viewSelectorWidth="100px"
         />
       </Box>
 
       {/* Content */}
-      <Box sx={{ flex: 1, overflow: "auto", p: { xs: 2, md: 4 } }}>
-        {/* Date Heading */}
-        <Typography
-          variant="h4"
-          sx={{
-            textAlign: "center",
-            mb: { xs: 3, md: 4 },
-            fontWeight: 500,
-          }}
-        >
-          {displayDate}
-        </Typography>
-
-        {/* Year Sections */}
-        <Stack spacing={{ xs: 3, md: 4 }}>
-          {years.map(year => {
-            const isCurrentYear = year === currentYear;
-            const yearDate = selectedDate.year(year);
-
-            return (
-              <Box key={year}>
-                {/* Year Header */}
-                <Typography
-                  variant="h6"
-                  sx={{
-                    mb: 2,
-                    fontWeight: 500,
-                    color: isCurrentYear ? "text.primary" : "text.secondary",
-                  }}
-                >
-                  {year}
-                </Typography>
-
-                {/* Journal Entries */}
-                {(() => {
-                  // Filter tasks that should show on this date for this year
-                  const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, selectedDate, year));
-
-                  // If no tasks exist for this year, show placeholder
-                  if (relevantTasks.length === 0) {
-                    return (
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: "text.secondary",
-                          fontStyle: "italic",
-                          pl: 4,
-                        }}
-                      >
-                        No journal tasks scheduled for this day
-                      </Typography>
-                    );
-                  }
-
-                  // Display all text input tasks together
-                  return (
-                    <Stack spacing={2}>
-                      {relevantTasks.map(task => {
-                        const dateStr = yearDate.format("YYYY-MM-DD");
-                        const completion = getCompletionForDate?.(task.id, dateStr);
-
-                        return (
-                          <JournalDayEntry
-                            key={`${task.id}-${year}-${dateStr}`}
-                            task={task}
-                            date={dateStr}
-                            completion={completion}
-                            isCurrentYear={isCurrentYear}
-                            onSave={handleSaveEntry}
-                          />
-                        );
-                      })}
-                    </Stack>
-                  );
-                })()}
-              </Box>
-            );
-          })}
-        </Stack>
-      </Box>
+      {currentView === "day" && (
+        <JournalDayView
+          selectedDate={selectedDate}
+          years={years}
+          journalTasks={journalTasks}
+          currentYear={currentYear}
+          getCompletionForDate={getCompletionForDate}
+          shouldShowTaskOnDate={shouldShowTaskOnDate}
+          onSaveEntry={handleSaveEntry}
+        />
+      )}
+      {currentView === "week" && (
+        <JournalWeekView
+          selectedDate={selectedDate}
+          years={years}
+          journalTasks={journalTasks}
+          currentYear={currentYear}
+          getCompletionForDate={getCompletionForDate}
+          shouldShowTaskOnDate={shouldShowTaskOnDate}
+          onSaveEntry={handleSaveEntry}
+        />
+      )}
+      {currentView === "month" && (
+        <JournalMonthView
+          selectedDate={selectedDate}
+          years={years}
+          journalTasks={journalTasks}
+          currentYear={currentYear}
+          getCompletionForDate={getCompletionForDate}
+          shouldShowTaskOnDate={shouldShowTaskOnDate}
+          onSaveEntry={handleSaveEntry}
+        />
+      )}
+      {currentView === "year" && (
+        <JournalYearView
+          selectedDate={selectedDate}
+          years={years}
+          journalTasks={journalTasks}
+          currentYear={currentYear}
+          getCompletionForDate={getCompletionForDate}
+          shouldShowTaskOnDate={shouldShowTaskOnDate}
+          onSaveEntry={handleSaveEntry}
+        />
+      )}
     </Box>
   );
 });

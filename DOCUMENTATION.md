@@ -31,6 +31,15 @@
 - Wrapped the app in `UrlStateProvider` (inside Redux) to ensure URL sync runs client-side with `Suspense`.
 - Moved Notes and History tab selection/search state into `uiSlice` so deep links restore those views accurately.
 
+### Journal tab multi-view support
+
+- Extracted the existing day view into `JournalDayView` for reuse across date modes.
+- Added week, month, and year views with shared recurrence/completion logic and per-year sections.
+- **Week view**: Shows all Fridays in a year (aligned with weekly reflection schedule) with all journal entries that fall on each Friday.
+- **Month view**: Shows the 1st of each month (12 cards per year) with all journal entries that fall on those dates.
+- **Year view**: Shows only January 1st for each year with all journal entries that fall on that date (simplified to focus on yearly reflections).
+- Week/month views now render only days that have matching non-daily journal entries.
+
 ## 2026-01-19
 
 ### Notes Tab completion
