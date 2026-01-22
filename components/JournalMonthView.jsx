@@ -29,78 +29,95 @@ export const JournalMonthView = ({
       </Typography>
 
       <Stack spacing={{ xs: 3, md: 4 }}>
-        {years.map(year => {
-          const isCurrentYear = year === currentYear;
+        {years
+          .filter(year => {
+            // Always show current year
+            if (year === currentYear) return true;
+            // For other years, check if any 1st of month has entries
+            return Array.from({ length: 12 }, (_, monthIndex) => {
+              const firstOfMonth = dayjs(new Date(year, monthIndex, 1));
+              const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, firstOfMonth, year));
+              return relevantTasks.length > 0;
+            }).some(hasEntries => hasEntries);
+          })
+          .map(year => {
+            const isCurrentYear = year === currentYear;
 
-          return (
-            <Box key={year}>
-              <Typography
-                variant="h6"
-                sx={{
-                  mb: 2,
-                  fontWeight: 500,
-                  color: isCurrentYear ? "text.primary" : "text.secondary",
-                }}
-              >
-                {year}
-              </Typography>
+            return (
+              <Box key={year}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    mb: 2,
+                    fontWeight: 500,
+                    color: isCurrentYear ? "text.primary" : "text.secondary",
+                  }}
+                >
+                  {year}
+                </Typography>
 
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, 1fr)" },
-                  gap: 2,
-                }}
-              >
-                {Array.from({ length: 12 }, (_, monthIndex) => {
-                  const firstOfMonth = dayjs(new Date(year, monthIndex, 1));
-                  const dateStr = firstOfMonth.format("YYYY-MM-DD");
-                  const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, firstOfMonth, year));
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, 1fr)" },
+                    gap: 2,
+                  }}
+                >
+                  {Array.from({ length: 12 }, (_, monthIndex) => {
+                    const firstOfMonth = dayjs(new Date(year, monthIndex, 1));
+                    const today = dayjs().startOf("day");
+                    // Only show months <= today
+                    if (firstOfMonth.isAfter(today, "day")) {
+                      return null;
+                    }
+                    const dateStr = firstOfMonth.format("YYYY-MM-DD");
+                    const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, firstOfMonth, year));
 
-                  return (
-                    <Box
-                      key={`${year}-${monthIndex}`}
-                      sx={{
-                        borderRadius: 2,
-                        border: "1px solid",
-                        borderColor: "divider",
-                        p: 2,
-                        minHeight: 120,
-                        bgcolor: "background.paper",
-                      }}
-                    >
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                        {firstOfMonth.format("MMMM")}
-                      </Typography>
-
-                      {relevantTasks.length === 0 ? (
-                        <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic" }}>
-                          No journal entries
+                    return (
+                      <Box
+                        key={`${year}-${monthIndex}`}
+                        sx={{
+                          borderRadius: 2,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          p: 2,
+                          minHeight: 120,
+                          bgcolor: "background.paper",
+                        }}
+                      >
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                          {firstOfMonth.format("MMMM")}
                         </Typography>
-                      ) : (
-                        <Stack spacing={1.5}>
-                          {relevantTasks.map(task => {
-                            const completion = getCompletionForDate?.(task.id, dateStr);
-                            return (
-                              <JournalDayEntry
-                                key={`${task.id}-${year}-${dateStr}`}
-                                task={task}
-                                date={dateStr}
-                                completion={completion}
-                                isCurrentYear={isCurrentYear}
-                                onSave={onSaveEntry}
-                              />
-                            );
-                          })}
-                        </Stack>
-                      )}
-                    </Box>
-                  );
-                })}
+
+                        {relevantTasks.length === 0 ? (
+                          <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic" }}>
+                            No journal entries
+                          </Typography>
+                        ) : (
+                          <Stack spacing={1.5}>
+                            {relevantTasks.map(task => {
+                              const completion = getCompletionForDate?.(task.id, dateStr);
+                              return (
+                                <JournalDayEntry
+                                  key={`${task.id}-${year}-${dateStr}`}
+                                  task={task}
+                                  date={dateStr}
+                                  completion={completion}
+                                  isCurrentYear={isCurrentYear}
+                                  onSave={onSaveEntry}
+                                  viewType="month"
+                                />
+                              );
+                            })}
+                          </Stack>
+                        )}
+                      </Box>
+                    );
+                  }).filter(Boolean)}
+                </Box>
               </Box>
-            </Box>
-          );
-        })}
+            );
+          })}
       </Stack>
     </Box>
   );

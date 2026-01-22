@@ -38,6 +38,7 @@
 - **Week view**: Shows all Fridays in a year (aligned with weekly reflection schedule) with all journal entries that fall on each Friday.
 - **Month view**: Shows the 1st of each month (12 cards per year) with all journal entries that fall on those dates.
 - **Year view**: Shows only January 1st for each year with all journal entries that fall on that date (simplified to focus on yearly reflections).
+- **Year filtering**: Only displays previous years if they contain journal entries; current year always shown even if empty.
 - Week/month views now render only days that have matching non-daily journal entries.
 
 ## 2026-01-19
