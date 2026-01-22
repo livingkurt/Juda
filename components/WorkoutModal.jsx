@@ -37,6 +37,7 @@ export default function WorkoutModal() {
   const task = dialogState.workoutModalTask;
   const isOpen = dialogState.workoutModalOpen;
   const currentDate = useMemo(() => viewState.viewDate || new Date(), [viewState.viewDate]);
+  const wakeLockRef = useRef(null);
 
   const { data: workoutProgram, isLoading: programLoading } = useGetWorkoutProgramQuery(task?.id, {
     skip: !task?.id,
@@ -395,6 +396,60 @@ export default function WorkoutModal() {
       return newData;
     });
   };
+  // Request wake lock when modal opens
+  useEffect(() => {
+    let wakeLock = null;
+
+    const requestWakeLock = async () => {
+      if (!isOpen || !("wakeLock" in navigator)) return;
+
+      try {
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLockRef.current = wakeLock;
+        console.log("Screen wake lock activated");
+
+        // Re-request if visibility changes (user switches tabs)
+        wakeLock.addEventListener("release", () => {
+          console.log("Screen wake lock released");
+        });
+      } catch (err) {
+        console.error("Failed to acquire wake lock:", err);
+      }
+    };
+
+    if (isOpen) {
+      requestWakeLock();
+    }
+
+    // Cleanup: release wake lock when modal closes
+    return () => {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().then(() => {
+          wakeLockRef.current = null;
+        });
+      }
+    };
+  }, [isOpen]);
+
+  // Re-acquire wake lock when page becomes visible again
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible" && !wakeLockRef.current) {
+        try {
+          wakeLockRef.current = await navigator.wakeLock.request("screen");
+          console.log("Screen wake lock re-acquired");
+        } catch (err) {
+          console.error("Failed to re-acquire wake lock:", err);
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [isOpen]);
+
   // Handle complete workout
   const handleComplete = () => {
     const dateStr = currentDate.toISOString().split("T")[0];
