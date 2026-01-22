@@ -13,6 +13,24 @@ import {
 } from "@/lib/apiHelpers";
 
 const completionBroadcast = withBroadcast(ENTITY_TYPES.COMPLETION);
+const taskBroadcast = withBroadcast(ENTITY_TYPES.TASK);
+
+// Helper function to delete rollover task associated with a completion
+async function deleteRolloverTask(userId, taskId, utcDate, clientId) {
+  const rolloverTask = await db.query.tasks.findFirst({
+    where: and(
+      eq(tasks.sourceTaskId, taskId),
+      eq(tasks.isRollover, true),
+      eq(tasks.userId, userId),
+      eq(tasks.rolledFromDate, utcDate)
+    ),
+  });
+
+  if (rolloverTask) {
+    await db.delete(tasks).where(eq(tasks.id, rolloverTask.id));
+    taskBroadcast.onDelete(userId, rolloverTask.id, clientId);
+  }
+}
 
 export const GET = withApi(async (request, { userId, getSearchParams }) => {
   const searchParams = getSearchParams();
@@ -103,6 +121,11 @@ export const POST = withApi(async (request, { userId, getBody }) => {
   });
 
   if (existing) {
+    // If changing from rolled_over to a different outcome, delete the rollover task
+    if (existing.outcome === "rolled_over" && outcome !== "rolled_over") {
+      await deleteRolloverTask(userId, taskId, utcDate, clientId);
+    }
+
     const updateData = { outcome };
     if (note !== undefined) updateData.note = note || null;
     if (time !== undefined) updateData.time = time || null;
@@ -162,6 +185,11 @@ export const DELETE = withApi(async (request, { userId, getSearchParams }) => {
     Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
   );
 
+  // Check if completion has rolled_over outcome before deleting
+  const completionToDelete = await db.query.taskCompletions.findFirst({
+    where: and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)),
+  });
+
   const result = await db
     .delete(taskCompletions)
     .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)))
@@ -169,6 +197,11 @@ export const DELETE = withApi(async (request, { userId, getSearchParams }) => {
 
   if (result.length === 0) {
     throw Errors.notFound("Completion");
+  }
+
+  // If the completion had rolled_over outcome, delete the associated rollover task
+  if (completionToDelete && completionToDelete.outcome === "rolled_over") {
+    await deleteRolloverTask(userId, taskId, utcDate, clientId);
   }
 
   // Broadcast to other clients
@@ -208,6 +241,11 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
   if (time !== undefined) updateData.time = time || null;
 
   if (existing) {
+    // If changing from rolled_over to a different outcome, delete the rollover task
+    if (existing.outcome === "rolled_over" && outcome !== undefined && outcome !== "rolled_over") {
+      await deleteRolloverTask(userId, taskId, utcDate, clientId);
+    }
+
     const [updated] = await db
       .update(taskCompletions)
       .set(updateData)
@@ -257,6 +295,16 @@ export const PATCH = withApi(async (request, { userId, getBody }) => {
   const utcDate = new Date(
     Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
   );
+
+  // Get existing completion to check if it was rolled_over
+  const existing = await db.query.taskCompletions.findFirst({
+    where: and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)),
+  });
+
+  // If changing from rolled_over to a different outcome, delete the rollover task
+  if (existing && existing.outcome === "rolled_over" && outcome !== "rolled_over") {
+    await deleteRolloverTask(userId, taskId, utcDate, clientId);
+  }
 
   const [updated] = await db
     .update(taskCompletions)

@@ -29,7 +29,7 @@ export function ViewTogglesAndProgress() {
   const recentlyCompletedTasks = useMemo(() => new Set(recentlyCompletedTasksArray), [recentlyCompletedTasksArray]);
 
   // Get task filters
-  const { backlogTasks, filteredTodaysTasks } = useTaskFilters({
+  const { backlogTasks: _backlogTasks, filteredTodaysTasks } = useTaskFilters({
     recentlyCompletedTasks,
   });
 

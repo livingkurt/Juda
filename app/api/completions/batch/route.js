@@ -5,6 +5,24 @@ import { eq, and, inArray } from "drizzle-orm";
 import { withApi, Errors, withBroadcast, getClientIdFromRequest, ENTITY_TYPES } from "@/lib/apiHelpers";
 
 const completionBroadcast = withBroadcast(ENTITY_TYPES.COMPLETION);
+const taskBroadcast = withBroadcast(ENTITY_TYPES.TASK);
+
+// Helper function to delete rollover task associated with a completion
+async function deleteRolloverTask(userId, taskId, utcDate, clientId) {
+  const rolloverTask = await db.query.tasks.findFirst({
+    where: and(
+      eq(tasks.sourceTaskId, taskId),
+      eq(tasks.isRollover, true),
+      eq(tasks.userId, userId),
+      eq(tasks.rolledFromDate, utcDate)
+    ),
+  });
+
+  if (rolloverTask) {
+    await db.delete(tasks).where(eq(tasks.id, rolloverTask.id));
+    taskBroadcast.onDelete(userId, rolloverTask.id, clientId);
+  }
+}
 
 export const POST = withApi(async (request, { userId, getBody }) => {
   const clientId = getClientIdFromRequest(request);
@@ -106,16 +124,25 @@ export const DELETE = withApi(async (request, { userId, getBody }) => {
     return { taskId, date: utcDate };
   });
 
-  // Fetch completion IDs before deletion for broadcast
-  const completionIds = [];
+  // Fetch completions before deletion to check for rolled_over outcomes
+  const completionsToCheck = [];
   for (const { taskId, date } of normalizedCompletions) {
     const completion = await db.query.taskCompletions.findFirst({
       where: and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, date)),
     });
     if (completion) {
-      completionIds.push(completion.id);
+      completionsToCheck.push({ completion, taskId, date });
     }
   }
+
+  // Delete rollover tasks for any completions with rolled_over outcome
+  for (const { completion, taskId, date } of completionsToCheck) {
+    if (completion.outcome === "rolled_over") {
+      await deleteRolloverTask(userId, taskId, date, clientId);
+    }
+  }
+
+  const completionIds = completionsToCheck.map(c => c.completion.id);
 
   let deletedCount = 0;
   await db.transaction(async tx => {
