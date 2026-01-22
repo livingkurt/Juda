@@ -35,7 +35,10 @@ function escapeSQL(value) {
 // Helper to format date for SQL
 function formatDate(dateStr) {
   if (!dateStr) return "NULL";
-  return `'${dateStr}'::timestamp`;
+  // Normalize date to midnight UTC to match API query expectations
+  const date = new Date(dateStr);
+  const normalizedDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0, 0));
+  return `'${normalizedDate.toISOString()}'::timestamp`;
 }
 
 // Generate INSERT statements for a table
@@ -50,31 +53,39 @@ function generateInserts(tableName, rows) {
   for (const row of rows) {
     const columns = Object.keys(row);
     const columnList = columns.map(c => `"${c}"`).join(", ");
-    const values = columns.map(col => {
-      const val = row[col];
-      if (col.includes("At") || col === "date") {
-        // Timestamp columns
-        return formatDate(val);
-      }
-      if (col === "daysOfWeek" || col === "filters" || col === "recurrence" || col === "workoutData" || col === "preferences") {
-        // JSONB columns
+    const values = columns
+      .map(col => {
+        const val = row[col];
+        if (col.includes("At") || col === "date") {
+          // Timestamp columns
+          return formatDate(val);
+        }
+        if (
+          col === "daysOfWeek" ||
+          col === "filters" ||
+          col === "recurrence" ||
+          col === "workoutData" ||
+          col === "preferences"
+        ) {
+          // JSONB columns
+          return escapeSQL(val);
+        }
+        if (col === "progress" && tableName === "WorkoutProgram") {
+          // Progress column - database expects jsonb type
+          if (val === null || val === undefined) {
+            return "NULL";
+          }
+          // Convert numeric value to JSONB format
+          const numVal = typeof val === "number" ? val : parseFloat(val);
+          if (isNaN(numVal)) {
+            return "NULL";
+          }
+          // Convert to JSONB: store as JSON number
+          return `'${numVal}'::jsonb`;
+        }
         return escapeSQL(val);
-      }
-      if (col === "progress" && tableName === "WorkoutProgram") {
-        // Progress column - database expects jsonb type
-        if (val === null || val === undefined) {
-          return "NULL";
-        }
-        // Convert numeric value to JSONB format
-        const numVal = typeof val === "number" ? val : parseFloat(val);
-        if (isNaN(numVal)) {
-          return "NULL";
-        }
-        // Convert to JSONB: store as JSON number
-        return `'${numVal}'::jsonb`;
-      }
-      return escapeSQL(val);
-    }).join(", ");
+      })
+      .join(", ");
 
     // Determine unique constraint for ON CONFLICT
     let conflictClause = "";

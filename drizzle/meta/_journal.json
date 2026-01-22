@@ -295,6 +295,13 @@
       "when": 1769073970112,
       "tag": "0041_restore_lost_workout_data",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1769079051274,
+      "tag": "0042_fix_workout_completion_dates",
+      "breakpoints": true
     }
   ]
 }
