@@ -7,12 +7,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
  * Works directly with preference values to avoid sync issues
  * Supports both mouse and touch events for desktop and iPad
  */
-export function useResizeHandlers({
-  backlogWidth: initialBacklogWidth,
-  todayViewWidth: initialTodayViewWidth,
-  setBacklogWidth,
-  setTodayViewWidth,
-}) {
+export function useResizeHandlers({ backlogWidth: initialBacklogWidth, setBacklogWidth }) {
   const [isResizing, setIsResizing] = useState(false);
   const [resizeType, setResizeType] = useState(null);
 
@@ -42,21 +37,6 @@ export function useResizeHandlers({
     [initialBacklogWidth]
   );
 
-  // Start today panel resize (works for both mouse and touch)
-  const handleTodayResizeStart = useCallback(
-    e => {
-      e.preventDefault();
-      setIsResizing(true);
-      setResizeType("today");
-      const clientX = getClientX(e);
-      resizeStartRef.current = {
-        startX: clientX,
-        startWidth: initialTodayViewWidth,
-      };
-    },
-    [initialTodayViewWidth]
-  );
-
   // Handle mouse move and touch move during resize
   // Directly updates preference values during drag for smooth resizing
   useEffect(() => {
@@ -77,9 +57,6 @@ export function useResizeHandlers({
         if (resizeType === "backlog") {
           const newWidth = Math.max(300, Math.min(800, resizeStartRef.current.startWidth + deltaX));
           setBacklogWidth(newWidth);
-        } else if (resizeType === "today") {
-          const newWidth = Math.max(300, Math.min(1200, resizeStartRef.current.startWidth + deltaX));
-          setTodayViewWidth(newWidth);
         }
       });
     };
@@ -112,13 +89,12 @@ export function useResizeHandlers({
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [isResizing, resizeType, setBacklogWidth, setTodayViewWidth]);
+  }, [isResizing, resizeType, setBacklogWidth]);
 
   return {
     isResizing,
+    resizeType,
     backlogWidth: initialBacklogWidth,
-    todayViewWidth: initialTodayViewWidth,
     handleBacklogResizeStart,
-    handleTodayResizeStart,
   };
 }
