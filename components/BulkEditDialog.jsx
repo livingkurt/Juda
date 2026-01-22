@@ -27,7 +27,7 @@ import { DatePicker, TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { TagChip } from "./TagChip";
 import { TagSelector } from "./TagSelector";
-import { DAYS_OF_WEEK, DURATION_OPTIONS } from "@/lib/constants";
+import { DAYS_OF_WEEK, DURATION_OPTIONS, PRIORITY_LEVELS } from "@/lib/constants";
 import { useSelectionState } from "@/hooks/useSelectionState";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery, useCreateTagMutation, useDeleteTagMutation } from "@/lib/store/api/tagsApi";
@@ -72,6 +72,7 @@ export const BulkEditDialog = () => {
         endDate: "",
         tagIds: [],
         status: "",
+        priority: "",
       };
     }
 
@@ -81,6 +82,7 @@ export const BulkEditDialog = () => {
       time: selectedTasks.every(t => t.time === first.time) ? first.time || "" : "",
       duration: selectedTasks.every(t => t.duration === first.duration) ? first.duration.toString() : "",
       status: selectedTasks.every(t => t.status === first.status) ? first.status || "" : "",
+      priority: selectedTasks.every(t => t.priority === first.priority) ? first.priority || "" : "",
     };
 
     // Handle date from recurrence
@@ -144,6 +146,7 @@ export const BulkEditDialog = () => {
   const [endDate, setEndDate] = useState(commonValues.endDate);
   const [selectedTagIds, setSelectedTagIds] = useState(commonValues.tagIds);
   const [status, setStatus] = useState(commonValues.status);
+  const [priority, setPriority] = useState(commonValues.priority);
 
   // Reset to common values when dialog opens
   useEffect(() => {
@@ -158,6 +161,7 @@ export const BulkEditDialog = () => {
       setEndDate(commonValues.endDate);
       setSelectedTagIds(commonValues.tagIds);
       setStatus(commonValues.status);
+      setPriority(commonValues.priority);
       setEditedFields(new Set());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -222,6 +226,10 @@ export const BulkEditDialog = () => {
     if (editedFields.has("status") && status) {
       updates.status = status;
     }
+    if (editedFields.has("priority")) {
+      // Handle "null" string value (None option)
+      updates.priority = priority === "null" ? null : priority || null;
+    }
 
     selectionState.handleBulkEditSave(updates);
 
@@ -236,6 +244,7 @@ export const BulkEditDialog = () => {
     setEndDate("");
     setSelectedTagIds([]);
     setStatus("");
+    setPriority("");
   };
 
   const handleFormSubmit = e => {
@@ -377,6 +386,28 @@ export const BulkEditDialog = () => {
                 <MenuItem value="todo">Todo</MenuItem>
                 <MenuItem value="in_progress">In Progress</MenuItem>
                 <MenuItem value="complete">Complete</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Priority */}
+            <FormControl fullWidth size="small">
+              <InputLabel>Priority</InputLabel>
+              <Select
+                value={priority}
+                onChange={e => {
+                  setPriority(e.target.value);
+                  markFieldEdited("priority");
+                }}
+                label="Priority"
+              >
+                <MenuItem value="">
+                  <em>No change</em>
+                </MenuItem>
+                {PRIORITY_LEVELS.map(level => (
+                  <MenuItem key={level.value ?? "none"} value={level.value === null ? "null" : (level.value ?? "")}>
+                    {level.label}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
 
