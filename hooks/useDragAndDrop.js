@@ -9,32 +9,42 @@ import { formatLocalDate, snapToIncrement, minutesToTime, timeToMinutes } from "
 import { useGetTasksQuery, useUpdateTaskMutation, useBatchReorderTasksMutation } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery, useReorderSectionsMutation } from "@/lib/store/api/sectionsApi";
 
-const getSectionDropTime = ({ targetSection, targetSectionTasks, destIndex, isSameSection }) => {
+/**
+ * Calculate time for a task dropped into a time-ranged section
+ * Always interpolates based on drop position between neighboring tasks
+ */
+const getSectionDropTime = ({ targetSection, targetSectionTasks, destIndex, taskId }) => {
   if (!targetSection?.startTime || !targetSection?.endTime) return null;
 
-  if (!isSameSection) {
-    return targetSection.startTime;
-  }
+  // Filter out the task being moved (for reordering within same section)
+  const tasksWithoutCurrent = targetSectionTasks.filter(t => t.id !== taskId);
 
+  // Dropping at the beginning
   if (destIndex <= 0) {
     return targetSection.startTime;
   }
 
-  if (destIndex >= targetSectionTasks.length) {
-    const lastTask = targetSectionTasks[targetSectionTasks.length - 1];
-    if (!lastTask?.time) return targetSection.startTime;
-
-    const lastMinutes = timeToMinutes(lastTask.time);
-    const endMinutes = timeToMinutes(targetSection.endTime);
-    const newMinutes = Math.min(lastMinutes + 30, endMinutes - 1);
-    return minutesToTime(newMinutes);
+  // Dropping at the end
+  if (destIndex >= tasksWithoutCurrent.length) {
+    const lastTask = tasksWithoutCurrent[tasksWithoutCurrent.length - 1];
+    if (lastTask?.time) {
+      const lastMinutes = timeToMinutes(lastTask.time);
+      const endMinutes = timeToMinutes(targetSection.endTime);
+      // Add 1 minute after last task, but don't exceed section end
+      const newMinutes = Math.min(lastMinutes + 1, endMinutes - 1);
+      return minutesToTime(newMinutes);
+    }
+    return targetSection.startTime;
   }
 
-  const prevTask = targetSectionTasks[destIndex - 1];
-  const nextTask = targetSectionTasks[destIndex];
+  // Dropping between tasks - interpolate
+  const prevTask = tasksWithoutCurrent[destIndex - 1];
+  const nextTask = tasksWithoutCurrent[destIndex];
+
   if (prevTask?.time && nextTask?.time) {
     const prevMinutes = timeToMinutes(prevTask.time);
     const nextMinutes = timeToMinutes(nextTask.time);
+    // Interpolate between the two times
     const midMinutes = Math.floor((prevMinutes + nextMinutes) / 2);
     return minutesToTime(midMinutes);
   }
@@ -42,7 +52,8 @@ const getSectionDropTime = ({ targetSection, targetSectionTasks, destIndex, isSa
   if (prevTask?.time) {
     const prevMinutes = timeToMinutes(prevTask.time);
     const endMinutes = timeToMinutes(targetSection.endTime);
-    const newMinutes = Math.min(prevMinutes + 30, endMinutes - 1);
+    // Add 1 minute after previous task
+    const newMinutes = Math.min(prevMinutes + 1, endMinutes - 1);
     return minutesToTime(newMinutes);
   }
 
@@ -311,7 +322,6 @@ export function useDragAndDrop({
         // DESTINATION: Today section
         else if (destParsed.type === "today-section") {
           const targetSectionId = destParsed.sectionId;
-          const sourceSectionId = sourceParsed.type === "today-section" ? sourceParsed.sectionId : task.sectionId;
           const targetSection = sections.find(s => s.id === targetSectionId);
           const targetDate = viewDate || today;
           const targetDateStr = formatLocalDate(targetDate);
@@ -328,7 +338,7 @@ export function useDragAndDrop({
               targetSection,
               targetSectionTasks,
               destIndex,
-              isSameSection: sourceSectionId === targetSectionId,
+              taskId,
             });
           }
           // If section has no time range, keep existing time (or null)
@@ -415,48 +425,15 @@ export function useDragAndDrop({
         if (destParsed.type === "today-section") {
           const targetSectionId = destParsed.sectionId;
           const sourceSectionId = sourceParsed.type === "today-section" ? sourceParsed.sectionId : task.sectionId;
-          const targetSection = sections.find(s => s.id === targetSectionId);
 
-          // If reordering within a time-ranged section, update time based on position
-          if (targetSection?.startTime && targetSection?.endTime && sourceSectionId === targetSectionId) {
-            const targetSectionTasks = tasksBySection[targetSectionId] || [];
-            const sortedTasks = [...targetSectionTasks].filter(t => t.id !== taskId);
-            sortedTasks.splice(destination.index, 0, task);
-
-            // Recalculate time for repositioned task
-            let newTime;
-            const destIndex = destination.index;
-            if (destIndex === 0) {
-              newTime = targetSection.startTime;
-            } else if (destIndex >= sortedTasks.length - 1) {
-              const prevTask = sortedTasks[destIndex - 1];
-              if (prevTask?.time) {
-                const prevMinutes = timeToMinutes(prevTask.time);
-                const endMinutes = timeToMinutes(targetSection.endTime);
-                const newMinutes = Math.min(prevMinutes + 15, endMinutes - 1);
-                newTime = minutesToTime(newMinutes);
-              } else {
-                newTime = targetSection.startTime;
-              }
-            } else {
-              const prevTask = sortedTasks[destIndex - 1];
-              const nextTask = sortedTasks[destIndex + 1];
-              if (prevTask?.time && nextTask?.time) {
-                const midMinutes = Math.floor((timeToMinutes(prevTask.time) + timeToMinutes(nextTask.time)) / 2);
-                newTime = minutesToTime(midMinutes);
-              } else {
-                newTime = prevTask?.time || targetSection.startTime;
-              }
-            }
-
-            updates.time = newTime;
-          }
-
-          await reorderTask(taskId, sourceSectionId, targetSectionId, destination.index);
-
+          // IMPORTANT: Update time FIRST so the task appears in the correct section
+          // (time-ranged sections filter by time, not sectionId)
           if (Object.keys(updates).length > 0) {
             await updateTask(taskId, updates);
           }
+
+          // Then update sectionId and order (for non-time-ranged section fallback)
+          await reorderTask(taskId, sourceSectionId, targetSectionId, destination.index);
           updates = {};
         }
 
@@ -759,24 +736,21 @@ export function useDragAndDrop({
           const currentDateStr = task.recurrence?.startDate?.split("T")[0];
           const needsDateUpdate = currentDateStr !== targetDateStr;
 
-          // Determine what time to assign based on section time range
-          let timeUpdate = {};
+          // Build all updates first
+          const allUpdates = {};
+
+          // For time-ranged sections, calculate new time based on drop position
           if (targetSection?.startTime && targetSection?.endTime) {
             const targetSectionTasks = tasksBySection[targetSectionId] || [];
-            timeUpdate.time = getSectionDropTime({
+            allUpdates.time = getSectionDropTime({
               targetSection,
               targetSectionTasks,
               destIndex,
-              isSameSection: sourceSectionId === targetSectionId,
+              taskId,
             });
           }
 
-          await reorderTask(taskId, sourceSectionId, targetSectionId, destIndex);
-
-          const allUpdates = {
-            ...timeUpdate,
-          };
-
+          // Handle date/recurrence updates for non-recurring tasks
           if (task.recurrence && task.recurrence.type && task.recurrence.type !== "none") {
             // Recurring task - no date updates needed
           } else if (needsDateUpdate || !task.recurrence) {
@@ -786,9 +760,14 @@ export function useDragAndDrop({
             };
           }
 
+          // IMPORTANT: Update time FIRST so the task appears in the correct section
+          // (sections filter by time range, not sectionId)
           if (Object.keys(allUpdates).length > 0) {
             await updateTask(taskId, allUpdates);
           }
+
+          // Then update sectionId and order (for non-time-ranged section fallback)
+          await reorderTask(taskId, sourceSectionId, targetSectionId, destIndex);
 
           return;
         }

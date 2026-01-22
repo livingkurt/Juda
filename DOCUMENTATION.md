@@ -43,6 +43,19 @@
 
 ### Time-based section drag behavior
 
-- Dropping tasks into time-ranged sections now sets `time` to the section `startTime`.
-- Reordering within the same time-ranged section recalculates `time` by interpolating between neighbors.
+- **Implementation**: Uses `@hello-pangea/dnd` exclusively for section-to-section drags in `TasksTab.jsx`. The `handleDragEnd` function handles all drag operations including backlog ↔ section and section ↔ section moves.
+
+- **Key insight**: Time-ranged sections filter tasks by their `time` field, not by `sectionId`. This means the `time` must be updated FIRST for the task to appear in the correct section.
+
+- Dropping tasks into time-ranged sections **always** interpolates the time based on drop position:
+  - Dropping at the beginning: uses section `startTime`
+  - Dropping at the end: uses last task's time + 1 minute (capped at section `endTime`)
+  - Dropping between tasks: interpolates midpoint between neighboring task times
+- This applies whether moving from backlog, another section, or reordering within the same section.
 - Non-time-ranged sections keep existing time values on drop.
+
+- **Update order matters**: When dragging between time-ranged sections, we must:
+  1. Update `time` first (via `updateTaskMutation`) - this makes the task appear in the correct section
+  2. Then update `sectionId` and `order` (via `batchReorderTasksMutation`) - this is a fallback for non-time-ranged sections
+
+- **Sorting**: Tasks within sections are sorted by `time` first (ascending), then by `order` as a fallback. Tasks without time appear at the end.
