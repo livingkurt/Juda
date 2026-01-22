@@ -17,12 +17,12 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
 
   const handleTimerComplete = () => {
     if (!completedFirstSide) {
-      // First side just completed, wait a moment then show second timer
+      // First side just completed, show second timer after brief delay
       setCompletedFirstSide(true);
-      // Delay showing second timer to let completion sound play
+      // Brief delay to let completion sound play
       setTimeout(() => {
         setShowSecondTimer(true);
-      }, 500);
+      }, 1000);
     } else {
       // Second side completed, mark the whole exercise as complete
       if (onComplete) {
@@ -43,20 +43,6 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
       return () => clearTimeout(timer);
     }
   }, [setKey]);
-
-  // Show "Switch sides" message between timers
-  if (completedFirstSide && !showSecondTimer) {
-    return (
-      <Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, textAlign: "center" }}>
-          Switch sides in...
-        </Typography>
-        <Typography variant="h4" sx={{ textAlign: "center", color: "primary.main" }}>
-          5
-        </Typography>
-      </Box>
-    );
-  }
 
   return (
     <Box>
