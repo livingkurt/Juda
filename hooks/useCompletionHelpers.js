@@ -47,9 +47,12 @@ export function useCompletionHelpers() {
     data: completionsData,
     isLoading,
     error,
-  } = useGetCompletionsQuery(undefined, {
-    skip: !isAuthenticated,
-  });
+  } = useGetCompletionsQuery(
+    { limit: 100000 },
+    {
+      skip: !isAuthenticated,
+    }
+  );
 
   // Extract completions array from paginated response
   const completions = useMemo(() => {
