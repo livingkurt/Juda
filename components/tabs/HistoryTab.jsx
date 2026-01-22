@@ -44,11 +44,11 @@ import { shouldShowOnDate } from "@/lib/utils";
 import { DateNavigation } from "../DateNavigation";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
-import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import {
   useCreateCompletionMutation,
   useDeleteCompletionMutation,
   useUpdateCompletionMutation,
+  useGetCompletionsByDateRangeQuery,
 } from "@/lib/store/api/completionsApi";
 import {
   useCreateOffScheduleCompletionMutation,
@@ -456,7 +456,6 @@ export function HistoryTab({ isLoading: tabLoading }) {
   // Get data from Redux
   const { data: tasks = [] } = useGetTasksQuery();
   const { data: sections = [] } = useGetSectionsQuery();
-  const { getCompletionForDate } = useCompletionHelpers();
   const dialogState = useDialogState();
   const viewState = useViewState();
 
@@ -489,6 +488,42 @@ export function HistoryTab({ isLoading: tabLoading }) {
 
   // Generate dates
   const dates = useMemo(() => generateDates(range, page), [range, page]);
+
+  const dateRangeStart = useMemo(() => {
+    if (dates.length === 0) return null;
+    return dayjs(dates[dates.length - 1])
+      .startOf("day")
+      .toISOString();
+  }, [dates]);
+
+  const dateRangeEnd = useMemo(() => {
+    if (dates.length === 0) return null;
+    return dayjs(dates[0]).endOf("day").toISOString();
+  }, [dates]);
+
+  const { data: rangeCompletions = [] } = useGetCompletionsByDateRangeQuery(
+    { startDate: dateRangeStart, endDate: dateRangeEnd },
+    { skip: !dateRangeStart || !dateRangeEnd }
+  );
+
+  const completionsByTaskAndDate = useMemo(() => {
+    const map = new Map();
+    rangeCompletions.forEach(completion => {
+      const dateStr = dayjs(completion.date).format("YYYY-MM-DD");
+      const key = `${completion.taskId}|${dateStr}`;
+      map.set(key, completion);
+    });
+    return map;
+  }, [rangeCompletions]);
+
+  const getCompletionForDate = useCallback(
+    (taskId, date) => {
+      const dateStr = dayjs(date).format("YYYY-MM-DD");
+      const key = `${taskId}|${dateStr}`;
+      return completionsByTaskAndDate.get(key) || null;
+    },
+    [completionsByTaskAndDate]
+  );
 
   // Get the first date of the range for DateNavigation (or today if no dates)
   const selectedDate = useMemo(() => {

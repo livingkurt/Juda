@@ -37,18 +37,31 @@ const createLookupKey = (taskId, date) => {
   return `${taskId}|${normalized.toISOString()}`;
 };
 
+const getRecentDateRange = (daysBack = 90) => {
+  const end = new Date();
+  const start = new Date(end);
+  start.setDate(start.getDate() - daysBack);
+  const startOfDay = normalizeDate(start);
+  const endOfDay = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999);
+  return {
+    startDate: startOfDay.toISOString(),
+    endDate: endOfDay.toISOString(),
+  };
+};
+
 /**
  * Hook that provides helper functions for working with completions
  * This maintains the same API as the old useCompletions hook
  */
 export function useCompletionHelpers() {
   const { isAuthenticated } = useAuth();
+  const { startDate, endDate } = getRecentDateRange(90);
   const {
     data: completionsData,
     isLoading,
     error,
   } = useGetCompletionsQuery(
-    { limit: 100000 },
+    { startDate, endDate, limit: 10000 },
     {
       skip: !isAuthenticated,
     }

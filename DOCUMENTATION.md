@@ -2,6 +2,13 @@
 
 ## 2026-01-22
 
+### Pagination and completion loading fixes
+
+- Added a completions date-range query and used it in `HistoryTab` to fetch only the visible range.
+- Switched `useCompletionHelpers` to a recent 90-day window to avoid default pagination limits while keeping the cache lightweight.
+- Added task pagination support in the tasks API while preserving the existing array response for backward compatibility.
+- Updated SSE cache handling to apply updates across tagged queries and keep pagination metadata consistent.
+
 ### Tasks tab main content toggle
 
 - Consolidated Today and Calendar into a single `mainContentView` state with a mutually exclusive toggle group.
