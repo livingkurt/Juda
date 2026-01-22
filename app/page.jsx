@@ -8,11 +8,9 @@ import { AuthPage } from "@/components/AuthPage";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { AppHeader } from "@/components/AppHeader";
-import { DragOverlayContent } from "@/components/DragOverlayContent";
-import { DndContext, DragOverlay, pointerWithin, closestCenter } from "@dnd-kit/core";
 import { TaskDialog } from "@/components/TaskDialog";
 import { SectionDialog } from "@/components/SectionDialog";
-import { useGetTasksQuery, useReorderTaskMutation } from "@/lib/store/api/tasksApi";
+import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery } from "@/lib/store/api/tagsApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
@@ -28,10 +26,7 @@ import {
   openTaskDialog,
   setMainContentView,
 } from "@/lib/store/slices/uiSlice";
-import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
-import { useTaskFilters } from "@/hooks/useTaskFilters";
-import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { useSectionExpansion } from "@/hooks/useSectionExpansion";
 import { useViewState } from "@/hooks/useViewState";
 import { useDialogState } from "@/hooks/useDialogState";
@@ -109,22 +104,6 @@ const HistoryTab = dynamic(() => import("@/components/tabs/HistoryTab").then(mod
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
 
-// Custom collision detection that prioritizes sortable reordering
-const customCollisionDetection = args => {
-  const activeData = args.active?.data?.current;
-  const isSortable = activeData?.type === "TASK" || activeData?.type === "SUBTASK" || activeData?.type === "SECTION";
-
-  if (isSortable) {
-    const closestCollisions = closestCenter(args);
-    if (closestCollisions.length > 0) {
-      return closestCollisions;
-    }
-  }
-
-  const pointerCollisions = pointerWithin(args);
-  return pointerCollisions.length > 0 ? pointerCollisions : [];
-};
-
 export default function DailyTasksApp() {
   const { isAuthenticated, loading: authLoading, initialized: authInitialized } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -138,7 +117,6 @@ export default function DailyTasksApp() {
   const { data: tasks = [], isLoading: tasksLoading } = useGetTasksQuery(undefined, {
     skip: !isAuthenticated,
   });
-  const [reorderTaskMutation] = useReorderTaskMutation();
 
   const { data: sections = [], isLoading: sectionsLoading } = useGetSectionsQuery(undefined, {
     skip: !isAuthenticated,
@@ -150,23 +128,6 @@ export default function DailyTasksApp() {
 
   // Completion helpers
   const { loading: completionsLoading } = useCompletionHelpers();
-
-  const reorderTask = useCallback(
-    async (taskId, sourceSectionId, targetSectionId, newOrder) => {
-      try {
-        await reorderTaskMutation({
-          taskId,
-          sourceSectionId,
-          targetSectionId,
-          newOrder,
-        }).unwrap();
-      } catch (err) {
-        console.error("Error reordering task:", err);
-        throw err;
-      }
-    },
-    [reorderTaskMutation]
-  );
 
   const fetchCompletions = useCallback(() => {
     return Promise.resolve();
@@ -199,13 +160,20 @@ export default function DailyTasksApp() {
   // Extract commonly used values from viewState
   const { mainTabIndex, viewDate } = viewState;
 
-  // Initialize section expansion state
+  // Initialize section expansion state (empty initial state)
   const sectionExpansionInitial = useSectionExpansion({
     sections,
     showCompletedTasks: preferences.showCompletedTasks,
     tasksBySection: {},
     viewDate,
     todaysTasks: [],
+  });
+
+  // Initialize completion handlers (for section expansion callbacks)
+  const _completionHandlers = useCompletionHandlers({
+    autoCollapsedSections: sectionExpansionInitial.autoCollapsedSections,
+    setAutoCollapsedSections: sectionExpansionInitial.setAutoCollapsedSections,
+    checkAndAutoCollapseSection: sectionExpansionInitial.checkAndAutoCollapseSection,
   });
 
   // Sync Redux UI state with preferences on mount
@@ -296,38 +264,6 @@ export default function DailyTasksApp() {
     };
   }, [dispatch]);
 
-  // Initialize completion handlers
-  const completionHandlers = useCompletionHandlers({
-    autoCollapsedSections: sectionExpansionInitial.autoCollapsedSections,
-    setAutoCollapsedSections: sectionExpansionInitial.setAutoCollapsedSections,
-    checkAndAutoCollapseSection: sectionExpansionInitial.checkAndAutoCollapseSection,
-  });
-
-  // Extract task filters
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
-  });
-
-  // Extract status handlers
-  const statusHandlers = useStatusHandlers({
-    addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
-  });
-
-  const tasksBySection = taskFilters.tasksBySection;
-  const backlogTasks = taskFilters.backlogTasks;
-
-  // Extract drag and drop handlers
-  const dragAndDrop = useDragAndDrop({
-    backlogTasks,
-    tasksBySection,
-    handleStatusChange: statusHandlers.handleStatusChange,
-    reorderTask,
-  });
-
-  // Drag handlers
-  const handleDragOver = dragAndDrop.handleDragOver;
-  const handleDragEndNew = dragAndDrop.handleDragEndNew;
-
   // Auth checks - only show loading after mount to prevent hydration mismatch
   if (!mounted || !authInitialized || authLoading) {
     return (
@@ -382,51 +318,31 @@ export default function DailyTasksApp() {
         <ViewTogglesAndProgress />
       </Box>
 
-      {/* Main content with DndContext */}
-      <DndContext
-        sensors={dragAndDrop.sensors}
-        collisionDetection={customCollisionDetection}
-        onDragStart={dragAndDrop.handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEndNew}
+      {/* Main content */}
+      <Box
+        component="main"
+        sx={{
+          flex: 1,
+          overflow: { xs: "visible", md: "hidden" },
+          display: "flex",
+          flexDirection: "column",
+        }}
       >
-        <Box
-          component="main"
-          sx={{
-            flex: 1,
-            overflow: { xs: "visible", md: "hidden" },
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          {/* Tab Content */}
-          <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}>
-            {(mainTabIndex === 0 || loadingTab === 0) && <TasksTab />}
+        {/* Tab Content */}
+        <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}>
+          {(mainTabIndex === 0 || loadingTab === 0) && <TasksTab />}
 
-            {(mainTabIndex === 1 || loadingTab === 1) && <KanbanTab isLoading={loadingTab === 1} />}
+          {(mainTabIndex === 1 || loadingTab === 1) && <KanbanTab isLoading={loadingTab === 1} />}
 
-            {(mainTabIndex === 2 || loadingTab === 2) && <JournalTab isLoading={loadingTab === 2} />}
+          {(mainTabIndex === 2 || loadingTab === 2) && <JournalTab isLoading={loadingTab === 2} />}
 
-            {(mainTabIndex === 3 || loadingTab === 3) && <NotesTab isLoading={loadingTab === 3} />}
+          {(mainTabIndex === 3 || loadingTab === 3) && <NotesTab isLoading={loadingTab === 3} />}
 
-            {(mainTabIndex === 4 || loadingTab === 4) && <WorkoutTab isLoading={loadingTab === 4} />}
+          {(mainTabIndex === 4 || loadingTab === 4) && <WorkoutTab isLoading={loadingTab === 4} />}
 
-            {(mainTabIndex === 5 || loadingTab === 5) && <HistoryTab isLoading={loadingTab === 5} />}
-          </Box>
+          {(mainTabIndex === 5 || loadingTab === 5) && <HistoryTab isLoading={loadingTab === 5} />}
         </Box>
-
-        {/* Drag Overlay */}
-        <DragOverlay
-          dropAnimation={null}
-          style={{
-            cursor: "grabbing",
-            marginLeft: `${dragAndDrop.dragState.offset.x}px`,
-            marginTop: `${dragAndDrop.dragState.offset.y}px`,
-          }}
-        >
-          <DragOverlayContent dragState={dragAndDrop.dragState} />
-        </DragOverlay>
-      </DndContext>
+      </Box>
 
       {/* Dialogs */}
       <TaskDialog />

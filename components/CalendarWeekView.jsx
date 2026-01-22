@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useRef, useEffect, useCallback, useMemo } from "react";
 import { Box } from "@mui/material";
 import { useDispatch } from "react-redux";
 import { timeToMinutes, minutesToTime, snapToIncrement, shouldShowOnDate, calculateTaskPositions } from "@/lib/utils";
-import { HOUR_HEIGHT_WEEK, DRAG_THRESHOLD } from "@/lib/calendarConstants";
+import { HOUR_HEIGHT_WEEK } from "@/lib/calendarConstants";
 import { DayHeaderColumn } from "./DayHeaderColumn";
 import { TimedColumn } from "./TimedColumn";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -45,7 +45,12 @@ const filterTasksForDay = (tasks, day, showCompleted, isCompletedOnDate, getOutc
   return result;
 };
 
-export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, onDropTimeChange }) => {
+export const CalendarWeekView = ({
+  date,
+  createDroppableId: _createDroppableId,
+  createDraggableId,
+  onDropTimeChange,
+}) => {
   const dispatch = useDispatch();
   const viewState = useViewState();
 
@@ -118,18 +123,6 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
     return () => clearTimeout(timeoutId);
   }, [isTodayInWeek, HOUR_HEIGHT, weekDays]);
 
-  // Internal drag state for time/duration adjustments
-  const [internalDrag, setInternalDrag] = useState({
-    taskId: null,
-    type: null,
-    startY: 0,
-    startMinutes: 0,
-    startDuration: 0,
-    currentMinutes: 0,
-    currentDuration: 0,
-    hasMoved: false,
-  });
-
   // Pre-compute ALL tasks for each day in a single pass (OPTIMIZED)
   // This reduces shouldShowOnDate calls from 2N*7 to N*7 (50% reduction)
   // and combines timed/untimed filtering into one loop
@@ -168,11 +161,8 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
 
   const getTaskStyle = useCallback(
     (task, positionedTask) => {
-      const isDragging = internalDrag.taskId === task.id;
-      const minutes =
-        isDragging && internalDrag.type === "move" ? internalDrag.currentMinutes : timeToMinutes(task.time);
-      const duration =
-        isDragging && internalDrag.type === "resize" ? internalDrag.currentDuration : (task.duration ?? 30);
+      const minutes = timeToMinutes(task.time);
+      const duration = task.duration ?? 30;
       const isNoDuration = duration === 0;
       return {
         top: `${(minutes / 60) * HOUR_HEIGHT}px`,
@@ -181,7 +171,7 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
         width: positionedTask?.width || "100%",
       };
     },
-    [internalDrag, HOUR_HEIGHT]
+    [HOUR_HEIGHT]
   );
 
   // Stable lookup function for positioned tasks (OPTIMIZED)
@@ -192,115 +182,14 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
     [tasksByDay]
   );
 
-  const handleInternalDragStart = useCallback((e, task, type) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const taskDuration = task.duration ?? 30;
-    // Support both mouse and touch events
-    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
-    setInternalDrag({
-      taskId: task.id,
-      type,
-      startY: clientY,
-      startMinutes: timeToMinutes(task.time),
-      startDuration: taskDuration,
-      currentMinutes: timeToMinutes(task.time),
-      currentDuration: taskDuration,
-      hasMoved: false,
-    });
-  }, []);
-
-  const handleInternalDragMove = useCallback(
-    clientY => {
-      if (!internalDrag.taskId) return;
-      const deltaY = clientY - internalDrag.startY;
-      const hasMoved = Math.abs(deltaY) > DRAG_THRESHOLD;
-
-      if (internalDrag.type === "move") {
-        const newMinutes = snapToIncrement(internalDrag.startMinutes + (deltaY / HOUR_HEIGHT) * 60, 15);
-        setInternalDrag(prev => ({
-          ...prev,
-          currentMinutes: Math.max(0, Math.min(24 * 60 - prev.startDuration, newMinutes)),
-          hasMoved: hasMoved || prev.hasMoved,
-        }));
-      } else {
-        const newDuration = snapToIncrement(internalDrag.startDuration + (deltaY / HOUR_HEIGHT) * 60, 15);
-        // When resizing, minimum is 15 minutes (converts "No duration" tasks to timed)
-        setInternalDrag(prev => ({
-          ...prev,
-          currentDuration: Math.max(15, newDuration),
-          hasMoved: hasMoved || prev.hasMoved,
-        }));
-      }
-    },
-    [internalDrag, HOUR_HEIGHT]
-  );
-
-  const handleInternalDragEnd = useCallback(() => {
-    if (!internalDrag.taskId) return;
-
-    const { taskId, type, currentMinutes, currentDuration, hasMoved } = internalDrag;
-
-    setInternalDrag({
-      taskId: null,
-      type: null,
-      startY: 0,
-      startMinutes: 0,
-      startDuration: 0,
-      currentMinutes: 0,
-      currentDuration: 0,
-      hasMoved: false,
-    });
-
-    if (hasMoved) {
-      if (type === "move") {
-        taskOps.handleTaskTimeChange(taskId, minutesToTime(currentMinutes));
-      } else {
-        taskOps.handleTaskDurationChange(taskId, currentDuration);
-      }
-    }
-    // Note: For clicks without drag, let the onClick handler in CalendarTask handle it
-    // to avoid double calls to handleEditTask
-  }, [internalDrag, taskOps]);
-
-  useEffect(() => {
-    if (!internalDrag.taskId) return;
-
-    const onMouseMove = e => handleInternalDragMove(e.clientY);
-    const onMouseUp = () => handleInternalDragEnd();
-    const onTouchMove = e => {
-      e.preventDefault(); // Prevent scrolling while dragging
-      if (e.touches.length === 1) {
-        handleInternalDragMove(e.touches[0].clientY);
-      }
-    };
-    const onTouchEnd = e => {
-      e.preventDefault();
-      handleInternalDragEnd();
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("touchend", onTouchEnd, { passive: false });
-
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [internalDrag.taskId, handleInternalDragMove, handleInternalDragEnd]);
-
   const handleColumnClick = useCallback(
     (e, day) => {
-      if (internalDrag.taskId) return;
       const rect = e.currentTarget.getBoundingClientRect();
       const y = e.clientY - rect.top;
       const minutes = snapToIncrement((y / HOUR_HEIGHT) * 60, 15);
       taskOps.handleCreateTaskFromCalendar(minutesToTime(minutes), day);
     },
-    [internalDrag.taskId, HOUR_HEIGHT, taskOps]
+    [HOUR_HEIGHT, taskOps]
   );
 
   const handleDropTimeCalculation = useCallback(
@@ -424,7 +313,6 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
                   untimedTasks={untimedTasksForDay}
                   isToday={isToday}
                   onDayClick={handleDayClick}
-                  createDroppableId={createDroppableId}
                   createDraggableId={createDraggableId}
                   dropHighlight="action.hover"
                 />
@@ -507,11 +395,8 @@ export const CalendarWeekView = ({ date, createDroppableId, createDraggableId, o
                   allTasks={tasks}
                   handleColumnClick={handleColumnClick}
                   handleDropTimeCalculation={handleDropTimeCalculation}
-                  createDroppableId={createDroppableId}
                   createDraggableId={createDraggableId}
                   getTaskStyle={getTaskStyle}
-                  internalDrag={internalDrag}
-                  handleInternalDragStart={handleInternalDragStart}
                   dropHighlight="action.hover"
                   showStatusTasks={showStatusTasks}
                   hourHeight={HOUR_HEIGHT}

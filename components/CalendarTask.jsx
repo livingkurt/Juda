@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useRef, useCallback, useEffect } from "react";
+import { memo, useState, useRef, useCallback } from "react";
 import { Box, Typography, Paper, Stack } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Repeat, FitnessCenter } from "@mui/icons-material";
@@ -26,19 +26,13 @@ export const CalendarTask = memo(
     task,
     date,
     variant = "timed", // 'timed' | 'untimed' | 'timed-week' | 'untimed-week'
-    createDraggableId: _createDraggableId, // Kept for API compatibility but not used for internal calendar drags
+    createDraggableId: _createDraggableId, // Kept for API compatibility
     getTaskStyle,
-    internalDrag,
-    handleInternalDragStart,
   }) {
     const theme = useTheme();
     const { mode: colorMode } = useColorMode();
     const [anchorEl, setAnchorEl] = useState(null);
-    const resizeRef = useRef(null);
     const taskRef = useRef(null);
-    const justDraggedRef = useRef(false);
-    const mouseDownPosRef = useRef({ x: 0, y: 0 });
-    const hasMovedRef = useRef(false);
 
     // Use hooks directly (they use Redux internally)
     const taskOps = useTaskOperations();
@@ -59,44 +53,6 @@ export const CalendarTask = memo(
 
     // Get task color from first tag, or use neutral gray if no tags
     const taskColor = getTaskDisplayColor(task, null, colorMode);
-
-    // Check if this task is currently being dragged internally
-    const isInternalDragging = internalDrag?.taskId === task.id;
-    const wasDraggingRef = useRef(false);
-    const hadMovedRef = useRef(false);
-
-    // Track when drag ends to prevent click from firing
-    useEffect(() => {
-      if (isInternalDragging) {
-        // Currently dragging - mark that we were dragging and store hasMoved
-        wasDraggingRef.current = true;
-        hadMovedRef.current = internalDrag?.hasMoved || false;
-        // If we've moved, mark it immediately
-        if (internalDrag?.hasMoved) {
-          hasMovedRef.current = true;
-        }
-      } else if (wasDraggingRef.current) {
-        // Drag just ended - check if we moved
-        if (hadMovedRef.current || hasMovedRef.current) {
-          // We moved - prevent click from firing
-          justDraggedRef.current = true;
-          // Reset flag after a short delay to allow click events to be processed
-          const timeoutId = setTimeout(() => {
-            justDraggedRef.current = false;
-            hasMovedRef.current = false;
-            mouseDownPosRef.current = { x: 0, y: 0 };
-          }, 200);
-          wasDraggingRef.current = false;
-          hadMovedRef.current = false;
-          return () => clearTimeout(timeoutId);
-        }
-        // Didn't move - allow click to fire
-        wasDraggingRef.current = false;
-        hadMovedRef.current = false;
-        hasMovedRef.current = false;
-        mouseDownPosRef.current = { x: 0, y: 0 };
-      }
-    }, [isInternalDragging, internalDrag?.hasMoved]);
 
     // Style for positioning (timed variants only)
     const positionStyle = isTimed && getTaskStyle ? getTaskStyle(task) : {};
@@ -137,113 +93,20 @@ export const CalendarTask = memo(
       [completionHandlers]
     );
 
-    // Handle mouse down for move (internal drag - Apple Calendar style)
-    const handleMoveMouseDown = useCallback(
-      e => {
-        // Only left click
-        if (e.button !== 0) return;
-        // Don't start drag if clicking on resize handle
-        if (resizeRef.current && resizeRef.current.contains(e.target)) return;
-        // Reset drag flag when starting a new drag
-        justDraggedRef.current = false;
-        hasMovedRef.current = false;
-        // Store initial mouse position to detect movement
-        mouseDownPosRef.current = { x: e.clientX, y: e.clientY };
-        // For timed tasks, use internal drag system for moving (Apple Calendar feel)
-        if (isTimed && handleInternalDragStart) {
-          handleInternalDragStart(e, task, "move");
-        }
-      },
-      [isTimed, handleInternalDragStart, task]
-    );
-
-    // Handle touch start for move (iPad/tablet support)
-    const handleMoveTouchStart = useCallback(
-      e => {
-        // Don't start drag if touching on resize handle
-        if (resizeRef.current && resizeRef.current.contains(e.target)) return;
-        // Reset drag flag when starting a new drag
-        justDraggedRef.current = false;
-        // For timed tasks, use internal drag system for moving
-        if (isTimed && handleInternalDragStart && e.touches.length === 1) {
-          // Prevent default touch behaviors (scrolling, zooming)
-          e.preventDefault();
-          // Create a synthetic event-like object with clientY from touch
-          const syntheticEvent = {
-            ...e,
-            clientY: e.touches[0].clientY,
-            preventDefault: () => e.preventDefault(),
-            stopPropagation: () => e.stopPropagation(),
-          };
-          handleInternalDragStart(syntheticEvent, task, "move");
-        }
-      },
-      [isTimed, handleInternalDragStart, task]
-    );
-
-    // Handle click - only open dialog if we didn't just drag
+    // Handle click - open task editor
     const handleTaskClick = useCallback(
       e => {
         // Prevent event bubbling to avoid triggering parent handlers
         e.stopPropagation();
         e.preventDefault();
 
-        // Don't open if we just finished dragging (from useEffect tracking)
-        if (justDraggedRef.current) {
-          return;
-        }
-
-        // Also check if mouse moved significantly during the click (additional safety check)
-        // This catches cases where the drag detection might have missed it
-        if (mouseDownPosRef.current.x !== 0 || mouseDownPosRef.current.y !== 0) {
-          const deltaX = Math.abs(e.clientX - mouseDownPosRef.current.x);
-          const deltaY = Math.abs(e.clientY - mouseDownPosRef.current.y);
-          const movedThreshold = 5; // 5px threshold to distinguish click from drag
-          if (deltaX > movedThreshold || deltaY > movedThreshold) {
-            // Mouse moved significantly - this was a drag, not a click
-            hasMovedRef.current = true;
-            return;
-          }
-        }
-
-        // Don't open if clicking on resize handle or outcome button
-        if (resizeRef.current?.contains(e.target)) return;
+        // Don't open if clicking on outcome button
         if (e.target.closest("button[aria-label]")) return;
 
         // Open task editor - pass the date for recurring tasks
         taskOps.handleEditTask(task, date);
       },
       [taskOps, task, date]
-    );
-
-    // Handle resize mouse down
-    const handleResizeMouseDown = useCallback(
-      e => {
-        e.stopPropagation();
-        if (handleInternalDragStart) {
-          handleInternalDragStart(e, task, "resize");
-        }
-      },
-      [handleInternalDragStart, task]
-    );
-
-    // Handle resize touch start (iPad/tablet support)
-    const handleResizeTouchStart = useCallback(
-      e => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (handleInternalDragStart && e.touches.length === 1) {
-          // Create a synthetic event-like object with clientY from touch
-          const syntheticEvent = {
-            ...e,
-            clientY: e.touches[0].clientY,
-            preventDefault: () => e.preventDefault(),
-            stopPropagation: () => e.stopPropagation(),
-          };
-          handleInternalDragStart(syntheticEvent, task, "resize");
-        }
-      },
-      [handleInternalDragStart, task]
     );
 
     const isNoDuration = !task.duration || task.duration === 0;
@@ -255,8 +118,6 @@ export const CalendarTask = memo(
           ref={taskRef}
           variant="outlined"
           onContextMenu={handleContextMenu}
-          onMouseDown={handleMoveMouseDown}
-          onTouchStart={handleMoveTouchStart}
           onClick={handleTaskClick}
           sx={{
             ...(isTimed
@@ -291,20 +152,10 @@ export const CalendarTask = memo(
             touchAction: isTimed ? "none" : "auto", // Prevent default touch behaviors during drag
             backgroundImage: isNotCompleted ? getStripedBg(theme) : "none",
             color: taskColor ? "white" : theme.palette.text.primary,
-            // Elevated appearance when dragging (Apple Calendar style)
-            boxShadow: isInternalDragging ? theme.shadows[8] : "none",
-            zIndex: isInternalDragging ? 100 : "auto",
-            // Subtle scale when dragging
-            transform: isInternalDragging ? "scale(1.02)" : "none",
-            transition: isInternalDragging ? "none" : "box-shadow 0.15s, transform 0.15s",
             minHeight: isTimed ? (isNoDuration ? 24 : undefined) : undefined,
             userSelect: "none",
             "&:hover": {
               bgcolor: isNotCompleted ? undefined : "action.hover",
-              "& .resize-handle": { opacity: 1 },
-            },
-            "&:active": {
-              cursor: "grabbing",
             },
           }}
         >
@@ -374,44 +225,6 @@ export const CalendarTask = memo(
               {isWorkoutTask && <FitnessCenter fontSize={isWeek ? "inherit" : "small"} sx={{ opacity: 0.6 }} />}
             </Stack>
           </Stack>
-
-          {/* Resize Handle (timed variants only) */}
-          {isTimed && (
-            <Box
-              ref={resizeRef}
-              className="resize-handle"
-              onMouseDown={handleResizeMouseDown}
-              onTouchStart={handleResizeTouchStart}
-              sx={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: isWeek ? 4 : 6,
-                bgcolor: "primary.main",
-                cursor: "ns-resize",
-                opacity: 0,
-                transition: "opacity 0.2s",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                "&:hover": {
-                  opacity: 1,
-                },
-              }}
-            >
-              {!isWeek && (
-                <Box
-                  sx={{
-                    width: 32,
-                    height: 2,
-                    borderRadius: "full",
-                    bgcolor: "rgba(255, 255, 255, 0.7)",
-                  }}
-                />
-              )}
-            </Box>
-          )}
         </Paper>
 
         {/* Context Menu */}
@@ -444,9 +257,7 @@ export const CalendarTask = memo(
       prevProps.task.color === nextProps.task.color &&
       prevProps.task.tags?.length === nextProps.task.tags?.length &&
       prevProps.variant === nextProps.variant &&
-      prevProps.date?.getTime() === nextProps.date?.getTime() &&
-      prevProps.internalDrag?.taskId === nextProps.internalDrag?.taskId &&
-      prevProps.internalDrag?.hasMoved === nextProps.internalDrag?.hasMoved
+      prevProps.date?.getTime() === nextProps.date?.getTime()
     );
   }
 );

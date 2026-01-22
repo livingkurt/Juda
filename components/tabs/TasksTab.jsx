@@ -20,8 +20,6 @@ import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useResizeHandlers } from "@/hooks/useResizeHandlers";
 import { useSectionExpansion } from "@/hooks/useSectionExpansion";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
-import { useDragAndDrop } from "@/hooks/useDragAndDrop";
-import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import {
   useGetTasksQuery,
@@ -118,7 +116,6 @@ export function TasksTab() {
   const { data: sections = [] } = useGetSectionsQuery();
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
-  const [reorderTaskMutation] = useReorderTaskMutation();
   const [batchReorderTasksMutation] = useBatchReorderTasksMutation();
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [reorderSectionsMutation] = useReorderSectionsMutation();
@@ -129,6 +126,8 @@ export function TasksTab() {
     },
     [createTagMutation]
   );
+
+  const [reorderTaskMutation] = useReorderTaskMutation();
 
   const reorderTask = useCallback(
     async (taskId, sourceSectionId, targetSectionId, newOrder) => {
@@ -154,7 +153,7 @@ export function TasksTab() {
     checkAndAutoCollapseSection: () => {},
   });
 
-  // Task filters (needed for handleDragEnd)
+  // Task filters
   const taskFilters = useTaskFilters({
     recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
   });
@@ -218,7 +217,7 @@ export function TasksTab() {
   // Note: We don't await API calls here - optimistic updates in RTK Query handle the UI instantly
   // The mutations have onQueryStarted handlers that update the cache immediately
   const handleDragEnd = useCallback(
-    result => {
+    async result => {
       const { destination, source, type, draggableId } = result;
 
       // Dropped outside a droppable area
@@ -245,294 +244,233 @@ export function TasksTab() {
         return;
       }
 
-      // Handle task dragging
-      if (type === "TASK") {
-        // Extract task ID using the helper (handles context-aware IDs like "task-{id}-backlog")
-        const taskId = extractTaskId(draggableId);
-        const sourceId = source.droppableId;
-        const destId = destination.droppableId;
+      // Handle task dragging - full implementation below
+      const taskId = extractTaskId(draggableId);
+      const sourceId = source.droppableId;
+      const destId = destination.droppableId;
 
-        // Find the task
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) {
-          console.error(
-            "Task not found:",
-            taskId,
-            "Available tasks:",
-            tasks.map(t => t.id)
-          );
+      // Find the task
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) {
+        console.error("Task not found:", taskId);
+        return;
+      }
+
+      // Backlog to Backlog (reorder within backlog)
+      if (sourceId === "backlog" && destId === "backlog") {
+        const backlogTasksList = [...taskFilters.backlogTasks].sort((a, b) => (a.order || 0) - (b.order || 0));
+        const taskIndex = backlogTasksList.findIndex(t => t.id === taskId);
+        if (taskIndex === -1) return;
+
+        const [removed] = backlogTasksList.splice(taskIndex, 1);
+        backlogTasksList.splice(destination.index, 0, removed);
+
+        const updates = backlogTasksList.map((t, idx) => ({ id: t.id, order: idx }));
+        batchReorderTasksMutation(updates);
+        return;
+      }
+
+      // Backlog to Section
+      if (sourceId === "backlog" && destId.startsWith("section-")) {
+        const destSectionId = destId.replace("section-", "");
+        const destSection = sections.find(s => s.id === destSectionId);
+
+        if (!destSection) {
+          console.error("Destination section not found:", destSectionId);
           return;
         }
 
-        // Backlog to Backlog (reorder within backlog)
-        if (sourceId === "backlog" && destId === "backlog") {
-          // Use the backlogTasks from taskFilters (already filtered and sorted correctly)
-          const backlogTasksList = [...taskFilters.backlogTasks].sort((a, b) => (a.order || 0) - (b.order || 0));
-
-          // Find the task being moved
-          const taskIndex = backlogTasksList.findIndex(t => t.id === taskId);
-          if (taskIndex === -1) {
-            console.error(
-              "Task not found in backlogTasks:",
-              taskId,
-              "Backlog tasks:",
-              backlogTasksList.map(t => ({ id: t.id, order: t.order }))
-            );
-            return;
-          }
-
-          // Remove and reinsert
-          const [removed] = backlogTasksList.splice(taskIndex, 1);
-          if (!removed) {
-            console.error("Failed to remove task from backlogTasks");
-            return;
-          }
-          backlogTasksList.splice(destination.index, 0, removed);
-
-          const updates = backlogTasksList.map((t, idx) => ({ id: t.id, order: idx }));
-          // Fire and forget - optimistic update handles UI
-          batchReorderTasksMutation(updates);
-          return;
-        }
-
-        // Backlog to Section
-        if (sourceId === "backlog" && destId.startsWith("section-")) {
-          const destSectionId = destId.replace("section-", "");
-          const destSection = sections.find(s => s.id === destSectionId);
-
-          if (!destSection) {
-            console.error("Destination section not found:", destSectionId);
-            return;
-          }
-
-          // Get the filtered tasks that are actually displayed in the destination section
-          const sectionTasks = tasksBySection[destSectionId] || [];
-          const destTasks = [...sectionTasks]
-            .filter(t => !t.parentId && t.id !== taskId)
-            .sort((a, b) => {
-              // Sort by time first (for time-ranged sections)
-              if (a.time && b.time) {
-                const aMinutes = timeToMinutes(a.time);
-                const bMinutes = timeToMinutes(b.time);
-                if (aMinutes !== bMinutes) return aMinutes - bMinutes;
-              }
-              if (a.time && !b.time) return -1;
-              if (!a.time && b.time) return 1;
-              // Fallback to order
-              return (a.order || 0) - (b.order || 0);
-            });
-
-          // Calculate new time if destination section has time range
-          let timeUpdate = {};
-          if (destSection?.startTime && destSection?.endTime) {
-            const newTime = getSectionDropTime({
-              targetSection: destSection,
-              targetSectionTasks: destTasks,
-              destIndex: destination.index,
-              taskId,
-            });
-            if (newTime !== null) {
-              timeUpdate.time = newTime;
+        const sectionTasks = tasksBySection[destSectionId] || [];
+        const destTasks = [...sectionTasks]
+          .filter(t => !t.parentId && t.id !== taskId)
+          .sort((a, b) => {
+            if (a.time && b.time) {
+              const aMinutes = timeToMinutes(a.time);
+              const bMinutes = timeToMinutes(b.time);
+              if (aMinutes !== bMinutes) return aMinutes - bMinutes;
             }
-          }
-
-          // Create updated task object with new properties
-          const today = new Date(viewDate);
-          today.setHours(0, 0, 0, 0);
-          const targetDateStr = formatLocalDate(today);
-
-          // Build all updates (time FIRST, then sectionId)
-          const allUpdates = {
-            id: taskId, // Required by API
-            ...timeUpdate,
-            sectionId: destSectionId,
-            recurrence: {
-              type: "none",
-              startDate: `${targetDateStr}T00:00:00.000Z`,
-            },
-            status: "in_progress", // Set status when moving from backlog to section
-          };
-
-          // IMPORTANT: Update time FIRST so the task appears in the correct section
-          // (time-ranged sections filter by time, not sectionId)
-          updateTaskMutation(allUpdates);
-
-          // Insert updated task into destination for order calculation
-          destTasks.splice(destination.index, 0, task);
-
-          // Calculate all updates including the moved task (for non-time-ranged sections fallback)
-          const updates = destTasks.map((t, idx) => ({ id: t.id, order: idx }));
-
-          // Update orders for all tasks in the section
-          batchReorderTasksMutation(updates);
-          return;
-        }
-
-        // Section to Backlog
-        if (sourceId.startsWith("section-") && destId === "backlog") {
-          // Get current backlog tasks (excluding the one being moved)
-          const backlogTasksList = [...backlogTasks]
-            .filter(t => t.id !== taskId)
-            .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-          // Create updated task object with backlog properties
-          const updatedTask = {
-            ...task,
-            sectionId: null,
-            time: null,
-            recurrence: null,
-            status: "todo", // Set status to todo when moving to backlog
-          };
-
-          // Insert updated task at the drop position
-          backlogTasksList.splice(destination.index, 0, updatedTask);
-
-          // Calculate all updates including the moved task
-          const updates = backlogTasksList.map((t, idx) => ({ id: t.id, order: idx }));
-
-          // Update task properties to move it to backlog
-          updateTaskMutation({
-            id: taskId,
-            sectionId: null,
-            time: null,
-            recurrence: null,
-            status: "todo",
+            if (a.time && !b.time) return -1;
+            if (!a.time && b.time) return 1;
+            return (a.order || 0) - (b.order || 0);
           });
 
-          // Update orders for all tasks in backlog
+        let timeUpdate = {};
+        if (destSection?.startTime && destSection?.endTime) {
+          const newTime = getSectionDropTime({
+            targetSection: destSection,
+            targetSectionTasks: destTasks,
+            destIndex: destination.index,
+            taskId,
+          });
+          if (newTime !== null) {
+            timeUpdate.time = newTime;
+          }
+        }
+
+        const today = new Date(viewDate);
+        today.setHours(0, 0, 0, 0);
+        const targetDateStr = formatLocalDate(today);
+
+        const allUpdates = {
+          id: taskId,
+          ...timeUpdate,
+          sectionId: destSectionId,
+          recurrence: {
+            type: "none",
+            startDate: `${targetDateStr}T00:00:00.000Z`,
+          },
+          status: "in_progress",
+        };
+
+        updateTaskMutation(allUpdates);
+
+        destTasks.splice(destination.index, 0, task);
+        const updates = destTasks.map((t, idx) => ({ id: t.id, order: idx }));
+
+        // Update sectionId and order via reorderTask
+        await reorderTask(taskId, null, destSectionId, destination.index);
+        batchReorderTasksMutation(updates);
+        return;
+      }
+
+      // Section to Backlog
+      if (sourceId.startsWith("section-") && destId === "backlog") {
+        const backlogTasksList = [...backlogTasks]
+          .filter(t => t.id !== taskId)
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        backlogTasksList.splice(destination.index, 0, task);
+
+        const updates = backlogTasksList.map((t, idx) => ({ id: t.id, order: idx }));
+
+        updateTaskMutation({
+          id: taskId,
+          sectionId: null,
+          time: null,
+          recurrence: null,
+          status: "todo",
+        });
+
+        // Update order via reorderTask
+        await reorderTask(taskId, null, null, destination.index);
+        batchReorderTasksMutation(updates);
+        return;
+      }
+
+      // Section to Section (same or different)
+      if (sourceId.startsWith("section-") && destId.startsWith("section-")) {
+        const sourceSectionId = sourceId.replace("section-", "");
+        const destSectionId = destId.replace("section-", "");
+
+        const destSection = sections.find(s => s.id === destSectionId);
+
+        if (!destSection) {
+          console.error("Destination section not found:", destSectionId);
+          return;
+        }
+
+        const destSectionTasks = tasksBySection[destSectionId] || [];
+        const destTasks = [...destSectionTasks]
+          .filter(t => !t.parentId && t.id !== taskId)
+          .sort((a, b) => {
+            if (a.time && b.time) {
+              const aMinutes = timeToMinutes(a.time);
+              const bMinutes = timeToMinutes(b.time);
+              if (aMinutes !== bMinutes) return aMinutes - bMinutes;
+            }
+            if (a.time && !b.time) return -1;
+            if (!a.time && b.time) return 1;
+            return (a.order || 0) - (b.order || 0);
+          });
+
+        let timeUpdate = {};
+        if (destSection?.startTime && destSection?.endTime) {
+          const newTime = getSectionDropTime({
+            targetSection: destSection,
+            targetSectionTasks: destTasks,
+            destIndex: destination.index,
+            taskId,
+          });
+          if (newTime !== null) {
+            timeUpdate.time = newTime;
+          }
+        }
+
+        const allUpdates = {
+          id: taskId,
+          ...timeUpdate,
+          sectionId: destSectionId,
+        };
+
+        const viewDateObj = viewDate || new Date();
+        const today = new Date(viewDateObj);
+        today.setHours(0, 0, 0, 0);
+        const targetDateStr = formatLocalDate(today);
+        const currentDateStr = task.recurrence?.startDate?.split("T")[0];
+        const needsDateUpdate = currentDateStr !== targetDateStr;
+        const isRecurring = task.recurrence && task.recurrence.type && task.recurrence.type !== "none";
+
+        if (!isRecurring && (needsDateUpdate || !task.recurrence)) {
+          allUpdates.recurrence = {
+            type: "none",
+            startDate: `${targetDateStr}T00:00:00.000Z`,
+          };
+        }
+
+        updateTaskMutation(allUpdates);
+
+        // Update sectionId and order via reorderTask
+        await reorderTask(taskId, sourceSectionId, destSectionId, destination.index);
+
+        if (sourceSectionId === destSectionId) {
+          const sourceTasks = [...destSectionTasks]
+            .filter(t => !t.parentId)
+            .sort((a, b) => {
+              if (a.time && b.time) {
+                const aMinutes = timeToMinutes(a.time);
+                const bMinutes = timeToMinutes(b.time);
+                if (aMinutes !== bMinutes) return aMinutes - bMinutes;
+              }
+              if (a.time && !b.time) return -1;
+              if (!a.time && b.time) return 1;
+              return (a.order || 0) - (b.order || 0);
+            });
+
+          const currentIndex = sourceTasks.findIndex(t => t.id === taskId);
+          if (currentIndex !== -1) {
+            sourceTasks.splice(currentIndex, 1);
+          }
+
+          sourceTasks.splice(destination.index, 0, task);
+
+          const updates = sourceTasks.map((t, idx) => ({ id: t.id, order: idx }));
           batchReorderTasksMutation(updates);
           return;
         }
 
-        // Section to Section (same or different)
-        if (sourceId.startsWith("section-") && destId.startsWith("section-")) {
-          const sourceSectionId = sourceId.replace("section-", "");
-          const destSectionId = destId.replace("section-", "");
-
-          const destSection = sections.find(s => s.id === destSectionId);
-
-          if (!destSection) {
-            console.error("Destination section not found:", destSectionId);
-            return;
-          }
-
-          // Get the filtered tasks that are actually displayed in the destination section
-          const destSectionTasks = tasksBySection[destSectionId] || [];
-          const destTasks = [...destSectionTasks]
-            .filter(t => !t.parentId && t.id !== taskId)
-            .sort((a, b) => {
-              // Sort by time first (for time-ranged sections)
-              if (a.time && b.time) {
-                const aMinutes = timeToMinutes(a.time);
-                const bMinutes = timeToMinutes(b.time);
-                if (aMinutes !== bMinutes) return aMinutes - bMinutes;
-              }
-              if (a.time && !b.time) return -1;
-              if (!a.time && b.time) return 1;
-              // Fallback to order
-              return (a.order || 0) - (b.order || 0);
-            });
-
-          // Calculate new time if destination section has time range
-          let timeUpdate = {};
-          if (destSection?.startTime && destSection?.endTime) {
-            const newTime = getSectionDropTime({
-              targetSection: destSection,
-              targetSectionTasks: destTasks,
-              destIndex: destination.index,
-              taskId,
-            });
-            if (newTime !== null) {
-              timeUpdate.time = newTime;
+        const sourceSectionTasks = tasksBySection[sourceSectionId] || [];
+        const sourceTasks = [...sourceSectionTasks]
+          .filter(t => !t.parentId && t.id !== taskId)
+          .sort((a, b) => {
+            if (a.time && b.time) {
+              const aMinutes = timeToMinutes(a.time);
+              const bMinutes = timeToMinutes(b.time);
+              if (aMinutes !== bMinutes) return aMinutes - bMinutes;
             }
-          }
+            if (a.time && !b.time) return -1;
+            if (!a.time && b.time) return 1;
+            return (a.order || 0) - (b.order || 0);
+          });
 
-          // Build all updates (time FIRST, then sectionId)
-          const allUpdates = {
-            id: taskId, // Required by API
-            ...timeUpdate,
-            sectionId: destSectionId,
-          };
+        const sourceUpdates = sourceTasks.map((t, idx) => ({ id: t.id, order: idx }));
 
-          // Handle date/recurrence updates for non-recurring tasks
-          const viewDateObj = viewDate || new Date();
-          const today = new Date(viewDateObj);
-          today.setHours(0, 0, 0, 0);
-          const targetDateStr = formatLocalDate(today);
-          const currentDateStr = task.recurrence?.startDate?.split("T")[0];
-          const needsDateUpdate = currentDateStr !== targetDateStr;
-          const isRecurring = task.recurrence && task.recurrence.type && task.recurrence.type !== "none";
+        destTasks.splice(destination.index, 0, task);
+        const destUpdates = destTasks.map((t, idx) => ({ id: t.id, order: idx }));
 
-          if (!isRecurring && (needsDateUpdate || !task.recurrence)) {
-            allUpdates.recurrence = {
-              type: "none",
-              startDate: `${targetDateStr}T00:00:00.000Z`,
-            };
-          }
-
-          // IMPORTANT: Update time FIRST so the task appears in the correct section
-          // (time-ranged sections filter by time, not sectionId)
-          updateTaskMutation(allUpdates);
-
-          // If moving to same section, use batch reorder for accurate positioning
-          if (sourceSectionId === destSectionId) {
-            const sourceTasks = [...destSectionTasks]
-              .filter(t => !t.parentId)
-              .sort((a, b) => {
-                // Sort by time first
-                if (a.time && b.time) {
-                  const aMinutes = timeToMinutes(a.time);
-                  const bMinutes = timeToMinutes(b.time);
-                  if (aMinutes !== bMinutes) return aMinutes - bMinutes;
-                }
-                if (a.time && !b.time) return -1;
-                if (!a.time && b.time) return 1;
-                return (a.order || 0) - (b.order || 0);
-              });
-
-            // Find current position and remove
-            const currentIndex = sourceTasks.findIndex(t => t.id === taskId);
-            if (currentIndex !== -1) {
-              sourceTasks.splice(currentIndex, 1);
-            }
-
-            // Insert at new position
-            sourceTasks.splice(destination.index, 0, task);
-
-            // Update all task orders (for non-time-ranged sections fallback)
-            const updates = sourceTasks.map((t, idx) => ({ id: t.id, order: idx }));
-            batchReorderTasksMutation(updates);
-            return;
-          }
-
-          // Moving between different sections - need to update both sections
-          // Get source section tasks
-          const sourceSectionTasks = tasksBySection[sourceSectionId] || [];
-          const sourceTasks = [...sourceSectionTasks]
-            .filter(t => !t.parentId && t.id !== taskId)
-            .sort((a, b) => {
-              // Sort by time first
-              if (a.time && b.time) {
-                const aMinutes = timeToMinutes(a.time);
-                const bMinutes = timeToMinutes(b.time);
-                if (aMinutes !== bMinutes) return aMinutes - bMinutes;
-              }
-              if (a.time && !b.time) return -1;
-              if (!a.time && b.time) return 1;
-              return (a.order || 0) - (b.order || 0);
-            });
-
-          // Reorder source section (without the moved task)
-          const sourceUpdates = sourceTasks.map((t, idx) => ({ id: t.id, order: idx }));
-
-          // Insert moved task into destination and reorder
-          destTasks.splice(destination.index, 0, task);
-          const destUpdates = destTasks.map((t, idx) => ({ id: t.id, order: idx }));
-
-          // Batch update both sections (for non-time-ranged sections fallback)
-          batchReorderTasksMutation([...sourceUpdates, ...destUpdates]);
-          return;
-        }
+        // Update sectionId and order via reorderTask
+        await reorderTask(taskId, sourceSectionId, destSectionId, destination.index);
+        batchReorderTasksMutation([...sourceUpdates, ...destUpdates]);
+        return;
       }
     },
     [
@@ -546,13 +484,13 @@ export function TasksTab() {
       batchReorderTasksMutation,
       updateTaskMutation,
       getSectionDropTime,
+      reorderTask,
     ]
   );
 
   // Completion helpers
   const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
 
-  // Note: completionHandlers and taskFilters are now defined earlier (before handleDragEnd)
   const filteredTodaysTasks = taskFilters.filteredTodaysTasks;
   const todaysTasks = taskFilters.todaysTasks;
 
@@ -563,11 +501,6 @@ export function TasksTab() {
     tasksBySection,
     viewDate,
     todaysTasks,
-  });
-
-  // Status handlers
-  const statusHandlers = useStatusHandlers({
-    addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
   });
 
   // Resize handlers
@@ -590,14 +523,6 @@ export function TasksTab() {
     },
     [autoScroll]
   );
-
-  // Drag and drop
-  const dragAndDrop = useDragAndDrop({
-    backlogTasks,
-    tasksBySection,
-    handleStatusChange: statusHandlers.handleStatusChange,
-    reorderTask,
-  });
 
   // Task operations
   const taskOps = useTaskOperations();
@@ -826,7 +751,7 @@ export function TasksTab() {
 
           {mobileActiveView === "calendar" && (
             <Box sx={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              <CalendarViewTab isLoading={isLoading} dropTimeRef={dragAndDrop.dropTimeRef} />
+              <CalendarViewTab isLoading={isLoading} />
             </Box>
           )}
         </Box>
@@ -998,7 +923,6 @@ export function TasksTab() {
                 setCalendarZoom={setCalendarZoom}
                 createDroppableId={createDroppableId}
                 createDraggableId={createDraggableId}
-                dropTimeRef={dragAndDrop.dropTimeRef}
                 tasks={tasks}
                 isCompletedOnDate={isCompletedOnDate}
                 getOutcomeOnDate={getOutcomeOnDate}

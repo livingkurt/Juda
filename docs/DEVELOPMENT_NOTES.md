@@ -241,22 +241,21 @@ The drag-and-drop experience in sections and backlog had several UX problems:
 
 ### Root Cause
 
-The `useSortable()` hook from `@dnd-kit/sortable` provides `transform` and `transition` values that enable smooth animations, but we weren't applying them to the draggable items. We were only using `isDragging` to set opacity.
+The drag-and-drop system uses `@hello-pangea/dnd` which provides smooth animations and visual feedback for drag operations.
 
 ### Solution
 
-**Applied CSS transforms and transitions from `@dnd-kit/sortable` to enable smooth animations**
+**Improved drag-and-drop UX with better visual feedback and smooth animations**
 
 **Changed files:**
 
 1. **`components/TaskItem.jsx`**
-   - Added `CSS` import from `@dnd-kit/utilities`
-   - Extracted `transform` and `transition` from `useSortable()`
-   - Applied them to the style object with proper CSS transform string conversion
+   - Uses `Draggable` from `@hello-pangea/dnd` for smooth drag animations
+   - Proper opacity handling during drag operations
 
-2. **`components/SortableBacklogTask.jsx`**
-   - Same changes as TaskItem.jsx
-   - Now backlog tasks smoothly animate when reordering
+2. **`components/BacklogDrawer.jsx`**
+   - Uses `Droppable` from `@hello-pangea/dnd`
+   - Tasks smoothly animate when reordering
 
 3. **`components/SectionCard.jsx`**
    - Improved drop zone sizing - reduced padding when tasks present, increased when empty
@@ -272,43 +271,31 @@ The `useSortable()` hook from `@dnd-kit/sortable` provides `transform` and `tran
 
 ### Key Code Changes
 
-**Before:**
+**Implementation:**
 
 ```javascript
-const { attributes, listeners, setNodeRef, isDragging } = useSortable({
-  id: draggableId,
-  data: { type: "TASK", containerId: containerId },
-});
+import { Draggable } from "@hello-pangea/dnd";
 
-const style = {
-  opacity: isDragging ? 0.5 : 1,
-};
-```
-
-**After:**
-
-```javascript
-import { CSS } from "@dnd-kit/utilities";
-
-const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-  id: draggableId,
-  data: { type: "TASK", containerId: containerId },
-});
-
-const style = {
-  transform: CSS.Transform.toString(transform),
-  transition: transition || "transform 200ms ease",
-  opacity: isDragging ? 0.5 : 1,
-};
+<Draggable draggableId={draggableId} index={index}>
+  {(provided, snapshot) => (
+    <Box
+      ref={provided.innerRef}
+      {...provided.draggableProps}
+      {...provided.dragHandleProps}
+      sx={{ opacity: snapshot.isDragging ? 0.5 : 1 }}
+    >
+      {taskContent}
+    </Box>
+  )}
+</Draggable>
 ```
 
 ### How It Works
 
-1. **@dnd-kit calculates transforms** - When dragging, the library calculates how much each item should move
-2. **CSS transforms applied** - Items smoothly translate to their new positions
-3. **Transitions smooth the movement** - CSS transitions make the movement feel natural
-4. **Large drop zones** - The entire section/backlog area is droppable, not just gaps between items
-5. **Visual feedback** - Dashed borders and background colors indicate valid drop targets
+1. **@hello-pangea/dnd handles transforms** - When dragging, the library automatically calculates and applies transforms
+2. **Smooth animations** - Items smoothly translate to their new positions
+3. **Large drop zones** - The entire section/backlog area is droppable, not just gaps between items
+4. **Visual feedback** - Dashed borders and background colors indicate valid drop targets
 
 ### User Experience Improvements
 
@@ -329,11 +316,9 @@ const style = {
 
 ### Technical Notes
 
-- The `CSS.Transform.toString()` utility properly converts the transform object to a CSS string
-- Fallback transition ensures smooth movement even if library doesn't provide one
-- The `transform` is separate from `isDragging` opacity - both work together
-- Drop zones now use dynamic padding to feel spacious but not wasteful
-- The DragOverlay still shows the dragged item preview (unchanged)
+- @hello-pangea/dnd automatically handles transforms and transitions
+- Drop zones use dynamic padding to feel spacious but not wasteful
+- Visual feedback provides clear indication of valid drop targets
 
 ### Benefits
 

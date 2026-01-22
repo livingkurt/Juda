@@ -1,8 +1,7 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useRef } from "react";
 import { Box, Typography, Stack } from "@mui/material";
-import { useDroppable } from "@dnd-kit/core";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 import { CalendarTask } from "./CalendarTask";
 
@@ -12,16 +11,9 @@ export const DayHeaderColumn = memo(function DayHeaderColumn({
   untimedTasks,
   isToday,
   onDayClick,
-  createDroppableId,
   createDraggableId,
-  dropHighlight,
 }) {
-  const untimedDroppableId = createDroppableId.calendarWeekUntimed(day);
-
-  const { setNodeRef, isOver } = useDroppable({
-    id: untimedDroppableId,
-    data: { type: "TASK", date: day, isUntimed: true },
-  });
+  const untimedRef = useRef(null);
 
   return (
     <Box
@@ -80,14 +72,14 @@ export const DayHeaderColumn = memo(function DayHeaderColumn({
 
       {/* Untimed tasks for this day */}
       <Box
-        ref={setNodeRef}
+        ref={untimedRef}
         sx={{
           px: 0.5,
           py: 0.5,
           borderTop: 1,
           borderColor: "divider",
-          bgcolor: isOver ? dropHighlight : isToday ? "action.selected" : "transparent",
-          minHeight: untimedTasks.length > 0 || isOver ? "auto" : 0,
+          bgcolor: isToday ? "action.selected" : "transparent",
+          minHeight: untimedTasks.length > 0 ? "auto" : 0,
           maxHeight: "80px",
           overflowY: "auto",
           transition: "background-color 0.2s",
