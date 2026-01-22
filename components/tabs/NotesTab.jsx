@@ -37,6 +37,9 @@ import {
   toggleNotesSidebarOpen,
   toggleNotesListOpen,
   setNotesActiveMobileView,
+  setSelectedNoteId,
+  setSelectedFolderId,
+  setSelectedSmartFolderId,
 } from "@/lib/store/slices/uiSlice";
 import {
   useGetTasksQuery,
@@ -104,9 +107,6 @@ export function NotesTab({ isLoading }) {
   const [editingSmartFolder, setEditingSmartFolder] = useState(null);
 
   // Local state
-  const [selectedNoteId, setSelectedNoteId] = useState(null);
-  const [selectedFolderId, setSelectedFolderId] = useState(null);
-  const [selectedSmartFolderId, setSelectedSmartFolderId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearch = useDeferredValue(searchQuery);
   const [isResizing, setIsResizing] = useState(false);
@@ -121,6 +121,9 @@ export function NotesTab({ isLoading }) {
   const notesSidebarWidth = useSelector(state => state.ui.notesSidebarWidth ?? 280);
   const notesListWidth = useSelector(state => state.ui.notesListWidth ?? 300);
   const notesActiveMobileView = useSelector(state => state.ui.notesActiveMobileView ?? "notes");
+  const selectedNoteId = useSelector(state => state.ui.selectedNoteId);
+  const selectedFolderId = useSelector(state => state.ui.selectedFolderId);
+  const selectedSmartFolderId = useSelector(state => state.ui.selectedSmartFolderId);
 
   // RTK Query
   const { data: tasks = [] } = useGetTasksQuery();
@@ -284,7 +287,7 @@ export function NotesTab({ isLoading }) {
         folderId: selectedFolderId || null,
       }).unwrap();
       const createdId = result?.id || null;
-      setSelectedNoteId(createdId);
+      dispatch(setSelectedNoteId(createdId));
 
       if (createdId && selectedSmartFolderId) {
         const smartFolder = smartFolders.find(folder => folder.id === selectedSmartFolderId);
@@ -304,7 +307,7 @@ export function NotesTab({ isLoading }) {
 
   const handleSelectNote = useCallback(
     noteId => {
-      setSelectedNoteId(noteId);
+      dispatch(setSelectedNoteId(noteId));
       if (isMobile) {
         dispatch(setNotesActiveMobileView("editor"));
       }
@@ -333,7 +336,7 @@ export function NotesTab({ isLoading }) {
   const handleDeleteNote = async taskId => {
     await deleteTask(taskId).unwrap();
     if (selectedNoteId === taskId) {
-      setSelectedNoteId(null);
+      dispatch(setSelectedNoteId(null));
       if (isMobile) {
         dispatch(setNotesActiveMobileView("notes"));
       }
@@ -403,8 +406,8 @@ export function NotesTab({ isLoading }) {
                 <ListItemButton
                   selected={!selectedFolderId && !selectedSmartFolderId}
                   onClick={() => {
-                    setSelectedFolderId(null);
-                    setSelectedSmartFolderId(null);
+                    dispatch(setSelectedFolderId(null));
+                    dispatch(setSelectedSmartFolderId(null));
                     dispatch(setNotesActiveMobileView("notes"));
                   }}
                 >
@@ -428,8 +431,8 @@ export function NotesTab({ isLoading }) {
                       key={sf.id}
                       selected={selectedSmartFolderId === sf.id}
                       onClick={() => {
-                        setSelectedSmartFolderId(sf.id);
-                        setSelectedFolderId(null);
+                        dispatch(setSelectedSmartFolderId(sf.id));
+                        dispatch(setSelectedFolderId(null));
                         dispatch(setNotesActiveMobileView("notes"));
                       }}
                     >
@@ -453,8 +456,8 @@ export function NotesTab({ isLoading }) {
                     key={folder.id}
                     selected={selectedFolderId === folder.id}
                     onClick={() => {
-                      setSelectedFolderId(folder.id);
-                      setSelectedSmartFolderId(null);
+                      dispatch(setSelectedFolderId(folder.id));
+                      dispatch(setSelectedSmartFolderId(null));
                       dispatch(setNotesActiveMobileView("notes"));
                     }}
                   >
@@ -531,7 +534,7 @@ export function NotesTab({ isLoading }) {
                     onDelete={handleDeleteNote}
                     onConvertToTask={(note, type) => {
                       updateTask({ id: note.id, completionType: type });
-                      setSelectedNoteId(null);
+                      dispatch(setSelectedNoteId(null));
                       dispatch(setNotesActiveMobileView("notes"));
                     }}
                   />
@@ -635,8 +638,8 @@ export function NotesTab({ isLoading }) {
                 <ListItemButton
                   selected={!selectedFolderId && !selectedSmartFolderId}
                   onClick={() => {
-                    setSelectedFolderId(null);
-                    setSelectedSmartFolderId(null);
+                    dispatch(setSelectedFolderId(null));
+                    dispatch(setSelectedSmartFolderId(null));
                   }}
                 >
                   <ListItemIcon sx={{ minWidth: 32 }}>
@@ -660,8 +663,8 @@ export function NotesTab({ isLoading }) {
                     key={sf.id}
                     selected={selectedSmartFolderId === sf.id}
                     onClick={() => {
-                      setSelectedSmartFolderId(sf.id);
-                      setSelectedFolderId(null);
+                      dispatch(setSelectedSmartFolderId(sf.id));
+                      dispatch(setSelectedFolderId(null));
                     }}
                   >
                     <ListItemIcon sx={{ minWidth: 32 }}>
@@ -680,8 +683,8 @@ export function NotesTab({ isLoading }) {
                     key={folder.id}
                     selected={selectedFolderId === folder.id}
                     onClick={() => {
-                      setSelectedFolderId(folder.id);
-                      setSelectedSmartFolderId(null);
+                      dispatch(setSelectedFolderId(folder.id));
+                      dispatch(setSelectedSmartFolderId(null));
                     }}
                   >
                     <ListItemIcon sx={{ minWidth: 32 }}>
@@ -818,7 +821,7 @@ export function NotesTab({ isLoading }) {
               onDelete={handleDeleteNote}
               onConvertToTask={(note, type) => {
                 updateTask({ id: note.id, completionType: type });
-                setSelectedNoteId(null);
+                dispatch(setSelectedNoteId(null));
               }}
             />
           ) : (

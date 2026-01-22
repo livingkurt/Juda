@@ -24,6 +24,13 @@
 - Kept Backlog as an independent toggle and preserved mobile view switching via `mobileActiveView`.
 - Added preference migration logic to derive `mainContentView` from older `showDashboard`/`showCalendar` values.
 
+### URL state synchronization
+
+- Added `lib/urlStateConfig.js` to define clean, tab-aware URL param mappings and default handling.
+- Introduced `useUrlState` to hydrate Redux UI state from URL params and sync state back to the URL with `replaceState`.
+- Wrapped the app in `UrlStateProvider` (inside Redux) to ensure URL sync runs client-side with `Suspense`.
+- Moved Notes and History tab selection/search state into `uiSlice` so deep links restore those views accurately.
+
 ## 2026-01-19
 
 ### Notes Tab completion
