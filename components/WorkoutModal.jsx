@@ -155,21 +155,22 @@ export default function WorkoutModal() {
     [completionData]
   );
 
-  // Calculate overall progress across all sections
+  // Calculate overall progress across all sections (only counting current day for each section)
   const overallProgress = useMemo(() => {
     let total = 0;
     let completed = 0;
 
     sections.forEach(section => {
-      section.days?.forEach(day => {
-        const result = processDayExercises(day.exercises || [], section.id, day.id);
+      const currentDay = getCurrentDayForSection(section);
+      if (currentDay) {
+        const result = processDayExercises(currentDay.exercises || [], section.id, currentDay.id);
         total += result.total;
         completed += result.completed;
-      });
+      }
     });
 
     return total > 0 ? Math.round((completed / total) * 100) : 0;
-  }, [sections, processDayExercises]);
+  }, [sections, processDayExercises, getCurrentDayForSection]);
 
   // Load existing completion data
   useEffect(() => {
