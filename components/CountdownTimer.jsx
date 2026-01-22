@@ -22,11 +22,24 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
   const hasPlayedSoundRef = useRef(false);
   const lastCountdownSecondRef = useRef(null);
   const lastPrepCountdownRef = useRef(null);
+  const audioContextRef = useRef(null);
+
+  // Get or create AudioContext (reused across all sounds)
+  const getAudioContext = async () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // iOS requires AudioContext to be resumed after user interaction
+    if (audioContextRef.current.state === "suspended") {
+      await audioContextRef.current.resume();
+    }
+    return audioContextRef.current;
+  };
 
   // Play countdown beep (for 3, 2, 1)
-  const playCountdownBeep = () => {
+  const playCountdownBeep = useCallback(async () => {
     try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const audioContext = await getAudioContext();
       const duration = 0.15;
       const sampleRate = audioContext.sampleRate;
       const numSamples = duration * sampleRate;
@@ -50,12 +63,12 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
     } catch (err) {
       console.warn("Could not play countdown beep:", err);
     }
-  };
+  }, []);
 
   // Play "Start" beep (higher tone for start)
-  const playStartBeep = () => {
+  const playStartBeep = useCallback(async () => {
     try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const audioContext = await getAudioContext();
       const duration = 0.2;
       const sampleRate = audioContext.sampleRate;
       const numSamples = duration * sampleRate;
@@ -79,12 +92,12 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
     } catch (err) {
       console.warn("Could not play start beep:", err);
     }
-  };
+  }, []);
 
   // Play completion sound using Web Audio API
-  const playCompletionSound = () => {
+  const playCompletionSound = useCallback(async () => {
     try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const audioContext = await getAudioContext();
       const duration = 0.3;
       const sampleRate = audioContext.sampleRate;
       const numSamples = duration * sampleRate;
@@ -114,7 +127,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
       // Fallback: use a simple beep if Web Audio API fails
       console.warn("Could not play completion sound:", err);
     }
-  };
+  }, []);
 
   // Derive remaining time from target and elapsed
   const timeRemaining = Math.max(0, targetSeconds - elapsedSeconds);
@@ -127,7 +140,10 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
   };
 
   // Start/Resume timer
-  const handleStart = useCallback(() => {
+  const handleStart = useCallback(async () => {
+    // Resume AudioContext on user interaction (required for iOS)
+    await getAudioContext();
+
     // If starting from the beginning, start preparation countdown
     if (timeRemaining === targetSeconds && prepCountdown === null) {
       setPrepCountdown(5);
@@ -213,7 +229,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
         clearInterval(prepIntervalRef.current);
       }
     };
-  }, [prepCountdown]);
+  }, [prepCountdown, playCountdownBeep, playStartBeep]);
 
   // When preparation countdown reaches 0, start the timer after a brief delay
   useEffect(() => {
@@ -269,7 +285,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
         clearInterval(intervalRef.current);
       }
     };
-  }, [isRunning, timeRemaining, targetSeconds, onComplete]);
+  }, [isRunning, timeRemaining, targetSeconds, onComplete, playCountdownBeep, playCompletionSound]);
 
   // Reset completion sound flag when timer starts running again (but not countdown/start sounds)
   useEffect(() => {
