@@ -10,14 +10,6 @@ import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useCreateCompletionMutation, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
 
-// Journal task types in display order
-const JOURNAL_TYPES = [
-  { tag: "yearly reflection", label: "Yearly Reflection" },
-  { tag: "monthly reflection", label: "Monthly Reflection" },
-  { tag: "weekly reflection", label: "Weekly Reflection" },
-  { tag: "daily journal", label: "Journal" },
-];
-
 export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
   const [selectedDate, setSelectedDate] = useState(dayjs());
 
@@ -59,29 +51,10 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
     return Array.from({ length: 5 }, (_, i) => current - i);
   }, [selectedDate]);
 
-  // Filter journal tasks (completionType: "text" + journal-related tags)
+  // Filter all text input tasks (no tag filtering)
   const journalTasks = useMemo(() => {
-    const journalTagNames = JOURNAL_TYPES.map(t => t.tag);
-    return tasks.filter(task => {
-      if (task.completionType !== "text") return false;
-      return task.tags?.some(tag => {
-        const tagName = (tag.name || "").toLowerCase();
-        return journalTagNames.includes(tagName);
-      });
-    });
+    return tasks.filter(task => task.completionType === "text");
   }, [tasks]);
-
-  // Group journal tasks by type
-  const tasksByType = useMemo(() => {
-    const grouped = {};
-    JOURNAL_TYPES.forEach(type => {
-      grouped[type.tag] = journalTasks.filter(task => {
-        const tagNames = (task.tags || []).map(t => (t.name || "").toLowerCase());
-        return tagNames.includes(type.tag);
-      });
-    });
-    return grouped;
-  }, [journalTasks]);
 
   // Handle saving journal entries
   const handleSaveEntry = async (taskId, date, note) => {
@@ -198,18 +171,13 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
                   {year}
                 </Typography>
 
-                {/* Journal Entries by Type */}
+                {/* Journal Entries */}
                 {(() => {
-                  // Collect all relevant tasks for this year/date
-                  const allRelevantTasks = [];
-                  JOURNAL_TYPES.forEach(type => {
-                    const typeTasks = tasksByType[type.tag] || [];
-                    const relevant = typeTasks.filter(task => shouldShowTaskOnDate(task, selectedDate, year));
-                    allRelevantTasks.push(...relevant.map(task => ({ ...task, journalType: type })));
-                  });
+                  // Filter tasks that should show on this date for this year
+                  const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, selectedDate, year));
 
                   // If no tasks exist for this year, show placeholder
-                  if (allRelevantTasks.length === 0) {
+                  if (relevantTasks.length === 0) {
                     return (
                       <Typography
                         variant="body2"
@@ -224,34 +192,22 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
                     );
                   }
 
-                  // Group tasks by type and display
+                  // Display all text input tasks together
                   return (
                     <Stack spacing={2}>
-                      {JOURNAL_TYPES.map(type => {
-                        const relevantTasks = allRelevantTasks.filter(t => t.journalType.tag === type.tag);
-
-                        if (relevantTasks.length === 0) {
-                          return null;
-                        }
+                      {relevantTasks.map(task => {
+                        const dateStr = yearDate.format("YYYY-MM-DD");
+                        const completion = getCompletionForDate?.(task.id, dateStr);
 
                         return (
-                          <Stack key={type.tag} spacing={1}>
-                            {relevantTasks.map(task => {
-                              const dateStr = yearDate.format("YYYY-MM-DD");
-                              const completion = getCompletionForDate?.(task.id, dateStr);
-
-                              return (
-                                <JournalDayEntry
-                                  key={`${task.id}-${year}-${dateStr}`}
-                                  task={task}
-                                  date={dateStr}
-                                  completion={completion}
-                                  isCurrentYear={isCurrentYear}
-                                  onSave={handleSaveEntry}
-                                />
-                              );
-                            })}
-                          </Stack>
+                          <JournalDayEntry
+                            key={`${task.id}-${year}-${dateStr}`}
+                            task={task}
+                            date={dateStr}
+                            completion={completion}
+                            isCurrentYear={isCurrentYear}
+                            onSave={handleSaveEntry}
+                          />
                         );
                       })}
                     </Stack>
