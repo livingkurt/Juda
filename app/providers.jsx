@@ -16,6 +16,7 @@ import { syncManager } from "@/lib/sync/syncManager";
 import { useSSESync } from "@/hooks/useSSESync";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import Notification from "@/components/Notification";
+import { UrlStateProvider } from "@/components/UrlStateProvider";
 
 // Inner component that has access to preferences
 function ThemeWrapper({ children }) {
@@ -123,15 +124,17 @@ function SSESyncProvider({ children }) {
 export function Providers({ children }) {
   return (
     <ReduxProvider store={store}>
-      <AuthProvider>
-        <PreferencesProvider>
-          <ThemeWrapper>
-            <OfflineInitializer>
-              <SSESyncProvider>{children}</SSESyncProvider>
-            </OfflineInitializer>
-          </ThemeWrapper>
-        </PreferencesProvider>
-      </AuthProvider>
+      <UrlStateProvider>
+        <AuthProvider>
+          <PreferencesProvider>
+            <ThemeWrapper>
+              <OfflineInitializer>
+                <SSESyncProvider>{children}</SSESyncProvider>
+              </OfflineInitializer>
+            </ThemeWrapper>
+          </PreferencesProvider>
+        </AuthProvider>
+      </UrlStateProvider>
     </ReduxProvider>
   );
 }

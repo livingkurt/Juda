@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useDeferredValue, memo, useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Box,
   Stack,
@@ -59,6 +60,7 @@ import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useViewState } from "@/hooks/useViewState";
 import CellEditorPopover from "../CellEditorPopover";
+import { setHistoryRange, setHistoryPage, setHistorySearchTerm } from "@/lib/store/slices/uiSlice";
 
 // Filter only recurring tasks (keep subtasks nested, don't flatten)
 // Show subtasks even if they don't have recurrence, as long as parent has recurrence
@@ -453,6 +455,7 @@ const CompletionCell = memo(function CompletionCell({
 });
 
 export function HistoryTab({ isLoading: tabLoading }) {
+  const dispatch = useDispatch();
   // Get data from Redux
   const { data: tasks = [] } = useGetTasksQuery();
   const { data: sections = [] } = useGetSectionsQuery();
@@ -471,9 +474,9 @@ export function HistoryTab({ isLoading: tabLoading }) {
   const taskOps = useTaskOperations();
 
   // State
-  const [range, setRange] = useState("month");
-  const [page, setPage] = useState(0);
-  const [searchQuery, setSearchQuery] = useState("");
+  const range = useSelector(state => state.ui.historyRange);
+  const page = useSelector(state => state.ui.historyPage);
+  const searchQuery = useSelector(state => state.ui.historySearchTerm);
   const deferredSearch = useDeferredValue(searchQuery);
   const [textModal, setTextModal] = useState({
     open: false,
@@ -594,27 +597,30 @@ export function HistoryTab({ isLoading: tabLoading }) {
 
   // Handle date navigation - memoized
   const handlePrevious = useCallback(() => {
-    setPage(p => p - 1);
-  }, []);
+    dispatch(setHistoryPage(page - 1));
+  }, [dispatch, page]);
 
   const handleNext = useCallback(() => {
-    setPage(p => p + 1);
-  }, []);
+    dispatch(setHistoryPage(page + 1));
+  }, [dispatch, page]);
 
   const handleToday = useCallback(() => {
-    setPage(0);
-  }, []);
+    dispatch(setHistoryPage(0));
+  }, [dispatch]);
 
-  const handleViewChange = useCallback(value => {
-    setRange(value);
-    setPage(0);
-  }, []);
+  const handleViewChange = useCallback(
+    value => {
+      dispatch(setHistoryRange(value));
+      dispatch(setHistoryPage(0));
+    },
+    [dispatch]
+  );
 
   // Handle date change (not really used for range views, but required by DateNavigation)
   const handleDateChange = useCallback(() => {
     // For range views, date changes don't make sense, so we reset to page 0
-    setPage(0);
-  }, []);
+    dispatch(setHistoryPage(0));
+  }, [dispatch]);
 
   // Check if today is visible - memoized
   const isToday = useCallback(date => dayjs(date).isSame(dayjs(), "day"), []);
@@ -752,7 +758,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
           size="small"
           placeholder="Search tasks..."
           value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
+          onChange={e => dispatch(setHistorySearchTerm(e.target.value))}
           sx={{ width: "100%" }}
           InputProps={{
             startAdornment: (
