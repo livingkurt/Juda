@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Box, Stack, Typography, Badge, ToggleButton, ToggleButtonGroup, useMediaQuery } from "@mui/material";
+import { Box, Stack, Typography, ToggleButton, ToggleButtonGroup, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { CalendarToday as Calendar, Dashboard as LayoutDashboard, List } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
@@ -91,23 +91,6 @@ export function ViewTogglesAndProgress() {
                 Backlog
               </ToggleButton>
             </ToggleButtonGroup>
-            {backlogTasks.length > 0 && (
-              <Badge
-                badgeContent={backlogTasks.length}
-                color="error"
-                sx={{
-                  position: "absolute",
-                  top: -8,
-                  right: -8,
-                  "& .MuiBadge-badge": {
-                    fontSize: "0.625rem",
-                    height: 18,
-                    minWidth: 18,
-                    padding: "0 4px",
-                  },
-                }}
-              />
-            )}
           </Box>
           <ToggleButtonGroup
             value={mainContentView}
