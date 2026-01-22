@@ -1,23 +1,27 @@
 "use client";
 
 import { useMemo, useCallback, memo } from "react";
-import { Box, Stack, Typography, IconButton, Chip, useMediaQuery } from "@mui/material";
+import { Box, Stack, Typography, IconButton, Chip, Button, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Droppable } from "@hello-pangea/dnd";
-import { Add } from "@mui/icons-material";
+import { Add, Sort } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { TagFilter } from "./TagFilter";
+import { PriorityFilter } from "./PriorityFilter";
 import { BacklogTagSidebar, UNTAGGED_ID } from "./BacklogTagSidebar";
 import { QuickTaskInput } from "./QuickTaskInput";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
+import { getPriorityConfig } from "@/lib/constants";
 import {
   setBacklogSearchTerm as setBacklogSearchTermAction,
   setBacklogSelectedTagIds,
+  setBacklogSelectedPriorities,
+  toggleBacklogSortByPriority,
   toggleBacklogTagSidebarOpen,
 } from "@/lib/store/slices/uiSlice";
 
@@ -33,6 +37,8 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   // Get search/filter state from Redux
   const searchTerm = useSelector(state => state.ui.backlogSearchTerm);
   const selectedTagIds = useSelector(state => state.ui.backlogSelectedTagIds);
+  const selectedPriorities = useSelector(state => state.ui.backlogSelectedPriorities);
+  const sortByPriority = useSelector(state => state.ui.backlogSortByPriority);
   const sidebarOpen = useSelector(state => state.ui.backlogTagSidebarOpen);
 
   // Use hooks directly (they use Redux internally)
@@ -91,8 +97,23 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
       }
     }
 
+    // Filter by priority
+    if (selectedPriorities.length > 0) {
+      result = result.filter(task => selectedPriorities.includes(task.priority));
+    }
+
+    // Sort by priority, then by order
+    if (sortByPriority) {
+      result = [...result].sort((a, b) => {
+        const priorityA = getPriorityConfig(a.priority).sortOrder;
+        const priorityB = getPriorityConfig(b.priority).sortOrder;
+        if (priorityA !== priorityB) return priorityA - priorityB;
+        return (a.order || 0) - (b.order || 0);
+      });
+    }
+
     return result;
-  }, [backlogTasks, searchTerm, selectedTagIds]);
+  }, [backlogTasks, searchTerm, selectedTagIds, selectedPriorities, sortByPriority]);
 
   const handleTagSelect = useCallback(
     tagId => {
@@ -222,6 +243,29 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                 compact
               />
             )}
+            <PriorityFilter
+              selectedPriorities={selectedPriorities}
+              onPrioritySelect={priority => {
+                if (!selectedPriorities.includes(priority)) {
+                  dispatch(setBacklogSelectedPriorities([...selectedPriorities, priority]));
+                }
+              }}
+              onPriorityDeselect={priority =>
+                dispatch(setBacklogSelectedPriorities(selectedPriorities.filter(value => value !== priority)))
+              }
+            />
+            <Button
+              variant={sortByPriority ? "outlined" : "text"}
+              size="small"
+              startIcon={<Sort />}
+              onClick={() => dispatch(toggleBacklogSortByPriority())}
+              sx={{
+                color: "text.secondary",
+                "&:hover": { color: "text.primary" },
+              }}
+            >
+              Priority Sort
+            </Button>
           </Stack>
           {/* New Task Input */}
           <Box sx={{ mt: 1, width: "100%", maxWidth: "100%" }}>

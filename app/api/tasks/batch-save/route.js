@@ -71,6 +71,7 @@ export async function POST(request) {
             duration: taskFields.duration ?? 30,
             recurrence: taskFields.recurrence || null,
             order: taskFields.order ?? 0,
+            priority: taskFields.priority ?? null,
           };
         });
         const created = await tx.insert(tasks).values(valuesToInsert).returning();
@@ -89,6 +90,7 @@ export async function POST(request) {
           if (taskFields.duration !== undefined) updateData.duration = taskFields.duration;
           if (taskFields.recurrence !== undefined) updateData.recurrence = taskFields.recurrence;
           if (taskFields.order !== undefined) updateData.order = taskFields.order;
+          if (taskFields.priority !== undefined) updateData.priority = taskFields.priority;
 
           if (Object.keys(updateData).length > 0) {
             updateData.updatedAt = new Date();

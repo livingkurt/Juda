@@ -14,6 +14,7 @@ import {
   SkipNext,
 } from "@mui/icons-material";
 import { TagMenuSelector } from "./TagMenuSelector";
+import { PriorityMenuSelector } from "./PriorityMenuSelector";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
@@ -266,6 +267,9 @@ export const TaskContextMenu = ({
 
       {/* Tags submenu */}
       <TagMenuSelector task={task} />
+
+      {/* Priority submenu */}
+      <PriorityMenuSelector task={task} onClose={onClose} />
 
       <MenuItem
         onClick={e => {

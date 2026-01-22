@@ -2,6 +2,14 @@
 
 ## 2026-01-22
 
+### Task priority system
+
+- Added a nullable `priority` field on tasks (text) with a dedicated migration for safe schema updates.
+- Introduced priority constants and helpers to centralize display labels, colors, icons, and sort order.
+- Added priority selection in `TaskContextMenu` with a simple radio-style submenu to keep edits lightweight.
+- Displayed priority chips in task lists and added priority filters for Backlog and Kanban, combining with tag/search filters.
+- Added optional backlog sorting by priority with a user toggle while preserving the existing order as a secondary sort.
+
 ### Pagination and completion loading fixes
 
 - Added a completions date-range query and used it in `HistoryTab` to fetch only the visible range.

@@ -8,6 +8,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { TaskItem } from "@/components/TaskItem";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
 import { TagFilter } from "@/components/TagFilter";
+import { PriorityFilter } from "@/components/PriorityFilter";
 import { QuickTaskInput } from "@/components/QuickTaskInput";
 import { DateNavigation } from "@/components/DateNavigation";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -19,6 +20,7 @@ import { useDialogState } from "@/hooks/useDialogState";
 import {
   setKanbanSearchTerm,
   setKanbanSelectedTagIds,
+  setKanbanSelectedPriorities,
   setKanbanViewDate,
   setKanbanShowTodayComplete,
 } from "@/lib/store/slices/uiSlice";
@@ -169,6 +171,7 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
   // Get search/filter state from Redux
   const searchTerm = useSelector(state => state.ui.kanbanSearchTerm);
   const selectedTagIds = useSelector(state => state.ui.kanbanSelectedTagIds);
+  const selectedPriorities = useSelector(state => state.ui.kanbanSelectedPriorities);
 
   // Use hooks directly (they use Redux internally)
   const completionHandlers = useCompletionHandlers();
@@ -229,8 +232,13 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
       filtered = filtered.filter(task => task.taskTags?.some(tt => selectedTagIds.includes(tt.tagId)));
     }
 
+    // Priority filter
+    if (selectedPriorities.length > 0) {
+      filtered = filtered.filter(task => selectedPriorities.includes(task.priority));
+    }
+
     return filtered;
-  }, [kanbanTasks, searchTerm, selectedTagIds]);
+  }, [kanbanTasks, searchTerm, selectedTagIds, selectedPriorities]);
 
   // Group tasks by status
   const tasksByStatus = useMemo(
@@ -279,6 +287,17 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
               onCreateTag={async (name, color) => {
                 return await createTagMutation({ name, color }).unwrap();
               }}
+            />
+            <PriorityFilter
+              selectedPriorities={selectedPriorities}
+              onPrioritySelect={priority => {
+                if (!selectedPriorities.includes(priority)) {
+                  dispatch(setKanbanSelectedPriorities([...selectedPriorities, priority]));
+                }
+              }}
+              onPriorityDeselect={priority =>
+                dispatch(setKanbanSelectedPriorities(selectedPriorities.filter(value => value !== priority)))
+              }
             />
           </Stack>
         </Stack>
