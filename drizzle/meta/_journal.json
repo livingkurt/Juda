@@ -281,6 +281,13 @@
       "when": 1768816728831,
       "tag": "0039_ensure_both_sides_column_exists",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1769007667752,
+      "tag": "0040_add_section_time_range",
+      "breakpoints": true
     }
   ]
 }

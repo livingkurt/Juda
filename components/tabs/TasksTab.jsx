@@ -11,6 +11,7 @@ import { CalendarViewTab } from "@/components/tabs/CalendarViewTab";
 import { useDispatch, useSelector } from "react-redux";
 import { setMobileActiveView, setBacklogWidth, setTodayViewWidth } from "@/lib/store/slices/uiSlice";
 import { createDroppableId, createDraggableId, extractTaskId } from "@/lib/dragHelpers";
+import { timeToMinutes, minutesToTime, formatLocalDate } from "@/lib/utils";
 import { useViewState } from "@/hooks/useViewState";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -163,6 +164,58 @@ export function TasksTab() {
   const backlogTasks = taskFilters.backlogTasks;
   const tasksBySection = taskFilters.tasksBySection;
 
+  /**
+   * Calculate time for a task dropped into a time-ranged section
+   * Always interpolates based on drop position between neighboring tasks
+   */
+  const getSectionDropTime = useCallback(({ targetSection, targetSectionTasks, destIndex, taskId }) => {
+    console.warn("getSectionDropTime called:", { targetSection, targetSectionTasks, destIndex, taskId });
+    if (!targetSection?.startTime || !targetSection?.endTime) return null;
+
+    // Filter out the task being moved (for reordering within same section)
+    const tasksWithoutCurrent = targetSectionTasks.filter(t => t.id !== taskId);
+
+    // Dropping at the beginning
+    if (destIndex <= 0) {
+      return targetSection.startTime;
+    }
+
+    // Dropping at the end
+    if (destIndex >= tasksWithoutCurrent.length) {
+      const lastTask = tasksWithoutCurrent[tasksWithoutCurrent.length - 1];
+      if (lastTask?.time) {
+        const lastMinutes = timeToMinutes(lastTask.time);
+        const endMinutes = timeToMinutes(targetSection.endTime);
+        // Add 1 minute after last task, but don't exceed section end
+        const newMinutes = Math.min(lastMinutes + 1, endMinutes - 1);
+        return minutesToTime(newMinutes);
+      }
+      return targetSection.startTime;
+    }
+
+    // Dropping between tasks - interpolate
+    const prevTask = tasksWithoutCurrent[destIndex - 1];
+    const nextTask = tasksWithoutCurrent[destIndex];
+
+    if (prevTask?.time && nextTask?.time) {
+      const prevMinutes = timeToMinutes(prevTask.time);
+      const nextMinutes = timeToMinutes(nextTask.time);
+      // Interpolate between the two times
+      const midMinutes = Math.floor((prevMinutes + nextMinutes) / 2);
+      return minutesToTime(midMinutes);
+    }
+
+    if (prevTask?.time) {
+      const prevMinutes = timeToMinutes(prevTask.time);
+      const endMinutes = timeToMinutes(targetSection.endTime);
+      // Add 1 minute after previous task
+      const newMinutes = Math.min(prevMinutes + 1, endMinutes - 1);
+      return minutesToTime(newMinutes);
+    }
+
+    return targetSection.startTime;
+  }, []);
+
   // Drag handler for @hello-pangea/dnd
   // Note: We don't await API calls here - optimistic updates in RTK Query handle the UI instantly
   // The mutations have onQueryStarted handlers that update the cache immediately
@@ -247,43 +300,70 @@ export function TasksTab() {
         // Backlog to Section
         if (sourceId === "backlog" && destId.startsWith("section-")) {
           const destSectionId = destId.replace("section-", "");
+          const destSection = sections.find(s => s.id === destSectionId);
+
+          if (!destSection) {
+            console.error("Destination section not found:", destSectionId);
+            return;
+          }
 
           // Get the filtered tasks that are actually displayed in the destination section
           const sectionTasks = tasksBySection[destSectionId] || [];
           const destTasks = [...sectionTasks]
             .filter(t => !t.parentId && t.id !== taskId)
-            .sort((a, b) => (a.order || 0) - (b.order || 0));
+            .sort((a, b) => {
+              // Sort by time first (for time-ranged sections)
+              if (a.time && b.time) {
+                const aMinutes = timeToMinutes(a.time);
+                const bMinutes = timeToMinutes(b.time);
+                if (aMinutes !== bMinutes) return aMinutes - bMinutes;
+              }
+              if (a.time && !b.time) return -1;
+              if (!a.time && b.time) return 1;
+              // Fallback to order
+              return (a.order || 0) - (b.order || 0);
+            });
+
+          // Calculate new time if destination section has time range
+          let timeUpdate = {};
+          if (destSection?.startTime && destSection?.endTime) {
+            const newTime = getSectionDropTime({
+              targetSection: destSection,
+              targetSectionTasks: destTasks,
+              destIndex: destination.index,
+              taskId,
+            });
+            if (newTime !== null) {
+              timeUpdate.time = newTime;
+            }
+          }
 
           // Create updated task object with new properties
           const today = new Date(viewDate);
           today.setHours(0, 0, 0, 0);
-          const updatedTask = {
-            ...task,
+          const targetDateStr = formatLocalDate(today);
+
+          // Build all updates (time FIRST, then sectionId)
+          const allUpdates = {
+            id: taskId, // Required by API
+            ...timeUpdate,
             sectionId: destSectionId,
             recurrence: {
               type: "none",
-              startDate: today.toISOString(),
+              startDate: `${targetDateStr}T00:00:00.000Z`,
             },
             status: "in_progress", // Set status when moving from backlog to section
           };
 
-          // Insert updated task at the drop position
-          destTasks.splice(destination.index, 0, updatedTask);
+          // IMPORTANT: Update time FIRST so the task appears in the correct section
+          // (time-ranged sections filter by time, not sectionId)
+          updateTaskMutation(allUpdates);
 
-          // Calculate all updates including the moved task
+          // Insert updated task into destination for order calculation
+          destTasks.splice(destination.index, 0, task);
+
+          // Calculate all updates including the moved task (for non-time-ranged sections fallback)
           const updates = destTasks.map((t, idx) => ({ id: t.id, order: idx }));
-
-          // Update task properties AND reorder in a single batch
-          // This ensures the task appears in the section and not in backlog
-          updateTaskMutation({
-            id: taskId,
-            sectionId: destSectionId,
-            recurrence: {
-              type: "none",
-              startDate: today.toISOString(),
-            },
-            status: "in_progress",
-          });
 
           // Update orders for all tasks in the section
           batchReorderTasksMutation(updates);
@@ -331,17 +411,86 @@ export function TasksTab() {
           const sourceSectionId = sourceId.replace("section-", "");
           const destSectionId = destId.replace("section-", "");
 
+          const destSection = sections.find(s => s.id === destSectionId);
+
+          if (!destSection) {
+            console.error("Destination section not found:", destSectionId);
+            return;
+          }
+
           // Get the filtered tasks that are actually displayed in the destination section
           const destSectionTasks = tasksBySection[destSectionId] || [];
           const destTasks = [...destSectionTasks]
             .filter(t => !t.parentId && t.id !== taskId)
-            .sort((a, b) => (a.order || 0) - (b.order || 0));
+            .sort((a, b) => {
+              // Sort by time first (for time-ranged sections)
+              if (a.time && b.time) {
+                const aMinutes = timeToMinutes(a.time);
+                const bMinutes = timeToMinutes(b.time);
+                if (aMinutes !== bMinutes) return aMinutes - bMinutes;
+              }
+              if (a.time && !b.time) return -1;
+              if (!a.time && b.time) return 1;
+              // Fallback to order
+              return (a.order || 0) - (b.order || 0);
+            });
+
+          // Calculate new time if destination section has time range
+          let timeUpdate = {};
+          if (destSection?.startTime && destSection?.endTime) {
+            const newTime = getSectionDropTime({
+              targetSection: destSection,
+              targetSectionTasks: destTasks,
+              destIndex: destination.index,
+              taskId,
+            });
+            if (newTime !== null) {
+              timeUpdate.time = newTime;
+            }
+          }
+
+          // Build all updates (time FIRST, then sectionId)
+          const allUpdates = {
+            id: taskId, // Required by API
+            ...timeUpdate,
+            sectionId: destSectionId,
+          };
+
+          // Handle date/recurrence updates for non-recurring tasks
+          const viewDateObj = viewDate || new Date();
+          const today = new Date(viewDateObj);
+          today.setHours(0, 0, 0, 0);
+          const targetDateStr = formatLocalDate(today);
+          const currentDateStr = task.recurrence?.startDate?.split("T")[0];
+          const needsDateUpdate = currentDateStr !== targetDateStr;
+          const isRecurring = task.recurrence && task.recurrence.type && task.recurrence.type !== "none";
+
+          if (!isRecurring && (needsDateUpdate || !task.recurrence)) {
+            allUpdates.recurrence = {
+              type: "none",
+              startDate: `${targetDateStr}T00:00:00.000Z`,
+            };
+          }
+
+          // IMPORTANT: Update time FIRST so the task appears in the correct section
+          // (time-ranged sections filter by time, not sectionId)
+          updateTaskMutation(allUpdates);
 
           // If moving to same section, use batch reorder for accurate positioning
           if (sourceSectionId === destSectionId) {
             const sourceTasks = [...destSectionTasks]
               .filter(t => !t.parentId)
-              .sort((a, b) => (a.order || 0) - (b.order || 0));
+              .sort((a, b) => {
+                // Sort by time first
+                if (a.time && b.time) {
+                  const aMinutes = timeToMinutes(a.time);
+                  const bMinutes = timeToMinutes(b.time);
+                  if (aMinutes !== bMinutes) return aMinutes - bMinutes;
+                }
+                if (a.time && !b.time) return -1;
+                if (!a.time && b.time) return 1;
+                return (a.order || 0) - (b.order || 0);
+              });
 
             // Find current position and remove
             const currentIndex = sourceTasks.findIndex(t => t.id === taskId);
@@ -352,24 +501,28 @@ export function TasksTab() {
             // Insert at new position
             sourceTasks.splice(destination.index, 0, task);
 
-            // Update all task orders
+            // Update all task orders (for non-time-ranged sections fallback)
             const updates = sourceTasks.map((t, idx) => ({ id: t.id, order: idx }));
             batchReorderTasksMutation(updates);
             return;
           }
 
           // Moving between different sections - need to update both sections
-          // First update the task's section
-          updateTaskMutation({
-            id: taskId,
-            sectionId: destSectionId,
-          });
-
           // Get source section tasks
           const sourceSectionTasks = tasksBySection[sourceSectionId] || [];
           const sourceTasks = [...sourceSectionTasks]
             .filter(t => !t.parentId && t.id !== taskId)
-            .sort((a, b) => (a.order || 0) - (b.order || 0));
+            .sort((a, b) => {
+              // Sort by time first
+              if (a.time && b.time) {
+                const aMinutes = timeToMinutes(a.time);
+                const bMinutes = timeToMinutes(b.time);
+                if (aMinutes !== bMinutes) return aMinutes - bMinutes;
+              }
+              if (a.time && !b.time) return -1;
+              if (!a.time && b.time) return 1;
+              return (a.order || 0) - (b.order || 0);
+            });
 
           // Reorder source section (without the moved task)
           const sourceUpdates = sourceTasks.map((t, idx) => ({ id: t.id, order: idx }));
@@ -378,7 +531,7 @@ export function TasksTab() {
           destTasks.splice(destination.index, 0, task);
           const destUpdates = destTasks.map((t, idx) => ({ id: t.id, order: idx }));
 
-          // Batch update both sections
+          // Batch update both sections (for non-time-ranged sections fallback)
           batchReorderTasksMutation([...sourceUpdates, ...destUpdates]);
           return;
         }
@@ -394,6 +547,7 @@ export function TasksTab() {
       reorderSectionsMutation,
       batchReorderTasksMutation,
       updateTaskMutation,
+      getSectionDropTime,
     ]
   );
 

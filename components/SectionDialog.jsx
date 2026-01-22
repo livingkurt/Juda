@@ -16,6 +16,8 @@ import {
   ToggleButtonGroup,
 } from "@mui/material";
 import { Close } from "@mui/icons-material";
+import { TimePicker } from "@mui/x-date-pickers/TimePicker";
+import dayjs from "dayjs";
 import { SECTION_ICONS } from "@/lib/constants";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useSectionOperations } from "@/hooks/useSectionOperations";
@@ -23,6 +25,12 @@ import { useSectionOperations } from "@/hooks/useSectionOperations";
 function SectionForm({ section, onSave, onClose }) {
   const [name, setName] = useState(section?.name || "");
   const [icon, setIcon] = useState(section?.icon || "sun");
+  const [startTime, setStartTime] = useState(section?.startTime || null);
+  const [endTime, setEndTime] = useState(section?.endTime || null);
+
+  // Convert "HH:MM" string to dayjs for TimePicker
+  const startTimeValue = startTime ? dayjs(`2000-01-01T${startTime}`) : null;
+  const endTimeValue = endTime ? dayjs(`2000-01-01T${endTime}`) : null;
 
   const handleSave = () => {
     if (!name.trim()) return;
@@ -30,6 +38,8 @@ function SectionForm({ section, onSave, onClose }) {
       id: section?.id,
       name: name.trim(),
       icon,
+      startTime: startTime || null,
+      endTime: endTime || null,
       order: section?.order ?? 999,
     });
     onClose();
@@ -78,6 +88,43 @@ function SectionForm({ section, onSave, onClose }) {
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
+          </Box>
+
+          {/* Time Range Section */}
+          <Box>
+            <Typography variant="body2" fontWeight={500} gutterBottom>
+              Time Range (Optional)
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+              Tasks with times in this range will automatically appear in this section
+            </Typography>
+            <Stack direction="row" spacing={2}>
+              <TimePicker
+                label="Start Time"
+                value={startTimeValue}
+                onChange={newValue => {
+                  setStartTime(newValue ? newValue.format("HH:mm") : null);
+                }}
+                slotProps={{
+                  textField: { size: "small", fullWidth: true },
+                }}
+              />
+              <TimePicker
+                label="End Time"
+                value={endTimeValue}
+                onChange={newValue => {
+                  setEndTime(newValue ? newValue.format("HH:mm") : null);
+                }}
+                slotProps={{
+                  textField: { size: "small", fullWidth: true },
+                }}
+              />
+            </Stack>
+            {startTime && endTime && (
+              <Typography variant="caption" color="primary" sx={{ display: "block", mt: 1 }}>
+                Tasks from {startTime} to {endTime} will appear here
+              </Typography>
+            )}
           </Box>
         </Stack>
       </DialogContent>

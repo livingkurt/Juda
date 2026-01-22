@@ -138,6 +138,11 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
           >
             {section.name}
           </Typography>
+          {section.startTime && section.endTime && (
+            <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+              {section.startTime} - {section.endTime}
+            </Typography>
+          )}
           <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
             ({completedCount}/{tasks.length})
           </Typography>
