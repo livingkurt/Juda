@@ -23,6 +23,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
   const lastCountdownSecondRef = useRef(null);
   const lastPrepCountdownRef = useRef(null);
   const audioContextRef = useRef(null);
+  const hasAutoStartedRef = useRef(false);
 
   // Get or create AudioContext (reused across all sounds)
   const getAudioContext = async () => {
@@ -165,7 +166,14 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
 
   // Auto-start if requested (for transitions)
   useEffect(() => {
-    if (autoStart && timeRemaining === targetSeconds && prepCountdown === null && !isCompleted) {
+    if (
+      autoStart &&
+      timeRemaining === targetSeconds &&
+      prepCountdown === null &&
+      !isCompleted &&
+      !hasAutoStartedRef.current
+    ) {
+      hasAutoStartedRef.current = true;
       // Use setTimeout to avoid synchronous setState in effect
       const timer = setTimeout(() => {
         handleStart();
