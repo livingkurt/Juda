@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Box, Stack, Typography, IconButton, Paper } from "@mui/material";
-import { PlayArrow, Pause, Refresh } from "@mui/icons-material";
+import { Box, Stack, Typography, IconButton, Paper, Tooltip, Alert } from "@mui/material";
+import { PlayArrow, Pause, Refresh, LightMode, Warning } from "@mui/icons-material";
 
 /**
  * CountdownTimer - A countdown timer for time-based exercises
+ *
+ * Features:
+ * - Wake Lock API to keep screen awake (prevents iOS from sleeping)
+ * - End time calculation (detects if timer finished while in background)
+ * - Page visibility detection (handles app switching/screen lock)
  *
  * @param {number} targetSeconds - Target time in seconds
  * @param {Function} onComplete - Callback when timer reaches 0
@@ -17,6 +22,8 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [prepCountdown, setPrepCountdown] = useState(null); // null = not in prep, 5-0 = prep countdown
+  const [wakeLockEnabled, setWakeLockEnabled] = useState(true); // User preference for wake lock
+  const [showBackgroundWarning, setShowBackgroundWarning] = useState(false);
   const intervalRef = useRef(null);
   const prepIntervalRef = useRef(null);
   const hasPlayedSoundRef = useRef(false);
@@ -24,6 +31,9 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
   const lastPrepCountdownRef = useRef(null);
   const audioContextRef = useRef(null);
   const hasAutoStartedRef = useRef(false);
+  const wakeLockRef = useRef(null);
+  const endTimeRef = useRef(null); // Store when timer should complete
+  const wasRunningRef = useRef(false); // Track if timer was running before page hide
 
   // Get or create AudioContext (reused across all sounds)
   const getAudioContext = async () => {
@@ -36,6 +46,40 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
     }
     return audioContextRef.current;
   };
+
+  // Request Wake Lock to keep screen awake
+  const requestWakeLock = useCallback(async () => {
+    if (!wakeLockEnabled) return;
+
+    try {
+      if ("wakeLock" in navigator) {
+        wakeLockRef.current = await navigator.wakeLock.request("screen");
+      }
+    } catch (err) {
+      console.warn("Wake Lock not supported or failed:", err);
+    }
+  }, [wakeLockEnabled]);
+
+  // Release Wake Lock
+  const releaseWakeLock = useCallback(async () => {
+    if (wakeLockRef.current) {
+      try {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      } catch (err) {
+        console.warn("Failed to release Wake Lock:", err);
+      }
+    }
+  }, []);
+
+  // Calculate elapsed time based on end time (for background detection)
+  const calculateElapsedFromEndTime = useCallback(() => {
+    if (!endTimeRef.current) return elapsedSeconds;
+
+    const now = Date.now();
+    const totalElapsed = Math.floor((now - (endTimeRef.current - targetSeconds * 1000)) / 1000);
+    return Math.min(totalElapsed, targetSeconds);
+  }, [elapsedSeconds, targetSeconds]);
 
   // Play countdown beep (for 3, 2, 1)
   const playCountdownBeep = useCallback(async () => {
@@ -145,23 +189,33 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
     // Resume AudioContext on user interaction (required for iOS)
     await getAudioContext();
 
+    // Request Wake Lock to keep screen awake
+    await requestWakeLock();
+
     // If starting from the beginning, start preparation countdown
     if (timeRemaining === targetSeconds && prepCountdown === null) {
       setPrepCountdown(5);
       lastPrepCountdownRef.current = null;
+      // Don't set end time yet - will be set when actual timer starts
     } else {
       // Resume from pause - start timer directly
       setIsRunning(true);
+      // Set end time based on remaining time
+      endTimeRef.current = Date.now() + timeRemaining * 1000;
     }
-  }, [timeRemaining, targetSeconds, prepCountdown]);
+  }, [timeRemaining, targetSeconds, prepCountdown, requestWakeLock]);
 
   // Pause timer
-  const handlePause = () => {
+  const handlePause = async () => {
     setIsRunning(false);
     // Cancel preparation countdown if in progress
     if (prepCountdown !== null) {
       setPrepCountdown(null);
     }
+    // Release Wake Lock when paused
+    await releaseWakeLock();
+    // Clear end time when paused
+    endTimeRef.current = null;
   };
 
   // Auto-start if requested (for transitions)
@@ -183,13 +237,17 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
   }, [autoStart, timeRemaining, targetSeconds, prepCountdown, isCompleted, handleStart]);
 
   // Reset timer
-  const handleReset = () => {
+  const handleReset = async () => {
     setIsRunning(false);
     setElapsedSeconds(0);
     setPrepCountdown(null);
     hasPlayedSoundRef.current = false;
     lastCountdownSecondRef.current = null;
     lastPrepCountdownRef.current = null;
+    endTimeRef.current = null;
+    setShowBackgroundWarning(false);
+    // Release Wake Lock when reset
+    await releaseWakeLock();
   };
 
   // Preparation countdown effect (5, 4, 3, 2, 1, Start)
@@ -245,11 +303,13 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
       const timer = setTimeout(() => {
         setIsRunning(true);
         setPrepCountdown(null); // Exit preparation phase
+        // Set end time when actual timer starts
+        endTimeRef.current = Date.now() + targetSeconds * 1000;
       }, 800); // Brief delay to show "START"
 
       return () => clearTimeout(timer);
     }
-  }, [prepCountdown]);
+  }, [prepCountdown, targetSeconds]);
 
   // Countdown effect
   useEffect(() => {
@@ -306,6 +366,66 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
     }
   }, [isRunning, timeRemaining, elapsedSeconds]);
 
+  // Handle page visibility changes (app switching, screen lock)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Page is now hidden (switched app or locked screen)
+        wasRunningRef.current = isRunning;
+        if (isRunning) {
+          setShowBackgroundWarning(true);
+        }
+      } else {
+        // Page is now visible again
+        if (wasRunningRef.current && endTimeRef.current) {
+          // Check if timer should have completed while in background
+          const now = Date.now();
+          if (now >= endTimeRef.current) {
+            // Timer completed while in background
+            setElapsedSeconds(targetSeconds);
+            setIsRunning(false);
+            if (!hasPlayedSoundRef.current) {
+              playCompletionSound();
+              hasPlayedSoundRef.current = true;
+            }
+            if (onComplete) {
+              onComplete();
+            }
+            endTimeRef.current = null;
+          } else {
+            // Timer still running - sync elapsed time
+            const actualElapsed = calculateElapsedFromEndTime();
+            setElapsedSeconds(actualElapsed);
+          }
+        }
+        // Re-request wake lock if timer is running
+        if (isRunning && wakeLockEnabled) {
+          requestWakeLock();
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [
+    isRunning,
+    targetSeconds,
+    onComplete,
+    playCompletionSound,
+    wakeLockEnabled,
+    calculateElapsedFromEndTime,
+    requestWakeLock,
+  ]);
+
+  // Cleanup wake lock on unmount
+  useEffect(() => {
+    return () => {
+      releaseWakeLock();
+    };
+  }, [releaseWakeLock]);
+
   // Calculate progress percentage
   const progress = prepCountdown !== null ? 0 : ((targetSeconds - timeRemaining) / targetSeconds) * 100;
 
@@ -347,6 +467,18 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
       }}
     >
       <Stack spacing={1} alignItems="center">
+        {/* Background Warning */}
+        {showBackgroundWarning && isRunning && (
+          <Alert
+            severity="warning"
+            icon={<Warning fontSize="small" />}
+            onClose={() => setShowBackgroundWarning(false)}
+            sx={{ width: "100%", py: 0.5 }}
+          >
+            <Typography variant="caption">Timer may pause if you switch apps or lock your phone</Typography>
+          </Alert>
+        )}
+
         {/* Timer Display */}
         <Typography
           variant="h4"
@@ -380,7 +512,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
         </Box>
 
         {/* Controls */}
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} alignItems="center">
           {!isRunning && prepCountdown === null ? (
             <IconButton
               onClick={handleStart}
@@ -403,6 +535,26 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
           <IconButton onClick={handleReset} disabled={isCompleted} size="small">
             <Refresh />
           </IconButton>
+
+          {/* Wake Lock Toggle */}
+          {"wakeLock" in navigator && (
+            <Tooltip title={wakeLockEnabled ? "Keep screen awake (enabled)" : "Keep screen awake (disabled)"}>
+              <IconButton
+                onClick={() => {
+                  setWakeLockEnabled(!wakeLockEnabled);
+                  if (!wakeLockEnabled && isRunning) {
+                    requestWakeLock();
+                  } else if (wakeLockEnabled) {
+                    releaseWakeLock();
+                  }
+                }}
+                color={wakeLockEnabled ? "primary" : "default"}
+                size="small"
+              >
+                <LightMode />
+              </IconButton>
+            </Tooltip>
+          )}
         </Stack>
 
         {timeRemaining === 0 && !isCompleted && (
