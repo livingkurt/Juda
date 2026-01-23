@@ -13,7 +13,7 @@ import { useSectionExpansion } from "@/hooks/useSectionExpansion";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
 // Main Section component that renders all sections
-export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId }) => {
+export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId, sectionFilter }) => {
   // Get Redux state directly
   const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
   const viewDate = todayViewDateISO ? new Date(todayViewDateISO) : new Date();
@@ -67,29 +67,32 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
 
   return (
     <Droppable droppableId="sections-list" type="SECTION">
-      {(provided, snapshot) => (
+      {provided => (
         <Box
           ref={provided.innerRef}
           {...provided.droppableProps}
           sx={{
-            bgcolor: snapshot.isDraggingOver ? "action.hover" : "transparent",
+            bgcolor: "transparent",
             borderRadius: 1,
             width: "100%",
             maxWidth: "100%",
             minHeight: 100,
           }}
         >
-          {sectionExpansion.computedSections.map((section, index) => (
-            <SectionCard
-              key={section.id}
-              section={section}
-              index={index}
-              hoveredDroppable={hoveredDroppable}
-              droppableId={createDroppableId.todaySection(section.id)}
-              createDraggableId={createDraggableId}
-              viewDate={viewDate}
-            />
-          ))}
+          {sectionExpansion.computedSections
+            .filter(section => (sectionFilter ? sectionFilter(section) : true))
+            .sort((a, b) => (a.order || 0) - (b.order || 0))
+            .map((section, index) => (
+              <SectionCard
+                key={section.id}
+                section={section}
+                index={index}
+                hoveredDroppable={hoveredDroppable}
+                droppableId={createDroppableId.todaySection(section.id)}
+                createDraggableId={createDraggableId}
+                viewDate={viewDate}
+              />
+            ))}
           {provided.placeholder}
           <Button
             variant="outlined"

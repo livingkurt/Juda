@@ -15,7 +15,7 @@ import { useSectionExpansion } from "@/hooks/useSectionExpansion";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 
-const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDraggableId, viewDate }) => {
+const SectionCardComponent = ({ section, index, hoveredDroppable, droppableId, createDraggableId, viewDate }) => {
   const [menuAnchor, setMenuAnchor] = useState(null);
 
   // Get selected tag IDs from Redux for auto-tagging new tasks
@@ -266,7 +266,7 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
   }
 
   return (
-    <Draggable draggableId={`section-${section.id}`} index={section.order || 0} isDragDisabled={section.isVirtual}>
+    <Draggable draggableId={`section-${section.id}`} index={index} isDragDisabled={section.isVirtual}>
       {(sectionProvided, sectionSnapshot) => (
         <Box
           ref={sectionProvided.innerRef}
