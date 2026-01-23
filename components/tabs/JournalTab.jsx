@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, memo } from "react";
-import { Box, CircularProgress } from "@mui/material";
+import { Box, CircularProgress, Button, Stack } from "@mui/material";
+import { Add } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { shouldShowOnDate as checkTaskShouldShowOnDate } from "@/lib/utils";
 import { DateNavigation } from "@/components/DateNavigation";
@@ -12,6 +13,7 @@ import { JournalYearView } from "@/components/JournalYearView";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useCreateCompletionMutation, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
 
 export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
   const [selectedDate, setSelectedDate] = useState(dayjs());
@@ -20,6 +22,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
   // Get data from Redux
   const { data: tasks = [] } = useGetTasksQuery();
   const { getCompletionForDate } = useCompletionHelpers();
+  const { handleEditTask } = useTaskOperations();
 
   // Mutations
   const [createCompletionMutation] = useCreateCompletionMutation();
@@ -124,6 +127,16 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
     { label: "Year", value: "year" },
   ];
 
+  // Handle creating a new journal entry
+  const handleNewJournalEntry = () => {
+    // Create a temporary task object with completionType: "text" to pre-fill the dialog
+    const newJournalTask = {
+      completionType: "text",
+      title: "",
+    };
+    handleEditTask(newJournalTask);
+  };
+
   if (tabLoading) {
     return (
       <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -143,20 +156,24 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           bgcolor: "background.paper",
         }}
       >
-        <DateNavigation
-          selectedDate={selectedDateAsDate}
-          onDateChange={handleDateChange}
-          onPrevious={handlePrev}
-          onNext={handleNext}
-          onToday={handleToday}
-          showDatePicker={true}
-          showDateDisplay={true}
-          showViewSelector={true}
-          viewCollection={viewOptions}
-          selectedView={currentView}
-          onViewChange={setCurrentView}
-          viewSelectorWidth="100px"
-        />
+        <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
+          <Box sx={{ flex: 1 }}>
+            <DateNavigation
+              selectedDate={selectedDateAsDate}
+              onDateChange={handleDateChange}
+              onPrevious={handlePrev}
+              onNext={handleNext}
+              onToday={handleToday}
+              showDatePicker={true}
+              showDateDisplay={true}
+              showViewSelector={true}
+              viewCollection={viewOptions}
+              selectedView={currentView}
+              onViewChange={setCurrentView}
+              viewSelectorWidth="100px"
+            />
+          </Box>
+        </Stack>
       </Box>
 
       {/* Content */}
@@ -169,6 +186,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           getCompletionForDate={getCompletionForDate}
           shouldShowTaskOnDate={shouldShowTaskOnDate}
           onSaveEntry={handleSaveEntry}
+          onNewJournalEntry={handleNewJournalEntry}
         />
       )}
       {currentView === "week" && (
@@ -180,6 +198,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           getCompletionForDate={getCompletionForDate}
           shouldShowTaskOnDate={shouldShowTaskOnDate}
           onSaveEntry={handleSaveEntry}
+          onNewJournalEntry={handleNewJournalEntry}
         />
       )}
       {currentView === "month" && (
@@ -191,6 +210,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           getCompletionForDate={getCompletionForDate}
           shouldShowTaskOnDate={shouldShowTaskOnDate}
           onSaveEntry={handleSaveEntry}
+          onNewJournalEntry={handleNewJournalEntry}
         />
       )}
       {currentView === "year" && (
@@ -202,6 +222,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           getCompletionForDate={getCompletionForDate}
           shouldShowTaskOnDate={shouldShowTaskOnDate}
           onSaveEntry={handleSaveEntry}
+          onNewJournalEntry={handleNewJournalEntry}
         />
       )}
     </Box>
