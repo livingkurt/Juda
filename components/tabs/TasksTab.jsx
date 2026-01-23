@@ -311,10 +311,15 @@ export function TasksTab() {
         today.setHours(0, 0, 0, 0);
         const targetDateStr = formatLocalDate(today);
 
+        // Calculate the order for the new position
+        destTasks.splice(destination.index, 0, task);
+        const newOrder = destination.index;
+
         const allUpdates = {
           id: taskId,
           ...timeUpdate,
           sectionId: destSectionId,
+          order: newOrder,
           recurrence: {
             type: "none",
             startDate: `${targetDateStr}T00:00:00.000Z`,
@@ -322,13 +327,11 @@ export function TasksTab() {
           status: "in_progress",
         };
 
+        // Update task with all properties including order
         updateTaskMutation(allUpdates);
 
-        destTasks.splice(destination.index, 0, task);
+        // Reorder all tasks in the section to fix orders
         const updates = destTasks.map((t, idx) => ({ id: t.id, order: idx }));
-
-        // Update sectionId and order via reorderTask
-        await reorderTask(taskId, null, destSectionId, destination.index);
         batchReorderTasksMutation(updates);
         return;
       }
@@ -343,16 +346,17 @@ export function TasksTab() {
 
         const updates = backlogTasksList.map((t, idx) => ({ id: t.id, order: idx }));
 
+        // Update task with all properties including order
         updateTaskMutation({
           id: taskId,
           sectionId: null,
+          order: destination.index,
           time: null,
           recurrence: null,
           status: "todo",
         });
 
-        // Update order via reorderTask
-        await reorderTask(taskId, null, null, destination.index);
+        // Reorder all backlog tasks to fix orders
         batchReorderTasksMutation(updates);
         return;
       }
