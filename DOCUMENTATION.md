@@ -1,5 +1,27 @@
 # Project Decisions Log
 
+## 2026-01-23
+
+### Countdown Timer Background Handling
+
+- **Problem**: iOS Safari pauses JavaScript execution when users switch apps or lock their phone, causing workout timers to stop.
+- **Solution**: Implemented a multi-layered approach to provide the best possible timer experience within web app limitations:
+  1. **Wake Lock API**: Keeps screen awake while timer runs (user can toggle on/off via sun icon)
+  2. **End Time Calculation**: Stores completion timestamp to detect if timer finished while in background
+  3. **Page Visibility Detection**: Monitors app switching/screen lock and syncs timer state when returning
+  4. **User Warnings**: Shows dismissible alert when timer is running and user switches apps
+- **Technical Details**:
+  - Added `wakeLockRef`, `endTimeRef`, and `wasRunningRef` to track state across visibility changes
+  - Implemented `requestWakeLock()` and `releaseWakeLock()` with proper cleanup
+  - Added `calculateElapsedFromEndTime()` to sync timer when page becomes visible
+  - Wake Lock toggle button (sun icon) allows users to control screen-awake behavior
+- **User Experience**:
+  - Timer continues reliably when app is in foreground with wake lock enabled
+  - Detects completion if timer finished while away and plays sound on return
+  - Clear warning message about iOS background limitations
+  - Battery-conscious users can disable wake lock
+- **Documentation**: See `docs/COUNTDOWN_TIMER_BACKGROUND_HANDLING.md` for full technical details and testing scenarios
+
 ## 2026-01-22
 
 ### Workout progress tab
