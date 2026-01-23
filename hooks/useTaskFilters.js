@@ -55,10 +55,21 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
           // Exclude subtasks (handled by parent)
           if (task.parentId) return false;
 
-          // Include in-progress non-recurring tasks regardless of date
+          // Include in-progress non-recurring tasks ONLY if they have no date assigned
+          // If they have a date, they should only show on that date and after (handled by shouldShowOnDate)
           const isNonRecurring = !task.recurrence || task.recurrence.type === "none";
           if (isNonRecurring && task.status === "in_progress") {
-            return true;
+            // Only show if task has no date (no recurrence or no startDate)
+            const hasNoDate = !task.recurrence || !task.recurrence.startDate;
+            if (hasNoDate) {
+              return true;
+            }
+          }
+
+          // For one-time tasks (type === "none") that have been completed,
+          // only show them on dates where they have a completion record
+          if (task.recurrence?.type === "none" && hasAnyCompletion(task.id)) {
+            return hasRecordOnDate(task.id, viewDate);
           }
 
           // Normal date-based filtering
@@ -81,7 +92,7 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
               }))
             : undefined,
         })),
-    [tasks, viewDate, isCompletedOnDate, getOutcomeOnDate, hasRecordOnDate]
+    [tasks, viewDate, isCompletedOnDate, getOutcomeOnDate, hasRecordOnDate, hasAnyCompletion]
   );
 
   // Filter today's tasks by search term and tags
