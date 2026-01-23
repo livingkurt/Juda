@@ -2,7 +2,11 @@
 
 import { useMemo, memo, useCallback } from "react";
 import { Box, Stack, Typography, IconButton, Chip, CircularProgress, Button } from "@mui/material";
-import { DragDropContext, Droppable } from "@hello-pangea/dnd";
+import { DndProvider } from "@/components/dnd/DndContext";
+import { Droppable } from "@/components/dnd/Droppable";
+import { SortableContext } from "@/components/dnd/SortableContext";
+import { SortablePlaceholder } from "@/components/dnd/SortablePlaceholder";
+import { useDragMeta, useProjectedTaskIds } from "@/components/dnd/useProjectedTaskIds";
 import { Add, Visibility as Eye, VisibilityOff as EyeOff } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
 import { TaskItem } from "@/components/TaskItem";
@@ -26,6 +30,7 @@ import {
 } from "@/lib/store/slices/uiSlice";
 import { createDraggableId, extractTaskId } from "@/lib/dragHelpers";
 import { useGetTasksQuery, useBatchReorderTasksMutation, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { getDragOverlayStyles } from "@/lib/dndkit-config";
 
 // Kanban column component
 const KanbanColumn = memo(function KanbanColumn({
@@ -68,6 +73,10 @@ const KanbanColumn = memo(function KanbanColumn({
     return completeTasks;
   }, [id, tasks, recentlyCompletedTasks, showTodayComplete, isCompletedOnDate]);
 
+  const orderedTasks = useMemo(() => {
+    return [...visibleTasks].sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [visibleTasks]);
+
   const handleCreateQuickTask = useCallback(
     async title => {
       await taskOps.handleCreateKanbanTaskInline(id, title);
@@ -80,6 +89,17 @@ const KanbanColumn = memo(function KanbanColumn({
     dialogState.setEditingTask({ status: id });
     dialogState.openTaskDialog();
   };
+
+  const sortableTaskIds = useMemo(
+    () => orderedTasks.map(task => createDraggableId.kanban(task.id, id)),
+    [createDraggableId, id, orderedTasks]
+  );
+
+  const columnDroppableId = `kanban-${id}`;
+
+  // Use centralized drag projection
+  const projectedTaskIds = useProjectedTaskIds(sortableTaskIds, columnDroppableId);
+  const { activeId, activeContainerId, overContainerId } = useDragMeta();
 
   return (
     <Box sx={{ flex: 1, minWidth: 280, maxWidth: 400, borderRadius: 2, p: 1.5 }}>
@@ -105,7 +125,7 @@ const KanbanColumn = memo(function KanbanColumn({
       </Stack>
 
       {/* Column Content */}
-      <Droppable droppableId={`kanban-${id}`} type="TASK">
+      <Droppable id={columnDroppableId} type="TASK">
         {(provided, snapshot) => (
           <Box
             ref={provided.innerRef}
@@ -122,41 +142,57 @@ const KanbanColumn = memo(function KanbanColumn({
               position: "relative",
             }}
           >
-            <Stack spacing={1} sx={{ minHeight: snapshot.isDraggingOver ? 100 : "auto" }}>
-              {visibleTasks.map((task, index) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  variant="kanban"
-                  index={index}
-                  containerId={`kanban-column|${id}`}
-                  draggableId={createDraggableId.kanban(task.id, id)}
-                  viewDate={viewDate}
-                />
-              ))}
-              {provided.placeholder}
-              {visibleTasks.length === 0 && !snapshot.isDraggingOver && (
-                <Stack spacing={1}>
-                  <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
-                    No tasks
-                  </Typography>
+            <SortableContext items={projectedTaskIds}>
+              <Stack spacing={1} sx={{ minHeight: snapshot.isDraggingOver ? 100 : "auto" }}>
+                {projectedTaskIds.map(taskId => {
+                  const isIncomingPlaceholder =
+                    taskId === activeId &&
+                    activeContainerId !== columnDroppableId &&
+                    overContainerId === columnDroppableId;
+                  if (isIncomingPlaceholder) {
+                    return <SortablePlaceholder key={taskId} id={taskId} height={60} />;
+                  }
+                  const task = orderedTasks.find(t => createDraggableId.kanban(t.id, id) === taskId);
+                  if (!task) {
+                    return null;
+                  }
+                  const index = orderedTasks.findIndex(t => t.id === task.id);
+                  return (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      variant="kanban"
+                      index={index}
+                      containerId={`kanban-${id}`}
+                      draggableId={taskId}
+                      viewDate={viewDate}
+                    />
+                  );
+                })}
+                {provided.placeholder}
+                {visibleTasks.length === 0 && !snapshot.isDraggingOver && (
+                  <Stack spacing={1}>
+                    <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
+                      No tasks
+                    </Typography>
+                    <QuickTaskInput
+                      placeholder="New task..."
+                      onCreate={handleCreateQuickTask}
+                      size="small"
+                      variant="standard"
+                    />
+                  </Stack>
+                )}
+                {visibleTasks.length > 0 && (
                   <QuickTaskInput
                     placeholder="New task..."
                     onCreate={handleCreateQuickTask}
                     size="small"
                     variant="standard"
                   />
-                </Stack>
-              )}
-              {visibleTasks.length > 0 && (
-                <QuickTaskInput
-                  placeholder="New task..."
-                  onCreate={handleCreateQuickTask}
-                  size="small"
-                  variant="standard"
-                />
-              )}
-            </Stack>
+                )}
+              </Stack>
+            </SortableContext>
           </Box>
         )}
       </Droppable>
@@ -397,8 +433,8 @@ export function KanbanTab({ isLoading }) {
       if (type === "TASK") {
         // Extract task ID using the helper (handles context-aware IDs like "task-{id}-kanban-{status}")
         const taskId = extractTaskId(draggableId);
-        const sourceStatus = source.droppableId.replace("kanban-", "");
-        const destStatus = destination.droppableId.replace("kanban-", "");
+        const sourceStatus = source?.droppableId?.replace("kanban-", "") || "";
+        const destStatus = destination?.droppableId?.replace("kanban-", "") || "";
 
         // Filter tasks for kanban (exclude notes, recurring, subtasks)
         const kanbanTasks = tasks.filter(
@@ -456,6 +492,20 @@ export function KanbanTab({ isLoading }) {
     },
     [tasks, batchReorderTasksMutation, updateTaskMutation]
   );
+
+  const renderDragOverlay = (activeId, activeData) => {
+    if (activeData?.type !== "TASK") return null;
+
+    const taskId = activeData?.taskId || extractTaskId(activeId);
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return null;
+
+    return (
+      <Box sx={{ ...getDragOverlayStyles(), borderRadius: 2, bgcolor: "background.paper" }}>
+        <TaskItem task={task} variant="kanban" isDragOverlay viewDate={selectedDate} />
+      </Box>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -534,13 +584,13 @@ export function KanbanTab({ isLoading }) {
       </Box>
 
       {/* Kanban View */}
-      <DragDropContext onDragEnd={handleDragEnd}>
+      <DndProvider onDragEnd={handleDragEnd} renderOverlay={renderDragOverlay}>
         <KanbanView
           createDraggableId={createDraggableId}
           selectedDate={selectedDate}
           showTodayComplete={showTodayComplete}
         />
-      </DragDropContext>
+      </DndProvider>
     </Box>
   );
 }

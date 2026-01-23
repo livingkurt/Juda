@@ -2,7 +2,11 @@
 
 import { useState, useCallback, memo, useMemo } from "react";
 import { Box, Paper, Stack, Typography, IconButton, Menu, MenuItem, Collapse } from "@mui/material";
-import { Draggable, Droppable } from "@hello-pangea/dnd";
+import { Draggable } from "@/components/dnd/Draggable";
+import { Droppable } from "@/components/dnd/Droppable";
+import { SortableContext } from "@/components/dnd/SortableContext";
+import { SortablePlaceholder } from "@/components/dnd/SortablePlaceholder";
+import { useDragMeta, useProjectedTaskIds } from "@/components/dnd/useProjectedTaskIds";
 import { Add, MoreVert, DragIndicator, LightMode, ExpandMore, ExpandLess } from "@mui/icons-material";
 import { useSelector } from "react-redux";
 import { TaskItem } from "./TaskItem";
@@ -58,6 +62,7 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
     ).length;
   }, [tasks]);
 
+  const sectionDroppableId = `section-${section.id}`;
   const isDropTarget = hoveredDroppable === droppableId;
 
   // Prepare tasks with draggable IDs - memoized to prevent recreation on every render
@@ -69,6 +74,12 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
       })),
     [tasks, createDraggableId, section.id]
   );
+
+  const sortableTaskIds = useMemo(() => tasksWithIds.map(task => task.draggableId), [tasksWithIds]);
+
+  // Use centralized drag projection
+  const projectedTaskIds = useProjectedTaskIds(sortableTaskIds, sectionDroppableId);
+  const { activeId, activeContainerId, overContainerId } = useDragMeta();
 
   const handleCreateQuickTask = useCallback(
     async title => {
@@ -197,7 +208,7 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
             p: { xs: 1, md: 1.5 },
           }}
         >
-          <Droppable droppableId={`section-${section.id}`} type="TASK">
+          <Droppable id={sectionDroppableId} type="TASK">
             {(droppableProvided, droppableSnapshot) => (
               <Box
                 ref={droppableProvided.innerRef}
@@ -230,27 +241,43 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
                     />
                   </Stack>
                 ) : (
-                  <Stack spacing={{ xs: 1, md: 1.5 }} sx={{ py: { xs: 0.5, md: 1 } }}>
-                    {tasksWithIds.map((task, index) => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        variant="today"
-                        index={index}
-                        containerId={droppableId}
-                        hoveredDroppable={hoveredDroppable}
-                        draggableId={task.draggableId}
-                        viewDate={viewDate}
+                  <SortableContext items={projectedTaskIds}>
+                    <Stack spacing={{ xs: 1, md: 1.5 }} sx={{ py: { xs: 0.5, md: 1 } }}>
+                      {projectedTaskIds.map(taskId => {
+                        const isIncomingPlaceholder =
+                          taskId === activeId &&
+                          activeContainerId !== sectionDroppableId &&
+                          overContainerId === sectionDroppableId;
+                        if (isIncomingPlaceholder) {
+                          return <SortablePlaceholder key={taskId} id={taskId} height={60} />;
+                        }
+                        const task = tasksWithIds.find(t => t.draggableId === taskId);
+                        if (!task) {
+                          return null;
+                        }
+                        const index = tasksWithIds.findIndex(t => t.id === task.id);
+                        return (
+                          <TaskItem
+                            key={task.id}
+                            task={task}
+                            variant="today"
+                            index={index}
+                            containerId={sectionDroppableId}
+                            hoveredDroppable={hoveredDroppable}
+                            draggableId={taskId}
+                            viewDate={viewDate}
+                          />
+                        );
+                      })}
+                      {droppableProvided.placeholder}
+                      <QuickTaskInput
+                        placeholder="New task..."
+                        onCreate={handleCreateQuickTask}
+                        size="small"
+                        variant="standard"
                       />
-                    ))}
-                    {droppableProvided.placeholder}
-                    <QuickTaskInput
-                      placeholder="New task..."
-                      onCreate={handleCreateQuickTask}
-                      size="small"
-                      variant="standard"
-                    />
-                  </Stack>
+                    </Stack>
+                  </SortableContext>
                 )}
               </Box>
             )}
@@ -266,7 +293,7 @@ const SectionCardComponent = ({ section, hoveredDroppable, droppableId, createDr
   }
 
   return (
-    <Draggable draggableId={`section-${section.id}`} index={section.order || 0} isDragDisabled={section.isVirtual}>
+    <Draggable id={`section-${section.id}`} index={section.order || 0} type="SECTION" containerId="sections-list">
       {(sectionProvided, sectionSnapshot) => (
         <Box
           ref={sectionProvided.innerRef}

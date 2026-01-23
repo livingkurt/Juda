@@ -2,6 +2,15 @@
 
 ## 2026-01-22
 
+### Drag-and-drop migration to DnD Kit
+
+- Replaced the prior drag-and-drop library with `@dnd-kit` and added lightweight wrapper components to preserve the existing API shape.
+- Added a shared DnD config (`lib/dndkit-config.js`) for animation timing, easing, and overlay styling to match the prior feel.
+- Updated Tasks, Kanban, Backlog, Section, and Task Dialog flows to use DnD Kit SortableContext with the same ID conventions and drag logic.
+- Added a cross-container projection hook (`components/dnd/useProjectedTaskIds.js`) that relies on `useDndContext` and avoids local state updates to prevent drag-time render loops.
+- Added a sortable placeholder component for cross-container projections so the destination list has a registered sortable node without duplicating the active draggable.
+- Handled drops to the virtual `no-section` target by mapping it to `sectionId: null` instead of treating it as a missing section.
+
 ### Workout progress tab
 
 - Added a dedicated Workout tab between Notes and History with a selector for workout tasks and view toggles.
@@ -92,7 +101,7 @@
 
 ### Time-based section drag behavior
 
-- **Implementation**: Uses `@hello-pangea/dnd` exclusively for section-to-section drags in `TasksTab.jsx`. The `handleDragEnd` function handles all drag operations including backlog ↔ section and section ↔ section moves.
+- **Implementation**: Uses `@dnd-kit` exclusively for section-to-section drags in `TasksTab.jsx`. The `handleDragEnd` function handles all drag operations including backlog ↔ section and section ↔ section moves.
 
 - **Key insight**: Time-ranged sections filter tasks by their `time` field, not by `sectionId`. This means the `time` must be updated FIRST for the task to appear in the correct section.
 

@@ -33,7 +33,10 @@ import GLGrid from "./GLGrid";
 import { Close, Add, Delete, DragIndicator, Search, Edit } from "@mui/icons-material";
 import { DatePicker, TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { DndProvider } from "@/components/dnd/DndContext";
+import { Droppable } from "@/components/dnd/Droppable";
+import { Draggable } from "@/components/dnd/Draggable";
+import { SortableContext } from "@/components/dnd/SortableContext";
 import { DAYS_OF_WEEK, DURATION_OPTIONS, ORDINAL_OPTIONS, MONTH_OPTIONS, COMPLETION_TYPES } from "@/lib/constants";
 import { formatLocalDate } from "@/lib/utils";
 import { TagSelector } from "./TagSelector";
@@ -540,6 +543,7 @@ function TaskDialogForm({
   const timeValue = time ? dayjs(time, "HH:mm") : null;
   const endDateValue = endDate ? dayjs(endDate) : null;
   const subtaskTimeValue = subtaskTime ? dayjs(subtaskTime, "HH:mm") : null;
+  const sortableSubtaskIds = subtasks.map(st => `subtask-${st.id}`);
 
   return (
     <>
@@ -1011,59 +1015,67 @@ function TaskDialogForm({
                     {subtaskTabIndex === 0 && (
                       <Box sx={{ p: 2 }}>
                         {subtasks.length > 0 ? (
-                          <DragDropContext onDragEnd={handleDragEnd}>
-                            <Droppable droppableId="task-dialog-subtasks" type="SUBTASK">
+                          <DndProvider onDragEnd={handleDragEnd}>
+                            <Droppable id="task-dialog-subtasks" type="SUBTASK">
                               {provided => (
                                 <List ref={provided.innerRef} {...provided.droppableProps} dense sx={{ mb: 2 }}>
-                                  {subtasks.map((st, index) => (
-                                    <Draggable key={st.id} draggableId={`subtask-${st.id}`} index={index}>
-                                      {(provided, snapshot) => (
-                                        <ListItem
-                                          ref={provided.innerRef}
-                                          {...provided.draggableProps}
-                                          {...provided.dragHandleProps}
-                                          divider={index < subtasks.length - 1}
-                                          sx={{
-                                            py: 1,
-                                            px: 0,
-                                            opacity: snapshot.isDragging ? 0.5 : 1,
-                                          }}
-                                        >
-                                          <DragIndicator sx={{ mr: 1, color: "text.disabled", cursor: "grab" }} />
-                                          <ListItemText primary={st.title} secondary={st.time || undefined} />
-                                          <ListItemSecondaryAction>
-                                            <IconButton
-                                              edge="end"
-                                              size="small"
-                                              onClick={() => {
-                                                setEditingSubtask(st);
-                                                setSubtaskTitle(st.title);
-                                                setSubtaskTime(st.time || "");
-                                                setSubtaskDuration(st.duration || 30);
-                                              }}
-                                              sx={{ mr: 1 }}
-                                            >
-                                              <Edit fontSize="small" />
-                                            </IconButton>
-                                            <IconButton
-                                              edge="end"
-                                              size="small"
-                                              onClick={() => {
-                                                setSubtasks(subtasks.filter(s => s.id !== st.id));
-                                              }}
-                                            >
-                                              <Delete fontSize="small" />
-                                            </IconButton>
-                                          </ListItemSecondaryAction>
-                                        </ListItem>
-                                      )}
-                                    </Draggable>
-                                  ))}
-                                  {provided.placeholder}
+                                  <SortableContext items={sortableSubtaskIds}>
+                                    {subtasks.map((st, index) => (
+                                      <Draggable
+                                        key={st.id}
+                                        id={`subtask-${st.id}`}
+                                        index={index}
+                                        type="SUBTASK"
+                                        containerId="task-dialog-subtasks"
+                                      >
+                                        {(provided, snapshot) => (
+                                          <ListItem
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            {...provided.dragHandleProps}
+                                            divider={index < subtasks.length - 1}
+                                            sx={{
+                                              py: 1,
+                                              px: 0,
+                                              opacity: snapshot.isDragging ? 0.5 : 1,
+                                            }}
+                                          >
+                                            <DragIndicator sx={{ mr: 1, color: "text.disabled", cursor: "grab" }} />
+                                            <ListItemText primary={st.title} secondary={st.time || undefined} />
+                                            <ListItemSecondaryAction>
+                                              <IconButton
+                                                edge="end"
+                                                size="small"
+                                                onClick={() => {
+                                                  setEditingSubtask(st);
+                                                  setSubtaskTitle(st.title);
+                                                  setSubtaskTime(st.time || "");
+                                                  setSubtaskDuration(st.duration || 30);
+                                                }}
+                                                sx={{ mr: 1 }}
+                                              >
+                                                <Edit fontSize="small" />
+                                              </IconButton>
+                                              <IconButton
+                                                edge="end"
+                                                size="small"
+                                                onClick={() => {
+                                                  setSubtasks(subtasks.filter(s => s.id !== st.id));
+                                                }}
+                                              >
+                                                <Delete fontSize="small" />
+                                              </IconButton>
+                                            </ListItemSecondaryAction>
+                                          </ListItem>
+                                        )}
+                                      </Draggable>
+                                    ))}
+                                    {provided.placeholder}
+                                  </SortableContext>
                                 </List>
                               )}
                             </Droppable>
-                          </DragDropContext>
+                          </DndProvider>
                         ) : (
                           <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
                             No subtasks yet

@@ -53,7 +53,7 @@ A comprehensive daily task management system built with Next.js, Material-UI, an
 
 - **Dark Mode**: Theme switching with persistent preferences
 - **Responsive Design**: Works on mobile, tablet, and desktop
-- **Drag and Drop**: @hello-pangea/dnd for seamless task movement
+- **Drag and Drop**: @dnd-kit for seamless task movement
 - **Real-time Updates**: Optimistic UI updates with RTK Query
 - **Search & Filter**: Tag-based filtering across all views
 - **Progress Tracking**: Visual progress bars for daily completion
@@ -65,7 +65,7 @@ A comprehensive daily task management system built with Next.js, Material-UI, an
 - **UI Library**: Material-UI (MUI) v7
 - **State Management**: Redux Toolkit with RTK Query
 - **Database**: PostgreSQL with Drizzle ORM
-- **Drag & Drop**: @hello-pangea/dnd
+- **Drag & Drop**: @dnd-kit
 - **Rich Text**: TipTap editor
 - **PWA**: Serwist (service worker management)
 - **Offline Storage**: IndexedDB via `idb` library
@@ -361,7 +361,7 @@ See [DEPLOYMENT.md](./docs/DEPLOYMENT.md) for detailed deployment instructions.
 
 ### Drag and Drop System
 
-The app uses **@hello-pangea/dnd** for cross-container dragging (backlog ↔ today ↔ calendar). Calendar views also have an internal mouse drag system for time/duration adjustment.
+The app uses **@dnd-kit** for cross-container dragging (backlog ↔ today ↔ calendar). Calendar views also have an internal mouse drag system for time/duration adjustment.
 
 **Droppable ID Format**: Uses pipe (`|`) separator (not colons) to avoid conflicts with ISO date strings:
 

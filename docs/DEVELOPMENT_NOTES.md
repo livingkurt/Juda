@@ -237,11 +237,11 @@ The drag-and-drop experience in sections and backlog had several UX problems:
 1. **No visual feedback during drag** - Items didn't animate out of the way when dragging
 2. **Small drop zones** - Could only drop in tiny spaces between items
 3. **No smooth transitions** - Items jumped instead of smoothly moving
-4. **Didn't feel like native drag-and-drop** - Unlike Apple's drag-and-drop or @hello-pangea/dnd's default behavior
+4. **Didn't feel like native drag-and-drop** - Unlike Apple's drag-and-drop or @dnd-kit with tuned animations
 
 ### Root Cause
 
-The drag-and-drop system uses `@hello-pangea/dnd` which provides smooth animations and visual feedback for drag operations.
+The drag-and-drop system uses `@dnd-kit` with custom animation settings for smooth visuals and feedback.
 
 ### Solution
 
@@ -250,11 +250,11 @@ The drag-and-drop system uses `@hello-pangea/dnd` which provides smooth animatio
 **Changed files:**
 
 1. **`components/TaskItem.jsx`**
-   - Uses `Draggable` from `@hello-pangea/dnd` for smooth drag animations
+   - Uses the `Draggable` wrapper over `@dnd-kit` for smooth drag animations
    - Proper opacity handling during drag operations
 
 2. **`components/BacklogDrawer.jsx`**
-   - Uses `Droppable` from `@hello-pangea/dnd`
+   - Uses the `Droppable` wrapper over `@dnd-kit`
    - Tasks smoothly animate when reordering
 
 3. **`components/SectionCard.jsx`**
@@ -274,9 +274,9 @@ The drag-and-drop system uses `@hello-pangea/dnd` which provides smooth animatio
 **Implementation:**
 
 ```javascript
-import { Draggable } from "@hello-pangea/dnd";
+import { Draggable } from "@/components/dnd/Draggable";
 
-<Draggable draggableId={draggableId} index={index}>
+<Draggable id={draggableId} index={index} type="TASK" containerId={containerId}>
   {(provided, snapshot) => (
     <Box
       ref={provided.innerRef}
@@ -292,7 +292,7 @@ import { Draggable } from "@hello-pangea/dnd";
 
 ### How It Works
 
-1. **@hello-pangea/dnd handles transforms** - When dragging, the library automatically calculates and applies transforms
+1. **@dnd-kit handles transforms** - When dragging, the library automatically calculates and applies transforms
 2. **Smooth animations** - Items smoothly translate to their new positions
 3. **Large drop zones** - The entire section/backlog area is droppable, not just gaps between items
 4. **Visual feedback** - Dashed borders and background colors indicate valid drop targets
@@ -312,11 +312,11 @@ import { Draggable } from "@hello-pangea/dnd";
 - ✅ Can drop anywhere in the section/backlog area
 - ✅ Clear visual feedback with borders and backgrounds
 - ✅ Feels like native macOS/iOS drag-and-drop
-- ✅ Matches @hello-pangea/dnd behavior expectations
+- ✅ Matches @dnd-kit behavior expectations
 
 ### Technical Notes
 
-- @hello-pangea/dnd automatically handles transforms and transitions
+- @dnd-kit automatically handles transforms and transitions
 - Drop zones use dynamic padding to feel spacious but not wasteful
 - Visual feedback provides clear indication of valid drop targets
 

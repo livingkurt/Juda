@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, memo } from "react";
 import { Box, Typography, Stack, IconButton, TextField, Menu, Button, Chip, Collapse, Paper } from "@mui/material";
-import { Draggable } from "@hello-pangea/dnd";
+import { Draggable } from "@/components/dnd/Draggable";
 import {
   ExpandMore,
   ChevronRight,
@@ -154,6 +154,7 @@ export const TaskItem = ({
   containerId, // Container ID for sortable context
   draggableId,
   index = 0, // Index for draggable items
+  isDragOverlay = false,
   textColor: textColorProp, // Optional override
   mutedTextColor: mutedTextColorProp, // Optional override
   gripColor: gripColorProp, // Optional override
@@ -908,19 +909,19 @@ export const TaskItem = ({
   );
 
   // For subtasks or dialog subtasks that can't be dragged, render without Draggable
-  if (isDragDisabledDuringEdit) {
+  if (isDragDisabledDuringEdit || isDragOverlay) {
     return taskContent;
   }
 
   // For draggable tasks, wrap with Draggable
   return (
-    <Draggable draggableId={draggableId} index={index}>
+    <Draggable id={draggableId} index={index} type="TASK" containerId={containerId} data={{ taskId: task.id, variant }}>
       {(provided, snapshot) => (
         <Box
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          sx={{ width: "100%", maxWidth: "100%", opacity: snapshot.isDragging ? 0.5 : 1 }}
+          sx={{ width: "100%", maxWidth: "100%", opacity: snapshot.isDragging ? 0 : 1 }}
         >
           {taskContent}
         </Box>

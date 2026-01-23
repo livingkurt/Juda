@@ -4,7 +4,8 @@ import { useMemo, useCallback } from "react";
 import { Box, Tabs, Tab, Typography, useMediaQuery, Collapse, CircularProgress } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { List, Dashboard as LayoutDashboard, CalendarToday as Calendar } from "@mui/icons-material";
-import { DragDropContext } from "@hello-pangea/dnd";
+import { DndProvider } from "@/components/dnd/DndContext";
+import { TaskItem } from "@/components/TaskItem";
 import { BacklogDrawer } from "@/components/BacklogDrawer";
 import { TodayView } from "@/components/tabs/TodayView";
 import { CalendarViewTab } from "@/components/tabs/CalendarViewTab";
@@ -12,6 +13,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setMobileActiveView, setBacklogWidth } from "@/lib/store/slices/uiSlice";
 import { createDroppableId, createDraggableId, extractTaskId } from "@/lib/dragHelpers";
 import { timeToMinutes, minutesToTime, formatLocalDate } from "@/lib/utils";
+import { getDragOverlayStyles } from "@/lib/dndkit-config";
 import { useViewState } from "@/hooks/useViewState";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -213,7 +215,7 @@ export function TasksTab() {
     return targetSection.startTime;
   }, []);
 
-  // Drag handler for @hello-pangea/dnd
+  // Drag handler for DnD Kit
   // Note: We don't await API calls here - optimistic updates in RTK Query handle the UI instantly
   // The mutations have onQueryStarted handlers that update the cache immediately
   const handleDragEnd = useCallback(
@@ -272,15 +274,17 @@ export function TasksTab() {
 
       // Backlog to Section
       if (sourceId === "backlog" && destId.startsWith("section-")) {
-        const destSectionId = destId.replace("section-", "");
-        const destSection = sections.find(s => s.id === destSectionId);
+        const destSectionKey = destId.replace("section-", "");
+        const isNoSection = destSectionKey === "no-section";
+        const destSectionId = isNoSection ? null : destSectionKey;
+        const destSection = isNoSection ? null : sections.find(s => s.id === destSectionId);
 
-        if (!destSection) {
+        if (!isNoSection && !destSection) {
           console.error("Destination section not found:", destSectionId);
           return;
         }
 
-        const sectionTasks = tasksBySection[destSectionId] || [];
+        const sectionTasks = tasksBySection[destSectionKey] || [];
         const destTasks = [...sectionTasks]
           .filter(t => !t.parentId && t.id !== taskId)
           .sort((a, b) => {
@@ -359,17 +363,19 @@ export function TasksTab() {
 
       // Section to Section (same or different)
       if (sourceId.startsWith("section-") && destId.startsWith("section-")) {
-        const sourceSectionId = sourceId.replace("section-", "");
-        const destSectionId = destId.replace("section-", "");
+        const sourceSectionKey = sourceId.replace("section-", "");
+        const destSectionKey = destId.replace("section-", "");
+        const sourceSectionId = sourceSectionKey === "no-section" ? null : sourceSectionKey;
+        const destSectionId = destSectionKey === "no-section" ? null : destSectionKey;
 
-        const destSection = sections.find(s => s.id === destSectionId);
+        const destSection = destSectionKey === "no-section" ? null : sections.find(s => s.id === destSectionId);
 
-        if (!destSection) {
+        if (destSectionKey !== "no-section" && !destSection) {
           console.error("Destination section not found:", destSectionId);
           return;
         }
 
-        const destSectionTasks = tasksBySection[destSectionId] || [];
+        const destSectionTasks = tasksBySection[destSectionKey] || [];
         const destTasks = [...destSectionTasks]
           .filter(t => !t.parentId && t.id !== taskId)
           .sort((a, b) => {
@@ -422,7 +428,7 @@ export function TasksTab() {
         // Update sectionId and order via reorderTask
         await reorderTask(taskId, sourceSectionId, destSectionId, destination.index);
 
-        if (sourceSectionId === destSectionId) {
+        if (sourceSectionKey === destSectionKey) {
           const sourceTasks = [...destSectionTasks]
             .filter(t => !t.parentId)
             .sort((a, b) => {
@@ -571,6 +577,20 @@ export function TasksTab() {
     }
   }, [mobileActiveView]);
 
+  const renderDragOverlay = (activeId, activeData) => {
+    if (activeData?.type !== "TASK") return null;
+
+    const taskId = activeData?.taskId || extractTaskId(activeId);
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return null;
+
+    return (
+      <Box sx={{ ...getDragOverlayStyles(), borderRadius: 2, bgcolor: "background.paper" }}>
+        <TaskItem task={task} variant={activeData?.variant || "today"} isDragOverlay viewDate={viewDate} />
+      </Box>
+    );
+  };
+
   // Map tab index to mobileActiveView
   const handleTabChange = useCallback(
     (e, newValue) => {
@@ -593,7 +613,7 @@ export function TasksTab() {
 
   if (isMobile) {
     return (
-      <DragDropContext onDragEnd={handleDragEnd}>
+      <DndProvider onDragEnd={handleDragEnd} renderOverlay={renderDragOverlay}>
         {/* Mobile Tab Bar */}
         <Tabs
           value={getTabIndex()}
@@ -755,13 +775,13 @@ export function TasksTab() {
             </Box>
           )}
         </Box>
-      </DragDropContext>
+      </DndProvider>
     );
   }
 
   // Desktop Layout
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
+    <DndProvider onDragEnd={handleDragEnd} renderOverlay={renderDragOverlay}>
       <Box sx={{ width: "100%", height: "100%", display: "flex", overflow: "hidden" }}>
         {/* Backlog Section */}
         <Box
@@ -937,6 +957,6 @@ export function TasksTab() {
           )}
         </Box>
       </Box>
-    </DragDropContext>
+    </DndProvider>
   );
 }

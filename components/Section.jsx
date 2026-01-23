@@ -1,7 +1,8 @@
 "use client";
 
 import { Box, Button } from "@mui/material";
-import { Droppable } from "@hello-pangea/dnd";
+import { Droppable } from "@/components/dnd/Droppable";
+import { SortableContext } from "@/components/dnd/SortableContext";
 import { Add } from "@mui/icons-material";
 import { useSelector } from "react-redux";
 import { SectionCard } from "./SectionCard";
@@ -65,8 +66,12 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
     setManuallyCollapsedSections: sectionExpansion.setManuallyCollapsedSections,
   });
 
+  const sortableSectionIds = sectionExpansion.computedSections
+    .filter(section => !section.isVirtual)
+    .map(section => `section-${section.id}`);
+
   return (
-    <Droppable droppableId="sections-list" type="SECTION">
+    <Droppable id="sections-list" type="SECTION">
       {(provided, snapshot) => (
         <Box
           ref={provided.innerRef}
@@ -79,18 +84,20 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
             minHeight: 100,
           }}
         >
-          {sectionExpansion.computedSections.map((section, index) => (
-            <SectionCard
-              key={section.id}
-              section={section}
-              index={index}
-              hoveredDroppable={hoveredDroppable}
-              droppableId={createDroppableId.todaySection(section.id)}
-              createDraggableId={createDraggableId}
-              viewDate={viewDate}
-            />
-          ))}
-          {provided.placeholder}
+          <SortableContext items={sortableSectionIds}>
+            {sectionExpansion.computedSections.map((section, index) => (
+              <SectionCard
+                key={section.id}
+                section={section}
+                index={index}
+                hoveredDroppable={hoveredDroppable}
+                droppableId={createDroppableId.todaySection(section.id)}
+                createDraggableId={createDraggableId}
+                viewDate={viewDate}
+              />
+            ))}
+            {provided.placeholder}
+          </SortableContext>
           <Button
             variant="outlined"
             onClick={sectionOps.handleAddSection}

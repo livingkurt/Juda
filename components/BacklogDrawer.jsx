@@ -3,7 +3,10 @@
 import { useMemo, useCallback, memo } from "react";
 import { Box, Stack, Typography, IconButton, Chip, Button, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { Droppable } from "@hello-pangea/dnd";
+import { Droppable } from "@/components/dnd/Droppable";
+import { SortableContext } from "@/components/dnd/SortableContext";
+import { SortablePlaceholder } from "@/components/dnd/SortablePlaceholder";
+import { useDragMeta, useProjectedTaskIds } from "@/components/dnd/useProjectedTaskIds";
 import { Add, Sort } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
 import { TaskItem } from "./TaskItem";
@@ -152,6 +155,12 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     [filteredTasks, createDraggableId]
   );
 
+  const sortableTaskIds = useMemo(() => tasksWithIds.map(task => task.draggableId), [tasksWithIds]);
+
+  // Use centralized drag projection
+  const projectedTaskIds = useProjectedTaskIds(sortableTaskIds, "backlog");
+  const { activeId, activeContainerId, overContainerId } = useDragMeta();
+
   return (
     <Box
       sx={{
@@ -279,7 +288,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
         </Box>
 
         {/* Droppable area for tasks */}
-        <Droppable droppableId="backlog" type="TASK">
+        <Droppable id="backlog" type="TASK">
           {(provided, snapshot) => (
             <Box
               ref={provided.innerRef}
@@ -311,26 +320,40 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                   >
                     Unscheduled Tasks
                   </Typography>
-                  <Stack spacing={1} sx={{ px: { xs: 0.5, md: 1 }, width: "100%", maxWidth: "100%" }}>
-                    {tasksWithIds.map((task, index) => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        variant="backlog"
-                        index={index}
-                        containerId="backlog"
-                        draggableId={task.draggableId}
-                        viewDate={viewDate}
+                  <SortableContext items={projectedTaskIds}>
+                    <Stack spacing={1} sx={{ px: { xs: 0.5, md: 1 }, width: "100%", maxWidth: "100%" }}>
+                      {projectedTaskIds.map(taskId => {
+                        const isIncomingPlaceholder =
+                          taskId === activeId && activeContainerId !== "backlog" && overContainerId === "backlog";
+                        if (isIncomingPlaceholder) {
+                          return <SortablePlaceholder key={taskId} id={taskId} height={60} />;
+                        }
+                        const task = tasksWithIds.find(t => t.draggableId === taskId);
+                        if (!task) {
+                          return null;
+                        }
+                        const index = tasksWithIds.findIndex(t => t.id === task.id);
+                        return (
+                          <TaskItem
+                            key={task.id}
+                            task={task}
+                            variant="backlog"
+                            index={index}
+                            containerId="backlog"
+                            draggableId={taskId}
+                            viewDate={viewDate}
+                          />
+                        );
+                      })}
+                      {provided.placeholder}
+                      <QuickTaskInput
+                        placeholder="New task..."
+                        onCreate={handleCreateQuickTask}
+                        size="small"
+                        variant="standard"
                       />
-                    ))}
-                    {provided.placeholder}
-                    <QuickTaskInput
-                      placeholder="New task..."
-                      onCreate={handleCreateQuickTask}
-                      size="small"
-                      variant="standard"
-                    />
-                  </Stack>
+                    </Stack>
+                  </SortableContext>
                 </Box>
               ) : (
                 <Stack spacing={1}>

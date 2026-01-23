@@ -47,5 +47,5 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
   const items = updates.map(u => ({ id: u.id, order: u.order }));
   taskBroadcast.onReorder(userId, { items }, clientId);
 
-  return NextResponse.json({ success: true, updatedCount: updates.length });
+  return NextResponse.json(items);
 });

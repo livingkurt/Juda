@@ -34,7 +34,7 @@ The goal is to make task scheduling feel effortless - drag a task from your back
 - **React**: React 19 - Latest version with automatic optimizations
 - **UI Library**: Chakra UI v3 - Latest version (syntax differs significantly from v2)
 - **Database**: PostgreSQL with Drizzle ORM (NOT Prisma)
-- **Drag & Drop**: @hello-pangea/dnd
+- **Drag & Drop**: @dnd-kit
 - **Icons**: Lucide React
 
 ---
@@ -224,10 +224,10 @@ parseDroppableId("calendar-week-untimed|2025-01-15T00:00:00.000Z");
 
 The calendar views use TWO separate drag systems:
 
-### 1. @hello-pangea/dnd (Cross-Container)
+### 1. @dnd-kit (Cross-Container)
 
 - Handles dragging tasks between containers (backlog ↔ today ↔ calendar)
-- Uses `<DragDropContext>`, `<Droppable>`, `<Draggable>` from `@hello-pangea/dnd`
+- Uses `@dnd-kit/core` and `@dnd-kit/sortable` wrappers for cross-container drag
 - Controlled by `handleDragEnd` in `TasksTab.jsx` and `KanbanTab.jsx`
 
 ### 2. Internal Mouse Drag (Time/Duration Adjustment)
