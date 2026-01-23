@@ -2,9 +2,10 @@
 
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { Box, Typography, TextField, Stack, IconButton, Collapse } from "@mui/material";
-import { Add, ExpandMore, ChevronRight } from "@mui/icons-material";
+import { Add, ExpandMore, ChevronRight, MoreVert } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
+import { TaskContextMenu } from "./TaskContextMenu";
 
 export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave, viewType = "day" }) => {
   const theme = useTheme();
@@ -46,6 +47,8 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
   }, [viewType, taskType, hasEntry]);
 
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const textareaRef = useRef(null);
   // Track if textarea is focused
   const isFocusedRef = useRef(false);
@@ -148,6 +151,23 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
     userToggledRef.current = true;
   };
 
+  const handleMenuOpen = e => {
+    e.stopPropagation();
+    setMenuAnchor(e.currentTarget);
+    setMenuOpen(true);
+  };
+
+  const handleMenuClose = () => {
+    setMenuOpen(false);
+    setMenuAnchor(null);
+  };
+
+  // Determine task properties for context menu
+  const isRecurring = task.recurrence && task.recurrence.type !== "none";
+  const isWorkoutTask = task.completionType === "workout";
+  const outcome = completion?.outcome || null;
+  const isSubtask = !!task.parentId;
+
   // Check if task existed in this year (simplified - assumes task exists if it's recurring or created before year end)
   const taskExistedThisYear = true; // For now, assume all journal tasks exist in all years
 
@@ -220,6 +240,19 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
           >
             {task.title}
           </Typography>
+          <IconButton
+            onClick={handleMenuOpen}
+            onMouseDown={e => e.stopPropagation()}
+            size="small"
+            aria-label="Task options"
+            sx={{
+              minWidth: { xs: "24px", md: "32px" },
+              height: { xs: "24px", md: "32px" },
+              p: { xs: 0, md: 1 },
+            }}
+          >
+            <MoreVert fontSize="small" />
+          </IconButton>
         </Stack>
 
         {/* Collapsible content */}
@@ -279,6 +312,17 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
           )}
         </Collapse>
       </Stack>
+      <TaskContextMenu
+        task={task}
+        date={date}
+        isRecurring={isRecurring}
+        isWorkoutTask={isWorkoutTask}
+        outcome={outcome}
+        isSubtask={isSubtask}
+        onClose={handleMenuClose}
+        anchorEl={menuAnchor}
+        open={menuOpen}
+      />
     </Box>
   );
 };

@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography, Button } from "@mui/material";
+import { Add } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { JournalDayEntry } from "@/components/JournalDayEntry";
 
@@ -12,21 +13,40 @@ export const JournalYearView = ({
   getCompletionForDate,
   shouldShowTaskOnDate,
   onSaveEntry,
+  onNewJournalEntry,
 }) => {
   const displayYear = selectedDate.format("YYYY");
 
   return (
     <Box sx={{ flex: 1, overflow: "auto", p: { xs: 2, md: 4 } }}>
-      <Typography
-        variant="h4"
+      <Box
         sx={{
-          textAlign: "center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           mb: { xs: 3, md: 4 },
-          fontWeight: 500,
+          position: "relative",
         }}
       >
-        {displayYear}
-      </Typography>
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: 500,
+          }}
+        >
+          {displayYear}
+        </Typography>
+        {onNewJournalEntry && (
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={onNewJournalEntry}
+            sx={{ position: "absolute", right: 0 }}
+          >
+            New Journal Entry
+          </Button>
+        )}
+      </Box>
 
       <Stack spacing={{ xs: 3, md: 4 }}>
         {years

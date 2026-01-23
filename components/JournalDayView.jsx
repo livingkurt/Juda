@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography, Button } from "@mui/material";
+import { Add } from "@mui/icons-material";
 import { JournalDayEntry } from "@/components/JournalDayEntry";
 
 export const JournalDayView = ({
@@ -11,22 +12,41 @@ export const JournalDayView = ({
   getCompletionForDate,
   shouldShowTaskOnDate,
   onSaveEntry,
+  onNewJournalEntry,
 }) => {
   const displayDate = selectedDate.format("dddd, MMMM D, YYYY");
 
   return (
     <Box sx={{ flex: 1, overflow: "auto", p: { xs: 2, md: 4 } }}>
       {/* Date Heading */}
-      <Typography
-        variant="h4"
+      <Box
         sx={{
-          textAlign: "center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           mb: { xs: 3, md: 4 },
-          fontWeight: 500,
+          position: "relative",
         }}
       >
-        {displayDate}
-      </Typography>
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: 500,
+          }}
+        >
+          {displayDate}
+        </Typography>
+        {onNewJournalEntry && (
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={onNewJournalEntry}
+            sx={{ position: "absolute", right: 0 }}
+          >
+            New Journal Entry
+          </Button>
+        )}
+      </Box>
 
       {/* Year Sections */}
       <Stack spacing={{ xs: 3, md: 4 }}>
