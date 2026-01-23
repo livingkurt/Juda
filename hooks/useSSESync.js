@@ -34,8 +34,15 @@ export function useSSESync() {
   const isConnected = useSelector(selectIsConnected);
 
   // Track when we last had an active connection
-  const lastActiveTimestampRef = useRef(Date.now());
+  const lastActiveTimestampRef = useRef(null);
   const wasHiddenRef = useRef(false);
+
+  // Initialize timestamp in effect to avoid calling impure function during render
+  useEffect(() => {
+    if (lastActiveTimestampRef.current === null) {
+      lastActiveTimestampRef.current = Date.now();
+    }
+  }, []);
 
   // Handle sync status changes
   const handleSyncStatusChange = useCallback(
