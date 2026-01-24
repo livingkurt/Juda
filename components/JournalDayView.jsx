@@ -3,6 +3,7 @@
 import { Box, Stack, Typography, Button } from "@mui/material";
 import { Add } from "@mui/icons-material";
 import { JournalDayEntry } from "@/components/JournalDayEntry";
+import { ReflectionEntry } from "@/components/ReflectionEntry";
 
 export const JournalDayView = ({
   selectedDate,
@@ -95,6 +96,19 @@ export const JournalDayView = ({
                     {relevantTasks.map(task => {
                       const dateStr = yearDate.format("YYYY-MM-DD");
                       const completion = getCompletionForDate?.(task.id, dateStr);
+
+                      if (task.completionType === "reflection") {
+                        return (
+                          <ReflectionEntry
+                            key={`${task.id}-${year}-${dateStr}`}
+                            task={task}
+                            date={dateStr}
+                            completion={completion}
+                            isCurrentYear={isCurrentYear}
+                            onSave={onSaveEntry}
+                          />
+                        );
+                      }
 
                       return (
                         <JournalDayEntry

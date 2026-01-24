@@ -12,6 +12,7 @@ import {
   AccessTime,
   LinkOff,
   SkipNext,
+  MenuBook,
 } from "@mui/icons-material";
 import { TagMenuSelector } from "./TagMenuSelector";
 import { PriorityMenuSelector } from "./PriorityMenuSelector";
@@ -20,6 +21,8 @@ import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { useSelectionState } from "@/hooks/useSelectionState";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useDispatch } from "react-redux";
+import { setMainTabIndex, setJournalView, setSelectedDate } from "@/lib/store/slices/uiSlice";
 
 export const TaskContextMenu = ({
   task,
@@ -41,9 +44,39 @@ export const TaskContextMenu = ({
   });
   const selectionState = useSelectionState();
   const [updateTaskMutation] = useUpdateTaskMutation();
+  const dispatch = useDispatch();
 
   // Check if multiple tasks are selected
   const hasMultipleSelected = selectionState.selectedCount > 1;
+
+  // Check if task is text_input or reflection type
+  const isTextInputTask = task.completionType === "text";
+  const isReflectionTask = task.completionType === "reflection";
+  const showGoToJournal = isTextInputTask || isReflectionTask;
+
+  const handleGoToJournal = () => {
+    // Navigate to Journal tab (index 2)
+    dispatch(setMainTabIndex(2));
+
+    // If a date is provided, navigate to that date in the journal
+    if (date) {
+      const dateObj = new Date(date);
+      dispatch(setSelectedDate(dateObj.toISOString()));
+
+      // Determine which journal view to use based on task recurrence
+      if (task.recurrence?.type === "yearly") {
+        dispatch(setJournalView("year"));
+      } else if (task.recurrence?.type === "monthly") {
+        dispatch(setJournalView("month"));
+      } else if (task.recurrence?.type === "weekly") {
+        dispatch(setJournalView("week"));
+      } else {
+        dispatch(setJournalView("day"));
+      }
+    }
+
+    onClose?.();
+  };
 
   const handleRemoveFromParent = async () => {
     // If a custom handler is provided (e.g., from dialog), use it
@@ -102,6 +135,23 @@ export const TaskContextMenu = ({
           <ListItemText>Edit</ListItemText>
         </MenuItem>
       )}
+
+      {/* Go to Journal - show for text_input and reflection tasks */}
+      {showGoToJournal && [
+        <MenuItem
+          key="go-to-journal"
+          onClick={e => {
+            e.stopPropagation();
+            handleGoToJournal();
+          }}
+        >
+          <ListItemIcon>
+            <MenuBook fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Go to Journal</ListItemText>
+        </MenuItem>,
+        <Divider key="divider-journal" />,
+      ]}
 
       {/* Remove from Parent - only show for subtasks */}
       {isSubtask && [

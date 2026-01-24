@@ -1,7 +1,19 @@
 "use client";
 
 import { useState, useRef, useEffect, memo } from "react";
-import { Box, Typography, Stack, IconButton, TextField, Menu, Button, Chip, Collapse, Paper } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Stack,
+  IconButton,
+  TextField,
+  Menu,
+  Button,
+  Chip,
+  Collapse,
+  Paper,
+  Divider,
+} from "@mui/material";
 import { Draggable } from "@hello-pangea/dnd";
 import {
   ExpandMore,
@@ -31,6 +43,9 @@ import { useDialogState } from "@/hooks/useDialogState";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { useTheme } from "@/hooks/useTheme";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
+import { useGetReflectionQuestionsQuery } from "@/lib/store/api/reflectionQuestionsApi";
+import { useGetReflectionGoalsQuery } from "@/lib/store/api/reflectionGoalsApi";
+import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 
 // Small component to handle text input with state that resets on date change
 const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }) => {
@@ -319,8 +334,75 @@ export const TaskItem = ({
   const existingCompletion = getCompletionForDate?.(task.id, viewDate);
   const isTextTask = task.completionType === "text";
   const isWorkoutTask = task.completionType === "workout";
+  const isReflectionTask = task.completionType === "reflection";
   const isNotCompleted = existingCompletion?.outcome === "not_completed" || false;
   const savedNote = existingCompletion?.note || "";
+
+  // Reflection task data
+  const { data: allTasks = [] } = useGetTasksQuery();
+  const { data: questionRecords = [] } = useGetReflectionQuestionsQuery(
+    { taskId: task.id, date: viewDate?.toISOString() },
+    { skip: !isReflectionTask }
+  );
+  const { data: reflectionGoalsData } = useGetReflectionGoalsQuery(task.id, { skip: !isReflectionTask });
+  const activeQuestions = questionRecords[0];
+  const [reflectionExpanded, setReflectionExpanded] = useState(false);
+  const [reflectionAnswers, setReflectionAnswers] = useState({});
+  const prevReflectionAnswersRef = useRef(existingCompletion?.reflectionAnswers || {});
+
+  // Sync reflection answers with completion data
+  useEffect(() => {
+    if (!isReflectionTask) return;
+    const nextAnswers = existingCompletion?.reflectionAnswers || {};
+    
+    // Use JSON stringification for deep equality check instead of reference equality
+    const prevAnswersStr = JSON.stringify(prevReflectionAnswersRef.current);
+    const nextAnswersStr = JSON.stringify(nextAnswers);
+    
+    console.warn("[TaskItem] Syncing reflection answers:", {
+      taskId: task.id,
+      existingCompletion,
+      nextAnswers,
+      prevAnswers: prevReflectionAnswersRef.current,
+      areEqual: prevAnswersStr === nextAnswersStr,
+    });
+    
+    if (prevAnswersStr === nextAnswersStr) return;
+    
+    prevReflectionAnswersRef.current = nextAnswers;
+    const timeoutId = setTimeout(() => {
+      setReflectionAnswers(nextAnswers);
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [existingCompletion, isReflectionTask, task.id]);
+
+  const linkedGoalIds = reflectionGoalsData?.goalTaskIds || [];
+  const activeGoals = allTasks.filter(t => linkedGoalIds.includes(t.id));
+
+  const saveReflectionAnswers = async nextAnswers => {
+    if (!viewDate) return;
+    console.warn("[TaskItem] Saving reflection answers:", {
+      taskId: task.id,
+      viewDate: viewDate?.toISOString(),
+      answers: nextAnswers,
+    });
+    await onCompleteWithNote?.(task.id, null, { reflectionAnswers: nextAnswers });
+  };
+
+  const { debouncedSave: debouncedReflectionSave } = useDebouncedSave(saveReflectionAnswers, 500);
+
+  const handleReflectionAnswerChange = (questionId, value) => {
+    const updated = { ...reflectionAnswers, [questionId]: value };
+    setReflectionAnswers(updated);
+    debouncedReflectionSave(updated);
+  };
+
+  const handleReflectionGoalAnswerChange = (goalId, value) => {
+    const goalProgress = { ...(reflectionAnswers.goalProgress || {}), [goalId]: value };
+    const updated = { ...reflectionAnswers, goalProgress };
+    setReflectionAnswers(updated);
+    debouncedReflectionSave(updated);
+  };
 
   // For workout tasks, only mark complete if outcome is explicitly "completed" (not "in_progress")
   const isWorkoutTaskCompleted = isWorkoutTask && existingCompletion?.outcome === "completed";
@@ -483,7 +565,7 @@ export const TaskItem = ({
             }
           }}
         >
-          {/* Expand button for subtasks */}
+          {/* Expand button for subtasks or reflection tasks */}
           {task.subtasks && task.subtasks.length > 0 ? (
             onToggleExpand ? (
               <IconButton
@@ -501,6 +583,19 @@ export const TaskItem = ({
             ) : (
               <Box sx={{ width: 24 }} />
             )
+          ) : isReflectionTask && (isToday || isBacklog) ? (
+            <IconButton
+              onClick={e => {
+                e.stopPropagation();
+                setReflectionExpanded(!reflectionExpanded);
+              }}
+              onMouseDown={e => e.stopPropagation()}
+              onPointerDown={e => e.stopPropagation()}
+              size="small"
+              aria-label="Toggle reflection questions"
+            >
+              {reflectionExpanded ? <ExpandMore fontSize="small" /> : <ChevronRight fontSize="small" />}
+            </IconButton>
           ) : (
             <Box />
           )}
@@ -839,6 +934,90 @@ export const TaskItem = ({
             </>
           )}
         </Stack>
+
+        {/* Expanded reflection questions */}
+        {isReflectionTask && (isToday || isBacklog) && (
+          <Collapse in={reflectionExpanded}>
+            <Box sx={{ px: { xs: 1, md: 1.5 }, pb: { xs: 1, md: 1.5 } }}>
+              {!activeQuestions ? (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                  No questions configured. Edit task to add questions.
+                </Typography>
+              ) : (
+                <Stack spacing={2}>
+                  {(activeQuestions.questions || []).map(question => (
+                    <TextField
+                      key={question.id}
+                      fullWidth
+                      multiline
+                      minRows={2}
+                      maxRows={8}
+                      label={question.text}
+                      value={reflectionAnswers[question.id] || ""}
+                      onChange={e => handleReflectionAnswerChange(question.id, e.target.value)}
+                      variant="filled"
+                      size="small"
+                      onClick={e => e.stopPropagation()}
+                      onMouseDown={e => e.stopPropagation()}
+                    />
+                  ))}
+
+                  {activeQuestions.includeGoalReflection && (
+                    <>
+                      <Divider sx={{ my: 1 }} />
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 500 }}>
+                          🏆 {activeQuestions.goalReflectionQuestion || "Goals Progress"}
+                        </Typography>
+                        {activeGoals.length === 0 ? (
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                            No linked goals yet.
+                          </Typography>
+                        ) : (
+                          <Stack spacing={1.5}>
+                            {activeGoals.map(goal => (
+                              <Box key={goal.id} sx={{ p: 1, borderRadius: 1, bgcolor: "background.default" }}>
+                                <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                                  {goal.title}
+                                </Typography>
+                                {(goal.subtasks || []).length > 0 && (
+                                  <Box sx={{ ml: 1, mb: 0.5 }}>
+                                    {goal.subtasks.map(subtask => (
+                                      <Typography
+                                        key={subtask.id}
+                                        variant="caption"
+                                        sx={{ display: "block", color: "text.secondary" }}
+                                      >
+                                        • {subtask.title}
+                                      </Typography>
+                                    ))}
+                                  </Box>
+                                )}
+                                <TextField
+                                  fullWidth
+                                  multiline
+                                  minRows={2}
+                                  maxRows={6}
+                                  label="Progress"
+                                  value={reflectionAnswers.goalProgress?.[goal.id] || ""}
+                                  onChange={e => handleReflectionGoalAnswerChange(goal.id, e.target.value)}
+                                  variant="filled"
+                                  size="small"
+                                  onClick={e => e.stopPropagation()}
+                                  onMouseDown={e => e.stopPropagation()}
+                                />
+                              </Box>
+                            ))}
+                          </Stack>
+                        )}
+                      </Box>
+                    </>
+                  )}
+                </Stack>
+              )}
+            </Box>
+          </Collapse>
+        )}
 
         {/* Expanded subtasks */}
         {onToggleSubtask && (

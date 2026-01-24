@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useMemo, memo } from "react";
-import { Box, CircularProgress, Button, Stack } from "@mui/material";
-import { Add } from "@mui/icons-material";
+import { Box, CircularProgress, Stack } from "@mui/material";
 import dayjs from "dayjs";
 import { shouldShowOnDate as checkTaskShouldShowOnDate } from "@/lib/utils";
 import { DateNavigation } from "@/components/DateNavigation";
@@ -76,11 +75,13 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
 
   // Filter all text input tasks (no tag filtering)
   const journalTasks = useMemo(() => {
-    return tasks.filter(task => task.completionType === "text");
+    return tasks.filter(task => task.completionType === "text" || task.completionType === "reflection");
   }, [tasks]);
 
   // Handle saving journal entries
-  const handleSaveEntry = async (taskId, date, note) => {
+  const handleSaveEntry = async (taskId, date, payload) => {
+    const note = typeof payload === "string" ? payload : payload?.note;
+    const reflectionAnswers = typeof payload === "object" ? payload?.reflectionAnswers : null;
     // If date is already a string in YYYY-MM-DD format, use it directly
     // Otherwise, format it properly to avoid timezone issues
     const dateStr =
@@ -89,9 +90,15 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
 
     try {
       if (existingCompletion) {
-        await updateCompletionMutation({ id: existingCompletion.id, taskId, date: dateStr, note }).unwrap();
+        await updateCompletionMutation({
+          id: existingCompletion.id,
+          taskId,
+          date: dateStr,
+          note,
+          reflectionAnswers,
+        }).unwrap();
       } else {
-        await createCompletionMutation({ taskId, date: dateStr, note }).unwrap();
+        await createCompletionMutation({ taskId, date: dateStr, note, reflectionAnswers }).unwrap();
       }
     } catch (error) {
       console.error("Error saving journal entry:", error);
@@ -114,9 +121,12 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
     // For journal entries, also check if there's a completion for this date
     // This allows yearly reflections to show on the date they were written, not just the scheduled date
     const completion = getCompletionForDate?.(task.id, dateStr);
-    const hasCompletion = completion?.note && completion.note.trim().length > 0;
+    const hasNote = completion?.note && completion.note.trim().length > 0;
+    const hasReflectionAnswers =
+      completion?.reflectionAnswers &&
+      Object.values(completion.reflectionAnswers).some(value => typeof value === "string" && value.trim());
 
-    return matchesRecurrence || hasCompletion;
+    return matchesRecurrence || hasNote || hasReflectionAnswers;
   };
 
   // View options for DateNavigation

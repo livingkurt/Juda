@@ -475,17 +475,26 @@ export function useCompletionHandlers({
     [tasks, today, viewDate, createCompletion, showCompletedTasks, addToRecentlyCompleted]
   );
 
-  // Complete with note
+  // Complete with note (also handles reflection answers)
   const handleCompleteWithNote = useCallback(
-    async (taskId, note) => {
+    async (taskId, note, additionalData = {}) => {
       try {
         const task = tasks.find(t => t.id === taskId);
         const targetDate = viewDate || today;
         // Format date as YYYY-MM-DD to avoid timezone issues
         const dateStr = formatLocalDate(targetDate);
+
+        console.warn("[useCompletionHandlers] handleCompleteWithNote called:", {
+          taskId,
+          dateStr,
+          note,
+          additionalData,
+        });
+
         await createCompletion(taskId, dateStr, {
           outcome: "completed",
           note,
+          ...additionalData,
         });
 
         const isRecurringTask = task?.recurrence && task.recurrence.type && task.recurrence.type !== "none";

@@ -98,7 +98,25 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
 export const POST = withApi(async (request, { userId, getBody }) => {
   const clientId = getClientIdFromRequest(request);
   const body = await getBody();
-  const { taskId, date, outcome = "completed", note, time, startedAt, completedAt } = body;
+  let { taskId, date, outcome = "completed", note, time, startedAt, completedAt, reflectionAnswers } = body;
+
+  // Parse reflectionAnswers if it's a string (it should be an object)
+  if (typeof reflectionAnswers === "string") {
+    try {
+      reflectionAnswers = JSON.parse(reflectionAnswers);
+    } catch (e) {
+      console.error("Failed to parse reflectionAnswers:", e);
+      reflectionAnswers = null;
+    }
+  }
+
+  console.warn("[Completions API POST] Received:", {
+    taskId,
+    date,
+    outcome,
+    note,
+    reflectionAnswers: reflectionAnswers ? JSON.stringify(reflectionAnswers) : null,
+  });
 
   validateRequired(body, ["taskId"]);
   validateEnum("outcome", outcome, ["completed", "not_completed", "rolled_over"]);
@@ -128,6 +146,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
 
     const updateData = { outcome };
     if (note !== undefined) updateData.note = note || null;
+    if (reflectionAnswers !== undefined) updateData.reflectionAnswers = reflectionAnswers || null;
     if (time !== undefined) updateData.time = time || null;
     if (startedAt !== undefined) updateData.startedAt = startedAt ? new Date(startedAt) : null;
     if (completedAt !== undefined) updateData.completedAt = completedAt ? new Date(completedAt) : null;
@@ -143,18 +162,22 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     return NextResponse.json(updated);
   }
 
-  const [completion] = await db
-    .insert(taskCompletions)
-    .values({
-      taskId,
-      date: utcDate,
-      outcome,
-      note: note || null,
-      time: time || null,
-      startedAt: startedAt ? new Date(startedAt) : null,
-      completedAt: completedAt ? new Date(completedAt) : null,
-    })
-    .returning();
+  const insertValues = {
+    taskId,
+    date: utcDate,
+    outcome,
+    note: note || null,
+    reflectionAnswers: reflectionAnswers || null,
+    time: time || null,
+    startedAt: startedAt ? new Date(startedAt) : null,
+    completedAt: completedAt ? new Date(completedAt) : null,
+  };
+
+  console.warn("[Completions API POST] Inserting:", JSON.stringify(insertValues, null, 2));
+
+  const [completion] = await db.insert(taskCompletions).values(insertValues).returning();
+
+  console.warn("[Completions API POST] Inserted result:", JSON.stringify(completion, null, 2));
 
   // Broadcast to other clients
   completionBroadcast.onCreate(userId, completion, clientId);
@@ -213,7 +236,17 @@ export const DELETE = withApi(async (request, { userId, getSearchParams }) => {
 export const PUT = withApi(async (request, { userId, getBody }) => {
   const clientId = getClientIdFromRequest(request);
   const body = await getBody();
-  const { taskId, date, outcome, note, time } = body;
+  let { taskId, date, outcome, note, time, reflectionAnswers } = body;
+
+  // Parse reflectionAnswers if it's a string (it should be an object)
+  if (typeof reflectionAnswers === "string") {
+    try {
+      reflectionAnswers = JSON.parse(reflectionAnswers);
+    } catch (e) {
+      console.error("Failed to parse reflectionAnswers:", e);
+      reflectionAnswers = null;
+    }
+  }
 
   validateRequired(body, ["taskId", "date"]);
   validateEnum("outcome", outcome, ["completed", "not_completed"]);
@@ -238,6 +271,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
   const updateData = {};
   if (outcome !== undefined) updateData.outcome = outcome;
   if (note !== undefined) updateData.note = note || null;
+  if (reflectionAnswers !== undefined) updateData.reflectionAnswers = reflectionAnswers || null;
   if (time !== undefined) updateData.time = time || null;
 
   if (existing) {
@@ -264,6 +298,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
         date: utcDate,
         outcome: outcome || "completed",
         note: note || null,
+        reflectionAnswers: reflectionAnswers || null,
         time: time || null,
       })
       .returning();

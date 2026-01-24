@@ -37,6 +37,8 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
 
   // RTK Query hooks
   const { data: tasks = [] } = useGetTasksQuery();
+
+  const filteredTasks = tasks;
   const { data: sections = [] } = useGetSectionsQuery();
 
   // Completion helpers
@@ -48,10 +50,12 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
   // Today's tasks: tasks that should show on the selected date
   const todaysTasks = useMemo(
     () =>
-      tasks
+      filteredTasks
         .filter(task => {
           // Exclude notes from today's tasks
           if (task.completionType === "note") return false;
+          // Exclude goals from today's tasks (they're managed in Goals tab)
+          if (task.completionType === "goals") return false;
           // Exclude subtasks (handled by parent)
           if (task.parentId) return false;
 
@@ -92,7 +96,7 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
               }))
             : undefined,
         })),
-    [tasks, viewDate, isCompletedOnDate, getOutcomeOnDate, hasRecordOnDate, hasAnyCompletion]
+    [filteredTasks, viewDate, isCompletedOnDate, getOutcomeOnDate, hasRecordOnDate, hasAnyCompletion]
   );
 
   // Filter today's tasks by search term and tags
@@ -150,14 +154,53 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
       });
     };
 
+    const matchesSectionFilters = (task, section) => {
+      const filterTagIds = Array.isArray(section.filterTagIds) ? section.filterTagIds : [];
+      const filterCompletionTypes = Array.isArray(section.filterCompletionTypes) ? section.filterCompletionTypes : [];
+      const matchesTags = filterTagIds.length === 0 || task.tags?.some(tag => filterTagIds.includes(tag.id));
+      const matchesType = filterCompletionTypes.length === 0 || filterCompletionTypes.includes(task.completionType);
+      return matchesTags && matchesType;
+    };
+
+    const hasSectionFilters = section =>
+      (Array.isArray(section.filterTagIds) && section.filterTagIds.length > 0) ||
+      (Array.isArray(section.filterCompletionTypes) && section.filterCompletionTypes.length > 0);
+
     // Track which tasks have been assigned to time-ranged sections
     const assignedTaskIds = new Set();
 
     // Sort sections by order to ensure consistent assignment priority
     const sortedSections = [...sections].sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    // First pass: assign tasks to time-ranged sections
+    // First pass: assign tasks to filtered sections (tag/type filters)
     for (const section of sortedSections) {
+      if (hasSectionFilters(section)) {
+        let sectionTasks = filteredTodaysTasks.filter(task => {
+          if (assignedTaskIds.has(task.id)) return false;
+          if (!matchesSectionFilters(task, section)) return false;
+          assignedTaskIds.add(task.id);
+          return true;
+        });
+
+        if (!showCompletedTasks) {
+          sectionTasks = sectionTasks.filter(t => {
+            const isCompleted =
+              t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
+            const hasOutcome = t.outcome !== null && t.outcome !== undefined;
+            if (isCompleted && recentlyCompleted.has(t.id)) {
+              return true;
+            }
+            return !isCompleted && !hasOutcome;
+          });
+        }
+
+        grouped[section.id] = sortByTime(sectionTasks);
+      }
+    }
+
+    // Second pass: assign tasks to time-ranged sections
+    for (const section of sortedSections) {
+      if (hasSectionFilters(section)) continue;
       if (section.startTime && section.endTime) {
         // This section has a time range - filter tasks by time
         const sectionTasks = filteredTodaysTasks.filter(task => {
@@ -187,8 +230,9 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
       }
     }
 
-    // Second pass: assign remaining tasks by sectionId (non-time-ranged sections)
+    // Third pass: assign remaining tasks by sectionId (non-time-ranged sections)
     for (const section of sortedSections) {
+      if (hasSectionFilters(section)) continue;
       if (!section.startTime || !section.endTime) {
         // This section has no time range - use sectionId assignment
         let sectionTasks = filteredTodaysTasks.filter(task => {
@@ -241,7 +285,7 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
 
   // Tasks for backlog
   const backlogTasks = useMemo(() => {
-    return tasks
+    return filteredTasks
       .filter(task => {
         // CRITICAL: Tasks with a sectionId should NEVER appear in backlog
         // They belong to a specific section in the Today view
@@ -269,6 +313,8 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
 
         // Exclude notes from backlog
         if (task.completionType === "note") return false;
+        // Goals never appear in backlog
+        if (task.completionType === "goals") return false;
 
         // For tasks without recurrence (null), check if completed today
         const outcome = getOutcomeOnDate(task.id, today);
@@ -291,17 +337,17 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
             }))
           : undefined,
       }));
-  }, [tasks, today, isCompletedOnDate, getOutcomeOnDate, hasAnyCompletion, recentlyCompleted]);
+  }, [filteredTasks, today, isCompletedOnDate, getOutcomeOnDate, hasAnyCompletion, recentlyCompleted]);
 
   // Filter tasks that are notes (completionType === "note")
   const noteTasks = useMemo(() => {
-    return tasks.filter(task => task.completionType === "note");
-  }, [tasks]);
+    return filteredTasks.filter(task => task.completionType === "note");
+  }, [filteredTasks]);
 
   return useMemo(
     () => ({
       // Data
-      tasks,
+      tasks: filteredTasks,
       sections,
       today,
       viewDate,
@@ -313,6 +359,16 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
       backlogTasks,
       noteTasks,
     }),
-    [tasks, sections, today, viewDate, todaysTasks, filteredTodaysTasks, tasksBySection, backlogTasks, noteTasks]
+    [
+      filteredTasks,
+      sections,
+      today,
+      viewDate,
+      todaysTasks,
+      filteredTodaysTasks,
+      tasksBySection,
+      backlogTasks,
+      noteTasks,
+    ]
   );
 }

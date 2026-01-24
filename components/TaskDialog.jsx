@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -28,6 +28,8 @@ import {
   InputAdornment,
   useTheme,
   useMediaQuery,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
 import GLGrid from "./GLGrid";
 import { Close, Add, Delete, DragIndicator, Search, Edit } from "@mui/icons-material";
@@ -46,6 +48,11 @@ import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery, useCreateTagMutation, useDeleteTagMutation } from "@/lib/store/api/tagsApi";
+import {
+  useGetReflectionQuestionsQuery,
+  useVersionReflectionQuestionsMutation,
+} from "@/lib/store/api/reflectionQuestionsApi";
+import { useGetReflectionGoalsQuery } from "@/lib/store/api/reflectionGoalsApi";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import RecurringEditScopeDialog from "./RecurringEditScopeDialog";
@@ -54,6 +61,33 @@ import {
   prepareThisOccurrenceEdit,
   prepareFutureOccurrencesEdit,
 } from "@/lib/recurringSeriesUtils";
+
+const createQuestion = (text, order) => ({
+  id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+  text,
+  order,
+});
+
+const getDefaultWeeklyQuestions = () => [
+  createQuestion("Highlight of the week", 0),
+  createQuestion("Something I'm grateful for", 1),
+  createQuestion("Challenge I faced and how I handled it", 2),
+  createQuestion("One thing I want to focus on next week", 3),
+];
+
+const normalizeQuestions = questions =>
+  (questions || []).map((question, index) => ({
+    id: question.id || `q_${index}`,
+    text: question.text || "",
+    order: question.order ?? index,
+  }));
+
+const buildQuestionsSignature = (questions, includeGoalReflection, goalReflectionQuestion) =>
+  JSON.stringify({
+    questions: normalizeQuestions(questions).map(q => ({ id: q.id, text: q.text, order: q.order })),
+    includeGoalReflection: Boolean(includeGoalReflection),
+    goalReflectionQuestion: goalReflectionQuestion || "",
+  });
 
 // Internal component that resets when key changes
 function TaskDialogForm({
@@ -159,6 +193,13 @@ function TaskDialogForm({
   const [subtaskTabIndex, setSubtaskTabIndex] = useState(0);
   const [completionType, setCompletionType] = useState(task?.completionType || "checkbox");
   const [content, setContent] = useState(task?.content || "");
+  const [reflectionQuestionsId, setReflectionQuestionsId] = useState(null);
+  const [defaultQuestions, setDefaultQuestions] = useState([]);
+  const [includeGoalReflection, setIncludeGoalReflection] = useState(false);
+  const [goalReflectionQuestion, setGoalReflectionQuestion] = useState("How did you progress on your goals?");
+  const [linkedGoalIds, setLinkedGoalIds] = useState([]);
+  const questionsSignatureRef = useRef("");
+  const [pendingQuestionChanges, setPendingQuestionChanges] = useState(null);
   const [showScopeDialog, setShowScopeDialog] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(null);
   // const [workoutBuilderOpen, setWorkoutBuilderOpen] = useState(false);
@@ -166,6 +207,16 @@ function TaskDialogForm({
   useGetWorkoutProgramQuery(task?.id, {
     skip: !task?.id,
   });
+
+  const shouldLoadReflectionQuestions = Boolean(task?.id) && completionType === "reflection";
+  const { data: reflectionQuestionsData = [] } = useGetReflectionQuestionsQuery(
+    { taskId: task?.id },
+    { skip: !shouldLoadReflectionQuestions }
+  );
+  const [versionReflectionQuestions] = useVersionReflectionQuestionsMutation();
+
+  const shouldLoadReflectionGoals = Boolean(task?.id) && completionType === "reflection";
+  const { data: reflectionGoalsData } = useGetReflectionGoalsQuery(task?.id, { skip: !shouldLoadReflectionGoals });
 
   // Store the date that was clicked when opening this dialog (for recurring series splitting)
   // This should NOT change even if the user edits the date picker
@@ -182,8 +233,50 @@ function TaskDialogForm({
     return null;
   }, [defaultDate, clickedRecurringDate]);
 
+  useEffect(() => {
+    if (task?.id) return;
+    if (completionType !== "reflection") return;
+    if (defaultQuestions.length > 0) return;
+    const timeoutId = setTimeout(() => {
+      setDefaultQuestions(getDefaultWeeklyQuestions());
+      setIncludeGoalReflection(true);
+      setGoalReflectionQuestion("How did you progress on your goals?");
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [task?.id, completionType, defaultQuestions.length]);
+
+  useEffect(() => {
+    if (!task?.id) return;
+    if (completionType !== "reflection") return;
+    const record = reflectionQuestionsData[0];
+    if (!record) return;
+    const timeoutId = setTimeout(() => {
+      setReflectionQuestionsId(record.id);
+      const normalized = Array.isArray(record.questions) ? normalizeQuestions(record.questions) : [];
+      setDefaultQuestions(normalized);
+      setIncludeGoalReflection(Boolean(record.includeGoalReflection));
+      setGoalReflectionQuestion(record.goalReflectionQuestion || "How did you progress on your goals?");
+      questionsSignatureRef.current = buildQuestionsSignature(
+        normalized,
+        Boolean(record.includeGoalReflection),
+        record.goalReflectionQuestion || "How did you progress on your goals?"
+      );
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [task?.id, completionType, reflectionQuestionsData]);
+
+  useEffect(() => {
+    if (!task?.id) return;
+    if (completionType !== "reflection") return;
+    if (!reflectionGoalsData) return;
+    const timeoutId = setTimeout(() => {
+      setLinkedGoalIds(reflectionGoalsData.goalTaskIds || []);
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [task?.id, completionType, reflectionGoalsData]);
+
   const performSave = useCallback(
-    async (saveData, scope = null) => {
+    async (saveData, scope = null, questionChanges = null) => {
       // If scope is provided, this is a recurring task edit that needs series splitting
       if (scope && task) {
         // Use the original clicked date as the edit boundary, not the potentially-modified date
@@ -278,6 +371,24 @@ function TaskDialogForm({
         // Normal save logic
         await onSave(saveData);
       }
+
+      if (questionChanges?.shouldVersion && questionChanges.taskId && reflectionQuestionsId) {
+        const result = await versionReflectionQuestions({
+          taskId: questionChanges.taskId,
+          currentId: reflectionQuestionsId,
+          newQuestions: questionChanges.questions,
+          includeGoalReflection: questionChanges.includeGoalReflection,
+          goalReflectionQuestion: questionChanges.goalReflectionQuestion,
+        }).unwrap();
+        if (result?.id) {
+          setReflectionQuestionsId(result.id);
+          questionsSignatureRef.current = buildQuestionsSignature(
+            questionChanges.questions,
+            questionChanges.includeGoalReflection,
+            questionChanges.goalReflectionQuestion
+          );
+        }
+      }
       onClose();
     },
     [
@@ -300,20 +411,35 @@ function TaskDialogForm({
       yearlyInterval,
       onSave,
       onClose,
+      reflectionQuestionsId,
+      versionReflectionQuestions,
     ]
   );
 
   const handleScopeSelect = useCallback(
     async scope => {
       if (!pendingChanges) return;
-      await performSave(pendingChanges, scope);
+      await performSave(pendingChanges, scope, pendingQuestionChanges);
       setPendingChanges(null);
+      setPendingQuestionChanges(null);
       setShowScopeDialog(false);
     },
-    [pendingChanges, performSave]
+    [pendingChanges, pendingQuestionChanges, performSave]
   );
 
-  const handleSave = useCallback(() => {
+  const handleAddQuestion = () => {
+    setDefaultQuestions(prev => [...prev, createQuestion("", prev.length)]);
+  };
+
+  const handleRemoveQuestion = id => {
+    setDefaultQuestions(prev => prev.filter(q => q.id !== id).map((q, idx) => ({ ...q, order: idx })));
+  };
+
+  const handleQuestionChange = (id, text) => {
+    setDefaultQuestions(prev => prev.map(q => (q.id === id ? { ...q, text } : q)));
+  };
+
+  const handleSave = useCallback(async () => {
     if (!title.trim()) return;
 
     let recurrence = null;
@@ -385,6 +511,41 @@ function TaskDialogForm({
       status: recurrenceType === "none" ? status || "todo" : "todo",
     };
 
+    const normalizedQuestions = normalizeQuestions(defaultQuestions).filter(q => q.text && q.text.trim());
+    const currentSignature = buildQuestionsSignature(
+      normalizedQuestions,
+      includeGoalReflection,
+      includeGoalReflection ? goalReflectionQuestion : ""
+    );
+    const shouldVersionQuestions =
+      task?.id &&
+      completionType === "reflection" &&
+      reflectionQuestionsId &&
+      currentSignature !== questionsSignatureRef.current &&
+      normalizedQuestions.length > 0;
+
+    if (!task?.id && completionType === "reflection") {
+      if (normalizedQuestions.length > 0) {
+        saveData.defaultQuestions = normalizedQuestions;
+        saveData.includeGoalReflection = includeGoalReflection;
+        saveData.goalReflectionQuestion = includeGoalReflection ? goalReflectionQuestion : null;
+      }
+    }
+
+    if (completionType === "reflection") {
+      saveData.reflectionGoalIds = linkedGoalIds;
+    }
+
+    const questionChanges = shouldVersionQuestions
+      ? {
+          shouldVersion: true,
+          taskId: task.id,
+          questions: normalizedQuestions,
+          includeGoalReflection,
+          goalReflectionQuestion: includeGoalReflection ? goalReflectionQuestion : null,
+        }
+      : null;
+
     // If editing an existing recurring task, check if we need scope decision
     if (
       task &&
@@ -407,12 +568,13 @@ function TaskDialogForm({
       })
     ) {
       setPendingChanges(saveData);
+      setPendingQuestionChanges(questionChanges);
       setShowScopeDialog(true);
       return;
     }
 
     // Otherwise, proceed with normal save
-    performSave(saveData);
+    await performSave(saveData, null, questionChanges);
   }, [
     title,
     recurrenceType,
@@ -439,6 +601,11 @@ function TaskDialogForm({
     completionType,
     content,
     status,
+    defaultQuestions,
+    includeGoalReflection,
+    goalReflectionQuestion,
+    linkedGoalIds,
+    reflectionQuestionsId,
     performSave,
   ]);
 
@@ -727,6 +894,101 @@ function TaskDialogForm({
                   <Typography variant="caption" color="text.secondary">
                     Notes appear in the Notes tab, not in Backlog/Today/Calendar
                   </Typography>
+                </GLGrid>
+              )}
+              {completionType === "goals" && (
+                <GLGrid item xs={12}>
+                  <Typography variant="caption" color="text.secondary">
+                    Goals are pinned and always visible in Today and Journal.
+                  </Typography>
+                </GLGrid>
+              )}
+              {completionType === "reflection" && (
+                <GLGrid item xs={12}>
+                  <Box>
+                    <Typography variant="body2" fontWeight={500} gutterBottom>
+                      Reflection Questions
+                    </Typography>
+                    <Box sx={{ mt: 2 }}>
+                      <Stack spacing={1.5}>
+                        {defaultQuestions.map((question, index) => (
+                          <Box key={question.id} sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              label={`Question ${index + 1}`}
+                              value={question.text}
+                              onChange={e => handleQuestionChange(question.id, e.target.value)}
+                              placeholder="Enter your question..."
+                            />
+                            <IconButton
+                              size="small"
+                              onClick={() => handleRemoveQuestion(question.id)}
+                              disabled={defaultQuestions.length === 1}
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        ))}
+                        <Button size="small" variant="outlined" onClick={handleAddQuestion} startIcon={<Add />}>
+                          Add Question
+                        </Button>
+                      </Stack>
+                    </Box>
+                    <Box sx={{ mt: 2, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
+                      <Typography variant="body2" fontWeight={500} gutterBottom>
+                        Goal Reflection
+                      </Typography>
+                      <Stack spacing={1}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={includeGoalReflection}
+                              onChange={e => setIncludeGoalReflection(e.target.checked)}
+                            />
+                          }
+                          label="Include goal reflection"
+                        />
+                        {includeGoalReflection && (
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Goal reflection question"
+                            value={goalReflectionQuestion}
+                            onChange={e => setGoalReflectionQuestion(e.target.value)}
+                          />
+                        )}
+                      </Stack>
+                    </Box>
+                    <Box sx={{ mt: 2 }}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Linked Goals</InputLabel>
+                        <Select
+                          multiple
+                          value={linkedGoalIds}
+                          onChange={e => setLinkedGoalIds(e.target.value)}
+                          label="Linked Goals"
+                          renderValue={selected => (
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                              {selected.map(goalId => {
+                                const goal = allTasks.find(t => t.id === goalId);
+                                return <Chip key={goalId} label={goal?.title || goalId} size="small" />;
+                              })}
+                            </Stack>
+                          )}
+                        >
+                          {allTasks
+                            .filter(t => t.completionType === "goals" && !t.parentId)
+                            .map(goal => (
+                              <MenuItem key={goal.id} value={goal.id}>
+                                <Checkbox checked={linkedGoalIds.includes(goal.id)} />
+                                {goal.title}
+                              </MenuItem>
+                            ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                  </Box>
                 </GLGrid>
               )}
               {/* {completionType === "workout" && (

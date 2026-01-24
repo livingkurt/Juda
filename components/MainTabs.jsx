@@ -9,6 +9,7 @@ import {
   Note as StickyNote,
   FitnessCenter,
   AccessTime as Clock,
+  EmojiEvents,
 } from "@mui/icons-material";
 import { useViewState } from "@/hooks/useViewState";
 
@@ -88,6 +89,12 @@ export function MainTabs() {
           icon={<FitnessCenter fontSize="small" />}
           iconPosition="start"
           label="Workout"
+          sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
+        />
+        <Tab
+          icon={<EmojiEvents fontSize="small" />}
+          iconPosition="start"
+          label="Goals"
           sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
         />
         <Tab

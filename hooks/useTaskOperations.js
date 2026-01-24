@@ -10,6 +10,7 @@ import {
   useDeleteTaskMutation,
   useBatchSaveTasksMutation,
 } from "@/lib/store/api/tasksApi";
+import { useUpdateReflectionGoalsMutation } from "@/lib/store/api/reflectionGoalsApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
 import {
@@ -44,6 +45,7 @@ export function useTaskOperations() {
   const [deleteTaskMutation] = useDeleteTaskMutation();
   const [updateTaskTagsMutation] = useUpdateTaskTagsMutation();
   const [batchSaveTasksMutation] = useBatchSaveTasksMutation();
+  const [updateReflectionGoalsMutation] = useUpdateReflectionGoalsMutation();
 
   // Wrapper functions for mutations
   const createTask = useCallback(
@@ -112,7 +114,7 @@ export function useTaskOperations() {
   // Save task (create or update with tags and subtasks)
   const saveTask = useCallback(
     async taskData => {
-      const { tagIds, subtasks: subtasksData, ...taskFields } = taskData;
+      const { tagIds, subtasks: subtasksData, reflectionGoalIds, ...taskFields } = taskData;
 
       let savedTask;
       const isUpdate = Boolean(taskData.id);
@@ -149,13 +151,27 @@ export function useTaskOperations() {
           await updateTaskTagsMutation({ taskId: savedTask.id, tagIds }).unwrap();
         }
 
+        if (reflectionGoalIds !== undefined && taskFields.completionType === "reflection") {
+          await updateReflectionGoalsMutation({
+            reflectionTaskId: savedTask.id,
+            goalTaskIds: reflectionGoalIds,
+          }).unwrap();
+        }
+
         return savedTask;
       } catch (error) {
         dispatch(showError({ message: isUpdate ? "Failed to update task" : "Failed to create task" }));
         throw error;
       }
     },
-    [dispatch, createTaskMutation, updateTaskMutation, updateTaskTagsMutation, batchSaveTasksMutation]
+    [
+      dispatch,
+      createTaskMutation,
+      updateTaskMutation,
+      updateTaskTagsMutation,
+      batchSaveTasksMutation,
+      updateReflectionGoalsMutation,
+    ]
   );
 
   // Edit task - opens dialog with task data

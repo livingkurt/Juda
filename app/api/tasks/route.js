@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tasks, sections, taskTags, tags } from "@/lib/schema";
+import { tasks, sections, taskTags, tags, reflectionQuestions } from "@/lib/schema";
 import { eq, and, asc, inArray, sql } from "drizzle-orm";
 import {
   withApi,
@@ -90,6 +90,10 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     rolledFromDate,
     isRollover,
     isOffSchedule,
+    defaultQuestions,
+    includeGoalReflection,
+    goalReflectionQuestion,
+    isPinned,
   } = body;
 
   // Validate section exists if sectionId is provided
@@ -129,8 +133,20 @@ export const POST = withApi(async (request, { userId, getBody }) => {
         rolledFromDate: rolledFromDate ? new Date(rolledFromDate) : null,
         isRollover: isRollover || false,
         isOffSchedule: isOffSchedule || false,
+        isPinned: completionType === "goals" ? true : isPinned || false,
       })
       .returning();
+
+    if (completionType === "reflection" && Array.isArray(defaultQuestions) && defaultQuestions.length > 0) {
+      await tx.insert(reflectionQuestions).values({
+        taskId: task.id,
+        questions: defaultQuestions,
+        includeGoalReflection: includeGoalReflection || false,
+        goalReflectionQuestion: goalReflectionQuestion || null,
+        startDate: new Date(),
+        endDate: null,
+      });
+    }
 
     // Assign tags if provided
     if (tagIds && Array.isArray(tagIds) && tagIds.length > 0) {
@@ -197,6 +213,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     completionType,
     content,
     folderId,
+    isPinned,
   } = body;
 
   validateRequired(body, ["id"]);
@@ -247,9 +264,13 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     updateData.startedAt = startedAt ? new Date(startedAt) : null;
   }
   if (completionType !== undefined) {
-    validateEnum("completionType", completionType, ["checkbox", "text", "note", "workout"]);
+    validateEnum("completionType", completionType, ["checkbox", "text", "note", "workout", "goals", "reflection"]);
     updateData.completionType = completionType;
+    if (completionType === "goals") {
+      updateData.isPinned = true;
+    }
   }
+  if (isPinned !== undefined) updateData.isPinned = isPinned;
   if (content !== undefined) updateData.content = content;
   if (folderId !== undefined) updateData.folderId = folderId;
   if (priority !== undefined) {

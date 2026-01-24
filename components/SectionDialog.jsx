@@ -14,19 +14,30 @@ import {
   Box,
   ToggleButton,
   ToggleButtonGroup,
+  Chip,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Checkbox,
 } from "@mui/material";
 import { Close } from "@mui/icons-material";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import dayjs from "dayjs";
-import { SECTION_ICONS } from "@/lib/constants";
+import { SECTION_ICONS, COMPLETION_TYPES } from "@/lib/constants";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useSectionOperations } from "@/hooks/useSectionOperations";
+import { useGetTagsQuery } from "@/lib/store/api/tagsApi";
 
 function SectionForm({ section, onSave, onClose }) {
   const [name, setName] = useState(section?.name || "");
   const [icon, setIcon] = useState(section?.icon || "sun");
   const [startTime, setStartTime] = useState(section?.startTime || null);
   const [endTime, setEndTime] = useState(section?.endTime || null);
+  const [filterTagIds, setFilterTagIds] = useState(section?.filterTagIds || []);
+  const [filterCompletionTypes, setFilterCompletionTypes] = useState(section?.filterCompletionTypes || []);
+
+  const { data: tags = [] } = useGetTagsQuery();
 
   // Convert "HH:MM" string to dayjs for TimePicker
   const startTimeValue = startTime ? dayjs(`2000-01-01T${startTime}`) : null;
@@ -40,6 +51,8 @@ function SectionForm({ section, onSave, onClose }) {
       icon,
       startTime: startTime || null,
       endTime: endTime || null,
+      filterTagIds,
+      filterCompletionTypes,
       order: section?.order ?? 999,
     });
     onClose();
@@ -125,6 +138,65 @@ function SectionForm({ section, onSave, onClose }) {
                 Tasks from {startTime} to {endTime} will appear here
               </Typography>
             )}
+          </Box>
+
+          {/* Filters */}
+          <Box>
+            <Typography variant="body2" fontWeight={500} gutterBottom>
+              Filters (Optional)
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+              Show only tasks that match these filters in this section
+            </Typography>
+            <Stack spacing={2}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Task Types</InputLabel>
+                <Select
+                  multiple
+                  value={filterCompletionTypes}
+                  onChange={e => setFilterCompletionTypes(e.target.value)}
+                  label="Task Types"
+                  renderValue={selected => (
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {selected.map(type => (
+                        <Chip key={type} label={type} size="small" />
+                      ))}
+                    </Stack>
+                  )}
+                >
+                  {COMPLETION_TYPES.map(type => (
+                    <MenuItem key={type.value} value={type.value}>
+                      <Checkbox checked={filterCompletionTypes.includes(type.value)} />
+                      {type.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl fullWidth size="small">
+                <InputLabel>Tags</InputLabel>
+                <Select
+                  multiple
+                  value={filterTagIds}
+                  onChange={e => setFilterTagIds(e.target.value)}
+                  label="Tags"
+                  renderValue={selected => (
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {selected.map(tagId => {
+                        const tag = tags.find(t => t.id === tagId);
+                        return <Chip key={tagId} label={tag?.name || tagId} size="small" />;
+                      })}
+                    </Stack>
+                  )}
+                >
+                  {tags.map(tag => (
+                    <MenuItem key={tag.id} value={tag.id}>
+                      <Checkbox checked={filterTagIds.includes(tag.id)} />
+                      {tag.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Stack>
           </Box>
         </Stack>
       </DialogContent>

@@ -26,7 +26,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
   const body = await getBody();
   validateRequired(body, ["name"]);
 
-  const { name, icon, order, expanded, startTime, endTime } = body;
+  const { name, icon, order, expanded, startTime, endTime, filterTagIds, filterCompletionTypes } = body;
 
   const [section] = await db
     .insert(sections)
@@ -38,6 +38,8 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       expanded: expanded ?? true,
       startTime: startTime || null,
       endTime: endTime || null,
+      filterTagIds: Array.isArray(filterTagIds) ? filterTagIds : [],
+      filterCompletionTypes: Array.isArray(filterCompletionTypes) ? filterCompletionTypes : [],
     })
     .returning();
 
@@ -52,7 +54,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
   const body = await getBody();
   validateRequired(body, ["id"]);
 
-  const { id, name, icon, order, expanded, startTime, endTime } = body;
+  const { id, name, icon, order, expanded, startTime, endTime, filterTagIds, filterCompletionTypes } = body;
 
   const existingSection = await db.query.sections.findFirst({
     where: and(eq(sections.id, id), eq(sections.userId, userId)),
@@ -69,6 +71,9 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
   if (expanded !== undefined) updateData.expanded = expanded;
   if (startTime !== undefined) updateData.startTime = startTime || null;
   if (endTime !== undefined) updateData.endTime = endTime || null;
+  if (filterTagIds !== undefined) updateData.filterTagIds = Array.isArray(filterTagIds) ? filterTagIds : [];
+  if (filterCompletionTypes !== undefined)
+    updateData.filterCompletionTypes = Array.isArray(filterCompletionTypes) ? filterCompletionTypes : [];
 
   const [section] = await db
     .update(sections)

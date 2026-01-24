@@ -2,6 +2,17 @@
 
 ## 2026-01-23
 
+### Goals + reflections system
+
+- Added `goals` and `reflection` task types, plus pinned goals for always-visible display.
+- Introduced `ReflectionQuestion` table with versioned prompts and date-range lookups.
+- Stored structured reflection answers on `TaskCompletion.reflectionAnswers` for Q&A entries.
+- Added Goals tab and pinned goals sections in Today and Journal views.
+- Implemented reflection question editor + entry UI with goal integration and versioning.
+- Included a migration script to convert tagged text reflections to the new reflection type.
+- Added section-level filters for tags and completion types to support goals as normal sections.
+- Added reflection↔goal linking so each reflection can target specific goals and store per-goal progress.
+
 ### Countdown Timer Background Handling
 
 - **Problem**: iOS Safari pauses JavaScript execution when users switch apps or lock their phone, causing workout timers to stop.

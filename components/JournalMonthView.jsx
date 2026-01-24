@@ -4,6 +4,7 @@ import { Box, Stack, Typography, Button } from "@mui/material";
 import { Add } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { JournalDayEntry } from "@/components/JournalDayEntry";
+import { ReflectionEntry } from "@/components/ReflectionEntry";
 
 export const JournalMonthView = ({
   selectedDate,
@@ -117,6 +118,19 @@ export const JournalMonthView = ({
                           <Stack spacing={1.5}>
                             {relevantTasks.map(task => {
                               const completion = getCompletionForDate?.(task.id, dateStr);
+                              if (task.completionType === "reflection") {
+                                return (
+                                  <ReflectionEntry
+                                    key={`${task.id}-${year}-${dateStr}`}
+                                    task={task}
+                                    date={null}
+                                    completionDate={dateStr}
+                                    completion={completion}
+                                    isCurrentYear={isCurrentYear}
+                                    onSave={onSaveEntry}
+                                  />
+                                );
+                              }
                               return (
                                 <JournalDayEntry
                                   key={`${task.id}-${year}-${dateStr}`}
