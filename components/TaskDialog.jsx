@@ -34,7 +34,14 @@ import { Close, Add, Delete, DragIndicator, Search, Edit } from "@mui/icons-mate
 import { DatePicker, TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { DAYS_OF_WEEK, DURATION_OPTIONS, ORDINAL_OPTIONS, MONTH_OPTIONS, COMPLETION_TYPES } from "@/lib/constants";
+import {
+  DAYS_OF_WEEK,
+  DURATION_OPTIONS,
+  ORDINAL_OPTIONS,
+  MONTH_OPTIONS,
+  COMPLETION_TYPES,
+  REFLECTION_TEMPLATES,
+} from "@/lib/constants";
 import { formatLocalDate } from "@/lib/utils";
 import { TagSelector } from "./TagSelector";
 import { TaskItem } from "./TaskItem";
@@ -65,6 +72,8 @@ function TaskDialogForm({
   defaultTime,
   defaultDate,
   clickedRecurringDate,
+  defaultCompletionType,
+  defaultGoalYear,
   tags,
   onCreateTag,
   onDeleteTag,
@@ -157,10 +166,117 @@ function TaskDialogForm({
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [subtaskTabIndex, setSubtaskTabIndex] = useState(0);
-  const [completionType, setCompletionType] = useState(task?.completionType || "checkbox");
+  const [completionType, setCompletionType] = useState(task?.completionType || defaultCompletionType || "checkbox");
   const [content, setContent] = useState(task?.content || "");
   const [showScopeDialog, setShowScopeDialog] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(null);
+
+  // Goal-specific state
+  const [goalYear, setGoalYear] = useState(task?.goalYear || defaultGoalYear || new Date().getFullYear());
+  const [goalMonths, setGoalMonths] = useState(task?.goalMonths || []);
+  const [goalData] = useState(task?.goalData || {});
+
+  // Reflection-specific state
+  const [reflectionData, setReflectionData] = useState(() => {
+    const existing = task?.reflectionData || { questions: [] };
+    // Ensure all questions have IDs
+    const questionsWithIds = existing.questions.map((q, idx) => ({
+      ...q,
+      id: q.id || `q-${idx}-${Date.now()}`,
+      order: q.order !== undefined ? q.order : idx,
+    }));
+    return { ...existing, questions: questionsWithIds };
+  });
+  const [selectedTemplate, setSelectedTemplate] = useState("custom");
+
+  // Helper to generate unique question ID
+  const generateQuestionId = useCallback(() => {
+    return `q-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }, []);
+
+  // Load template into questions
+  const handleTemplateSelect = useCallback(
+    templateName => {
+      setSelectedTemplate(templateName);
+      if (templateName === "custom") {
+        // Keep existing questions
+        return;
+      }
+      const template = REFLECTION_TEMPLATES[templateName];
+      if (template) {
+        const questionsWithIds = template.map((q, idx) => ({
+          id: generateQuestionId(),
+          question: q.question,
+          order: q.order !== undefined ? q.order : idx,
+          linkedGoalType: q.linkedGoalType || null,
+        }));
+        setReflectionData(prev => ({ ...prev, questions: questionsWithIds }));
+      }
+    },
+    [generateQuestionId]
+  );
+
+  // Add new question
+  const handleAddQuestion = useCallback(() => {
+    const newQuestion = {
+      id: generateQuestionId(),
+      question: "",
+      order: reflectionData.questions.length,
+      linkedGoalType: null,
+    };
+    setReflectionData(prev => ({
+      ...prev,
+      questions: [...prev.questions, newQuestion],
+    }));
+  }, [reflectionData.questions.length, generateQuestionId]);
+
+  // Remove question
+  const handleRemoveQuestion = useCallback(
+    questionId => {
+      setReflectionData(prev => ({
+        ...prev,
+        questions: prev.questions.filter(q => q.id !== questionId).map((q, idx) => ({ ...q, order: idx })),
+      }));
+      // Reset template to custom if question removed
+      if (selectedTemplate !== "custom") {
+        setSelectedTemplate("custom");
+      }
+    },
+    [selectedTemplate]
+  );
+
+  // Update question
+  const handleUpdateQuestion = useCallback(
+    (questionId, updates) => {
+      setReflectionData(prev => ({
+        ...prev,
+        questions: prev.questions.map(q => (q.id === questionId ? { ...q, ...updates } : q)),
+      }));
+      // Reset template to custom if question edited
+      if (selectedTemplate !== "custom") {
+        setSelectedTemplate("custom");
+      }
+    },
+    [selectedTemplate]
+  );
+
+  // Reorder questions (drag and drop)
+  const handleQuestionDragEnd = useCallback(
+    result => {
+      if (!result.destination) return;
+      const items = Array.from(reflectionData.questions);
+      const [reorderedItem] = items.splice(result.source.index, 1);
+      items.splice(result.destination.index, 0, reorderedItem);
+      // Update order values
+      const reordered = items.map((q, idx) => ({ ...q, order: idx }));
+      setReflectionData(prev => ({ ...prev, questions: reordered }));
+      // Reset template to custom if reordered
+      if (selectedTemplate !== "custom") {
+        setSelectedTemplate("custom");
+      }
+    },
+    [reflectionData.questions, selectedTemplate]
+  );
   // const [workoutBuilderOpen, setWorkoutBuilderOpen] = useState(false);
   // Note: workoutProgram query kept for potential future use
   useGetWorkoutProgramQuery(task?.id, {
@@ -383,6 +499,21 @@ function TaskDialogForm({
       content: content || null,
       // workoutData removed - now saved separately via WorkoutBuilder
       status: recurrenceType === "none" ? status || "todo" : "todo",
+      // Goal-specific fields
+      ...(completionType === "goal" && {
+        goalYear,
+        goalMonths: goalMonths.length > 0 ? goalMonths : null,
+        goalData,
+      }),
+      // Reflection-specific fields
+      ...(completionType === "reflection" && {
+        reflectionData: {
+          ...reflectionData,
+          questions: reflectionData.questions
+            .sort((a, b) => (a.order || 0) - (b.order || 0))
+            .map((q, idx) => ({ ...q, order: idx })), // Ensure order is sequential
+        },
+      }),
     };
 
     // If editing an existing recurring task, check if we need scope decision
@@ -439,6 +570,10 @@ function TaskDialogForm({
     completionType,
     content,
     status,
+    goalYear,
+    goalMonths,
+    goalData,
+    reflectionData,
     performSave,
   ]);
 
@@ -728,6 +863,208 @@ function TaskDialogForm({
                     Notes appear in the Notes tab, not in Backlog/Today/Calendar
                   </Typography>
                 </GLGrid>
+              )}
+
+              {/* Goal-specific fields */}
+              {completionType === "goal" && (
+                <>
+                  <GLGrid item xs={12} sm={6}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Goal Year</InputLabel>
+                      <Select value={goalYear} onChange={e => setGoalYear(e.target.value)} label="Goal Year">
+                        {[...Array(5)].map((_, i) => {
+                          const year = new Date().getFullYear() + i;
+                          return (
+                            <MenuItem key={year} value={year}>
+                              {year}
+                            </MenuItem>
+                          );
+                        })}
+                      </Select>
+                    </FormControl>
+                  </GLGrid>
+
+                  <GLGrid item xs={12} sm={6}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Goal Months (Optional)</InputLabel>
+                      <Select
+                        multiple
+                        value={goalMonths}
+                        onChange={e => setGoalMonths(e.target.value)}
+                        label="Goal Months (Optional)"
+                        renderValue={selected =>
+                          selected
+                            .map(m =>
+                              dayjs()
+                                .month(m - 1)
+                                .format("MMM")
+                            )
+                            .join(", ")
+                        }
+                      >
+                        {[...Array(12)].map((_, i) => (
+                          <MenuItem key={i + 1} value={i + 1}>
+                            {dayjs().month(i).format("MMMM")}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                      Leave empty for yearly goals
+                    </Typography>
+                  </GLGrid>
+
+                  <GLGrid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">
+                      Goals can have sub-goals using the parent task feature. Monthly goals should be sub-goals of
+                      yearly goals.
+                    </Typography>
+                  </GLGrid>
+                </>
+              )}
+
+              {/* Reflection-specific fields */}
+              {completionType === "reflection" && (
+                <>
+                  <GLGrid item xs={12}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Reflection Template</InputLabel>
+                      <Select
+                        value={selectedTemplate}
+                        onChange={e => handleTemplateSelect(e.target.value)}
+                        label="Reflection Template"
+                      >
+                        <MenuItem value="custom">Custom Questions</MenuItem>
+                        <MenuItem value="weekly">Weekly Reflection</MenuItem>
+                        <MenuItem value="monthly">Monthly Reflection</MenuItem>
+                        <MenuItem value="yearly">Yearly Reflection</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </GLGrid>
+
+                  <GLGrid item xs={12}>
+                    <Box>
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                        <Typography variant="body2" fontWeight={500}>
+                          Questions ({reflectionData.questions.length})
+                        </Typography>
+                        <Button
+                          size="small"
+                          startIcon={<Add />}
+                          onClick={handleAddQuestion}
+                          variant="outlined"
+                          sx={{ ml: "auto" }}
+                        >
+                          Add Question
+                        </Button>
+                      </Stack>
+
+                      {reflectionData.questions.length === 0 ? (
+                        <Paper
+                          sx={{
+                            p: 2,
+                            border: 1,
+                            borderColor: "divider",
+                            borderRadius: 1,
+                            bgcolor: "background.default",
+                          }}
+                        >
+                          <Typography variant="body2" color="text.secondary" align="center">
+                            No questions yet. Select a template or add custom questions.
+                          </Typography>
+                        </Paper>
+                      ) : (
+                        <DragDropContext onDragEnd={handleQuestionDragEnd}>
+                          <Droppable droppableId="reflection-questions">
+                            {provided => (
+                              <Stack
+                                {...provided.droppableProps}
+                                ref={provided.innerRef}
+                                spacing={1}
+                                sx={{ maxHeight: 400, overflow: "auto" }}
+                              >
+                                {reflectionData.questions
+                                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                                  .map((question, index) => (
+                                    <Draggable key={question.id} draggableId={question.id} index={index}>
+                                      {provided => (
+                                        <Paper
+                                          ref={provided.innerRef}
+                                          {...provided.draggableProps}
+                                          sx={{
+                                            p: 1.5,
+                                            border: 1,
+                                            borderColor: "divider",
+                                            borderRadius: 1,
+                                            bgcolor: "background.paper",
+                                          }}
+                                        >
+                                          <Stack spacing={1}>
+                                            <Stack direction="row" spacing={1} alignItems="flex-start">
+                                              <Box
+                                                {...provided.dragHandleProps}
+                                                sx={{
+                                                  display: "flex",
+                                                  alignItems: "center",
+                                                  cursor: "grab",
+                                                  color: "text.secondary",
+                                                  "&:active": { cursor: "grabbing" },
+                                                }}
+                                              >
+                                                <DragIndicator fontSize="small" />
+                                              </Box>
+                                              <TextField
+                                                fullWidth
+                                                size="small"
+                                                value={question.question}
+                                                onChange={e =>
+                                                  handleUpdateQuestion(question.id, { question: e.target.value })
+                                                }
+                                                placeholder="Enter question text..."
+                                                variant="outlined"
+                                                multiline
+                                                minRows={1}
+                                              />
+                                              <IconButton
+                                                size="small"
+                                                onClick={() => handleRemoveQuestion(question.id)}
+                                                sx={{ color: "error.main" }}
+                                              >
+                                                <Delete fontSize="small" />
+                                              </IconButton>
+                                            </Stack>
+
+                                            {/* Linked Goal Type Selector */}
+                                            <FormControl size="small" fullWidth>
+                                              <InputLabel>Link to Goals (Optional)</InputLabel>
+                                              <Select
+                                                value={question.linkedGoalType || ""}
+                                                onChange={e =>
+                                                  handleUpdateQuestion(question.id, {
+                                                    linkedGoalType: e.target.value || null,
+                                                  })
+                                                }
+                                                label="Link to Goals (Optional)"
+                                              >
+                                                <MenuItem value="">None</MenuItem>
+                                                <MenuItem value="yearly">Yearly Goals</MenuItem>
+                                                <MenuItem value="monthly">Monthly Goals</MenuItem>
+                                              </Select>
+                                            </FormControl>
+                                          </Stack>
+                                        </Paper>
+                                      )}
+                                    </Draggable>
+                                  ))}
+                                {provided.placeholder}
+                              </Stack>
+                            )}
+                          </Droppable>
+                        </DragDropContext>
+                      )}
+                    </Box>
+                  </GLGrid>
+                </>
               )}
               {/* {completionType === "workout" && (
                 <GLGrid item xs={12}>
@@ -1352,6 +1689,8 @@ export const TaskDialog = () => {
       defaultTime={dialogState.defaultTime}
       defaultDate={dialogState.defaultDate}
       clickedRecurringDate={dialogState.clickedRecurringDate}
+      defaultCompletionType={dialogState.defaultCompletionType}
+      defaultGoalYear={dialogState.defaultGoalYear}
       tags={tags}
       onCreateTag={handleCreateTag}
       onDeleteTag={handleDeleteTag}

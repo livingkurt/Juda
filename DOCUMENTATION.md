@@ -1,5 +1,99 @@
 # Project Decisions Log
 
+## 2026-01-24
+
+### Goals and Reflections System - Phase 1 Implementation
+
+- **ReflectionEntry Component**: Created `components/ReflectionEntry.jsx` to replace text input for reflection-type tasks
+  - Renders each question from `reflectionData.questions` with its own input field
+  - For questions with `linkedGoalType`, shows relevant goals (yearly or monthly) with progress tracking
+  - Each goal displays: title, current status badge, status selector (todo → in_progress → complete), and progress note input
+  - Auto-saves with debounce (500ms) using `useDebouncedSave` hook, similar to JournalDayEntry pattern
+  - Preserves question text with answers in completion record (stored as JSON in `TaskCompletion.note`)
+  - Completion structure: `{ version: 1, completedAt: ISO string, responses: [{ questionId, questionText, answer, goalProgress? }] }`
+  - Goal progress entries include: `goalId`, `goalTitle` (preserved), `status`, `progressNote`
+
+- **TaskItem Integration**: Updated `components/TaskItem.jsx` to render ReflectionEntry for reflection-type tasks
+  - ReflectionEntry appears in Today view and Backlog (same locations as text input tasks)
+  - Uses `onCompleteWithNote` handler for saving (same as text tasks)
+
+- **Journal Tab Integration**: Updated `components/tabs/JournalTab.jsx` and `components/JournalDayEntry.jsx`
+  - JournalTab now filters for both `completionType === "text"` and `completionType === "reflection"`
+  - JournalDayEntry detects reflection tasks and renders ReflectionEntry component instead of text field
+  - ReflectionEntry uses compact mode in journal view
+
+- **Goal Filtering Logic**: ReflectionEntry automatically filters goals based on:
+  - `linkedGoalType === "yearly"`: Shows yearly goals for the current year (no parentId, no goalMonths)
+  - `linkedGoalType === "monthly"`: Shows monthly goals for current month (goalMonths includes current month) or sub-goals
+
+- **Question ID Generation**: Questions without IDs get auto-generated IDs using `q-${order}` pattern
+  - Ensures backward compatibility with templates that may not have IDs
+
+- **State Management**: Uses React state with debounced saves, similar to JournalDayEntry pattern
+  - Tracks focus state to prevent external updates during editing
+  - Syncs with external completion changes when not focused
+  - Handles JSON parsing errors gracefully (falls back to empty state)
+  - **Bug Fix (Round 1)**: Separated save calls from state updates to prevent "Cannot update component during render" errors
+    - Previously: `immediateSave` was called inside `setResponses`, causing parent state updates during render
+    - Now: State updates and save calls are separated, with saves deferred using `setTimeout`
+  - **Bug Fix (Round 2)**: Fixed stale closure issue causing Week 2+ reflections to not update
+    - Previously: `setTimeout` callbacks used stale `responses` from closure, causing UI updates to be lost
+    - Now: Capture updated state in a variable during `setResponses`, then use that captured value in `setTimeout`
+    - Pattern: `let updated; setResponses(prev => { updated = ...; return updated; }); setTimeout(() => save(updated), 0)`
+  - **Bug Fix (Round 3)**: Fixed race condition where `useEffect` was resetting state after save completed
+    - Previously: Save completes → `existingCompletion` updates → `useEffect` resets state to saved value → new input gets lost
+    - Root cause: `focusedRef.current` was `false` when save completed, so `useEffect` thought it was an external change
+    - Now: Added `isSavingRef` flag to track when we're saving, prevent `useEffect` from resetting during save
+    - Pattern: Set `isSavingRef.current = true` before save, keep it true for 100ms after save completes
+  - **Bug Fix (Round 4)**: Fixed React initialization order causing empty `responses` state
+    - Previously: `useState` initializer relied on `questions` from `useMemo`, but `useMemo` runs AFTER `useState`
+    - Result: `responses` initialized as empty array `[]`, so `.map()` couldn't find any questions to update
+    - Root cause: React hooks run in order - `useState` before `useMemo`
+    - Now: Extracted `getQuestions` helper function, call it inline during `useState` initialization
+    - Pattern: Don't rely on other hooks' values in `useState` initializer - compute inline or use helper functions
+
+**Remaining Work for Full Reflection System**:
+- ✅ Phase 2: ReflectionBuilder component for creating/editing reflection templates (integrated into TaskDialog)
+- ✅ Bug Fix: ReflectionData persistence in PUT handler (was missing from task update API)
+- Phase 3: Goal progress API integration (update goals when progress is tracked in reflections)
+- Phase 4: Advanced goal features (GoalYearView, GoalCard components)
+- Phase 5: Question versioning system (preserve old questions when templates change)
+
+### Goals and Reflections System - Phase 2 Implementation
+
+- **Reflection Builder in TaskDialog**: Integrated reflection question editor directly into TaskDialog (not a separate modal)
+  - Template selector dropdown: Custom, Weekly, Monthly, Yearly
+  - When template is selected, loads pre-defined questions from `REFLECTION_TEMPLATES` constant
+  - Questions are automatically assigned unique IDs using timestamp + random string pattern
+  - Questions maintain order field for proper sequencing
+
+- **Question Management Features**:
+  - **Add Question**: Button to add new empty question at the end
+  - **Remove Question**: Delete button on each question card
+  - **Edit Question**: Text field for question text (multiline support)
+  - **Link to Goals**: Dropdown to link question to yearly or monthly goals (optional)
+  - **Drag and Drop Reordering**: Uses `@hello-pangea/dnd` for intuitive question reordering
+  - **Question Count**: Shows total number of questions in header
+
+- **State Management**:
+  - Questions stored in `reflectionData.questions` array
+  - Each question has: `id`, `question` (text), `order`, `linkedGoalType` (null | "yearly" | "monthly")
+  - Template selection resets to "custom" when questions are manually edited/reordered
+  - Questions are sorted by order before saving to ensure consistency
+
+- **UI/UX Details**:
+  - Scrollable question list (max-height: 400px) for long templates
+  - Drag handle icon for visual feedback
+  - Empty state message when no questions exist
+  - Questions displayed in cards with clear visual separation
+  - Compact layout optimized for dialog space
+
+- **Data Persistence**:
+  - Reflection data saved as part of task creation/update
+  - Questions automatically renumbered (order field) on save to ensure sequential ordering
+  - Question IDs preserved across edits (generated once, never changed)
+  - **Bug Fix**: Added `reflectionData`, `goalData`, `goalYear`, and `goalMonths` to PUT handler in `app/api/tasks/route.js` - these fields were missing from task updates, causing reflection questions to not persist when editing existing tasks
+
 ## 2026-01-23
 
 ### Countdown Timer Background Handling

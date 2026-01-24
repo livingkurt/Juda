@@ -65,6 +65,15 @@ const KanbanTab = dynamic(() => import("@/components/tabs/KanbanTab").then(mod =
   ssr: false,
 });
 
+const GoalsTab = dynamic(() => import("@/components/tabs/GoalsTab").then(mod => ({ default: mod.GoalsTab })), {
+  loading: () => (
+    <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <CircularProgress size={48} />
+    </Box>
+  ),
+  ssr: false,
+});
+
 const JournalTab = dynamic(() => import("@/components/tabs/JournalTab").then(mod => ({ default: mod.JournalTab })), {
   loading: () => (
     <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -334,13 +343,15 @@ export default function DailyTasksApp() {
 
           {(mainTabIndex === 1 || loadingTab === 1) && <KanbanTab isLoading={loadingTab === 1} />}
 
-          {(mainTabIndex === 2 || loadingTab === 2) && <JournalTab isLoading={loadingTab === 2} />}
+          {(mainTabIndex === 2 || loadingTab === 2) && <GoalsTab isLoading={loadingTab === 2} />}
 
-          {(mainTabIndex === 3 || loadingTab === 3) && <NotesTab isLoading={loadingTab === 3} />}
+          {(mainTabIndex === 3 || loadingTab === 3) && <JournalTab isLoading={loadingTab === 3} />}
 
-          {(mainTabIndex === 4 || loadingTab === 4) && <WorkoutTab isLoading={loadingTab === 4} />}
+          {(mainTabIndex === 4 || loadingTab === 4) && <NotesTab isLoading={loadingTab === 4} />}
 
-          {(mainTabIndex === 5 || loadingTab === 5) && <HistoryTab isLoading={loadingTab === 5} />}
+          {(mainTabIndex === 5 || loadingTab === 5) && <WorkoutTab isLoading={loadingTab === 5} />}
+
+          {(mainTabIndex === 6 || loadingTab === 6) && <HistoryTab isLoading={loadingTab === 6} />}
         </Box>
       </Box>
 

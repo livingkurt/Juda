@@ -295,6 +295,13 @@
       "when": 1769097080605,
       "tag": "0041_add_task_priority",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1769274330532,
+      "tag": "0042_add_goals_reflections",
+      "breakpoints": true
     }
   ]
 }

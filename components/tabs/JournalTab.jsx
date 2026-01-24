@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useMemo, memo } from "react";
-import { Box, CircularProgress, Button, Stack } from "@mui/material";
-import { Add } from "@mui/icons-material";
+import { Box, CircularProgress, Stack } from "@mui/material";
 import dayjs from "dayjs";
 import { shouldShowOnDate as checkTaskShouldShowOnDate } from "@/lib/utils";
 import { DateNavigation } from "@/components/DateNavigation";
@@ -74,9 +73,9 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
     return Array.from({ length: 5 }, (_, i) => current - i);
   }, [selectedDate]);
 
-  // Filter all text input tasks (no tag filtering)
+  // Filter text input and reflection tasks (no tag filtering)
   const journalTasks = useMemo(() => {
-    return tasks.filter(task => task.completionType === "text");
+    return tasks.filter(task => task.completionType === "text" || task.completionType === "reflection");
   }, [tasks]);
 
   // Handle saving journal entries

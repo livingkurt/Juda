@@ -5,6 +5,7 @@ import { Box, Tabs, Tab } from "@mui/material";
 import {
   CheckBox as CheckSquare,
   ViewColumn as Columns,
+  Flag as FlagIcon,
   MenuBook as BookOpen,
   Note as StickyNote,
   FitnessCenter,
@@ -70,6 +71,12 @@ export function MainTabs() {
           icon={<Columns fontSize="small" />}
           iconPosition="start"
           label="Kanban"
+          sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
+        />
+        <Tab
+          icon={<FlagIcon fontSize="small" />}
+          iconPosition="start"
+          label="Goals"
           sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
         />
         <Tab
