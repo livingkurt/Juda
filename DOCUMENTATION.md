@@ -51,6 +51,11 @@
     - Root cause: React hooks run in order - `useState` before `useMemo`
     - Now: Extracted `getQuestions` helper function, call it inline during `useState` initialization
     - Pattern: Don't rely on other hooks' values in `useState` initializer - compute inline or use helper functions
+  - **Bug Fix (Round 5)**: Fixed empty array check in initialization
+    - Previously: `existingData?.responses && Array.isArray(existingData.responses)` returned true for empty arrays `[]`
+    - Result: Week 2 (which had been saved with empty responses) initialized with `[]` instead of question templates
+    - Now: Added length check: `existingData.responses.length > 0` before using existing data
+    - Also added same check to `useEffect` sync logic to prevent resetting to empty arrays
 
 **Remaining Work for Full Reflection System**:
 - ✅ Phase 2: ReflectionBuilder component for creating/editing reflection templates (integrated into TaskDialog)
