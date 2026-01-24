@@ -6,9 +6,13 @@ import { Add, ExpandMore, ChevronRight, MoreVert } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 import { TaskContextMenu } from "./TaskContextMenu";
+import { ReflectionEntry } from "./ReflectionEntry";
+import dayjs from "dayjs";
 
 export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave, viewType = "day" }) => {
   const theme = useTheme();
+  const isReflectionTask = task.completionType === "reflection";
+
   // Initialize state from props - state will reset when key changes (completion note changes)
   const currentNote = completion?.note || "";
   const [noteInput, setNoteInput] = useState(currentNote);
@@ -166,7 +170,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
   const isWorkoutTask = task.completionType === "workout";
   const outcome = completion?.outcome || null;
-  const isSubtask = !!task.parentId;
+  const isSubtask = Boolean(task.parentId);
 
   // Check if task existed in this year (simplified - assumes task exists if it's recurring or created before year end)
   const taskExistedThisYear = true; // For now, assume all journal tasks exist in all years
@@ -257,7 +261,22 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
 
         {/* Collapsible content */}
         <Collapse in={expanded}>
-          {isCurrentYear ? (
+          {isReflectionTask ? (
+            // Render ReflectionEntry for reflection tasks
+            <Box sx={{ mt: 2 }}>
+              <ReflectionEntry
+                task={task}
+                date={date}
+                existingCompletion={completion}
+                onSave={async (taskId, noteJson) => {
+                  // onSave signature from JournalTab: (taskId, date, note)
+                  const dateStr = typeof date === "string" ? date : dayjs(date).format("YYYY-MM-DD");
+                  await onSave(taskId, dateStr, noteJson);
+                }}
+                compact={true}
+              />
+            </Box>
+          ) : isCurrentYear ? (
             <>
               {showTextarea ? (
                 <TextField

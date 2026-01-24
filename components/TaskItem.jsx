@@ -31,6 +31,7 @@ import { useDialogState } from "@/hooks/useDialogState";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { useTheme } from "@/hooks/useTheme";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
+import { ReflectionEntry } from "./ReflectionEntry";
 
 // Small component to handle text input with state that resets on date change
 const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }) => {
@@ -318,6 +319,7 @@ export const TaskItem = ({
   // Get existing completion data for text-type tasks
   const existingCompletion = getCompletionForDate?.(task.id, viewDate);
   const isTextTask = task.completionType === "text";
+  const isReflectionTask = task.completionType === "reflection";
   const isWorkoutTask = task.completionType === "workout";
   const isNotCompleted = existingCompletion?.outcome === "not_completed" || false;
   const savedNote = existingCompletion?.note || "";
@@ -649,6 +651,18 @@ export const TaskItem = ({
                 />
               </Box>
             )}
+            {/* Reflection Entry for reflection-type tasks */}
+            {isReflectionTask && (isToday || isBacklog) && (
+              <Box sx={{ width: "100%", mt: 1 }} key={`reflection-entry-${task.id}-${viewDate?.toISOString()}`}>
+                <ReflectionEntry
+                  task={task}
+                  date={viewDate}
+                  existingCompletion={existingCompletion}
+                  onSave={onCompleteWithNote}
+                  compact={false}
+                />
+              </Box>
+            )}
             {/* Badges - show for backlog and today variants */}
             {(isBacklog || isToday) && (
               <Stack
@@ -684,6 +698,47 @@ export const TaskItem = ({
                     sx={{
                       height: 20,
                       fontSize: { xs: "0.625rem", md: "0.75rem" },
+                    }}
+                  />
+                )}
+                {/* Goal-specific badges */}
+                {task.completionType === "goal" && (
+                  <>
+                    <Chip
+                      label={`Goal ${task.goalYear || ""}`}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: { xs: "0.625rem", md: "0.75rem" },
+                        bgcolor: "primary.main",
+                        color: "primary.contrastText",
+                      }}
+                    />
+                    {task.goalMonths && task.goalMonths.length > 0 && (
+                      <Chip
+                        label={task.goalMonths
+                          .map(m => new Date(2000, m - 1).toLocaleString("default", { month: "short" }))
+                          .join(", ")}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          height: 20,
+                          fontSize: { xs: "0.625rem", md: "0.75rem" },
+                        }}
+                      />
+                    )}
+                  </>
+                )}
+                {/* Reflection badge */}
+                {task.completionType === "reflection" && (
+                  <Chip
+                    label="Reflection"
+                    size="small"
+                    sx={{
+                      height: 20,
+                      fontSize: { xs: "0.625rem", md: "0.75rem" },
+                      bgcolor: "secondary.main",
+                      color: "secondary.contrastText",
                     }}
                   />
                 )}

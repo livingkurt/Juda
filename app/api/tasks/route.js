@@ -90,6 +90,10 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     rolledFromDate,
     isRollover,
     isOffSchedule,
+    goalData,
+    reflectionData,
+    goalYear,
+    goalMonths,
   } = body;
 
   // Validate section exists if sectionId is provided
@@ -101,6 +105,25 @@ export const POST = withApi(async (request, { userId, getBody }) => {
 
     if (!section) {
       throw Errors.notFound("Section");
+    }
+  }
+
+  // Validate goal-specific data
+  if (completionType === "goal") {
+    if (parentId) {
+      const parentTask = await db.query.tasks.findFirst({
+        where: and(eq(tasks.id, parentId), eq(tasks.userId, userId)),
+      });
+      if (!parentTask || parentTask.completionType !== "goal") {
+        throw Errors.badRequest("Parent task must also be a goal");
+      }
+    }
+  }
+
+  // Validate reflection-specific data
+  if (completionType === "reflection" && reflectionData) {
+    if (!reflectionData.questions || !Array.isArray(reflectionData.questions)) {
+      throw Errors.badRequest("Reflection data must contain a questions array");
     }
   }
 
@@ -129,6 +152,10 @@ export const POST = withApi(async (request, { userId, getBody }) => {
         rolledFromDate: rolledFromDate ? new Date(rolledFromDate) : null,
         isRollover: isRollover || false,
         isOffSchedule: isOffSchedule || false,
+        goalData: goalData || null,
+        reflectionData: reflectionData || null,
+        goalYear: goalYear || null,
+        goalMonths: goalMonths || null,
       })
       .returning();
 
@@ -197,6 +224,10 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     completionType,
     content,
     folderId,
+    goalData,
+    reflectionData,
+    goalYear,
+    goalMonths,
   } = body;
 
   validateRequired(body, ["id"]);
@@ -247,7 +278,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     updateData.startedAt = startedAt ? new Date(startedAt) : null;
   }
   if (completionType !== undefined) {
-    validateEnum("completionType", completionType, ["checkbox", "text", "note", "workout"]);
+    validateEnum("completionType", completionType, ["checkbox", "text", "note", "workout", "goal", "reflection"]);
     updateData.completionType = completionType;
   }
   if (content !== undefined) updateData.content = content;
@@ -259,6 +290,22 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
       validateEnum("priority", priority, ["low", "medium", "high", "urgent"]);
       updateData.priority = priority;
     }
+  }
+
+  // Goal-specific fields
+  if (goalData !== undefined) updateData.goalData = goalData;
+  if (goalYear !== undefined) updateData.goalYear = goalYear;
+  if (goalMonths !== undefined) updateData.goalMonths = goalMonths;
+
+  // Reflection-specific fields
+  if (reflectionData !== undefined) {
+    // Validate reflection data structure
+    if (completionType === "reflection" && reflectionData) {
+      if (!reflectionData.questions || !Array.isArray(reflectionData.questions)) {
+        throw Errors.badRequest("Reflection data must contain a questions array");
+      }
+    }
+    updateData.reflectionData = reflectionData;
   }
 
   if (Object.keys(updateData).length === 0) {
