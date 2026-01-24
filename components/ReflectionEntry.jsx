@@ -44,14 +44,7 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
 
   // Get questions from task reflectionData
   const questions = useMemo(() => {
-    const qs = getQuestions(task);
-    console.log("ReflectionEntry: Computing questions", {
-      taskId: task.id,
-      hasReflectionData: Boolean(task.reflectionData),
-      questionsCount: qs.length,
-      questions: qs,
-    });
-    return qs;
+    return getQuestions(task);
   }, [task, getQuestions]);
 
   // Get all goals for filtering
@@ -64,14 +57,6 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
   const [responses, setResponses] = useState(() => {
     // Compute questions inline for initialization
     const initialQuestions = getQuestions(task);
-    console.log("ReflectionEntry: Initializing state", {
-      taskId: task.id,
-      taskTitle: task.title,
-      hasExistingData: Boolean(existingData),
-      existingResponses: existingData?.responses,
-      initialQuestionsLength: initialQuestions.length,
-      initialQuestions,
-    });
     const initialState =
       existingData?.responses && Array.isArray(existingData.responses) && existingData.responses.length > 0
         ? existingData.responses
@@ -81,11 +66,6 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
             answer: "",
             goalProgress: q.linkedGoalType ? [] : undefined,
           }));
-    console.log("ReflectionEntry: Initial state computed", {
-      taskId: task.id,
-      taskTitle: task.title,
-      initialState,
-    });
     return initialState;
   });
 
@@ -97,26 +77,16 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
   // Sync with external changes when not focused and not saving
   useEffect(() => {
     if (prevSavedDataRef.current !== existingCompletion?.note && !focusedRef.current && !isSavingRef.current) {
-      console.log("⚠️ ReflectionEntry: RESETTING STATE from external change", {
-        taskId: task.id,
-        taskTitle: task.title,
-        focused: focusedRef.current,
-        saving: isSavingRef.current,
-        prevNote: prevSavedDataRef.current?.substring(0, 100),
-        newNote: existingCompletion?.note?.substring(0, 100),
-        newResponses: existingData?.responses,
-      });
       prevSavedDataRef.current = existingCompletion?.note;
-      if (existingData?.responses) {
+      if (existingData?.responses && existingData.responses.length > 0) {
         // Defer setState to avoid synchronous setState in effect
         const timeoutId = setTimeout(() => {
-          console.log("⚠️ ReflectionEntry: Actually resetting state now", existingData.responses);
           setResponses(existingData.responses);
         }, 0);
         return () => clearTimeout(timeoutId);
       }
     }
-  }, [existingCompletion?.note, existingData, task.id, task.title]);
+  }, [existingCompletion?.note, existingData]);
 
   // Build completion data structure
   const buildCompletionData = useCallback(currentResponses => {
@@ -137,26 +107,15 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
     async currentResponses => {
       const completionData = buildCompletionData(currentResponses);
       const noteJson = JSON.stringify(completionData);
-      console.log("saveReflection called", {
-        taskId: task.id,
-        taskTitle: task.title,
-        currentResponses,
-        noteJson: noteJson.substring(0, 100),
-        prevSaved: prevSavedDataRef.current?.substring(0, 100),
-        willSave: noteJson !== prevSavedDataRef.current,
-      });
       if (noteJson !== prevSavedDataRef.current) {
         try {
           isSavingRef.current = true;
-          console.log("💾 saveReflection: Starting save, isSavingRef = true");
           // onSave signature: (taskId, note) - date is handled by the caller
           await onSave(task.id, noteJson);
           prevSavedDataRef.current = noteJson;
-          console.log("💾 saveReflection: Save completed, keeping isSavingRef = true for 100ms");
           // Keep isSavingRef true for a bit to prevent race condition with useEffect
           setTimeout(() => {
             isSavingRef.current = false;
-            console.log("💾 saveReflection: isSavingRef = false now");
           }, 100);
         } catch (error) {
           console.error("Failed to save reflection:", error);
@@ -168,7 +127,7 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
         }
       }
     },
-    [task.id, task.title, onSave, buildCompletionData, existingData]
+    [task.id, onSave, buildCompletionData, existingData]
   );
 
   const { debouncedSave, immediateSave } = useDebouncedSave(saveReflection, 500);
@@ -176,25 +135,21 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
   // Update response answer
   const handleAnswerChange = useCallback(
     (questionId, answer) => {
-      console.log("handleAnswerChange called", { questionId, answer, taskId: task.id });
       // Update state and capture the new value
       let updatedResponses;
       setResponses(prev => {
-        console.log("handleAnswerChange: prev state", prev);
         updatedResponses = prev.map(r => (r.questionId === questionId ? { ...r, answer } : r));
-        console.log("handleAnswerChange: new state", updatedResponses);
         return updatedResponses;
       });
 
       // Save separately (not inside setResponses)
       setTimeout(() => {
         if (updatedResponses) {
-          console.log("handleAnswerChange: triggering debounced save", updatedResponses);
           debouncedSave(updatedResponses);
         }
       }, 0);
     },
-    [debouncedSave, task.id]
+    [debouncedSave]
   );
 
   // Update goal progress for a question
