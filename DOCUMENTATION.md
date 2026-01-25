@@ -101,6 +101,16 @@
       - Monthly goals (subtasks) now show all their badges including year and months
       - Ensures consistent information display across parent and child goals
 
+### Subtask Tag Inheritance (Visual Display)
+
+- **Display Parent Tags on Subtasks**: Updated `components/TaskItem.jsx`
+  - Subtasks without tags automatically display their parent's tags
+  - Uses `useMemo` to compute `displayTags` based on parent lookup
+  - If subtask has `parentId` and no tags, fetches parent from `allTasks` and uses parent's tags
+  - Makes subtasks visually consistent with parent (same color coding)
+  - Frontend-only change - doesn't modify database, just display
+  - Universal change affecting all subtasks across the application
+
 - **TaskDialog Parent Goal Requirement**: Enhanced `components/TaskDialog.jsx` for monthly goals
   - Added `parentId` state to track parent goal selection
   - Monthly goals (goals with `goalMonths` selected) now require a parent yearly goal

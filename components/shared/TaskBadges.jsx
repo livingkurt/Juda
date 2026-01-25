@@ -159,7 +159,7 @@ export const TaskBadges = ({
         />
       )}
 
-      {showNoTime && hasNoTime && (
+      {/* {showNoTime && hasNoTime && (
         <Chip
           label="No time"
           color="warning"
@@ -173,7 +173,7 @@ export const TaskBadges = ({
             },
           }}
         />
-      )}
+      )} */}
 
       {isOffScheduleTask && (
         <Chip
