@@ -33,7 +33,18 @@ export function GoalsTab({ isLoading }) {
 
     // Only return yearly goals (no parentId), sorted by order
     // Monthly goals will be displayed as subtasks within their parent yearly goal
-    return goalTasks.filter(g => !g.parentId).sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+    // Use stable sort: first by order, then by id for consistent ordering
+    return goalTasks
+      .filter(g => !g.parentId)
+      .sort((a, b) => {
+        const orderA = a.order ?? 999;
+        const orderB = b.order ?? 999;
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+        // If orders are equal, sort by id for stable ordering
+        return a.id.localeCompare(b.id);
+      });
   }, [allTasks, selectedYear]);
 
   const handleCreateGoal = () => {
