@@ -341,15 +341,15 @@ export default function DailyTasksApp() {
         <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}>
           {(mainTabIndex === 0 || loadingTab === 0) && <TasksTab />}
 
-          {(mainTabIndex === 1 || loadingTab === 1) && <KanbanTab isLoading={loadingTab === 1} />}
+          {(mainTabIndex === 1 || loadingTab === 1) && <GoalsTab isLoading={loadingTab === 1} />}
 
-          {(mainTabIndex === 2 || loadingTab === 2) && <GoalsTab isLoading={loadingTab === 2} />}
+          {(mainTabIndex === 2 || loadingTab === 2) && <JournalTab isLoading={loadingTab === 2} />}
 
-          {(mainTabIndex === 3 || loadingTab === 3) && <JournalTab isLoading={loadingTab === 3} />}
+          {(mainTabIndex === 3 || loadingTab === 3) && <NotesTab isLoading={loadingTab === 3} />}
 
-          {(mainTabIndex === 4 || loadingTab === 4) && <NotesTab isLoading={loadingTab === 4} />}
+          {(mainTabIndex === 4 || loadingTab === 4) && <WorkoutTab isLoading={loadingTab === 4} />}
 
-          {(mainTabIndex === 5 || loadingTab === 5) && <WorkoutTab isLoading={loadingTab === 5} />}
+          {(mainTabIndex === 5 || loadingTab === 5) && <KanbanTab isLoading={loadingTab === 5} />}
 
           {(mainTabIndex === 6 || loadingTab === 6) && <HistoryTab isLoading={loadingTab === 6} />}
         </Box>
