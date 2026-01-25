@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, memo } from "react";
+import { useEffect, useMemo, memo } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Box, CircularProgress, Stack } from "@mui/material";
 import dayjs from "dayjs";
 import { shouldShowOnDate as checkTaskShouldShowOnDate } from "@/lib/utils";
@@ -13,10 +14,22 @@ import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useCreateCompletionMutation, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { setJournalView, setJournalSelectedDate } from "@/lib/store/slices/uiSlice";
 
 export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
-  const [selectedDate, setSelectedDate] = useState(dayjs());
-  const [currentView, setCurrentView] = useState("day");
+  const dispatch = useDispatch();
+
+  // Get state from Redux (synced with URL)
+  const journalView = useSelector(state => state.ui.journalView || "day");
+  const journalSelectedDateISO = useSelector(state => state.ui.journalSelectedDate);
+
+  // Convert ISO string to dayjs object
+  const selectedDate = useMemo(() => {
+    if (journalSelectedDateISO) {
+      return dayjs(journalSelectedDateISO);
+    }
+    return dayjs();
+  }, [journalSelectedDateISO]);
 
   // Get data from Redux
   const { data: tasks = [] } = useGetTasksQuery();
@@ -29,42 +42,62 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
 
   const currentYear = dayjs().year();
 
+  // Initialize Redux state from URL on mount if not set
+  useEffect(() => {
+    if (!journalSelectedDateISO) {
+      dispatch(setJournalSelectedDate(dayjs().toISOString()));
+    }
+  }, [dispatch, journalSelectedDateISO]);
+
   // Convert dayjs to Date for DateNavigation
   const selectedDateAsDate = useMemo(() => {
     return selectedDate.toDate();
   }, [selectedDate]);
 
-  // Navigate dates - convert Date back to dayjs
+  // Navigate dates - update Redux state
   const handleDateChange = date => {
-    setSelectedDate(dayjs(date));
+    dispatch(setJournalSelectedDate(dayjs(date).toISOString()));
   };
 
   const handlePrev = () => {
-    if (currentView === "day") {
-      setSelectedDate(d => d.subtract(1, "day"));
-    } else if (currentView === "week") {
-      setSelectedDate(d => d.subtract(1, "week"));
-    } else if (currentView === "month") {
-      setSelectedDate(d => d.subtract(1, "month"));
-    } else if (currentView === "year") {
-      setSelectedDate(d => d.subtract(1, "year"));
+    let newDate;
+    if (journalView === "day") {
+      newDate = selectedDate.subtract(1, "day");
+    } else if (journalView === "week") {
+      newDate = selectedDate.subtract(1, "week");
+    } else if (journalView === "month") {
+      newDate = selectedDate.subtract(1, "month");
+    } else if (journalView === "year") {
+      newDate = selectedDate.subtract(1, "year");
+    } else {
+      newDate = selectedDate.subtract(1, "day");
     }
+    dispatch(setJournalSelectedDate(newDate.toISOString()));
   };
 
   const handleNext = () => {
-    if (currentView === "day") {
-      setSelectedDate(d => d.add(1, "day"));
-    } else if (currentView === "week") {
-      setSelectedDate(d => d.add(1, "week"));
-    } else if (currentView === "month") {
-      setSelectedDate(d => d.add(1, "month"));
-    } else if (currentView === "year") {
-      setSelectedDate(d => d.add(1, "year"));
+    let newDate;
+    if (journalView === "day") {
+      newDate = selectedDate.add(1, "day");
+    } else if (journalView === "week") {
+      newDate = selectedDate.add(1, "week");
+    } else if (journalView === "month") {
+      newDate = selectedDate.add(1, "month");
+    } else if (journalView === "year") {
+      newDate = selectedDate.add(1, "year");
+    } else {
+      newDate = selectedDate.add(1, "day");
     }
+    dispatch(setJournalSelectedDate(newDate.toISOString()));
   };
 
   const handleToday = () => {
-    setSelectedDate(dayjs());
+    dispatch(setJournalSelectedDate(dayjs().toISOString()));
+  };
+
+  // Handle view change - update Redux state
+  const handleViewChange = newView => {
+    dispatch(setJournalView(newView));
   };
 
   // Get years to display (current year and 4 previous years)
@@ -167,8 +200,8 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
               showDateDisplay={true}
               showViewSelector={true}
               viewCollection={viewOptions}
-              selectedView={currentView}
-              onViewChange={setCurrentView}
+              selectedView={journalView}
+              onViewChange={handleViewChange}
               viewSelectorWidth="100px"
             />
           </Box>
@@ -176,7 +209,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
       </Box>
 
       {/* Content */}
-      {currentView === "day" && (
+      {journalView === "day" && (
         <JournalDayView
           selectedDate={selectedDate}
           years={years}
@@ -188,7 +221,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           onNewJournalEntry={handleNewJournalEntry}
         />
       )}
-      {currentView === "week" && (
+      {journalView === "week" && (
         <JournalWeekView
           selectedDate={selectedDate}
           years={years}
@@ -200,7 +233,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           onNewJournalEntry={handleNewJournalEntry}
         />
       )}
-      {currentView === "month" && (
+      {journalView === "month" && (
         <JournalMonthView
           selectedDate={selectedDate}
           years={years}
@@ -212,7 +245,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           onNewJournalEntry={handleNewJournalEntry}
         />
       )}
-      {currentView === "year" && (
+      {journalView === "year" && (
         <JournalYearView
           selectedDate={selectedDate}
           years={years}

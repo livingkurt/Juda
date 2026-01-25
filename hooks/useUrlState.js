@@ -55,7 +55,7 @@ export function useUrlState() {
     for (const [urlKey, config] of activeParams) {
       const reduxValue = uiState[config.reduxKey];
       const serialized = config.serialize(reduxValue);
-      if (serialized !== null && !isDefaultValue(config, reduxValue)) {
+      if (serialized !== null && serialized !== undefined && !isDefaultValue(config, reduxValue)) {
         params.set(urlKey, serialized);
       }
     }
@@ -94,7 +94,7 @@ export function useShareableUrl() {
   for (const [urlKey, config] of activeParams) {
     const reduxValue = uiState[config.reduxKey];
     const serialized = config.serialize(reduxValue);
-    if (serialized !== null && !isDefaultValue(config, reduxValue)) {
+    if (serialized !== null && serialized !== undefined && !isDefaultValue(config, reduxValue)) {
       params.set(urlKey, serialized);
     }
   }
