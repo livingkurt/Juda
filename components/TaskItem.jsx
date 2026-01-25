@@ -1,7 +1,19 @@
 "use client";
 
 import { useState, useRef, useEffect, memo, useMemo } from "react";
-import { Box, Typography, Stack, IconButton, TextField, Menu, Button, Chip, Collapse, Paper } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Stack,
+  IconButton,
+  TextField,
+  Menu,
+  Button,
+  Chip,
+  Collapse,
+  Paper,
+  Autocomplete,
+} from "@mui/material";
 import { Draggable } from "@hello-pangea/dnd";
 import {
   ExpandMore,
@@ -71,7 +83,7 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }
     }
   };
 
-  const { debouncedSave, immediateSave, isSaving: _isSaving, justSaved: _justSaved } = useDebouncedSave(saveNote, 500);
+  const { immediateSave } = useDebouncedSave(saveNote, 500);
 
   const handleChange = e => {
     const newValue = e.target.value;
@@ -139,6 +151,95 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }
               cursor: "not-allowed",
             },
           },
+        }}
+      />
+      {isNotCompleted && (
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+          Not Completed
+        </Typography>
+      )}
+    </Box>
+  );
+};
+
+// Component to handle selection input with autocomplete dropdown
+const SelectionInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote, options = [] }) => {
+  const [selectedValue, setSelectedValue] = useState(savedNote || null);
+  const [isFocused, setIsFocused] = useState(false);
+  const prevSavedNoteRef = useRef(savedNote);
+
+  // Sync with savedNote when it changes (e.g., after save or date change)
+  useEffect(() => {
+    if (prevSavedNoteRef.current !== savedNote && !isFocused) {
+      prevSavedNoteRef.current = savedNote;
+      const timeoutId = setTimeout(() => {
+        setSelectedValue(savedNote || null);
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [savedNote, isFocused]);
+
+  // Save function wrapper
+  const saveSelection = value => {
+    const valueStr = value || "";
+    if (valueStr.trim() && valueStr.trim() !== savedNote) {
+      onCompleteWithNote?.(taskId, valueStr.trim());
+    } else if (!valueStr && savedNote) {
+      // Clear selection
+      onCompleteWithNote?.(taskId, "");
+    }
+  };
+
+  const { debouncedSave, immediateSave } = useDebouncedSave(saveSelection, 300);
+
+  const handleChange = (event, newValue) => {
+    setSelectedValue(newValue);
+    immediateSave(newValue);
+  };
+
+  return (
+    <Box sx={{ position: "relative", width: "100%" }}>
+      <Autocomplete
+        options={options}
+        value={selectedValue}
+        onChange={handleChange}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => {
+          setIsFocused(false);
+          prevSavedNoteRef.current = savedNote;
+          immediateSave(selectedValue);
+        }}
+        disabled={isNotCompleted}
+        size="small"
+        renderInput={params => (
+          <TextField
+            {...params}
+            variant="standard"
+            placeholder="Select an option..."
+            onClick={e => e.stopPropagation()}
+            onMouseDown={e => e.stopPropagation()}
+            InputProps={{
+              ...params.InputProps,
+              disableUnderline: true,
+              sx: {
+                fontSize: "0.875rem",
+                px: 0,
+                py: 0.5,
+                "& .MuiInputBase-input.Mui-disabled": {
+                  opacity: 0.5,
+                  cursor: "not-allowed",
+                },
+              },
+            }}
+          />
+        )}
+        sx={{
+          "& .MuiAutocomplete-inputRoot": {
+            padding: "0 !important",
+          },
+        }}
+        onKeyDown={e => {
+          e.stopPropagation();
         }}
       />
       {isNotCompleted && (
@@ -332,10 +433,17 @@ export const TaskItem = ({
   // Get existing completion data for text-type tasks
   const existingCompletion = getCompletionForDate?.(task.id, viewDate);
   const isTextTask = task.completionType === "text";
+  const isSelectionTask = task.completionType === "selection";
   const isReflectionTask = task.completionType === "reflection";
   const isWorkoutTask = task.completionType === "workout";
   const isNotCompleted = existingCompletion?.outcome === "not_completed" || false;
   const savedNote = existingCompletion?.note || "";
+
+  // Get selection options from task
+  const selectionOptions = useMemo(() => {
+    if (!isSelectionTask || !task.selectionData?.options) return [];
+    return task.selectionData.options.filter(opt => opt && opt.trim() !== "");
+  }, [isSelectionTask, task.selectionData]);
 
   // For workout tasks, only mark complete if outcome is explicitly "completed" (not "in_progress")
   const isWorkoutTaskCompleted = isWorkoutTask && existingCompletion?.outcome === "completed";
@@ -359,6 +467,12 @@ export const TaskItem = ({
   // For text tasks, completion status comes from the completion record, not task.completed
   const isTextTaskCompleted =
     isTextTask &&
+    (existingCompletion?.outcome === "completed" ||
+      (existingCompletion && existingCompletion.outcome !== "not_completed" && existingCompletion.note));
+
+  // For selection tasks, completion status comes from the completion record
+  const isSelectionTaskCompleted =
+    isSelectionTask &&
     (existingCompletion?.outcome === "completed" ||
       (existingCompletion && existingCompletion.outcome !== "not_completed" && existingCompletion.note));
 
@@ -401,6 +515,19 @@ export const TaskItem = ({
         return;
       }
       // For text tasks, use outcome change handler
+      if (onOutcomeChange) {
+        onOutcomeChange(task.id, viewDate, newOutcome);
+      }
+      return;
+    }
+
+    // For selection tasks, handle completion with selected value
+    if (isSelectionTask) {
+      if (newOutcome === "completed" && !isSelectionTaskCompleted && savedNote.trim()) {
+        onCompleteWithNote?.(task.id, savedNote.trim());
+        return;
+      }
+      // For selection tasks, use outcome change handler
       if (onOutcomeChange) {
         onOutcomeChange(task.id, viewDate, newOutcome);
       }
@@ -549,22 +676,28 @@ export const TaskItem = ({
                     // For text tasks, use outcome from completion record
                     isTextTask
                       ? existingCompletion?.outcome || null
-                      : // For workout tasks, use outcome from completion
-                        isWorkoutTask
-                        ? outcome
-                        : // For regular tasks, use outcome or null
-                          outcome
+                      : // For selection tasks, use outcome from completion record
+                        isSelectionTask
+                        ? existingCompletion?.outcome || null
+                        : // For workout tasks, use outcome from completion
+                          isWorkoutTask
+                          ? outcome
+                          : // For regular tasks, use outcome or null
+                            outcome
                   }
                   onOutcomeChange={handleOutcomeChange}
                   isChecked={
                     // For text tasks, show checked if completed (even without explicit outcome)
                     isTextTask
                       ? isTextTaskCompleted
-                      : // For workout tasks, show checked if completed
-                        isWorkoutTask
-                        ? isWorkoutTaskCompleted
-                        : // For non-recurring tasks without outcomes, use isChecked
-                          !shouldShowMenu && isChecked
+                      : // For selection tasks, show checked if completed
+                        isSelectionTask
+                        ? isSelectionTaskCompleted
+                        : // For workout tasks, show checked if completed
+                          isWorkoutTask
+                          ? isWorkoutTaskCompleted
+                          : // For non-recurring tasks without outcomes, use isChecked
+                            !shouldShowMenu && isChecked
                   }
                   disabled={false}
                   size="lg"
@@ -662,6 +795,18 @@ export const TaskItem = ({
                   savedNote={savedNote}
                   isNotCompleted={isNotCompleted}
                   onCompleteWithNote={onCompleteWithNote}
+                />
+              </Box>
+            )}
+            {/* Selection Input for selection-type tasks */}
+            {isSelectionTask && (isToday || isBacklog) && (
+              <Box sx={{ width: "100%", mt: 1 }} key={`selection-input-${task.id}-${viewDate?.toISOString()}`}>
+                <SelectionInputTask
+                  taskId={task.id}
+                  savedNote={savedNote}
+                  isNotCompleted={isNotCompleted}
+                  onCompleteWithNote={onCompleteWithNote}
+                  options={selectionOptions}
                 />
               </Box>
             )}

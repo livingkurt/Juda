@@ -190,6 +190,12 @@ function TaskDialogForm({
   });
   const [selectedTemplate, setSelectedTemplate] = useState("custom");
 
+  // Selection-specific state
+  const [selectionData, setSelectionData] = useState(() => {
+    const existing = task?.selectionData || { options: [] };
+    return { ...existing, options: existing.options || [] };
+  });
+
   // Helper to generate unique question ID
   const generateQuestionId = useCallback(() => {
     return `q-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -277,6 +283,40 @@ function TaskDialogForm({
       }
     },
     [reflectionData.questions, selectedTemplate]
+  );
+
+  // Selection-specific handlers
+  const handleAddSelectionOption = useCallback(() => {
+    setSelectionData(prev => ({
+      ...prev,
+      options: [...(prev.options || []), ""],
+    }));
+  }, []);
+
+  const handleRemoveSelectionOption = useCallback(index => {
+    setSelectionData(prev => ({
+      ...prev,
+      options: prev.options.filter((_, i) => i !== index),
+    }));
+  }, []);
+
+  const handleUpdateSelectionOption = useCallback((index, value) => {
+    setSelectionData(prev => ({
+      ...prev,
+      options: prev.options.map((opt, i) => (i === index ? value : opt)),
+    }));
+  }, []);
+
+  // Reorder selection options (drag and drop)
+  const handleSelectionOptionDragEnd = useCallback(
+    result => {
+      if (!result.destination) return;
+      const items = Array.from(selectionData.options || []);
+      const [reorderedItem] = items.splice(result.source.index, 1);
+      items.splice(result.destination.index, 0, reorderedItem);
+      setSelectionData(prev => ({ ...prev, options: items }));
+    },
+    [selectionData.options]
   );
   // const [workoutBuilderOpen, setWorkoutBuilderOpen] = useState(false);
   // Note: workoutProgram query kept for potential future use
@@ -523,6 +563,13 @@ function TaskDialogForm({
             .map((q, idx) => ({ ...q, order: idx })), // Ensure order is sequential
         },
       }),
+      // Selection-specific fields
+      ...(completionType === "selection" && {
+        selectionData: {
+          ...selectionData,
+          options: (selectionData.options || []).filter(opt => opt.trim() !== ""), // Remove empty options
+        },
+      }),
     };
 
     // If editing an existing recurring task, check if we need scope decision
@@ -584,6 +631,7 @@ function TaskDialogForm({
     goalData,
     parentId,
     reflectionData,
+    selectionData,
     performSave,
   ]);
 
@@ -1117,6 +1165,112 @@ function TaskDialogForm({
                     </Box>
                   </GLGrid>
                 </>
+              )}
+
+              {/* Selection-specific fields */}
+              {completionType === "selection" && (
+                <GLGrid item xs={12}>
+                  <Box>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                      <Typography variant="body2" fontWeight={500}>
+                        Dropdown Options ({(selectionData.options || []).length})
+                      </Typography>
+                      <Button
+                        size="small"
+                        startIcon={<Add />}
+                        onClick={handleAddSelectionOption}
+                        variant="outlined"
+                        sx={{ ml: "auto" }}
+                      >
+                        Add Option
+                      </Button>
+                    </Stack>
+
+                    {(selectionData.options || []).length === 0 ? (
+                      <Paper
+                        sx={{
+                          p: 2,
+                          border: 1,
+                          borderColor: "divider",
+                          borderRadius: 1,
+                          bgcolor: "background.default",
+                        }}
+                      >
+                        <Typography variant="body2" color="text.secondary" align="center">
+                          No options yet. Add options that will appear in the dropdown.
+                        </Typography>
+                      </Paper>
+                    ) : (
+                      <DragDropContext onDragEnd={handleSelectionOptionDragEnd}>
+                        <Droppable droppableId="selection-options">
+                          {provided => (
+                            <Stack
+                              {...provided.droppableProps}
+                              ref={provided.innerRef}
+                              spacing={1}
+                              sx={{ maxHeight: 400, overflow: "auto" }}
+                            >
+                              {(selectionData.options || []).map((option, index) => (
+                                <Draggable key={`option-${index}`} draggableId={`option-${index}`} index={index}>
+                                  {provided => (
+                                    <Paper
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      sx={{
+                                        p: 1.5,
+                                        border: 1,
+                                        borderColor: "divider",
+                                        borderRadius: 1,
+                                        bgcolor: "background.paper",
+                                      }}
+                                    >
+                                      <Stack direction="row" spacing={1} alignItems="center">
+                                        <Box
+                                          {...provided.dragHandleProps}
+                                          sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            cursor: "grab",
+                                            color: "text.secondary",
+                                            "&:active": { cursor: "grabbing" },
+                                          }}
+                                        >
+                                          <DragIndicator fontSize="small" />
+                                        </Box>
+                                        <TextField
+                                          fullWidth
+                                          size="small"
+                                          value={option}
+                                          onChange={e => handleUpdateSelectionOption(index, e.target.value)}
+                                          placeholder="Enter option text..."
+                                          variant="outlined"
+                                          onKeyDown={e => {
+                                            if (e.key === "Enter") {
+                                              e.preventDefault();
+                                              handleAddSelectionOption();
+                                            }
+                                          }}
+                                        />
+                                        <IconButton
+                                          size="small"
+                                          onClick={() => handleRemoveSelectionOption(index)}
+                                          sx={{ color: "error.main" }}
+                                        >
+                                          <Delete fontSize="small" />
+                                        </IconButton>
+                                      </Stack>
+                                    </Paper>
+                                  )}
+                                </Draggable>
+                              ))}
+                              {provided.placeholder}
+                            </Stack>
+                          )}
+                        </Droppable>
+                      </DragDropContext>
+                    )}
+                  </Box>
+                </GLGrid>
               )}
               {/* {completionType === "workout" && (
                 <GLGrid item xs={12}>

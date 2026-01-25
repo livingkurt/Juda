@@ -106,9 +106,14 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
     return Array.from({ length: 5 }, (_, i) => current - i);
   }, [selectedDate]);
 
-  // Filter text input and reflection tasks (no tag filtering)
+  // Filter text input, selection, and reflection tasks (no tag filtering)
   const journalTasks = useMemo(() => {
-    return tasks.filter(task => task.completionType === "text" || task.completionType === "reflection");
+    return tasks.filter(
+      task =>
+        task.completionType === "text" ||
+        task.completionType === "selection" ||
+        task.completionType === "reflection"
+    );
   }, [tasks]);
 
   // Handle saving journal entries
