@@ -1184,7 +1184,7 @@ function TaskDialogForm({
                                                         goalCreationType: e.target.checked
                                                           ? question.goalCreationType ||
                                                             (question.linkedGoalType === "yearly"
-                                                              ? "rollover"
+                                                              ? "next_year"
                                                               : question.linkedGoalType === "monthly"
                                                                 ? "next_month"
                                                                 : "next_month")
@@ -1210,7 +1210,6 @@ function TaskDialogForm({
                                                   >
                                                     <MenuItem value="next_month">Next Month</MenuItem>
                                                     <MenuItem value="next_year">Next Year</MenuItem>
-                                                    <MenuItem value="rollover">Rollover</MenuItem>
                                                   </Select>
                                                 </FormControl>
                                               )}

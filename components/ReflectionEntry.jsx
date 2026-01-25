@@ -276,16 +276,6 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
                 <GoalCreationQuestion
                   question={question}
                   reflectionDate={date}
-                  response={response?.answer || ""}
-                  onResponseChange={newAnswer => {
-                    setResponses(prev => {
-                      const updatedResponses = prev.map(r =>
-                        r.questionId === questionId ? { ...r, answer: newAnswer } : r
-                      );
-                      debouncedSave(updatedResponses);
-                      return updatedResponses;
-                    });
-                  }}
                   compact={compact}
                 />
               </Box>
