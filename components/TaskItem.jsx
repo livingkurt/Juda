@@ -8,6 +8,7 @@ import {
   IconButton,
   TextField,
   Menu,
+  MenuItem,
   Button,
   Chip,
   Collapse,
@@ -45,6 +46,8 @@ import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { useTheme } from "@/hooks/useTheme";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 import { ReflectionEntry } from "./ReflectionEntry";
+import { usePriorityHandlers } from "@/hooks/usePriorityHandlers";
+import { PRIORITY_LEVELS } from "@/lib/constants";
 
 // Small component to handle text input with state that resets on date change
 const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }) => {
@@ -83,7 +86,7 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }
     }
   };
 
-  const { immediateSave } = useDebouncedSave(saveNote, 500);
+  const { debouncedSave, immediateSave } = useDebouncedSave(saveNote, 500);
 
   const handleChange = e => {
     const newValue = e.target.value;
@@ -190,7 +193,7 @@ const SelectionInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithN
     }
   };
 
-  const { debouncedSave, immediateSave } = useDebouncedSave(saveSelection, 300);
+  const { immediateSave } = useDebouncedSave(saveSelection, 300);
 
   const handleChange = (event, newValue) => {
     setSelectedValue(newValue);
@@ -277,6 +280,7 @@ export const TaskItem = ({
   const statusHandlers = useStatusHandlers({
     addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
   });
+  const priorityHandlers = usePriorityHandlers();
 
   // Extract handlers from hooks
   const onToggle = completionHandlers.handleToggleTask;
@@ -334,6 +338,14 @@ export const TaskItem = ({
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const newSubtaskInputRef = useRef(null);
+
+  // Dropdown menu states for status, priority, and tags
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const [statusMenuAnchor, setStatusMenuAnchor] = useState(null);
+  const [priorityMenuOpen, setPriorityMenuOpen] = useState(false);
+  const [priorityMenuAnchor, setPriorityMenuAnchor] = useState(null);
+  const [tagsMenuOpen, setTagsMenuOpen] = useState(false);
+  const [tagsMenuAnchor, setTagsMenuAnchor] = useState(null);
 
   // Focus and select text when entering edit mode
   useEffect(() => {
@@ -837,28 +849,85 @@ export const TaskItem = ({
               >
                 {/* Status badge - only show for non-recurring tasks */}
                 {!isRecurring && task.status && (
-                  <Chip
-                    size="small"
-                    icon={
-                      task.status === "in_progress" ? (
-                        <PlayCircle fontSize="inherit" />
-                      ) : task.status === "complete" ? (
-                        <CheckCircle fontSize="inherit" />
-                      ) : (
-                        <RadioButtonUnchecked fontSize="inherit" />
-                      )
-                    }
-                    label={
-                      task.status === "in_progress" ? "In Progress" : task.status === "complete" ? "Complete" : "Todo"
-                    }
-                    color={
-                      task.status === "in_progress" ? "primary" : task.status === "complete" ? "success" : "default"
-                    }
-                    sx={{
-                      height: 20,
-                      fontSize: { xs: "0.625rem", md: "0.75rem" },
-                    }}
-                  />
+                  <>
+                    <Chip
+                      size="small"
+                      icon={
+                        task.status === "in_progress" ? (
+                          <PlayCircle fontSize="inherit" />
+                        ) : task.status === "complete" ? (
+                          <CheckCircle fontSize="inherit" />
+                        ) : (
+                          <RadioButtonUnchecked fontSize="inherit" />
+                        )
+                      }
+                      label={
+                        task.status === "in_progress" ? "In Progress" : task.status === "complete" ? "Complete" : "Todo"
+                      }
+                      color={
+                        task.status === "in_progress" ? "primary" : task.status === "complete" ? "success" : "default"
+                      }
+                      onClick={e => {
+                        e.stopPropagation();
+                        setStatusMenuAnchor(e.currentTarget);
+                        setStatusMenuOpen(true);
+                      }}
+                      sx={{
+                        height: 20,
+                        fontSize: { xs: "0.625rem", md: "0.75rem" },
+                        cursor: "pointer",
+                        "&:hover": {
+                          opacity: 0.8,
+                        },
+                      }}
+                    />
+                    <Menu
+                      anchorEl={statusMenuAnchor}
+                      open={statusMenuOpen}
+                      onClose={() => {
+                        setStatusMenuOpen(false);
+                        setStatusMenuAnchor(null);
+                      }}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <MenuItem
+                        onClick={e => {
+                          e.stopPropagation();
+                          statusHandlers.handleStatusChange(task.id, "todo");
+                          setStatusMenuOpen(false);
+                          setStatusMenuAnchor(null);
+                        }}
+                        selected={task.status === "todo"}
+                      >
+                        <RadioButtonUnchecked fontSize="small" sx={{ mr: 1 }} />
+                        Todo
+                      </MenuItem>
+                      <MenuItem
+                        onClick={e => {
+                          e.stopPropagation();
+                          statusHandlers.handleStatusChange(task.id, "in_progress");
+                          setStatusMenuOpen(false);
+                          setStatusMenuAnchor(null);
+                        }}
+                        selected={task.status === "in_progress"}
+                      >
+                        <PlayCircle fontSize="small" sx={{ mr: 1 }} />
+                        In Progress
+                      </MenuItem>
+                      <MenuItem
+                        onClick={e => {
+                          e.stopPropagation();
+                          statusHandlers.handleStatusChange(task.id, "complete");
+                          setStatusMenuOpen(false);
+                          setStatusMenuAnchor(null);
+                        }}
+                        selected={task.status === "complete"}
+                      >
+                        <CheckCircle fontSize="small" sx={{ mr: 1 }} />
+                        Complete
+                      </MenuItem>
+                    </Menu>
+                  </>
                 )}
                 {/* Goal-specific badges */}
                 {task.completionType === "goal" && (
@@ -902,7 +971,67 @@ export const TaskItem = ({
                   />
                 )}
                 {/* Priority badge */}
-                {task.priority && <PriorityChip priority={task.priority} size="sm" />}
+                {task.priority ? (
+                  <Box
+                    onClick={e => {
+                      e.stopPropagation();
+                      setPriorityMenuAnchor(e.currentTarget);
+                      setPriorityMenuOpen(true);
+                    }}
+                    sx={{ cursor: "pointer", display: "inline-flex" }}
+                  >
+                    <PriorityChip priority={task.priority} size="sm" />
+                  </Box>
+                ) : (
+                  <Chip
+                    size="small"
+                    label="Priority"
+                    variant="outlined"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setPriorityMenuAnchor(e.currentTarget);
+                      setPriorityMenuOpen(true);
+                    }}
+                    sx={{
+                      height: 20,
+                      fontSize: { xs: "0.625rem", md: "0.75rem" },
+                      cursor: "pointer",
+                      "&:hover": {
+                        opacity: 0.8,
+                      },
+                    }}
+                  />
+                )}
+                <Menu
+                  anchorEl={priorityMenuAnchor}
+                  open={priorityMenuOpen}
+                  onClose={() => {
+                    setPriorityMenuOpen(false);
+                    setPriorityMenuAnchor(null);
+                  }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  {PRIORITY_LEVELS.map(level => (
+                    <MenuItem
+                      key={level.value || "none"}
+                      onClick={e => {
+                        e.stopPropagation();
+                        priorityHandlers.handlePriorityChange(task.id, level.value);
+                        setPriorityMenuOpen(false);
+                        setPriorityMenuAnchor(null);
+                      }}
+                      selected={task.priority === level.value}
+                    >
+                      {level.value ? (
+                        <PriorityChip priority={level.value} size="xs" />
+                      ) : (
+                        <Typography variant="body2" sx={{ ml: 0.5 }}>
+                          None
+                        </Typography>
+                      )}
+                    </MenuItem>
+                  ))}
+                </Menu>
                 {/* Shared task badges component */}
                 <TaskBadges
                   task={task}
@@ -916,8 +1045,144 @@ export const TaskItem = ({
                 {displayTags && displayTags.length > 0 && (
                   <>
                     {displayTags.map(tag => (
-                      <TagChip key={tag.id} tag={tag} size="xs" />
+                      <Box
+                        key={tag.id}
+                        onClick={e => {
+                          e.stopPropagation();
+                          setTagsMenuAnchor(e.currentTarget);
+                          setTagsMenuOpen(true);
+                        }}
+                        sx={{ cursor: "pointer", display: "inline-flex" }}
+                      >
+                        <TagChip tag={tag} size="xs" />
+                      </Box>
                     ))}
+                  </>
+                )}
+                {/* Tags menu - show when clicking on tags or when no tags exist */}
+                <Menu
+                  anchorEl={tagsMenuAnchor}
+                  open={tagsMenuOpen}
+                  onClose={() => {
+                    setTagsMenuOpen(false);
+                    setTagsMenuAnchor(null);
+                  }}
+                  onClick={e => e.stopPropagation()}
+                  PaperProps={{ sx: { minWidth: "250px", maxHeight: "350px", overflowY: "auto" } }}
+                >
+                  <Box sx={{ p: 2, minWidth: "250px", maxHeight: "350px", overflowY: "auto" }}>
+                    {/* Selected tags */}
+                    {displayTags && displayTags.length > 0 && (
+                      <>
+                        <Typography
+                          variant="caption"
+                          fontWeight={600}
+                          color="text.secondary"
+                          sx={{ mb: 1, display: "block" }}
+                        >
+                          Selected Tags
+                        </Typography>
+                        <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mb: 2 }}>
+                          {displayTags.map(tag => (
+                            <TagChip
+                              key={tag.id}
+                              tag={tag}
+                              size="xs"
+                              onClick={e => {
+                                e.stopPropagation();
+                                const currentTagIds = displayTags.map(t => t.id);
+                                onTagsChange(
+                                  task.id,
+                                  currentTagIds.filter(id => id !== tag.id)
+                                );
+                                // Keep menu open - don't close it
+                              }}
+                              sx={{ cursor: "pointer" }}
+                            />
+                          ))}
+                        </Stack>
+                      </>
+                    )}
+
+                    {/* Available tags */}
+                    {tags.filter(t => !displayTags.some(dt => dt.id === t.id)).length > 0 && (
+                      <>
+                        {displayTags && displayTags.length > 0 && (
+                          <Box
+                            sx={{
+                              borderTop: "1px solid",
+                              borderColor: "divider",
+                              my: 1,
+                            }}
+                          />
+                        )}
+                        <Typography
+                          variant="caption"
+                          fontWeight={600}
+                          color="text.secondary"
+                          sx={{ mb: 1, display: "block" }}
+                        >
+                          Available Tags
+                        </Typography>
+                        {tags
+                          .filter(t => !displayTags.some(dt => dt.id === t.id))
+                          .map(tag => (
+                            <MenuItem
+                              key={tag.id}
+                              onClick={e => {
+                                e.stopPropagation();
+                                const currentTagIds = displayTags.map(t => t.id);
+                                onTagsChange(task.id, [...currentTagIds, tag.id]);
+                                // Keep menu open - don't close it
+                              }}
+                              sx={{
+                                "&:hover": {
+                                  bgcolor: "action.hover",
+                                },
+                              }}
+                            >
+                              <TagChip tag={tag} size="xs" />
+                            </MenuItem>
+                          ))}
+                      </>
+                    )}
+
+                    {/* Show message if all tags are selected */}
+                    {tags.length > 0 && displayTags.length === tags.length && (
+                      <Typography variant="body2" sx={{ px: 1, py: 2, color: "text.secondary" }}>
+                        All tags assigned to this task
+                      </Typography>
+                    )}
+
+                    {/* Show message if no tags exist */}
+                    {tags.length === 0 && (
+                      <Typography variant="body2" sx={{ px: 1, py: 2, color: "text.secondary" }}>
+                        No tags available. Create tags in the task dialog.
+                      </Typography>
+                    )}
+                  </Box>
+                </Menu>
+                {/* Add tag button when no tags exist */}
+                {(!displayTags || displayTags.length === 0) && (
+                  <>
+                    <Chip
+                      size="small"
+                      label="Add Tag"
+                      variant="outlined"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setTagsMenuAnchor(e.currentTarget);
+                        setTagsMenuOpen(true);
+                      }}
+                      sx={{
+                        height: 20,
+                        fontSize: { xs: "0.625rem", md: "0.75rem" },
+                        cursor: "pointer",
+                        "&:hover": {
+                          opacity: 0.8,
+                        },
+                      }}
+                    />
                   </>
                 )}
               </Stack>
