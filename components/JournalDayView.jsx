@@ -62,7 +62,14 @@ export const JournalDayView = ({
             const isCurrentYear = year === currentYear;
             const yearDate = selectedDate.year(year);
 
-            const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, selectedDate, year));
+            const relevantTasks = journalTasks
+              .filter(task => shouldShowTaskOnDate(task, selectedDate, year))
+              .sort((a, b) => {
+                // Reflection tasks first, then text tasks
+                if (a.completionType === "reflection" && b.completionType !== "reflection") return 1;
+                if (a.completionType !== "reflection" && b.completionType === "reflection") return -1;
+                return 0;
+              });
 
             return (
               <Box key={year}>

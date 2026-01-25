@@ -100,26 +100,31 @@ export const JournalWeekView = ({
                   {year}
                 </Typography>
 
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, 1fr)" },
-                    gap: 2,
-                  }}
-                >
+                <Stack spacing={2}>
                   {fridays
                     .filter(friday => {
                       // Only show dates <= today
                       const today = dayjs().startOf("day");
                       return !friday.isAfter(today, "day");
                     })
-                    .map((friday, index) => {
+                    .reverse() // Reverse to show most recent weeks first
+                    .map((friday, reversedIndex) => {
                       const dateStr = friday.format("YYYY-MM-DD");
-                      const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, friday, year));
+                      // Calculate week number from first Friday of year
+                      const firstFriday = getFirstFridayOfYear(year);
+                      const weekNumber = friday.diff(firstFriday, "week") + 1;
+                      const relevantTasks = journalTasks
+                        .filter(task => shouldShowTaskOnDate(task, friday, year))
+                        .sort((a, b) => {
+                          // Reflection tasks first, then text tasks
+                          if (a.completionType === "reflection" && b.completionType !== "reflection") return -1;
+                          if (a.completionType !== "reflection" && b.completionType === "reflection") return 1;
+                          return 0;
+                        });
 
                       return (
                         <Box
-                          key={`${year}-week-${index}`}
+                          key={`${year}-week-${weekNumber}`}
                           sx={{
                             borderRadius: 2,
                             border: "1px solid",
@@ -130,7 +135,7 @@ export const JournalWeekView = ({
                           }}
                         >
                           <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                            Week {index + 1} - {friday.format("MMM D")}
+                            Week {weekNumber} - {friday.format("MMM D")}
                           </Typography>
 
                           {relevantTasks.length === 0 ? (
@@ -158,7 +163,7 @@ export const JournalWeekView = ({
                         </Box>
                       );
                     })}
-                </Box>
+                </Stack>
               </Box>
             );
           })}

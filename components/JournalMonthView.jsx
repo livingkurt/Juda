@@ -76,13 +76,7 @@ export const JournalMonthView = ({
                   {year}
                 </Typography>
 
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, 1fr)" },
-                    gap: 2,
-                  }}
-                >
+                <Stack spacing={2}>
                   {Array.from({ length: 12 }, (_, monthIndex) => {
                     const firstOfMonth = dayjs(new Date(year, monthIndex, 1));
                     const today = dayjs().startOf("day");
@@ -91,7 +85,14 @@ export const JournalMonthView = ({
                       return null;
                     }
                     const dateStr = firstOfMonth.format("YYYY-MM-DD");
-                    const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, firstOfMonth, year));
+                    const relevantTasks = journalTasks
+                      .filter(task => shouldShowTaskOnDate(task, firstOfMonth, year))
+                      .sort((a, b) => {
+                        // Reflection tasks first, then text tasks
+                        if (a.completionType === "reflection" && b.completionType !== "reflection") return 1;
+                        if (a.completionType !== "reflection" && b.completionType === "reflection") return -1;
+                        return 0;
+                      });
 
                     return (
                       <Box
@@ -131,10 +132,10 @@ export const JournalMonthView = ({
                             })}
                           </Stack>
                         )}
-                      </Box>
-                    );
-                  }).filter(Boolean)}
-                </Box>
+                        </Box>
+                      );
+                    }).filter(Boolean)}
+                </Stack>
               </Box>
             );
           })}
