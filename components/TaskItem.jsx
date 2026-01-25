@@ -663,8 +663,8 @@ export const TaskItem = ({
                 />
               </Box>
             )}
-            {/* Badges - show for backlog and today variants */}
-            {(isBacklog || isToday) && (
+            {/* Badges - show for backlog, today, and subtask variants */}
+            {(isBacklog || isToday || isSubtask) && (
               <Stack
                 direction="row"
                 spacing={0.5}

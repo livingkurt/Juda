@@ -175,6 +175,7 @@ function TaskDialogForm({
   const [goalYear, setGoalYear] = useState(task?.goalYear || defaultGoalYear || new Date().getFullYear());
   const [goalMonths, setGoalMonths] = useState(task?.goalMonths || []);
   const [goalData] = useState(task?.goalData || {});
+  const [parentId, setParentId] = useState(task?.parentId || null);
 
   // Reflection-specific state
   const [reflectionData, setReflectionData] = useState(() => {
@@ -432,6 +433,12 @@ function TaskDialogForm({
   const handleSave = useCallback(() => {
     if (!title.trim()) return;
 
+    // Validate monthly goals have a parent
+    if (completionType === "goal" && goalMonths && goalMonths.length > 0 && !parentId) {
+      console.error("Monthly goals must be linked to a yearly goal");
+      return;
+    }
+
     let recurrence = null;
     if (recurrenceType === "none") {
       if (date) {
@@ -499,6 +506,8 @@ function TaskDialogForm({
       content: content || null,
       // workoutData removed - now saved separately via WorkoutBuilder
       status: recurrenceType === "none" ? status || "todo" : "todo",
+      // Parent ID for sub-goals
+      parentId: parentId || null,
       // Goal-specific fields
       ...(completionType === "goal" && {
         goalYear,
@@ -573,6 +582,7 @@ function TaskDialogForm({
     goalYear,
     goalMonths,
     goalData,
+    parentId,
     reflectionData,
     performSave,
   ]);
@@ -890,7 +900,14 @@ function TaskDialogForm({
                       <Select
                         multiple
                         value={goalMonths}
-                        onChange={e => setGoalMonths(e.target.value)}
+                        onChange={e => {
+                          const newMonths = e.target.value;
+                          setGoalMonths(newMonths);
+                          // If changing from monthly to yearly (clearing months), clear parent
+                          if (newMonths.length === 0) {
+                            setParentId(null);
+                          }
+                        }}
                         label="Goal Months (Optional)"
                         renderValue={selected =>
                           selected
@@ -914,10 +931,45 @@ function TaskDialogForm({
                     </Typography>
                   </GLGrid>
 
+                  {/* Parent Goal Selector - Required for monthly goals */}
+                  {goalMonths && goalMonths.length > 0 && (
+                    <GLGrid item xs={12}>
+                      <FormControl fullWidth size="small" required error={!parentId}>
+                        <InputLabel>Parent Yearly Goal *</InputLabel>
+                        <Select
+                          value={parentId || ""}
+                          onChange={e => setParentId(e.target.value)}
+                          label="Parent Yearly Goal *"
+                        >
+                          {allTasks
+                            .filter(
+                              t =>
+                                t.completionType === "goal" &&
+                                t.goalYear === goalYear &&
+                                (!t.goalMonths || t.goalMonths.length === 0) &&
+                                !t.parentId &&
+                                t.id !== task?.id
+                            )
+                            .map(yearlyGoal => (
+                              <MenuItem key={yearlyGoal.id} value={yearlyGoal.id}>
+                                {yearlyGoal.title}
+                              </MenuItem>
+                            ))}
+                        </Select>
+                        {!parentId && (
+                          <Typography variant="caption" color="error" display="block" sx={{ mt: 0.5 }}>
+                            Monthly goals must be linked to a yearly goal
+                          </Typography>
+                        )}
+                      </FormControl>
+                    </GLGrid>
+                  )}
+
                   <GLGrid item xs={12}>
                     <Typography variant="caption" color="text.secondary">
-                      Goals can have sub-goals using the parent task feature. Monthly goals should be sub-goals of
-                      yearly goals.
+                      {goalMonths && goalMonths.length > 0
+                        ? "This monthly goal will appear as a sub-goal under the selected yearly goal."
+                        : "Yearly goals can have monthly sub-goals. Create a yearly goal first, then add monthly goals to it."}
                     </Typography>
                   </GLGrid>
                 </>
