@@ -1,7 +1,20 @@
 "use client";
 
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
-import { Box, Typography, TextField, Stack, Chip, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
+import {
+  Box,
+  Typography,
+  TextField,
+  Stack,
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  IconButton,
+  Tooltip,
+} from "@mui/material";
+import { Close } from "@mui/icons-material";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 import { useGetGoalsQuery } from "@/lib/store/api/goalsApi";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
@@ -157,9 +170,19 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
   // Update goal progress for a question
   const handleGoalProgressChange = useCallback(
     async (questionId, goalId, updates) => {
-      // Only update the actual task status when marking as complete
-      // For other statuses (todo, in_progress), we just store them in the reflection
-      if (updates.status === "complete") {
+      // Persist all status changes to the actual goal task
+      // This allows reflections to drive goal progress forward
+      if (updates.status === "in_progress") {
+        try {
+          await updateTask({
+            id: goalId,
+            status: "in_progress",
+            startedAt: new Date().toISOString(),
+          }).unwrap();
+        } catch (error) {
+          console.error("Failed to update goal to in_progress:", error);
+        }
+      } else if (updates.status === "complete") {
         try {
           await updateTask({
             id: goalId,
@@ -180,11 +203,22 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
             }
           }
         } catch (error) {
-          console.error("Failed to update goal status:", error);
+          console.error("Failed to update goal status to complete:", error);
+        }
+      } else if (updates.status === "todo") {
+        // Allow reverting to todo (removes in_progress state)
+        try {
+          await updateTask({
+            id: goalId,
+            status: "todo",
+            startedAt: null,
+          }).unwrap();
+        } catch (error) {
+          console.error("Failed to revert goal status to todo:", error);
         }
       }
 
-      // Update state and save
+      // Update local state and save to reflection completion
       setResponses(prev => {
         const updatedResponses = prev.map(r => {
           if (r.questionId !== questionId) return r;
@@ -201,21 +235,69 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
         return updatedResponses;
       });
     },
-    [debouncedSave, updateTask, createCompletion, date]
+    [debouncedSave, updateTask, createCompletion, reflectionDate]
+  );
+
+  // Clear goal progress entry from a reflection (for cleaning up legacy data)
+  const handleClearGoalProgress = useCallback(
+    (questionId, goalId) => {
+      setResponses(prev => {
+        const updatedResponses = prev.map(r => {
+          if (r.questionId !== questionId) return r;
+          const goalProgress = r.goalProgress || [];
+          const filteredGoalProgress = goalProgress.filter(gp => gp.goalId !== goalId);
+          return { ...r, goalProgress: filteredGoalProgress.length > 0 ? filteredGoalProgress : undefined };
+        });
+        // Call debouncedSave directly with the updated responses
+        debouncedSave(updatedResponses);
+        return updatedResponses;
+      });
+    },
+    [debouncedSave]
   );
 
   // Memoize filtered goals by type to avoid recalculating on every render
+  // For NEW reflections: exclude completed goals
+  // For PAST reflections: include all goals that were tracked + any incomplete goals
   const yearlyGoals = useMemo(() => {
-    return goals.filter(g => g.goalYear === currentYear && !g.parentId && (!g.goalMonths || g.goalMonths.length === 0));
-  }, [goals, currentYear]);
+    const baseFilter = g => g.goalYear === currentYear && !g.parentId && (!g.goalMonths || g.goalMonths.length === 0);
+
+    // If this is a past reflection with saved data, include goals that were tracked
+    if (existingData?.responses) {
+      const trackedGoalIds = new Set();
+      existingData.responses.forEach(r => {
+        if (r.goalProgress) {
+          r.goalProgress.forEach(gp => trackedGoalIds.add(gp.goalId));
+        }
+      });
+
+      return goals.filter(g => baseFilter(g) && (g.status !== "complete" || trackedGoalIds.has(g.id)));
+    }
+
+    // For new reflections, only show incomplete goals
+    return goals.filter(g => baseFilter(g) && g.status !== "complete");
+  }, [goals, currentYear, existingData]);
 
   const monthlyGoals = useMemo(() => {
     const currentMonth = reflectionDate.month() + 1;
-    return goals.filter(
-      g =>
-        g.goalYear === currentYear && g.goalMonths && Array.isArray(g.goalMonths) && g.goalMonths.includes(currentMonth)
-    );
-  }, [goals, currentYear, reflectionDate]);
+    const baseFilter = g =>
+      g.goalYear === currentYear && g.goalMonths && Array.isArray(g.goalMonths) && g.goalMonths.includes(currentMonth);
+
+    // If this is a past reflection with saved data, include goals that were tracked
+    if (existingData?.responses) {
+      const trackedGoalIds = new Set();
+      existingData.responses.forEach(r => {
+        if (r.goalProgress) {
+          r.goalProgress.forEach(gp => trackedGoalIds.add(gp.goalId));
+        }
+      });
+
+      return goals.filter(g => baseFilter(g) && (g.status !== "complete" || trackedGoalIds.has(g.id)));
+    }
+
+    // For new reflections, only show incomplete goals
+    return goals.filter(g => baseFilter(g) && g.status !== "complete");
+  }, [goals, currentYear, reflectionDate, existingData]);
 
   // Get relevant goals for a question based on linkedGoalType
   const getRelevantGoals = useCallback(
@@ -371,6 +453,22 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
                                 }
                                 sx={{ height: 20, fontSize: "0.625rem" }}
                               />
+                              {/* Clear button - only show if there's existing goalProgress data */}
+                              {goalProgress && (
+                                <Tooltip title="Remove this goal from this reflection">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => {
+                                      const capturedQuestionId = question.id || `q-${question.order}`;
+                                      const capturedGoalId = goal.id;
+                                      handleClearGoalProgress(capturedQuestionId, capturedGoalId);
+                                    }}
+                                    sx={{ ml: 0.5, p: 0.5 }}
+                                  >
+                                    <Close fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                             </Stack>
 
                             {/* Status selector */}
@@ -379,11 +477,15 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
                               <Select
                                 value={currentStatus}
                                 onChange={e => {
+                                  const newStatus = e.target.value;
+                                  const capturedGoalId = goal.id; // Explicitly capture goal.id
+                                  const capturedQuestionId = question.id || `q-${question.order}`;
+
                                   focusedRef.current = true;
-                                  handleGoalProgressChange(question.id || `q-${question.order}`, goal.id, {
-                                    goalId: goal.id,
+                                  handleGoalProgressChange(capturedQuestionId, capturedGoalId, {
+                                    goalId: capturedGoalId,
                                     goalTitle: goal.title,
-                                    status: e.target.value,
+                                    status: newStatus,
                                     progressNote,
                                   });
                                 }}
