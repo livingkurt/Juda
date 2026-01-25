@@ -110,9 +110,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
   const journalTasks = useMemo(() => {
     return tasks.filter(
       task =>
-        task.completionType === "text" ||
-        task.completionType === "selection" ||
-        task.completionType === "reflection"
+        task.completionType === "text" || task.completionType === "selection" || task.completionType === "reflection"
     );
   }, [tasks]);
 
