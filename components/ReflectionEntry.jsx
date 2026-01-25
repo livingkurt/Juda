@@ -141,19 +141,12 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
   // Update response answer
   const handleAnswerChange = useCallback(
     (questionId, answer) => {
-      // Update state and capture the new value
-      let updatedResponses;
       setResponses(prev => {
-        updatedResponses = prev.map(r => (r.questionId === questionId ? { ...r, answer } : r));
+        const updatedResponses = prev.map(r => (r.questionId === questionId ? { ...r, answer } : r));
+        // Call debouncedSave directly with the updated responses
+        debouncedSave(updatedResponses);
         return updatedResponses;
       });
-
-      // Save separately (not inside setResponses)
-      setTimeout(() => {
-        if (updatedResponses) {
-          debouncedSave(updatedResponses);
-        }
-      }, 0);
     },
     [debouncedSave]
   );
@@ -188,10 +181,9 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
         }
       }
 
-      // Update state and capture the new value
-      let updatedResponses;
+      // Update state and save
       setResponses(prev => {
-        updatedResponses = prev.map(r => {
+        const updatedResponses = prev.map(r => {
           if (r.questionId !== questionId) return r;
           const goalProgress = r.goalProgress || [];
           const existingIndex = goalProgress.findIndex(gp => gp.goalId === goalId);
@@ -201,72 +193,41 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
               : [...goalProgress, { goalId, ...updates }];
           return { ...r, goalProgress: updatedGoalProgress };
         });
+        // Call debouncedSave directly with the updated responses
+        debouncedSave(updatedResponses);
         return updatedResponses;
       });
-
-      // Save separately (not inside setResponses)
-      setTimeout(() => {
-        if (updatedResponses) {
-          debouncedSave(updatedResponses);
-        }
-      }, 0);
     },
     [debouncedSave, updateTask, createCompletion, date]
   );
 
+  // Memoize filtered goals by type to avoid recalculating on every render
+  const yearlyGoals = useMemo(() => {
+    return goals.filter(g => g.goalYear === currentYear && !g.parentId && (!g.goalMonths || g.goalMonths.length === 0));
+  }, [goals, currentYear]);
+
+  const monthlyGoals = useMemo(() => {
+    const currentMonth = dayjs(date).month() + 1;
+    return goals.filter(
+      g =>
+        g.goalYear === currentYear && g.goalMonths && Array.isArray(g.goalMonths) && g.goalMonths.includes(currentMonth)
+    );
+  }, [goals, currentYear, date]);
+
   // Get relevant goals for a question based on linkedGoalType
   const getRelevantGoals = useCallback(
-    (linkedGoalType, questionId) => {
+    linkedGoalType => {
       if (!linkedGoalType) return [];
 
-      // Helper to check if a goal should be shown
-      const shouldShowGoal = goal => {
-        // const response = responses.find(r => r.questionId === questionId);
-        // const goalProgressEntry = response?.goalProgress?.find(gp => gp.goalId === goal.id);
-
-        // If this reflection already has a progress entry for this goal, show it
-        // This preserves the historical record of working on this goal
-        // if (goalProgressEntry) {
-        //   // BUT: If the goal status in the progress entry is "complete",
-        //   // don't show it in future reflections (only show in the reflection where it was completed)
-        //   if (goalProgressEntry.status === "complete") {
-        //     return true; // Show in this reflection (where it was marked complete)
-        //   }
-        //   return true; // Show if it has any other status
-        // }
-
-        // If no progress entry yet, only show if the goal is not currently complete
-        // This prevents completed goals from appearing in new reflections
-        return true;
-      };
-
       if (linkedGoalType === "yearly") {
-        // Yearly goals: no parentId and no goalMonths (or empty goalMonths)
-        return goals.filter(
-          g =>
-            g.goalYear === currentYear &&
-            !g.parentId &&
-            (!g.goalMonths || g.goalMonths.length === 0) &&
-            shouldShowGoal(g)
-        );
+        return yearlyGoals;
       }
       if (linkedGoalType === "monthly") {
-        const currentMonth = dayjs(date).month() + 1;
-        // Monthly goals can be:
-        // 1. Standalone goals with goalMonths array containing current month
-        // 2. Subtasks of yearly goals (parentId set) with goalMonths containing current month
-        return goals.filter(
-          g =>
-            g.goalYear === currentYear &&
-            g.goalMonths &&
-            Array.isArray(g.goalMonths) &&
-            g.goalMonths.includes(currentMonth) &&
-            shouldShowGoal(g)
-        );
+        return monthlyGoals;
       }
       return [];
     },
-    [goals, currentYear, date, responses]
+    [yearlyGoals, monthlyGoals]
   );
 
   // Get goal progress entry for a question and goal
@@ -303,7 +264,7 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
         {questions.map(question => {
           const questionId = question.id || `q-${question.order}`;
           const response = responses.find(r => r.questionId === questionId);
-          const relevantGoals = question.linkedGoalType ? getRelevantGoals(question.linkedGoalType, questionId) : [];
+          const relevantGoals = question.linkedGoalType ? getRelevantGoals(question.linkedGoalType) : [];
 
           return (
             <Box key={question.id || `q-${question.order}`}>
@@ -323,21 +284,14 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
                   const currentAnswer = e.target.value;
                   const questionId = question.id || `q-${question.order}`;
 
-                  // Update state and capture the new value
-                  let updatedResponses;
                   setResponses(prev => {
-                    updatedResponses = prev.map(r =>
+                    const updatedResponses = prev.map(r =>
                       r.questionId === questionId ? { ...r, answer: currentAnswer } : r
                     );
+                    // Call immediateSave directly with the updated responses
+                    immediateSave(updatedResponses);
                     return updatedResponses;
                   });
-
-                  // Save separately (not inside setResponses)
-                  setTimeout(() => {
-                    if (updatedResponses) {
-                      immediateSave(updatedResponses);
-                    }
-                  }, 0);
                 }}
                 onFocus={() => {
                   focusedRef.current = true;
@@ -440,10 +394,8 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
                                 const currentProgressNote = e.target.value;
                                 const questionId = question.id || `q-${question.order}`;
 
-                                // Update state and capture the new value
-                                let updatedResponses;
                                 setResponses(prev => {
-                                  updatedResponses = prev.map(r => {
+                                  const updatedResponses = prev.map(r => {
                                     if (r.questionId !== questionId) return r;
                                     const goalProgress = r.goalProgress || [];
                                     const existingIndex = goalProgress.findIndex(gp => gp.goalId === goal.id);
@@ -468,15 +420,10 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
                                           ];
                                     return { ...r, goalProgress: updatedGoalProgress };
                                   });
+                                  // Call immediateSave directly with the updated responses
+                                  immediateSave(updatedResponses);
                                   return updatedResponses;
                                 });
-
-                                // Save separately (not inside setResponses)
-                                setTimeout(() => {
-                                  if (updatedResponses) {
-                                    immediateSave(updatedResponses);
-                                  }
-                                }, 0);
                               }}
                               onFocus={() => {
                                 focusedRef.current = true;
