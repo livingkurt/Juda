@@ -17,7 +17,6 @@ import { TaskItem } from "@/components/TaskItem";
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 import { DateNavigation } from "@/components/DateNavigation";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
-import { BacklogFilterMenu } from "@/components/BacklogFilterMenu";
 
 export function GoalsTab({ isLoading }) {
   const dispatch = useDispatch();
@@ -235,26 +234,20 @@ export function GoalsTab({ isLoading }) {
           </Button>
         </Stack>
 
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Box sx={{ flex: 1 }}>
-            <TaskSearchInput
-              onSearchChange={term => dispatch(setGoalsSearchTerm(term))}
-              placeholder="Search goals..."
-            />
-          </Box>
-          <BacklogFilterMenu
-            tags={tags}
-            selectedTagIds={goalsSelectedTagIds}
-            onTagSelect={tagId => dispatch(addGoalsSelectedTag(tagId))}
-            onTagDeselect={tagId => dispatch(removeGoalsSelectedTag(tagId))}
-            onCreateTag={async (name, color) => {
-              return await createTagMutation({ name, color }).unwrap();
-            }}
-            showPriorityFilter={false}
-            showSort={false}
-            showUntaggedOption={false}
-          />
-        </Stack>
+        <TaskSearchInput
+          onSearchChange={term => dispatch(setGoalsSearchTerm(term))}
+          placeholder="Search goals..."
+          tags={tags}
+          selectedTagIds={goalsSelectedTagIds}
+          onTagSelect={tagId => dispatch(addGoalsSelectedTag(tagId))}
+          onTagDeselect={tagId => dispatch(removeGoalsSelectedTag(tagId))}
+          onCreateTag={async (name, color) => {
+            return await createTagMutation({ name, color }).unwrap();
+          }}
+          showPriorityFilter={false}
+          showSort={false}
+          showUntaggedOption={false}
+        />
 
         <DateNavigation
           selectedDate={selectedDate}

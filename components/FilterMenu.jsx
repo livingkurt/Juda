@@ -34,7 +34,7 @@ const iconMap = {
   PriorityHigh,
 };
 
-export const BacklogFilterMenu = ({
+export const FilterMenu = ({
   tags = [],
   selectedTagIds = [],
   onTagSelect,
@@ -123,21 +123,16 @@ export const BacklogFilterMenu = ({
 
   return (
     <>
-      <Button
-        variant={activeFilterCount > 0 ? "outlined" : "text"}
+      <IconButton
         size="small"
-        startIcon={<FilterList />}
         onClick={handleMenuOpen}
         sx={{
-          borderColor: activeFilterCount > 0 ? "primary.main" : "divider",
           color: "text.secondary",
           "&:hover": { color: "text.primary" },
         }}
       >
-        {activeFilterCount > 0 && (
-          <Chip label={activeFilterCount} size="small" sx={{ ml: 1, height: 18, minWidth: 18 }} />
-        )}
-      </Button>
+        <FilterList />
+      </IconButton>
       <Menu
         anchorEl={anchorEl}
         open={isOpen}

@@ -26,7 +26,6 @@ import { NoteEditor } from "@/components/NoteEditor";
 import { TagChip } from "@/components/TagChip";
 import { QuickTaskInput } from "@/components/QuickTaskInput";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
-import { BacklogFilterMenu } from "@/components/BacklogFilterMenu";
 import { FolderDialog } from "@/components/dialogs/FolderDialog";
 import { SmartFolderDialog } from "@/components/dialogs/SmartFolderDialog";
 import dayjs from "dayjs";
@@ -483,23 +482,20 @@ export function NotesTab({ isLoading }) {
           {notesActiveMobileView === "notes" && (
             <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
               <Stack spacing={1} sx={{ p: 2 }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Box sx={{ flex: 1 }}>
-                    <TaskSearchInput onSearchChange={setSearchQuery} placeholder="Search notes..." />
-                  </Box>
-                  <BacklogFilterMenu
-                    tags={tags}
-                    selectedTagIds={notesSelectedTagIds}
-                    onTagSelect={tagId => dispatch(addNotesSelectedTag(tagId))}
-                    onTagDeselect={tagId => dispatch(removeNotesSelectedTag(tagId))}
-                    onCreateTag={async (name, color) => {
-                      return await createTagMutation({ name, color }).unwrap();
-                    }}
-                    showPriorityFilter={false}
-                    showSort={false}
-                    showUntaggedOption={false}
-                  />
-                </Stack>
+                <TaskSearchInput
+                  onSearchChange={setSearchQuery}
+                  placeholder="Search notes..."
+                  tags={tags}
+                  selectedTagIds={notesSelectedTagIds}
+                  onTagSelect={tagId => dispatch(addNotesSelectedTag(tagId))}
+                  onTagDeselect={tagId => dispatch(removeNotesSelectedTag(tagId))}
+                  onCreateTag={async (name, color) => {
+                    return await createTagMutation({ name, color }).unwrap();
+                  }}
+                  showPriorityFilter={false}
+                  showSort={false}
+                  showUntaggedOption={false}
+                />
                 <QuickTaskInput
                   placeholder="New note title..."
                   onCreate={handleCreateNote}
@@ -749,11 +745,10 @@ export function NotesTab({ isLoading }) {
             }}
           >
             <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-                <Box sx={{ flex: 1 }}>
-                  <TaskSearchInput onSearchChange={setSearchQuery} placeholder="Search notes..." />
-                </Box>
-                <BacklogFilterMenu
+              <Box sx={{ mb: 2 }}>
+                <TaskSearchInput
+                  onSearchChange={setSearchQuery}
+                  placeholder="Search notes..."
                   tags={tags}
                   selectedTagIds={notesSelectedTagIds}
                   onTagSelect={tagId => dispatch(addNotesSelectedTag(tagId))}
@@ -765,7 +760,7 @@ export function NotesTab({ isLoading }) {
                   showSort={false}
                   showUntaggedOption={false}
                 />
-              </Stack>
+              </Box>
               <QuickTaskInput
                 placeholder="New note title..."
                 onCreate={handleCreateNote}

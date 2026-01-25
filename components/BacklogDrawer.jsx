@@ -8,7 +8,6 @@ import { Add } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
-import { BacklogFilterMenu } from "./BacklogFilterMenu";
 import { BacklogTagSidebar, UNTAGGED_ID } from "./BacklogTagSidebar";
 import { QuickTaskInput } from "./QuickTaskInput";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -220,36 +219,27 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
             </Box>
           </Stack>
 
-          <Stack
-            direction="row"
-            spacing={{ xs: 1, md: 2 }}
-            alignItems="center"
-            sx={{ width: "100%", maxWidth: "100%" }}
-          >
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <TaskSearchInput onSearchChange={term => dispatch(setBacklogSearchTermAction(term))} />
-            </Box>
-            <BacklogFilterMenu
-              tags={backlogTags}
-              selectedTagIds={selectedTagIds}
-              onTagSelect={handleTagSelect}
-              onTagDeselect={handleTagDeselect}
-              onCreateTag={async (name, color) => {
-                return await createTagMutation({ name, color }).unwrap();
-              }}
-              selectedPriorities={selectedPriorities}
-              onPrioritySelect={priority => {
-                if (!selectedPriorities.includes(priority)) {
-                  dispatch(setBacklogSelectedPriorities([...selectedPriorities, priority]));
-                }
-              }}
-              onPriorityDeselect={priority =>
-                dispatch(setBacklogSelectedPriorities(selectedPriorities.filter(value => value !== priority)))
+          <TaskSearchInput
+            onSearchChange={term => dispatch(setBacklogSearchTermAction(term))}
+            tags={backlogTags}
+            selectedTagIds={selectedTagIds}
+            onTagSelect={handleTagSelect}
+            onTagDeselect={handleTagDeselect}
+            onCreateTag={async (name, color) => {
+              return await createTagMutation({ name, color }).unwrap();
+            }}
+            selectedPriorities={selectedPriorities}
+            onPrioritySelect={priority => {
+              if (!selectedPriorities.includes(priority)) {
+                dispatch(setBacklogSelectedPriorities([...selectedPriorities, priority]));
               }
-              sortByPriority={sortByPriority}
-              onSortToggle={() => dispatch(toggleBacklogSortByPriority())}
-            />
-          </Stack>
+            }}
+            onPriorityDeselect={priority =>
+              dispatch(setBacklogSelectedPriorities(selectedPriorities.filter(value => value !== priority)))
+            }
+            sortByPriority={sortByPriority}
+            onSortToggle={() => dispatch(toggleBacklogSortByPriority())}
+          />
           {/* New Task Input */}
           <Box sx={{ mt: 1, width: "100%", maxWidth: "100%" }}>
             <QuickTaskInput
