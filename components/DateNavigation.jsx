@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { Box, Button, IconButton, Typography, Stack, TextField, Select, MenuItem, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
@@ -19,6 +19,8 @@ export const DateNavigation = memo(function DateNavigation({
   selectedView = null,
   onViewChange = null,
   viewSelectorWidth = "150px",
+  // Comparison mode: "day" (default), "month", or "year"
+  compareMode = "day",
 }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -32,9 +34,71 @@ export const DateNavigation = memo(function DateNavigation({
     normalizedSelectedDate.setHours(0, 0, 0, 0);
   }
 
+  // Determine if we're in current period based on compareMode
+  const isCurrentPeriod = useMemo(() => {
+    if (!normalizedSelectedDate) return false;
+    
+    if (compareMode === "month") {
+      return (
+        normalizedSelectedDate.getFullYear() === today.getFullYear() &&
+        normalizedSelectedDate.getMonth() === today.getMonth()
+      );
+    }
+    
+    if (compareMode === "year") {
+      return normalizedSelectedDate.getFullYear() === today.getFullYear();
+    }
+    
+    // Default: compare by day
+    return normalizedSelectedDate.toDateString() === today.toDateString();
+  }, [normalizedSelectedDate, today, compareMode]);
+
   const isToday = normalizedSelectedDate && normalizedSelectedDate.toDateString() === today.toDateString();
-  const isPast = normalizedSelectedDate && normalizedSelectedDate < today;
-  const isFuture = normalizedSelectedDate && normalizedSelectedDate > today;
+  
+  // Determine if past/future based on compareMode
+  const isPast = useMemo(() => {
+    if (!normalizedSelectedDate) return false;
+    
+    if (compareMode === "month") {
+      const selectedYear = normalizedSelectedDate.getFullYear();
+      const selectedMonth = normalizedSelectedDate.getMonth();
+      const todayYear = today.getFullYear();
+      const todayMonth = today.getMonth();
+      
+      if (selectedYear < todayYear) return true;
+      if (selectedYear === todayYear && selectedMonth < todayMonth) return true;
+      return false;
+    }
+    
+    if (compareMode === "year") {
+      return normalizedSelectedDate.getFullYear() < today.getFullYear();
+    }
+    
+    // Default: compare by day
+    return normalizedSelectedDate < today;
+  }, [normalizedSelectedDate, today, compareMode]);
+  
+  const isFuture = useMemo(() => {
+    if (!normalizedSelectedDate) return false;
+    
+    if (compareMode === "month") {
+      const selectedYear = normalizedSelectedDate.getFullYear();
+      const selectedMonth = normalizedSelectedDate.getMonth();
+      const todayYear = today.getFullYear();
+      const todayMonth = today.getMonth();
+      
+      if (selectedYear > todayYear) return true;
+      if (selectedYear === todayYear && selectedMonth > todayMonth) return true;
+      return false;
+    }
+    
+    if (compareMode === "year") {
+      return normalizedSelectedDate.getFullYear() > today.getFullYear();
+    }
+    
+    // Default: compare by day
+    return normalizedSelectedDate > today;
+  }, [normalizedSelectedDate, today, compareMode]);
 
   const formatDateDisplay = date => {
     if (!date) return "";
@@ -73,7 +137,7 @@ export const DateNavigation = memo(function DateNavigation({
     borderRadius: 2,
     bgcolor: "background.paper",
     border: "1px solid",
-    borderColor: isToday ? "divider" : isPast ? "warning.main" : isFuture ? "info.main" : "divider",
+    borderColor: isCurrentPeriod ? "divider" : isPast ? "warning.main" : isFuture ? "info.main" : "divider",
     transition: "all 0.2s",
     width: "100%",
     maxWidth: "100%",
