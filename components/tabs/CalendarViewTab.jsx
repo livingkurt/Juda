@@ -5,7 +5,6 @@ import { useTheme } from "@mui/material/styles";
 import { Visibility as Eye, VisibilityOff as EyeOff, Repeat, Close as X, ZoomIn, ZoomOut } from "@mui/icons-material";
 import { DateNavigation } from "@/components/DateNavigation";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
-import { BacklogFilterMenu } from "@/components/BacklogFilterMenu";
 import { CalendarDayView } from "@/components/CalendarDayView";
 import { CalendarWeekView } from "@/components/CalendarWeekView";
 import { CalendarMonthView } from "@/components/CalendarMonthView";
@@ -275,26 +274,17 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
         </Box>
         {/* Search and Tag Filter */}
         <Box sx={{ width: "100%", maxWidth: "100%", px: isMobile ? 2 : 0 }}>
-          <Stack
-            direction="row"
-            spacing={{ xs: 1, md: 2 }}
-            alignItems="center"
-            sx={{ width: "100%", maxWidth: "100%" }}
-          >
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <TaskSearchInput onSearchChange={setCalendarSearchTerm} />
-            </Box>
-            <BacklogFilterMenu
-              tags={tags}
-              selectedTagIds={calendarSelectedTagIds}
-              onTagSelect={handleCalendarTagSelect}
-              onTagDeselect={handleCalendarTagDeselect}
-              onCreateTag={createTag}
-              showPriorityFilter={false}
-              showSort={false}
-              showUntaggedOption={false}
-            />
-          </Stack>
+          <TaskSearchInput
+            onSearchChange={setCalendarSearchTerm}
+            tags={tags}
+            selectedTagIds={calendarSelectedTagIds}
+            onTagSelect={handleCalendarTagSelect}
+            onTagDeselect={handleCalendarTagDeselect}
+            onCreateTag={createTag}
+            showPriorityFilter={false}
+            showSort={false}
+            showUntaggedOption={false}
+          />
         </Box>
       </Box>
       {isActuallyLoading && !selectedDate ? (

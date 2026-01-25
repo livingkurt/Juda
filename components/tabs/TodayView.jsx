@@ -1,10 +1,9 @@
 "use client";
 
-import { Box, Stack, Typography, Chip, Button, IconButton } from "@mui/material";
+import { Box, Typography, Chip, Button, IconButton } from "@mui/material";
 import { Visibility as Eye, VisibilityOff as EyeOff } from "@mui/icons-material";
 import { DateNavigation } from "@/components/DateNavigation";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
-import { BacklogFilterMenu } from "@/components/BacklogFilterMenu";
 import { Section } from "@/components/Section";
 
 export function TodayView({
@@ -135,27 +134,18 @@ export function TodayView({
                 />
               </Box>
             )}
-            <Box sx={{ width: "100%", maxWidth: "100%", overflow: "hidden" }}>
-              <Stack
-                direction="row"
-                spacing={{ xs: 1, md: 2 }}
-                alignItems="center"
-                sx={{ width: "100%", maxWidth: "100%", mb: 2 }}
-              >
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <TaskSearchInput onSearchChange={setTodaySearchTerm} />
-                </Box>
-                <BacklogFilterMenu
-                  tags={tags}
-                  selectedTagIds={todaySelectedTagIds}
-                  onTagSelect={handleTodayTagSelect}
-                  onTagDeselect={handleTodayTagDeselect}
-                  onCreateTag={createTag}
-                  showPriorityFilter={false}
-                  showSort={false}
-                  showUntaggedOption={false}
-                />
-              </Stack>
+            <Box sx={{ width: "100%", maxWidth: "100%", overflow: "hidden", mb: 2 }}>
+              <TaskSearchInput
+                onSearchChange={setTodaySearchTerm}
+                tags={tags}
+                selectedTagIds={todaySelectedTagIds}
+                onTagSelect={handleTodayTagSelect}
+                onTagDeselect={handleTodayTagDeselect}
+                onCreateTag={createTag}
+                showPriorityFilter={false}
+                showSort={false}
+                showUntaggedOption={false}
+              />
             </Box>
           </Box>
           {/* Scrollable Sections Container */}
