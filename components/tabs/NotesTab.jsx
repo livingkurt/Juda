@@ -8,8 +8,6 @@ import {
   Paper,
   Button,
   IconButton,
-  TextField,
-  InputAdornment,
   List,
   ListItemButton,
   ListItemIcon,
@@ -23,10 +21,12 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { Search, Add, Description, Folder, Tag, ArrowBack, Edit } from "@mui/icons-material";
+import { Add, Description, Folder, Tag, ArrowBack, Edit } from "@mui/icons-material";
 import { NoteEditor } from "@/components/NoteEditor";
 import { TagChip } from "@/components/TagChip";
 import { QuickTaskInput } from "@/components/QuickTaskInput";
+import { TaskSearchInput } from "@/components/TaskSearchInput";
+import { BacklogFilterMenu } from "@/components/BacklogFilterMenu";
 import { FolderDialog } from "@/components/dialogs/FolderDialog";
 import { SmartFolderDialog } from "@/components/dialogs/SmartFolderDialog";
 import dayjs from "dayjs";
@@ -40,6 +40,8 @@ import {
   setSelectedNoteId,
   setSelectedFolderId,
   setSelectedSmartFolderId,
+  addNotesSelectedTag,
+  removeNotesSelectedTag,
 } from "@/lib/store/slices/uiSlice";
 import {
   useGetTasksQuery,
@@ -50,7 +52,7 @@ import {
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetFoldersQuery } from "@/lib/store/api/foldersApi";
 import { useGetSmartFoldersQuery } from "@/lib/store/api/smartFoldersApi";
-import { useGetTagsQuery, useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
+import { useGetTagsQuery, useCreateTagMutation, useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
 import { useLoadingTab } from "@/components/MainTabs";
 
 // Memoized note list item component to prevent unnecessary re-renders
@@ -124,6 +126,7 @@ export function NotesTab({ isLoading }) {
   const selectedNoteId = useSelector(state => state.ui.selectedNoteId);
   const selectedFolderId = useSelector(state => state.ui.selectedFolderId);
   const selectedSmartFolderId = useSelector(state => state.ui.selectedSmartFolderId);
+  const notesSelectedTagIds = useSelector(state => state.ui.notesSelectedTagIds || []);
 
   // RTK Query
   const { data: tasks = [] } = useGetTasksQuery();
@@ -131,6 +134,7 @@ export function NotesTab({ isLoading }) {
   const { data: folders = [] } = useGetFoldersQuery();
   const { data: smartFolders = [] } = useGetSmartFoldersQuery();
   const { data: tags = [] } = useGetTagsQuery();
+  const [createTagMutation] = useCreateTagMutation();
   const [updateTaskTags] = useUpdateTaskTagsMutation();
   const [createTask] = useCreateTaskMutation();
   const [updateTask] = useUpdateTaskMutation();
@@ -272,8 +276,13 @@ export function NotesTab({ isLoading }) {
       );
     }
 
+    // Filter by tags
+    if (notesSelectedTagIds.length > 0) {
+      result = result.filter(note => note.tags?.some(tag => notesSelectedTagIds.includes(tag.id)));
+    }
+
     return result.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-  }, [noteTasks, selectedFolderId, selectedSmartFolderId, deferredSearch, smartFolders]);
+  }, [noteTasks, selectedFolderId, selectedSmartFolderId, deferredSearch, smartFolders, notesSelectedTagIds]);
 
   const handleCreateNote = useCallback(
     async titleOverride => {
@@ -474,20 +483,23 @@ export function NotesTab({ isLoading }) {
           {notesActiveMobileView === "notes" && (
             <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
               <Stack spacing={1} sx={{ p: 2 }}>
-                <TextField
-                  size="small"
-                  placeholder="Search notes..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Search fontSize="small" />
-                      </InputAdornment>
-                    ),
-                  }}
-                  fullWidth
-                />
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Box sx={{ flex: 1 }}>
+                    <TaskSearchInput onSearchChange={setSearchQuery} placeholder="Search notes..." />
+                  </Box>
+                  <BacklogFilterMenu
+                    tags={tags}
+                    selectedTagIds={notesSelectedTagIds}
+                    onTagSelect={tagId => dispatch(addNotesSelectedTag(tagId))}
+                    onTagDeselect={tagId => dispatch(removeNotesSelectedTag(tagId))}
+                    onCreateTag={async (name, color) => {
+                      return await createTagMutation({ name, color }).unwrap();
+                    }}
+                    showPriorityFilter={false}
+                    showSort={false}
+                    showUntaggedOption={false}
+                  />
+                </Stack>
                 <QuickTaskInput
                   placeholder="New note title..."
                   onCreate={handleCreateNote}
@@ -737,29 +749,30 @@ export function NotesTab({ isLoading }) {
             }}
           >
             <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
-              <TextField
-                size="small"
-                placeholder="Search notes..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search fontSize="small" />
-                    </InputAdornment>
-                  ),
-                }}
-                fullWidth
-              />
-              <Box sx={{ mt: 2 }}>
-                <QuickTaskInput
-                  placeholder="New note title..."
-                  onCreate={handleCreateNote}
-                  size="small"
-                  fullWidth
-                  showUnderlineWhenActive={false}
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                <Box sx={{ flex: 1 }}>
+                  <TaskSearchInput onSearchChange={setSearchQuery} placeholder="Search notes..." />
+                </Box>
+                <BacklogFilterMenu
+                  tags={tags}
+                  selectedTagIds={notesSelectedTagIds}
+                  onTagSelect={tagId => dispatch(addNotesSelectedTag(tagId))}
+                  onTagDeselect={tagId => dispatch(removeNotesSelectedTag(tagId))}
+                  onCreateTag={async (name, color) => {
+                    return await createTagMutation({ name, color }).unwrap();
+                  }}
+                  showPriorityFilter={false}
+                  showSort={false}
+                  showUntaggedOption={false}
                 />
-              </Box>
+              </Stack>
+              <QuickTaskInput
+                placeholder="New note title..."
+                onCreate={handleCreateNote}
+                size="small"
+                fullWidth
+                showUnderlineWhenActive={false}
+              />
             </Box>
 
             <Box sx={{ flex: 1, overflow: "auto" }}>
