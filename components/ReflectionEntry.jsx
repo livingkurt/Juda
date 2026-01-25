@@ -273,11 +273,7 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
           if (question.allowGoalCreation) {
             return (
               <Box key={questionId}>
-                <GoalCreationQuestion
-                  question={question}
-                  reflectionDate={date}
-                  compact={compact}
-                />
+                <GoalCreationQuestion question={question} reflectionDate={date} compact={compact} />
               </Box>
             );
           }
