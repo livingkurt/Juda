@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
 import { useGetTasksQuery, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
-import { useCreateCompletionMutation } from "@/lib/store/api/completionsApi";
+import { useCreateCompletionMutation, useDeleteCompletionMutation } from "@/lib/store/api/completionsApi";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
 /**
@@ -20,6 +20,7 @@ export function useStatusHandlers({
   const { data: sections = [] } = useGetSectionsQuery();
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();
+  const [deleteCompletionMutation] = useDeleteCompletionMutation();
 
   // Get preferences
   const { preferences } = usePreferencesContext();
@@ -40,10 +41,22 @@ export function useStatusHandlers({
     [createCompletionMutation]
   );
 
+  const deleteCompletion = useCallback(
+    async (taskId, date) => {
+      return await deleteCompletionMutation({ taskId, date }).unwrap();
+    },
+    [deleteCompletionMutation]
+  );
+
   const handleStatusChange = useCallback(
     async (taskId, newStatus) => {
       const task = tasks.find(t => t.id === taskId);
-      if (!task) return;
+      if (!task) {
+        console.error("Task not found:", taskId);
+        return;
+      }
+
+      console.warn("Status change:", { taskId, currentStatus: task.status, newStatus });
 
       const updates = { status: newStatus };
       const now = new Date();
@@ -59,9 +72,53 @@ export function useStatusHandlers({
             updates.recurrence = { type: "none", startDate: `${todayStr}T00:00:00.000Z` };
           }
         }
+
+        // If task was previously completed, delete ALL completion records for this task
+        if (task.status === "complete") {
+          try {
+            // Fetch all completions for this specific task
+            const response = await fetch(`/api/completions?taskId=${taskId}`);
+            if (response.ok) {
+              const data = await response.json();
+              const taskCompletions = data.completions || data || [];
+              // Delete each completion
+              await Promise.all(
+                taskCompletions.map(completion => {
+                  const completionDate = new Date(completion.date);
+                  const dateStr = formatLocalDate(completionDate);
+                  return deleteCompletion(taskId, dateStr);
+                })
+              );
+            }
+          } catch (error) {
+            console.error("Failed to delete completions when moving to in_progress:", error);
+          }
+        }
       } else if (newStatus === "todo") {
         // Clear startedAt when moving back to todo
         updates.startedAt = null;
+
+        // If task was previously completed, delete ALL completion records for this task
+        if (task.status === "complete") {
+          try {
+            // Fetch all completions for this specific task
+            const response = await fetch(`/api/completions?taskId=${taskId}`);
+            if (response.ok) {
+              const data = await response.json();
+              const taskCompletions = data.completions || data || [];
+              // Delete each completion
+              await Promise.all(
+                taskCompletions.map(completion => {
+                  const completionDate = new Date(completion.date);
+                  const dateStr = formatLocalDate(completionDate);
+                  return deleteCompletion(taskId, dateStr);
+                })
+              );
+            }
+          } catch (error) {
+            console.error("Failed to delete completions when moving to todo:", error);
+          }
+        }
       } else if (newStatus === "complete") {
         // When completing, create a TaskCompletion record with timing data
         const completedAt = now;
@@ -121,9 +178,11 @@ export function useStatusHandlers({
         }
       }
 
+      console.warn("Updating task with:", updates);
       await updateTask(taskId, updates);
+      console.warn("Task updated successfully");
     },
-    [tasks, sections, updateTask, createCompletion, showCompletedTasks, addToRecentlyCompleted]
+    [tasks, sections, updateTask, createCompletion, deleteCompletion, showCompletedTasks, addToRecentlyCompleted]
   );
 
   return {

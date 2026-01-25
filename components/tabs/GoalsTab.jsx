@@ -1,17 +1,12 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import {
-  Box,
-  Typography,
-  Button,
-  Stack,
-  CircularProgress,
-} from "@mui/material";
+import { Box, Typography, Button, Stack, CircularProgress } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import { useDispatch } from "react-redux";
 import { openTaskDialog } from "@/lib/store/slices/uiSlice";
-import { useGetTasksQuery, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useGetGoalsQuery } from "@/lib/store/api/goalsApi";
+import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
 import { TaskItem } from "@/components/TaskItem";
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 import { DateNavigation } from "@/components/DateNavigation";
@@ -23,17 +18,20 @@ export function GoalsTab({ isLoading }) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1-12
   const [updateTask] = useUpdateTaskMutation();
 
-  // Fetch all tasks and filter for goals
-  const { data: allTasks = [], isLoading: tasksLoading } = useGetTasksQuery();
+  // Fetch all goals with subtasks
+  const { data: goalsData, isLoading: tasksLoading } = useGetGoalsQuery({
+    year: selectedYear,
+    includeSubgoals: true,
+  });
 
   // Filter and organize goals - only show yearly goals (monthly goals will be shown as subtasks)
   const yearlyGoals = useMemo(() => {
-    const goalTasks = allTasks.filter(task => task.completionType === "goal" && task.goalYear === selectedYear);
+    if (!goalsData?.allGoals) return [];
 
     // Only return yearly goals (no parentId), sorted by order
     // Monthly goals will be displayed as subtasks within their parent yearly goal
     // Use stable sort: first by order, then by id for consistent ordering
-    return goalTasks
+    return goalsData.allGoals
       .filter(g => !g.parentId)
       .sort((a, b) => {
         const orderA = a.order ?? 999;
@@ -44,46 +42,27 @@ export function GoalsTab({ isLoading }) {
         // If orders are equal, sort by id for stable ordering
         return a.id.localeCompare(b.id);
       });
-  }, [allTasks, selectedYear]);
+  }, [goalsData]);
 
   // Get all sub-goals (monthly goals) grouped by month
   const monthlyGoalsByMonth = useMemo(() => {
-    const goalTasks = allTasks.filter(task => task.completionType === "goal" && task.goalYear === selectedYear);
-    
-    // Collect all sub-goals from yearly goals
-    const allSubGoals = [];
-    goalTasks.forEach(goal => {
-      if (goal.subtasks && goal.subtasks.length > 0) {
-        goal.subtasks.forEach(subtask => {
-          allSubGoals.push(subtask);
-        });
-      }
-    });
+    if (!goalsData?.allGoals) return {};
 
-    // Group sub-goals by month
-    // If subtask has goalMonths array, use that; otherwise, we'll need to infer from order or show in all months
+    // Group all goals by month (including both standalone monthly goals and subgoals)
     const grouped = {};
-    
-    allSubGoals.forEach(subgoal => {
-      // If subgoal has goalMonths, add it to those months
-      if (subgoal.goalMonths && Array.isArray(subgoal.goalMonths) && subgoal.goalMonths.length > 0) {
-        subgoal.goalMonths.forEach(month => {
+
+    goalsData.allGoals.forEach(goal => {
+      // Check if this goal has goalMonths (is a monthly goal)
+      if (goal.goalMonths && Array.isArray(goal.goalMonths) && goal.goalMonths.length > 0) {
+        goal.goalMonths.forEach(month => {
           if (!grouped[month]) {
             grouped[month] = [];
           }
           // Avoid duplicates
-          if (!grouped[month].find(g => g.id === subgoal.id)) {
-            grouped[month].push(subgoal);
+          if (!grouped[month].find(g => g.id === goal.id)) {
+            grouped[month].push(goal);
           }
         });
-      } else {
-        // If no goalMonths specified, we could show in all months or a default month
-        // For now, let's not include them, or we could add them to month 1 as a fallback
-        // Actually, let's check if they're monthly goals by checking if they have a parentId
-        if (subgoal.parentId) {
-          // It's a subgoal but no specific months - we'll skip it for now
-          // Or add to all months? Let's skip for now to keep it simple
-        }
       }
     });
 
@@ -100,7 +79,7 @@ export function GoalsTab({ isLoading }) {
     });
 
     return grouped;
-  }, [allTasks, selectedYear]);
+  }, [goalsData]);
 
   // Get goals for the selected month
   const selectedMonthGoals = useMemo(() => {
@@ -117,14 +96,17 @@ export function GoalsTab({ isLoading }) {
   };
 
   // Handle month navigation
-  const handleMonthChange = useCallback((newDate) => {
-    const newMonth = newDate.getMonth() + 1;
-    const newYear = newDate.getFullYear();
-    setSelectedMonth(newMonth);
-    if (newYear !== selectedYear) {
-      setSelectedYear(newYear);
-    }
-  }, [selectedYear]);
+  const handleMonthChange = useCallback(
+    newDate => {
+      const newMonth = newDate.getMonth() + 1;
+      const newYear = newDate.getFullYear();
+      setSelectedMonth(newMonth);
+      if (newYear !== selectedYear) {
+        setSelectedYear(newYear);
+      }
+    },
+    [selectedYear]
+  );
 
   const handlePreviousMonth = useCallback(() => {
     const currentDate = new Date(selectedYear, selectedMonth - 1, 1);
@@ -182,7 +164,7 @@ export function GoalsTab({ isLoading }) {
   }, [selectedYear, selectedMonth]);
 
   // Format month name
-  const getMonthName = (month) => {
+  const getMonthName = month => {
     return new Date(selectedYear, month - 1, 1).toLocaleDateString("en-US", { month: "long" });
   };
 
@@ -217,7 +199,7 @@ export function GoalsTab({ isLoading }) {
 
         <DateNavigation
           selectedDate={selectedDate}
-          onDateChange={viewType === "monthly" ? handleMonthChange : (newDate) => setSelectedYear(newDate.getFullYear())}
+          onDateChange={viewType === "monthly" ? handleMonthChange : newDate => setSelectedYear(newDate.getFullYear())}
           onPrevious={viewType === "monthly" ? handlePreviousMonth : () => setSelectedYear(prev => prev - 1)}
           onNext={viewType === "monthly" ? handleNextMonth : () => setSelectedYear(prev => prev + 1)}
           onToday={viewType === "monthly" ? handleTodayMonth : () => setSelectedYear(new Date().getFullYear())}
@@ -229,7 +211,7 @@ export function GoalsTab({ isLoading }) {
             { value: "yearly", label: "Yearly" },
           ]}
           selectedView={viewType}
-          onViewChange={(newView) => {
+          onViewChange={newView => {
             setViewType(newView);
             if (newView === "monthly") {
               const today = new Date();
@@ -284,42 +266,40 @@ export function GoalsTab({ isLoading }) {
               </DragDropContext>
             </Box>
           )
+        ) : // Monthly view
+        selectedMonthGoals.length === 0 ? (
+          <Box sx={{ py: 8, textAlign: "center" }}>
+            <Typography color="text.secondary" sx={{ mb: 2 }}>
+              No goals for {getMonthName(selectedMonth)} {selectedYear}
+            </Typography>
+            <Button variant="outlined" startIcon={<AddIcon />} onClick={handleCreateGoal}>
+              Create Your First Goal
+            </Button>
+          </Box>
         ) : (
-          // Monthly view
-          selectedMonthGoals.length === 0 ? (
-            <Box sx={{ py: 8, textAlign: "center" }}>
-              <Typography color="text.secondary" sx={{ mb: 2 }}>
-                No goals for {getMonthName(selectedMonth)} {selectedYear}
-              </Typography>
-              <Button variant="outlined" startIcon={<AddIcon />} onClick={handleCreateGoal}>
-                Create Your First Goal
-              </Button>
-            </Box>
-          ) : (
-            <Box>
-              <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId={`goals-monthly-${selectedYear}-${selectedMonth}`}>
-                  {provided => (
-                    <Stack spacing={1} ref={provided.innerRef} {...provided.droppableProps}>
-                      {selectedMonthGoals.map((goal, index) => (
-                        <TaskItem
-                          key={goal.id}
-                          task={goal}
-                          variant="today"
-                          draggableId={goal.id}
-                          index={index}
-                          date={null}
-                          showSubtasks={false}
-                          defaultExpanded={false}
-                        />
-                      ))}
-                      {provided.placeholder}
-                    </Stack>
-                  )}
-                </Droppable>
-              </DragDropContext>
-            </Box>
-          )
+          <Box>
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <Droppable droppableId={`goals-monthly-${selectedYear}-${selectedMonth}`}>
+                {provided => (
+                  <Stack spacing={1} ref={provided.innerRef} {...provided.droppableProps}>
+                    {selectedMonthGoals.map((goal, index) => (
+                      <TaskItem
+                        key={goal.id}
+                        task={goal}
+                        variant="today"
+                        draggableId={goal.id}
+                        index={index}
+                        date={null}
+                        showSubtasks={false}
+                        defaultExpanded={false}
+                      />
+                    ))}
+                    {provided.placeholder}
+                  </Stack>
+                )}
+              </Droppable>
+            </DragDropContext>
+          </Box>
         )}
       </Box>
     </Box>

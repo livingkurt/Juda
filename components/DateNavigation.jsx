@@ -37,65 +37,65 @@ export const DateNavigation = memo(function DateNavigation({
   // Determine if we're in current period based on compareMode
   const isCurrentPeriod = useMemo(() => {
     if (!normalizedSelectedDate) return false;
-    
+
     if (compareMode === "month") {
       return (
         normalizedSelectedDate.getFullYear() === today.getFullYear() &&
         normalizedSelectedDate.getMonth() === today.getMonth()
       );
     }
-    
+
     if (compareMode === "year") {
       return normalizedSelectedDate.getFullYear() === today.getFullYear();
     }
-    
+
     // Default: compare by day
     return normalizedSelectedDate.toDateString() === today.toDateString();
   }, [normalizedSelectedDate, today, compareMode]);
 
   const isToday = normalizedSelectedDate && normalizedSelectedDate.toDateString() === today.toDateString();
-  
+
   // Determine if past/future based on compareMode
   const isPast = useMemo(() => {
     if (!normalizedSelectedDate) return false;
-    
+
     if (compareMode === "month") {
       const selectedYear = normalizedSelectedDate.getFullYear();
       const selectedMonth = normalizedSelectedDate.getMonth();
       const todayYear = today.getFullYear();
       const todayMonth = today.getMonth();
-      
+
       if (selectedYear < todayYear) return true;
       if (selectedYear === todayYear && selectedMonth < todayMonth) return true;
       return false;
     }
-    
+
     if (compareMode === "year") {
       return normalizedSelectedDate.getFullYear() < today.getFullYear();
     }
-    
+
     // Default: compare by day
     return normalizedSelectedDate < today;
   }, [normalizedSelectedDate, today, compareMode]);
-  
+
   const isFuture = useMemo(() => {
     if (!normalizedSelectedDate) return false;
-    
+
     if (compareMode === "month") {
       const selectedYear = normalizedSelectedDate.getFullYear();
       const selectedMonth = normalizedSelectedDate.getMonth();
       const todayYear = today.getFullYear();
       const todayMonth = today.getMonth();
-      
+
       if (selectedYear > todayYear) return true;
       if (selectedYear === todayYear && selectedMonth > todayMonth) return true;
       return false;
     }
-    
+
     if (compareMode === "year") {
       return normalizedSelectedDate.getFullYear() > today.getFullYear();
     }
-    
+
     // Default: compare by day
     return normalizedSelectedDate > today;
   }, [normalizedSelectedDate, today, compareMode]);
