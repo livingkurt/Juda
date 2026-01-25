@@ -28,6 +28,8 @@ import {
   InputAdornment,
   useTheme,
   useMediaQuery,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
 import GLGrid from "./GLGrid";
 import { Close, Add, Delete, DragIndicator, Search, Edit } from "@mui/icons-material";
@@ -218,6 +220,8 @@ function TaskDialogForm({
           question: q.question,
           order: q.order !== undefined ? q.order : idx,
           linkedGoalType: q.linkedGoalType || null,
+          allowGoalCreation: q.allowGoalCreation || false,
+          goalCreationType: q.goalCreationType || null,
         }));
         setReflectionData(prev => ({ ...prev, questions: questionsWithIds }));
       }
@@ -232,6 +236,8 @@ function TaskDialogForm({
       question: "",
       order: reflectionData.questions.length,
       linkedGoalType: null,
+      allowGoalCreation: false,
+      goalCreationType: null,
     };
     setReflectionData(prev => ({
       ...prev,
@@ -1151,6 +1157,11 @@ function TaskDialogForm({
                                                 onChange={e =>
                                                   handleUpdateQuestion(question.id, {
                                                     linkedGoalType: e.target.value || null,
+                                                    // Reset goal creation when unlinking
+                                                    allowGoalCreation: e.target.value
+                                                      ? question.allowGoalCreation
+                                                      : false,
+                                                    goalCreationType: e.target.value ? question.goalCreationType : null,
                                                   })
                                                 }
                                                 label="Link to Goals (Optional)"
@@ -1160,6 +1171,50 @@ function TaskDialogForm({
                                                 <MenuItem value="monthly">Monthly Goals</MenuItem>
                                               </Select>
                                             </FormControl>
+
+                                            {/* Goal creation toggle - available for all questions */}
+                                            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                              <FormControlLabel
+                                                control={
+                                                  <Checkbox
+                                                    checked={question.allowGoalCreation || false}
+                                                    onChange={e =>
+                                                      handleUpdateQuestion(question.id, {
+                                                        allowGoalCreation: e.target.checked,
+                                                        goalCreationType: e.target.checked
+                                                          ? question.goalCreationType ||
+                                                            (question.linkedGoalType === "yearly"
+                                                              ? "rollover"
+                                                              : question.linkedGoalType === "monthly"
+                                                                ? "next_month"
+                                                                : "next_month")
+                                                          : null,
+                                                      })
+                                                    }
+                                                    size="small"
+                                                  />
+                                                }
+                                                label={<Typography variant="caption">Create goals</Typography>}
+                                              />
+
+                                              {question.allowGoalCreation && (
+                                                <FormControl size="small" sx={{ minWidth: 130 }}>
+                                                  <Select
+                                                    value={question.goalCreationType || "next_month"}
+                                                    onChange={e =>
+                                                      handleUpdateQuestion(question.id, {
+                                                        goalCreationType: e.target.value,
+                                                      })
+                                                    }
+                                                    size="small"
+                                                  >
+                                                    <MenuItem value="next_month">Next Month</MenuItem>
+                                                    <MenuItem value="next_year">Next Year</MenuItem>
+                                                    <MenuItem value="rollover">Rollover</MenuItem>
+                                                  </Select>
+                                                </FormControl>
+                                              )}
+                                            </Stack>
                                           </Stack>
                                         </Paper>
                                       )}
