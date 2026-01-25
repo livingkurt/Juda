@@ -272,38 +272,39 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
                 {question.question}
               </Typography>
 
-              {/* Text answer input */}
-              <TextField
-                value={response?.answer || ""}
-                onChange={e => {
-                  focusedRef.current = true;
-                  handleAnswerChange(question.id || `q-${question.order}`, e.target.value);
-                }}
-                onBlur={e => {
-                  focusedRef.current = false;
-                  const currentAnswer = e.target.value;
-                  const questionId = question.id || `q-${question.order}`;
+              {/* Text answer input - only show when question is not linked to goals */}
+              {!question.linkedGoalType && (
+                <TextField
+                  value={response?.answer || ""}
+                  onChange={e => {
+                    focusedRef.current = true;
+                    handleAnswerChange(question.id || `q-${question.order}`, e.target.value);
+                  }}
+                  onBlur={e => {
+                    focusedRef.current = false;
+                    const currentAnswer = e.target.value;
+                    const questionId = question.id || `q-${question.order}`;
 
-                  setResponses(prev => {
-                    const updatedResponses = prev.map(r =>
-                      r.questionId === questionId ? { ...r, answer: currentAnswer } : r
-                    );
-                    // Call immediateSave directly with the updated responses
-                    immediateSave(updatedResponses);
-                    return updatedResponses;
-                  });
-                }}
-                onFocus={() => {
-                  focusedRef.current = true;
-                }}
-                placeholder="Enter your response..."
-                size="small"
-                multiline
-                variant="filled"
-                fullWidth
-                minRows={compact ? 2 : 3}
-                sx={{ mb: relevantGoals.length > 0 ? 2 : 0 }}
-              />
+                    setResponses(prev => {
+                      const updatedResponses = prev.map(r =>
+                        r.questionId === questionId ? { ...r, answer: currentAnswer } : r
+                      );
+                      // Call immediateSave directly with the updated responses
+                      immediateSave(updatedResponses);
+                      return updatedResponses;
+                    });
+                  }}
+                  onFocus={() => {
+                    focusedRef.current = true;
+                  }}
+                  placeholder="Enter your response..."
+                  size="small"
+                  multiline
+                  variant="filled"
+                  fullWidth
+                  minRows={compact ? 2 : 3}
+                />
+              )}
 
               {/* Goal progress section */}
               {question.linkedGoalType && relevantGoals.length > 0 && (
