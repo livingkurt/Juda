@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, memo } from "react";
+import { useState, useRef, useEffect, memo, useMemo } from "react";
 import { Box, Typography, Stack, IconButton, TextField, Menu, Button, Chip, Collapse, Paper } from "@mui/material";
 import { Draggable } from "@hello-pangea/dnd";
 import {
@@ -26,6 +26,7 @@ import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useSelectionState } from "@/hooks/useSelectionState";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
+import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
@@ -168,6 +169,7 @@ export const TaskItem = ({
   const completionHandlers = useCompletionHandlers();
   const selectionState = useSelectionState();
   const { data: tags = [] } = useGetTagsQuery();
+  const { data: allTasks = [] } = useGetTasksQuery();
   const [createTagMutation] = useCreateTagMutation();
   const { getOutcomeOnDate, hasRecordOnDate, getCompletionForDate } = useCompletionHelpers();
   const dialogState = useDialogState();
@@ -200,6 +202,17 @@ export const TaskItem = ({
   const isBacklog = variant === "backlog";
   const isToday = variant === "today";
   const isSubtask = variant === "subtask";
+
+  // For subtasks, inherit parent's tags if subtask has no tags
+  const displayTags = useMemo(() => {
+    if (task.parentId && (!task.tags || task.tags.length === 0)) {
+      const parentTask = allTasks.find(t => t.id === task.parentId);
+      if (parentTask && parentTask.tags && parentTask.tags.length > 0) {
+        return parentTask.tags;
+      }
+    }
+    return task.tags || [];
+  }, [task.parentId, task.tags, allTasks]);
 
   const { mode, colorMode } = useSemanticColors();
   const { theme } = useTheme();
@@ -445,7 +458,8 @@ export const TaskItem = ({
   const isDragDisabledDuringEdit = isDragDisabled || isEditingTitle;
 
   // Get task color from first tag, or use neutral gray if no tags
-  const taskColor = getTaskDisplayColor(task, theme, colorMode);
+  // Use displayTags for color calculation so subtasks inherit parent's color
+  const taskColor = getTaskDisplayColor({ ...task, tags: displayTags }, theme, colorMode);
 
   // Render the task content
   const taskContent = (
@@ -754,9 +768,9 @@ export const TaskItem = ({
                   hasRecordOnDate={hasRecordOnDate}
                 />
                 {/* Tags inline with badges */}
-                {task.tags && task.tags.length > 0 && (
+                {displayTags && displayTags.length > 0 && (
                   <>
-                    {task.tags.map(tag => (
+                    {displayTags.map(tag => (
                       <TagChip key={tag.id} tag={tag} size="xs" />
                     ))}
                   </>
@@ -784,10 +798,10 @@ export const TaskItem = ({
               </Typography>
             )}
             {/* Tags for kanban variant */}
-            {variant === "kanban" && (task.priority || (task.tags && task.tags.length > 0)) && (
+            {variant === "kanban" && (task.priority || (displayTags && displayTags.length > 0)) && (
               <Stack direction="row" spacing={1} sx={{ mt: 1.5, alignItems: "center", flexWrap: "wrap" }}>
                 {task.priority && <PriorityChip priority={task.priority} size="xs" />}
-                {(task.tags || []).map(tag => (
+                {displayTags.map(tag => (
                   <TagChip key={tag.id} tag={tag} size="sm" />
                 ))}
               </Stack>
