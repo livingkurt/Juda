@@ -7,8 +7,7 @@ import { Add, Visibility as Eye, VisibilityOff as EyeOff } from "@mui/icons-mate
 import { useSelector, useDispatch } from "react-redux";
 import { TaskItem } from "@/components/TaskItem";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
-import { TagFilter } from "@/components/TagFilter";
-import { PriorityFilter } from "@/components/PriorityFilter";
+import { BacklogFilterMenu } from "@/components/BacklogFilterMenu";
 import { QuickTaskInput } from "@/components/QuickTaskInput";
 import { DateNavigation } from "@/components/DateNavigation";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -274,32 +273,30 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       {/* Header with search and filters */}
       <Box sx={{ m: 2 }}>
-        <Stack spacing={2}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Box sx={{ flex: 1 }}>
-              <TaskSearchInput onSearchChange={term => dispatch(setKanbanSearchTerm(term))} />
-            </Box>
-            <TagFilter
-              tags={tags}
-              selectedTagIds={selectedTagIds}
-              onTagSelect={handleTagSelect}
-              onTagDeselect={handleTagDeselect}
-              onCreateTag={async (name, color) => {
-                return await createTagMutation({ name, color }).unwrap();
-              }}
-            />
-            <PriorityFilter
-              selectedPriorities={selectedPriorities}
-              onPrioritySelect={priority => {
-                if (!selectedPriorities.includes(priority)) {
-                  dispatch(setKanbanSelectedPriorities([...selectedPriorities, priority]));
-                }
-              }}
-              onPriorityDeselect={priority =>
-                dispatch(setKanbanSelectedPriorities(selectedPriorities.filter(value => value !== priority)))
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Box sx={{ flex: 1 }}>
+            <TaskSearchInput onSearchChange={term => dispatch(setKanbanSearchTerm(term))} />
+          </Box>
+          <BacklogFilterMenu
+            tags={tags}
+            selectedTagIds={selectedTagIds}
+            onTagSelect={handleTagSelect}
+            onTagDeselect={handleTagDeselect}
+            onCreateTag={async (name, color) => {
+              return await createTagMutation({ name, color }).unwrap();
+            }}
+            selectedPriorities={selectedPriorities}
+            onPrioritySelect={priority => {
+              if (!selectedPriorities.includes(priority)) {
+                dispatch(setKanbanSelectedPriorities([...selectedPriorities, priority]));
               }
-            />
-          </Stack>
+            }}
+            onPriorityDeselect={priority =>
+              dispatch(setKanbanSelectedPriorities(selectedPriorities.filter(value => value !== priority)))
+            }
+            showSort={false}
+            showUntaggedOption={false}
+          />
         </Stack>
       </Box>
 

@@ -3,13 +3,21 @@
 import { useState, useMemo, useCallback } from "react";
 import { Box, Typography, Button, Stack, CircularProgress } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
-import { useDispatch } from "react-redux";
-import { openTaskDialog } from "@/lib/store/slices/uiSlice";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  openTaskDialog,
+  setGoalsSearchTerm,
+  addGoalsSelectedTag,
+  removeGoalsSelectedTag,
+} from "@/lib/store/slices/uiSlice";
 import { useGetGoalsQuery } from "@/lib/store/api/goalsApi";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { TaskItem } from "@/components/TaskItem";
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 import { DateNavigation } from "@/components/DateNavigation";
+import { TaskSearchInput } from "@/components/TaskSearchInput";
+import { BacklogFilterMenu } from "@/components/BacklogFilterMenu";
 
 export function GoalsTab({ isLoading }) {
   const dispatch = useDispatch();
@@ -17,6 +25,10 @@ export function GoalsTab({ isLoading }) {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1-12
   const [updateTask] = useUpdateTaskMutation();
+  const { data: tags = [] } = useGetTagsQuery();
+  const [createTagMutation] = useCreateTagMutation();
+  const goalsSearchTerm = useSelector(state => state.ui.goalsSearchTerm || "");
+  const goalsSelectedTagIds = useSelector(state => state.ui.goalsSelectedTagIds || []);
 
   // Fetch all goals with subtasks
   const { data: goalsData, isLoading: tasksLoading } = useGetGoalsQuery({
@@ -28,21 +40,32 @@ export function GoalsTab({ isLoading }) {
   const yearlyGoals = useMemo(() => {
     if (!goalsData?.allGoals) return [];
 
-    // Only return yearly goals (no parentId), sorted by order
-    // Monthly goals will be displayed as subtasks within their parent yearly goal
+    let filtered = goalsData.allGoals.filter(g => !g.parentId);
+
+    // Filter by search term
+    if (goalsSearchTerm.trim()) {
+      const search = goalsSearchTerm.toLowerCase();
+      filtered = filtered.filter(
+        goal => goal.title?.toLowerCase().includes(search) || goal.description?.toLowerCase().includes(search)
+      );
+    }
+
+    // Filter by tags
+    if (goalsSelectedTagIds.length > 0) {
+      filtered = filtered.filter(goal => goal.tags?.some(tag => goalsSelectedTagIds.includes(tag.id)));
+    }
+
     // Use stable sort: first by order, then by id for consistent ordering
-    return goalsData.allGoals
-      .filter(g => !g.parentId)
-      .sort((a, b) => {
-        const orderA = a.order ?? 999;
-        const orderB = b.order ?? 999;
-        if (orderA !== orderB) {
-          return orderA - orderB;
-        }
-        // If orders are equal, sort by id for stable ordering
-        return a.id.localeCompare(b.id);
-      });
-  }, [goalsData]);
+    return filtered.sort((a, b) => {
+      const orderA = a.order ?? 999;
+      const orderB = b.order ?? 999;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      // If orders are equal, sort by id for stable ordering
+      return a.id.localeCompare(b.id);
+    });
+  }, [goalsData, goalsSearchTerm, goalsSelectedTagIds]);
 
   // Get all sub-goals (monthly goals) grouped by month
   const monthlyGoalsByMonth = useMemo(() => {
@@ -83,8 +106,23 @@ export function GoalsTab({ isLoading }) {
 
   // Get goals for the selected month
   const selectedMonthGoals = useMemo(() => {
-    return monthlyGoalsByMonth[selectedMonth] || [];
-  }, [monthlyGoalsByMonth, selectedMonth]);
+    let filtered = monthlyGoalsByMonth[selectedMonth] || [];
+
+    // Filter by search term
+    if (goalsSearchTerm.trim()) {
+      const search = goalsSearchTerm.toLowerCase();
+      filtered = filtered.filter(
+        goal => goal.title?.toLowerCase().includes(search) || goal.description?.toLowerCase().includes(search)
+      );
+    }
+
+    // Filter by tags
+    if (goalsSelectedTagIds.length > 0) {
+      filtered = filtered.filter(goal => goal.tags?.some(tag => goalsSelectedTagIds.includes(tag.id)));
+    }
+
+    return filtered;
+  }, [monthlyGoalsByMonth, selectedMonth, goalsSearchTerm, goalsSelectedTagIds]);
 
   const handleCreateGoal = () => {
     dispatch(
@@ -195,6 +233,27 @@ export function GoalsTab({ isLoading }) {
           <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateGoal}>
             New Goal
           </Button>
+        </Stack>
+
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Box sx={{ flex: 1 }}>
+            <TaskSearchInput
+              onSearchChange={term => dispatch(setGoalsSearchTerm(term))}
+              placeholder="Search goals..."
+            />
+          </Box>
+          <BacklogFilterMenu
+            tags={tags}
+            selectedTagIds={goalsSelectedTagIds}
+            onTagSelect={tagId => dispatch(addGoalsSelectedTag(tagId))}
+            onTagDeselect={tagId => dispatch(removeGoalsSelectedTag(tagId))}
+            onCreateTag={async (name, color) => {
+              return await createTagMutation({ name, color }).unwrap();
+            }}
+            showPriorityFilter={false}
+            showSort={false}
+            showUntaggedOption={false}
+          />
         </Stack>
 
         <DateNavigation
