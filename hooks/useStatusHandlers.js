@@ -50,7 +50,19 @@ export function useStatusHandlers({
 
   const handleStatusChange = useCallback(
     async (taskId, newStatus) => {
-      const task = tasks.find(t => t.id === taskId);
+      // Helper to find task recursively (including subtasks)
+      const findTask = (taskList, id) => {
+        for (const task of taskList) {
+          if (task.id === id) return task;
+          if (task.subtasks && task.subtasks.length > 0) {
+            const found = findTask(task.subtasks, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      const task = findTask(tasks, taskId);
       if (!task) {
         console.error("Task not found:", taskId);
         return;
