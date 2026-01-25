@@ -101,7 +101,7 @@ export function GoalsTab({ isLoading }) {
       {/* Header */}
       <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
         <Typography variant="h4" sx={{ flex: 1 }}>
-          Goals
+          {selectedYear} Goals
         </Typography>
 
         <FormControl size="small" sx={{ minWidth: 120 }}>
@@ -137,20 +137,6 @@ export function GoalsTab({ isLoading }) {
           </Box>
         ) : (
           <Box>
-            {/* Year Heading */}
-            <Typography
-              variant="h5"
-              sx={{
-                mb: 2,
-                pb: 1,
-                borderBottom: 2,
-                borderColor: "primary.main",
-                fontWeight: 600,
-              }}
-            >
-              {selectedYear} Goals
-            </Typography>
-
             <DragDropContext onDragEnd={handleDragEnd}>
               <Droppable droppableId={`goals-${selectedYear}`}>
                 {provided => (
