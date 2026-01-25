@@ -6,6 +6,7 @@ import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 import { useGetGoalsQuery } from "@/lib/store/api/goalsApi";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
 import { useCreateCompletionMutation } from "@/lib/store/api/completionsApi";
+import { GoalCreationQuestion } from "@/components/GoalCreationQuestion";
 import dayjs from "dayjs";
 
 /**
@@ -22,7 +23,9 @@ import dayjs from "dayjs";
  * @param {boolean} props.compact - If true, shows compact view (for journal)
  */
 export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compact = false }) => {
-  const currentYear = dayjs(date).year();
+  const reflectionDate = dayjs(date);
+  const currentYear = reflectionDate.year();
+  const isFirstOfYear = reflectionDate.month() === 0 && reflectionDate.date() === 1; // January 1st
 
   // Parse existing completion note (should be JSON for reflections)
   const existingData = useMemo(() => {
@@ -167,7 +170,7 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
           try {
             await createCompletion({
               taskId: goalId,
-              date: dayjs(date).format("YYYY-MM-DD"),
+              date: reflectionDate.format("YYYY-MM-DD"),
               outcome: "completed",
             }).unwrap();
           } catch (error) {
@@ -207,12 +210,12 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
   }, [goals, currentYear]);
 
   const monthlyGoals = useMemo(() => {
-    const currentMonth = dayjs(date).month() + 1;
+    const currentMonth = reflectionDate.month() + 1;
     return goals.filter(
       g =>
         g.goalYear === currentYear && g.goalMonths && Array.isArray(g.goalMonths) && g.goalMonths.includes(currentMonth)
     );
-  }, [goals, currentYear, date]);
+  }, [goals, currentYear, reflectionDate]);
 
   // Get relevant goals for a question based on linkedGoalType
   const getRelevantGoals = useCallback(
@@ -266,6 +269,34 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
           const response = responses.find(r => r.questionId === questionId);
           const relevantGoals = question.linkedGoalType ? getRelevantGoals(question.linkedGoalType) : [];
 
+          // Check if this is a goal creation question
+          if (question.allowGoalCreation) {
+            return (
+              <Box key={questionId}>
+                <GoalCreationQuestion
+                  question={question}
+                  reflectionDate={date}
+                  response={response?.answer || ""}
+                  onResponseChange={newAnswer => {
+                    setResponses(prev => {
+                      const updatedResponses = prev.map(r =>
+                        r.questionId === questionId ? { ...r, answer: newAnswer } : r
+                      );
+                      debouncedSave(updatedResponses);
+                      return updatedResponses;
+                    });
+                  }}
+                  compact={compact}
+                />
+              </Box>
+            );
+          }
+
+          // Hide entire question on first of year if it's linked to goals (no goals to track yet)
+          if (question.linkedGoalType && isFirstOfYear) {
+            return null;
+          }
+
           return (
             <Box key={question.id || `q-${question.order}`}>
               <Typography variant={compact ? "body2" : "body1"} fontWeight={500} sx={{ mb: 1, color: "text.primary" }}>
@@ -306,8 +337,8 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
                 />
               )}
 
-              {/* Goal progress section */}
-              {question.linkedGoalType && relevantGoals.length > 0 && (
+              {/* Goal progress section - hide on first of year (no goals to track yet) */}
+              {question.linkedGoalType && relevantGoals.length > 0 && !isFirstOfYear && (
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
                     Track progress on related goals:
