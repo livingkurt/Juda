@@ -15,9 +15,9 @@
     "db:generate": "node scripts/generate-migration.js",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "db:dump": "node scripts/dump-production.js",
-    "db:restore": "node scripts/dump-production.js --restore",
-    "db:restore-dev": "node scripts/restore-dev.js",
+    "db:dump": "bash scripts/db-dump.sh",
+    "db:restore": "bash scripts/db-restore.sh",
+    "db:sync": "npm run db:dump && npm run db:restore",
     "clean-install": "rm -rf node_modules && rm -rf package-lock.json && npm install"
   },
   "dependencies": {
