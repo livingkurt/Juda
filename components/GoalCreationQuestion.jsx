@@ -13,6 +13,10 @@ import {
   Collapse,
   CircularProgress,
   Tooltip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -52,7 +56,7 @@ import dayjs from "dayjs";
  * @param {Function} props.onResponseChange - Callback when text response changes
  * @param {boolean} props.compact - Compact mode for Journal view
  */
-export function GoalCreationQuestion({ question, reflectionDate, response = "", onResponseChange, compact = false }) {
+export function GoalCreationQuestion({ question, reflectionDate, compact = false }) {
   const reflectionDayjs = dayjs(reflectionDate);
   const currentYear = reflectionDayjs.year();
   const currentMonth = reflectionDayjs.month() + 1;
@@ -61,7 +65,8 @@ export function GoalCreationQuestion({ question, reflectionDate, response = "", 
   // Calculate target year/month based on creation type
   // If it's the 1st of the month, create goals for the current month (not next month)
   // Otherwise, create goals for next month
-  const targetYear = question.goalCreationType === "rollover" ? currentYear + 1 : currentYear;
+  // For "next_year", we show previous year's goals and allow rolling them over to the current year
+  const targetYear = question.goalCreationType === "next_year" ? currentYear : currentYear;
   const targetMonth =
     question.goalCreationType === "next_month"
       ? dayOfMonth === 1
@@ -75,24 +80,54 @@ export function GoalCreationQuestion({ question, reflectionDate, response = "", 
       ? currentYear + 1
       : currentYear;
 
-  // For rollover, show previous year's goals; otherwise show current year
-  const sourceYear = question.goalCreationType === "rollover" ? currentYear : currentYear;
+  // For "next_year", show previous year's goals (to roll over to current year); otherwise show current year
+  const sourceYear = question.goalCreationType === "next_year" ? currentYear - 1 : currentYear;
 
-  // Fetch goals for source year
+  // For "next_month", calculate previous month
+  const sourceMonth =
+    question.goalCreationType === "next_month"
+      ? dayOfMonth === 1
+        ? currentMonth === 1
+          ? 12
+          : currentMonth - 1
+        : currentMonth
+      : null;
+  const sourceMonthYear =
+    question.goalCreationType === "next_month" && dayOfMonth === 1 && currentMonth === 1
+      ? currentYear - 1
+      : currentYear;
+
+  // Fetch goals for source year/month
+  // For monthly: fetch from sourceMonthYear (previous month's year) to get previous month's goals
+  // For yearly: fetch from sourceYear (previous year)
+  const goalsQueryYear = question.goalCreationType === "next_month" ? sourceMonthYear : sourceYear;
   const {
     data: goalsData,
     isLoading: goalsLoading,
     refetch: refetchSourceGoals,
   } = useGetGoalsQuery({
-    year: sourceYear,
+    year: goalsQueryYear,
     includeSubgoals: true,
   });
 
-  // Fetch goals for target year (to check what's already rolled over)
+  // Fetch goals for target year/month (to check what's already rolled over and show current goals)
+  // For monthly: fetch from targetMonthYear (current month's year)
+  // For yearly: fetch from targetYear (current year)
+  const targetQueryYear = question.goalCreationType === "next_month" ? targetMonthYear : targetYear;
   const { data: targetGoalsData, refetch: refetchTargetGoals } = useGetGoalsQuery({
-    year: targetYear,
+    year: targetQueryYear,
     includeSubgoals: true,
   });
+
+  // For monthly reflections, fetch current year goals for parent selection
+  // This ensures we have yearly goals even if targetMonthYear is different (e.g., Jan 1st reflecting on Dec)
+  const { data: currentYearGoalsData, refetch: refetchCurrentYearGoals } = useGetGoalsQuery(
+    {
+      year: currentYear,
+      includeSubgoals: true,
+    },
+    { skip: question.goalCreationType !== "next_month" }
+  );
 
   // Fetch tags for "Goals" tag
   const { data: tags = [] } = useGetTagsQuery();
@@ -103,17 +138,76 @@ export function GoalCreationQuestion({ question, reflectionDate, response = "", 
   const [rolloverGoal, { isLoading: rollingOver }] = useRolloverGoalMutation();
 
   // Local state for new goal inputs
-  const [newGoalInputs, setNewGoalInputs] = useState({}); // { [parentGoalId]: string }
-  const [expandedGoals, setExpandedGoals] = useState(new Set());
+  const [newMonthlyGoalTitle, setNewMonthlyGoalTitle] = useState("");
+  const [selectedParentId, setSelectedParentId] = useState(null);
   const [newYearlyGoalTitle, setNewYearlyGoalTitle] = useState("");
+  const [expandedGoals, setExpandedGoals] = useState(new Set());
 
-  // Get yearly goals from source year
-  const yearlyGoals = useMemo(() => {
+  // Get yearly goals from source year (previous year for rollover)
+  const previousYearGoals = useMemo(() => {
     if (!goalsData?.allGoals) return [];
-    return goalsData.allGoals.filter(g => !g.parentId && (!g.goalMonths || g.goalMonths.length === 0));
-  }, [goalsData]);
+    return goalsData.allGoals.filter(
+      g => !g.parentId && (!g.goalMonths || g.goalMonths.length === 0) && g.goalYear === sourceYear
+    );
+  }, [goalsData, sourceYear]);
 
-  // Get monthly goals grouped by parent
+  // Get yearly goals from target year (current year - already rolled over or newly created)
+  const currentYearGoals = useMemo(() => {
+    if (question.goalCreationType !== "next_year") return [];
+    if (!targetGoalsData?.allGoals) return [];
+    return targetGoalsData.allGoals.filter(
+      g => !g.parentId && (!g.goalMonths || g.goalMonths.length === 0) && g.goalYear === targetYear
+    );
+  }, [targetGoalsData, targetYear, question.goalCreationType]);
+
+  // Get yearly goals for parent selection (for monthly reflections)
+  const yearlyGoalsForSelection = useMemo(() => {
+    if (question.goalCreationType !== "next_month") return [];
+    // Use currentYearGoalsData (always fetched for monthly reflections)
+    if (!currentYearGoalsData?.allGoals) return [];
+    return currentYearGoalsData.allGoals.filter(
+      g => !g.parentId && (!g.goalMonths || g.goalMonths.length === 0) && g.goalYear === currentYear
+    );
+  }, [currentYearGoalsData, currentYear, question.goalCreationType]);
+
+  // Get monthly goals from previous month (for rollover)
+  const previousMonthGoals = useMemo(() => {
+    if (question.goalCreationType !== "next_month") return [];
+    if (!goalsData?.allGoals) return [];
+    return goalsData.allGoals.filter(
+      g =>
+        g.parentId &&
+        g.goalMonths &&
+        Array.isArray(g.goalMonths) &&
+        g.goalMonths.includes(sourceMonth) &&
+        g.goalYear === sourceMonthYear
+    );
+  }, [goalsData, sourceMonth, sourceMonthYear, question.goalCreationType]);
+
+  // Get monthly goals from current/target month (already rolled over or newly created)
+  const currentMonthGoals = useMemo(() => {
+    if (question.goalCreationType !== "next_month") return [];
+    if (!targetGoalsData?.allGoals) return [];
+    return targetGoalsData.allGoals.filter(
+      g =>
+        g.parentId &&
+        g.goalMonths &&
+        Array.isArray(g.goalMonths) &&
+        g.goalMonths.includes(targetMonth) &&
+        g.goalYear === targetMonthYear
+    );
+  }, [targetGoalsData, targetMonth, targetMonthYear, question.goalCreationType]);
+
+  // For next_year, combine both lists (previous year first, then current year)
+  // For next_month, just use source year goals
+  const yearlyGoals = useMemo(() => {
+    if (question.goalCreationType === "next_year") {
+      return [...previousYearGoals, ...currentYearGoals];
+    }
+    return previousYearGoals;
+  }, [question.goalCreationType, previousYearGoals, currentYearGoals]);
+
+  // Get monthly goals grouped by parent (from source year)
   const monthlyGoalsByParent = useMemo(() => {
     if (!goalsData?.allGoals) return {};
     const grouped = {};
@@ -126,9 +220,9 @@ export function GoalCreationQuestion({ question, reflectionDate, response = "", 
     return grouped;
   }, [goalsData]);
 
-  // Get monthly goals grouped by parent for target year
+  // Get monthly goals grouped by parent (from target year - for next_year type)
   const targetMonthlyGoalsByParent = useMemo(() => {
-    if (!targetGoalsData?.allGoals) return {};
+    if (question.goalCreationType !== "next_year" || !targetGoalsData?.allGoals) return {};
     const grouped = {};
     targetGoalsData.allGoals.forEach(g => {
       if (g.parentId && g.goalMonths && g.goalMonths.length > 0) {
@@ -137,16 +231,21 @@ export function GoalCreationQuestion({ question, reflectionDate, response = "", 
       }
     });
     return grouped;
-  }, [targetGoalsData]);
+  }, [targetGoalsData, question.goalCreationType]);
 
   // Calculate next order value for a monthly goal under a parent
   const getNextMonthlyGoalOrder = useCallback(
     parentId => {
-      // First try to get subgoals from target year (where we're creating the goal)
-      let subgoals = targetMonthlyGoalsByParent[parentId] || [];
+      // For next_month type, use current month goals to calculate order
+      if (question.goalCreationType === "next_month") {
+        const currentMonthSubgoals = currentMonthGoals.filter(g => g.parentId === parentId);
+        if (currentMonthSubgoals.length === 0) return 0;
+        const maxOrder = Math.max(...currentMonthSubgoals.map(sg => sg.order ?? 0));
+        return maxOrder + 1;
+      }
 
-      // If no subgoals in target year, fall back to source year subgoals
-      // (this handles the case where we're creating the first goal for next month)
+      // For next_year type, use target year subgoals
+      let subgoals = targetMonthlyGoalsByParent[parentId] || [];
       if (subgoals.length === 0) {
         subgoals = monthlyGoalsByParent[parentId] || [];
       }
@@ -155,7 +254,7 @@ export function GoalCreationQuestion({ question, reflectionDate, response = "", 
       const maxOrder = Math.max(...subgoals.map(sg => sg.order ?? 0));
       return maxOrder + 1;
     },
-    [targetMonthlyGoalsByParent, monthlyGoalsByParent]
+    [targetMonthlyGoalsByParent, monthlyGoalsByParent, question.goalCreationType, currentMonthGoals]
   );
 
   // Calculate next order value for a yearly goal
@@ -179,6 +278,22 @@ export function GoalCreationQuestion({ question, reflectionDate, response = "", 
     [targetGoalsData]
   );
 
+  // Check if a monthly goal has been rolled over to target month
+  const isMonthlyGoalRolledOver = useCallback(
+    goalTitle => {
+      if (!targetGoalsData?.allGoals) return false;
+      return targetGoalsData.allGoals.some(
+        g =>
+          g.title === goalTitle &&
+          g.goalMonths &&
+          Array.isArray(g.goalMonths) &&
+          g.goalMonths.includes(targetMonth) &&
+          g.goalYear === targetMonthYear
+      );
+    },
+    [targetGoalsData, targetMonth, targetMonthYear]
+  );
+
   // Toggle goal expansion
   const toggleExpanded = goalId => {
     setExpandedGoals(prev => {
@@ -192,37 +307,73 @@ export function GoalCreationQuestion({ question, reflectionDate, response = "", 
     });
   };
 
-  // Handle creating a new monthly goal under a yearly goal
-  const handleCreateMonthlyGoal = async parentGoal => {
-    const title = newGoalInputs[parentGoal.id]?.trim();
-    if (!title) return;
+  // Handle creating a new monthly goal
+  const handleCreateMonthlyGoal = async () => {
+    const title = newMonthlyGoalTitle.trim();
+    if (!title || !selectedParentId) return;
 
     try {
       // Calculate the next order value to append at the end
-      const nextOrder = getNextMonthlyGoalOrder(parentGoal.id);
+      const nextOrder = getNextMonthlyGoalOrder(selectedParentId);
 
       await createTask({
         title,
         completionType: "goal",
         goalYear: targetMonthYear,
         goalMonths: [targetMonth],
-        parentId: parentGoal.id,
+        parentId: selectedParentId,
         status: "todo",
         order: nextOrder,
         tagIds: goalsTag ? [goalsTag.id] : [],
       }).unwrap();
 
       // Clear input after success
-      setNewGoalInputs(prev => ({ ...prev, [parentGoal.id]: "" }));
+      setNewMonthlyGoalTitle("");
+      setSelectedParentId(null);
 
-      // Refetch goals to update the UI (cache invalidation should handle this, but refetch to be sure)
+      // Refetch goals to update the UI
       refetchSourceGoals();
-      if (targetMonthYear !== sourceYear) {
+      if (targetMonthYear !== sourceMonthYear || targetMonth !== sourceMonth) {
         refetchTargetGoals();
+      }
+      if (question.goalCreationType === "next_month") {
+        refetchCurrentYearGoals();
       }
     } catch (error) {
       console.error("Failed to create goal:", error);
-      // Show error to user - you might want to add a toast notification here
+    }
+  };
+
+  // Handle rolling over a monthly goal to next month
+  const handleRolloverMonthlyGoal = async goal => {
+    try {
+      // Create a new goal with the same title but for the target month
+      const nextOrder = getNextMonthlyGoalOrder(goal.parentId);
+
+      await createTask({
+        title: goal.title,
+        completionType: "goal",
+        goalYear: targetMonthYear,
+        goalMonths: [targetMonth],
+        parentId: goal.parentId,
+        status: "todo",
+        order: nextOrder,
+        tagIds: goalsTag ? [goalsTag.id] : [],
+        goalData: {
+          ...goal.goalData,
+          rolledOverFrom: goal.id,
+          rolledOverFromMonth: sourceMonth,
+        },
+      }).unwrap();
+
+      // Refetch goals to update the UI
+      refetchSourceGoals();
+      if (targetMonthYear !== sourceMonthYear || targetMonth !== sourceMonth) {
+        refetchTargetGoals();
+      }
+      refetchCurrentYearGoals();
+    } catch (error) {
+      console.error("Failed to rollover monthly goal:", error);
     }
   };
 
@@ -296,67 +447,69 @@ export function GoalCreationQuestion({ question, reflectionDate, response = "", 
 
       {/* Target info */}
       <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: "block" }}>
-        {question.goalCreationType === "rollover"
-          ? `Rolling over goals from ${currentYear} to ${targetYear}`
-          : `Creating goals for ${dayjs(new Date(targetMonthYear, targetMonth - 1, 1)).format("MMMM")} ${targetMonthYear}`}
+        {question.goalCreationType === "next_year"
+          ? `Rolling over goals from ${sourceYear} to ${targetYear}`
+          : `Rolling over goals from ${dayjs(new Date(sourceMonthYear, sourceMonth - 1, 1)).format("MMMM")} to ${dayjs(new Date(targetMonthYear, targetMonth - 1, 1)).format("MMMM")}`}
       </Typography>
 
       {/* Goals list */}
       <Stack spacing={1.5}>
-        {yearlyGoals.length === 0 ? (
-          <Paper sx={{ p: 2, bgcolor: "background.default" }}>
-            <Typography variant="body2" color="text.secondary">
-              No goals found for {sourceYear}. Create your first yearly goal below.
-            </Typography>
-          </Paper>
-        ) : (
-          yearlyGoals.map(goal => {
-            const isExpanded = expandedGoals.has(goal.id);
-            const subgoals = monthlyGoalsByParent[goal.id] || [];
-            const hasSubgoals = subgoals.length > 0;
-            const alreadyRolledOver = isGoalRolledOver(goal.title);
+        {/* Empty state message */}
+        {question.goalCreationType === "next_year" &&
+          previousYearGoals.length === 0 &&
+          currentYearGoals.length === 0 && (
+            <Paper sx={{ p: 2, bgcolor: "background.default" }}>
+              <Typography variant="body2" color="text.secondary">
+                No goals found for {sourceYear}. Create your first yearly goal for {targetYear} below.
+              </Typography>
+            </Paper>
+          )}
 
-            return (
-              <Paper
-                key={goal.id}
-                variant="outlined"
-                sx={{
-                  overflow: "hidden",
-                  opacity: alreadyRolledOver && question.goalCreationType === "rollover" ? 0.6 : 1,
-                }}
-              >
-                {/* Yearly goal header */}
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  spacing={1}
+        {/* Show previous year's goals section for next_year */}
+        {question.goalCreationType === "next_year" && previousYearGoals.length > 0 && (
+          <>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, mt: 1 }}>
+              Goals from {sourceYear} (roll over to {targetYear})
+            </Typography>
+            {previousYearGoals.map(goal => {
+              const isExpanded = expandedGoals.has(goal.id);
+              const subgoals = monthlyGoalsByParent[goal.id] || [];
+              const hasSubgoals = subgoals.length > 0;
+              const alreadyRolledOver = isGoalRolledOver(goal.title);
+
+              return (
+                <Paper
+                  key={goal.id}
+                  variant="outlined"
                   sx={{
-                    p: 1.5,
-                    bgcolor: "background.default",
-                    borderBottom: isExpanded && (hasSubgoals || question.goalCreationType === "next_month") ? 1 : 0,
-                    borderColor: "divider",
+                    overflow: "hidden",
+                    opacity: alreadyRolledOver ? 0.6 : 1,
                   }}
                 >
-                  {/* Expand button */}
-                  {(hasSubgoals || question.goalCreationType === "next_month") && (
-                    <IconButton size="small" onClick={() => toggleExpanded(goal.id)}>
-                      {isExpanded ? <ExpandMore fontSize="small" /> : <ChevronRight fontSize="small" />}
-                    </IconButton>
-                  )}
+                  {/* Yearly goal header */}
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
+                    sx={{
+                      p: 1.5,
+                      bgcolor: "background.default",
+                      borderBottom: isExpanded && hasSubgoals ? 1 : 0,
+                      borderColor: "divider",
+                    }}
+                  >
+                    {/* Status icon */}
+                    <StatusIcon status={goal.status} />
 
-                  {/* Status icon */}
-                  <StatusIcon status={goal.status} />
+                    {/* Goal title */}
+                    <Typography variant="body2" fontWeight={500} sx={{ flex: 1 }}>
+                      {goal.title}
+                    </Typography>
 
-                  {/* Goal title */}
-                  <Typography variant="body2" fontWeight={500} sx={{ flex: 1 }}>
-                    {goal.title}
-                  </Typography>
+                    {/* Year badge */}
+                    <Chip size="small" label={goal.goalYear} variant="outlined" />
 
-                  {/* Year badge */}
-                  <Chip size="small" label={goal.goalYear} variant="outlined" />
-
-                  {/* Rollover button (for yearly reflections) */}
-                  {question.goalCreationType === "rollover" && (
+                    {/* Rollover button - only show on goals from previous year */}
                     <Tooltip title={alreadyRolledOver ? `Already in ${targetYear}` : `Roll over to ${targetYear}`}>
                       <span>
                         <IconButton
@@ -369,78 +522,275 @@ export function GoalCreationQuestion({ question, reflectionDate, response = "", 
                         </IconButton>
                       </span>
                     </Tooltip>
-                  )}
-                </Stack>
+                  </Stack>
+                </Paper>
+              );
+            })}
+          </>
+        )}
 
-                {/* Sub-goals and new goal input */}
-                <Collapse in={isExpanded}>
-                  <Box sx={{ p: 1.5, pl: 5 }}>
-                    {/* Existing monthly sub-goals */}
-                    {subgoals.length > 0 && (
-                      <Stack spacing={0.5} sx={{ mb: 1.5 }}>
-                        {subgoals.map(subgoal => (
-                          <Stack key={subgoal.id} direction="row" alignItems="center" spacing={1}>
-                            <StatusIcon status={subgoal.status} />
-                            <Typography variant="body2" sx={{ flex: 1 }}>
-                              {subgoal.title}
-                            </Typography>
-                            {subgoal.goalMonths && (
-                              <Chip
-                                size="small"
-                                label={subgoal.goalMonths
-                                  .map(m => dayjs(new Date(2024, m - 1, 1)).format("MMM"))
-                                  .join(", ")}
-                                variant="outlined"
-                                sx={{ fontSize: "0.7rem" }}
-                              />
-                            )}
-                          </Stack>
-                        ))}
-                      </Stack>
+        {/* Show current year's goals section for next_year */}
+        {question.goalCreationType === "next_year" && currentYearGoals.length > 0 && (
+          <>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, mt: 2 }}>
+              Goals for {targetYear}
+            </Typography>
+            {currentYearGoals.map(goal => {
+              const isExpanded = expandedGoals.has(goal.id);
+              const subgoals = targetMonthlyGoalsByParent[goal.id] || [];
+              const hasSubgoals = subgoals.length > 0;
+
+              return (
+                <Paper key={goal.id} variant="outlined" sx={{ overflow: "hidden" }}>
+                  {/* Yearly goal header */}
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
+                    sx={{
+                      p: 1.5,
+                      bgcolor: "background.default",
+                      borderBottom: isExpanded && hasSubgoals ? 1 : 0,
+                      borderColor: "divider",
+                    }}
+                  >
+                    {/* Expand button */}
+                    {hasSubgoals && (
+                      <IconButton size="small" onClick={() => toggleExpanded(goal.id)}>
+                        {isExpanded ? <ExpandMore fontSize="small" /> : <ChevronRight fontSize="small" />}
+                      </IconButton>
                     )}
 
-                    {/* New monthly goal input (for monthly reflections) */}
-                    {question.goalCreationType === "next_month" && (
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <TextField
+                    {/* Status icon */}
+                    <StatusIcon status={goal.status} />
+
+                    {/* Goal title */}
+                    <Typography variant="body2" fontWeight={500} sx={{ flex: 1 }}>
+                      {goal.title}
+                    </Typography>
+
+                    {/* Year badge */}
+                    <Chip size="small" label={goal.goalYear} variant="outlined" />
+                  </Stack>
+
+                  {/* Sub-goals */}
+                  <Collapse in={isExpanded}>
+                    <Box sx={{ p: 1.5, pl: 5 }}>
+                      {subgoals.length > 0 && (
+                        <Stack spacing={0.5}>
+                          {subgoals.map(subgoal => (
+                            <Stack key={subgoal.id} direction="row" alignItems="center" spacing={1}>
+                              <StatusIcon status={subgoal.status} />
+                              <Typography variant="body2" sx={{ flex: 1 }}>
+                                {subgoal.title}
+                              </Typography>
+                              {subgoal.goalMonths && (
+                                <Chip
+                                  size="small"
+                                  label={subgoal.goalMonths
+                                    .map(m => dayjs(new Date(2024, m - 1, 1)).format("MMM"))
+                                    .join(", ")}
+                                  variant="outlined"
+                                  sx={{ fontSize: "0.7rem" }}
+                                />
+                              )}
+                            </Stack>
+                          ))}
+                        </Stack>
+                      )}
+                    </Box>
+                  </Collapse>
+                </Paper>
+              );
+            })}
+          </>
+        )}
+
+        {/* Show monthly goals for next_month type */}
+        {question.goalCreationType === "next_month" && (
+          <>
+            {/* Empty state */}
+            {previousMonthGoals.length === 0 &&
+              currentMonthGoals.length === 0 &&
+              yearlyGoalsForSelection.length === 0 && (
+                <Paper sx={{ p: 2, bgcolor: "background.default" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No yearly goals found. Create a yearly goal first to add monthly sub-goals.
+                  </Typography>
+                </Paper>
+              )}
+
+            {/* Previous month's goals (for rollover) */}
+            {previousMonthGoals.length > 0 && (
+              <>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, mt: 1 }}>
+                  Goals from {dayjs(new Date(sourceMonthYear, sourceMonth - 1, 1)).format("MMMM")} (roll over to{" "}
+                  {dayjs(new Date(targetMonthYear, targetMonth - 1, 1)).format("MMMM")})
+                </Typography>
+                {previousMonthGoals.map(goal => {
+                  const alreadyRolledOver = isMonthlyGoalRolledOver(goal.title);
+                  // Get parent goal title for display
+                  const parentGoal = goalsData?.allGoals?.find(g => g.id === goal.parentId);
+
+                  return (
+                    <Paper
+                      key={goal.id}
+                      variant="outlined"
+                      sx={{
+                        overflow: "hidden",
+                        opacity: alreadyRolledOver ? 0.6 : 1,
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={1}
+                        sx={{
+                          p: 1.5,
+                          bgcolor: "background.default",
+                        }}
+                      >
+                        <StatusIcon status={goal.status} />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" fontWeight={500}>
+                            {goal.title}
+                          </Typography>
+                          {parentGoal && (
+                            <Typography variant="caption" color="text.secondary">
+                              Under: {parentGoal.title}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Chip
                           size="small"
-                          placeholder={`New goal for ${dayjs(new Date(targetMonthYear, targetMonth - 1, 1)).format("MMMM")}...`}
-                          value={newGoalInputs[goal.id] || ""}
-                          onChange={e =>
-                            setNewGoalInputs(prev => ({
-                              ...prev,
-                              [goal.id]: e.target.value,
-                            }))
-                          }
-                          onKeyPress={e => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleCreateMonthlyGoal(goal);
-                            }
-                          }}
-                          sx={{ flex: 1 }}
-                          disabled={creating}
+                          label={dayjs(new Date(sourceMonthYear, sourceMonth - 1, 1)).format("MMM")}
                           variant="outlined"
                         />
-                        <IconButton
-                          size="small"
-                          onClick={() => handleCreateMonthlyGoal(goal)}
-                          disabled={!newGoalInputs[goal.id]?.trim() || creating}
-                          color="primary"
+                        <Tooltip
+                          title={
+                            alreadyRolledOver
+                              ? `Already in ${dayjs(new Date(targetMonthYear, targetMonth - 1, 1)).format("MMMM")}`
+                              : `Roll over to ${dayjs(new Date(targetMonthYear, targetMonth - 1, 1)).format("MMMM")}`
+                          }
                         >
-                          <AddIcon fontSize="small" />
-                        </IconButton>
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleRolloverMonthlyGoal(goal)}
+                              disabled={alreadyRolledOver || rollingOver}
+                              color={alreadyRolledOver ? "success" : "primary"}
+                            >
+                              {alreadyRolledOver ? <CheckCircle fontSize="small" /> : <RolloverIcon fontSize="small" />}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
                       </Stack>
-                    )}
-                  </Box>
-                </Collapse>
+                    </Paper>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Current month's goals */}
+            {currentMonthGoals.length > 0 && (
+              <>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, mt: 2 }}>
+                  Goals for {dayjs(new Date(targetMonthYear, targetMonth - 1, 1)).format("MMMM")}
+                </Typography>
+                {currentMonthGoals.map(goal => {
+                  // Get parent goal title for display
+                  const parentGoal = targetGoalsData?.allGoals?.find(g => g.id === goal.parentId);
+
+                  return (
+                    <Paper key={goal.id} variant="outlined" sx={{ overflow: "hidden" }}>
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={1}
+                        sx={{
+                          p: 1.5,
+                          bgcolor: "background.default",
+                        }}
+                      >
+                        <StatusIcon status={goal.status} />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" fontWeight={500}>
+                            {goal.title}
+                          </Typography>
+                          {parentGoal && (
+                            <Typography variant="caption" color="text.secondary">
+                              Under: {parentGoal.title}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Chip
+                          size="small"
+                          label={dayjs(new Date(targetMonthYear, targetMonth - 1, 1)).format("MMM")}
+                          variant="outlined"
+                        />
+                      </Stack>
+                    </Paper>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Create new monthly goal */}
+            {yearlyGoalsForSelection.length > 0 && (
+              <Paper variant="outlined" sx={{ p: 1.5, mt: 2 }}>
+                <Stack spacing={1.5}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                    Create new goal for {dayjs(new Date(targetMonthYear, targetMonth - 1, 1)).format("MMMM")}
+                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <FormControl size="small" sx={{ minWidth: 200 }}>
+                      <InputLabel>Parent Goal</InputLabel>
+                      <Select
+                        value={selectedParentId || ""}
+                        onChange={e => setSelectedParentId(e.target.value || null)}
+                        label="Parent Goal"
+                      >
+                        <MenuItem value="">Select a yearly goal...</MenuItem>
+                        {yearlyGoalsForSelection.map(g => (
+                          <MenuItem key={g.id} value={g.id}>
+                            {g.title}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <TextField
+                      size="small"
+                      placeholder="Goal title..."
+                      value={newMonthlyGoalTitle}
+                      onChange={e => setNewMonthlyGoalTitle(e.target.value)}
+                      onKeyPress={e => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleCreateMonthlyGoal();
+                        }
+                      }}
+                      sx={{ flex: 1 }}
+                      disabled={creating || !selectedParentId}
+                      variant="outlined"
+                    />
+                    <Button
+                      size="small"
+                      variant="contained"
+                      onClick={handleCreateMonthlyGoal}
+                      disabled={!newMonthlyGoalTitle.trim() || !selectedParentId || creating}
+                      startIcon={<AddIcon />}
+                    >
+                      Add
+                    </Button>
+                  </Stack>
+                </Stack>
               </Paper>
-            );
-          })
+            )}
+          </>
         )}
 
         {/* Create new yearly goal */}
-        {(question.goalCreationType === "rollover" || question.goalCreationType === "next_year") && (
+        {question.goalCreationType === "next_year" && (
           <Paper variant="outlined" sx={{ p: 1.5 }}>
             <Stack direction="row" spacing={1} alignItems="center">
               <GoalIcon fontSize="small" color="primary" />
