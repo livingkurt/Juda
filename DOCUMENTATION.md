@@ -57,6 +57,60 @@
     - Now: Added length check: `existingData.responses.length > 0` before using existing data
     - Also added same check to `useEffect` sync logic to prevent resetting to empty arrays
 
+### Goals and Reflections System - Phase 3 Implementation (Final Polish)
+
+- **GoalProgressCard Component**: Created `components/GoalProgressCard.jsx` for visual goal progress display
+  - Shows goal title with status badge (todo, in_progress, complete)
+  - Displays progress bar for goals with sub-goals (percentage completion)
+  - Lists recent progress updates from reflections (last 3 updates with dates and notes)
+  - Shows goal months as chips for monthly goals
+  - Supports compact mode for inline display
+  - Color-coded status indicators (success green, info blue, default gray)
+  - Visual left border on progress updates matching status color
+
+- **GoalsTab Enhancement**: Updated `components/tabs/GoalsTab.jsx` with interactive features
+  - Replaced basic goal cards with `GoalProgressCard` component
+  - Added ellipsis (⋮) button to each goal card for context menu access
+  - Integrated `TaskContextMenu` for goal editing, status changes, duplication, and deletion
+  - Context menu supports all standard task operations (edit, duplicate, delete, tags, priority)
+  - Status changes work directly from Goals tab (todo → in_progress → complete)
+  - Positioned ellipsis button in top-right corner of each goal card
+  - Maintains year filtering and yearly/monthly goal organization
+
+### Goals and Reflections System - Phase 4 Implementation (Final UX Polish)
+
+- **GoalsTab Redesign**: Completely redesigned `components/tabs/GoalsTab.jsx` to use TaskItem component
+  - Replaced `GoalProgressCard` with standard `TaskItem` component for consistency
+  - Goals now look identical to regular tasks with same UI/UX
+  - Monthly goals automatically display as subtasks under yearly goals
+  - Set `showSubtasks={true}` and `defaultExpanded={true}` for automatic expansion
+  - Only shows yearly goals at top level; monthly goals nested underneath
+  - Simplified code by reusing existing TaskItem component
+  - **Drag-and-Drop Reordering**: Added full drag-and-drop support for goal ordering
+    - Wrapped goals in `DragDropContext` and `Droppable` from `@hello-pangea/dnd`
+    - Goals can be dragged to reorder within the year
+    - Order persists via `order` field on Task
+    - Optimistic updates for smooth UX
+  - **Year Headings and Badges**: Enhanced visual organization
+    - Added prominent year heading with primary color border
+    - Goal year badges show on each goal (blue "Goal 2026")
+    - Monthly goal badges show target months (e.g., "Jan, Feb, Mar")
+    - Badges already existed in TaskItem, now visible in Goals tab
+    - **Fixed subtask badge display**: Updated TaskItem to show badges for subtasks too
+      - Changed condition from `(isBacklog || isToday)` to `(isBacklog || isToday || isSubtask)`
+      - Monthly goals (subtasks) now show all their badges including year and months
+      - Ensures consistent information display across parent and child goals
+
+- **TaskDialog Parent Goal Requirement**: Enhanced `components/TaskDialog.jsx` for monthly goals
+  - Added `parentId` state to track parent goal selection
+  - Monthly goals (goals with `goalMonths` selected) now require a parent yearly goal
+  - Parent goal selector appears automatically when months are selected
+  - Dropdown shows only yearly goals from the same year (no months, no parentId)
+  - Validation prevents saving monthly goal without parent (console error)
+  - Clearing months automatically clears parent selection
+  - Parent goal selector is marked as required with error state
+  - Added `parentId` to save data and dependency array
+
 **Remaining Work for Full Reflection System**:
 - ✅ Phase 2: ReflectionBuilder component for creating/editing reflection templates (integrated into TaskDialog)
 - ✅ Bug Fix: ReflectionData persistence in PUT handler (was missing from task update API)

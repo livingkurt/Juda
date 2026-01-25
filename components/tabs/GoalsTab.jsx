@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -15,23 +15,25 @@ import {
 import { Add as AddIcon } from "@mui/icons-material";
 import { useDispatch } from "react-redux";
 import { openTaskDialog } from "@/lib/store/slices/uiSlice";
-import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useGetTasksQuery, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { TaskItem } from "@/components/TaskItem";
+import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 
 export function GoalsTab({ isLoading }) {
   const dispatch = useDispatch();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [updateTask] = useUpdateTaskMutation();
 
   // Fetch all tasks and filter for goals
   const { data: allTasks = [], isLoading: tasksLoading } = useGetTasksQuery();
 
-  // Filter and organize goals
-  const goals = useMemo(() => {
+  // Filter and organize goals - only show yearly goals (monthly goals will be shown as subtasks)
+  const yearlyGoals = useMemo(() => {
     const goalTasks = allTasks.filter(task => task.completionType === "goal" && task.goalYear === selectedYear);
 
-    const yearlyGoals = goalTasks.filter(g => !g.parentId && (!g.goalMonths || g.goalMonths.length === 0));
-    const monthlyGoals = goalTasks.filter(g => g.parentId || (g.goalMonths && g.goalMonths.length > 0));
-
-    return { yearlyGoals, monthlyGoals };
+    // Only return yearly goals (no parentId), sorted by order
+    // Monthly goals will be displayed as subtasks within their parent yearly goal
+    return goalTasks.filter(g => !g.parentId).sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
   }, [allTasks, selectedYear]);
 
   const handleCreateGoal = () => {
@@ -42,6 +44,38 @@ export function GoalsTab({ isLoading }) {
       })
     );
   };
+
+  // Handle drag and drop reordering
+  const handleDragEnd = useCallback(
+    async result => {
+      const { destination, source } = result;
+
+      // Dropped outside the list
+      if (!destination) return;
+
+      // No movement
+      if (destination.index === source.index) return;
+
+      // Reorder the goals array
+      const reorderedGoals = Array.from(yearlyGoals);
+      const [movedGoal] = reorderedGoals.splice(source.index, 1);
+      reorderedGoals.splice(destination.index, 0, movedGoal);
+
+      // Update order for all affected goals
+      const updates = reorderedGoals.map((goal, index) => ({
+        id: goal.id,
+        order: index,
+      }));
+
+      // Optimistically update (the mutation will handle the actual update)
+      try {
+        await Promise.all(updates.map(update => updateTask(update).unwrap()));
+      } catch (error) {
+        console.error("Failed to reorder goals:", error);
+      }
+    },
+    [yearlyGoals, updateTask]
+  );
 
   // Generate year options (current year and next 4 years)
   const yearOptions = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() + i);
@@ -92,87 +126,53 @@ export function GoalsTab({ isLoading }) {
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
+        ) : yearlyGoals.length === 0 ? (
+          <Box sx={{ py: 8, textAlign: "center" }}>
+            <Typography color="text.secondary" sx={{ mb: 2 }}>
+              No goals for {selectedYear}
+            </Typography>
+            <Button variant="outlined" startIcon={<AddIcon />} onClick={handleCreateGoal}>
+              Create Your First Goal
+            </Button>
+          </Box>
         ) : (
-          <Stack spacing={4}>
-            {/* Yearly Goals Section */}
-            <Box>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Yearly Goals
-              </Typography>
-              {goals.yearlyGoals.length === 0 ? (
-                <Typography color="text.secondary">No yearly goals for {selectedYear}</Typography>
-              ) : (
-                <Stack spacing={2}>
-                  {goals.yearlyGoals.map(goal => (
-                    <Box
-                      key={goal.id}
-                      sx={{
-                        p: 2,
-                        border: 1,
-                        borderColor: "divider",
-                        borderRadius: 1,
-                        bgcolor: "background.paper",
-                      }}
-                    >
-                      <Typography variant="body1" fontWeight={500}>
-                        {goal.title}
-                      </Typography>
-                      {goal.status && (
-                        <Typography variant="caption" color="text.secondary">
-                          Status: {goal.status}
-                        </Typography>
-                      )}
-                      {goal.subtasks && goal.subtasks.length > 0 && (
-                        <Box sx={{ mt: 1, pl: 2 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            {goal.subtasks.filter(s => s.status === "complete").length}/{goal.subtasks.length} sub-goals
-                            complete
-                          </Typography>
-                        </Box>
-                      )}
-                    </Box>
-                  ))}
-                </Stack>
-              )}
-            </Box>
+          <Box>
+            {/* Year Heading */}
+            <Typography
+              variant="h5"
+              sx={{
+                mb: 2,
+                pb: 1,
+                borderBottom: 2,
+                borderColor: "primary.main",
+                fontWeight: 600,
+              }}
+            >
+              {selectedYear} Goals
+            </Typography>
 
-            {/* Monthly Goals Section */}
-            <Box>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Monthly Goals
-              </Typography>
-              {goals.monthlyGoals.length === 0 ? (
-                <Typography color="text.secondary">No monthly goals for {selectedYear}</Typography>
-              ) : (
-                <Stack spacing={2}>
-                  {goals.monthlyGoals.map(goal => (
-                    <Box
-                      key={goal.id}
-                      sx={{
-                        p: 2,
-                        border: 1,
-                        borderColor: "divider",
-                        borderRadius: 1,
-                        bgcolor: "background.paper",
-                      }}
-                    >
-                      <Typography variant="body1" fontWeight={500}>
-                        {goal.title}
-                      </Typography>
-                      {goal.goalMonths && goal.goalMonths.length > 0 && (
-                        <Typography variant="caption" color="text.secondary">
-                          Months:{" "}
-                          {goal.goalMonths
-                            .map(m => new Date(2000, m - 1).toLocaleString("default", { month: "short" }))
-                            .join(", ")}
-                        </Typography>
-                      )}
-                    </Box>
-                  ))}
-                </Stack>
-              )}
-            </Box>
-          </Stack>
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <Droppable droppableId={`goals-${selectedYear}`}>
+                {provided => (
+                  <Stack spacing={1} ref={provided.innerRef} {...provided.droppableProps}>
+                    {yearlyGoals.map((goal, index) => (
+                      <TaskItem
+                        key={goal.id}
+                        task={goal}
+                        variant="today"
+                        draggableId={goal.id}
+                        index={index}
+                        date={null}
+                        showSubtasks={true}
+                        defaultExpanded={true}
+                      />
+                    ))}
+                    {provided.placeholder}
+                  </Stack>
+                )}
+              </Droppable>
+            </DragDropContext>
+          </Box>
         )}
       </Box>
     </Box>
