@@ -882,7 +882,7 @@ export const TaskItem = ({
                 <TaskContextMenu
                   task={task}
                   date={viewDate}
-                  isRecurring={isRecurring}
+                  isRecurring={effectivelyRecurring}
                   isWorkoutTask={isWorkoutTask}
                   outcome={outcome}
                   isSubtask={isSubtask}

@@ -3,7 +3,9 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { Box, Typography, TextField, Stack, Chip, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
-import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useGetGoalsQuery } from "@/lib/store/api/goalsApi";
+import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useCreateCompletionMutation } from "@/lib/store/api/completionsApi";
 import dayjs from "dayjs";
 
 /**
@@ -47,11 +49,15 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
     return getQuestions(task);
   }, [task, getQuestions]);
 
-  // Get all goals for filtering
-  const { data: allTasks = [] } = useGetTasksQuery();
+  // Get all goals for filtering (with subtasks loaded)
+  const { data: goalsData } = useGetGoalsQuery({ year: currentYear, includeSubgoals: true });
   const goals = useMemo(() => {
-    return allTasks.filter(t => t.completionType === "goal");
-  }, [allTasks]);
+    return goalsData?.allGoals || [];
+  }, [goalsData]);
+
+  // Mutations to update task status and create completions
+  const [updateTask] = useUpdateTaskMutation();
+  const [createCompletion] = useCreateCompletionMutation();
 
   // Initialize responses state from existing data or create new structure
   const [responses, setResponses] = useState(() => {
@@ -154,7 +160,34 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
 
   // Update goal progress for a question
   const handleGoalProgressChange = useCallback(
-    (questionId, goalId, updates) => {
+    async (questionId, goalId, updates) => {
+      // Only update the actual task status when marking as complete
+      // For other statuses (todo, in_progress), we just store them in the reflection
+      if (updates.status === "complete") {
+        try {
+          await updateTask({
+            id: goalId,
+            status: "complete",
+          }).unwrap();
+
+          // Create a completion record for this date
+          try {
+            await createCompletion({
+              taskId: goalId,
+              date: dayjs(date).format("YYYY-MM-DD"),
+              outcome: "completed",
+            }).unwrap();
+          } catch (error) {
+            // Ignore if completion already exists
+            if (!error?.data?.message?.includes("already exists")) {
+              console.error("Failed to create completion:", error);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to update goal status:", error);
+        }
+      }
+
       // Update state and capture the new value
       let updatedResponses;
       setResponses(prev => {
@@ -178,27 +211,57 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
         }
       }, 0);
     },
-    [debouncedSave]
+    [debouncedSave, updateTask, createCompletion, date]
   );
 
   // Get relevant goals for a question based on linkedGoalType
   const getRelevantGoals = useCallback(
-    linkedGoalType => {
+    (linkedGoalType, questionId) => {
       if (!linkedGoalType) return [];
+
+      // Helper to check if a goal should be shown
+      const shouldShowGoal = goal => {
+        const response = responses.find(r => r.questionId === questionId);
+        const goalProgressEntry = response?.goalProgress?.find(gp => gp.goalId === goal.id);
+
+        // If this reflection has a progress entry, always show it
+        // This preserves the historical record of working on this goal
+        if (goalProgressEntry) {
+          return true;
+        }
+
+        // If no progress entry yet, only show if the goal is not complete
+        // This prevents completed goals from appearing in new reflections
+        return goal.status !== "complete";
+      };
+
       if (linkedGoalType === "yearly") {
+        // Yearly goals: no parentId and no goalMonths (or empty goalMonths)
         return goals.filter(
-          g => g.goalYear === currentYear && !g.parentId && (!g.goalMonths || g.goalMonths.length === 0)
+          g =>
+            g.goalYear === currentYear &&
+            !g.parentId &&
+            (!g.goalMonths || g.goalMonths.length === 0) &&
+            shouldShowGoal(g)
         );
       }
       if (linkedGoalType === "monthly") {
         const currentMonth = dayjs(date).month() + 1;
+        // Monthly goals can be:
+        // 1. Standalone goals with goalMonths array containing current month
+        // 2. Subtasks of yearly goals (parentId set) with goalMonths containing current month
         return goals.filter(
-          g => g.goalYear === currentYear && (g.goalMonths?.includes(currentMonth) || g.parentId) // Monthly goals or sub-goals
+          g =>
+            g.goalYear === currentYear &&
+            g.goalMonths &&
+            Array.isArray(g.goalMonths) &&
+            g.goalMonths.includes(currentMonth) &&
+            shouldShowGoal(g)
         );
       }
       return [];
     },
-    [goals, currentYear, date]
+    [goals, currentYear, date, responses]
   );
 
   // Get goal progress entry for a question and goal
@@ -233,8 +296,9 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
     >
       <Stack spacing={compact ? 2 : 3}>
         {questions.map(question => {
-          const response = responses.find(r => r.questionId === (question.id || `q-${question.order}`));
-          const relevantGoals = question.linkedGoalType ? getRelevantGoals(question.linkedGoalType) : [];
+          const questionId = question.id || `q-${question.order}`;
+          const response = responses.find(r => r.questionId === questionId);
+          const relevantGoals = question.linkedGoalType ? getRelevantGoals(question.linkedGoalType, questionId) : [];
 
           return (
             <Box key={question.id || `q-${question.order}`}>
@@ -291,6 +355,8 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
                   <Stack spacing={1.5}>
                     {relevantGoals.map(goal => {
                       const goalProgress = getGoalProgress(question.id || `q-${question.order}`, goal.id);
+                      // Use the stored status from this reflection's progress, or default to goal's current status
+                      // This preserves the historical status at the time of this reflection
                       const currentStatus = goalProgress?.status || goal.status || "todo";
                       const progressNote = goalProgress?.progressNote || "";
 
