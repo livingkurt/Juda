@@ -68,12 +68,6 @@ export function MainTabs() {
           sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
         />
         <Tab
-          icon={<Columns fontSize="small" />}
-          iconPosition="start"
-          label="Kanban"
-          sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
-        />
-        <Tab
           icon={<FlagIcon fontSize="small" />}
           iconPosition="start"
           label="Goals"
@@ -95,6 +89,12 @@ export function MainTabs() {
           icon={<FitnessCenter fontSize="small" />}
           iconPosition="start"
           label="Workout"
+          sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
+        />
+        <Tab
+          icon={<Columns fontSize="small" />}
+          iconPosition="start"
+          label="Kanban"
           sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
         />
         <Tab
