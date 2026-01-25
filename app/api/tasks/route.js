@@ -92,6 +92,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     isOffSchedule,
     goalData,
     reflectionData,
+    selectionData,
     goalYear,
     goalMonths,
   } = body;
@@ -127,6 +128,18 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     }
   }
 
+  // Validate selection-specific data
+  if (completionType === "selection" && selectionData) {
+    if (!selectionData.options || !Array.isArray(selectionData.options)) {
+      throw Errors.badRequest("Selection data must contain an options array");
+    }
+  }
+  if (completionType === "selection" && selectionData) {
+    if (!selectionData.options || !Array.isArray(selectionData.options)) {
+      throw Errors.badRequest("Selection data must contain an options array");
+    }
+  }
+
   // Create task and assign tags in a transaction
   const result = await db.transaction(async tx => {
     if (priority !== undefined && priority !== null) {
@@ -154,6 +167,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
         isOffSchedule: isOffSchedule || false,
         goalData: goalData || null,
         reflectionData: reflectionData || null,
+        selectionData: selectionData || null,
         goalYear: goalYear || null,
         goalMonths: goalMonths || null,
       })
@@ -226,6 +240,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     folderId,
     goalData,
     reflectionData,
+    selectionData,
     goalYear,
     goalMonths,
   } = body;
@@ -278,7 +293,15 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     updateData.startedAt = startedAt ? new Date(startedAt) : null;
   }
   if (completionType !== undefined) {
-    validateEnum("completionType", completionType, ["checkbox", "text", "note", "workout", "goal", "reflection"]);
+    validateEnum("completionType", completionType, [
+      "checkbox",
+      "text",
+      "selection",
+      "note",
+      "workout",
+      "goal",
+      "reflection",
+    ]);
     updateData.completionType = completionType;
   }
   if (content !== undefined) updateData.content = content;
@@ -306,6 +329,17 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
       }
     }
     updateData.reflectionData = reflectionData;
+  }
+
+  // Selection-specific fields
+  if (selectionData !== undefined) {
+    // Validate selection data structure
+    if (completionType === "selection" && selectionData) {
+      if (!selectionData.options || !Array.isArray(selectionData.options)) {
+        throw Errors.badRequest("Selection data must contain an options array");
+      }
+    }
+    updateData.selectionData = selectionData;
   }
 
   if (Object.keys(updateData).length === 0) {

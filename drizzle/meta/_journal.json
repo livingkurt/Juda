@@ -302,6 +302,13 @@
       "when": 1769274330532,
       "tag": "0042_add_goals_reflections",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1769358337907,
+      "tag": "0043_add_selection_data_field",
+      "breakpoints": true
     }
   ]
 }
