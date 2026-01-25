@@ -60,6 +60,7 @@ export const JournalMonthView = ({
               return relevantTasks.length > 0;
             }).some(hasEntries => hasEntries);
           })
+          .reverse() // Reverse to show most recent years first
           .map(year => {
             const isCurrentYear = year === currentYear;
 
@@ -84,15 +85,20 @@ export const JournalMonthView = ({
                     if (firstOfMonth.isAfter(today, "day")) {
                       return null;
                     }
-                    const dateStr = firstOfMonth.format("YYYY-MM-DD");
-                    const relevantTasks = journalTasks
-                      .filter(task => shouldShowTaskOnDate(task, firstOfMonth, year))
-                      .sort((a, b) => {
-                        // Reflection tasks first, then text tasks
-                        if (a.completionType === "reflection" && b.completionType !== "reflection") return 1;
-                        if (a.completionType !== "reflection" && b.completionType === "reflection") return -1;
-                        return 0;
-                      });
+                    return { firstOfMonth, monthIndex };
+                  })
+                    .filter(Boolean)
+                    .reverse() // Reverse to show most recent months first
+                    .map(({ firstOfMonth, monthIndex }) => {
+                      const dateStr = firstOfMonth.format("YYYY-MM-DD");
+                      const relevantTasks = journalTasks
+                        .filter(task => shouldShowTaskOnDate(task, firstOfMonth, year))
+                        .sort((a, b) => {
+                          // Reflection tasks first, then text tasks
+                          if (a.completionType === "reflection" && b.completionType !== "reflection") return -1;
+                          if (a.completionType !== "reflection" && b.completionType === "reflection") return 1;
+                          return 0;
+                        });
 
                     return (
                       <Box
@@ -134,7 +140,7 @@ export const JournalMonthView = ({
                         )}
                         </Box>
                       );
-                    }).filter(Boolean)}
+                    })}
                 </Stack>
               </Box>
             );

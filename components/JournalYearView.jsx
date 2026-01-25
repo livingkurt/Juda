@@ -58,6 +58,7 @@ export const JournalYearView = ({
             const relevantTasks = journalTasks.filter(task => shouldShowTaskOnDate(task, jan1, year));
             return relevantTasks.length > 0;
           })
+          .reverse() // Reverse to show most recent years first
           .map(year => {
             const isCurrentYear = year === currentYear;
             const jan1 = dayjs(new Date(year, 0, 1));
@@ -66,8 +67,8 @@ export const JournalYearView = ({
               .filter(task => shouldShowTaskOnDate(task, jan1, year))
               .sort((a, b) => {
                 // Reflection tasks first, then text tasks
-                if (a.completionType === "reflection" && b.completionType !== "reflection") return 1;
-                if (a.completionType !== "reflection" && b.completionType === "reflection") return -1;
+                if (a.completionType === "reflection" && b.completionType !== "reflection") return -1;
+                if (a.completionType !== "reflection" && b.completionType === "reflection") return 1;
                 return 0;
               });
 
