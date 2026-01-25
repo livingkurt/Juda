@@ -224,15 +224,37 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
         const response = responses.find(r => r.questionId === questionId);
         const goalProgressEntry = response?.goalProgress?.find(gp => gp.goalId === goal.id);
 
-        // If this reflection has a progress entry, always show it
-        // This preserves the historical record of working on this goal
-        if (goalProgressEntry) {
-          return true;
+        // If the goal is currently complete (in the database)
+        if (goal.status === "complete") {
+          // Check if this reflection is where the goal was marked complete
+          if (goalProgressEntry && goalProgressEntry.status === "complete") {
+            return true; // Show - this is the reflection where it was marked complete
+          }
+
+          // Compare reflection date to goal's updatedAt to determine if goal was
+          // already complete when this reflection was/is being created
+          const reflectionDate = dayjs(date).startOf("day");
+          const goalUpdatedAt = goal.updatedAt ? dayjs(goal.updatedAt).startOf("day") : null;
+
+          // If goal was updated (marked complete) BEFORE or ON this reflection's date,
+          // and this reflection doesn't have "complete" status stored,
+          // then this reflection came AFTER the goal was completed elsewhere
+          if (goalUpdatedAt && goalUpdatedAt.isBefore(reflectionDate)) {
+            return false; // Don't show - goal was completed before this reflection
+          }
+
+          // If goal was updated AFTER this reflection date, this reflection is historical
+          // Show it if there's any progress entry (preserve history)
+          if (goalProgressEntry) {
+            return true;
+          }
+
+          // No progress entry = new reflection, don't show completed goals
+          return false;
         }
 
-        // If no progress entry yet, only show if the goal is not complete
-        // This prevents completed goals from appearing in new reflections
-        return goal.status !== "complete";
+        // If goal is not complete, always show it
+        return true;
       };
 
       if (linkedGoalType === "yearly") {

@@ -85,8 +85,9 @@ export function useStatusHandlers({
           }
         }
 
-        // If task was previously completed, delete ALL completion records for this task
-        if (task.status === "complete") {
+        // If task was previously completed, delete completion records
+        // BUT: Don't delete completions for goals - they may contain reflection data
+        if (task.status === "complete" && task.completionType !== "goal") {
           try {
             // Fetch all completions for this specific task
             const response = await fetch(`/api/completions?taskId=${taskId}`);
@@ -110,8 +111,9 @@ export function useStatusHandlers({
         // Clear startedAt when moving back to todo
         updates.startedAt = null;
 
-        // If task was previously completed, delete ALL completion records for this task
-        if (task.status === "complete") {
+        // If task was previously completed, delete completion records
+        // BUT: Don't delete completions for goals - they may contain reflection data
+        if (task.status === "complete" && task.completionType !== "goal") {
           try {
             // Fetch all completions for this specific task
             const response = await fetch(`/api/completions?taskId=${taskId}`);
@@ -174,15 +176,19 @@ export function useStatusHandlers({
         updates.time = minutesToTime(currentMinutes);
 
         // Create completion record - format date as YYYY-MM-DD to avoid timezone issues
-        const dateStr = formatLocalDate(now);
-        await createCompletion(taskId, dateStr, {
-          outcome: "completed",
-          startedAt: startedAt.toISOString(),
-          completedAt: completedAt.toISOString(),
-        });
+        // BUT: Don't create completion records for goals - they use status field only
+        // Goals get their completion data from reflections, not from status changes
+        if (task.completionType !== "goal") {
+          const dateStr = formatLocalDate(now);
+          await createCompletion(taskId, dateStr, {
+            outcome: "completed",
+            startedAt: startedAt.toISOString(),
+            completedAt: completedAt.toISOString(),
+          });
 
-        // Clear startedAt on task since it's now stored in completion
-        updates.startedAt = null;
+          // Clear startedAt on task since it's now stored in completion
+          updates.startedAt = null;
+        }
 
         // Add to recently completed for visual feedback
         if (!showCompletedTasks && addToRecentlyCompleted) {
