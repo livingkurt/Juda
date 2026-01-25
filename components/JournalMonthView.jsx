@@ -100,44 +100,44 @@ export const JournalMonthView = ({
                           return 0;
                         });
 
-                    return (
-                      <Box
-                        key={`${year}-${monthIndex}`}
-                        sx={{
-                          borderRadius: 2,
-                          border: "1px solid",
-                          borderColor: "divider",
-                          p: 2,
-                          minHeight: 120,
-                          bgcolor: "background.paper",
-                        }}
-                      >
-                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                          {firstOfMonth.format("MMMM")}
-                        </Typography>
-
-                        {relevantTasks.length === 0 ? (
-                          <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic" }}>
-                            No journal entries
+                      return (
+                        <Box
+                          key={`${year}-${monthIndex}`}
+                          sx={{
+                            borderRadius: 2,
+                            border: "1px solid",
+                            borderColor: "divider",
+                            p: 2,
+                            minHeight: 120,
+                            bgcolor: "background.paper",
+                          }}
+                        >
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                            {firstOfMonth.format("MMMM")}
                           </Typography>
-                        ) : (
-                          <Stack spacing={1.5}>
-                            {relevantTasks.map(task => {
-                              const completion = getCompletionForDate?.(task.id, dateStr);
-                              return (
-                                <JournalDayEntry
-                                  key={`${task.id}-${year}-${dateStr}`}
-                                  task={task}
-                                  date={dateStr}
-                                  completion={completion}
-                                  isCurrentYear={isCurrentYear}
-                                  onSave={onSaveEntry}
-                                  viewType="month"
-                                />
-                              );
-                            })}
-                          </Stack>
-                        )}
+
+                          {relevantTasks.length === 0 ? (
+                            <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic" }}>
+                              No journal entries
+                            </Typography>
+                          ) : (
+                            <Stack spacing={1.5}>
+                              {relevantTasks.map(task => {
+                                const completion = getCompletionForDate?.(task.id, dateStr);
+                                return (
+                                  <JournalDayEntry
+                                    key={`${task.id}-${year}-${dateStr}`}
+                                    task={task}
+                                    date={dateStr}
+                                    completion={completion}
+                                    isCurrentYear={isCurrentYear}
+                                    onSave={onSaveEntry}
+                                    viewType="month"
+                                  />
+                                );
+                              })}
+                            </Stack>
+                          )}
                         </Box>
                       );
                     })}
