@@ -41,6 +41,7 @@ import {
   MONTH_OPTIONS,
   COMPLETION_TYPES,
   REFLECTION_TEMPLATES,
+  PRIORITY_LEVELS,
 } from "@/lib/constants";
 import { formatLocalDate } from "@/lib/utils";
 import { TagSelector } from "./TagSelector";
@@ -108,6 +109,7 @@ function TaskDialogForm({
   const [duration, setDuration] = useState(task?.duration ?? (defaultTime ? 30 : 0));
   const [recurrenceType, setRecurrenceType] = useState(task?.recurrence?.type || "none");
   const [status, setStatus] = useState(task?.status || (task ? undefined : "todo"));
+  const [priority, setPriority] = useState(task?.priority || null);
   const [selectedDays, setSelectedDays] = useState(task?.recurrence?.days || []);
   const [endDate, setEndDate] = useState(() => {
     if (task?.recurrence?.endDate) {
@@ -388,6 +390,7 @@ function TaskDialogForm({
             expanded: task.expanded || false,
             order: task.order ?? 999,
             status: task.status || "todo",
+            priority: task.priority || null,
           });
 
           // Create new one-time task with the edited values (remove id to force creation)
@@ -399,6 +402,7 @@ function TaskDialogForm({
             subtasks: [],
             order: 999,
             status: "todo",
+            priority: saveData.priority || null,
           });
         } else if (scope === "future") {
           const { originalTaskUpdate, newTask } = prepareFutureOccurrencesEdit(task, newValues, editDate);
@@ -418,6 +422,7 @@ function TaskDialogForm({
             expanded: task.expanded || false,
             order: task.order ?? 999,
             status: task.status || "todo",
+            priority: task.priority || null,
           });
 
           // Create new recurring task with the edited values (remove id to force creation)
@@ -429,6 +434,7 @@ function TaskDialogForm({
             subtasks: [],
             order: 999,
             status: "todo",
+            priority: saveData.priority || null,
           });
         }
       } else {
@@ -455,6 +461,7 @@ function TaskDialogForm({
       yearlyOrdinal,
       yearlyDayOfWeek,
       yearlyInterval,
+      priority,
       onSave,
       onClose,
     ]
@@ -546,6 +553,7 @@ function TaskDialogForm({
       content: content || null,
       // workoutData removed - now saved separately via WorkoutBuilder
       status: recurrenceType === "none" ? status || "todo" : "todo",
+      priority: priority || null,
       // Parent ID for sub-goals
       parentId: parentId || null,
       // Goal-specific fields
@@ -626,6 +634,7 @@ function TaskDialogForm({
     completionType,
     content,
     status,
+    priority,
     goalYear,
     goalMonths,
     goalData,
@@ -1306,6 +1315,23 @@ function TaskDialogForm({
                   </FormControl>
                 </GLGrid>
               )}
+
+              {/* Priority field */}
+              <GLGrid item xs={12}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Priority</InputLabel>
+                  <Select value={priority || ""} onChange={e => setPriority(e.target.value || null)} label="Priority">
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {PRIORITY_LEVELS.filter(level => level.value !== null).map(level => (
+                      <MenuItem key={level.value} value={level.value}>
+                        {level.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </GLGrid>
 
               {/* Note Content Editor */}
               <GLGrid item xs={12}>
