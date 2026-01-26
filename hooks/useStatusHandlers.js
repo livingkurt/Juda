@@ -72,6 +72,10 @@ export function useStatusHandlers({
 
       const updates = { status: newStatus };
       const now = new Date();
+      const todayStr = formatLocalDate(now);
+
+      // Check if task is recurring (exclude from completion sync)
+      const isRecurring = task.recurrence && task.recurrence.type && task.recurrence.type !== "none";
 
       if (newStatus === "in_progress") {
         // Set startedAt when moving to in_progress
@@ -79,58 +83,38 @@ export function useStatusHandlers({
 
         // If task has no date, set it to today (so it appears in Today view)
         if (!task.recurrence || task.recurrence.type === "none") {
-          const todayStr = formatLocalDate(new Date());
           if (!task.recurrence?.startDate) {
             updates.recurrence = { type: "none", startDate: `${todayStr}T00:00:00.000Z` };
           }
         }
 
-        // If task was previously completed, delete completion records
-        // BUT: Don't delete completions for goals - they may contain reflection data
-        if (task.status === "complete" && task.completionType !== "goal") {
+        // If task was previously completed, delete completion record for today
+        // BUT: Don't delete completions for recurring tasks
+        if (task.status === "complete" && !isRecurring) {
           try {
-            // Fetch all completions for this specific task
-            const response = await fetch(`/api/completions?taskId=${taskId}`);
-            if (response.ok) {
-              const data = await response.json();
-              const taskCompletions = data.completions || data || [];
-              // Delete each completion
-              await Promise.all(
-                taskCompletions.map(completion => {
-                  const completionDate = new Date(completion.date);
-                  const dateStr = formatLocalDate(completionDate);
-                  return deleteCompletion(taskId, dateStr);
-                })
-              );
-            }
+            await deleteCompletion(taskId, todayStr);
           } catch (error) {
-            console.error("Failed to delete completions when moving to in_progress:", error);
+            // Ignore if no completion exists
+            if (!error?.message?.includes("not found")) {
+              console.error("Failed to delete completion when moving to in_progress:", error);
+            }
           }
         }
       } else if (newStatus === "todo") {
         // Clear startedAt when moving back to todo
         updates.startedAt = null;
 
-        // If task was previously completed, delete completion records
-        // BUT: Don't delete completions for goals - they may contain reflection data
-        if (task.status === "complete" && task.completionType !== "goal") {
+        // If task was previously completed, delete completion record for today
+        // This syncs "Set to Todo" with unchecking the checkbox
+        // BUT: Don't delete completions for recurring tasks
+        if (task.status === "complete" && !isRecurring) {
           try {
-            // Fetch all completions for this specific task
-            const response = await fetch(`/api/completions?taskId=${taskId}`);
-            if (response.ok) {
-              const data = await response.json();
-              const taskCompletions = data.completions || data || [];
-              // Delete each completion
-              await Promise.all(
-                taskCompletions.map(completion => {
-                  const completionDate = new Date(completion.date);
-                  const dateStr = formatLocalDate(completionDate);
-                  return deleteCompletion(taskId, dateStr);
-                })
-              );
-            }
+            await deleteCompletion(taskId, todayStr);
           } catch (error) {
-            console.error("Failed to delete completions when moving to todo:", error);
+            // Ignore if no completion exists
+            if (!error?.message?.includes("not found")) {
+              console.error("Failed to delete completion when moving to todo:", error);
+            }
           }
         }
       } else if (newStatus === "complete") {
@@ -175,19 +159,26 @@ export function useStatusHandlers({
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
         updates.time = minutesToTime(currentMinutes);
 
-        // Create completion record - format date as YYYY-MM-DD to avoid timezone issues
-        // BUT: Don't create completion records for goals - they use status field only
-        // Goals get their completion data from reflections, not from status changes
-        if (task.completionType !== "goal") {
-          const dateStr = formatLocalDate(now);
-          await createCompletion(taskId, dateStr, {
-            outcome: "completed",
-            startedAt: startedAt.toISOString(),
-            completedAt: completedAt.toISOString(),
-          });
+        // Create completion record for non-recurring tasks (including goals)
+        // This syncs "Set to Complete" with checking the checkbox
+        // Goals can have completions created from reflections OR from status changes
+        // Recurring tasks use the outcome system, not status field
+        if (!isRecurring) {
+          try {
+            await createCompletion(taskId, todayStr, {
+              outcome: "completed",
+              startedAt: startedAt.toISOString(),
+              completedAt: completedAt.toISOString(),
+            });
 
-          // Clear startedAt on task since it's now stored in completion
-          updates.startedAt = null;
+            // Clear startedAt on task since it's now stored in completion
+            updates.startedAt = null;
+          } catch (error) {
+            // Ignore if completion already exists
+            if (!error?.message?.includes("already exists")) {
+              console.error("Error creating completion:", error);
+            }
+          }
         }
 
         // Add to recently completed for visual feedback
