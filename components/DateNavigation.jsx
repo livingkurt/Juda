@@ -126,8 +126,8 @@ export const DateNavigation = memo(function DateNavigation({
   const handleDateInputChange = e => {
     const value = e.target.value;
     if (value) {
-      const newDate = new Date(value);
-      newDate.setHours(0, 0, 0, 0);
+      // Parse as UTC to match URL parsing (prevents timezone shift)
+      const newDate = new Date(`${value}T00:00:00Z`);
       onDateChange(newDate);
     }
   };
