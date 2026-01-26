@@ -198,15 +198,6 @@ export function GoalCreationQuestion({ question, reflectionDate, compact = false
     );
   }, [targetGoalsData, targetMonth, targetMonthYear, question.goalCreationType]);
 
-  // For next_year, combine both lists (previous year first, then current year)
-  // For next_month, just use source year goals
-  const yearlyGoals = useMemo(() => {
-    if (question.goalCreationType === "next_year") {
-      return [...previousYearGoals, ...currentYearGoals];
-    }
-    return previousYearGoals;
-  }, [question.goalCreationType, previousYearGoals, currentYearGoals]);
-
   // Get monthly goals grouped by parent (from source year)
   const monthlyGoalsByParent = useMemo(() => {
     if (!goalsData?.allGoals) return {};

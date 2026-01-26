@@ -108,7 +108,7 @@ export const JournalWeekView = ({
                       return !friday.isAfter(today, "day");
                     })
                     .reverse() // Reverse to show most recent weeks first
-                    .map((friday, reversedIndex) => {
+                    .map(friday => {
                       const dateStr = friday.format("YYYY-MM-DD");
                       // Calculate week number from first Friday of year
                       const firstFriday = getFirstFridayOfYear(year);

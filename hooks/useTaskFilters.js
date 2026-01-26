@@ -270,6 +270,9 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
         // Exclude notes from backlog
         if (task.completionType === "note") return false;
 
+        // Exclude Goal type tasks from backlog
+        if (task.completionType === "goal") return false;
+
         // For tasks without recurrence (null), check if completed today
         const outcome = getOutcomeOnDate(task.id, today);
         if (outcome !== null) {
