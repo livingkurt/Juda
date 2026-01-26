@@ -374,7 +374,7 @@ export function useTaskOperations() {
 
   // Create backlog task inline
   const handleCreateBacklogTaskInline = useCallback(
-    async (title, tagIds = []) => {
+    async (title, tagIds = [], priority = null) => {
       if (!title.trim()) return;
 
       try {
@@ -386,6 +386,7 @@ export function useTaskOperations() {
           color: "#3b82f6",
           recurrence: null,
           status: "todo", // Backlog tasks should have status: todo
+          priority: priority || null,
           subtasks: [],
           order: 999,
         });

@@ -135,9 +135,15 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
 
   const handleCreateQuickTask = useCallback(
     async title => {
-      await taskOps.handleCreateBacklogTaskInline(title, selectedTagIds);
+      // Filter out UNTAGGED_ID from tagIds (it's not a real tag)
+      const regularTagIds = selectedTagIds.filter(id => id !== UNTAGGED_ID);
+
+      // Use the first selected priority if any are selected
+      const priority = selectedPriorities.length > 0 ? selectedPriorities[0] : null;
+
+      await taskOps.handleCreateBacklogTaskInline(title, regularTagIds, priority);
     },
-    [taskOps, selectedTagIds]
+    [taskOps, selectedTagIds, selectedPriorities]
   );
 
   // Prepare tasks with draggable IDs - memoized to prevent recreation on every render
