@@ -349,7 +349,10 @@ export function useTaskOperations() {
         const parentTask = tasks.find(t => t.id === parentTaskId);
         if (!parentTask) return;
 
-        await createTask({
+        // Check if parent is a goal - if so, create a sub-goal with proper fields
+        const isSubGoal = parentTask.completionType === "goal";
+
+        const taskData = {
           title: subtaskTitle.trim(),
           sectionId: parentTask.sectionId,
           parentId: parentTaskId,
@@ -359,7 +362,17 @@ export function useTaskOperations() {
           recurrence: null,
           subtasks: [],
           order: 999,
-        });
+        };
+
+        // If parent is a goal, set goal-specific fields
+        if (isSubGoal) {
+          const currentMonth = new Date().getMonth() + 1; // 1-12
+          taskData.completionType = "goal";
+          taskData.goalYear = parentTask.goalYear || new Date().getFullYear();
+          taskData.goalMonths = [currentMonth];
+        }
+
+        await createTask(taskData);
 
         await fetchTasks();
 
