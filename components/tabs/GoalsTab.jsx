@@ -332,23 +332,29 @@ export function GoalsTab({ isLoading }) {
           <Box>
             <DragDropContext onDragEnd={handleDragEnd}>
               <Droppable droppableId={`goals-monthly-${selectedYear}-${selectedMonth}`}>
-                {provided => (
-                  <Stack spacing={1} ref={provided.innerRef} {...provided.droppableProps}>
-                    {selectedMonthGoals.map((goal, index) => (
-                      <TaskItem
-                        key={goal.id}
-                        task={goal}
-                        variant="today"
-                        draggableId={goal.id}
-                        index={index}
-                        date={null}
-                        showSubtasks={false}
-                        defaultExpanded={false}
-                      />
-                    ))}
-                    {provided.placeholder}
-                  </Stack>
-                )}
+                {provided => {
+                  // Monthly goals are non-recurring, so use today's date for completion checks
+                  // This ensures the checkbox works correctly for monthly goals
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return (
+                    <Stack spacing={1} ref={provided.innerRef} {...provided.droppableProps}>
+                      {selectedMonthGoals.map((goal, index) => (
+                        <TaskItem
+                          key={goal.id}
+                          task={goal}
+                          variant="today"
+                          draggableId={goal.id}
+                          index={index}
+                          viewDate={today}
+                          showSubtasks={false}
+                          defaultExpanded={false}
+                        />
+                      ))}
+                      {provided.placeholder}
+                    </Stack>
+                  );
+                }}
               </Droppable>
             </DragDropContext>
           </Box>

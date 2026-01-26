@@ -283,9 +283,14 @@ export function useCompletionHandlers({
           const completionsToDelete = collectSubtaskCompletionsToDelete(task, targetDate);
           await batchDeleteCompletions(completionsToDelete);
 
+          // For non-recurring tasks, revert status based on whether task was started
+          // This syncs unchecking the checkbox with status badge
+          // Goals can also have their status synced with completions
           if (!isRecurringTask) {
+            // Revert to "in_progress" if task had been started, otherwise "todo"
+            const newStatus = task.startedAt ? "in_progress" : "todo";
             await updateTask(taskId, {
-              status: "todo",
+              status: newStatus,
             });
           }
 
@@ -405,8 +410,13 @@ export function useCompletionHandlers({
         if (outcome === null) {
           await deleteCompletion(taskId, dateStr);
 
+          // For non-recurring tasks, revert status based on whether task was started
+          // This syncs unchecking the checkbox with status badge
+          // Goals can also have their status synced with completions
           if (!isRecurringTask) {
-            await updateTask(taskId, { status: "todo" });
+            // Revert to "in_progress" if task had been started, otherwise "todo"
+            const newStatus = task?.startedAt ? "in_progress" : "todo";
+            await updateTask(taskId, { status: newStatus });
           }
 
           if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
@@ -424,6 +434,9 @@ export function useCompletionHandlers({
           try {
             await createCompletion(taskId, dateStr, { outcome });
 
+            // For non-recurring tasks, set status to complete
+            // This syncs checking the checkbox with status badge
+            // Goals can also have their status synced with completions
             if (outcome === "completed" && !isRecurringTask) {
               await updateTask(taskId, { status: "complete" });
             }

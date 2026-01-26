@@ -448,6 +448,7 @@ export const TaskItem = ({
   const isSelectionTask = task.completionType === "selection";
   const isReflectionTask = task.completionType === "reflection";
   const isWorkoutTask = task.completionType === "workout";
+  const isGoalTask = task.completionType === "goal";
   const isNotCompleted = existingCompletion?.outcome === "not_completed" || false;
   const savedNote = existingCompletion?.note || "";
 
@@ -487,6 +488,9 @@ export const TaskItem = ({
     isSelectionTask &&
     (existingCompletion?.outcome === "completed" ||
       (existingCompletion && existingCompletion.outcome !== "not_completed" && existingCompletion.note));
+
+  // For goal tasks, completion status comes from the completion record
+  const isGoalTaskCompleted = isGoalTask && existingCompletion?.outcome === "completed";
 
   // Get outcome for today view tasks, subtasks, and backlog items
   const outcome =
@@ -550,6 +554,15 @@ export const TaskItem = ({
     if (isWorkoutTask) {
       // Workout tasks use outcome system, so just call onOutcomeChange
       if (onOutcomeChange) {
+        onOutcomeChange(task.id, viewDate, newOutcome);
+      }
+      return;
+    }
+
+    // For goal tasks, handle completion with outcome system
+    if (isGoalTask) {
+      // Goal tasks use outcome system like text/selection tasks
+      if (onOutcomeChange && viewDate) {
         onOutcomeChange(task.id, viewDate, newOutcome);
       }
       return;
@@ -691,11 +704,14 @@ export const TaskItem = ({
                       : // For selection tasks, use outcome from completion record
                         isSelectionTask
                         ? existingCompletion?.outcome || null
-                        : // For workout tasks, use outcome from completion
-                          isWorkoutTask
-                          ? outcome
-                          : // For regular tasks, use outcome or null
-                            outcome
+                        : // For goal tasks, use outcome from completion record
+                          isGoalTask
+                          ? existingCompletion?.outcome || null
+                          : // For workout tasks, use outcome from completion
+                            isWorkoutTask
+                            ? outcome
+                            : // For regular tasks, use outcome or null
+                              outcome
                   }
                   onOutcomeChange={handleOutcomeChange}
                   isChecked={
@@ -705,11 +721,14 @@ export const TaskItem = ({
                       : // For selection tasks, show checked if completed
                         isSelectionTask
                         ? isSelectionTaskCompleted
-                        : // For workout tasks, show checked if completed
-                          isWorkoutTask
-                          ? isWorkoutTaskCompleted
-                          : // For non-recurring tasks without outcomes, use isChecked
-                            !shouldShowMenu && isChecked
+                        : // For goal tasks, show checked if completed
+                          isGoalTask
+                          ? isGoalTaskCompleted
+                          : // For workout tasks, show checked if completed
+                            isWorkoutTask
+                            ? isWorkoutTaskCompleted
+                            : // For non-recurring tasks without outcomes, use isChecked
+                              !shouldShowMenu && isChecked
                   }
                   disabled={false}
                   size="lg"
