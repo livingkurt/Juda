@@ -66,10 +66,6 @@ export const FilterMenu = ({
   const hasUntaggedSelected = selectedTagIds.includes(UNTAGGED_ID);
   const filterablePriorities = PRIORITY_LEVELS.filter(level => level.value !== null);
 
-  // Count active filters for badge
-  const activeFilterCount =
-    selectedTagIds.length + (showPriorityFilter ? selectedPriorities.length : 0) + (showSort && sortByPriority ? 1 : 0);
-
   const handleMenuOpen = event => {
     setAnchorEl(event.currentTarget);
   };
