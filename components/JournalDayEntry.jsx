@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
-import { Box, Typography, TextField, Stack, IconButton, Collapse } from "@mui/material";
+import { Box, Typography, TextField, Stack, IconButton, Collapse, Autocomplete } from "@mui/material";
 import { Add, ExpandMore, ChevronRight, MoreVert } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
@@ -12,12 +12,21 @@ import dayjs from "dayjs";
 export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave, viewType = "day" }) => {
   const theme = useTheme();
   const isReflectionTask = task.completionType === "reflection";
+  const isSelectionTask = task.completionType === "selection";
 
   // Initialize state from props - state will reset when key changes (completion note changes)
   const currentNote = completion?.note || "";
   const [noteInput, setNoteInput] = useState(currentNote);
+  const [selectedValue, setSelectedValue] = useState(currentNote || null);
   const [showTextarea, setShowTextarea] = useState(Boolean(currentNote));
+  // For selection tasks, always show the dropdown when expanded (no need for showSelection state)
   const hasEntry = currentNote && currentNote.trim().length > 0;
+
+  // Get selection options from task
+  const selectionOptions = useMemo(() => {
+    if (!isSelectionTask || !task.selectionData?.options) return [];
+    return task.selectionData.options.filter(opt => opt && opt.trim() !== "");
+  }, [isSelectionTask, task.selectionData]);
 
   // Check task type by tags
   const taskType = useMemo(() => {
@@ -54,7 +63,8 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const textareaRef = useRef(null);
-  // Track if textarea is focused
+  const autocompleteRef = useRef(null);
+  // Track if textarea/autocomplete is focused
   const isFocusedRef = useRef(false);
   // Track previous saved note to detect external changes
   const prevSavedNoteRef = useRef(currentNote);
@@ -75,20 +85,31 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
   // Save function wrapper with error handling
   const saveNote = useCallback(
     async value => {
-      if (isCurrentYear && value.trim() && value.trim() !== (completion?.note || "")) {
+      const valueStr = typeof value === "string" ? value : value || "";
+      if (isCurrentYear && valueStr.trim() && valueStr.trim() !== (completion?.note || "")) {
         try {
-          await onSave(task.id, date, value.trim());
+          await onSave(task.id, date, valueStr.trim());
         } catch (error) {
           console.error("Failed to save journal entry:", error);
           // Reset to original note on error
           setNoteInput(completion?.note || "");
+          setSelectedValue(completion?.note || null);
+        }
+      } else if (isCurrentYear && !valueStr && completion?.note) {
+        // Clear selection
+        try {
+          await onSave(task.id, date, "");
+        } catch (error) {
+          console.error("Failed to save journal entry:", error);
+          setNoteInput(completion?.note || "");
+          setSelectedValue(completion?.note || null);
         }
       }
     },
     [isCurrentYear, task.id, date, completion?.note, onSave]
   );
 
-  const { debouncedSave, immediateSave } = useDebouncedSave(saveNote, 500);
+  const { debouncedSave, immediateSave } = useDebouncedSave(saveNote, 300);
 
   // Sync with savedNote when it changes externally (not during typing)
   useEffect(() => {
@@ -97,6 +118,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
       // Defer update to avoid synchronous setState
       const timeoutId = setTimeout(() => {
         setNoteInput(currentNote);
+        setSelectedValue(currentNote || null);
       }, 0);
       return () => clearTimeout(timeoutId);
     }
@@ -112,31 +134,52 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
     debouncedSave(newValue);
   };
 
+  const handleSelectionChange = (event, newValue) => {
+    setSelectedValue(newValue);
+    immediateSave(newValue);
+  };
+
   const handleBlur = async () => {
     // Clear focus tracking on intentional blur
     isFocusedRef.current = false;
 
     // Save immediately on blur if there are changes
-    await immediateSave(noteInput);
+    if (isSelectionTask) {
+      await immediateSave(selectedValue);
+      prevSavedNoteRef.current = currentNote;
+      if (!selectedValue && completion?.note) {
+        setSelectedValue(completion?.note);
+      }
+    } else {
+      await immediateSave(noteInput);
+      // Update ref to current note
+      prevSavedNoteRef.current = currentNote;
 
-    // Update ref to current note
-    prevSavedNoteRef.current = currentNote;
-
-    // Reset to saved note if cleared
-    if (!noteInput.trim() && completion?.note) {
-      setNoteInput(completion?.note);
+      // Reset to saved note if cleared
+      if (!noteInput.trim() && completion?.note) {
+        setNoteInput(completion?.note);
+      }
     }
   };
 
   const handleAddEntry = () => {
-    setShowTextarea(true);
+    if (!isSelectionTask) {
+      setShowTextarea(true);
+    }
     setExpanded(true);
     // Delay focus to allow collapsible animation to complete
     // Use longer delay on mobile to prevent scroll jumping
     const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
     setTimeout(
       () => {
-        if (textareaRef.current) {
+        if (isSelectionTask && autocompleteRef.current) {
+          isFocusedRef.current = true;
+          autocompleteRef.current.focus();
+          // Smooth scroll into view after focus
+          if (isMobile) {
+            autocompleteRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        } else if (textareaRef.current) {
           isFocusedRef.current = true;
           textareaRef.current.focus({ preventScroll: true });
           // Smooth scroll into view after focus
@@ -194,7 +237,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
       <Stack spacing={0}>
         {/* Header with title and expand/collapse button */}
         <Stack direction="row" spacing={2} alignItems="center">
-          {isCurrentYear && !hasEntry ? (
+          {isCurrentYear && !hasEntry && !isSelectionTask ? (
             <IconButton
               onClick={e => {
                 e.stopPropagation();
@@ -276,6 +319,59 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
                 compact={true}
               />
             </Box>
+          ) : isSelectionTask ? (
+            // Render Autocomplete for selection tasks
+            isCurrentYear ? (
+              <Box sx={{ mt: 2 }}>
+                <Autocomplete
+                  options={selectionOptions}
+                  value={selectedValue}
+                  onChange={handleSelectionChange}
+                  onFocus={() => {
+                    isFocusedRef.current = true;
+                    if (!expanded) {
+                      setExpanded(true);
+                    }
+                  }}
+                  onBlur={handleBlur}
+                  size="small"
+                  renderInput={params => (
+                    <TextField
+                      {...params}
+                      variant="filled"
+                      placeholder="Select an option..."
+                      inputRef={autocompleteRef}
+                      onClick={e => e.stopPropagation()}
+                      onMouseDown={e => e.stopPropagation()}
+                    />
+                  )}
+                  onKeyDown={e => {
+                    e.stopPropagation();
+                  }}
+                  fullWidth
+                />
+              </Box>
+            ) : (
+              <>
+                {hasEntry ? (
+                  <Typography
+                    variant="body2"
+                    component="div"
+                    sx={{
+                      color: "text.secondary",
+                      mt: 2,
+                      fontSize: { xs: "0.75rem", md: "0.875rem" },
+                    }}
+                  >
+                    {completion.note}
+                  </Typography>
+                ) : (
+                  <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic", mt: 2 }}>
+                    No entry for this day
+                  </Typography>
+                )}
+              </>
+            )
           ) : isCurrentYear ? (
             <>
               {showTextarea ? (
