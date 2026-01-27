@@ -194,13 +194,13 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
       groups[priority].push({ ...task, originalIndex: index });
     });
 
+    // Show all priority levels, even if they have no tasks (so users can add tasks to empty priorities)
     // Sort groups by priority order (urgent -> high -> medium -> low -> none)
-    const sortedGroups = PRIORITY_LEVELS.filter(level => groups[level.value]?.length > 0)
-      .sort((a, b) => a.sortOrder - b.sortOrder) // Sort by sortOrder ascending (urgent=1 first)
+    const sortedGroups = PRIORITY_LEVELS.sort((a, b) => a.sortOrder - b.sortOrder) // Sort by sortOrder ascending (urgent=1 first)
       .map(level => ({
         priority: level.value,
         label: level.label,
-        tasks: groups[level.value],
+        tasks: groups[level.value] || [], // Use empty array if no tasks for this priority
       }));
 
     return sortedGroups;
@@ -329,19 +329,6 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
               {/* Unscheduled Tasks */}
               {tasksWithIds.length > 0 ? (
                 <Box>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      color: "text.secondary",
-                      mb: 1,
-                      ml: 1,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Unscheduled Tasks
-                  </Typography>
                   <Stack spacing={1} sx={{ px: { xs: 0.5, md: 1 }, width: "100%", maxWidth: "100%" }}>
                     {sortByPriority && tasksGroupedByPriority
                       ? // Render grouped by priority with dividers
