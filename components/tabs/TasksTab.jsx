@@ -10,7 +10,7 @@ import { TodayView } from "@/components/tabs/TodayView";
 import { CalendarViewTab } from "@/components/tabs/CalendarViewTab";
 import { useDispatch, useSelector } from "react-redux";
 import { setMobileActiveView, setBacklogWidth } from "@/lib/store/slices/uiSlice";
-import { createDroppableId, createDraggableId, extractTaskId } from "@/lib/dragHelpers";
+import { createDroppableId, createDraggableId, extractTaskId, parseDroppableId } from "@/lib/dragHelpers";
 import { timeToMinutes, minutesToTime, formatLocalDate } from "@/lib/utils";
 import { getPriorityConfig } from "@/lib/constants";
 import { useViewState } from "@/hooks/useViewState";
@@ -262,6 +262,213 @@ export function TasksTab() {
         return;
       }
 
+      // Handle drops into priority-specific droppables (backlog-priority|{priority})
+      const destParsed = parseDroppableId(destId);
+      const sourceParsed = parseDroppableId(sourceId);
+
+      if (destParsed.type === "backlog-priority") {
+        const targetPriority = destParsed.priority;
+
+        // Get filtered tasks for the target priority section
+        let filteredBacklogTasks = [...taskFilters.backlogTasks].filter(t => t.id !== taskId);
+
+        // Apply same filters as BacklogDrawer
+        if (backlogSearchTerm.trim()) {
+          const lowerSearch = backlogSearchTerm.toLowerCase();
+          filteredBacklogTasks = filteredBacklogTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
+        }
+
+        if (backlogSelectedTagIds.length > 0) {
+          const hasUntaggedFilter = backlogSelectedTagIds.includes("__UNTAGGED__");
+          const regularTagIds = backlogSelectedTagIds.filter(id => id !== "__UNTAGGED__");
+
+          if (hasUntaggedFilter && regularTagIds.length > 0) {
+            filteredBacklogTasks = filteredBacklogTasks.filter(
+              task => !task.tags || task.tags.length === 0 || task.tags.some(tag => regularTagIds.includes(tag.id))
+            );
+          } else if (hasUntaggedFilter) {
+            filteredBacklogTasks = filteredBacklogTasks.filter(task => !task.tags || task.tags.length === 0);
+          } else if (regularTagIds.length > 0) {
+            filteredBacklogTasks = filteredBacklogTasks.filter(task =>
+              task.tags?.some(tag => regularTagIds.includes(tag.id))
+            );
+          }
+        }
+
+        if (backlogSelectedPriorities.length > 0) {
+          filteredBacklogTasks = filteredBacklogTasks.filter(task => backlogSelectedPriorities.includes(task.priority));
+        }
+
+        // Sort tasks to determine correct insertion position
+        let sortedTasks = [...filteredBacklogTasks];
+        if (backlogSortByPriority || backlogSortByTag) {
+          sortedTasks.sort((a, b) => {
+            if (backlogSortByPriority) {
+              const priorityA = getPriorityConfig(a.priority).sortOrder;
+              const priorityB = getPriorityConfig(b.priority).sortOrder;
+              if (priorityA !== priorityB) return priorityA - priorityB;
+            }
+
+            if (backlogSortByTag) {
+              const tagA = a.tags && a.tags.length > 0 ? a.tags[0].name : "";
+              const tagB = b.tags && b.tags.length > 0 ? b.tags[0].name : "";
+              if (tagA !== tagB) {
+                if (!tagA) return 1;
+                if (!tagB) return -1;
+                return tagA.localeCompare(tagB);
+              }
+            }
+
+            return (a.order || 0) - (b.order || 0);
+          });
+        } else {
+          sortedTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
+        }
+
+        // Find insertion point within target priority section
+        const targetPriorityTasks = sortedTasks.filter(t => t.priority === targetPriority);
+        let insertIndex;
+
+        if (targetPriorityTasks.length === 0) {
+          // Empty priority section - find where this priority section should start
+          insertIndex = sortedTasks.findIndex(t => {
+            const tPriority = t.priority || null;
+            return getPriorityConfig(tPriority).sortOrder > getPriorityConfig(targetPriority).sortOrder;
+          });
+          if (insertIndex === -1) {
+            insertIndex = sortedTasks.length;
+          }
+        } else {
+          // Find the first task in target priority section that's at or after destination.index
+          insertIndex = sortedTasks.findIndex(t => {
+            if (t.priority !== targetPriority) return false;
+            const priorityIndex = targetPriorityTasks.findIndex(pt => pt.id === t.id);
+            return priorityIndex >= destination.index;
+          });
+          if (insertIndex === -1) {
+            // Insert at end of target priority section
+            const lastTargetIndex = sortedTasks.findLastIndex(t => t.priority === targetPriority);
+            insertIndex = lastTargetIndex + 1;
+          }
+        }
+
+        sortedTasks.splice(insertIndex, 0, task);
+
+        // Update task with target priority
+        updateTaskMutation({
+          id: taskId,
+          sectionId: null,
+          order: insertIndex,
+          time: null,
+          recurrence:
+            sourceParsed.type === "backlog" || sourceParsed.type === "backlog-priority" ? task.recurrence : null,
+          status: "todo",
+          priority: targetPriority,
+        });
+
+        // Reorder all backlog tasks
+        const updates = sortedTasks.map((t, idx) => ({ id: t.id, order: idx }));
+        batchReorderTasksMutation(updates);
+        return;
+      }
+
+      // Priority-specific droppable to Priority-specific droppable (reorder within or between priority sections)
+      if (sourceParsed.type === "backlog-priority" && destParsed.type === "backlog-priority") {
+        const targetPriority = destParsed.priority;
+
+        // Get filtered tasks
+        let filteredBacklogTasks = [...taskFilters.backlogTasks].filter(t => t.id !== taskId);
+
+        // Apply same filters as BacklogDrawer
+        if (backlogSearchTerm.trim()) {
+          const lowerSearch = backlogSearchTerm.toLowerCase();
+          filteredBacklogTasks = filteredBacklogTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
+        }
+
+        if (backlogSelectedTagIds.length > 0) {
+          const hasUntaggedFilter = backlogSelectedTagIds.includes("__UNTAGGED__");
+          const regularTagIds = backlogSelectedTagIds.filter(id => id !== "__UNTAGGED__");
+
+          if (hasUntaggedFilter && regularTagIds.length > 0) {
+            filteredBacklogTasks = filteredBacklogTasks.filter(
+              task => !task.tags || task.tags.length === 0 || task.tags.some(tag => regularTagIds.includes(tag.id))
+            );
+          } else if (hasUntaggedFilter) {
+            filteredBacklogTasks = filteredBacklogTasks.filter(task => !task.tags || task.tags.length === 0);
+          } else if (regularTagIds.length > 0) {
+            filteredBacklogTasks = filteredBacklogTasks.filter(task =>
+              task.tags?.some(tag => regularTagIds.includes(tag.id))
+            );
+          }
+        }
+
+        if (backlogSelectedPriorities.length > 0) {
+          filteredBacklogTasks = filteredBacklogTasks.filter(task => backlogSelectedPriorities.includes(task.priority));
+        }
+
+        // Sort tasks (same as BacklogDrawer)
+        let sortedTasks = [...filteredBacklogTasks];
+        if (backlogSortByPriority || backlogSortByTag) {
+          sortedTasks.sort((a, b) => {
+            if (backlogSortByPriority) {
+              const priorityA = getPriorityConfig(a.priority).sortOrder;
+              const priorityB = getPriorityConfig(b.priority).sortOrder;
+              if (priorityA !== priorityB) return priorityA - priorityB;
+            }
+
+            if (backlogSortByTag) {
+              const tagA = a.tags && a.tags.length > 0 ? a.tags[0].name : "";
+              const tagB = b.tags && b.tags.length > 0 ? b.tags[0].name : "";
+              if (tagA !== tagB) {
+                if (!tagA) return 1;
+                if (!tagB) return -1;
+                return tagA.localeCompare(tagB);
+              }
+            }
+
+            return (a.order || 0) - (b.order || 0);
+          });
+        } else {
+          sortedTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
+        }
+
+        // Filter to target priority section for positioning
+        const targetPriorityTasks = sortedTasks.filter(t => t.priority === targetPriority);
+        const taskIndex = sortedTasks.findIndex(t => t.id === taskId);
+
+        if (taskIndex !== -1) {
+          sortedTasks.splice(taskIndex, 1);
+        }
+
+        // Insert at the correct position within target priority section
+        const insertIndex = sortedTasks.findIndex(t => {
+          if (t.priority !== targetPriority) return false;
+          const priorityIndex = targetPriorityTasks.findIndex(pt => pt.id === t.id);
+          return priorityIndex >= destination.index;
+        });
+
+        if (insertIndex === -1) {
+          // Insert at end of target priority section
+          const lastTargetIndex = sortedTasks.findLastIndex(t => t.priority === targetPriority);
+          sortedTasks.splice(lastTargetIndex + 1, 0, task);
+        } else {
+          sortedTasks.splice(insertIndex, 0, task);
+        }
+
+        // Update priority if changed
+        if (targetPriority !== task.priority) {
+          updateTaskMutation({
+            id: taskId,
+            priority: targetPriority,
+          });
+        }
+
+        // Reorder tasks
+        const updates = sortedTasks.map((t, idx) => ({ id: t.id, order: idx }));
+        batchReorderTasksMutation(updates);
+        return;
+      }
+
       // Backlog to Backlog (reorder within backlog)
       if (sourceId === "backlog" && destId === "backlog") {
         // Get filtered tasks (same logic as BacklogDrawer uses)
@@ -425,6 +632,10 @@ export function TasksTab() {
         batchReorderTasksMutation(updates);
         return;
       }
+
+      // Priority-specific droppable to general backlog
+      // This is handled by the "Backlog to Backlog" handler below, which works for any source
+      // that ends up in the backlog droppable
 
       // Section to Backlog
       if (sourceId.startsWith("section-") && destId === "backlog") {
