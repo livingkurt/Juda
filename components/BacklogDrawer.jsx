@@ -16,6 +16,7 @@ import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { getPriorityConfig, PRIORITY_LEVELS } from "@/lib/constants";
 import { KeyboardArrowDown, KeyboardArrowUp, Remove, PriorityHigh } from "@mui/icons-material";
+import { createDroppableId } from "@/lib/dragHelpers";
 import {
   setBacklogSearchTerm as setBacklogSearchTermAction,
   setBacklogSelectedTagIds,
@@ -437,85 +438,70 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
         </Box>
 
         {/* Droppable area for tasks */}
-        <Droppable droppableId="backlog" type="TASK">
-          {(provided, snapshot) => (
-            <Box
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-              sx={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: "auto",
-                p: tasksWithIds.length === 0 ? { xs: 1.5, md: 2 } : { xs: 0.5, md: 1 },
-                borderRadius: 1,
-                transition: "background-color 0.2s, padding 0.2s",
-                width: "100%",
-                maxWidth: "100%",
-              }}
-            >
-              {/* Unscheduled Tasks */}
-              {tasksWithIds.length > 0 ? (
-                <Box>
-                  <Stack spacing={1} sx={{ px: { xs: 0.5, md: 1 }, width: "100%", maxWidth: "100%" }}>
-                    {tasksGrouped
-                      ? // Render grouped by priority/tag with dividers
-                        tasksGrouped.map((group, groupIndex) => {
-                          // Determine icon and color based on group type
-                          let IconComponent = null;
-                          let labelColor = "text.secondary";
-                          let priority = null;
+        {/* When priority sort is enabled, use individual priority droppables instead of nested ones */}
+        {sortByPriority && !sortByTag ? (
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              p: tasksWithIds.length === 0 ? { xs: 1.5, md: 2 } : { xs: 0.5, md: 1 },
+              borderRadius: 1,
+              transition: "background-color 0.2s, padding 0.2s",
+              width: "100%",
+              maxWidth: "100%",
+            }}
+          >
+            {/* Unscheduled Tasks */}
+            {tasksWithIds.length > 0 ? (
+              <Box>
+                <Stack spacing={1} sx={{ px: { xs: 0.5, md: 1 }, width: "100%", maxWidth: "100%" }}>
+                  {tasksGrouped &&
+                    tasksGrouped.map((group, groupIndex) => {
+                      // Determine icon and color based on group type
+                      let IconComponent = null;
+                      let labelColor = "text.secondary";
+                      let priority = null;
 
-                          if (group.type === "priority" || group.type === "priority-tag") {
-                            const priorityConfig = getPriorityConfig(group.priority);
-                            const iconMap = {
-                              KeyboardArrowDown,
-                              KeyboardArrowUp,
-                              Remove,
-                              PriorityHigh,
-                            };
-                            IconComponent = priorityConfig.icon ? iconMap[priorityConfig.icon] : null;
-                            labelColor = priorityConfig.color || "text.secondary";
-                            priority = group.priority;
-                          }
+                      if (group.type === "priority" || group.type === "priority-tag") {
+                        const priorityConfig = getPriorityConfig(group.priority);
+                        const iconMap = {
+                          KeyboardArrowDown,
+                          KeyboardArrowUp,
+                          Remove,
+                          PriorityHigh,
+                        };
+                        IconComponent = priorityConfig.icon ? iconMap[priorityConfig.icon] : null;
+                        labelColor = priorityConfig.color || "text.secondary";
+                        priority = group.priority;
+                      }
 
-                          // For tag-only groups, find tag color
-                          if (group.type === "tag") {
-                            if (group.tagName === "Untagged") {
-                              // Untagged uses default color
-                              labelColor = "text.secondary";
-                            } else {
-                              const tag = tags.find(t => t.name === group.tagName);
-                              if (tag) {
-                                labelColor = tag.color;
-                                // Show tag dot instead of icon for tag-only groups
-                                IconComponent = null; // We'll show a colored dot instead
-                              }
-                            }
-                          }
+                      // Determine if we should show a divider
+                      const shouldShowDivider = groupIndex > 0;
 
-                          // For tag-priority groups (tag first, then priority)
-                          if (group.type === "tag-priority") {
-                            // Show tag dot and use tag color
-                            if (group.tagName === "Untagged") {
-                              labelColor = "text.secondary";
-                            } else {
-                              const tag = tags.find(t => t.name === group.tagName);
-                              if (tag) {
-                                labelColor = tag.color;
-                              }
-                            }
-                            // Priority is available for QuickTaskInput
-                            priority = group.priority;
-                          }
+                      // Create droppable ID for this priority section (all groups in priority-only mode are priority groups)
+                      const priorityDroppableId = createDroppableId.backlogPriority(group.priority || null);
 
-                          // Determine if we should show a divider
-                          // Show divider between different tags (for tag-priority groups) or between all groups (for other types)
-                          const shouldShowDivider =
-                            groupIndex > 0 &&
-                            (group.type !== "tag-priority" || tasksGrouped[groupIndex - 1].tagName !== group.tagName);
-
-                          return (
-                            <Box key={`${group.type}-${group.priority || group.tagName || "none"}-${groupIndex}`}>
+                      // Wrap each priority section in its own Droppable
+                      return (
+                        <Droppable
+                          key={`${group.type}-${group.priority || "none"}-${groupIndex}`}
+                          droppableId={priorityDroppableId}
+                          type="TASK"
+                        >
+                          {(provided, snapshot) => (
+                            <Box
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              sx={{
+                                minHeight: group.tasks.length === 0 ? 80 : "auto",
+                                borderRadius: 0,
+                                bgcolor: "transparent",
+                                transition: "background-color 0.2s",
+                                border: 0,
+                                borderColor: "transparent",
+                              }}
+                            >
                               {shouldShowDivider && (
                                 <Box
                                   sx={{
@@ -537,32 +523,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                   mb: 0.5,
                                 }}
                               >
-                                {group.type === "tag" || group.type === "tag-priority" ? (
-                                  group.tagName === "Untagged" ? (
-                                    <Box
-                                      sx={{
-                                        width: 12,
-                                        height: 12,
-                                        bgcolor: "transparent",
-                                        borderWidth: 1.5,
-                                        borderStyle: "solid",
-                                        borderColor: labelColor,
-                                        borderRadius: "50%",
-                                        flexShrink: 0,
-                                      }}
-                                    />
-                                  ) : (
-                                    <Box
-                                      sx={{
-                                        width: 12,
-                                        height: 12,
-                                        borderRadius: "50%",
-                                        bgcolor: labelColor,
-                                        flexShrink: 0,
-                                      }}
-                                    />
-                                  )
-                                ) : IconComponent ? (
+                                {IconComponent && (
                                   <IconComponent
                                     fontSize="small"
                                     sx={{
@@ -571,7 +532,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                       flexShrink: 0,
                                     }}
                                   />
-                                ) : null}
+                                )}
                                 <Typography
                                   variant="caption"
                                   sx={{
@@ -602,33 +563,399 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                 </Box>
                               </Box>
                               <Stack spacing={1}>
-                                {group.tasks.map(task => (
+                                {group.tasks.map((task, taskIndex) => (
                                   <TaskItem
                                     key={task.id}
                                     task={task}
                                     variant="backlog"
-                                    index={task.originalIndex}
-                                    containerId="backlog"
+                                    index={taskIndex}
+                                    containerId={priorityDroppableId}
                                     draggableId={task.draggableId}
                                     viewDate={viewDate}
                                   />
                                 ))}
+                                {group.tasks.length === 0 && snapshot.isDraggingOver && (
+                                  <Box
+                                    sx={{
+                                      py: 2,
+                                      px: 1,
+                                      textAlign: "center",
+                                      color: "text.secondary",
+                                      fontSize: "0.75rem",
+                                    }}
+                                  >
+                                    Drop here to assign {group.label.toLowerCase()} priority
+                                  </Box>
+                                )}
+                                {provided.placeholder}
                               </Stack>
                             </Box>
-                          );
-                        })
-                      : // Render normally when priority sort is off
-                        tasksWithIds.map((task, index) => (
-                          <TaskItem
-                            key={task.id}
-                            task={task}
-                            variant="backlog"
-                            index={index}
-                            containerId="backlog"
-                            draggableId={task.draggableId}
-                            viewDate={viewDate}
-                          />
-                        ))}
+                          )}
+                        </Droppable>
+                      );
+                    })}
+                </Stack>
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  py: 4,
+                  px: 2,
+                  textAlign: "center",
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  No tasks in backlog
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        ) : (
+          <Droppable droppableId="backlog" type="TASK">
+            {(provided, snapshot) => (
+              <Box
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                sx={{
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: "auto",
+                  p: tasksWithIds.length === 0 ? { xs: 1.5, md: 2 } : { xs: 0.5, md: 1 },
+                  borderRadius: 1,
+                  transition: "background-color 0.2s, padding 0.2s",
+                  width: "100%",
+                  maxWidth: "100%",
+                }}
+              >
+                {/* Unscheduled Tasks */}
+                {tasksWithIds.length > 0 ? (
+                  <Box>
+                    <Stack spacing={1} sx={{ px: { xs: 0.5, md: 1 }, width: "100%", maxWidth: "100%" }}>
+                      {tasksGrouped
+                        ? // Render grouped by priority/tag with dividers
+                          tasksGrouped.map((group, groupIndex) => {
+                            // Determine icon and color based on group type
+                            let IconComponent = null;
+                            let labelColor = "text.secondary";
+                            let priority = null;
+
+                            if (group.type === "priority" || group.type === "priority-tag") {
+                              const priorityConfig = getPriorityConfig(group.priority);
+                              const iconMap = {
+                                KeyboardArrowDown,
+                                KeyboardArrowUp,
+                                Remove,
+                                PriorityHigh,
+                              };
+                              IconComponent = priorityConfig.icon ? iconMap[priorityConfig.icon] : null;
+                              labelColor = priorityConfig.color || "text.secondary";
+                              priority = group.priority;
+                            }
+
+                            // For tag-only groups, find tag color
+                            if (group.type === "tag") {
+                              if (group.tagName === "Untagged") {
+                                // Untagged uses default color
+                                labelColor = "text.secondary";
+                              } else {
+                                const tag = tags.find(t => t.name === group.tagName);
+                                if (tag) {
+                                  labelColor = tag.color;
+                                  // Show tag dot instead of icon for tag-only groups
+                                  IconComponent = null; // We'll show a colored dot instead
+                                }
+                              }
+                            }
+
+                            // For tag-priority groups (tag first, then priority)
+                            if (group.type === "tag-priority") {
+                              // Show tag dot and use tag color
+                              if (group.tagName === "Untagged") {
+                                labelColor = "text.secondary";
+                              } else {
+                                const tag = tags.find(t => t.name === group.tagName);
+                                if (tag) {
+                                  labelColor = tag.color;
+                                }
+                              }
+                              // Priority is available for QuickTaskInput
+                              priority = group.priority;
+                            }
+
+                            // Determine if we should show a divider
+                            // Show divider between different tags (for tag-priority groups) or between all groups (for other types)
+                            const shouldShowDivider =
+                              groupIndex > 0 &&
+                              (group.type !== "tag-priority" || tasksGrouped[groupIndex - 1].tagName !== group.tagName);
+
+                            // Create droppable ID for this priority section (only for priority-only groups)
+                            const priorityDroppableId =
+                              group.type === "priority" && sortByPriority
+                                ? createDroppableId.backlogPriority(group.priority)
+                                : null;
+
+                            // If this is a priority-only section, wrap it in its own Droppable
+                            if (priorityDroppableId) {
+                              return (
+                                <Droppable
+                                  key={`${group.type}-${group.priority || "none"}-${groupIndex}`}
+                                  droppableId={priorityDroppableId}
+                                  type="TASK"
+                                >
+                                  {(provided, snapshot) => (
+                                    <Box
+                                      ref={provided.innerRef}
+                                      {...provided.droppableProps}
+                                      sx={{
+                                        minHeight: group.tasks.length === 0 ? 80 : "auto",
+                                        borderRadius: snapshot.isDraggingOver ? 1 : 0,
+                                        bgcolor: snapshot.isDraggingOver ? "action.hover" : "transparent",
+                                        transition: "background-color 0.2s",
+                                        border: snapshot.isDraggingOver && group.tasks.length === 0 ? 2 : 0,
+                                        borderColor:
+                                          snapshot.isDraggingOver && group.tasks.length === 0
+                                            ? "primary.main"
+                                            : "transparent",
+                                        borderStyle: "dashed",
+                                      }}
+                                    >
+                                      {shouldShowDivider && (
+                                        <Box
+                                          sx={{
+                                            my: 1.5,
+                                            mx: 1,
+                                            borderTop: 1,
+                                            borderColor: "divider",
+                                          }}
+                                        />
+                                      )}
+                                      {/* Group Label with Quick Task Input */}
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 1,
+                                          px: 1,
+                                          py: 0.75,
+                                          mb: 0.5,
+                                        }}
+                                      >
+                                        {IconComponent && (
+                                          <IconComponent
+                                            fontSize="small"
+                                            sx={{
+                                              color: labelColor,
+                                              fontSize: "1rem",
+                                              flexShrink: 0,
+                                            }}
+                                          />
+                                        )}
+                                        <Typography
+                                          variant="caption"
+                                          sx={{
+                                            fontSize: "0.75rem",
+                                            fontWeight: 600,
+                                            color: labelColor,
+                                            textTransform: "uppercase",
+                                            letterSpacing: "0.05em",
+                                            flexShrink: 0,
+                                            minWidth: "fit-content",
+                                          }}
+                                        >
+                                          {group.label}
+                                        </Typography>
+                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                          <QuickTaskInput
+                                            placeholder={`Add ${group.label.toLowerCase()} task...`}
+                                            onCreate={title =>
+                                              handleCreateQuickTaskWithPriority(title, priority || null)
+                                            }
+                                            size="small"
+                                            variant="standard"
+                                            showUnderlineWhenActive={false}
+                                            sx={{
+                                              "& .MuiInputBase-root": {
+                                                fontSize: "0.75rem",
+                                              },
+                                            }}
+                                          />
+                                        </Box>
+                                      </Box>
+                                      <Stack spacing={1}>
+                                        {group.tasks.map((task, taskIndex) => (
+                                          <TaskItem
+                                            key={task.id}
+                                            task={task}
+                                            variant="backlog"
+                                            index={taskIndex}
+                                            containerId={priorityDroppableId}
+                                            draggableId={task.draggableId}
+                                            viewDate={viewDate}
+                                          />
+                                        ))}
+                                        {group.tasks.length === 0 && snapshot.isDraggingOver && (
+                                          <Box
+                                            sx={{
+                                              py: 2,
+                                              px: 1,
+                                              textAlign: "center",
+                                              color: "text.secondary",
+                                              fontSize: "0.75rem",
+                                            }}
+                                          >
+                                            Drop here to assign {group.label.toLowerCase()} priority
+                                          </Box>
+                                        )}
+                                        {provided.placeholder}
+                                      </Stack>
+                                    </Box>
+                                  )}
+                                </Droppable>
+                              );
+                            }
+
+                            // For tag-only or combined groups, use regular rendering
+                            return (
+                              <Box key={`${group.type}-${group.priority || group.tagName || "none"}-${groupIndex}`}>
+                                {shouldShowDivider && (
+                                  <Box
+                                    sx={{
+                                      my: 1.5,
+                                      mx: 1,
+                                      borderTop: 1,
+                                      borderColor: "divider",
+                                    }}
+                                  />
+                                )}
+                                {/* Group Label with Quick Task Input */}
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    px: 1,
+                                    py: 0.75,
+                                    mb: 0.5,
+                                  }}
+                                >
+                                  {group.type === "tag" || group.type === "tag-priority" ? (
+                                    group.tagName === "Untagged" ? (
+                                      <Box
+                                        sx={{
+                                          width: 12,
+                                          height: 12,
+                                          bgcolor: "transparent",
+                                          borderWidth: 1.5,
+                                          borderStyle: "solid",
+                                          borderColor: labelColor,
+                                          borderRadius: "50%",
+                                          flexShrink: 0,
+                                        }}
+                                      />
+                                    ) : (
+                                      <Box
+                                        sx={{
+                                          width: 12,
+                                          height: 12,
+                                          borderRadius: "50%",
+                                          bgcolor: labelColor,
+                                          flexShrink: 0,
+                                        }}
+                                      />
+                                    )
+                                  ) : IconComponent ? (
+                                    <IconComponent
+                                      fontSize="small"
+                                      sx={{
+                                        color: labelColor,
+                                        fontSize: "1rem",
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                  ) : null}
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      fontSize: "0.75rem",
+                                      fontWeight: 600,
+                                      color: labelColor,
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.05em",
+                                      flexShrink: 0,
+                                      minWidth: "fit-content",
+                                    }}
+                                  >
+                                    {group.label}
+                                  </Typography>
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <QuickTaskInput
+                                      placeholder={`Add ${group.label.toLowerCase()} task...`}
+                                      onCreate={title => handleCreateQuickTaskWithPriority(title, priority || null)}
+                                      size="small"
+                                      variant="standard"
+                                      showUnderlineWhenActive={false}
+                                      sx={{
+                                        "& .MuiInputBase-root": {
+                                          fontSize: "0.75rem",
+                                        },
+                                      }}
+                                    />
+                                  </Box>
+                                </Box>
+                                <Stack spacing={1}>
+                                  {group.tasks.map(task => (
+                                    <TaskItem
+                                      key={task.id}
+                                      task={task}
+                                      variant="backlog"
+                                      index={task.originalIndex}
+                                      containerId="backlog"
+                                      draggableId={task.draggableId}
+                                      viewDate={viewDate}
+                                    />
+                                  ))}
+                                </Stack>
+                              </Box>
+                            );
+                          })
+                        : // Render normally when priority sort is off
+                          tasksWithIds.map((task, index) => (
+                            <TaskItem
+                              key={task.id}
+                              task={task}
+                              variant="backlog"
+                              index={index}
+                              containerId="backlog"
+                              draggableId={task.draggableId}
+                              viewDate={viewDate}
+                            />
+                          ))}
+                      {provided.placeholder}
+                      <QuickTaskInput
+                        placeholder="New task..."
+                        onCreate={handleCreateQuickTask}
+                        size="small"
+                        variant="standard"
+                      />
+                    </Stack>
+                  </Box>
+                ) : (
+                  <Stack spacing={1}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontSize: { xs: "0.75rem", md: "0.875rem" },
+                        textAlign: "center",
+                        py: { xs: 2, md: 4 },
+                        color: "text.secondary",
+                      }}
+                    >
+                      {snapshot.isDraggingOver ? "Drop here" : "No tasks"}
+                    </Typography>
                     {provided.placeholder}
                     <QuickTaskInput
                       placeholder="New task..."
@@ -637,32 +964,11 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                       variant="standard"
                     />
                   </Stack>
-                </Box>
-              ) : (
-                <Stack spacing={1}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontSize: { xs: "0.75rem", md: "0.875rem" },
-                      textAlign: "center",
-                      py: { xs: 2, md: 4 },
-                      color: "text.secondary",
-                    }}
-                  >
-                    {snapshot.isDraggingOver ? "Drop here" : "No tasks"}
-                  </Typography>
-                  {provided.placeholder}
-                  <QuickTaskInput
-                    placeholder="New task..."
-                    onCreate={handleCreateQuickTask}
-                    size="small"
-                    variant="standard"
-                  />
-                </Stack>
-              )}
-            </Box>
-          )}
-        </Droppable>
+                )}
+              </Box>
+            )}
+          </Droppable>
+        )}
       </Box>
     </Box>
   );
