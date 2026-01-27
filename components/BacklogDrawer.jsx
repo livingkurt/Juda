@@ -270,49 +270,55 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
       return sortedGroups;
     }
 
-    // Group by priority first, then by tag within each priority
+    // Group by tag first, then by priority within each tag
     if (sortByPriority && sortByTag) {
-      const priorityGroups = {};
+      const tagGroups = {};
       tasksWithIds.forEach((task, index) => {
-        const priority = task.priority || null;
-        if (!priorityGroups[priority]) {
-          priorityGroups[priority] = {};
+        const tagName = !task.tags || task.tags.length === 0 ? "Untagged" : task.tags[0].name;
+        if (!tagGroups[tagName]) {
+          tagGroups[tagName] = {};
         }
 
-        const tagName = !task.tags || task.tags.length === 0 ? "Untagged" : task.tags[0].name;
-        if (!priorityGroups[priority][tagName]) {
-          priorityGroups[priority][tagName] = [];
+        const priority = task.priority || null;
+        if (!tagGroups[tagName][priority]) {
+          tagGroups[tagName][priority] = [];
         }
-        priorityGroups[priority][tagName].push({ ...task, originalIndex: index });
+        tagGroups[tagName][priority].push({ ...task, originalIndex: index });
       });
 
       const sortedGroups = [];
+
+      // Always show "Untagged" first
+      const untaggedPriorities = tagGroups["Untagged"] || {};
       PRIORITY_LEVELS.sort((a, b) => a.sortOrder - b.sortOrder).forEach(level => {
         const priority = level.value;
-        const tagGroups = priorityGroups[priority] || {};
-
-        // Always add untagged section first (even if empty) so users can add untagged tasks
         sortedGroups.push({
-          type: "priority-tag",
+          type: "tag-priority",
+          tagName: "Untagged",
+          tagLabel: "Untagged",
           priority,
           priorityLabel: level.label,
-          tagName: "Untagged",
-          label: `${level.label} - Untagged`,
-          tasks: tagGroups["Untagged"] || [],
+          label: `Untagged - ${level.label}`,
+          tasks: untaggedPriorities[priority] || [],
         });
+      });
 
-        // Then add other tags alphabetically
-        const sortedTagNames = Object.keys(tagGroups)
-          .filter(name => name !== "Untagged")
-          .sort();
-        sortedTagNames.forEach(tagName => {
+      // Then show other tags alphabetically
+      const sortedTagNames = Object.keys(tagGroups)
+        .filter(name => name !== "Untagged")
+        .sort();
+      sortedTagNames.forEach(tagName => {
+        const priorities = tagGroups[tagName] || {};
+        PRIORITY_LEVELS.sort((a, b) => a.sortOrder - b.sortOrder).forEach(level => {
+          const priority = level.value;
           sortedGroups.push({
-            type: "priority-tag",
+            type: "tag-priority",
+            tagName,
+            tagLabel: tagName,
             priority,
             priorityLabel: level.label,
-            tagName,
-            label: `${level.label} - ${tagName}`,
-            tasks: tagGroups[tagName],
+            label: `${tagName} - ${level.label}`,
+            tasks: priorities[priority] || [],
           });
         });
       });
@@ -487,9 +493,30 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                             }
                           }
 
+                          // For tag-priority groups (tag first, then priority)
+                          if (group.type === "tag-priority") {
+                            // Show tag dot and use tag color
+                            if (group.tagName === "Untagged") {
+                              labelColor = "text.secondary";
+                            } else {
+                              const tag = tags.find(t => t.name === group.tagName);
+                              if (tag) {
+                                labelColor = tag.color;
+                              }
+                            }
+                            // Priority is available for QuickTaskInput
+                            priority = group.priority;
+                          }
+
+                          // Determine if we should show a divider
+                          // Show divider between different tags (for tag-priority groups) or between all groups (for other types)
+                          const shouldShowDivider =
+                            groupIndex > 0 &&
+                            (group.type !== "tag-priority" || tasksGrouped[groupIndex - 1].tagName !== group.tagName);
+
                           return (
                             <Box key={`${group.type}-${group.priority || group.tagName || "none"}-${groupIndex}`}>
-                              {groupIndex > 0 && (
+                              {shouldShowDivider && (
                                 <Box
                                   sx={{
                                     my: 1.5,
@@ -510,29 +537,31 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                   mb: 0.5,
                                 }}
                               >
-                                {group.type === "tag" && group.tagName === "Untagged" ? (
-                                  <Box
-                                    sx={{
-                                      width: 12,
-                                      height: 12,
-                                      bgcolor: "transparent",
-                                      borderWidth: 1.5,
-                                      borderStyle: "solid",
-                                      borderColor: labelColor,
-                                      borderRadius: "50%",
-                                      flexShrink: 0,
-                                    }}
-                                  />
-                                ) : group.type === "tag" && group.tagName !== "Untagged" ? (
-                                  <Box
-                                    sx={{
-                                      width: 12,
-                                      height: 12,
-                                      borderRadius: "50%",
-                                      bgcolor: labelColor,
-                                      flexShrink: 0,
-                                    }}
-                                  />
+                                {group.type === "tag" || group.type === "tag-priority" ? (
+                                  group.tagName === "Untagged" ? (
+                                    <Box
+                                      sx={{
+                                        width: 12,
+                                        height: 12,
+                                        bgcolor: "transparent",
+                                        borderWidth: 1.5,
+                                        borderStyle: "solid",
+                                        borderColor: labelColor,
+                                        borderRadius: "50%",
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                  ) : (
+                                    <Box
+                                      sx={{
+                                        width: 12,
+                                        height: 12,
+                                        borderRadius: "50%",
+                                        bgcolor: labelColor,
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                  )
                                 ) : IconComponent ? (
                                   <IconComponent
                                     fontSize="small"
