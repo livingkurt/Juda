@@ -23,6 +23,7 @@ import {
   KeyboardArrowUp,
   Remove,
   PriorityHigh,
+  Label,
 } from "@mui/icons-material";
 import { PRIORITY_LEVELS } from "@/lib/constants";
 import { UNTAGGED_ID } from "./BacklogTagSidebar";
@@ -46,6 +47,8 @@ export const FilterMenu = ({
   onPriorityDeselect,
   sortByPriority = false,
   onSortToggle,
+  sortByTag = false,
+  onTagSortToggle,
   showPriorityFilter = true,
   showSort = true,
   showUntaggedOption = true,
@@ -65,12 +68,12 @@ export const FilterMenu = ({
   // Calculate tag counts based on tasks
   const tagCounts = useMemo(() => {
     const counts = new Map();
-    
+
     // Initialize all tags with 0
     tags.forEach(tag => {
       counts.set(tag.id, 0);
     });
-    
+
     // Count tasks for each tag
     tasks.forEach(task => {
       if (task.tags && task.tags.length > 0) {
@@ -79,7 +82,7 @@ export const FilterMenu = ({
         });
       }
     });
-    
+
     return counts;
   }, [tags, tasks]);
 
@@ -89,7 +92,6 @@ export const FilterMenu = ({
   }, [tasks]);
 
   const selectedTags = tags.filter(t => selectedTagIds.includes(t.id));
-  const availableTags = tags.filter(t => !selectedTagIds.includes(t.id));
   const hasUntaggedSelected = selectedTagIds.includes(UNTAGGED_ID);
   const filterablePriorities = PRIORITY_LEVELS.filter(level => level.value !== null);
 
@@ -423,6 +425,11 @@ export const FilterMenu = ({
                 <Checkbox checked={sortByPriority} size="small" />
                 <Sort fontSize="small" sx={{ mx: 1 }} />
                 <Typography variant="body2">Priority Sort</Typography>
+              </MenuItem>
+              <MenuItem onClick={() => onTagSortToggle()}>
+                <Checkbox checked={sortByTag} size="small" />
+                <Label fontSize="small" sx={{ mx: 1 }} />
+                <Typography variant="body2">Tag Sort</Typography>
               </MenuItem>
             </>
           )}

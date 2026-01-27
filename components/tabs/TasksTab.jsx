@@ -49,6 +49,7 @@ export function TasksTab() {
   const mobileActiveView = useSelector(state => state.ui.mobileActiveView);
   const backlogWidth = useSelector(state => state.ui.backlogWidth);
   const backlogSortByPriority = useSelector(state => state.ui.backlogSortByPriority);
+  const backlogSortByTag = useSelector(state => state.ui.backlogSortByTag);
   const backlogSearchTerm = useSelector(state => state.ui.backlogSearchTerm);
   const backlogSelectedTagIds = useSelector(state => state.ui.backlogSelectedTagIds);
   const backlogSelectedPriorities = useSelector(state => state.ui.backlogSelectedPriorities);
@@ -295,11 +296,27 @@ export function TasksTab() {
 
         // Sort tasks (same as BacklogDrawer)
         let sortedTasks = [...filteredBacklogTasks];
-        if (backlogSortByPriority) {
+        if (backlogSortByPriority || backlogSortByTag) {
           sortedTasks.sort((a, b) => {
-            const priorityA = getPriorityConfig(a.priority).sortOrder;
-            const priorityB = getPriorityConfig(b.priority).sortOrder;
-            if (priorityA !== priorityB) return priorityA - priorityB;
+            // Sort by priority first if enabled
+            if (backlogSortByPriority) {
+              const priorityA = getPriorityConfig(a.priority).sortOrder;
+              const priorityB = getPriorityConfig(b.priority).sortOrder;
+              if (priorityA !== priorityB) return priorityA - priorityB;
+            }
+
+            // Then sort by tag if enabled
+            if (backlogSortByTag) {
+              const tagA = a.tags && a.tags.length > 0 ? a.tags[0].name : "";
+              const tagB = b.tags && b.tags.length > 0 ? b.tags[0].name : "";
+              if (tagA !== tagB) {
+                if (!tagA) return 1; // Untagged goes to end
+                if (!tagB) return -1;
+                return tagA.localeCompare(tagB);
+              }
+            }
+
+            // Finally sort by order
             return (a.order || 0) - (b.order || 0);
           });
         } else {
@@ -443,11 +460,27 @@ export function TasksTab() {
 
         // Sort tasks (same as BacklogDrawer)
         let sortedTasks = [...filteredBacklogTasks];
-        if (backlogSortByPriority) {
+        if (backlogSortByPriority || backlogSortByTag) {
           sortedTasks.sort((a, b) => {
-            const priorityA = getPriorityConfig(a.priority).sortOrder;
-            const priorityB = getPriorityConfig(b.priority).sortOrder;
-            if (priorityA !== priorityB) return priorityA - priorityB;
+            // Sort by priority first if enabled
+            if (backlogSortByPriority) {
+              const priorityA = getPriorityConfig(a.priority).sortOrder;
+              const priorityB = getPriorityConfig(b.priority).sortOrder;
+              if (priorityA !== priorityB) return priorityA - priorityB;
+            }
+
+            // Then sort by tag if enabled
+            if (backlogSortByTag) {
+              const tagA = a.tags && a.tags.length > 0 ? a.tags[0].name : "";
+              const tagB = b.tags && b.tags.length > 0 ? b.tags[0].name : "";
+              if (tagA !== tagB) {
+                if (!tagA) return 1; // Untagged goes to end
+                if (!tagB) return -1;
+                return tagA.localeCompare(tagB);
+              }
+            }
+
+            // Finally sort by order
             return (a.order || 0) - (b.order || 0);
           });
         } else {
@@ -621,6 +654,7 @@ export function TasksTab() {
       backlogSelectedTagIds,
       backlogSelectedPriorities,
       backlogSortByPriority,
+      backlogSortByTag,
     ]
   );
 

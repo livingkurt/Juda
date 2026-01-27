@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sort,
+  Label,
   KeyboardArrowDown,
   KeyboardArrowUp,
   Remove,
@@ -39,6 +40,8 @@ export const BacklogTagSidebar = ({
   onPriorityDeselect,
   sortByPriority = false,
   onSortToggle,
+  sortByTag = false,
+  onTagSortToggle,
 }) => {
   const { theme } = useTheme();
   const { colorMode } = useColorModeSync();
@@ -419,6 +422,49 @@ export const BacklogTagSidebar = ({
                   </Typography>
                 </Collapse>
               </ListItemButton>
+              {/* Tag Sort Toggle */}
+              {onTagSortToggle && (
+                <ListItemButton
+                  selected={sortByTag}
+                  onClick={onTagSortToggle}
+                  sx={{
+                    borderRadius: 1,
+                    mb: 0.5,
+                    px: isOpen ? 1 : 0.5,
+                    py: 0.75,
+                    justifyContent: isOpen ? "flex-start" : "center",
+                  }}
+                  title={isOpen ? undefined : "Tag Sort"}
+                >
+                  <Label
+                    fontSize="small"
+                    sx={{
+                      flexShrink: 0,
+                      mr: isOpen ? 1 : 0,
+                      width: 12,
+                      height: 12,
+                      color: sortByTag ? "primary.main" : "text.secondary",
+                    }}
+                  />
+                  <Collapse orientation="horizontal" in={isOpen} timeout={400}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontSize: "0.875rem",
+                        fontWeight: sortByTag ? 600 : 400,
+                        color: sortByTag ? "text.primary" : "text.secondary",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        flex: 1,
+                        minWidth: 0,
+                      }}
+                    >
+                      Tag Sort
+                    </Typography>
+                  </Collapse>
+                </ListItemButton>
+              )}
             </>
           )}
         </List>
