@@ -167,6 +167,16 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     [taskOps, selectedTagIds, selectedPriorities]
   );
 
+  const handleCreateQuickTaskWithPriority = useCallback(
+    async (title, priority) => {
+      // Filter out UNTAGGED_ID from tagIds (it's not a real tag)
+      const regularTagIds = selectedTagIds.filter(id => id !== UNTAGGED_ID);
+
+      await taskOps.handleCreateBacklogTaskInline(title, regularTagIds, priority);
+    },
+    [taskOps, selectedTagIds]
+  );
+
   // Prepare tasks with draggable IDs - memoized to prevent recreation on every render
   const tasksWithIds = useMemo(
     () =>
@@ -362,7 +372,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                   }}
                                 />
                               )}
-                              {/* Priority Label */}
+                              {/* Priority Label with Quick Task Input */}
                               <Box
                                 sx={{
                                   display: "flex",
@@ -379,6 +389,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                     sx={{
                                       color: priorityConfig.color || "text.secondary",
                                       fontSize: "1rem",
+                                      flexShrink: 0,
                                     }}
                                   />
                                 )}
@@ -390,22 +401,40 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                     color: priorityConfig.color || "text.secondary",
                                     textTransform: "uppercase",
                                     letterSpacing: "0.05em",
+                                    flexShrink: 0,
+                                    minWidth: "fit-content",
                                   }}
                                 >
                                   {group.label}
                                 </Typography>
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                  <QuickTaskInput
+                                    placeholder={`Add ${group.label.toLowerCase()} task...`}
+                                    onCreate={title => handleCreateQuickTaskWithPriority(title, group.priority)}
+                                    size="small"
+                                    variant="standard"
+                                    showUnderlineWhenActive={false}
+                                    sx={{
+                                      "& .MuiInputBase-root": {
+                                        fontSize: "0.75rem",
+                                      },
+                                    }}
+                                  />
+                                </Box>
                               </Box>
-                              {group.tasks.map(task => (
-                                <TaskItem
-                                  key={task.id}
-                                  task={task}
-                                  variant="backlog"
-                                  index={task.originalIndex}
-                                  containerId="backlog"
-                                  draggableId={task.draggableId}
-                                  viewDate={viewDate}
-                                />
-                              ))}
+                              <Stack spacing={1}>
+                                {group.tasks.map(task => (
+                                  <TaskItem
+                                    key={task.id}
+                                    task={task}
+                                    variant="backlog"
+                                    index={task.originalIndex}
+                                    containerId="backlog"
+                                    draggableId={task.draggableId}
+                                    viewDate={viewDate}
+                                  />
+                                ))}
+                              </Stack>
                             </Box>
                           );
                         })
