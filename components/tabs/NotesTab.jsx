@@ -21,6 +21,8 @@ import {
   useMediaQuery,
   ToggleButton,
   ToggleButtonGroup,
+  Menu,
+  MenuItem,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Add, Description, Folder, Tag, ArrowBack, Edit, Assignment } from "@mui/icons-material";
@@ -56,43 +58,152 @@ import { useGetSmartFoldersQuery } from "@/lib/store/api/smartFoldersApi";
 import { useGetTagsQuery, useCreateTagMutation, useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
 import { useLoadingTab } from "@/components/MainTabs";
 import { useDialogState } from "@/hooks/useDialogState";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
 
 // Memoized note list item component to prevent unnecessary re-renders
-const NoteListItem = memo(function NoteListItem({ note, isSelected, onSelect }) {
+const NoteListItem = memo(function NoteListItem({ note, isSelected, onSelect, tags, onTagsChange }) {
+  const [tagsMenuOpen, setTagsMenuOpen] = useState(false);
+  const [tagsMenuAnchor, setTagsMenuAnchor] = useState(null);
+
   const handleClick = useCallback(() => {
     onSelect(note.id);
   }, [onSelect, note.id]);
 
   const stripHtml = html => html?.replace(/<[^>]*>/g, "").trim() || "";
 
+  const displayTags = note.tags || [];
+
   return (
-    <ListItemButton
-      selected={isSelected}
-      onClick={handleClick}
-      sx={{
-        flexDirection: "column",
-        alignItems: "flex-start",
-        py: 1.5,
-        px: 2,
-        borderBottom: 1,
-        borderColor: "divider",
-      }}
-    >
-      <Typography variant="subtitle2" fontWeight={600} noWrap sx={{ width: "100%" }}>
-        {note.title || "Untitled"}
-      </Typography>
-      <Typography variant="caption" color="text.secondary" noWrap sx={{ width: "100%" }}>
-        {stripHtml(note.content) || "No content"}
-      </Typography>
-      <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }}>
-        <Typography variant="caption" color="text.disabled">
-          {dayjs(note.updatedAt).format("MMM D")}
+    <>
+      <ListItemButton
+        selected={isSelected}
+        onClick={handleClick}
+        sx={{
+          flexDirection: "column",
+          alignItems: "flex-start",
+          py: 1.5,
+          px: 2,
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
+        <Typography variant="subtitle2" fontWeight={600} noWrap sx={{ width: "100%" }}>
+          {note.title || "Untitled"}
         </Typography>
-        {note.tags?.slice(0, 2).map(tag => (
-          <TagChip key={tag.id} tag={tag} size="small" sx={{ height: 16, fontSize: "0.6rem" }} />
-        ))}
-      </Stack>
-    </ListItemButton>
+        <Typography variant="caption" color="text.secondary" noWrap sx={{ width: "100%" }}>
+          {stripHtml(note.content) || "No content"}
+        </Typography>
+        <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }} alignItems="center">
+          <Typography variant="caption" color="text.disabled">
+            {dayjs(note.updatedAt).format("MMM D")}
+          </Typography>
+          {displayTags.slice(0, 2).map(tag => (
+            <Box
+              key={tag.id}
+              onClick={e => {
+                e.stopPropagation();
+                setTagsMenuAnchor(e.currentTarget);
+                setTagsMenuOpen(true);
+              }}
+              sx={{ cursor: "pointer", display: "inline-flex" }}
+            >
+              <TagChip tag={tag} size="xs" />
+            </Box>
+          ))}
+        </Stack>
+      </ListItemButton>
+      {/* Tags menu */}
+      <Menu
+        anchorEl={tagsMenuAnchor}
+        open={tagsMenuOpen}
+        onClose={() => {
+          setTagsMenuOpen(false);
+          setTagsMenuAnchor(null);
+        }}
+        onClick={e => e.stopPropagation()}
+        PaperProps={{ sx: { minWidth: "250px", maxHeight: "350px", overflowY: "auto" } }}
+      >
+        <Box sx={{ p: 2, minWidth: "250px", maxHeight: "350px", overflowY: "auto" }}>
+          {/* Selected tags */}
+          {displayTags && displayTags.length > 0 && (
+            <>
+              <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: "block" }}>
+                Selected Tags
+              </Typography>
+              <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mb: 2 }}>
+                {displayTags.map(tag => (
+                  <TagChip
+                    key={tag.id}
+                    tag={tag}
+                    size="xs"
+                    onClick={e => {
+                      e.stopPropagation();
+                      const currentTagIds = displayTags.map(t => t.id);
+                      onTagsChange(
+                        note.id,
+                        currentTagIds.filter(id => id !== tag.id)
+                      );
+                    }}
+                    sx={{ cursor: "pointer" }}
+                  />
+                ))}
+              </Stack>
+            </>
+          )}
+
+          {/* Available tags */}
+          {tags.filter(t => !displayTags.some(dt => dt.id === t.id)).length > 0 && (
+            <>
+              {displayTags && displayTags.length > 0 && (
+                <Box
+                  sx={{
+                    borderTop: "1px solid",
+                    borderColor: "divider",
+                    my: 1,
+                  }}
+                />
+              )}
+              <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: "block" }}>
+                Available Tags
+              </Typography>
+              {tags
+                .filter(t => !displayTags.some(dt => dt.id === t.id))
+                .map(tag => (
+                  <MenuItem
+                    key={tag.id}
+                    onClick={e => {
+                      e.stopPropagation();
+                      const currentTagIds = displayTags.map(t => t.id);
+                      onTagsChange(note.id, [...currentTagIds, tag.id]);
+                    }}
+                    sx={{
+                      "&:hover": {
+                        bgcolor: "action.hover",
+                      },
+                    }}
+                  >
+                    <TagChip tag={tag} size="xs" />
+                  </MenuItem>
+                ))}
+            </>
+          )}
+
+          {/* Show message if all tags are selected */}
+          {tags.length > 0 && displayTags.length === tags.length && (
+            <Typography variant="body2" sx={{ px: 1, py: 2, color: "text.secondary" }}>
+              All tags assigned to this note
+            </Typography>
+          )}
+
+          {/* Show message if no tags exist */}
+          {tags.length === 0 && (
+            <Typography variant="body2" sx={{ px: 1, py: 2, color: "text.secondary" }}>
+              No tags available. Create tags in the task dialog.
+            </Typography>
+          )}
+        </Box>
+      </Menu>
+    </>
   );
 });
 
@@ -132,6 +243,9 @@ export function NotesTab({ isLoading }) {
 
   // Dialog state
   const dialogState = useDialogState();
+
+  // Task operations
+  const taskOps = useTaskOperations();
 
   // RTK Query
   const { data: tasks = [] } = useGetTasksQuery();
@@ -524,6 +638,8 @@ export function NotesTab({ isLoading }) {
                     note={note}
                     isSelected={selectedNoteId === note.id}
                     onSelect={handleSelectNote}
+                    tags={tags}
+                    onTagsChange={taskOps.handleTaskTagsChange}
                   />
                 ))}
                 {filteredNotes.length === 0 && (
@@ -622,7 +738,12 @@ export function NotesTab({ isLoading }) {
 
           <Box sx={{ flex: 1 }} />
 
-          <Button variant="contained" size="small" startIcon={<Assignment fontSize="small" />} onClick={handleCreateTask}>
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<Assignment fontSize="small" />}
+            onClick={handleCreateTask}
+          >
             New Task
           </Button>
           <Button
@@ -806,6 +927,8 @@ export function NotesTab({ isLoading }) {
                   note={note}
                   isSelected={selectedNoteId === note.id}
                   onSelect={handleSelectNote}
+                  tags={tags}
+                  onTagsChange={taskOps.handleTaskTagsChange}
                 />
               ))}
               <Box sx={{ p: 1.5 }}>
