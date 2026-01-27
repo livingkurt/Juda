@@ -202,10 +202,26 @@ export function useCompletionHandlers({
   );
 
   // Toggle task completion
+  // IMPORTANT: This function handles PARENT task completions and cascades to subtasks
   const handleToggleTask = useCallback(
     async taskId => {
+      console.warn("[handleToggleTask] CALLED with taskId:", taskId);
       const task = tasks.find(t => t.id === taskId);
-      if (!task) return;
+      console.warn("[handleToggleTask] task found:", task?.title, "parentId:", task?.parentId);
+      if (!task) {
+        const isSubtaskId = tasks.some(t => t.subtasks?.some(st => st.id === taskId));
+        if (isSubtaskId) {
+          console.error("[handleToggleTask] BLOCKED - subtask ID detected:", taskId);
+          return;
+        }
+        return;
+      }
+
+      // If this is a subtask, don't use this function - use handleToggleSubtask instead
+      if (task.parentId) {
+        console.error("handleToggleTask called with a subtask - use handleToggleSubtask instead");
+        return;
+      }
 
       const hasNoRecurrence = !task.recurrence;
       const targetDate = hasNoRecurrence ? today : viewDate;
@@ -360,18 +376,42 @@ export function useCompletionHandlers({
     ]
   );
 
+  // Helper to check if all subtasks are complete
+  const areAllSubtasksComplete = useCallback(
+    (parentTask, targetDate, excludeTaskId = null) => {
+      if (!parentTask?.subtasks || parentTask.subtasks.length === 0) {
+        return false;
+      }
+
+      return parentTask.subtasks.every(st => {
+        if (st.id === excludeTaskId) return true; // Exclude the one being completed
+        return isCompletedOnDate(st.id, targetDate) || st.status === "complete";
+      });
+    },
+    [isCompletedOnDate]
+  );
+
   // Toggle subtask completion
+  // IMPORTANT: This function ONLY handles subtask completions independently
+  // It does NOT cascade to other subtasks or create completions for the parent
   const handleToggleSubtask = useCallback(
-    async (taskId, subtaskId) => {
+    async (parentTaskId, subtaskId) => {
       const subtask =
         tasks.find(t => t.id === subtaskId) || tasks.flatMap(t => t.subtasks || []).find(st => st.id === subtaskId);
       if (!subtask) return;
+
+      // Find parent task
+      const parentTask = tasks.find(t => t.id === subtask.parentId);
 
       const hasNoRecurrence = !subtask.recurrence;
       const targetDate = hasNoRecurrence ? today : viewDate;
       const isCompletedOnTargetDate = isCompletedOnDate(subtaskId, targetDate);
 
+      // Check if parent is non-recurring (for status sync)
+      const parentIsNonRecurring = parentTask && (!parentTask.recurrence || parentTask.recurrence.type === "none");
+
       try {
+        // Set startDate if subtask has no recurrence and isn't completed yet
         if (hasNoRecurrence && !isCompletedOnTargetDate) {
           const todayDateStr = formatLocalDate(today);
           await updateTask(subtaskId, {
@@ -384,16 +424,127 @@ export function useCompletionHandlers({
 
         // Format date as YYYY-MM-DD to avoid timezone issues
         const dateStr = formatLocalDate(targetDate);
+
         if (isCompletedOnTargetDate) {
+          // UNCHECKING subtask - only affects this subtask
           await deleteCompletion(subtaskId, dateStr);
+
+          // Also update subtask status if non-recurring
+          const subtaskIsNonRecurring = !subtask.recurrence || subtask.recurrence.type === "none";
+          if (subtaskIsNonRecurring) {
+            await updateTask(subtaskId, { status: "todo" });
+          }
+
+          // If parent was "complete", revert to "in_progress"
+          if (parentTask && parentIsNonRecurring && parentTask.status === "complete") {
+            await updateTask(parentTask.id, { status: "in_progress" });
+          }
         } else {
-          await createCompletion(subtaskId, dateStr);
+          // CHECKING subtask - only affects this subtask
+          await createCompletion(subtaskId, dateStr, { outcome: "completed" });
+
+          // Also update subtask status if non-recurring
+          const subtaskIsNonRecurring = !subtask.recurrence || subtask.recurrence.type === "none";
+          if (subtaskIsNonRecurring) {
+            await updateTask(subtaskId, { status: "complete" });
+          }
+
+          // Update parent status intelligently (status only, NOT completions)
+          if (parentTask && parentIsNonRecurring) {
+            // If parent was "todo", move to "in_progress"
+            if (parentTask.status === "todo") {
+              await updateTask(parentTask.id, {
+                status: "in_progress",
+                startedAt: new Date().toISOString(),
+              });
+            }
+
+            // Check if ALL subtasks are now completed
+            const allSubtasksComplete = areAllSubtasksComplete(parentTask, targetDate, subtaskId);
+
+            if (allSubtasksComplete && parentTask.subtasks?.length > 0) {
+              // All subtasks complete - update parent STATUS only (not completion)
+              await updateTask(parentTask.id, { status: "complete" });
+            }
+          }
         }
       } catch (error) {
         console.error("Error toggling subtask completion:", error);
       }
     },
-    [tasks, today, viewDate, isCompletedOnDate, updateTask, createCompletion, deleteCompletion]
+    [tasks, today, viewDate, isCompletedOnDate, updateTask, createCompletion, deleteCompletion, areAllSubtasksComplete]
+  );
+
+  const handleSubtaskOutcomeChange = useCallback(
+    async (parentTaskId, subtaskId, outcome) => {
+      try {
+        const subtask = tasks.flatMap(t => t.subtasks || []).find(st => st.id === subtaskId);
+        if (!subtask) return;
+
+        const parentTask = tasks.find(t => t.id === (parentTaskId || subtask.parentId));
+        const parentIsNonRecurring = parentTask && (!parentTask.recurrence || parentTask.recurrence.type === "none");
+
+        const subtaskIsNonRecurring = !subtask.recurrence || subtask.recurrence.type === "none";
+        const targetDate = subtaskIsNonRecurring ? today : viewDate;
+        const dateStr = formatLocalDate(targetDate);
+
+        if (outcome === null) {
+          await deleteCompletion(subtaskId, dateStr);
+
+          if (subtaskIsNonRecurring) {
+            await updateTask(subtaskId, { status: "todo" });
+          }
+
+          if (parentTask && parentIsNonRecurring && parentTask.status === "complete") {
+            await updateTask(parentTask.id, { status: "in_progress" });
+          }
+
+          if (!showCompletedTasks && recentlyCompletedTasks.has(subtaskId)) {
+            removeFromRecentlyCompleted(subtaskId);
+          }
+          return;
+        }
+
+        if (outcome === "completed" && !showCompletedTasks) {
+          addToRecentlyCompleted(subtaskId, parentTask?.sectionId);
+        }
+
+        await createCompletion(subtaskId, dateStr, { outcome });
+
+        if (outcome === "completed" && subtaskIsNonRecurring) {
+          await updateTask(subtaskId, { status: "complete" });
+        }
+
+        if (parentTask && parentIsNonRecurring && outcome === "completed") {
+          if (parentTask.status === "todo") {
+            await updateTask(parentTask.id, {
+              status: "in_progress",
+              startedAt: new Date().toISOString(),
+            });
+          }
+
+          const allSubtasksComplete = areAllSubtasksComplete(parentTask, targetDate, subtaskId);
+          if (allSubtasksComplete && parentTask.subtasks?.length > 0) {
+            await updateTask(parentTask.id, { status: "complete" });
+          }
+        }
+      } catch (error) {
+        console.error("Error updating subtask outcome:", error);
+      }
+    },
+    [
+      tasks,
+      today,
+      viewDate,
+      showCompletedTasks,
+      recentlyCompletedTasks,
+      addToRecentlyCompleted,
+      removeFromRecentlyCompleted,
+      updateTask,
+      createCompletion,
+      deleteCompletion,
+      areAllSubtasksComplete,
+    ]
   );
 
   // Handle outcome change (completed/not_completed)
@@ -403,9 +554,34 @@ export function useCompletionHandlers({
         const dateObj = date instanceof Date ? date : new Date(date);
         // Format date as YYYY-MM-DD to avoid timezone issues
         const dateStr = formatLocalDate(dateObj);
-        const task = tasks.find(t => t.id === taskId);
+
+        // Find task - need to search both root tasks AND subtasks
+        let task = tasks.find(t => t.id === taskId);
+        const foundInRoot = Boolean(task);
+        if (!task) {
+          // Search in subtasks
+          task = tasks.flatMap(t => t.subtasks || []).find(st => st.id === taskId);
+        }
+
         const isSubtask = task?.parentId != null;
         const isRecurringTask = task?.recurrence && task.recurrence.type && task.recurrence.type !== "none";
+
+        // Find parent if this is a subtask
+        const parentTask = isSubtask ? tasks.find(t => t.id === task.parentId) : null;
+        const parentIsNonRecurring = parentTask && (!parentTask.recurrence || parentTask.recurrence.type === "none");
+
+        // DEBUG: Log values to understand flow
+        console.warn("[handleOutcomeChange] DEBUG:", {
+          taskId,
+          taskTitle: task?.title,
+          foundInRoot,
+          isSubtask,
+          isRecurringTask,
+          parentId: task?.parentId,
+          parentTaskTitle: parentTask?.title,
+          parentIsNonRecurring,
+          outcome,
+        });
 
         if (outcome === null) {
           await deleteCompletion(taskId, dateStr);
@@ -419,10 +595,16 @@ export function useCompletionHandlers({
             await updateTask(taskId, { status: newStatus });
           }
 
+          // Handle subtask unchecking - update parent if needed
+          if (isSubtask && parentIsNonRecurring && parentTask.status === "complete") {
+            await updateTask(parentTask.id, { status: "in_progress" });
+          }
+
           if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
             removeFromRecentlyCompleted(taskId);
           }
 
+          // Only cascade to subtasks if this is a PARENT task
           if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
             await Promise.all(task.subtasks.map(subtask => deleteCompletion(subtask.id, dateStr)));
           }
@@ -441,6 +623,27 @@ export function useCompletionHandlers({
               await updateTask(taskId, { status: "complete" });
             }
 
+            // Handle subtask completion - update parent intelligently
+            if (isSubtask && parentIsNonRecurring && outcome === "completed") {
+              // If parent was "todo", move to "in_progress"
+              if (parentTask.status === "todo") {
+                await updateTask(parentTask.id, {
+                  status: "in_progress",
+                  startedAt: new Date().toISOString(),
+                });
+              }
+
+              // Check if ALL subtasks are now completed
+              const allSubtasksComplete = areAllSubtasksComplete(parentTask, dateObj, taskId);
+
+              if (allSubtasksComplete && parentTask.subtasks?.length > 0) {
+                // NOTE: We only update the status, NOT create a completion
+                // The completion should only be created when the user explicitly checks the parent
+                await updateTask(parentTask.id, { status: "complete" });
+              }
+            }
+
+            // Only cascade to subtasks if this is a PARENT task
             if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
               await Promise.all(task.subtasks.map(subtask => createCompletion(subtask.id, dateStr, { outcome })));
             }
@@ -465,6 +668,7 @@ export function useCompletionHandlers({
       recentlyCompletedTasks,
       addToRecentlyCompleted,
       removeFromRecentlyCompleted,
+      areAllSubtasksComplete,
     ]
   );
 
@@ -553,6 +757,7 @@ export function useCompletionHandlers({
       // Handlers
       handleToggleTask,
       handleToggleSubtask,
+      handleSubtaskOutcomeChange,
       handleOutcomeChange,
       handleNotCompletedTask,
       handleCompleteWithNote,
@@ -568,6 +773,7 @@ export function useCompletionHandlers({
       viewDate,
       handleToggleTask,
       handleToggleSubtask,
+      handleSubtaskOutcomeChange,
       handleOutcomeChange,
       handleNotCompletedTask,
       handleCompleteWithNote,

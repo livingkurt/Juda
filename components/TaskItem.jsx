@@ -27,7 +27,7 @@ import {
   CheckCircle,
   FitnessCenter,
 } from "@mui/icons-material";
-import { formatTime, getTaskDisplayColor, isOverdue } from "@/lib/utils";
+import { formatTime, getTaskDisplayColor } from "@/lib/utils";
 import { TagChip } from "./TagChip";
 import { PriorityChip } from "./PriorityChip";
 import { TaskBadges } from "./shared/TaskBadges";
@@ -282,8 +282,12 @@ export const TaskItem = ({
   });
   const priorityHandlers = usePriorityHandlers();
 
+  const isBacklog = variant === "backlog";
+  const isToday = variant === "today";
+  const isSubtask = variant === "subtask";
+
   // Extract handlers from hooks
-  const onToggle = completionHandlers.handleToggleTask;
+  const onToggle = isSubtask ? completionHandlers.handleToggleSubtask : completionHandlers.handleToggleTask;
   const onToggleSubtask = completionHandlers.handleToggleSubtask;
   const onToggleExpand = taskOps.handleToggleExpand;
   const onEdit = taskOps.handleEditTask;
@@ -292,6 +296,7 @@ export const TaskItem = ({
   const onDelete = taskOps.handleDeleteTask;
   const onDuplicate = taskOps.handleDuplicateTask;
   const onOutcomeChange = completionHandlers.handleOutcomeChange;
+  const onSubtaskOutcomeChange = completionHandlers.handleSubtaskOutcomeChange;
   const onCompleteWithNote = completionHandlers.handleCompleteWithNote;
   const onSelect = selectionState.handleTaskSelect;
   const onBeginWorkout = dialogState.handleBeginWorkout;
@@ -303,10 +308,6 @@ export const TaskItem = ({
 
   // Compute selection state from Redux (use props if provided, otherwise use Redux)
   const isSelectedComputed = isSelected !== undefined ? isSelected : selectionState.selectedTaskIds.has(task.id);
-
-  const isBacklog = variant === "backlog";
-  const isToday = variant === "today";
-  const isSubtask = variant === "subtask";
 
   // For subtasks, inherit parent's tags if subtask has no tags
   const displayTags = useMemo(() => {
@@ -500,11 +501,6 @@ export const TaskItem = ({
   const hasAnyOutcome = outcome !== null;
   const shouldShowStrikethrough = isChecked || hasAnyOutcome;
 
-  const taskIsOverdue =
-    (isToday || isSubtask || isBacklog) && hasRecordOnDate && viewDate
-      ? isOverdue(task, viewDate, hasRecordOnDate(task.id, viewDate))
-      : false;
-
   // Check if task is recurring (has recurrence and type is not "none")
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
 
@@ -517,13 +513,22 @@ export const TaskItem = ({
   // Subtasks should have same menu access as parent tasks
   // Works for today view tasks, subtasks, and backlog items
   const shouldShowMenu =
-    (isToday || isSubtask || isBacklog) &&
-    onOutcomeChange &&
-    effectivelyRecurring &&
-    (taskIsOverdue || outcome !== null);
+    (isToday || isSubtask || isBacklog) && onOutcomeChange && (outcome !== null || effectivelyRecurring);
 
   // Adapter function to convert OutcomeCheckbox callback signature to TaskItem's expected signature
   const handleOutcomeChange = newOutcome => {
+    // DEBUG: Log which task this is being called on
+    console.warn(
+      "[TaskItem.handleOutcomeChange] task.id:",
+      task.id,
+      "task.title:",
+      task.title,
+      "isSubtask:",
+      isSubtask,
+      "variant:",
+      variant
+    );
+
     // For text tasks, handle completion with note
     if (isTextTask) {
       if (newOutcome === "completed" && !isTextTaskCompleted && savedNote.trim()) {
@@ -568,9 +573,22 @@ export const TaskItem = ({
       return;
     }
 
+    if (isSubtask && onSubtaskOutcomeChange && shouldShowMenu) {
+      onSubtaskOutcomeChange(parentTaskId, task.id, newOutcome);
+      return;
+    }
+
     // For non-recurring tasks without outcomes, use toggle behavior
     // When OutcomeCheckbox calls with "completed", toggle the task
     if (!shouldShowMenu) {
+      console.warn(
+        "[TaskItem.handleOutcomeChange] !shouldShowMenu branch, calling onToggle for",
+        task.title,
+        "isSubtask:",
+        isSubtask,
+        "parentTaskId:",
+        parentTaskId
+      );
       if (newOutcome === "completed") {
         // Toggle to completed
         if (isSubtask) {
@@ -597,6 +615,7 @@ export const TaskItem = ({
     }
 
     // For recurring tasks with outcomes, use outcome change handler
+    console.warn("[TaskItem.handleOutcomeChange] shouldShowMenu=true branch, calling onOutcomeChange for", task.title);
     if (onOutcomeChange) {
       onOutcomeChange(task.id, viewDate, newOutcome);
     }
