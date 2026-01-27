@@ -293,3 +293,9 @@
   2. Then update `sectionId` and `order` (via `batchReorderTasksMutation`) - this is a fallback for non-time-ranged sections
 
 - **Sorting**: Tasks within sections are sorted by `time` first (ascending), then by `order` as a fallback. Tasks without time appear at the end.
+
+### Subtask outcome isolation
+
+- Routed subtask outcome changes through a dedicated handler in `useCompletionHandlers` to prevent parent cascade logic from running.
+- Aligned TaskItem outcome-menu logic with `OutcomeCheckbox` so menu-driven outcome changes never fall back to parent toggle paths.
+- Added a guard in `handleToggleTask` to block accidental subtask IDs and updated menu item handlers to fully stop event propagation.

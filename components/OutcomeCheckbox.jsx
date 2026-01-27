@@ -152,6 +152,12 @@ export const OutcomeCheckbox = ({
     setAnchorEl(null);
   };
 
+  const stopMenuEvent = event => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.nativeEvent?.stopImmediatePropagation?.();
+  };
+
   const renderUncheckedIcon = () => {
     return (
       <Box
@@ -271,7 +277,7 @@ export const OutcomeCheckbox = ({
             <MenuItem
               key="uncheck"
               onClick={e => {
-                e.stopPropagation();
+                stopMenuEvent(e);
                 if (onOutcomeChange) {
                   onOutcomeChange(null);
                 }
@@ -291,7 +297,7 @@ export const OutcomeCheckbox = ({
               <MenuItem
                 key="completed"
                 onClick={e => {
-                  e.stopPropagation();
+                  stopMenuEvent(e);
                   onOutcomeChange("completed");
                   handleMenuClose();
                 }}
@@ -308,7 +314,7 @@ export const OutcomeCheckbox = ({
               <MenuItem
                 key="not-completed"
                 onClick={e => {
-                  e.stopPropagation();
+                  stopMenuEvent(e);
                   onOutcomeChange("not_completed");
                   handleMenuClose();
                 }}
@@ -331,7 +337,7 @@ export const OutcomeCheckbox = ({
               <MenuItem
                 key="rollover"
                 onClick={e => {
-                  e.stopPropagation();
+                  stopMenuEvent(e);
                   onRollover(taskId, viewDate);
                   handleMenuClose();
                 }}

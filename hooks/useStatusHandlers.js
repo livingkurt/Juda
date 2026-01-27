@@ -6,6 +6,7 @@ import { useGetTasksQuery, useUpdateTaskMutation } from "@/lib/store/api/tasksAp
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useCreateCompletionMutation, useDeleteCompletionMutation } from "@/lib/store/api/completionsApi";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 
 /**
  * Handles task status changes (todo/in_progress/complete)
@@ -25,6 +26,9 @@ export function useStatusHandlers({
   // Get preferences
   const { preferences } = usePreferencesContext();
   const showCompletedTasks = preferences.showCompletedTasks;
+
+  // Completion helpers
+  const { isCompletedOnDate } = useCompletionHelpers();
 
   // Wrapper functions
   const updateTask = useCallback(
@@ -48,6 +52,21 @@ export function useStatusHandlers({
     [deleteCompletionMutation]
   );
 
+  // Helper to check if all subtasks are complete
+  const areAllSubtasksComplete = useCallback(
+    (parentTask, targetDate, excludeTaskId = null) => {
+      if (!parentTask?.subtasks || parentTask.subtasks.length === 0) {
+        return false;
+      }
+
+      return parentTask.subtasks.every(st => {
+        if (st.id === excludeTaskId) return true; // Exclude the one being completed
+        return isCompletedOnDate(st.id, targetDate) || st.status === "complete";
+      });
+    },
+    [isCompletedOnDate]
+  );
+
   const handleStatusChange = useCallback(
     async (taskId, newStatus) => {
       // Helper to find task recursively (including subtasks)
@@ -69,6 +88,11 @@ export function useStatusHandlers({
       }
 
       console.warn("Status change:", { taskId, currentStatus: task.status, newStatus });
+
+      // Check if this is a subtask
+      const isSubtask = task.parentId != null;
+      const parentTask = isSubtask ? tasks.find(t => t.id === task.parentId) : null;
+      const parentIsNonRecurring = parentTask && (!parentTask.recurrence || parentTask.recurrence.type === "none");
 
       const updates = { status: newStatus };
       const now = new Date();
@@ -100,6 +124,19 @@ export function useStatusHandlers({
             }
           }
         }
+
+        // If this is a subtask and parent was "todo", update parent to "in_progress"
+        if (isSubtask && parentIsNonRecurring && parentTask.status === "todo") {
+          await updateTask(parentTask.id, {
+            status: "in_progress",
+            startedAt: now.toISOString(),
+          });
+        }
+
+        // If this is a subtask and parent was "complete", update parent to "in_progress"
+        if (isSubtask && parentIsNonRecurring && parentTask.status === "complete") {
+          await updateTask(parentTask.id, { status: "in_progress" });
+        }
       } else if (newStatus === "todo") {
         // Clear startedAt when moving back to todo
         updates.startedAt = null;
@@ -116,6 +153,11 @@ export function useStatusHandlers({
               console.error("Failed to delete completion when moving to todo:", error);
             }
           }
+        }
+
+        // If this is a subtask and parent was "complete", update parent to "in_progress"
+        if (isSubtask && parentIsNonRecurring && parentTask.status === "complete") {
+          await updateTask(parentTask.id, { status: "in_progress" });
         }
       } else if (newStatus === "complete") {
         // When completing, create a TaskCompletion record with timing data
@@ -181,6 +223,27 @@ export function useStatusHandlers({
           }
         }
 
+        // If this is a subtask, update parent intelligently
+        if (isSubtask && parentIsNonRecurring) {
+          // If parent was "todo", move to "in_progress"
+          if (parentTask.status === "todo") {
+            await updateTask(parentTask.id, {
+              status: "in_progress",
+              startedAt: now.toISOString(),
+            });
+          }
+
+          // Check if ALL subtasks are now completed (including this one)
+          const viewDate = new Date(todayStr);
+          const allSubtasksComplete = areAllSubtasksComplete(parentTask, viewDate, taskId);
+
+          if (allSubtasksComplete && parentTask.subtasks?.length > 0) {
+            // NOTE: We only update the status, NOT create a completion
+            // The completion should only be created when the user explicitly checks the parent
+            await updateTask(parentTask.id, { status: "complete" });
+          }
+        }
+
         // Add to recently completed for visual feedback
         if (!showCompletedTasks && addToRecentlyCompleted) {
           addToRecentlyCompleted(taskId, task.sectionId);
@@ -191,7 +254,16 @@ export function useStatusHandlers({
       await updateTask(taskId, updates);
       console.warn("Task updated successfully");
     },
-    [tasks, sections, updateTask, createCompletion, deleteCompletion, showCompletedTasks, addToRecentlyCompleted]
+    [
+      tasks,
+      sections,
+      updateTask,
+      createCompletion,
+      deleteCompletion,
+      showCompletedTasks,
+      addToRecentlyCompleted,
+      areAllSubtasksComplete,
+    ]
   );
 
   return {
