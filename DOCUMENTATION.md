@@ -299,3 +299,11 @@
 - Routed subtask outcome changes through a dedicated handler in `useCompletionHandlers` to prevent parent cascade logic from running.
 - Aligned TaskItem outcome-menu logic with `OutcomeCheckbox` so menu-driven outcome changes never fall back to parent toggle paths.
 - Added a guard in `handleToggleTask` to block accidental subtask IDs and updated menu item handlers to fully stop event propagation.
+
+### Parent completion batching
+
+- Switched parent-driven outcome cascades to use batch completion create/delete APIs for subtasks to avoid per-subtask network calls.
+
+### Offline completion deletes
+
+- Fixed IndexedDB cache deletes for completions to use the `taskId_date` index instead of passing invalid keys to the store delete call.
