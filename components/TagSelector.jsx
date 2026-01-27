@@ -1,310 +1,408 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Box, Stack, Menu, MenuItem, Button, TextField, Typography, IconButton } from "@mui/material";
-import { Label, Add, Delete } from "@mui/icons-material";
-import { TagChip } from "./TagChip";
-import { useThemeColors } from "@/hooks/useThemeColors";
+import {
+  Box,
+  Stack,
+  Menu,
+  MenuItem,
+  Button,
+  TextField,
+  Typography,
+  Checkbox,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+} from "@mui/material";
+import { Label, Search, Settings } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
+import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useDialogState } from "@/hooks/useDialogState";
+import { TagChip } from "./TagChip";
 
+/**
+ * TagSelector - For selecting tags with search and quick create
+ *
+ * Features:
+ * - Search tags
+ * - Select/deselect with checkboxes
+ * - Quick create new tags when search doesn't match
+ * - Color picker for new tags
+ * - Optional "Manage Tags" button
+ *
+ * @param {Object} props
+ * @param {string[]} props.selectedTagIds - Currently selected tag IDs
+ * @param {Function} props.onSelectionChange - Callback when selection changes
+ * @param {Object} props.task - Task object (for auto-save mode)
+ * @param {boolean} props.autoSave - Auto-save changes to task
+ * @param {boolean} props.showManageButton - Show "Manage Tags" button
+ * @param {Element} props.anchorEl - Anchor element (controlled mode)
+ * @param {boolean} props.open - Open state (controlled mode)
+ * @param {Function} props.onClose - Close callback (controlled mode)
+ * @param {boolean} props.asMenuItem - Render as MenuItem (for context menus)
+ */
 export const TagSelector = ({
-  tags = [],
-  selectedTagIds = [],
-  onTagsChange,
-  onCreateTag,
-  onDeleteTag,
-  inline = false,
+  selectedTagIds: externalSelectedTagIds = [],
+  onSelectionChange,
+  task,
+  autoSave = false,
+  showManageButton = false,
+  anchorEl: externalAnchorEl,
+  open: externalOpen,
+  onClose: externalOnClose,
+  asMenuItem = false,
+  filterMode = false,
+  renderTrigger,
 }) => {
-  const [newTagName, setNewTagName] = useState("");
-  const [newTagColorIndex, setNewTagColorIndex] = useState(0);
-  const [isOpen, setIsOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const inputRef = useRef(null);
-  const muiTheme = useTheme();
+  const theme = useTheme();
   const { tagColors, canonicalColors } = useThemeColors();
+  const dialogState = useDialogState();
+  const taskOps = useTaskOperations();
+  const searchInputRef = useRef(null);
 
+  // Fetch tags
+  const { data: tags = [] } = useGetTagsQuery();
+  const [createTagMutation] = useCreateTagMutation();
+
+  // Derive selected tag IDs from task if in autoSave mode, otherwise use external prop
+  const derivedSelectedTagIds = task && autoSave 
+    ? (Array.isArray(task.tags) ? task.tags.map(t => t.id) : [])
+    : externalSelectedTagIds;
+
+  // Internal state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [internalAnchorEl, setInternalAnchorEl] = useState(null);
+  const [internalSelectedTagIds, setInternalSelectedTagIds] = useState(derivedSelectedTagIds);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Controlled vs uncontrolled
+  const isControlled = externalAnchorEl !== undefined;
+  const anchorEl = isControlled ? externalAnchorEl : internalAnchorEl;
+  const isOpen = isControlled ? externalOpen : Boolean(anchorEl);
+
+  // Auto-focus search when menu opens
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+    if (isOpen && searchInputRef.current) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
     }
   }, [isOpen]);
 
-  const selectedTags = tags.filter(t => selectedTagIds.includes(t.id));
-  const availableTags = tags.filter(t => !selectedTagIds.includes(t.id));
+  // Sync with external selection when menu opens
+  useEffect(() => {
+    if (isOpen) {
+      setInternalSelectedTagIds(derivedSelectedTagIds);
+      setHasChanges(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
-  const handleAddTag = tagId => {
-    onTagsChange([...selectedTagIds, tagId]);
+  // Filter tags based on search
+  const filteredTags = tags.filter(tag => tag.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  // Check if search matches existing tag
+  const exactMatch = tags.find(tag => tag.name.toLowerCase() === searchQuery.toLowerCase());
+  const showCreateButton = searchQuery.trim() && !exactMatch;
+
+  // Toggle tag selection
+  const handleToggleTag = tagId => {
+    const newTagIds = internalSelectedTagIds.includes(tagId)
+      ? internalSelectedTagIds.filter(id => id !== tagId)
+      : [...internalSelectedTagIds, tagId];
+
+    setInternalSelectedTagIds(newTagIds);
+    setHasChanges(true);
+
+    // In filter mode, apply changes immediately
+    if (filterMode && onSelectionChange) {
+      onSelectionChange(newTagIds);
+    }
   };
 
-  const handleRemoveTag = tagId => {
-    onTagsChange(selectedTagIds.filter(id => id !== tagId));
-  };
+  // Create new tag with selected color
+  const handleCreateTag = async colorIndex => {
+    if (!searchQuery.trim()) return;
 
-  const handleCreateTag = async () => {
-    if (!newTagName.trim()) return;
     try {
-      // Store canonical color (not theme color)
-      const newTag = await onCreateTag(newTagName.trim(), canonicalColors[newTagColorIndex]);
-      onTagsChange([...selectedTagIds, newTag.id]);
-      setNewTagName("");
-      setNewTagColorIndex(0);
+      const newTag = await createTagMutation({
+        name: searchQuery.trim(),
+        color: canonicalColors[colorIndex],
+      }).unwrap();
+
+      // Auto-select the newly created tag
+      const newTagIds = [...internalSelectedTagIds, newTag.id];
+      setInternalSelectedTagIds(newTagIds);
+      setHasChanges(true);
+
+      // Reset UI
+      setSearchQuery("");
+      setShowColorPicker(false);
     } catch (err) {
       console.error("Failed to create tag:", err);
     }
   };
 
-  const handleKeyDown = e => {
-    if (e.key === "Enter" && newTagName.trim()) {
-      e.preventDefault();
-      handleCreateTag();
+  // Open menu
+  const handleMenuOpen = event => {
+    if (!isControlled) {
+      setInternalAnchorEl(event.currentTarget);
     }
   };
 
-  const handleMenuOpen = event => {
-    setAnchorEl(event.currentTarget);
-    setIsOpen(true);
-  };
-
+  // Close menu and save changes
   const handleMenuClose = () => {
-    setAnchorEl(null);
-    setIsOpen(false);
+    if (hasChanges) {
+      if (autoSave && task) {
+        // Auto-save to task
+        taskOps.handleTaskTagsChange(task.id, internalSelectedTagIds);
+      } else if (onSelectionChange) {
+        // Call onChange callback
+        onSelectionChange(internalSelectedTagIds);
+      }
+    }
+
+    // Close menu
+    if (!isControlled) {
+      setInternalAnchorEl(null);
+    }
+    if (externalOnClose) {
+      externalOnClose();
+    }
+
+    // Reset UI
+    setSearchQuery("");
+    setShowColorPicker(false);
+    setHasChanges(false);
   };
 
-  // If inline mode, only show the menu button (tags are displayed elsewhere)
-  if (inline) {
+  // Open tag management dialog
+  const handleOpenManageDialog = () => {
+    handleMenuClose();
+    dialogState.setTagEditorOpen(true);
+  };
+
+  // Menu content
+  const menuContent = (
+    <Menu
+      anchorEl={anchorEl}
+      open={isOpen}
+      onClose={handleMenuClose}
+      onClick={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
+      PaperProps={{
+        sx: {
+          minWidth: "280px",
+          maxHeight: "450px",
+        },
+      }}
+    >
+      {/* Search bar */}
+      <Box sx={{ px: 2, py: 2 }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Search fontSize="small" sx={{ color: "text.secondary" }} />
+          <TextField
+            inputRef={searchInputRef}
+            size="small"
+            placeholder="Search tags..."
+            value={searchQuery}
+            onChange={e => {
+              setSearchQuery(e.target.value);
+              setShowColorPicker(false);
+            }}
+            variant="standard"
+            fullWidth
+            onClick={e => e.stopPropagation()}
+            onMouseDown={e => e.stopPropagation()}
+            sx={{
+              "& .MuiInput-underline:before": { borderBottom: "none" },
+              "& .MuiInput-underline:hover:before": { borderBottom: "none" },
+              "& .MuiInput-underline:after": { borderBottom: "none" },
+            }}
+          />
+        </Stack>
+      </Box>
+
+      <Divider />
+
+      {/* Create new tag button */}
+      {showCreateButton && !showColorPicker && (
+        <Box sx={{ px: 2, py: 2 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            fullWidth
+            onClick={e => {
+              e.stopPropagation();
+              setShowColorPicker(true);
+            }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            Create &quot;{searchQuery}&quot;
+          </Button>
+        </Box>
+      )}
+
+      {/* Color picker */}
+      {showCreateButton && showColorPicker && (
+        <Box sx={{ px: 2, py: 2 }}>
+          <Typography variant="caption" fontWeight={600} color="text.secondary" mb={1}>
+            Choose a color:
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            {tagColors.map((color, index) => (
+              <Box
+                key={index}
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 1,
+                  bgcolor: color,
+                  cursor: "pointer",
+                  border: "2px solid transparent",
+                  "&:hover": {
+                    border: `2px solid ${theme.palette.primary.main}`,
+                    transform: "scale(1.1)",
+                  },
+                  transition: "all 0.15s",
+                }}
+                onClick={e => {
+                  e.stopPropagation();
+                  handleCreateTag(index);
+                }}
+                onMouseDown={e => e.stopPropagation()}
+              />
+            ))}
+          </Stack>
+        </Box>
+      )}
+
+      {showCreateButton && showColorPicker && <Divider />}
+
+      {/* Tag list */}
+      <Box sx={{ maxHeight: "300px", overflowY: "auto" }}>
+        {filteredTags.length > 0 ? (
+          filteredTags.map(tag => (
+            <MenuItem
+              key={tag.id}
+              onClick={e => {
+                e.stopPropagation();
+                handleToggleTag(tag.id);
+              }}
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <Checkbox
+                checked={internalSelectedTagIds.includes(tag.id)}
+                sx={{ mr: 1, pointerEvents: "none" }}
+                size="medium"
+              />
+              <TagChip tag={tag} size="sm" />
+            </MenuItem>
+          ))
+        ) : !showCreateButton ? (
+          <Box sx={{ px: 2, py: 4, textAlign: "center" }}>
+            <Typography variant="body2" color="text.secondary">
+              No tags found
+            </Typography>
+          </Box>
+        ) : null}
+      </Box>
+
+      {/* Manage Tags button */}
+      {showManageButton && (
+        <>
+          <Divider />
+          <MenuItem onClick={handleOpenManageDialog}>
+            <ListItemIcon>
+              <Settings fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Manage Tags</ListItemText>
+          </MenuItem>
+        </>
+      )}
+    </Menu>
+  );
+
+  // Render as MenuItem (for context menus)
+  if (asMenuItem) {
     return (
       <>
-        <Button size="small" variant="text" onClick={handleMenuOpen} startIcon={<Label fontSize="small" />}>
-          Add
-        </Button>
-        <Menu
-          anchorEl={anchorEl}
-          open={isOpen}
-          onClose={handleMenuClose}
-          PaperProps={{ sx: { minWidth: "250px", maxHeight: "350px", overflowY: "auto" } }}
-        >
-          <Box sx={{ p: 2, minWidth: "250px", maxHeight: "350px", overflowY: "auto" }}>
-            {/* Create new tag section */}
-            <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 2, display: "block" }}>
-              Create New Tag
-            </Typography>
-            <Stack spacing={2}>
-              <TextField
-                inputRef={inputRef}
-                size="small"
-                placeholder="Tag name..."
-                value={newTagName}
-                onChange={e => setNewTagName(e.target.value)}
-                onKeyDown={handleKeyDown}
-                fullWidth
-              />
-              <Stack direction="row" spacing={1} flexWrap="wrap">
-                {tagColors.map((themeColor, index) => (
-                  <Button
-                    key={index}
-                    sx={{
-                      width: 24,
-                      height: 24,
-                      minWidth: 24,
-                      borderRadius: "50%",
-                      bgcolor: themeColor,
-                      border: newTagColorIndex === index ? `2px solid white` : "none",
-                      boxShadow: newTagColorIndex === index ? `0 0 0 2px ${muiTheme.palette.primary.main}` : "none",
-                      "&:hover": {
-                        transform: "scale(1.1)",
-                      },
-                      p: 0,
-                    }}
-                    onClick={() => setNewTagColorIndex(index)}
-                  />
-                ))}
-              </Stack>
-              <Button
-                size="small"
-                variant="contained"
-                color="primary"
-                onClick={handleCreateTag}
-                disabled={!newTagName.trim()}
-                startIcon={<Add fontSize="small" />}
-              >
-                Create Tag
-              </Button>
-            </Stack>
-
-            {/* Available tags list */}
-            {availableTags.length > 0 && (
-              <>
-                <Box
-                  sx={{
-                    borderTop: "1px solid",
-                    borderColor: "divider",
-                    my: 2,
-                  }}
-                />
-                <Typography
-                  variant="caption"
-                  fontWeight={600}
-                  color="text.secondary"
-                  sx={{ px: 1, py: 0.5, display: "block" }}
-                >
-                  Available Tags
-                </Typography>
-                {availableTags.map(tag => (
-                  <MenuItem
-                    key={tag.id}
-                    onClick={() => handleAddTag(tag.id)}
-                    sx={{
-                      "&:hover": {
-                        bgcolor: "action.hover",
-                      },
-                    }}
-                  >
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: "100%" }}>
-                      <TagChip tag={tag} size="xs" />
-                      <IconButton
-                        size="small"
-                        onClick={e => {
-                          e.stopPropagation();
-                          onDeleteTag(tag.id);
-                        }}
-                        aria-label="Delete tag"
-                        color="error"
-                      >
-                        <Delete fontSize="small" />
-                      </IconButton>
-                    </Stack>
-                  </MenuItem>
-                ))}
-              </>
-            )}
-
-            {availableTags.length === 0 && tags.length > 0 && (
-              <Typography variant="body2" sx={{ px: 1, py: 2, color: "text.secondary" }}>
-                All tags assigned to this task
-              </Typography>
-            )}
-          </Box>
-        </Menu>
+        <MenuItem onClick={handleMenuOpen}>
+          <ListItemIcon>
+            <Label fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Tags</ListItemText>
+        </MenuItem>
+        {menuContent}
       </>
     );
   }
 
-  return (
-    <Box>
-      {/* Selected tags */}
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
+  // Render in filter mode (show selected tags as chips)
+  if (filterMode) {
+    const selectedTags = tags.filter(t => internalSelectedTagIds.includes(t.id));
+    return (
+      <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
         {selectedTags.map(tag => (
-          <TagChip key={tag.id} tag={tag} size="sm" showClose onClose={handleRemoveTag} />
+          <TagChip key={tag.id} tag={tag} size="sm" showClose onClose={handleToggleTag} />
         ))}
-      </Box>
+        <Button
+          size="small"
+          variant="text"
+          onClick={handleMenuOpen}
+          sx={{
+            color: "text.secondary",
+            minWidth: "auto",
+            px: 1,
+            "&:hover": {
+              bgcolor: "action.hover",
+            },
+          }}
+        >
+          <Label fontSize="small" />
+        </Button>
+        {menuContent}
+      </Stack>
+    );
+  }
 
-      {/* Add tag button/menu */}
-      <Button size="small" variant="outlined" onClick={handleMenuOpen} startIcon={<Label fontSize="small" />}>
-        Add Tag
-      </Button>
-      <Menu anchorEl={anchorEl} open={isOpen} onClose={handleMenuClose}>
-        <Box sx={{ p: 2, minWidth: "250px", maxHeight: "350px", overflowY: "auto" }}>
-          {/* Create new tag section */}
-          <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 2, display: "block" }}>
-            Create New Tag
-          </Typography>
-          <Stack spacing={2}>
-            <TextField
-              inputRef={inputRef}
-              size="small"
-              placeholder="Tag name..."
-              value={newTagName}
-              onChange={e => setNewTagName(e.target.value)}
-              onKeyDown={handleKeyDown}
-              fullWidth
-            />
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              {tagColors.map((themeColor, index) => (
-                <Button
-                  key={index}
-                  sx={{
-                    width: 24,
-                    height: 24,
-                    minWidth: 24,
-                    borderRadius: "50%",
-                    bgcolor: themeColor,
-                    border: newTagColorIndex === index ? `2px solid white` : "none",
-                    boxShadow: newTagColorIndex === index ? `0 0 0 2px ${muiTheme.palette.primary.main}` : "none",
-                    "&:hover": {
-                      transform: "scale(1.1)",
-                    },
-                    p: 0,
-                  }}
-                  onClick={() => setNewTagColorIndex(index)}
-                />
-              ))}
-            </Stack>
-            <Button
-              size="small"
-              variant="contained"
-              color="primary"
-              onClick={handleCreateTag}
-              disabled={!newTagName.trim()}
-              startIcon={<Add fontSize="small" />}
-            >
-              Create Tag
-            </Button>
-          </Stack>
+  // Render with custom trigger if provided
+  if (renderTrigger) {
+    const customTrigger = renderTrigger(handleMenuOpen);
+    
+    // If renderTrigger returns null/undefined and no tags selected, show default button
+    if (!customTrigger && derivedSelectedTagIds.length === 0) {
+      return (
+        <>
+          <Button size="small" variant="text" onClick={handleMenuOpen} startIcon={<Label fontSize="small" />}>
+            Add Tags
+          </Button>
+          {menuContent}
+        </>
+      );
+    }
+    
+    return (
+      <>
+        {customTrigger}
+        {menuContent}
+      </>
+    );
+  }
 
-          {/* Available tags list */}
-          {availableTags.length > 0 && (
-            <>
-              <Box
-                sx={{
-                  borderTop: "1px solid",
-                  borderColor: "divider",
-                  my: 2,
-                }}
-              />
-              <Typography
-                variant="caption"
-                fontWeight={600}
-                color="text.secondary"
-                sx={{ px: 1, py: 0.5, display: "block" }}
-              >
-                Available Tags
-              </Typography>
-              {availableTags.map(tag => (
-                <MenuItem
-                  key={tag.id}
-                  onClick={() => handleAddTag(tag.id)}
-                  sx={{
-                    "&:hover": {
-                      bgcolor: "action.hover",
-                    },
-                  }}
-                >
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: "100%" }}>
-                    <TagChip tag={tag} size="xs" />
-                    <IconButton
-                      size="small"
-                      onClick={e => {
-                        e.stopPropagation();
-                        onDeleteTag(tag.id);
-                      }}
-                      aria-label="Delete tag"
-                      color="error"
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </Stack>
-                </MenuItem>
-              ))}
-            </>
-          )}
+  // Render as button (only show if no tags selected)
+  if (derivedSelectedTagIds.length === 0) {
+    return (
+      <>
+        <Button size="small" variant="text" onClick={handleMenuOpen} startIcon={<Label fontSize="small" />}>
+          Add Tags
+        </Button>
+        {menuContent}
+      </>
+    );
+  }
 
-          {availableTags.length === 0 && tags.length > 0 && (
-            <Typography variant="body2" sx={{ px: 1, py: 2, color: "text.secondary" }}>
-              All tags assigned to this task
-            </Typography>
-          )}
-        </Box>
-      </Menu>
-    </Box>
-  );
+  // If tags are selected, don't show the button (tags are displayed elsewhere)
+  return menuContent;
 };

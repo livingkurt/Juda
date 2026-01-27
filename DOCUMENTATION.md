@@ -1,5 +1,60 @@
 # Project Decisions Log
 
+## 2026-01-27
+
+### Tag Components - Unified Design System
+
+**Problem**: Multiple tag-related components with inconsistent designs and duplicate functionality:
+- `TagMenuSelector` - Context menu with auto-save
+- `TagEditor` - Full management dialog (different design)
+- `TagSelector` - Form selector
+- `TagFilter` - View filtering
+
+**Solution**: Created two focused components with consistent visual design:
+
+**1. TagSelector** - For selecting tags
+- Search tags by name
+- Select/deselect with checkboxes
+- Quick create new tags when search doesn't match
+- Inline color picker
+- Multiple display modes (default, filter, menuItem)
+- Optional "Manage Tags" button
+
+**2. TagEditor** - For managing tags
+- Same visual design as TagSelector
+- Search existing tags
+- Create new tags with color picker
+- Edit tag name and color
+- Delete tags with confirmation
+
+**Shared Design Language**:
+- Search bar at top with magnifying glass icon
+- "Create [name]" button when search doesn't match
+- Inline color picker (32x32px color squares)
+- Consistent spacing and typography
+- Same hover effects and transitions
+
+**Implementation Details**:
+- Components: `components/TagSelector.jsx`, `components/TagEditor.jsx`
+- Documentation: `docs/tag-components.md`
+- Updated components:
+  - `TaskDialog.jsx` - Uses TagSelector with showManageButton
+  - `TaskContextMenu.jsx` - Uses TagSelector in menuItem mode with autoSave
+  - `KanbanView.jsx` - Uses TagSelector in filter mode
+  - `BulkEditDialog.jsx` - Uses TagSelector with showManageButton
+
+**Benefits**:
+- **Visual Consistency**: Same design pattern everywhere
+- **Focused Components**: Two clear purposes (select vs manage)
+- **Less Code**: Eliminated ~800 lines of duplicate code
+- **Better UX**: One pattern to learn, predictable behavior
+- **Easier Maintenance**: Changes in one place affect all uses
+
+**Deleted Components**:
+- `TagMenuSelector.jsx` (286 lines)
+- `TagFilter.jsx` (182 lines)
+- `UnifiedTagSelector.jsx` (replaced with simpler TagSelector)
+
 ## 2026-01-24
 
 ### Goals and Reflections System - Phase 1 Implementation

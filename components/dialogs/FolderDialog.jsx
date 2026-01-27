@@ -14,7 +14,12 @@ import {
   MenuItem,
   Stack,
 } from "@mui/material";
-import { useCreateFolderMutation, useUpdateFolderMutation, useGetFoldersQuery } from "@/lib/store/api/foldersApi";
+import {
+  useCreateFolderMutation,
+  useUpdateFolderMutation,
+  useDeleteFolderMutation,
+  useGetFoldersQuery,
+} from "@/lib/store/api/foldersApi";
 
 export const FolderDialog = ({ open, onClose, editingFolder = null }) => {
   const [name, setName] = useState("");
@@ -24,6 +29,7 @@ export const FolderDialog = ({ open, onClose, editingFolder = null }) => {
   const { data: folders = [] } = useGetFoldersQuery();
   const [createFolder, { isLoading: isCreating }] = useCreateFolderMutation();
   const [updateFolder, { isLoading: isUpdating }] = useUpdateFolderMutation();
+  const [deleteFolder, { isLoading: isDeleting }] = useDeleteFolderMutation();
 
   const resetForm = () => {
     setName("");
@@ -65,6 +71,22 @@ export const FolderDialog = ({ open, onClose, editingFolder = null }) => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!editingFolder) return;
+    // eslint-disable-next-line no-alert
+    if (
+      // eslint-disable-next-line no-alert
+      window.confirm(`Delete folder "${editingFolder.name}"? Notes in this folder will be moved to the root level.`)
+    ) {
+      try {
+        await deleteFolder(editingFolder.id).unwrap();
+        onClose();
+      } catch (error) {
+        console.error("Failed to delete folder:", error);
+      }
+    }
+  };
+
   return (
     <Dialog
       open={open}
@@ -102,6 +124,11 @@ export const FolderDialog = ({ open, onClose, editingFolder = null }) => {
         </Stack>
       </DialogContent>
       <DialogActions>
+        {editingFolder && (
+          <Button onClick={handleDelete} color="error" disabled={isDeleting} sx={{ mr: "auto" }}>
+            Delete
+          </Button>
+        )}
         <Button onClick={onClose}>Cancel</Button>
         <Button onClick={handleSubmit} variant="contained" disabled={!name.trim() || isCreating || isUpdating}>
           {editingFolder ? "Update" : "Create"}

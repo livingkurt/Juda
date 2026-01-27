@@ -13,7 +13,7 @@ import {
   LinkOff,
   SkipNext,
 } from "@mui/icons-material";
-import { TagMenuSelector } from "./TagMenuSelector";
+import { TagSelector } from "./TagSelector";
 import { PriorityMenuSelector } from "./PriorityMenuSelector";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
@@ -140,7 +140,7 @@ export const TaskContextMenu = ({
       )}
 
       {/* Completion options for recurring tasks */}
-      {isRecurring &&
+      {/* {isRecurring &&
         date &&
         [
           outcome !== null && (
@@ -205,10 +205,10 @@ export const TaskContextMenu = ({
             </MenuItem>
           ),
           <Divider key="divider-recurring-end" />,
-        ].filter(Boolean)}
+        ].filter(Boolean)} */}
 
       {/* Status options for non-recurring tasks */}
-      {!isRecurring && [
+      {/* {!isRecurring && [
         <Divider key="divider-status-start" />,
         <MenuItem
           key="status-todo"
@@ -253,7 +253,7 @@ export const TaskContextMenu = ({
           <ListItemText>Set to Complete</ListItemText>
         </MenuItem>,
         <Divider key="divider-status-end" />,
-      ]}
+      ]} */}
 
       <MenuItem
         onClick={e => {
@@ -269,10 +269,10 @@ export const TaskContextMenu = ({
       </MenuItem>
 
       {/* Tags submenu */}
-      <TagMenuSelector task={task} />
+      {/* <TagSelector task={task} autoSave asMenuItem /> */}
 
       {/* Priority submenu */}
-      <PriorityMenuSelector task={task} onClose={onClose} />
+      {/* <PriorityMenuSelector task={task} onClose={onClose} /> */}
 
       <MenuItem
         onClick={e => {

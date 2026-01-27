@@ -17,7 +17,11 @@ import {
   Chip,
   Autocomplete,
 } from "@mui/material";
-import { useCreateSmartFolderMutation, useUpdateSmartFolderMutation } from "@/lib/store/api/smartFoldersApi";
+import {
+  useCreateSmartFolderMutation,
+  useUpdateSmartFolderMutation,
+  useDeleteSmartFolderMutation,
+} from "@/lib/store/api/smartFoldersApi";
 import { useGetTagsQuery } from "@/lib/store/api/tagsApi";
 
 export const SmartFolderDialog = ({ open, onClose, editingSmartFolder = null }) => {
@@ -28,6 +32,7 @@ export const SmartFolderDialog = ({ open, onClose, editingSmartFolder = null }) 
   const { data: tags = [] } = useGetTagsQuery();
   const [createSmartFolder, { isLoading: isCreating }] = useCreateSmartFolderMutation();
   const [updateSmartFolder, { isLoading: isUpdating }] = useUpdateSmartFolderMutation();
+  const [deleteSmartFolder, { isLoading: isDeleting }] = useDeleteSmartFolderMutation();
 
   const resetForm = () => {
     setName("");
@@ -71,6 +76,20 @@ export const SmartFolderDialog = ({ open, onClose, editingSmartFolder = null }) 
       onClose();
     } catch (error) {
       console.error("Failed to save smart folder:", error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editingSmartFolder) return;
+
+    // eslint-disable-next-line no-alert
+    if (window.confirm(`Delete smart folder "${editingSmartFolder.name}"?`)) {
+      try {
+        await deleteSmartFolder(editingSmartFolder.id).unwrap();
+        onClose();
+      } catch (error) {
+        console.error("Failed to delete smart folder:", error);
+      }
     }
   };
 
@@ -131,6 +150,11 @@ export const SmartFolderDialog = ({ open, onClose, editingSmartFolder = null }) 
         </Stack>
       </DialogContent>
       <DialogActions>
+        {editingSmartFolder && (
+          <Button onClick={handleDelete} color="error" disabled={isDeleting} sx={{ mr: "auto" }}>
+            Delete
+          </Button>
+        )}
         <Button onClick={onClose}>Cancel</Button>
         <Button
           onClick={handleSubmit}

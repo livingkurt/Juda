@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Box,
   Stack,
@@ -13,27 +13,20 @@ import {
   InputLabel,
   Select,
   Divider,
-  Autocomplete,
-  Chip,
 } from "@mui/material";
 import { MoreVert as MoreVertical, Delete, CheckBox } from "@mui/icons-material";
 import { RichTextEditor } from "./RichTextEditor";
+import { TagChip } from "./TagChip";
+import { TagSelector } from "./TagSelector";
 import dayjs from "dayjs";
-import { useGetTagsQuery, useCreateTagMutation, useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
+import { useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
 
-export const NoteEditor = ({ note, folders = [], allTags = null, onUpdate, onDelete, onConvertToTask }) => {
+export const NoteEditor = ({ note, folders = [], onUpdate, onDelete, onConvertToTask }) => {
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [localTitle, setLocalTitle] = useState(note?.title || "");
   const saveTimeoutRef = useRef(null);
   const previousNoteIdRef = useRef(null);
-  const { data: queriedTags = [] } = useGetTagsQuery(undefined, { skip: Boolean(allTags) });
-  const [createTagMutation] = useCreateTagMutation();
   const [updateTaskTagsMutation] = useUpdateTaskTagsMutation();
-
-  const availableTags = useMemo(
-    () => (allTags && Array.isArray(allTags) ? allTags : queriedTags),
-    [allTags, queriedTags]
-  );
 
   // Extract noteId to avoid dependency on entire note object
   const noteId = note?.id;
@@ -76,27 +69,15 @@ export const NoteEditor = ({ note, folders = [], allTags = null, onUpdate, onDel
   };
 
   const handleTagsChange = useCallback(
-    async (_, newValue) => {
+    async tagIds => {
       if (!noteId) return;
-
-      const existingTags = newValue.filter(value => typeof value === "object" && value?.id);
-      const newTagNames = newValue
-        .filter(value => typeof value === "string")
-        .map(value => value.trim())
-        .filter(Boolean);
-
       try {
-        const createdTags = await Promise.all(
-          newTagNames.map(name => createTagMutation({ name, color: "#6b7280" }).unwrap())
-        );
-
-        const tagIds = [...existingTags.map(tag => tag.id), ...createdTags.map(tag => tag.id)];
         await updateTaskTagsMutation({ taskId: noteId, tagIds }).unwrap();
       } catch (error) {
         console.error("Failed to update tags:", error);
       }
     },
-    [createTagMutation, noteId, updateTaskTagsMutation]
+    [noteId, updateTaskTagsMutation]
   );
 
   if (!note) return null;
@@ -152,34 +133,32 @@ export const NoteEditor = ({ note, folders = [], allTags = null, onUpdate, onDel
           </Select>
         </FormControl>
 
-        <Autocomplete
-          multiple
-          size="small"
-          options={availableTags}
-          getOptionLabel={option => (typeof option === "string" ? option : option.name)}
-          isOptionEqualToValue={(option, value) => option.id === value.id}
-          value={note.tags || []}
-          onChange={handleTagsChange}
-          renderInput={params => (
-            <TextField {...params} placeholder="Add tags..." variant="standard" sx={{ minWidth: 200 }} />
-          )}
-          renderTags={(value, getTagProps) =>
-            value.map((tag, index) => (
-              <Chip
-                {...getTagProps({ index })}
-                key={tag.id}
-                label={tag.name}
-                size="small"
-                sx={{
-                  bgcolor: tag.color || "#6b7280",
-                  color: "white",
-                  "& .MuiChip-deleteIcon": { color: "white" },
-                }}
-              />
-            ))
-          }
-          freeSolo
-        />
+        {/* Tags display and selector */}
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ flex: 1 }}>
+          <TagSelector
+            selectedTagIds={note.tags?.map(t => t.id) || []}
+            onSelectionChange={handleTagsChange}
+            showManageButton
+            renderTrigger={handleMenuOpen =>
+              note.tags && note.tags.length > 0 ? (
+                <>
+                  {note.tags.map(tag => (
+                    <Box
+                      key={tag.id}
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleMenuOpen(e);
+                      }}
+                      sx={{ cursor: "pointer" }}
+                    >
+                      <TagChip tag={tag} size="sm" />
+                    </Box>
+                  ))}
+                </>
+              ) : null
+            }
+          />
+        </Stack>
       </Stack>
 
       {/* Editor */}

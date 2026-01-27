@@ -30,6 +30,7 @@ import {
 } from "@mui/icons-material";
 import { formatTime, getTaskDisplayColor } from "@/lib/utils";
 import { TagChip } from "./TagChip";
+import { TagSelector } from "./TagSelector";
 import { PriorityChip } from "./PriorityChip";
 import { TaskBadges } from "./shared/TaskBadges";
 import { TaskContextMenu } from "./TaskContextMenu";
@@ -39,7 +40,6 @@ import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useSelectionState } from "@/hooks/useSelectionState";
-import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useCreateCompletionMutation, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
@@ -276,9 +276,7 @@ export const TaskItem = ({
   const taskOps = useTaskOperations();
   const completionHandlers = useCompletionHandlers();
   const selectionState = useSelectionState();
-  const { data: tags = [] } = useGetTagsQuery();
   const { data: allTasks = [] } = useGetTasksQuery();
-  const [createTagMutation] = useCreateTagMutation();
   const { getOutcomeOnDate, hasRecordOnDate, getCompletionForDate } = useCompletionHelpers();
   const [createCompletionMutation] = useCreateCompletionMutation();
   const [updateCompletionMutation] = useUpdateCompletionMutation();
@@ -306,10 +304,6 @@ export const TaskItem = ({
   const onCompleteWithNote = completionHandlers.handleCompleteWithNote;
   const onSelect = selectionState.handleTaskSelect;
   const onBeginWorkout = dialogState.handleBeginWorkout;
-  const onTagsChange = taskOps.handleTaskTagsChange;
-  const onCreateTag = async (name, color) => {
-    return await createTagMutation({ name, color }).unwrap();
-  };
   const onCreateSubtask = taskOps.handleCreateSubtask;
 
   // Compute selection state from Redux (use props if provided, otherwise use Redux)
@@ -356,8 +350,6 @@ export const TaskItem = ({
   const [statusMenuAnchor, setStatusMenuAnchor] = useState(null);
   const [priorityMenuOpen, setPriorityMenuOpen] = useState(false);
   const [priorityMenuAnchor, setPriorityMenuAnchor] = useState(null);
-  const [tagsMenuOpen, setTagsMenuOpen] = useState(false);
-  const [tagsMenuAnchor, setTagsMenuAnchor] = useState(null);
 
   // Focus and select text when entering edit mode
   useEffect(() => {
@@ -1196,149 +1188,50 @@ export const TaskItem = ({
                   hasRecordOnDate={hasRecordOnDate}
                 />
                 {/* Tags inline with badges */}
-                {displayTags && displayTags.length > 0 && (
-                  <>
-                    {displayTags.map(tag => (
-                      <Box
-                        key={tag.id}
-                        onClick={e => {
-                          e.stopPropagation();
-                          setTagsMenuAnchor(e.currentTarget);
-                          setTagsMenuOpen(true);
-                        }}
-                        sx={{ cursor: "pointer", display: "inline-flex" }}
-                      >
-                        <TagChip tag={tag} size="xs" />
-                      </Box>
-                    ))}
-                  </>
-                )}
-                {/* Tags menu - show when clicking on tags or when no tags exist */}
-                <Menu
-                  anchorEl={tagsMenuAnchor}
-                  open={tagsMenuOpen}
-                  onClose={() => {
-                    setTagsMenuOpen(false);
-                    setTagsMenuAnchor(null);
-                  }}
-                  onClick={e => e.stopPropagation()}
-                  PaperProps={{ sx: { minWidth: "250px", maxHeight: "350px", overflowY: "auto" } }}
-                >
-                  <Box sx={{ p: 2, minWidth: "250px", maxHeight: "350px", overflowY: "auto" }}>
-                    {/* Selected tags */}
-                    {displayTags && displayTags.length > 0 && (
-                      <>
-                        <Typography
-                          variant="caption"
-                          fontWeight={600}
-                          color="text.secondary"
-                          sx={{ mb: 1, display: "block" }}
-                        >
-                          Selected Tags
-                        </Typography>
-                        <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mb: 2 }}>
-                          {displayTags.map(tag => (
-                            <TagChip
-                              key={tag.id}
-                              tag={tag}
-                              size="xs"
-                              onClick={e => {
-                                e.stopPropagation();
-                                const currentTagIds = displayTags.map(t => t.id);
-                                onTagsChange(
-                                  task.id,
-                                  currentTagIds.filter(id => id !== tag.id)
-                                );
-                                // Keep menu open - don't close it
-                              }}
-                              sx={{ cursor: "pointer" }}
-                            />
-                          ))}
-                        </Stack>
-                      </>
-                    )}
-
-                    {/* Available tags */}
-                    {tags.filter(t => !displayTags.some(dt => dt.id === t.id)).length > 0 && (
-                      <>
-                        {displayTags && displayTags.length > 0 && (
+                {/* Tags - unified TagSelector with custom trigger */}
+                <TagSelector
+                  task={task}
+                  autoSave
+                  showManageButton
+                  renderTrigger={handleMenuOpen => (
+                    <>
+                      {displayTags && displayTags.length > 0 ? (
+                        // Show clickable tag chips when tags exist
+                        displayTags.map(tag => (
                           <Box
-                            sx={{
-                              borderTop: "1px solid",
-                              borderColor: "divider",
-                              my: 1,
+                            key={tag.id}
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleMenuOpen(e);
                             }}
-                          />
-                        )}
-                        <Typography
-                          variant="caption"
-                          fontWeight={600}
-                          color="text.secondary"
-                          sx={{ mb: 1, display: "block" }}
-                        >
-                          Available Tags
-                        </Typography>
-                        {tags
-                          .filter(t => !displayTags.some(dt => dt.id === t.id))
-                          .map(tag => (
-                            <MenuItem
-                              key={tag.id}
-                              onClick={e => {
-                                e.stopPropagation();
-                                const currentTagIds = displayTags.map(t => t.id);
-                                onTagsChange(task.id, [...currentTagIds, tag.id]);
-                                // Keep menu open - don't close it
-                              }}
-                              sx={{
-                                "&:hover": {
-                                  bgcolor: "action.hover",
-                                },
-                              }}
-                            >
-                              <TagChip tag={tag} size="xs" />
-                            </MenuItem>
-                          ))}
-                      </>
-                    )}
-
-                    {/* Show message if all tags are selected */}
-                    {tags.length > 0 && displayTags.length === tags.length && (
-                      <Typography variant="body2" sx={{ px: 1, py: 2, color: "text.secondary" }}>
-                        All tags assigned to this task
-                      </Typography>
-                    )}
-
-                    {/* Show message if no tags exist */}
-                    {tags.length === 0 && (
-                      <Typography variant="body2" sx={{ px: 1, py: 2, color: "text.secondary" }}>
-                        No tags available. Create tags in the task dialog.
-                      </Typography>
-                    )}
-                  </Box>
-                </Menu>
-                {/* Add tag button when no tags exist */}
-                {(!displayTags || displayTags.length === 0) && (
-                  <>
-                    <Chip
-                      size="small"
-                      label="Add Tag"
-                      variant="outlined"
-                      onClick={e => {
-                        e.stopPropagation();
-                        setTagsMenuAnchor(e.currentTarget);
-                        setTagsMenuOpen(true);
-                      }}
-                      sx={{
-                        height: 20,
-                        fontSize: { xs: "0.625rem", md: "0.75rem" },
-                        cursor: "pointer",
-                        "&:hover": {
-                          opacity: 0.8,
-                        },
-                      }}
-                    />
-                  </>
-                )}
+                            sx={{ cursor: "pointer", display: "inline-flex" }}
+                          >
+                            <TagChip tag={tag} size="xs" />
+                          </Box>
+                        ))
+                      ) : (
+                        // Show "Add Tag" button when no tags exist
+                        <Chip
+                          size="small"
+                          label="Add Tag"
+                          variant="outlined"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleMenuOpen(e);
+                          }}
+                          sx={{
+                            height: 20,
+                            fontSize: { xs: "0.625rem", md: "0.75rem" },
+                            cursor: "pointer",
+                            "&:hover": {
+                              opacity: 0.8,
+                            },
+                          }}
+                        />
+                      )}
+                    </>
+                  )}
+                />
               </Stack>
             )}
             {/* Note display/edit - works like title, click to edit */}
@@ -1503,9 +1396,6 @@ export const TaskItem = ({
                     setActionMenuOpen(false);
                     setActionMenuAnchor(null);
                   }}
-                  tags={tags}
-                  onTagsChange={onTagsChange}
-                  onCreateTag={onCreateTag}
                   onStatusChange={statusHandlers.handleStatusChange}
                   onRemoveFromParent={onRemoveFromParent}
                   anchorEl={actionMenuAnchor}
