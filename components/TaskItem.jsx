@@ -344,6 +344,7 @@ export const TaskItem = ({
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [editedNote, setEditedNote] = useState("");
   const noteInputRef = useRef(null);
+  const noteEditorRef = useRef(null);
 
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
@@ -493,6 +494,51 @@ export const TaskItem = ({
     await immediateNoteSave(editedNote);
     setIsEditingNote(false);
   };
+
+  // Handle click outside to close note editor
+  useEffect(() => {
+    if (!isEditingNote) return;
+
+    const handleClickOutside = async e => {
+      if (noteEditorRef.current && !noteEditorRef.current.contains(e.target)) {
+        await handleNoteClose();
+      }
+    };
+
+    // Add a small delay to prevent immediate closing when opening
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isEditingNote, editedNote]);
+
+  // Handle keyboard shortcuts for note editor
+  useEffect(() => {
+    if (!isEditingNote) return;
+
+    const handleKeyDown = async e => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        e.stopPropagation();
+        await handleNoteClose();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setEditedNote(task.content || "");
+        setIsEditingNote(false);
+      }
+    };
+
+    // Use capture phase to catch the event before TipTap processes it
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [isEditingNote, editedNote, task.content]);
 
   const handleCreateSubtask = async () => {
     if (newSubtaskTitle.trim() && onCreateSubtask) {
@@ -1307,55 +1353,32 @@ export const TaskItem = ({
                 }}
               >
                 {isEditingNote ? (
-                  <>
-                    <Box
-                      onClick={e => e.stopPropagation()}
-                      onMouseDown={e => e.stopPropagation()}
-                      onPointerDown={e => e.stopPropagation()}
-                      sx={{
-                        bgcolor: "action.hover",
-                        borderRadius: 1,
-                        p: 1,
-                        "& .ProseMirror": {
-                          minHeight: "60px",
-                          fontSize: "0.875rem",
-                          outline: "none",
-                          "& p": {
-                            margin: 0,
-                          },
+                  <Box
+                    ref={noteEditorRef}
+                    onClick={e => e.stopPropagation()}
+                    onMouseDown={e => e.stopPropagation()}
+                    onPointerDown={e => e.stopPropagation()}
+                    sx={{
+                      bgcolor: "action.hover",
+                      borderRadius: 1,
+                      p: 1,
+                      "& .ProseMirror": {
+                        minHeight: "60px",
+                        fontSize: "0.875rem",
+                        outline: "none",
+                        "& p": {
+                          margin: 0,
                         },
-                      }}
-                    >
-                      <RichTextEditor
-                        content={editedNote}
-                        onChange={handleNoteChange}
-                        placeholder="Add a note..."
-                        showToolbar={false}
-                      />
-                    </Box>
-                    <Stack direction="row" spacing={0.5} sx={{ mt: 0.5, justifyContent: "flex-end" }}>
-                      <Button
-                        size="small"
-                        onClick={e => {
-                          e.stopPropagation();
-                          setEditedNote(task.content || "");
-                          setIsEditingNote(false);
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="contained"
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleNoteClose();
-                        }}
-                      >
-                        Save
-                      </Button>
-                    </Stack>
-                  </>
+                      },
+                    }}
+                  >
+                    <RichTextEditor
+                      content={editedNote}
+                      onChange={handleNoteChange}
+                      placeholder="Add a note..."
+                      showToolbar={false}
+                    />
+                  </Box>
                 ) : (
                   <Box
                     sx={{
