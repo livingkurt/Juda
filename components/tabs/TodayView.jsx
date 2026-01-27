@@ -28,6 +28,8 @@ export function TodayView({
   todayScrollContainerRef,
   isMobile,
 }) {
+  // Use todaysTasks for tag counts (before filtering)
+  const tasksForTagCounts = todaysTasks;
   return (
     <Box
       sx={{
@@ -138,6 +140,7 @@ export function TodayView({
               <TaskSearchInput
                 onSearchChange={setTodaySearchTerm}
                 tags={tags}
+                tasks={tasksForTagCounts}
                 selectedTagIds={todaySelectedTagIds}
                 onTagSelect={handleTodayTagSelect}
                 onTagDeselect={handleTodayTagDeselect}
