@@ -21,6 +21,7 @@ import {
   setBacklogSelectedTagIds,
   setBacklogSelectedPriorities,
   toggleBacklogSortByPriority,
+  toggleBacklogSortByTag,
   toggleBacklogTagSidebarOpen,
 } from "@/lib/store/slices/uiSlice";
 
@@ -38,6 +39,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   const selectedTagIds = useSelector(state => state.ui.backlogSelectedTagIds);
   const selectedPriorities = useSelector(state => state.ui.backlogSelectedPriorities);
   const sortByPriority = useSelector(state => state.ui.backlogSortByPriority);
+  const sortByTag = useSelector(state => state.ui.backlogSortByTag);
   const sidebarOpen = useSelector(state => state.ui.backlogTagSidebarOpen);
 
   // Use hooks directly (they use Redux internally)
@@ -93,18 +95,34 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
       result = result.filter(task => deferredSelectedPriorities.includes(task.priority));
     }
 
-    // Sort by priority, then by order
-    if (sortByPriority) {
+    // Sort by priority and/or tag, then by order
+    if (sortByPriority || sortByTag) {
       result = [...result].sort((a, b) => {
-        const priorityA = getPriorityConfig(a.priority).sortOrder;
-        const priorityB = getPriorityConfig(b.priority).sortOrder;
-        if (priorityA !== priorityB) return priorityA - priorityB;
+        // Sort by priority first if enabled
+        if (sortByPriority) {
+          const priorityA = getPriorityConfig(a.priority).sortOrder;
+          const priorityB = getPriorityConfig(b.priority).sortOrder;
+          if (priorityA !== priorityB) return priorityA - priorityB;
+        }
+
+        // Then sort by tag if enabled
+        if (sortByTag) {
+          const tagA = a.tags && a.tags.length > 0 ? a.tags[0].name : "";
+          const tagB = b.tags && b.tags.length > 0 ? b.tags[0].name : "";
+          if (tagA !== tagB) {
+            if (!tagA) return 1; // Untagged goes to end
+            if (!tagB) return -1;
+            return tagA.localeCompare(tagB);
+          }
+        }
+
+        // Finally sort by order
         return (a.order || 0) - (b.order || 0);
       });
     }
 
     return result;
-  }, [backlogTasks, deferredSearchTerm, deferredSelectedTagIds, deferredSelectedPriorities, sortByPriority]);
+  }, [backlogTasks, deferredSearchTerm, deferredSelectedTagIds, deferredSelectedPriorities, sortByPriority, sortByTag]);
 
   const handleTagSelect = useCallback(
     tagId => {
@@ -140,6 +158,10 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
 
   const handleSortToggle = useCallback(() => {
     dispatch(toggleBacklogSortByPriority());
+  }, [dispatch]);
+
+  const handleTagSortToggle = useCallback(() => {
+    dispatch(toggleBacklogSortByTag());
   }, [dispatch]);
 
   const handleSidebarToggle = useCallback(() => {
@@ -179,32 +201,127 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     [filteredTasks, createDraggableId]
   );
 
-  // Group tasks by priority when priority sort is on
-  const tasksGroupedByPriority = useMemo(() => {
-    if (!sortByPriority) {
-      return null; // Don't group when priority sort is off
+  // Group tasks by priority and/or tag when sorting is enabled
+  const tasksGrouped = useMemo(() => {
+    if (!sortByPriority && !sortByTag) {
+      return null; // Don't group when neither sort is enabled
     }
 
-    const groups = {};
-    tasksWithIds.forEach((task, index) => {
-      const priority = task.priority || null;
-      if (!groups[priority]) {
-        groups[priority] = [];
-      }
-      groups[priority].push({ ...task, originalIndex: index });
-    });
+    // Group by priority first if enabled
+    if (sortByPriority && !sortByTag) {
+      const groups = {};
+      tasksWithIds.forEach((task, index) => {
+        const priority = task.priority || null;
+        if (!groups[priority]) {
+          groups[priority] = [];
+        }
+        groups[priority].push({ ...task, originalIndex: index });
+      });
 
-    // Show all priority levels, even if they have no tasks (so users can add tasks to empty priorities)
-    // Sort groups by priority order (urgent -> high -> medium -> low -> none)
-    const sortedGroups = PRIORITY_LEVELS.sort((a, b) => a.sortOrder - b.sortOrder) // Sort by sortOrder ascending (urgent=1 first)
-      .map(level => ({
+      // Show all priority levels, even if they have no tasks
+      const sortedGroups = PRIORITY_LEVELS.sort((a, b) => a.sortOrder - b.sortOrder).map(level => ({
+        type: "priority",
         priority: level.value,
         label: level.label,
-        tasks: groups[level.value] || [], // Use empty array if no tasks for this priority
+        tasks: groups[level.value] || [],
       }));
 
-    return sortedGroups;
-  }, [tasksWithIds, sortByPriority]);
+      return sortedGroups;
+    }
+
+    // Group by tag if only tag sort is enabled
+    if (sortByTag && !sortByPriority) {
+      const groups = {};
+      const untaggedGroup = [];
+
+      tasksWithIds.forEach((task, index) => {
+        if (!task.tags || task.tags.length === 0) {
+          untaggedGroup.push({ ...task, originalIndex: index });
+        } else {
+          // Use the first tag (since we sort by first tag)
+          const tagName = task.tags[0].name;
+          if (!groups[tagName]) {
+            groups[tagName] = [];
+          }
+          groups[tagName].push({ ...task, originalIndex: index });
+        }
+      });
+
+      const sortedGroups = [];
+      // Always show Untagged section (even if empty) so users can add untagged tasks
+      sortedGroups.push({
+        type: "tag",
+        tagName: "Untagged",
+        label: "Untagged",
+        tasks: untaggedGroup,
+      });
+
+      // Sort tag names alphabetically
+      const sortedTagNames = Object.keys(groups).sort();
+      sortedTagNames.forEach(tagName => {
+        sortedGroups.push({
+          type: "tag",
+          tagName,
+          label: tagName,
+          tasks: groups[tagName],
+        });
+      });
+
+      return sortedGroups;
+    }
+
+    // Group by priority first, then by tag within each priority
+    if (sortByPriority && sortByTag) {
+      const priorityGroups = {};
+      tasksWithIds.forEach((task, index) => {
+        const priority = task.priority || null;
+        if (!priorityGroups[priority]) {
+          priorityGroups[priority] = {};
+        }
+
+        const tagName = !task.tags || task.tags.length === 0 ? "Untagged" : task.tags[0].name;
+        if (!priorityGroups[priority][tagName]) {
+          priorityGroups[priority][tagName] = [];
+        }
+        priorityGroups[priority][tagName].push({ ...task, originalIndex: index });
+      });
+
+      const sortedGroups = [];
+      PRIORITY_LEVELS.sort((a, b) => a.sortOrder - b.sortOrder).forEach(level => {
+        const priority = level.value;
+        const tagGroups = priorityGroups[priority] || {};
+
+        // Always add untagged section first (even if empty) so users can add untagged tasks
+        sortedGroups.push({
+          type: "priority-tag",
+          priority,
+          priorityLabel: level.label,
+          tagName: "Untagged",
+          label: `${level.label} - Untagged`,
+          tasks: tagGroups["Untagged"] || [],
+        });
+
+        // Then add other tags alphabetically
+        const sortedTagNames = Object.keys(tagGroups)
+          .filter(name => name !== "Untagged")
+          .sort();
+        sortedTagNames.forEach(tagName => {
+          sortedGroups.push({
+            type: "priority-tag",
+            priority,
+            priorityLabel: level.label,
+            tagName,
+            label: `${level.label} - ${tagName}`,
+            tasks: tagGroups[tagName],
+          });
+        });
+      });
+
+      return sortedGroups;
+    }
+
+    return null;
+  }, [tasksWithIds, sortByPriority, sortByTag]);
 
   return (
     <Box
@@ -233,6 +350,8 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
           onPriorityDeselect={handlePriorityDeselect}
           sortByPriority={sortByPriority}
           onSortToggle={handleSortToggle}
+          sortByTag={sortByTag}
+          onTagSortToggle={handleTagSortToggle}
         />
       )}
 
@@ -297,6 +416,8 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
             onPriorityDeselect={handlePriorityDeselect}
             sortByPriority={sortByPriority}
             onSortToggle={handleSortToggle}
+            sortByTag={sortByTag}
+            onTagSortToggle={handleTagSortToggle}
           />
           {/* New Task Input */}
           <Box sx={{ mt: 1, width: "100%", maxWidth: "100%" }}>
@@ -330,20 +451,44 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
               {tasksWithIds.length > 0 ? (
                 <Box>
                   <Stack spacing={1} sx={{ px: { xs: 0.5, md: 1 }, width: "100%", maxWidth: "100%" }}>
-                    {sortByPriority && tasksGroupedByPriority
-                      ? // Render grouped by priority with dividers
-                        tasksGroupedByPriority.map((group, groupIndex) => {
-                          const priorityConfig = getPriorityConfig(group.priority);
-                          const iconMap = {
-                            KeyboardArrowDown,
-                            KeyboardArrowUp,
-                            Remove,
-                            PriorityHigh,
-                          };
-                          const IconComponent = priorityConfig.icon ? iconMap[priorityConfig.icon] : null;
+                    {tasksGrouped
+                      ? // Render grouped by priority/tag with dividers
+                        tasksGrouped.map((group, groupIndex) => {
+                          // Determine icon and color based on group type
+                          let IconComponent = null;
+                          let labelColor = "text.secondary";
+                          let priority = null;
+
+                          if (group.type === "priority" || group.type === "priority-tag") {
+                            const priorityConfig = getPriorityConfig(group.priority);
+                            const iconMap = {
+                              KeyboardArrowDown,
+                              KeyboardArrowUp,
+                              Remove,
+                              PriorityHigh,
+                            };
+                            IconComponent = priorityConfig.icon ? iconMap[priorityConfig.icon] : null;
+                            labelColor = priorityConfig.color || "text.secondary";
+                            priority = group.priority;
+                          }
+
+                          // For tag-only groups, find tag color
+                          if (group.type === "tag") {
+                            if (group.tagName === "Untagged") {
+                              // Untagged uses default color
+                              labelColor = "text.secondary";
+                            } else {
+                              const tag = tags.find(t => t.name === group.tagName);
+                              if (tag) {
+                                labelColor = tag.color;
+                                // Show tag dot instead of icon for tag-only groups
+                                IconComponent = null; // We'll show a colored dot instead
+                              }
+                            }
+                          }
 
                           return (
-                            <Box key={group.priority || "none"}>
+                            <Box key={`${group.type}-${group.priority || group.tagName || "none"}-${groupIndex}`}>
                               {groupIndex > 0 && (
                                 <Box
                                   sx={{
@@ -354,7 +499,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                   }}
                                 />
                               )}
-                              {/* Priority Label with Quick Task Input */}
+                              {/* Group Label with Quick Task Input */}
                               <Box
                                 sx={{
                                   display: "flex",
@@ -365,22 +510,45 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                   mb: 0.5,
                                 }}
                               >
-                                {IconComponent && (
+                                {group.type === "tag" && group.tagName === "Untagged" ? (
+                                  <Box
+                                    sx={{
+                                      width: 12,
+                                      height: 12,
+                                      bgcolor: "transparent",
+                                      borderWidth: 1.5,
+                                      borderStyle: "solid",
+                                      borderColor: labelColor,
+                                      borderRadius: "50%",
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                ) : group.type === "tag" && group.tagName !== "Untagged" ? (
+                                  <Box
+                                    sx={{
+                                      width: 12,
+                                      height: 12,
+                                      borderRadius: "50%",
+                                      bgcolor: labelColor,
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                ) : IconComponent ? (
                                   <IconComponent
                                     fontSize="small"
                                     sx={{
-                                      color: priorityConfig.color || "text.secondary",
+                                      color: labelColor,
                                       fontSize: "1rem",
                                       flexShrink: 0,
                                     }}
                                   />
-                                )}
+                                ) : null}
                                 <Typography
                                   variant="caption"
                                   sx={{
                                     fontSize: "0.75rem",
                                     fontWeight: 600,
-                                    color: priorityConfig.color || "text.secondary",
+                                    color: labelColor,
                                     textTransform: "uppercase",
                                     letterSpacing: "0.05em",
                                     flexShrink: 0,
@@ -392,7 +560,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                 <Box sx={{ flex: 1, minWidth: 0 }}>
                                   <QuickTaskInput
                                     placeholder={`Add ${group.label.toLowerCase()} task...`}
-                                    onCreate={title => handleCreateQuickTaskWithPriority(title, group.priority)}
+                                    onCreate={title => handleCreateQuickTaskWithPriority(title, priority || null)}
                                     size="small"
                                     variant="standard"
                                     showUnderlineWhenActive={false}

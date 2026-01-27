@@ -20,6 +20,8 @@ export const TaskSearchInput = memo(function TaskSearchInput({
   onPriorityDeselect,
   sortByPriority,
   onSortToggle,
+  sortByTag,
+  onTagSortToggle,
   showPriorityFilter = true,
   showSort = true,
   showUntaggedOption = true,
@@ -87,6 +89,8 @@ export const TaskSearchInput = memo(function TaskSearchInput({
           onPriorityDeselect={onPriorityDeselect}
           sortByPriority={sortByPriority}
           onSortToggle={onSortToggle}
+          sortByTag={sortByTag}
+          onTagSortToggle={onTagSortToggle}
           showPriorityFilter={showPriorityFilter}
           showSort={showSort}
           showUntaggedOption={showUntaggedOption}
