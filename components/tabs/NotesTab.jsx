@@ -25,7 +25,7 @@ import {
   MenuItem,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { Add, Description, Folder, Tag, ArrowBack, Edit, Assignment } from "@mui/icons-material";
+import { Add, Description, Folder, Tag, ArrowBack, Edit, Assignment, Delete } from "@mui/icons-material";
 import { NoteEditor } from "@/components/NoteEditor";
 import { TagChip } from "@/components/TagChip";
 import { QuickTaskInput } from "@/components/QuickTaskInput";
@@ -57,8 +57,8 @@ import {
   useUpdateTaskMutation,
 } from "@/lib/store/api/tasksApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
-import { useGetFoldersQuery } from "@/lib/store/api/foldersApi";
-import { useGetSmartFoldersQuery } from "@/lib/store/api/smartFoldersApi";
+import { useGetFoldersQuery, useDeleteFolderMutation } from "@/lib/store/api/foldersApi";
+import { useGetSmartFoldersQuery, useDeleteSmartFolderMutation } from "@/lib/store/api/smartFoldersApi";
 import { useGetTagsQuery, useCreateTagMutation, useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
 import { useLoadingTab } from "@/components/MainTabs";
 import { useDialogState } from "@/hooks/useDialogState";
@@ -262,6 +262,8 @@ export function NotesTab({ isLoading }) {
   const [createTask] = useCreateTaskMutation();
   const [updateTask] = useUpdateTaskMutation();
   const [deleteTask] = useDeleteTaskMutation();
+  const [deleteFolder] = useDeleteFolderMutation();
+  const [deleteSmartFolder] = useDeleteSmartFolderMutation();
 
   // Filter note tasks
   const noteTasks = useMemo(() => tasks.filter(t => t.completionType === "note"), [tasks]);
@@ -309,6 +311,44 @@ export function NotesTab({ isLoading }) {
       }
     },
     [notesSelectedTagIds, dispatch]
+  );
+
+  // Handle folder delete
+  const handleDeleteFolder = useCallback(
+    async (e, folderId, folderName) => {
+      e.stopPropagation();
+      // eslint-disable-next-line no-alert
+      if (window.confirm(`Delete folder "${folderName}"? Notes in this folder will be moved to the root level.`)) {
+        try {
+          await deleteFolder(folderId).unwrap();
+          if (selectedFolderId === folderId) {
+            dispatch(setSelectedFolderId(null));
+          }
+        } catch (error) {
+          console.error("Failed to delete folder:", error);
+        }
+      }
+    },
+    [deleteFolder, selectedFolderId, dispatch]
+  );
+
+  // Handle smart folder delete
+  const handleDeleteSmartFolder = useCallback(
+    async (e, smartFolderId, smartFolderName) => {
+      e.stopPropagation();
+      // eslint-disable-next-line no-alert
+      if (window.confirm(`Delete smart folder "${smartFolderName}"?`)) {
+        try {
+          await deleteSmartFolder(smartFolderId).unwrap();
+          if (selectedSmartFolderId === smartFolderId) {
+            dispatch(setSelectedSmartFolderId(null));
+          }
+        } catch (error) {
+          console.error("Failed to delete smart folder:", error);
+        }
+      }
+    },
+    [deleteSmartFolder, selectedSmartFolderId, dispatch]
   );
 
   // Helper to get X coordinate from mouse or touch event
@@ -645,6 +685,13 @@ export function NotesTab({ isLoading }) {
                         <Tag fontSize="small" />
                       </ListItemIcon>
                       <ListItemText primary={sf.name} />
+                      <IconButton
+                        size="small"
+                        onClick={e => handleDeleteSmartFolder(e, sf.id, sf.name)}
+                        sx={{ ml: "auto", color: "error.main" }}
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
                     </ListItemButton>
                   ))}
                 </>
@@ -674,9 +721,7 @@ export function NotesTab({ isLoading }) {
                       bgcolor: "transparent",
                       borderWidth: 1.5,
                       borderStyle: "solid",
-                      borderColor: notesSelectedTagIds.includes(UNTAGGED_ID)
-                        ? "text.primary"
-                        : "text.secondary",
+                      borderColor: notesSelectedTagIds.includes(UNTAGGED_ID) ? "text.primary" : "text.secondary",
                       borderRadius: "50%",
                       flexShrink: 0,
                       mr: 1,
@@ -687,9 +732,7 @@ export function NotesTab({ isLoading }) {
                     sx={{
                       fontSize: "0.875rem",
                       fontWeight: notesSelectedTagIds.includes(UNTAGGED_ID) ? 600 : 400,
-                      color: notesSelectedTagIds.includes(UNTAGGED_ID)
-                        ? "text.primary"
-                        : "text.secondary",
+                      color: notesSelectedTagIds.includes(UNTAGGED_ID) ? "text.primary" : "text.secondary",
                       flex: 1,
                     }}
                   >
@@ -794,6 +837,13 @@ export function NotesTab({ isLoading }) {
                       <Folder fontSize="small" />
                     </ListItemIcon>
                     <ListItemText primary={folder.name} />
+                    <IconButton
+                      size="small"
+                      onClick={e => handleDeleteFolder(e, folder.id, folder.name)}
+                      sx={{ ml: "auto", color: "error.main" }}
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
                   </ListItemButton>
                 ))}
               </List>
@@ -1025,6 +1075,13 @@ export function NotesTab({ isLoading }) {
                       <Tag fontSize="small" />
                     </ListItemIcon>
                     <ListItemText primary={sf.name} />
+                    <IconButton
+                      size="small"
+                      onClick={e => handleDeleteSmartFolder(e, sf.id, sf.name)}
+                      sx={{ ml: "auto", color: "error.main" }}
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
                   </ListItemButton>
                 ))}
 
@@ -1050,9 +1107,7 @@ export function NotesTab({ isLoading }) {
                       bgcolor: "transparent",
                       borderWidth: 1.5,
                       borderStyle: "solid",
-                      borderColor: notesSelectedTagIds.includes(UNTAGGED_ID)
-                        ? "text.primary"
-                        : "text.secondary",
+                      borderColor: notesSelectedTagIds.includes(UNTAGGED_ID) ? "text.primary" : "text.secondary",
                       borderRadius: "50%",
                       flexShrink: 0,
                       mr: 1,
@@ -1063,9 +1118,7 @@ export function NotesTab({ isLoading }) {
                     sx={{
                       fontSize: "0.875rem",
                       fontWeight: notesSelectedTagIds.includes(UNTAGGED_ID) ? 600 : 400,
-                      color: notesSelectedTagIds.includes(UNTAGGED_ID)
-                        ? "text.primary"
-                        : "text.secondary",
+                      color: notesSelectedTagIds.includes(UNTAGGED_ID) ? "text.primary" : "text.secondary",
                       flex: 1,
                     }}
                   >
@@ -1163,6 +1216,13 @@ export function NotesTab({ isLoading }) {
                       <Folder fontSize="small" />
                     </ListItemIcon>
                     <ListItemText primary={folder.name} />
+                    <IconButton
+                      size="small"
+                      onClick={e => handleDeleteFolder(e, folder.id, folder.name)}
+                      sx={{ ml: "auto", color: "error.main" }}
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
                   </ListItemButton>
                 ))}
               </List>

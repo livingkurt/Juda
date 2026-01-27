@@ -1,23 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import {
-  Box,
-  Stack,
-  Menu,
-  MenuItem,
-  IconButton,
-  Checkbox,
-  Chip,
-  Typography,
-  Divider,
-} from "@mui/material";
-import {
-  FilterList,
-  TextFields,
-  List,
-  Psychology,
-} from "@mui/icons-material";
+import { Box, Stack, Menu, MenuItem, IconButton, Checkbox, Chip, Typography, Divider } from "@mui/material";
+import { FilterList, TextFields, List, Psychology } from "@mui/icons-material";
 
 const COMPLETION_TYPES = [
   { value: "text", label: "Text", icon: TextFields },

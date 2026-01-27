@@ -30,7 +30,7 @@ import { TagSelector } from "./TagSelector";
 import { DAYS_OF_WEEK, DURATION_OPTIONS, PRIORITY_LEVELS } from "@/lib/constants";
 import { useSelectionState } from "@/hooks/useSelectionState";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
-import { useGetTagsQuery, useCreateTagMutation, useDeleteTagMutation } from "@/lib/store/api/tagsApi";
+import { useGetTagsQuery } from "@/lib/store/api/tagsApi";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 
 export const BulkEditDialog = () => {
@@ -38,8 +38,6 @@ export const BulkEditDialog = () => {
   const { data: sections = [] } = useGetSectionsQuery();
   const { data: tags = [] } = useGetTagsQuery();
   const { data: allTasks = [] } = useGetTasksQuery();
-  const [createTagMutation] = useCreateTagMutation();
-  const [deleteTagMutation] = useDeleteTagMutation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isOpen = selectionState.bulkEditDialogOpen;
@@ -52,13 +50,6 @@ export const BulkEditDialog = () => {
     selectionState.setBulkEditDialogOpen(false);
   };
 
-  const handleCreateTag = async (name, color) => {
-    return await createTagMutation({ name, color }).unwrap();
-  };
-
-  const handleDeleteTag = async id => {
-    return await deleteTagMutation(id).unwrap();
-  };
   // Calculate common values across all selected tasks
   const commonValues = useMemo(() => {
     if (!selectedTasks || selectedTasks.length === 0) {
@@ -490,22 +481,35 @@ export const BulkEditDialog = () => {
                 onClick={() => markFieldEdited("tags")}
               >
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {/* Selected Tags */}
-                  {Array.isArray(tags) &&
-                    tags
-                      .filter(t => selectedTagIds.includes(t.id))
-                      .map(tag => <TagChip key={tag.id} tag={tag} size="sm" />)}
-                  {/* Add Tag button */}
+                  {/* Tags - clickable to open selector */}
                   <TagSelector
-                    tags={tags}
                     selectedTagIds={selectedTagIds}
-                    onTagsChange={newTagIds => {
+                    onSelectionChange={newTagIds => {
                       setSelectedTagIds(newTagIds);
                       markFieldEdited("tags");
                     }}
-                    onCreateTag={handleCreateTag}
-                    onDeleteTag={handleDeleteTag}
-                    inline
+                    showManageButton
+                    renderTrigger={handleMenuOpen =>
+                      selectedTagIds.length > 0 ? (
+                        <>
+                          {Array.isArray(tags) &&
+                            tags
+                              .filter(t => selectedTagIds.includes(t.id))
+                              .map(tag => (
+                                <Box
+                                  key={tag.id}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleMenuOpen(e);
+                                  }}
+                                  sx={{ cursor: "pointer" }}
+                                >
+                                  <TagChip tag={tag} size="sm" />
+                                </Box>
+                              ))}
+                        </>
+                      ) : null
+                    }
                   />
                 </Stack>
               </Box>

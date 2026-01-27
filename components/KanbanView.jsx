@@ -7,12 +7,11 @@ import { Add } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
 import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
-import { TagFilter } from "./TagFilter";
+import { TagSelector } from "./TagSelector";
 import { QuickTaskInput } from "./QuickTaskInput";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
-import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useDialogState } from "@/hooks/useDialogState";
 import { setKanbanSearchTerm, setKanbanSelectedTagIds } from "@/lib/store/slices/uiSlice";
 
@@ -166,8 +165,6 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
 
   // Use hooks directly (they use Redux internally)
   const completionHandlers = useCompletionHandlers();
-  const { data: tags = [] } = useGetTagsQuery();
-  const [createTagMutation] = useCreateTagMutation();
 
   // Get task filters (needs recentlyCompletedTasks from completionHandlers)
   const taskFilters = useTaskFilters({
@@ -219,20 +216,6 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
     [filteredTasks]
   );
 
-  const handleTagSelect = useCallback(
-    tagId => {
-      dispatch(setKanbanSelectedTagIds([...selectedTagIds, tagId]));
-    },
-    [dispatch, selectedTagIds]
-  );
-
-  const handleTagDeselect = useCallback(
-    tagId => {
-      dispatch(setKanbanSelectedTagIds(selectedTagIds.filter(id => id !== tagId)));
-    },
-    [dispatch, selectedTagIds]
-  );
-
   const columns = [
     { id: "todo", title: "Todo", color: "grey.400" },
     { id: "in_progress", title: "In Progress", color: "primary.main" },
@@ -247,14 +230,10 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
           <Box sx={{ flex: 1, maxWidth: 300 }}>
             <TaskSearchInput onSearchChange={term => dispatch(setKanbanSearchTerm(term))} />
           </Box>
-          <TagFilter
-            tags={tags}
+          <TagSelector
+            filterMode
             selectedTagIds={selectedTagIds}
-            onTagSelect={handleTagSelect}
-            onTagDeselect={handleTagDeselect}
-            onCreateTag={async (name, color) => {
-              return await createTagMutation({ name, color }).unwrap();
-            }}
+            onSelectionChange={tagIds => dispatch(setKanbanSelectedTagIds(tagIds))}
           />
         </Stack>
       </Box>
