@@ -606,7 +606,11 @@ export function useCompletionHandlers({
 
           // Only cascade to subtasks if this is a PARENT task
           if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
-            await Promise.all(task.subtasks.map(subtask => deleteCompletion(subtask.id, dateStr)));
+            const deletions = task.subtasks.map(subtask => ({
+              taskId: subtask.id,
+              date: dateStr,
+            }));
+            await batchDeleteCompletions(deletions);
           }
         } else {
           if (outcome === "completed" && !showCompletedTasks) {
@@ -645,7 +649,12 @@ export function useCompletionHandlers({
 
             // Only cascade to subtasks if this is a PARENT task
             if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
-              await Promise.all(task.subtasks.map(subtask => createCompletion(subtask.id, dateStr, { outcome })));
+              const creations = task.subtasks.map(subtask => ({
+                taskId: subtask.id,
+                date: dateStr,
+                outcome,
+              }));
+              await batchCreateCompletions(creations);
             }
           } catch (completionError) {
             if (outcome === "completed" && !showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
@@ -663,6 +672,8 @@ export function useCompletionHandlers({
       tasks,
       createCompletion,
       deleteCompletion,
+      batchCreateCompletions,
+      batchDeleteCompletions,
       updateTask,
       showCompletedTasks,
       recentlyCompletedTasks,
