@@ -411,15 +411,69 @@ export function TasksTab() {
 
       // Section to Backlog
       if (sourceId.startsWith("section-") && destId === "backlog") {
-        const backlogTasksList = [...backlogTasks]
-          .filter(t => t.id !== taskId)
-          .sort((a, b) => (a.order || 0) - (b.order || 0));
+        // Get filtered tasks (same logic as BacklogDrawer uses)
+        let filteredBacklogTasks = [...taskFilters.backlogTasks].filter(t => t.id !== taskId);
 
-        backlogTasksList.splice(destination.index, 0, task);
+        // Apply same filters as BacklogDrawer
+        if (backlogSearchTerm.trim()) {
+          const lowerSearch = backlogSearchTerm.toLowerCase();
+          filteredBacklogTasks = filteredBacklogTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
+        }
 
-        const updates = backlogTasksList.map((t, idx) => ({ id: t.id, order: idx }));
+        if (backlogSelectedTagIds.length > 0) {
+          const hasUntaggedFilter = backlogSelectedTagIds.includes("__UNTAGGED__");
+          const regularTagIds = backlogSelectedTagIds.filter(id => id !== "__UNTAGGED__");
 
-        // Update task with all properties including order
+          if (hasUntaggedFilter && regularTagIds.length > 0) {
+            filteredBacklogTasks = filteredBacklogTasks.filter(
+              task => !task.tags || task.tags.length === 0 || task.tags.some(tag => regularTagIds.includes(tag.id))
+            );
+          } else if (hasUntaggedFilter) {
+            filteredBacklogTasks = filteredBacklogTasks.filter(task => !task.tags || task.tags.length === 0);
+          } else if (regularTagIds.length > 0) {
+            filteredBacklogTasks = filteredBacklogTasks.filter(task =>
+              task.tags?.some(tag => regularTagIds.includes(tag.id))
+            );
+          }
+        }
+
+        if (backlogSelectedPriorities.length > 0) {
+          filteredBacklogTasks = filteredBacklogTasks.filter(task => backlogSelectedPriorities.includes(task.priority));
+        }
+
+        // Sort tasks (same as BacklogDrawer)
+        let sortedTasks = [...filteredBacklogTasks];
+        if (backlogSortByPriority) {
+          sortedTasks.sort((a, b) => {
+            const priorityA = getPriorityConfig(a.priority).sortOrder;
+            const priorityB = getPriorityConfig(b.priority).sortOrder;
+            if (priorityA !== priorityB) return priorityA - priorityB;
+            return (a.order || 0) - (b.order || 0);
+          });
+        } else {
+          sortedTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
+        }
+
+        sortedTasks.splice(destination.index, 0, task);
+
+        // If priority sort is on, determine priority based on position
+        let newPriority = task.priority; // Default to current priority
+        if (backlogSortByPriority && sortedTasks.length > 0) {
+          // Find which priority section the task is being dropped into
+          if (destination.index > 0) {
+            // Check the task before to see what priority section we're in
+            const prevTask = sortedTasks[destination.index - 1];
+            newPriority = prevTask.priority;
+          } else if (destination.index < sortedTasks.length - 1) {
+            // Check the task after
+            const nextTask = sortedTasks[destination.index + 1];
+            newPriority = nextTask.priority;
+          }
+        }
+
+        const updates = sortedTasks.map((t, idx) => ({ id: t.id, order: idx }));
+
+        // Update task with all properties including order and priority
         updateTaskMutation({
           id: taskId,
           sectionId: null,
@@ -427,6 +481,7 @@ export function TasksTab() {
           time: null,
           recurrence: null,
           status: "todo",
+          priority: newPriority,
         });
 
         // Reorder all backlog tasks to fix orders
