@@ -101,12 +101,16 @@ function TaskDialogForm({
         typeof clickedRecurringDate === "string" ? new Date(clickedRecurringDate) : clickedRecurringDate;
       return formatLocalDate(clickedDate);
     }
-    // Only fall back to startDate if no clicked date was provided
-    // This handles opening a recurring task from Backlog/Today list view
-    if (task?.recurrence?.startDate) {
-      return task.recurrence.startDate.split("T")[0];
+    // For backlog tasks (no date), don't set any date unless explicitly provided
+    // Backlog tasks are determined by not having a date (recurrence is null or recurrence.startDate is missing)
+    // When editing from backlog, don't auto-fill date/time
+    const hasDate = task?.recurrence?.startDate;
+    if (!hasDate) {
+      // Task has no date - return empty string (backlog task)
+      return "";
     }
-    return defaultTime ? formatLocalDate(new Date()) : "";
+    // Task has a date - use it
+    return task.recurrence.startDate.split("T")[0];
   });
   const [duration, setDuration] = useState(task?.duration ?? (defaultTime ? 30 : 0));
   const [recurrenceType, setRecurrenceType] = useState(task?.recurrence?.type || "none");

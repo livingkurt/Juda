@@ -91,8 +91,11 @@ export const TaskContextMenu = ({
         <MenuItem
           onClick={e => {
             e.stopPropagation();
-            // Pass date for recurring tasks so the dialog shows the correct occurrence
-            taskOps.handleEditTask(task, date ? new Date(date) : null);
+            // Only pass date if task has a date (recurring or one-time with date)
+            // Backlog tasks (no date) should not have a date passed
+            const taskHasDate = task?.recurrence?.startDate;
+            const clickedDate = taskHasDate && date ? new Date(date) : null;
+            taskOps.handleEditTask(task, clickedDate);
             onClose?.();
           }}
         >
