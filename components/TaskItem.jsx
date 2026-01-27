@@ -26,6 +26,7 @@ import {
   PlayCircle,
   CheckCircle,
   FitnessCenter,
+  Note,
 } from "@mui/icons-material";
 import { formatTime, getTaskDisplayColor } from "@/lib/utils";
 import { TagChip } from "./TagChip";
@@ -41,6 +42,7 @@ import { useSelectionState } from "@/hooks/useSelectionState";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { useCreateCompletionMutation, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { useTheme } from "@/hooks/useTheme";
@@ -48,6 +50,8 @@ import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 import { ReflectionEntry } from "./ReflectionEntry";
 import { usePriorityHandlers } from "@/hooks/usePriorityHandlers";
 import { PRIORITY_LEVELS } from "@/lib/constants";
+import { formatLocalDate } from "@/lib/utils";
+import { RichTextEditor } from "@/components/RichTextEditor";
 
 // Small component to handle text input with state that resets on date change
 const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }) => {
@@ -276,6 +280,8 @@ export const TaskItem = ({
   const { data: allTasks = [] } = useGetTasksQuery();
   const [createTagMutation] = useCreateTagMutation();
   const { getOutcomeOnDate, hasRecordOnDate, getCompletionForDate } = useCompletionHelpers();
+  const [createCompletionMutation] = useCreateCompletionMutation();
+  const [updateCompletionMutation] = useUpdateCompletionMutation();
   const dialogState = useDialogState();
   const statusHandlers = useStatusHandlers({
     addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
@@ -334,6 +340,10 @@ export const TaskItem = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(task.title || "");
   const titleInputRef = useRef(null);
+
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [editedNote, setEditedNote] = useState("");
+  const noteInputRef = useRef(null);
 
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
@@ -422,6 +432,68 @@ export const TaskItem = ({
     // Allow normal Enter for new lines
   };
 
+  // Get existing completion data for text-type tasks
+  const existingCompletion = getCompletionForDate?.(task.id, viewDate);
+  const savedNote = existingCompletion?.note || "";
+
+  // Sync editedNote with task.content when it changes (e.g., after save)
+  useEffect(() => {
+    if (!isEditingNote) {
+      setEditedNote(task.content || "");
+    }
+  }, [task.content, isEditingNote]);
+
+  // Note editing handlers
+  useEffect(() => {
+    if (isEditingNote && noteInputRef.current) {
+      noteInputRef.current.focus();
+      // Auto-expand textarea to fit content
+      noteInputRef.current.style.height = "auto";
+      noteInputRef.current.style.height = `${noteInputRef.current.scrollHeight}px`;
+    }
+  }, [isEditingNote]);
+
+  useEffect(() => {
+    if (isEditingNote && noteInputRef.current) {
+      noteInputRef.current.style.height = "auto";
+      noteInputRef.current.style.height = `${noteInputRef.current.scrollHeight}px`;
+    }
+  }, [editedNote, isEditingNote]);
+
+  const handleNoteClick = e => {
+    e.stopPropagation();
+    if (!isEditingNote) {
+      // Use task.content as the note
+      setEditedNote(task.content || "");
+      setIsEditingNote(true);
+    }
+  };
+
+  const saveNote = async value => {
+    const noteValue = value?.trim() || "";
+
+    try {
+      // Update task content (the note)
+      await taskOps.updateTask(task.id, { content: noteValue });
+    } catch (error) {
+      console.error("Error saving note:", error);
+    }
+  };
+
+  const { debouncedSave: debouncedNoteSave, immediateSave: immediateNoteSave } = useDebouncedSave(saveNote, 500);
+
+  const handleNoteChange = htmlContent => {
+    // RichTextEditor passes HTML directly, not an event
+    setEditedNote(htmlContent);
+    debouncedNoteSave(htmlContent);
+  };
+
+  const handleNoteClose = async () => {
+    // Save the note before closing
+    await immediateNoteSave(editedNote);
+    setIsEditingNote(false);
+  };
+
   const handleCreateSubtask = async () => {
     if (newSubtaskTitle.trim() && onCreateSubtask) {
       await onCreateSubtask(task.id, newSubtaskTitle.trim());
@@ -443,15 +515,13 @@ export const TaskItem = ({
   // For subtasks, just check their own completion status. For parent tasks, check if all subtasks are complete too.
   const isChecked = isSubtask ? task.completed : task.completed || allSubtasksComplete;
 
-  // Get existing completion data for text-type tasks
-  const existingCompletion = getCompletionForDate?.(task.id, viewDate);
+  // Task type checks (existingCompletion and savedNote already declared above)
   const isTextTask = task.completionType === "text";
   const isSelectionTask = task.completionType === "selection";
   const isReflectionTask = task.completionType === "reflection";
   const isWorkoutTask = task.completionType === "workout";
   const isGoalTask = task.completionType === "goal";
   const isNotCompleted = existingCompletion?.outcome === "not_completed" || false;
-  const savedNote = existingCompletion?.note || "";
 
   // Get selection options from task
   const selectionOptions = useMemo(() => {
@@ -625,8 +695,8 @@ export const TaskItem = ({
   const isDialogSubtask = containerId === "task-dialog-subtasks";
   const isDragDisabled = isSubtask && !isDialogSubtask;
 
-  // Also disable drag when editing title to prevent interference with text input
-  const isDragDisabledDuringEdit = isDragDisabled || isEditingTitle;
+  // Also disable drag when editing title or note to prevent interference with text input
+  const isDragDisabledDuringEdit = isDragDisabled || isEditingTitle || isEditingNote;
 
   // Get task color from first tag, or use neutral gray if no tags
   // Use displayTags for color calculation so subtasks inherit parent's color
@@ -1225,25 +1295,91 @@ export const TaskItem = ({
                 )}
               </Stack>
             )}
-            {/* Note content preview - show below badges */}
-            {task.content && (
-              <Typography
-                variant="caption"
-                sx={{
-                  fontSize: { xs: "0.75rem", md: "0.875rem" },
-                  color: mutedText,
-                  mt: { xs: 0.5, md: 1 },
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 1,
-                  WebkitBoxOrient: "vertical",
-                  wordBreak: "break-word",
+            {/* Note display/edit - works like title, click to edit */}
+            {!isTextTask && !isSelectionTask && !isReflectionTask && (
+              <Box
+                sx={{ width: "100%", mt: 0.5, position: "relative" }}
+                onClick={e => {
+                  if (!isEditingNote) {
+                    e.stopPropagation();
+                    handleNoteClick(e);
+                  }
                 }}
               >
-                {/* Strip HTML tags for preview */}
-                {task.content.replace(/<[^>]*>/g, "").trim() || ""}
-              </Typography>
+                {isEditingNote ? (
+                  <>
+                    <Box
+                      onClick={e => e.stopPropagation()}
+                      onMouseDown={e => e.stopPropagation()}
+                      onPointerDown={e => e.stopPropagation()}
+                      sx={{
+                        bgcolor: "action.hover",
+                        borderRadius: 1,
+                        p: 1,
+                        "& .ProseMirror": {
+                          minHeight: "60px",
+                          fontSize: "0.875rem",
+                          outline: "none",
+                          "& p": {
+                            margin: 0,
+                          },
+                        },
+                      }}
+                    >
+                      <RichTextEditor
+                        content={editedNote}
+                        onChange={handleNoteChange}
+                        placeholder="Add a note..."
+                        showToolbar={false}
+                      />
+                    </Box>
+                    <Stack direction="row" spacing={0.5} sx={{ mt: 0.5, justifyContent: "flex-end" }}>
+                      <Button
+                        size="small"
+                        onClick={e => {
+                          e.stopPropagation();
+                          setEditedNote(task.content || "");
+                          setIsEditingNote(false);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleNoteClose();
+                        }}
+                      >
+                        Save
+                      </Button>
+                    </Stack>
+                  </>
+                ) : (
+                  <Box
+                    sx={{
+                      cursor: "pointer",
+                      px: 1,
+                      py: 0.5,
+                      borderRadius: 1,
+                      "&:hover": {
+                        bgcolor: "action.hover",
+                      },
+                      minHeight: "24px",
+                      fontSize: "0.875rem",
+                      color: task.content ? "text.secondary" : "text.disabled",
+                      fontStyle: task.content ? "normal" : "italic",
+                      "& p": {
+                        margin: 0,
+                      },
+                    }}
+                    dangerouslySetInnerHTML={{
+                      __html: task.content || "<p>Add a note...</p>",
+                    }}
+                  />
+                )}
+              </Box>
             )}
             {/* Tags for kanban variant */}
             {variant === "kanban" && (task.priority || (displayTags && displayTags.length > 0)) && (
