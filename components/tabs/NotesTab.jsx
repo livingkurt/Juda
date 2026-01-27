@@ -34,6 +34,10 @@ import { FolderDialog } from "@/components/dialogs/FolderDialog";
 import { SmartFolderDialog } from "@/components/dialogs/SmartFolderDialog";
 import dayjs from "dayjs";
 import { useDispatch, useSelector } from "react-redux";
+import { useTheme as useCustomTheme } from "@/hooks/useTheme";
+import { useColorModeSync } from "@/hooks/useColorModeSync";
+import { mapColorToTheme } from "@/lib/themes";
+import { UNTAGGED_ID } from "@/components/BacklogTagSidebar";
 import {
   setNotesSidebarWidth,
   setNotesListWidth,
@@ -262,6 +266,51 @@ export function NotesTab({ isLoading }) {
   // Filter note tasks
   const noteTasks = useMemo(() => tasks.filter(t => t.completionType === "note"), [tasks]);
 
+  // Theme hooks for tag colors
+  const { theme: customTheme } = useCustomTheme();
+  const { colorMode } = useColorModeSync();
+  const modeForTheme = colorMode || "dark";
+  const themePalette = customTheme?.colors?.[modeForTheme]?.tagColors || {};
+
+  // Calculate tag counts based on notes
+  const tagCounts = useMemo(() => {
+    const counts = new Map();
+
+    // Initialize all tags with 0
+    tags.forEach(tag => {
+      counts.set(tag.id, 0);
+    });
+
+    // Count notes for each tag
+    noteTasks.forEach(note => {
+      if (note.tags && note.tags.length > 0) {
+        note.tags.forEach(tag => {
+          counts.set(tag.id, (counts.get(tag.id) || 0) + 1);
+        });
+      }
+    });
+
+    return counts;
+  }, [tags, noteTasks]);
+
+  // Calculate untagged count
+  const untaggedCount = useMemo(() => {
+    return noteTasks.filter(note => !note.tags || note.tags.length === 0).length;
+  }, [noteTasks]);
+
+  // Handle tag click for filtering
+  const handleTagClick = useCallback(
+    tagId => {
+      const isSelected = notesSelectedTagIds.includes(tagId);
+      if (isSelected) {
+        dispatch(removeNotesSelectedTag(tagId));
+      } else {
+        dispatch(addNotesSelectedTag(tagId));
+      }
+    },
+    [notesSelectedTagIds, dispatch]
+  );
+
   // Helper to get X coordinate from mouse or touch event
   const getClientX = e => {
     if (e.touches && e.touches.length > 0) {
@@ -397,7 +446,30 @@ export function NotesTab({ isLoading }) {
 
     // Filter by tags
     if (notesSelectedTagIds.length > 0) {
-      result = result.filter(note => note.tags?.some(tag => notesSelectedTagIds.includes(tag.id)));
+      const hasUntagged = notesSelectedTagIds.includes(UNTAGGED_ID);
+      const regularTagIds = notesSelectedTagIds.filter(id => id !== UNTAGGED_ID);
+
+      result = result.filter(note => {
+        const noteTagIds = note.tags?.map(t => t.id) || [];
+        const hasNoTags = !note.tags || note.tags.length === 0;
+
+        // If untagged is selected, include notes with no tags
+        if (hasUntagged && hasNoTags) {
+          return true;
+        }
+
+        // If regular tags are selected, check if note has any of them
+        if (regularTagIds.length > 0 && noteTagIds.some(id => regularTagIds.includes(id))) {
+          return true;
+        }
+
+        // If only untagged is selected, only show untagged notes
+        if (hasUntagged && regularTagIds.length === 0) {
+          return hasNoTags;
+        }
+
+        return false;
+      });
     }
 
     return result.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
@@ -576,6 +648,130 @@ export function NotesTab({ isLoading }) {
                     </ListItemButton>
                   ))}
                 </>
+
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="overline" sx={{ px: 2 }}>
+                  Tags
+                </Typography>
+                {/* Untagged option */}
+                <ListItemButton
+                  selected={notesSelectedTagIds.includes(UNTAGGED_ID)}
+                  onClick={() => {
+                    handleTagClick(UNTAGGED_ID);
+                    dispatch(setNotesActiveMobileView("notes"));
+                  }}
+                  sx={{
+                    borderRadius: 1,
+                    mb: 0.5,
+                    mx: 1,
+                    py: 0.75,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 12,
+                      height: 12,
+                      bgcolor: "transparent",
+                      borderWidth: 1.5,
+                      borderStyle: "solid",
+                      borderColor: notesSelectedTagIds.includes(UNTAGGED_ID)
+                        ? "text.primary"
+                        : "text.secondary",
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                      mr: 1,
+                    }}
+                  />
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: "0.875rem",
+                      fontWeight: notesSelectedTagIds.includes(UNTAGGED_ID) ? 600 : 400,
+                      color: notesSelectedTagIds.includes(UNTAGGED_ID)
+                        ? "text.primary"
+                        : "text.secondary",
+                      flex: 1,
+                    }}
+                  >
+                    Untagged
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: "0.75rem",
+                      color: "text.secondary",
+                      ml: 0.5,
+                    }}
+                  >
+                    ({untaggedCount})
+                  </Typography>
+                </ListItemButton>
+                {/* Tags list */}
+                {tags.length === 0 ? (
+                  <Box sx={{ px: 2, py: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      No tags
+                    </Typography>
+                  </Box>
+                ) : (
+                  tags.map(tag => {
+                    const isSelected = notesSelectedTagIds.includes(tag.id);
+                    const displayColor = mapColorToTheme(tag.color, themePalette) || tag.color;
+                    const count = tagCounts.get(tag.id) || 0;
+
+                    return (
+                      <ListItemButton
+                        key={tag.id}
+                        selected={isSelected}
+                        onClick={() => {
+                          handleTagClick(tag.id);
+                          dispatch(setNotesActiveMobileView("notes"));
+                        }}
+                        sx={{
+                          borderRadius: 1,
+                          mb: 0.5,
+                          mx: 1,
+                          py: 0.75,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: "50%",
+                            bgcolor: displayColor,
+                            flexShrink: 0,
+                            mr: 1,
+                          }}
+                        />
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontSize: "0.875rem",
+                            fontWeight: isSelected ? 600 : 400,
+                            color: isSelected ? "text.primary" : "text.secondary",
+                            flex: 1,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {tag.name}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: "0.75rem",
+                            color: "text.secondary",
+                            ml: 0.5,
+                          }}
+                        >
+                          ({count})
+                        </Typography>
+                      </ListItemButton>
+                    );
+                  })
+                )}
 
                 <Divider sx={{ my: 1 }} />
                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 2 }}>
@@ -831,6 +1027,124 @@ export function NotesTab({ isLoading }) {
                     <ListItemText primary={sf.name} />
                   </ListItemButton>
                 ))}
+
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="overline" sx={{ px: 2, color: "text.secondary" }}>
+                  Tags
+                </Typography>
+                {/* Untagged option */}
+                <ListItemButton
+                  selected={notesSelectedTagIds.includes(UNTAGGED_ID)}
+                  onClick={() => handleTagClick(UNTAGGED_ID)}
+                  sx={{
+                    borderRadius: 1,
+                    mb: 0.5,
+                    mx: 1,
+                    py: 0.75,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 12,
+                      height: 12,
+                      bgcolor: "transparent",
+                      borderWidth: 1.5,
+                      borderStyle: "solid",
+                      borderColor: notesSelectedTagIds.includes(UNTAGGED_ID)
+                        ? "text.primary"
+                        : "text.secondary",
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                      mr: 1,
+                    }}
+                  />
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: "0.875rem",
+                      fontWeight: notesSelectedTagIds.includes(UNTAGGED_ID) ? 600 : 400,
+                      color: notesSelectedTagIds.includes(UNTAGGED_ID)
+                        ? "text.primary"
+                        : "text.secondary",
+                      flex: 1,
+                    }}
+                  >
+                    Untagged
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: "0.75rem",
+                      color: "text.secondary",
+                      ml: 0.5,
+                    }}
+                  >
+                    ({untaggedCount})
+                  </Typography>
+                </ListItemButton>
+                {/* Tags list */}
+                {tags.length === 0 ? (
+                  <Box sx={{ px: 2, py: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      No tags
+                    </Typography>
+                  </Box>
+                ) : (
+                  tags.map(tag => {
+                    const isSelected = notesSelectedTagIds.includes(tag.id);
+                    const displayColor = mapColorToTheme(tag.color, themePalette) || tag.color;
+                    const count = tagCounts.get(tag.id) || 0;
+
+                    return (
+                      <ListItemButton
+                        key={tag.id}
+                        selected={isSelected}
+                        onClick={() => handleTagClick(tag.id)}
+                        sx={{
+                          borderRadius: 1,
+                          mb: 0.5,
+                          mx: 1,
+                          py: 0.75,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: "50%",
+                            bgcolor: displayColor,
+                            flexShrink: 0,
+                            mr: 1,
+                          }}
+                        />
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontSize: "0.875rem",
+                            fontWeight: isSelected ? 600 : 400,
+                            color: isSelected ? "text.primary" : "text.secondary",
+                            flex: 1,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {tag.name}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: "0.75rem",
+                            color: "text.secondary",
+                            ml: 0.5,
+                          }}
+                        >
+                          ({count})
+                        </Typography>
+                      </ListItemButton>
+                    );
+                  })
+                )}
 
                 <Divider sx={{ my: 1 }} />
                 <Typography variant="overline" sx={{ px: 2, color: "text.secondary" }}>
