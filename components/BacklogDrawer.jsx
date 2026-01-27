@@ -53,20 +53,6 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
 
   const backlogTasks = taskFilters.backlogTasks;
 
-  // Filter tags to only show those used by backlog tasks
-  const backlogTags = useMemo(() => {
-    // Extract all tag IDs used by backlog tasks
-    const tagIdsInBacklog = new Set();
-    backlogTasks.forEach(task => {
-      task.tags?.forEach(tag => {
-        tagIdsInBacklog.add(tag.id);
-      });
-    });
-
-    // Filter tags to only include those used in backlog
-    return tags.filter(tag => tagIdsInBacklog.has(tag.id));
-  }, [tags, backlogTasks]);
-
   // Filter tasks by search term and tags
   const filteredTasks = useMemo(() => {
     let result = backlogTasks;
@@ -229,7 +215,8 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
       {/* Tag Sidebar - Desktop Only */}
       {!isMobile && (
         <BacklogTagSidebar
-          tags={backlogTags}
+          tags={tags}
+          tasks={backlogTasks}
           selectedTagIds={selectedTagIds}
           onTagSelect={handleTagSelect}
           onTagDeselect={handleTagDeselect}
@@ -290,7 +277,8 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
 
           <TaskSearchInput
             onSearchChange={term => dispatch(setBacklogSearchTermAction(term))}
-            tags={backlogTags}
+            tags={tags}
+            tasks={backlogTasks}
             selectedTagIds={selectedTagIds}
             onTagSelect={handleTagSelect}
             onTagDeselect={handleTagDeselect}

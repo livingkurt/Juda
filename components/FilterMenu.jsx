@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Box,
   Stack,
@@ -36,6 +36,7 @@ const iconMap = {
 
 export const FilterMenu = ({
   tags = [],
+  tasks = [],
   selectedTagIds = [],
   onTagSelect,
   onTagDeselect,
@@ -60,6 +61,32 @@ export const FilterMenu = ({
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
+
+  // Calculate tag counts based on tasks
+  const tagCounts = useMemo(() => {
+    const counts = new Map();
+    
+    // Initialize all tags with 0
+    tags.forEach(tag => {
+      counts.set(tag.id, 0);
+    });
+    
+    // Count tasks for each tag
+    tasks.forEach(task => {
+      if (task.tags && task.tags.length > 0) {
+        task.tags.forEach(tag => {
+          counts.set(tag.id, (counts.get(tag.id) || 0) + 1);
+        });
+      }
+    });
+    
+    return counts;
+  }, [tags, tasks]);
+
+  // Calculate untagged count
+  const untaggedCount = useMemo(() => {
+    return tasks.filter(task => !task.tags || task.tags.length === 0).length;
+  }, [tasks]);
 
   const selectedTags = tags.filter(t => selectedTagIds.includes(t.id));
   const availableTags = tags.filter(t => !selectedTagIds.includes(t.id));
@@ -196,36 +223,50 @@ export const FilterMenu = ({
                   mr: 1,
                 }}
               />
-              <Typography variant="body2">Untagged</Typography>
+              <Typography variant="body2" sx={{ flex: 1 }}>
+                Untagged
+              </Typography>
+              <Typography variant="caption" sx={{ color: "text.secondary", ml: 1 }}>
+                ({untaggedCount})
+              </Typography>
             </MenuItem>
           )}
 
-          {/* Available tags */}
-          {availableTags.length > 0 && (
+          {/* Available tags - show all tags, not just available ones */}
+          {tags.length > 0 && (
             <>
-              {availableTags.map(tag => (
-                <MenuItem
-                  key={tag.id}
-                  onClick={() => handleTagToggle(tag.id)}
-                  sx={{
-                    "&:hover": {
-                      bgcolor: "action.hover",
-                    },
-                  }}
-                >
-                  <Checkbox checked={selectedTagIds.includes(tag.id)} size="small" />
-                  <Box
+              {tags.map(tag => {
+                const count = tagCounts.get(tag.id) || 0;
+                const isSelected = selectedTagIds.includes(tag.id);
+                return (
+                  <MenuItem
+                    key={tag.id}
+                    onClick={() => handleTagToggle(tag.id)}
                     sx={{
-                      width: 12,
-                      height: 12,
-                      borderRadius: "50%",
-                      bgcolor: tag.color,
-                      mr: 1,
+                      "&:hover": {
+                        bgcolor: "action.hover",
+                      },
                     }}
-                  />
-                  <Typography variant="body2">{tag.name}</Typography>
-                </MenuItem>
-              ))}
+                  >
+                    <Checkbox checked={isSelected} size="small" />
+                    <Box
+                      sx={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        bgcolor: tag.color,
+                        mr: 1,
+                      }}
+                    />
+                    <Typography variant="body2" sx={{ flex: 1 }}>
+                      {tag.name}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "text.secondary", ml: 1 }}>
+                      ({count})
+                    </Typography>
+                  </MenuItem>
+                );
+              })}
             </>
           )}
 
@@ -278,7 +319,7 @@ export const FilterMenu = ({
             </Box>
           )}
 
-          {tags.length === 0 && !newTagName && selectedTagIds.length === 0 && (
+          {tags.length === 0 && !newTagName && (
             <Typography variant="body2" sx={{ px: 1, py: 2, color: "text.secondary", textAlign: "center" }}>
               No tags yet. Create one above!
             </Typography>

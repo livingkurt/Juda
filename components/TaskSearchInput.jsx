@@ -10,6 +10,7 @@ export const TaskSearchInput = memo(function TaskSearchInput({
   placeholder = "Search tasks...",
   // Filter menu props (optional - if not provided, no filter menu is shown)
   tags,
+  tasks = [],
   selectedTagIds,
   onTagSelect,
   onTagDeselect,
@@ -76,6 +77,7 @@ export const TaskSearchInput = memo(function TaskSearchInput({
       {showFilterMenu && (
         <FilterMenu
           tags={tags}
+          tasks={tasks}
           selectedTagIds={selectedTagIds}
           onTagSelect={onTagSelect}
           onTagDeselect={onTagDeselect}

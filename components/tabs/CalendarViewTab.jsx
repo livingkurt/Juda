@@ -94,6 +94,9 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
     ? tasks
     : tasks.filter(task => !task.recurrence || task.recurrence.type === "none");
 
+  // Tasks for tag counts (before search/tag/completed filtering)
+  const tasksForTagCounts = filteredTasks;
+
   // Filter by search term
   if (calendarSearchTerm.trim()) {
     const lowerSearch = calendarSearchTerm.toLowerCase();
@@ -277,6 +280,7 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
           <TaskSearchInput
             onSearchChange={setCalendarSearchTerm}
             tags={tags}
+            tasks={tasksForTagCounts}
             selectedTagIds={calendarSelectedTagIds}
             onTagSelect={handleCalendarTagSelect}
             onTagDeselect={handleCalendarTagDeselect}

@@ -28,6 +28,7 @@ const iconMap = {
 
 export const BacklogTagSidebar = ({
   tags = [],
+  tasks = [],
   selectedTagIds = [],
   onTagSelect,
   onTagDeselect,
@@ -47,20 +48,31 @@ export const BacklogTagSidebar = ({
     return PRIORITY_LEVELS.filter(level => level.value !== null);
   }, []);
 
-  // Calculate sidebar width based on longest item name (tags, priorities, "Untagged", "Priority Sort")
-  const sidebarWidth = useMemo(() => {
-    if (!isOpen) return 40; // Collapsed width
-    const tagLengths = tags.map(t => t.name.length);
-    const priorityLengths = filterablePriorities.map(p => p.label.length);
-    const maxLength = Math.max(...tagLengths, ...priorityLengths, "Untagged".length, "Priority Sort".length, 0);
-    const minWidth = 80;
-    const maxWidth = 250;
-    // Account for: left padding (8px) + icon/dot (12px) + spacing (8px) + text + right padding (8px)
-    // Use ~7px per character for "sm" font size to be safe
-    const textWidth = maxLength * 7;
-    const calculatedWidth = Math.max(minWidth, Math.min(maxWidth, textWidth + 60));
-    return calculatedWidth;
-  }, [tags, filterablePriorities, isOpen]);
+  // Calculate tag counts based on tasks
+  const tagCounts = useMemo(() => {
+    const counts = new Map();
+
+    // Initialize all tags with 0
+    tags.forEach(tag => {
+      counts.set(tag.id, 0);
+    });
+
+    // Count tasks for each tag
+    tasks.forEach(task => {
+      if (task.tags && task.tags.length > 0) {
+        task.tags.forEach(tag => {
+          counts.set(tag.id, (counts.get(tag.id) || 0) + 1);
+        });
+      }
+    });
+
+    return counts;
+  }, [tags, tasks]);
+
+  // Calculate untagged count
+  const untaggedCount = useMemo(() => {
+    return tasks.filter(task => !task.tags || task.tags.length === 0).length;
+  }, [tasks]);
 
   const handleTagClick = useCallback(
     tagId => {
@@ -99,9 +111,8 @@ export const BacklogTagSidebar = ({
   return (
     <Box
       sx={{
-        width: sidebarWidth,
-        minWidth: sidebarWidth,
-        maxWidth: sidebarWidth,
+        width: isOpen ? "auto" : 40,
+        minWidth: isOpen ? "auto" : 40,
         height: "100%",
         borderRight: 1,
         borderColor: "divider",
@@ -144,7 +155,7 @@ export const BacklogTagSidebar = ({
           flexDirection: "column",
         }}
       >
-        <List dense sx={{ flex: 1, overflowY: "auto", overflowX: "hidden", py: 0.5, px: isOpen ? 1 : 0.5 }}>
+        <List dense sx={{ flex: 1, overflowY: "auto", overflowX: "auto", py: 0.5, px: isOpen ? 1 : 0.5 }}>
           {/* Untagged option */}
           <ListItemButton
             selected={selectedTagIds.includes(UNTAGGED_ID)}
@@ -154,6 +165,7 @@ export const BacklogTagSidebar = ({
               mb: 0.5,
               px: isOpen ? 1 : 0.5,
               py: 0.75,
+              justifyContent: isOpen ? "flex-start" : "center",
             }}
             title={isOpen ? undefined : "Untagged"}
           >
@@ -167,25 +179,48 @@ export const BacklogTagSidebar = ({
                 borderColor: selectedTagIds.includes(UNTAGGED_ID) ? "text.primary" : "text.secondary",
                 borderRadius: "50%",
                 flexShrink: 0,
-                mr: isOpen ? 1 : 0.5,
+                mr: isOpen ? 1 : 0,
               }}
             />
             <Collapse orientation="horizontal" in={isOpen} timeout={400}>
-              <Typography
-                variant="body2"
+              <Box
                 sx={{
-                  fontSize: "0.875rem",
-                  fontWeight: selectedTagIds.includes(UNTAGGED_ID) ? 600 : 400,
-                  color: selectedTagIds.includes(UNTAGGED_ID) ? "text.primary" : "text.secondary",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
+                  display: "flex",
+                  alignItems: "center",
                   whiteSpace: "nowrap",
-                  flex: 1,
                   minWidth: 0,
+                  flex: 1,
                 }}
               >
-                Untagged
-              </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontSize: "0.875rem",
+                    fontWeight: selectedTagIds.includes(UNTAGGED_ID) ? 600 : 400,
+                    color: selectedTagIds.includes(UNTAGGED_ID) ? "text.primary" : "text.secondary",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  Untagged
+                </Typography>
+                {isOpen && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: "0.75rem",
+                      color: "text.secondary",
+                      ml: 0.5,
+                      flexShrink: 0,
+                    }}
+                  >
+                    ({untaggedCount})
+                  </Typography>
+                )}
+              </Box>
             </Collapse>
           </ListItemButton>
 
@@ -201,6 +236,7 @@ export const BacklogTagSidebar = ({
             tags.map(tag => {
               const isSelected = selectedTagIds.includes(tag.id);
               const displayColor = mapColorToTheme(tag.color, themePalette) || tag.color;
+              const count = tagCounts.get(tag.id) || 0;
 
               return (
                 <ListItemButton
@@ -212,6 +248,7 @@ export const BacklogTagSidebar = ({
                     mb: 0.5,
                     px: isOpen ? 1 : 0.5,
                     py: 0.75,
+                    justifyContent: isOpen ? "flex-start" : "center",
                   }}
                   title={isOpen ? undefined : tag.name}
                 >
@@ -222,25 +259,48 @@ export const BacklogTagSidebar = ({
                       borderRadius: "50%",
                       bgcolor: displayColor,
                       flexShrink: 0,
-                      mr: isOpen ? 1 : 0.5,
+                      mr: isOpen ? 1 : 0,
                     }}
                   />
                   <Collapse orientation="horizontal" in={isOpen} timeout={400}>
-                    <Typography
-                      variant="body2"
+                    <Box
                       sx={{
-                        fontSize: "0.875rem",
-                        fontWeight: isSelected ? 600 : 400,
-                        color: isSelected ? "text.primary" : "text.secondary",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
+                        display: "flex",
+                        alignItems: "center",
                         whiteSpace: "nowrap",
-                        flex: 1,
                         minWidth: 0,
+                        flex: 1,
                       }}
                     >
-                      {tag.name}
-                    </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: "0.875rem",
+                          fontWeight: isSelected ? 600 : 400,
+                          color: isSelected ? "text.primary" : "text.secondary",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                      >
+                        {tag.name}
+                      </Typography>
+                      {isOpen && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: "0.75rem",
+                            color: "text.secondary",
+                            ml: 0.5,
+                            flexShrink: 0,
+                          }}
+                        >
+                          ({count})
+                        </Typography>
+                      )}
+                    </Box>
                   </Collapse>
                 </ListItemButton>
               );
@@ -265,6 +325,7 @@ export const BacklogTagSidebar = ({
                       mb: 0.5,
                       px: isOpen ? 1 : 0.5,
                       py: 0.75,
+                      justifyContent: isOpen ? "flex-start" : "center",
                     }}
                     title={isOpen ? undefined : level.label}
                   >
@@ -274,7 +335,7 @@ export const BacklogTagSidebar = ({
                         sx={{
                           color: level.color,
                           flexShrink: 0,
-                          mr: isOpen ? 1 : 0.5,
+                          mr: isOpen ? 1 : 0,
                           width: 12,
                           height: 12,
                         }}
@@ -287,7 +348,7 @@ export const BacklogTagSidebar = ({
                           borderRadius: "50%",
                           bgcolor: level.color,
                           flexShrink: 0,
-                          mr: isOpen ? 1 : 0.5,
+                          mr: isOpen ? 1 : 0,
                         }}
                       />
                     )}
@@ -326,6 +387,7 @@ export const BacklogTagSidebar = ({
                   mb: 0.5,
                   px: isOpen ? 1 : 0.5,
                   py: 0.75,
+                  justifyContent: isOpen ? "flex-start" : "center",
                 }}
                 title={isOpen ? undefined : "Priority Sort"}
               >
@@ -333,7 +395,7 @@ export const BacklogTagSidebar = ({
                   fontSize="small"
                   sx={{
                     flexShrink: 0,
-                    mr: isOpen ? 1 : 0.5,
+                    mr: isOpen ? 1 : 0,
                     width: 12,
                     height: 12,
                     color: sortByPriority ? "primary.main" : "text.secondary",
