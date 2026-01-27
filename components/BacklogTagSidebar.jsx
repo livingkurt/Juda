@@ -1,32 +1,66 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { Box, Typography, IconButton, List, ListItemButton, Collapse } from "@mui/material";
-import { ChevronLeft, ChevronRight } from "@mui/icons-material";
+import { Box, Typography, IconButton, List, ListItemButton, Collapse, Divider } from "@mui/material";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Sort,
+  KeyboardArrowDown,
+  KeyboardArrowUp,
+  Remove,
+  PriorityHigh,
+} from "@mui/icons-material";
 import { useTheme } from "@/hooks/useTheme";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
 import { mapColorToTheme } from "@/lib/themes";
+import { PRIORITY_LEVELS } from "@/lib/constants";
 
 // Special identifier for untagged items
 export const UNTAGGED_ID = "__UNTAGGED__";
 
-export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect, onTagDeselect, isOpen, onToggle }) => {
+const iconMap = {
+  KeyboardArrowDown,
+  KeyboardArrowUp,
+  Remove,
+  PriorityHigh,
+};
+
+export const BacklogTagSidebar = ({
+  tags = [],
+  selectedTagIds = [],
+  onTagSelect,
+  onTagDeselect,
+  isOpen,
+  onToggle,
+  selectedPriorities = [],
+  onPrioritySelect,
+  onPriorityDeselect,
+  sortByPriority = false,
+  onSortToggle,
+}) => {
   const { theme } = useTheme();
   const { colorMode } = useColorModeSync();
 
-  // Calculate sidebar width based on longest tag name (including "Untagged")
+  // Filter priorities to exclude null (None)
+  const filterablePriorities = useMemo(() => {
+    return PRIORITY_LEVELS.filter(level => level.value !== null);
+  }, []);
+
+  // Calculate sidebar width based on longest item name (tags, priorities, "Untagged", "Priority Sort")
   const sidebarWidth = useMemo(() => {
     if (!isOpen) return 40; // Collapsed width
     const tagLengths = tags.map(t => t.name.length);
-    const maxTagLength = Math.max(...tagLengths, "Untagged".length, 0);
+    const priorityLengths = filterablePriorities.map(p => p.label.length);
+    const maxLength = Math.max(...tagLengths, ...priorityLengths, "Untagged".length, "Priority Sort".length, 0);
     const minWidth = 80;
     const maxWidth = 250;
-    // Account for: left padding (8px) + dot (12px) + spacing (8px) + text + right padding (8px)
+    // Account for: left padding (8px) + icon/dot (12px) + spacing (8px) + text + right padding (8px)
     // Use ~7px per character for "sm" font size to be safe
-    const textWidth = maxTagLength * 7;
+    const textWidth = maxLength * 7;
     const calculatedWidth = Math.max(minWidth, Math.min(maxWidth, textWidth + 60));
     return calculatedWidth;
-  }, [tags, isOpen]);
+  }, [tags, filterablePriorities, isOpen]);
 
   const handleTagClick = useCallback(
     tagId => {
@@ -41,6 +75,21 @@ export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect,
       }
     },
     [selectedTagIds, onTagSelect, onTagDeselect]
+  );
+
+  const handlePriorityClick = useCallback(
+    priority => {
+      const isSelected = selectedPriorities.includes(priority);
+
+      if (isSelected) {
+        // Toggle off - remove from selection
+        onPriorityDeselect(priority);
+      } else {
+        // Toggle on - add to selection
+        onPrioritySelect(priority);
+      }
+    },
+    [selectedPriorities, onPrioritySelect, onPriorityDeselect]
   );
 
   // Map tag colors to theme
@@ -116,6 +165,7 @@ export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect,
                 borderWidth: 1.5,
                 borderStyle: "solid",
                 borderColor: selectedTagIds.includes(UNTAGGED_ID) ? "text.primary" : "text.secondary",
+                borderRadius: "50%",
                 flexShrink: 0,
                 mr: isOpen ? 1 : 0.5,
               }}
@@ -195,6 +245,119 @@ export const BacklogTagSidebar = ({ tags = [], selectedTagIds = [], onTagSelect,
                 </ListItemButton>
               );
             })
+          )}
+
+          {/* Priority Section */}
+          {filterablePriorities.length > 0 && (
+            <>
+              <Divider sx={{ my: 1 }} />
+              {filterablePriorities.map(level => {
+                const IconComponent = level.icon ? iconMap[level.icon] : null;
+                const isSelected = selectedPriorities.includes(level.value);
+
+                return (
+                  <ListItemButton
+                    key={level.value}
+                    selected={isSelected}
+                    onClick={() => handlePriorityClick(level.value)}
+                    sx={{
+                      borderRadius: 1,
+                      mb: 0.5,
+                      px: isOpen ? 1 : 0.5,
+                      py: 0.75,
+                    }}
+                    title={isOpen ? undefined : level.label}
+                  >
+                    {IconComponent ? (
+                      <IconComponent
+                        fontSize="small"
+                        sx={{
+                          color: level.color,
+                          flexShrink: 0,
+                          mr: isOpen ? 1 : 0.5,
+                          width: 12,
+                          height: 12,
+                        }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: "50%",
+                          bgcolor: level.color,
+                          flexShrink: 0,
+                          mr: isOpen ? 1 : 0.5,
+                        }}
+                      />
+                    )}
+                    <Collapse orientation="horizontal" in={isOpen} timeout={400}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: "0.875rem",
+                          fontWeight: isSelected ? 600 : 400,
+                          color: isSelected ? "text.primary" : "text.secondary",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                      >
+                        {level.label}
+                      </Typography>
+                    </Collapse>
+                  </ListItemButton>
+                );
+              })}
+            </>
+          )}
+
+          {/* Priority Sort Toggle */}
+          {onSortToggle && (
+            <>
+              <Divider sx={{ my: 1 }} />
+              <ListItemButton
+                selected={sortByPriority}
+                onClick={onSortToggle}
+                sx={{
+                  borderRadius: 1,
+                  mb: 0.5,
+                  px: isOpen ? 1 : 0.5,
+                  py: 0.75,
+                }}
+                title={isOpen ? undefined : "Priority Sort"}
+              >
+                <Sort
+                  fontSize="small"
+                  sx={{
+                    flexShrink: 0,
+                    mr: isOpen ? 1 : 0.5,
+                    width: 12,
+                    height: 12,
+                    color: sortByPriority ? "primary.main" : "text.secondary",
+                  }}
+                />
+                <Collapse orientation="horizontal" in={isOpen} timeout={400}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: "0.875rem",
+                      fontWeight: sortByPriority ? 600 : 400,
+                      color: sortByPriority ? "text.primary" : "text.secondary",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
+                    Priority Sort
+                  </Typography>
+                </Collapse>
+              </ListItemButton>
+            </>
           )}
         </List>
       </Box>
