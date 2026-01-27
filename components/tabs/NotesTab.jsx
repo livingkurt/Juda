@@ -19,9 +19,11 @@ import {
   Collapse,
   Divider,
   useMediaQuery,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { Add, Description, Folder, Tag, ArrowBack, Edit } from "@mui/icons-material";
+import { Add, Description, Folder, Tag, ArrowBack, Edit, Assignment } from "@mui/icons-material";
 import { NoteEditor } from "@/components/NoteEditor";
 import { TagChip } from "@/components/TagChip";
 import { QuickTaskInput } from "@/components/QuickTaskInput";
@@ -53,6 +55,7 @@ import { useGetFoldersQuery } from "@/lib/store/api/foldersApi";
 import { useGetSmartFoldersQuery } from "@/lib/store/api/smartFoldersApi";
 import { useGetTagsQuery, useCreateTagMutation, useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
 import { useLoadingTab } from "@/components/MainTabs";
+import { useDialogState } from "@/hooks/useDialogState";
 
 // Memoized note list item component to prevent unnecessary re-renders
 const NoteListItem = memo(function NoteListItem({ note, isSelected, onSelect }) {
@@ -126,6 +129,9 @@ export function NotesTab({ isLoading }) {
   const selectedFolderId = useSelector(state => state.ui.selectedFolderId);
   const selectedSmartFolderId = useSelector(state => state.ui.selectedSmartFolderId);
   const notesSelectedTagIds = useSelector(state => state.ui.notesSelectedTagIds || []);
+
+  // Dialog state
+  const dialogState = useDialogState();
 
   // RTK Query
   const { data: tasks = [] } = useGetTasksQuery();
@@ -285,11 +291,12 @@ export function NotesTab({ isLoading }) {
 
   const handleCreateNote = useCallback(
     async titleOverride => {
-      if (!sections[0]?.id) return;
-      const title = titleOverride?.trim() || "Untitled Note";
+      // Allow creating notes without a section (sectionId can be null)
+      // Handle both cases: when called with a string (from QuickTaskInput) or without args (from button click)
+      const title = typeof titleOverride === "string" && titleOverride.trim() ? titleOverride.trim() : "Untitled Note";
       const result = await createTask({
         title,
-        sectionId: sections[0]?.id,
+        sectionId: sections[0]?.id || null,
         completionType: "note",
         content: "",
         folderId: selectedFolderId || null,
@@ -354,6 +361,10 @@ export function NotesTab({ isLoading }) {
   const handleUpdateNote = async (taskId, updates) => {
     await updateTask({ id: taskId, ...updates }).unwrap();
   };
+
+  const handleCreateTask = useCallback(() => {
+    dialogState.openTaskDialog();
+  }, [dialogState]);
 
   if (tabLoading) {
     return (
@@ -579,29 +590,47 @@ export function NotesTab({ isLoading }) {
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Button
-            size="small"
-            variant={notesSidebarOpen ? "contained" : "outlined"}
-            color={notesSidebarOpen ? "primary" : "inherit"}
-            onClick={() => dispatch(toggleNotesSidebarOpen())}
-            startIcon={<Folder fontSize="small" />}
-          >
-            Folders
-          </Button>
-          <Button
-            size="small"
-            variant={notesListOpen ? "contained" : "outlined"}
-            color={notesListOpen ? "primary" : "inherit"}
-            onClick={() => dispatch(toggleNotesListOpen())}
-            startIcon={<Description fontSize="small" />}
-          >
-            Notes List
-          </Button>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <ToggleButtonGroup value={notesSidebarOpen ? "folders" : null} exclusive size="small" color="primary">
+            <ToggleButton
+              value="folders"
+              onClick={() => dispatch(toggleNotesSidebarOpen())}
+              sx={{
+                textTransform: "none",
+                minWidth: 100,
+                px: 1.5,
+              }}
+            >
+              <Folder fontSize="small" sx={{ mr: 0.5 }} />
+              Folders
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <ToggleButtonGroup value={notesListOpen ? "notes" : null} exclusive size="small" color="primary">
+            <ToggleButton
+              value="notes"
+              onClick={() => dispatch(toggleNotesListOpen())}
+              sx={{
+                textTransform: "none",
+                minWidth: 100,
+                px: 1.5,
+              }}
+            >
+              <Description fontSize="small" sx={{ mr: 0.5 }} />
+              Notes List
+            </ToggleButton>
+          </ToggleButtonGroup>
 
           <Box sx={{ flex: 1 }} />
 
-          <Button variant="contained" size="small" startIcon={<Add fontSize="small" />} onClick={handleCreateNote}>
+          <Button variant="contained" size="small" startIcon={<Assignment fontSize="small" />} onClick={handleCreateTask}>
+            New Task
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<Add fontSize="small" />}
+            onClick={() => handleCreateNote()}
+          >
             New Note
           </Button>
         </Stack>
