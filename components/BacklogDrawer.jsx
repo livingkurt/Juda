@@ -129,6 +129,26 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     [dispatch, selectedTagIds]
   );
 
+  const handlePrioritySelect = useCallback(
+    priority => {
+      if (!selectedPriorities.includes(priority)) {
+        dispatch(setBacklogSelectedPriorities([...selectedPriorities, priority]));
+      }
+    },
+    [dispatch, selectedPriorities]
+  );
+
+  const handlePriorityDeselect = useCallback(
+    priority => {
+      dispatch(setBacklogSelectedPriorities(selectedPriorities.filter(value => value !== priority)));
+    },
+    [dispatch, selectedPriorities]
+  );
+
+  const handleSortToggle = useCallback(() => {
+    dispatch(toggleBacklogSortByPriority());
+  }, [dispatch]);
+
   const handleSidebarToggle = useCallback(() => {
     dispatch(toggleBacklogTagSidebarOpen());
   }, [dispatch]);
@@ -177,6 +197,11 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
           onTagDeselect={handleTagDeselect}
           isOpen={sidebarOpen}
           onToggle={handleSidebarToggle}
+          selectedPriorities={selectedPriorities}
+          onPrioritySelect={handlePrioritySelect}
+          onPriorityDeselect={handlePriorityDeselect}
+          sortByPriority={sortByPriority}
+          onSortToggle={handleSortToggle}
         />
       )}
 
@@ -235,16 +260,10 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
               return await createTagMutation({ name, color }).unwrap();
             }}
             selectedPriorities={selectedPriorities}
-            onPrioritySelect={priority => {
-              if (!selectedPriorities.includes(priority)) {
-                dispatch(setBacklogSelectedPriorities([...selectedPriorities, priority]));
-              }
-            }}
-            onPriorityDeselect={priority =>
-              dispatch(setBacklogSelectedPriorities(selectedPriorities.filter(value => value !== priority)))
-            }
+            onPrioritySelect={handlePrioritySelect}
+            onPriorityDeselect={handlePriorityDeselect}
             sortByPriority={sortByPriority}
-            onSortToggle={() => dispatch(toggleBacklogSortByPriority())}
+            onSortToggle={handleSortToggle}
           />
           {/* New Task Input */}
           <Box sx={{ mt: 1, width: "100%", maxWidth: "100%" }}>
