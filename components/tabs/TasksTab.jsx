@@ -12,6 +12,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setMobileActiveView, setBacklogWidth } from "@/lib/store/slices/uiSlice";
 import { createDroppableId, createDraggableId, extractTaskId } from "@/lib/dragHelpers";
 import { timeToMinutes, minutesToTime, formatLocalDate } from "@/lib/utils";
+import { getPriorityConfig } from "@/lib/constants";
 import { useViewState } from "@/hooks/useViewState";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -47,6 +48,10 @@ export function TasksTab() {
   const mainContentView = useSelector(state => state.ui.mainContentView);
   const mobileActiveView = useSelector(state => state.ui.mobileActiveView);
   const backlogWidth = useSelector(state => state.ui.backlogWidth);
+  const backlogSortByPriority = useSelector(state => state.ui.backlogSortByPriority);
+  const backlogSearchTerm = useSelector(state => state.ui.backlogSearchTerm);
+  const backlogSelectedTagIds = useSelector(state => state.ui.backlogSelectedTagIds);
+  const backlogSelectedPriorities = useSelector(state => state.ui.backlogSelectedPriorities);
 
   // View state
   const viewState = useViewState();
@@ -258,14 +263,82 @@ export function TasksTab() {
 
       // Backlog to Backlog (reorder within backlog)
       if (sourceId === "backlog" && destId === "backlog") {
-        const backlogTasksList = [...taskFilters.backlogTasks].sort((a, b) => (a.order || 0) - (b.order || 0));
-        const taskIndex = backlogTasksList.findIndex(t => t.id === taskId);
+        // Get filtered tasks (same logic as BacklogDrawer uses)
+        let filteredBacklogTasks = [...taskFilters.backlogTasks];
+
+        // Apply same filters as BacklogDrawer
+        if (backlogSearchTerm.trim()) {
+          const lowerSearch = backlogSearchTerm.toLowerCase();
+          filteredBacklogTasks = filteredBacklogTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
+        }
+
+        if (backlogSelectedTagIds.length > 0) {
+          const hasUntaggedFilter = backlogSelectedTagIds.includes("__UNTAGGED__");
+          const regularTagIds = backlogSelectedTagIds.filter(id => id !== "__UNTAGGED__");
+
+          if (hasUntaggedFilter && regularTagIds.length > 0) {
+            filteredBacklogTasks = filteredBacklogTasks.filter(
+              task => !task.tags || task.tags.length === 0 || task.tags.some(tag => regularTagIds.includes(tag.id))
+            );
+          } else if (hasUntaggedFilter) {
+            filteredBacklogTasks = filteredBacklogTasks.filter(task => !task.tags || task.tags.length === 0);
+          } else if (regularTagIds.length > 0) {
+            filteredBacklogTasks = filteredBacklogTasks.filter(task =>
+              task.tags?.some(tag => regularTagIds.includes(tag.id))
+            );
+          }
+        }
+
+        if (backlogSelectedPriorities.length > 0) {
+          filteredBacklogTasks = filteredBacklogTasks.filter(task => backlogSelectedPriorities.includes(task.priority));
+        }
+
+        // Sort tasks (same as BacklogDrawer)
+        let sortedTasks = [...filteredBacklogTasks];
+        if (backlogSortByPriority) {
+          sortedTasks.sort((a, b) => {
+            const priorityA = getPriorityConfig(a.priority).sortOrder;
+            const priorityB = getPriorityConfig(b.priority).sortOrder;
+            if (priorityA !== priorityB) return priorityA - priorityB;
+            return (a.order || 0) - (b.order || 0);
+          });
+        } else {
+          sortedTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
+        }
+
+        const taskIndex = sortedTasks.findIndex(t => t.id === taskId);
         if (taskIndex === -1) return;
 
-        const [removed] = backlogTasksList.splice(taskIndex, 1);
-        backlogTasksList.splice(destination.index, 0, removed);
+        const [removed] = sortedTasks.splice(taskIndex, 1);
+        sortedTasks.splice(destination.index, 0, removed);
 
-        const updates = backlogTasksList.map((t, idx) => ({ id: t.id, order: idx }));
+        // If priority sort is on, determine new priority based on position
+        if (backlogSortByPriority && sortedTasks.length > 0) {
+          // Find which priority section the task is now in
+          // Look at the task before and after to determine priority
+          let newPriority = task.priority; // Default to current priority
+
+          if (destination.index > 0) {
+            // Check the task before to see what priority section we're in
+            const prevTask = sortedTasks[destination.index - 1];
+            newPriority = prevTask.priority;
+          } else if (destination.index < sortedTasks.length - 1) {
+            // Check the task after
+            const nextTask = sortedTasks[destination.index + 1];
+            newPriority = nextTask.priority;
+          }
+
+          // If priority changed, update it
+          if (newPriority !== task.priority) {
+            updateTaskMutation({
+              id: taskId,
+              priority: newPriority,
+            });
+          }
+        }
+
+        // Reorder tasks based on their new positions
+        const updates = sortedTasks.map((t, idx) => ({ id: t.id, order: idx }));
         batchReorderTasksMutation(updates);
         return;
       }
@@ -489,6 +562,10 @@ export function TasksTab() {
       updateTaskMutation,
       getSectionDropTime,
       reorderTask,
+      backlogSearchTerm,
+      backlogSelectedTagIds,
+      backlogSelectedPriorities,
+      backlogSortByPriority,
     ]
   );
 

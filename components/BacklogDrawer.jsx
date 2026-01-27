@@ -14,7 +14,8 @@ import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
-import { getPriorityConfig } from "@/lib/constants";
+import { getPriorityConfig, PRIORITY_LEVELS } from "@/lib/constants";
+import { KeyboardArrowDown, KeyboardArrowUp, Remove, PriorityHigh } from "@mui/icons-material";
 import {
   setBacklogSearchTerm as setBacklogSearchTermAction,
   setBacklogSelectedTagIds,
@@ -176,6 +177,33 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     [filteredTasks, createDraggableId]
   );
 
+  // Group tasks by priority when priority sort is on
+  const tasksGroupedByPriority = useMemo(() => {
+    if (!sortByPriority) {
+      return null; // Don't group when priority sort is off
+    }
+
+    const groups = {};
+    tasksWithIds.forEach((task, index) => {
+      const priority = task.priority || null;
+      if (!groups[priority]) {
+        groups[priority] = [];
+      }
+      groups[priority].push({ ...task, originalIndex: index });
+    });
+
+    // Sort groups by priority order (urgent -> high -> medium -> low -> none)
+    const sortedGroups = PRIORITY_LEVELS.filter(level => groups[level.value]?.length > 0)
+      .sort((a, b) => a.sortOrder - b.sortOrder) // Sort by sortOrder ascending (urgent=1 first)
+      .map(level => ({
+        priority: level.value,
+        label: level.label,
+        tasks: groups[level.value],
+      }));
+
+    return sortedGroups;
+  }, [tasksWithIds, sortByPriority]);
+
   return (
     <Box
       sx={{
@@ -310,17 +338,89 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                     Unscheduled Tasks
                   </Typography>
                   <Stack spacing={1} sx={{ px: { xs: 0.5, md: 1 }, width: "100%", maxWidth: "100%" }}>
-                    {tasksWithIds.map((task, index) => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        variant="backlog"
-                        index={index}
-                        containerId="backlog"
-                        draggableId={task.draggableId}
-                        viewDate={viewDate}
-                      />
-                    ))}
+                    {sortByPriority && tasksGroupedByPriority
+                      ? // Render grouped by priority with dividers
+                        tasksGroupedByPriority.map((group, groupIndex) => {
+                          const priorityConfig = getPriorityConfig(group.priority);
+                          const iconMap = {
+                            KeyboardArrowDown,
+                            KeyboardArrowUp,
+                            Remove,
+                            PriorityHigh,
+                          };
+                          const IconComponent = priorityConfig.icon ? iconMap[priorityConfig.icon] : null;
+
+                          return (
+                            <Box key={group.priority || "none"}>
+                              {groupIndex > 0 && (
+                                <Box
+                                  sx={{
+                                    my: 1.5,
+                                    mx: 1,
+                                    borderTop: 1,
+                                    borderColor: "divider",
+                                  }}
+                                />
+                              )}
+                              {/* Priority Label */}
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1,
+                                  px: 1,
+                                  py: 0.75,
+                                  mb: 0.5,
+                                }}
+                              >
+                                {IconComponent && (
+                                  <IconComponent
+                                    fontSize="small"
+                                    sx={{
+                                      color: priorityConfig.color || "text.secondary",
+                                      fontSize: "1rem",
+                                    }}
+                                  />
+                                )}
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    fontSize: "0.75rem",
+                                    fontWeight: 600,
+                                    color: priorityConfig.color || "text.secondary",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.05em",
+                                  }}
+                                >
+                                  {group.label}
+                                </Typography>
+                              </Box>
+                              {group.tasks.map(task => (
+                                <TaskItem
+                                  key={task.id}
+                                  task={task}
+                                  variant="backlog"
+                                  index={task.originalIndex}
+                                  containerId="backlog"
+                                  draggableId={task.draggableId}
+                                  viewDate={viewDate}
+                                />
+                              ))}
+                            </Box>
+                          );
+                        })
+                      : // Render normally when priority sort is off
+                        tasksWithIds.map((task, index) => (
+                          <TaskItem
+                            key={task.id}
+                            task={task}
+                            variant="backlog"
+                            index={index}
+                            containerId="backlog"
+                            draggableId={task.draggableId}
+                            viewDate={viewDate}
+                          />
+                        ))}
                     {provided.placeholder}
                     <QuickTaskInput
                       placeholder="New task..."
