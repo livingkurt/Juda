@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useCallback, memo } from "react";
+import { useMemo, useCallback, memo, useDeferredValue } from "react";
 import { Box, Stack, Typography, IconButton, Chip, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Droppable } from "@hello-pangea/dnd";
@@ -53,20 +53,26 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
 
   const backlogTasks = taskFilters.backlogTasks;
 
+  // Defer expensive filtering when removing filters (going from filtered to unfiltered)
+  // This keeps the UI responsive when removing filters
+  const deferredSelectedTagIds = useDeferredValue(selectedTagIds);
+  const deferredSelectedPriorities = useDeferredValue(selectedPriorities);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+
   // Filter tasks by search term and tags
   const filteredTasks = useMemo(() => {
     let result = backlogTasks;
 
     // Filter by search term
-    if (searchTerm.trim()) {
-      const lowerSearch = searchTerm.toLowerCase();
+    if (deferredSearchTerm.trim()) {
+      const lowerSearch = deferredSearchTerm.toLowerCase();
       result = result.filter(task => task.title.toLowerCase().includes(lowerSearch));
     }
 
     // Filter by tags
-    if (selectedTagIds.length > 0) {
-      const hasUntaggedFilter = selectedTagIds.includes(UNTAGGED_ID);
-      const regularTagIds = selectedTagIds.filter(id => id !== UNTAGGED_ID);
+    if (deferredSelectedTagIds.length > 0) {
+      const hasUntaggedFilter = deferredSelectedTagIds.includes(UNTAGGED_ID);
+      const regularTagIds = deferredSelectedTagIds.filter(id => id !== UNTAGGED_ID);
 
       if (hasUntaggedFilter && regularTagIds.length > 0) {
         // Show tasks that are untagged OR have one of the selected tags
@@ -83,8 +89,8 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     }
 
     // Filter by priority
-    if (selectedPriorities.length > 0) {
-      result = result.filter(task => selectedPriorities.includes(task.priority));
+    if (deferredSelectedPriorities.length > 0) {
+      result = result.filter(task => deferredSelectedPriorities.includes(task.priority));
     }
 
     // Sort by priority, then by order
@@ -98,7 +104,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     }
 
     return result;
-  }, [backlogTasks, searchTerm, selectedTagIds, selectedPriorities, sortByPriority]);
+  }, [backlogTasks, deferredSearchTerm, deferredSelectedTagIds, deferredSelectedPriorities, sortByPriority]);
 
   const handleTagSelect = useCallback(
     tagId => {
@@ -262,7 +268,8 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
             <Box display="flex" alignItems="center">
               <Chip
                 label={`${filteredTasks.length} task${filteredTasks.length !== 1 ? "s" : ""}${
-                  (searchTerm || selectedTagIds.length > 0) && filteredTasks.length !== backlogTasks.length
+                  (deferredSearchTerm || deferredSelectedTagIds.length > 0) &&
+                  filteredTasks.length !== backlogTasks.length
                     ? ` of ${backlogTasks.length}`
                     : ""
                 }`}
