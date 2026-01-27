@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, memo } from "react";
+import { useEffect, useMemo, memo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Box, CircularProgress, Stack } from "@mui/material";
 import dayjs from "dayjs";
@@ -10,6 +10,7 @@ import { JournalDayView } from "@/components/JournalDayView";
 import { JournalWeekView } from "@/components/JournalWeekView";
 import { JournalMonthView } from "@/components/JournalMonthView";
 import { JournalYearView } from "@/components/JournalYearView";
+import { JournalFilterMenu } from "@/components/JournalFilterMenu";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useCreateCompletionMutation, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
@@ -39,6 +40,10 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
   // Mutations
   const [createCompletionMutation] = useCreateCompletionMutation();
   const [updateCompletionMutation] = useUpdateCompletionMutation();
+
+  // Filter state
+  const [selectedCompletionTypes, setSelectedCompletionTypes] = useState([]);
+  const [selectedTaskIds, setSelectedTaskIds] = useState([]);
 
   const currentYear = dayjs().year();
 
@@ -106,13 +111,47 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
     return Array.from({ length: 5 }, (_, i) => current - i);
   }, [selectedDate]);
 
-  // Filter text input, selection, and reflection tasks (no tag filtering)
-  const journalTasks = useMemo(() => {
+  // Filter text input, selection, and reflection tasks
+  const allJournalTasks = useMemo(() => {
     return tasks.filter(
       task =>
         task.completionType === "text" || task.completionType === "selection" || task.completionType === "reflection"
     );
   }, [tasks]);
+
+  // Apply filters to journal tasks
+  const journalTasks = useMemo(() => {
+    let filtered = allJournalTasks;
+
+    // Filter by completion type
+    if (selectedCompletionTypes.length > 0) {
+      filtered = filtered.filter(task => selectedCompletionTypes.includes(task.completionType));
+    }
+
+    // Filter by specific task IDs
+    if (selectedTaskIds.length > 0) {
+      filtered = filtered.filter(task => selectedTaskIds.includes(task.id));
+    }
+
+    return filtered;
+  }, [allJournalTasks, selectedCompletionTypes, selectedTaskIds]);
+
+  // Filter handlers
+  const handleCompletionTypeSelect = type => {
+    setSelectedCompletionTypes(prev => [...prev, type]);
+  };
+
+  const handleCompletionTypeDeselect = type => {
+    setSelectedCompletionTypes(prev => prev.filter(t => t !== type));
+  };
+
+  const handleTaskSelect = taskId => {
+    setSelectedTaskIds(prev => [...prev, taskId]);
+  };
+
+  const handleTaskDeselect = taskId => {
+    setSelectedTaskIds(prev => prev.filter(id => id !== taskId));
+  };
 
   // Handle saving journal entries
   const handleSaveEntry = async (taskId, date, note) => {
@@ -217,11 +256,23 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           selectedDate={selectedDate}
           years={years}
           journalTasks={journalTasks}
+          allJournalTasks={allJournalTasks}
           currentYear={currentYear}
           getCompletionForDate={getCompletionForDate}
           shouldShowTaskOnDate={shouldShowTaskOnDate}
           onSaveEntry={handleSaveEntry}
           onNewJournalEntry={handleNewJournalEntry}
+          filterMenu={
+            <JournalFilterMenu
+              journalTasks={allJournalTasks}
+              selectedCompletionTypes={selectedCompletionTypes}
+              onCompletionTypeSelect={handleCompletionTypeSelect}
+              onCompletionTypeDeselect={handleCompletionTypeDeselect}
+              selectedTaskIds={selectedTaskIds}
+              onTaskSelect={handleTaskSelect}
+              onTaskDeselect={handleTaskDeselect}
+            />
+          }
         />
       )}
       {journalView === "week" && (
@@ -229,11 +280,23 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           selectedDate={selectedDate}
           years={years}
           journalTasks={journalTasks}
+          allJournalTasks={allJournalTasks}
           currentYear={currentYear}
           getCompletionForDate={getCompletionForDate}
           shouldShowTaskOnDate={shouldShowTaskOnDate}
           onSaveEntry={handleSaveEntry}
           onNewJournalEntry={handleNewJournalEntry}
+          filterMenu={
+            <JournalFilterMenu
+              journalTasks={allJournalTasks}
+              selectedCompletionTypes={selectedCompletionTypes}
+              onCompletionTypeSelect={handleCompletionTypeSelect}
+              onCompletionTypeDeselect={handleCompletionTypeDeselect}
+              selectedTaskIds={selectedTaskIds}
+              onTaskSelect={handleTaskSelect}
+              onTaskDeselect={handleTaskDeselect}
+            />
+          }
         />
       )}
       {journalView === "month" && (
@@ -241,11 +304,23 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           selectedDate={selectedDate}
           years={years}
           journalTasks={journalTasks}
+          allJournalTasks={allJournalTasks}
           currentYear={currentYear}
           getCompletionForDate={getCompletionForDate}
           shouldShowTaskOnDate={shouldShowTaskOnDate}
           onSaveEntry={handleSaveEntry}
           onNewJournalEntry={handleNewJournalEntry}
+          filterMenu={
+            <JournalFilterMenu
+              journalTasks={allJournalTasks}
+              selectedCompletionTypes={selectedCompletionTypes}
+              onCompletionTypeSelect={handleCompletionTypeSelect}
+              onCompletionTypeDeselect={handleCompletionTypeDeselect}
+              selectedTaskIds={selectedTaskIds}
+              onTaskSelect={handleTaskSelect}
+              onTaskDeselect={handleTaskDeselect}
+            />
+          }
         />
       )}
       {journalView === "year" && (
@@ -253,11 +328,23 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
           selectedDate={selectedDate}
           years={years}
           journalTasks={journalTasks}
+          allJournalTasks={allJournalTasks}
           currentYear={currentYear}
           getCompletionForDate={getCompletionForDate}
           shouldShowTaskOnDate={shouldShowTaskOnDate}
           onSaveEntry={handleSaveEntry}
           onNewJournalEntry={handleNewJournalEntry}
+          filterMenu={
+            <JournalFilterMenu
+              journalTasks={allJournalTasks}
+              selectedCompletionTypes={selectedCompletionTypes}
+              onCompletionTypeSelect={handleCompletionTypeSelect}
+              onCompletionTypeDeselect={handleCompletionTypeDeselect}
+              selectedTaskIds={selectedTaskIds}
+              onTaskSelect={handleTaskSelect}
+              onTaskDeselect={handleTaskDeselect}
+            />
+          }
         />
       )}
     </Box>

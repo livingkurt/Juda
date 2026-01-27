@@ -9,11 +9,13 @@ export const JournalYearView = ({
   selectedDate,
   years,
   journalTasks,
+  allJournalTasks,
   currentYear,
   getCompletionForDate,
   shouldShowTaskOnDate,
   onSaveEntry,
   onNewJournalEntry,
+  filterMenu,
 }) => {
   const displayYear = selectedDate.format("YYYY");
 
@@ -36,15 +38,15 @@ export const JournalYearView = ({
         >
           {displayYear}
         </Typography>
-        {onNewJournalEntry && (
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={onNewJournalEntry}
-            sx={{ position: "absolute", right: 0 }}
-          >
-            New Journal Entry
-          </Button>
+        {(onNewJournalEntry || filterMenu) && (
+          <Box sx={{ position: "absolute", right: 0, display: "flex", alignItems: "center", gap: 1 }}>
+            {filterMenu}
+            {onNewJournalEntry && (
+              <Button variant="contained" startIcon={<Add />} onClick={onNewJournalEntry}>
+                New Journal Entry
+              </Button>
+            )}
+          </Box>
         )}
       </Box>
 
