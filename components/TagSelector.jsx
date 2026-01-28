@@ -310,17 +310,15 @@ export const TagSelector = ({
       </Box>
 
       {/* Manage Tags button */}
-      {showManageButton && (
-        <>
-          <Divider />
-          <MenuItem onClick={handleOpenManageDialog}>
-            <ListItemIcon>
-              <Settings fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Manage Tags</ListItemText>
-          </MenuItem>
-        </>
-      )}
+      {showManageButton && [
+        <Divider key="divider-manage" />,
+        <MenuItem key="manage-tags" onClick={handleOpenManageDialog}>
+          <ListItemIcon>
+            <Settings fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Manage Tags</ListItemText>
+        </MenuItem>,
+      ]}
     </Menu>
   );
 

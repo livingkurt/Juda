@@ -1006,18 +1006,20 @@ export function HistoryTab({ isLoading: tabLoading }) {
 
       {/* Task Actions Menu */}
       <Menu anchorEl={taskMenuAnchor} open={Boolean(taskMenuAnchor)} onClose={() => setTaskMenuAnchor(null)}>
-        {selectedTask && (
-          <>
+        {selectedTask &&
+          [
             <MenuItem
+              key="edit"
               onClick={() => {
                 taskOps.handleEditTask(selectedTask);
                 setTaskMenuAnchor(null);
               }}
             >
               <Edit fontSize="small" sx={{ mr: 1 }} /> Edit
-            </MenuItem>
-            {selectedTask.completionType === "workout" && (
+            </MenuItem>,
+            selectedTask.completionType === "workout" && (
               <MenuItem
+                key="edit-workout"
                 onClick={() => {
                   taskOps.handleEditWorkout(selectedTask);
                   setTaskMenuAnchor(null);
@@ -1025,17 +1027,19 @@ export function HistoryTab({ isLoading: tabLoading }) {
               >
                 <FitnessCenter fontSize="small" sx={{ mr: 1 }} /> Edit Workout
               </MenuItem>
-            )}
+            ),
             <MenuItem
+              key="duplicate"
               onClick={() => {
                 taskOps.handleDuplicateTask(selectedTask);
                 setTaskMenuAnchor(null);
               }}
             >
               <ContentCopy fontSize="small" sx={{ mr: 1 }} /> Duplicate
-            </MenuItem>
-            <Divider />
+            </MenuItem>,
+            <Divider key="divider" />,
             <MenuItem
+              key="delete"
               onClick={() => {
                 taskOps.handleDeleteTask(selectedTask.id);
                 setTaskMenuAnchor(null);
@@ -1043,9 +1047,8 @@ export function HistoryTab({ isLoading: tabLoading }) {
               sx={{ color: "error.main" }}
             >
               <Delete fontSize="small" sx={{ mr: 1 }} /> Delete
-            </MenuItem>
-          </>
-        )}
+            </MenuItem>,
+          ].filter(Boolean)}
       </Menu>
 
       {/* Cell Editor Modal */}

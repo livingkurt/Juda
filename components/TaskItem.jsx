@@ -1368,40 +1368,29 @@ export const TaskItem = ({
               >
                 <MoreVert fontSize="small" />
               </IconButton>
-              <Menu
-                open={actionMenuOpen}
-                anchorEl={actionMenuAnchor}
+              {/* Shared context menu for common actions */}
+              <TaskContextMenu
+                task={task}
+                date={viewDate}
+                isRecurring={effectivelyRecurring}
+                isWorkoutTask={isWorkoutTask}
+                outcome={outcome}
+                isSubtask={isSubtask}
+                parentTaskId={parentTaskId}
+                onEdit={onEdit}
+                onEditWorkout={onEditWorkout}
+                onDuplicate={onDuplicate}
+                onDelete={isSubtask ? taskId => onDelete?.(parentTaskId, taskId) : onDelete}
+                onOutcomeChange={onOutcomeChange}
                 onClose={() => {
                   setActionMenuOpen(false);
                   setActionMenuAnchor(null);
                 }}
-                onClick={e => e.stopPropagation()}
-                onMouseDown={e => e.stopPropagation()}
-              >
-                {/* Shared context menu for common actions */}
-                <TaskContextMenu
-                  task={task}
-                  date={viewDate}
-                  isRecurring={effectivelyRecurring}
-                  isWorkoutTask={isWorkoutTask}
-                  outcome={outcome}
-                  isSubtask={isSubtask}
-                  parentTaskId={parentTaskId}
-                  onEdit={onEdit}
-                  onEditWorkout={onEditWorkout}
-                  onDuplicate={onDuplicate}
-                  onDelete={isSubtask ? taskId => onDelete?.(parentTaskId, taskId) : onDelete}
-                  onOutcomeChange={onOutcomeChange}
-                  onClose={() => {
-                    setActionMenuOpen(false);
-                    setActionMenuAnchor(null);
-                  }}
-                  onStatusChange={statusHandlers.handleStatusChange}
-                  onRemoveFromParent={onRemoveFromParent}
-                  anchorEl={actionMenuAnchor}
-                  open={actionMenuOpen}
-                />
-              </Menu>
+                onStatusChange={statusHandlers.handleStatusChange}
+                onRemoveFromParent={onRemoveFromParent}
+                anchorEl={actionMenuAnchor}
+                open={actionMenuOpen}
+              />
             </>
           )}
         </Stack>
