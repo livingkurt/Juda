@@ -122,17 +122,17 @@ export default function DailyTasksApp() {
     setMounted(true);
   }, []);
 
-  // Redux RTK Query hooks
+  // Redux RTK Query hooks - skip until auth is initialized and authenticated
   const { data: tasks = [], isLoading: tasksLoading } = useGetTasksQuery(undefined, {
-    skip: !isAuthenticated,
+    skip: !isAuthenticated || !authInitialized,
   });
 
   const { data: sections = [], isLoading: sectionsLoading } = useGetSectionsQuery(undefined, {
-    skip: !isAuthenticated,
+    skip: !isAuthenticated || !authInitialized,
   });
 
   const { isLoading: tagsLoading } = useGetTagsQuery(undefined, {
-    skip: !isAuthenticated,
+    skip: !isAuthenticated || !authInitialized,
   });
 
   // Completion helpers
@@ -286,8 +286,9 @@ export default function DailyTasksApp() {
     return <AuthPage />;
   }
 
-  const hasData = tasks.length > 0 || sections.length > 0;
-  if (isLoading || !hasData) {
+  // Show loading while queries are running
+  // Once queries complete, render the app (even if data is empty)
+  if (tasksLoading || sectionsLoading || tagsLoading || completionsLoading) {
     return (
       <Box sx={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <CircularProgress size={48} />

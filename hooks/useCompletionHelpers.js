@@ -54,7 +54,7 @@ const getRecentDateRange = (daysBack = 90) => {
  * This maintains the same API as the old useCompletions hook
  */
 export function useCompletionHelpers() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, initialized: authInitialized } = useAuth();
   const { startDate, endDate } = getRecentDateRange(90);
   const {
     data: completionsData,
@@ -63,7 +63,7 @@ export function useCompletionHelpers() {
   } = useGetCompletionsQuery(
     { startDate, endDate, limit: 10000 },
     {
-      skip: !isAuthenticated,
+      skip: !isAuthenticated || !authInitialized,
     }
   );
 

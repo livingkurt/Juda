@@ -6,13 +6,15 @@ export const metadata = {
   title: "Juda - Task Manager",
   description: "Daily task management system",
   manifest: "/manifest.json",
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: "#171923",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
 };
 
 export default function RootLayout({ children }) {

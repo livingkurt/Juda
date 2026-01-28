@@ -7,6 +7,7 @@ import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useCreateCompletionMutation, useDeleteCompletionMutation } from "@/lib/store/api/completionsApi";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { useAuth } from "@/hooks/useAuth";
 
 /**
  * Handles task status changes (todo/in_progress/complete)
@@ -16,9 +17,14 @@ export function useStatusHandlers({
   // This is passed from parent because it's managed by useCompletionHandlers hook
   addToRecentlyCompleted,
 } = {}) {
-  // RTK Query hooks
-  const { data: tasks = [] } = useGetTasksQuery();
-  const { data: sections = [] } = useGetSectionsQuery();
+  const { isAuthenticated, initialized: authInitialized } = useAuth();
+  // RTK Query hooks - skip until auth is initialized and authenticated
+  const { data: tasks = [] } = useGetTasksQuery(undefined, {
+    skip: !isAuthenticated || !authInitialized,
+  });
+  const { data: sections = [] } = useGetSectionsQuery(undefined, {
+    skip: !isAuthenticated || !authInitialized,
+  });
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();
   const [deleteCompletionMutation] = useDeleteCompletionMutation();

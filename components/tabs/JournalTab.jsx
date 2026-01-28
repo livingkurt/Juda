@@ -16,9 +16,11 @@ import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useCreateCompletionMutation, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { setJournalView, setJournalSelectedDate } from "@/lib/store/slices/uiSlice";
+import { useAuth } from "@/hooks/useAuth";
 
 export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
   const dispatch = useDispatch();
+  const { isAuthenticated, initialized: authInitialized } = useAuth();
 
   // Get state from Redux (synced with URL)
   const journalView = useSelector(state => state.ui.journalView || "day");
@@ -32,8 +34,10 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
     return dayjs();
   }, [journalSelectedDateISO]);
 
-  // Get data from Redux
-  const { data: tasks = [] } = useGetTasksQuery();
+  // Get data from Redux - skip until auth is initialized and authenticated
+  const { data: tasks = [] } = useGetTasksQuery(undefined, {
+    skip: !isAuthenticated || !authInitialized,
+  });
   const { getCompletionForDate } = useCompletionHelpers();
   const { handleEditTask } = useTaskOperations();
 

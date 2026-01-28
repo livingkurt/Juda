@@ -13,6 +13,7 @@ import {
 } from "@/lib/store/api/completionsApi";
 import { useRolloverTaskMutation } from "@/lib/store/api/tasksApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { useAuth } from "@/hooks/useAuth";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import {
   addRecentlyCompletedTask,
@@ -51,9 +52,16 @@ export function useCompletionHandlers({
   const { preferences } = usePreferencesContext();
   const showCompletedTasks = preferences.showCompletedTasks;
 
-  // RTK Query hooks
-  const { data: tasks = [] } = useGetTasksQuery();
-  const { data: sections = [] } = useGetSectionsQuery();
+  // Auth check
+  const { isAuthenticated, initialized: authInitialized } = useAuth();
+
+  // RTK Query hooks - skip until auth is initialized and authenticated
+  const { data: tasks = [] } = useGetTasksQuery(undefined, {
+    skip: !isAuthenticated || !authInitialized,
+  });
+  const { data: sections = [] } = useGetSectionsQuery(undefined, {
+    skip: !isAuthenticated || !authInitialized,
+  });
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();
   const [deleteCompletionMutation] = useDeleteCompletionMutation();

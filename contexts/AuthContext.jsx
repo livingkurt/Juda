@@ -409,8 +409,9 @@ export function AuthProvider({ children }) {
       getAccessToken,
       refreshAccessToken,
       logout,
+      isInitialized: () => authState.initialized,
     });
-  }, [getAccessToken, refreshAccessToken, logout]);
+  }, [getAccessToken, refreshAccessToken, logout, authState.initialized]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

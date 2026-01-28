@@ -82,6 +82,39 @@ function ThemeWrapper({ children }) {
 // Initialize offline database
 function OfflineInitializer({ children }) {
   useEffect(() => {
+    // Suppress browser extension errors that we can't control
+    // This filters out "Unchecked runtime.lastError" messages from browser extensions
+    // These errors occur when browser extensions try to communicate but the receiving end doesn't exist
+    const originalError = console.error;
+    const originalWarn = console.warn;
+
+    console.error = (...args) => {
+      const message = String(args[0] || "");
+      // Only filter out specific browser extension runtime errors
+      // These are harmless and we can't fix them (they're from browser extensions)
+      if (
+        message.includes("runtime.lastError") ||
+        message.includes("Could not establish connection") ||
+        message.includes("Receiving end does not exist")
+      ) {
+        return; // Suppress this specific browser extension error
+      }
+      originalError.apply(console, args);
+    };
+
+    console.warn = (...args) => {
+      const message = String(args[0] || "");
+      // Also filter warnings about runtime.lastError
+      if (
+        message.includes("runtime.lastError") ||
+        message.includes("Could not establish connection") ||
+        message.includes("Receiving end does not exist")
+      ) {
+        return; // Suppress this specific browser extension warning
+      }
+      originalWarn.apply(console, args);
+    };
+
     // Initialize IndexedDB
     initDB().catch(console.error);
 
@@ -106,6 +139,12 @@ function OfflineInitializer({ children }) {
         });
       });
     }
+
+    // Cleanup: restore original console methods on unmount
+    return () => {
+      console.error = originalError;
+      console.warn = originalWarn;
+    };
   }, []);
 
   return children;
