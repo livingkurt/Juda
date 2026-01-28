@@ -95,6 +95,12 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
   const focusedRef = useRef(false);
   const prevSavedDataRef = useRef(existingCompletion?.note);
   const isSavingRef = useRef(false);
+  const responsesRef = useRef(responses);
+
+  // Keep ref in sync with responses state
+  useEffect(() => {
+    responsesRef.current = responses;
+  }, [responses]);
 
   // Sync with external changes when not focused and not saving
   useEffect(() => {
@@ -152,7 +158,7 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
     [task.id, onSave, buildCompletionData, existingData]
   );
 
-  const { debouncedSave, immediateSave } = useDebouncedSave(saveReflection, 500);
+  const { debouncedSave, immediateSave, cancelPending } = useDebouncedSave(saveReflection, 500);
 
   // Update response answer
   const handleAnswerChange = useCallback(
@@ -167,7 +173,7 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
     [debouncedSave]
   );
 
-  // Update goal progress for a question
+  // Update goal progress for a question (status changes only - triggers API calls)
   const handleGoalProgressChange = useCallback(
     async (questionId, goalId, updates) => {
       // Persist all status changes to the actual goal task
@@ -236,6 +242,43 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
       });
     },
     [debouncedSave, updateTask, createCompletion, reflectionDate]
+  );
+
+  // Update progress note only (no API calls, just local state + debounced save)
+  const handleProgressNoteChange = useCallback(
+    (questionId, goalId, goalTitle, currentStatus, progressNote) => {
+      setResponses(prev => {
+        const updatedResponses = prev.map(r => {
+          if (r.questionId !== questionId) return r;
+          const goalProgress = r.goalProgress || [];
+          const existingIndex = goalProgress.findIndex(gp => gp.goalId === goalId);
+          const updatedGoalProgress =
+            existingIndex >= 0
+              ? goalProgress.map((gp, idx) =>
+                  idx === existingIndex
+                    ? {
+                        ...gp,
+                        progressNote,
+                      }
+                    : gp
+                )
+              : [
+                  ...goalProgress,
+                  {
+                    goalId,
+                    goalTitle,
+                    status: currentStatus,
+                    progressNote,
+                  },
+                ];
+          return { ...r, goalProgress: updatedGoalProgress };
+        });
+        // Call debouncedSave directly with the updated responses
+        debouncedSave(updatedResponses);
+        return updatedResponses;
+      });
+    },
+    [debouncedSave]
   );
 
   // Clear goal progress entry from a reflection (for cleaning up legacy data)
@@ -502,48 +545,22 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
                               value={progressNote}
                               onChange={e => {
                                 focusedRef.current = true;
-                                handleGoalProgressChange(question.id || `q-${question.order}`, goal.id, {
-                                  goalId: goal.id,
-                                  goalTitle: goal.title,
-                                  status: currentStatus,
-                                  progressNote: e.target.value,
-                                });
+                                handleProgressNoteChange(
+                                  question.id || `q-${question.order}`,
+                                  goal.id,
+                                  goal.title,
+                                  currentStatus,
+                                  e.target.value
+                                );
                               }}
-                              onBlur={e => {
+                              onBlur={() => {
                                 focusedRef.current = false;
-                                const currentProgressNote = e.target.value;
-                                const questionId = question.id || `q-${question.order}`;
-
-                                setResponses(prev => {
-                                  const updatedResponses = prev.map(r => {
-                                    if (r.questionId !== questionId) return r;
-                                    const goalProgress = r.goalProgress || [];
-                                    const existingIndex = goalProgress.findIndex(gp => gp.goalId === goal.id);
-                                    const updatedGoalProgress =
-                                      existingIndex >= 0
-                                        ? goalProgress.map((gp, idx) =>
-                                            idx === existingIndex
-                                              ? {
-                                                  ...gp,
-                                                  progressNote: currentProgressNote,
-                                                }
-                                              : gp
-                                          )
-                                        : [
-                                            ...goalProgress,
-                                            {
-                                              goalId: goal.id,
-                                              goalTitle: goal.title,
-                                              status: currentStatus,
-                                              progressNote: currentProgressNote,
-                                            },
-                                          ];
-                                    return { ...r, goalProgress: updatedGoalProgress };
-                                  });
-                                  // Call immediateSave directly with the updated responses
-                                  immediateSave(updatedResponses);
-                                  return updatedResponses;
-                                });
+                                // Cancel any pending debounced save and immediately save on blur
+                                // Use setTimeout to ensure this happens outside of render phase
+                                setTimeout(() => {
+                                  cancelPending();
+                                  immediateSave(responsesRef.current);
+                                }, 0);
                               }}
                               onFocus={() => {
                                 focusedRef.current = true;
