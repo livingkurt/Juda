@@ -73,7 +73,7 @@ export const FolderDialog = ({ open, onClose, editingFolder = null }) => {
 
   const handleDelete = async () => {
     if (!editingFolder) return;
-    // eslint-disable-next-line no-alert
+
     if (
       // eslint-disable-next-line no-alert
       window.confirm(`Delete folder "${editingFolder.name}"? Notes in this folder will be moved to the root level.`)

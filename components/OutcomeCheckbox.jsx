@@ -273,7 +273,7 @@ export const OutcomeCheckbox = ({
           sx={{ zIndex: 99999 }}
         >
           {/* Only show Uncheck if task has an outcome */}
-          {outcome !== null && [
+          {outcome !== null && (
             <MenuItem
               key="uncheck"
               onClick={e => {
@@ -288,66 +288,65 @@ export const OutcomeCheckbox = ({
                 <RadioButtonUnchecked fontSize="small" />
                 <Typography variant="body2">Uncheck</Typography>
               </Stack>
-            </MenuItem>,
-            <Divider key="divider-uncheck" />,
-          ]}
+            </MenuItem>
+          )}
+          {outcome !== null && <Divider key="divider-uncheck" />}
           {/* Only show Completed if not already completed */}
-          {outcome !== "completed" &&
-            onOutcomeChange && [
-              <MenuItem
-                key="completed"
-                onClick={e => {
-                  stopMenuEvent(e);
-                  onOutcomeChange("completed");
-                  handleMenuClose();
-                }}
-              >
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Check fontSize="small" />
-                  <Typography variant="body2">Completed</Typography>
-                </Stack>
-              </MenuItem>,
-            ]}
+          {outcome !== "completed" && onOutcomeChange && (
+            <MenuItem
+              key="completed"
+              onClick={e => {
+                stopMenuEvent(e);
+                onOutcomeChange("completed");
+                handleMenuClose();
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Check fontSize="small" />
+                <Typography variant="body2">Completed</Typography>
+              </Stack>
+            </MenuItem>
+          )}
           {/* Only show Not Completed if not already not completed */}
-          {outcome !== "not_completed" &&
-            onOutcomeChange && [
-              <MenuItem
-                key="not-completed"
-                onClick={e => {
-                  stopMenuEvent(e);
-                  onOutcomeChange("not_completed");
-                  handleMenuClose();
-                }}
-              >
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Close fontSize="small" />
-                  <Typography variant="body2">Not Completed</Typography>
-                </Stack>
-              </MenuItem>,
-            ]}
+          {outcome !== "not_completed" && onOutcomeChange && (
+            <MenuItem
+              key="not-completed"
+              onClick={e => {
+                stopMenuEvent(e);
+                onOutcomeChange("not_completed");
+                handleMenuClose();
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Close fontSize="small" />
+                <Typography variant="body2">Not Completed</Typography>
+              </Stack>
+            </MenuItem>
+          )}
           {/* Show Roll Over option for recurring tasks that aren't already rolled over */}
           {isRecurring &&
             outcome !== "rolled_over" &&
             onRollover &&
             taskId &&
-            viewDate && [
-              (outcome !== null || (onOutcomeChange && outcome !== "completed" && outcome !== "not_completed")) && (
-                <Divider key="divider-rollover" />
-              ),
-              <MenuItem
-                key="rollover"
-                onClick={e => {
-                  stopMenuEvent(e);
-                  onRollover(taskId, viewDate);
-                  handleMenuClose();
-                }}
-              >
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <SkipNext fontSize="small" />
-                  <Typography variant="body2">Roll Over to Tomorrow</Typography>
-                </Stack>
-              </MenuItem>,
-            ]}
+            viewDate &&
+            (outcome !== null || (onOutcomeChange && outcome !== "completed" && outcome !== "not_completed")) && (
+              <Divider key="divider-rollover" />
+            )}
+          {isRecurring && outcome !== "rolled_over" && onRollover && taskId && viewDate && (
+            <MenuItem
+              key="rollover"
+              onClick={e => {
+                stopMenuEvent(e);
+                onRollover(taskId, viewDate);
+                handleMenuClose();
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <SkipNext fontSize="small" />
+                <Typography variant="body2">Roll Over to Tomorrow</Typography>
+              </Stack>
+            </MenuItem>
+          )}
         </Menu>
       )}
     </Box>

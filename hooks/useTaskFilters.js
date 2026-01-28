@@ -66,13 +66,74 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
             }
           }
 
-          // For one-time tasks (type === "none") that have been completed,
-          // only show them on dates where they have a completion record
-          if (task.recurrence?.type === "none" && hasAnyCompletion(task.id)) {
-            return hasRecordOnDate(task.id, viewDate);
+          // Handle off-schedule tasks (created from history tab)
+          // Off-schedule tasks should ONLY show if they have a completion record for their specific date
+          if (task.isOffSchedule) {
+            // Off-schedule tasks have recurrence.type === "none" with a specific startDate
+            // They should only appear on that exact date if there's a completion record
+            const taskDateStr = task.recurrence?.startDate?.split("T")[0];
+            const viewDateStr = viewDate.toISOString().split("T")[0];
+            
+            // Only show if viewing the exact date AND there's a completion record
+            if (taskDateStr === viewDateStr) {
+              return hasRecordOnDate(task.id, viewDate);
+            }
+            
+            // Don't show on any other date
+            return false;
           }
 
-          // Normal date-based filtering
+          // Handle regular one-time tasks (type === "none")
+          if (task.recurrence?.type === "none") {
+            const hasStartDate = task.recurrence?.startDate;
+            
+            // If task has a startDate, check if it should show based on date and completion status
+            if (hasStartDate) {
+              // Check if task has a completion record for the current viewDate
+              const hasRecordToday = hasRecordOnDate(task.id, viewDate);
+              
+              // If there's a completion record for today, show it
+              if (hasRecordToday) {
+                return true;
+              }
+              
+              // If no completion record for today, check if task has been completed elsewhere
+              // (hasAnyCompletion checks within current date range, but we also check task status)
+              const hasCompletionInRange = hasAnyCompletion(task.id);
+              const isCompleted = task.status === "complete";
+              
+              // If task is marked as complete OR has a completion in the current date range,
+              // but NOT on today's date, then don't show it (it was completed on a different date)
+              if (isCompleted || hasCompletionInRange) {
+                return false;
+              }
+              
+              // If task hasn't been completed, show it if today >= startDate (overdue behavior)
+              return shouldShowOnDate(task, viewDate);
+            }
+            
+            // One-time task without startDate: only show if in-progress and no date assigned
+            // (already handled above, but fall through to shouldShowOnDate which returns false)
+            return shouldShowOnDate(task, viewDate);
+          }
+
+          // Handle recurring tasks with additionalDates (off-schedule completions)
+          // Off-schedule tasks should ONLY show if they have a completion record for that date
+          const hasAdditionalDates = task.recurrence?.additionalDates && Array.isArray(task.recurrence.additionalDates) && task.recurrence.additionalDates.length > 0;
+          if (hasAdditionalDates) {
+            const viewDateStr = viewDate.toISOString().split("T")[0];
+            const isInAdditionalDates = task.recurrence.additionalDates.some(additionalDate => {
+              const additionalDateStr = additionalDate.split("T")[0];
+              return additionalDateStr === viewDateStr;
+            });
+            
+            // If this date is in additionalDates, require a completion record
+            if (isInAdditionalDates) {
+              return hasRecordOnDate(task.id, viewDate);
+            }
+          }
+
+          // Normal date-based filtering for recurring tasks
           return shouldShowOnDate(task, viewDate);
         })
         .map(task => ({

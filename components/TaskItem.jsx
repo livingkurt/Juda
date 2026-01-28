@@ -271,16 +271,31 @@ export const TaskItem = ({
   parentTaskId, // For subtask variant
   isSelected, // Whether this task is selected for bulk edit
   onRemoveFromParent, // Optional handler for removing subtask from parent (used in dialog)
+  // Performance optimization: Accept handlers as props to avoid recreating hooks
+  taskOps: taskOpsProp,
+  completionHandlers: completionHandlersProp,
+  getOutcomeOnDate: getOutcomeOnDateProp,
+  hasRecordOnDate: hasRecordOnDateProp,
+  getCompletionForDate: getCompletionForDateProp,
 }) => {
-  // Use hooks directly (they use Redux internally)
-  const taskOps = useTaskOperations();
-  const completionHandlers = useCompletionHandlers();
+  // Always call hooks (React rules) but use provided props if available
+  const taskOpsInternal = useTaskOperations();
+  const completionHandlersInternal = useCompletionHandlers();
   const selectionState = useSelectionState();
+  // RTK Query efficiently caches this - multiple subscriptions don't cause extra network requests
   const { data: allTasks = [] } = useGetTasksQuery();
-  const { getOutcomeOnDate, hasRecordOnDate, getCompletionForDate } = useCompletionHelpers();
+  const completionHelpersInternal = useCompletionHelpers();
   const [createCompletionMutation] = useCreateCompletionMutation();
   const [updateCompletionMutation] = useUpdateCompletionMutation();
   const dialogState = useDialogState();
+
+  // Use provided handlers or fall back to hooks
+  const taskOps = taskOpsProp || taskOpsInternal;
+  const completionHandlers = completionHandlersProp || completionHandlersInternal;
+  const getOutcomeOnDate = getOutcomeOnDateProp || completionHelpersInternal.getOutcomeOnDate;
+  const hasRecordOnDate = hasRecordOnDateProp || completionHelpersInternal.hasRecordOnDate;
+  const getCompletionForDate = getCompletionForDateProp || completionHelpersInternal.getCompletionForDate;
+
   const statusHandlers = useStatusHandlers({
     addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
   });
@@ -1279,9 +1294,9 @@ export const TaskItem = ({
                       px: 1,
                       py: 0.5,
                       borderRadius: 1,
-                      "&:hover": {
-                        bgcolor: "action.hover",
-                      },
+                      // "&:hover": {
+                      //   bgcolor: "action.hover",
+                      // },
                       minHeight: "24px",
                       fontSize: "0.875rem",
                       color: task.content ? "text.secondary" : "text.disabled",

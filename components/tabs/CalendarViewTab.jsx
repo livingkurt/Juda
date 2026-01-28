@@ -85,7 +85,8 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
   };
 
   // Get completion helpers
-  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
+  // Use calendar view type for optimized date range (30 days back, 30 days forward)
+  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers("calendar", selectedDate);
 
   // Combine loading states
   const isActuallyLoading = isLoading || tasksLoading;

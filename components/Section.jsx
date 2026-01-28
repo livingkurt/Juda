@@ -5,12 +5,14 @@ import { Droppable } from "@hello-pangea/dnd";
 import { Add } from "@mui/icons-material";
 import { useSelector } from "react-redux";
 import { SectionCard } from "./SectionCard";
+import { useSectionOperations } from "@/hooks/useSectionOperations";
+import { useTaskFiltersContext } from "@/contexts/TaskFiltersContext";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
-import { useSectionOperations } from "@/hooks/useSectionOperations";
-import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useSectionExpansion } from "@/hooks/useSectionExpansion";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 
 // Main Section component that renders all sections
 export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId, sectionFilter }) => {
@@ -18,51 +20,61 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
   const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
   const viewDate = todayViewDateISO ? new Date(todayViewDateISO) : new Date();
 
-  // Get preferences
-  const { preferences } = usePreferencesContext();
-  const showCompletedTasks = preferences.showCompletedTasks;
+  // Try to use TaskFiltersContext first (performance optimization)
+  const taskFiltersContext = useTaskFiltersContext();
 
-  // Use hooks directly (they use Redux internally)
-  // Call hooks in the correct order (matching page.jsx pattern)
-  const taskOps = useTaskOperations();
+  // Always call hooks (React rules), but use context values if available
+  const preferences = usePreferencesContext();
+  const taskOpsHook = useTaskOperations();
 
-  // Initialize section expansion early (will be updated when tasksBySection is available)
-  const sectionExpansionInitial = useSectionExpansion({
-    sections: taskOps.sections,
-    showCompletedTasks,
+  // Initialize section expansion early for completion handlers (if context not available)
+  const sectionExpansionInitialHook = useSectionExpansion({
+    sections: taskOpsHook.sections,
+    showCompletedTasks: preferences.preferences.showCompletedTasks,
     tasksBySection: {},
     viewDate,
     todaysTasks: [],
   });
 
-  // Initialize completion handlers (needs sectionExpansionInitial callbacks)
-  const completionHandlers = useCompletionHandlers({
-    autoCollapsedSections: sectionExpansionInitial.autoCollapsedSections,
-    setAutoCollapsedSections: sectionExpansionInitial.setAutoCollapsedSections,
-    checkAndAutoCollapseSection: sectionExpansionInitial.checkAndAutoCollapseSection,
+  const completionHandlersHook = useCompletionHandlers({
+    autoCollapsedSections: sectionExpansionInitialHook.autoCollapsedSections,
+    setAutoCollapsedSections: sectionExpansionInitialHook.setAutoCollapsedSections,
+    checkAndAutoCollapseSection: sectionExpansionInitialHook.checkAndAutoCollapseSection,
   });
 
-  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+  const taskFiltersHook = useTaskFilters({
+    recentlyCompletedTasks: completionHandlersHook.recentlyCompletedTasks,
   });
 
-  // Recreate section expansion with actual tasksBySection
-  const sectionExpansion = useSectionExpansion({
-    sections: taskOps.sections,
-    showCompletedTasks,
-    tasksBySection: taskFilters.tasksBySection,
+  const sectionExpansionHook = useSectionExpansion({
+    sections: taskOpsHook.sections,
+    showCompletedTasks: preferences.preferences.showCompletedTasks,
+    tasksBySection: taskFiltersHook.tasksBySection,
     viewDate,
-    todaysTasks: taskFilters.todaysTasks,
+    todaysTasks: taskFiltersHook.todaysTasks,
   });
+
+  // Use context values if available, otherwise use hooks (backward compatibility)
+  const finalTaskFilters = taskFiltersContext.taskFilters || taskFiltersHook;
+  const finalSectionExpansion = taskFiltersContext.sectionExpansion || sectionExpansionHook;
+  const finalTaskOps = taskFiltersContext.taskOps || taskOpsHook;
+  const finalCompletionHandlers = taskFiltersContext.completionHandlers || completionHandlersHook;
+  const contextViewDate = taskFiltersContext.viewDate || viewDate;
+  const finalShowCompletedTasks =
+    taskFiltersContext.showCompletedTasks !== null
+      ? taskFiltersContext.showCompletedTasks
+      : preferences.preferences.showCompletedTasks;
+
+  // Get completion helpers for passing to TaskItem - use today view for optimized date range
+  const { getOutcomeOnDate } = useCompletionHelpers("today", contextViewDate || viewDate);
 
   // Update section ops with section expansion callbacks
   const sectionOps = useSectionOperations({
-    autoCollapsedSections: sectionExpansion.autoCollapsedSections,
-    setAutoCollapsedSections: sectionExpansion.setAutoCollapsedSections,
-    setManuallyExpandedSections: sectionExpansion.setManuallyExpandedSections,
-    manuallyCollapsedSections: sectionExpansion.manuallyCollapsedSections,
-    setManuallyCollapsedSections: sectionExpansion.setManuallyCollapsedSections,
+    autoCollapsedSections: finalSectionExpansion.autoCollapsedSections,
+    setAutoCollapsedSections: finalSectionExpansion.setAutoCollapsedSections,
+    setManuallyExpandedSections: finalSectionExpansion.setManuallyExpandedSections,
+    manuallyCollapsedSections: finalSectionExpansion.manuallyCollapsedSections,
+    setManuallyCollapsedSections: finalSectionExpansion.setManuallyCollapsedSections,
   });
 
   return (
@@ -79,7 +91,7 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
             minHeight: 100,
           }}
         >
-          {sectionExpansion.computedSections
+          {finalSectionExpansion.computedSections
             .filter(section => (sectionFilter ? sectionFilter(section) : true))
             .sort((a, b) => (a.order || 0) - (b.order || 0))
             .map((section, index) => (
@@ -90,7 +102,14 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
                 hoveredDroppable={hoveredDroppable}
                 droppableId={createDroppableId.todaySection(section.id)}
                 createDraggableId={createDraggableId}
-                viewDate={viewDate}
+                viewDate={contextViewDate || viewDate}
+                // Performance optimization: Pass computed values and handlers
+                tasks={finalTaskFilters.tasksBySection[section.id] || []}
+                isExpanded={section.expanded !== false}
+                taskOps={finalTaskOps}
+                completionHandlers={finalCompletionHandlers}
+                sectionOps={sectionOps}
+                getOutcomeOnDate={getOutcomeOnDate}
               />
             ))}
           {provided.placeholder}

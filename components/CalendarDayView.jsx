@@ -12,6 +12,7 @@ import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
+import { useTaskFiltersContext } from "@/contexts/TaskFiltersContext";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_DAY;
 
@@ -21,27 +22,47 @@ export const CalendarDayView = ({ date, createDraggableId, onDropTimeChange }) =
   const zoom = preferences.calendarZoom?.day || 1.0;
   const showStatusTasks = preferences.showStatusTasks?.day !== false;
 
-  // Use hooks directly (they use Redux internally)
-  const taskOps = useTaskOperations();
-  const completionHandlers = useCompletionHandlers();
-  const { getCompletionForDate } = useCompletionHelpers();
+  // Try to use TaskFiltersContext first (performance optimization)
+  const taskFiltersContext = useTaskFiltersContext();
 
-  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+  // Always call hooks (React rules), but use context values if available
+  const taskOpsHook = useTaskOperations();
+  const completionHandlersHook = useCompletionHandlers();
+  const taskFiltersHook = useTaskFilters({
+    recentlyCompletedTasks: completionHandlersHook.recentlyCompletedTasks,
   });
+
+  // Use context values if available, otherwise use hooks
+  const taskFilters = taskFiltersContext.taskFilters || taskFiltersHook;
+  const taskOps = taskFiltersContext.taskOps || taskOpsHook;
+  const contextViewDate = taskFiltersContext.viewDate || date;
+
+  // Use calendar view type for optimized date range
+  const { getCompletionForDate } = useCompletionHelpers("calendar", contextViewDate);
 
   // Get all tasks (for status blocks and filtering)
   const tasks = taskFilters.tasks;
 
+  // Use pre-computed tasksByDateRange if available (performance optimization)
+  const tasksByDateRange = taskFiltersContext.tasksByDateRange;
+  const dateKey = date.toDateString();
+
   // Filter tasks by date (search/tag filtering is now done in parent)
   const dayTasks = useMemo(() => {
+    // Use pre-computed tasks if available, otherwise filter manually
+    if (tasksByDateRange && tasksByDateRange.has(dateKey)) {
+      return tasksByDateRange.get(dateKey).filter(t => t.time);
+    }
     return tasks.filter(t => t.time && shouldShowOnDate(t, date));
-  }, [tasks, date]);
+  }, [tasks, date, tasksByDateRange, dateKey]);
 
   const untimedTasks = useMemo(() => {
+    // Use pre-computed tasks if available, otherwise filter manually
+    if (tasksByDateRange && tasksByDateRange.has(dateKey)) {
+      return tasksByDateRange.get(dateKey).filter(t => !t.time);
+    }
     return tasks.filter(t => !t.time && shouldShowOnDate(t, date));
-  }, [tasks, date]);
+  }, [tasks, date, tasksByDateRange, dateKey]);
 
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
 

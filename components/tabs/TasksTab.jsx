@@ -14,12 +14,12 @@ import { createDroppableId, createDraggableId, extractTaskId, parseDroppableId }
 import { timeToMinutes, minutesToTime, formatLocalDate } from "@/lib/utils";
 import { getPriorityConfig } from "@/lib/constants";
 import { useViewState } from "@/hooks/useViewState";
-import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
-import { useResizeHandlers } from "@/hooks/useResizeHandlers";
+import { useTaskFiltersContext } from "@/contexts/TaskFiltersContext";
 import { useSectionExpansion } from "@/hooks/useSectionExpansion";
+import { useResizeHandlers } from "@/hooks/useResizeHandlers";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import {
@@ -32,8 +32,9 @@ import { useGetSectionsQuery, useReorderSectionsMutation } from "@/lib/store/api
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useColorMode } from "@/hooks/useColorMode";
 import { useLoadingTab } from "@/components/MainTabs";
+import { TaskFiltersProvider } from "@/contexts/TaskFiltersContext";
 
-export function TasksTab() {
+function TasksTabContent() {
   const theme = useTheme();
   const { mode: colorMode } = useColorMode();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -152,17 +153,18 @@ export function TasksTab() {
     [reorderTaskMutation]
   );
 
-  // Completion handlers (needed for taskFilters)
-  const completionHandlers = useCompletionHandlers({
+  // Use TaskFiltersContext if available, otherwise fall back to hooks (backward compatibility)
+  const taskFiltersContext = useTaskFiltersContext();
+  
+  // Always call hooks (React rules), but use context values if available
+  const completionHandlersFallback = useCompletionHandlers({
     autoCollapsedSections: new Set(),
     setAutoCollapsedSections: () => {},
     checkAndAutoCollapseSection: () => {},
   });
-
-  // Task filters
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
-  });
+  
+  const taskFilters = taskFiltersContext.taskFilters;
+  const completionHandlers = taskFiltersContext.completionHandlers || completionHandlersFallback;
 
   const backlogTasks = taskFilters.backlogTasks;
   const tasksBySection = taskFilters.tasksBySection;
@@ -869,20 +871,26 @@ export function TasksTab() {
     ]
   );
 
-  // Completion helpers
-  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
+  // Completion helpers - pass view type for optimized date range
+  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers(
+    mainContentView === "calendar" ? "calendar" : "today",
+    viewDate
+  );
 
   const filteredTodaysTasks = taskFilters.filteredTodaysTasks;
   const todaysTasks = taskFilters.todaysTasks;
 
-  // Section expansion
-  const sectionExpansion = useSectionExpansion({
+  // Always call hooks (React rules), but use context values if available
+  const sectionExpansionFallback = useSectionExpansion({
     sections,
     showCompletedTasks,
     tasksBySection,
     viewDate,
     todaysTasks,
   });
+  
+  // Use section expansion from context if available, otherwise use fallback
+  const sectionExpansion = taskFiltersContext.sectionExpansion || sectionExpansionFallback;
 
   // Resize handlers
   const resizeHandlers = useResizeHandlers({
@@ -905,8 +913,9 @@ export function TasksTab() {
     [autoScroll]
   );
 
-  // Task operations
-  const taskOps = useTaskOperations();
+  // Always call hooks (React rules), but use context values if available
+  const taskOpsFallback = useTaskOperations();
+  const taskOps = taskFiltersContext.taskOps || taskOpsFallback;
 
   // Progress calculation
   const { totalTasks, completedTasks, completedPercent, notCompletedPercent, uncheckedPercent } = useMemo(() => {
@@ -1319,5 +1328,17 @@ export function TasksTab() {
         </Box>
       </Box>
     </DragDropContext>
+  );
+}
+
+// Export wrapper that provides TaskFiltersContext
+export function TasksTab() {
+  const viewState = useViewState();
+  const { viewDate } = viewState;
+
+  return (
+    <TaskFiltersProvider viewDate={viewDate}>
+      <TasksTabContent />
+    </TaskFiltersProvider>
   );
 }

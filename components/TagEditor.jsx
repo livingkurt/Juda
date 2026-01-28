@@ -28,7 +28,7 @@ import {
 
 /**
  * TagEditor - Full tag management dialog
- * 
+ *
  * Features:
  * - Search tags
  * - Create new tags with color picker
@@ -69,9 +69,7 @@ export const TagEditor = () => {
   };
 
   // Filter tags based on search
-  const filteredTags = tags.filter(tag =>
-    tag.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTags = tags.filter(tag => tag.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   // Check if search matches existing tag
   const exactMatch = tags.find(tag => tag.name.toLowerCase() === searchQuery.toLowerCase());
@@ -181,12 +179,7 @@ export const TagEditor = () => {
         {/* Create new tag button */}
         {showCreateButton && !showColorPicker && (
           <Box sx={{ px: 2, py: 2 }}>
-            <Button
-              size="small"
-              variant="outlined"
-              fullWidth
-              onClick={() => setShowColorPicker(true)}
-            >
+            <Button size="small" variant="outlined" fullWidth onClick={() => setShowColorPicker(true)}>
               Create &quot;{searchQuery}&quot;
             </Button>
           </Box>
@@ -222,7 +215,7 @@ export const TagEditor = () => {
           </Box>
         )}
 
-        {(showCreateButton && showColorPicker) && <Divider />}
+        {showCreateButton && showColorPicker && <Divider />}
 
         {/* Tag list */}
         <Box sx={{ maxHeight: "400px", overflowY: "auto" }}>

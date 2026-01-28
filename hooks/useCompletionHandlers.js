@@ -584,33 +584,38 @@ export function useCompletionHandlers({
         });
 
         if (outcome === null) {
-          await deleteCompletion(taskId, dateStr);
+          // Collect all operations to run in parallel
+          const operations = [];
 
-          // For non-recurring tasks, revert status based on whether task was started
-          // This syncs unchecking the checkbox with status badge
-          // Goals can also have their status synced with completions
+          // 1. Delete completion for this task
+          operations.push(deleteCompletion(taskId, dateStr));
+
+          // 2. Update task status (only for non-recurring tasks)
           if (!isRecurringTask) {
             // Revert to "in_progress" if task had been started, otherwise "todo"
             const newStatus = task?.startedAt ? "in_progress" : "todo";
-            await updateTask(taskId, { status: newStatus });
+            operations.push(updateTask(taskId, { status: newStatus }));
           }
 
-          // Handle subtask unchecking - update parent if needed
+          // 3. Handle subtask unchecking - update parent if needed
           if (isSubtask && parentIsNonRecurring && parentTask.status === "complete") {
-            await updateTask(parentTask.id, { status: "in_progress" });
+            operations.push(updateTask(parentTask.id, { status: "in_progress" }));
           }
 
-          if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
-            removeFromRecentlyCompleted(taskId);
-          }
-
-          // Only cascade to subtasks if this is a PARENT task
+          // 4. Cascade to subtasks if this is a PARENT task
           if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
             const deletions = task.subtasks.map(subtask => ({
               taskId: subtask.id,
               date: dateStr,
             }));
-            await batchDeleteCompletions(deletions);
+            operations.push(batchDeleteCompletions(deletions));
+          }
+
+          // Execute all operations in parallel
+          await Promise.all(operations);
+
+          if (!showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
+            removeFromRecentlyCompleted(taskId);
           }
         } else {
           if (outcome === "completed" && !showCompletedTasks) {
@@ -618,23 +623,27 @@ export function useCompletionHandlers({
           }
 
           try {
-            await createCompletion(taskId, dateStr, { outcome });
+            // Collect all operations to run in parallel
+            const operations = [];
 
-            // For non-recurring tasks, set status to complete
-            // This syncs checking the checkbox with status badge
-            // Goals can also have their status synced with completions
+            // 1. Create completion for this task
+            operations.push(createCompletion(taskId, dateStr, { outcome }));
+
+            // 2. Update task status (only for non-recurring tasks)
             if (outcome === "completed" && !isRecurringTask) {
-              await updateTask(taskId, { status: "complete" });
+              operations.push(updateTask(taskId, { status: "complete" }));
             }
 
-            // Handle subtask completion - update parent intelligently
+            // 3. Handle subtask completion - update parent intelligently
             if (isSubtask && parentIsNonRecurring && outcome === "completed") {
               // If parent was "todo", move to "in_progress"
               if (parentTask.status === "todo") {
-                await updateTask(parentTask.id, {
-                  status: "in_progress",
-                  startedAt: new Date().toISOString(),
-                });
+                operations.push(
+                  updateTask(parentTask.id, {
+                    status: "in_progress",
+                    startedAt: new Date().toISOString(),
+                  })
+                );
               }
 
               // Check if ALL subtasks are now completed
@@ -643,19 +652,22 @@ export function useCompletionHandlers({
               if (allSubtasksComplete && parentTask.subtasks?.length > 0) {
                 // NOTE: We only update the status, NOT create a completion
                 // The completion should only be created when the user explicitly checks the parent
-                await updateTask(parentTask.id, { status: "complete" });
+                operations.push(updateTask(parentTask.id, { status: "complete" }));
               }
             }
 
-            // Only cascade to subtasks if this is a PARENT task
+            // 4. Cascade to subtasks if this is a PARENT task
             if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
               const creations = task.subtasks.map(subtask => ({
                 taskId: subtask.id,
                 date: dateStr,
                 outcome,
               }));
-              await batchCreateCompletions(creations);
+              operations.push(batchCreateCompletions(creations));
             }
+
+            // Execute all operations in parallel - don't await individually
+            await Promise.all(operations);
           } catch (completionError) {
             if (outcome === "completed" && !showCompletedTasks && recentlyCompletedTasks.has(taskId)) {
               removeFromRecentlyCompleted(taskId);

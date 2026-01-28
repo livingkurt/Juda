@@ -37,12 +37,40 @@ const createLookupKey = (taskId, date) => {
   return `${taskId}|${normalized.toISOString()}`;
 };
 
-const getRecentDateRange = (daysBack = 90) => {
-  const end = new Date();
+const getDateRangeForView = (viewType = "today", viewDate = null) => {
+  const end = viewDate ? new Date(viewDate) : new Date();
   const start = new Date(end);
+
+  // Performance optimization: Fetch only what's needed based on view
+  let daysBack, daysForward;
+  switch (viewType) {
+    case "today":
+      daysBack = 7; // Only need recent history for today view
+      daysForward = 1;
+      break;
+    case "week":
+      daysBack = 7;
+      daysForward = 7;
+      break;
+    case "month":
+      daysBack = 35; // Need more history for month view
+      daysForward = 7;
+      break;
+    case "calendar":
+      daysBack = 30; // Default for calendar views
+      daysForward = 30;
+      break;
+    default:
+      daysBack = 30; // Default fallback
+      daysForward = 7;
+  }
+
   start.setDate(start.getDate() - daysBack);
   const startOfDay = normalizeDate(start);
-  const endOfDay = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999);
+  const endDateObj = new Date(end);
+  endDateObj.setDate(endDateObj.getDate() + daysForward);
+  const endOfDay = new Date(endDateObj.getFullYear(), endDateObj.getMonth(), endDateObj.getDate(), 23, 59, 59, 999);
+
   return {
     startDate: startOfDay.toISOString(),
     endDate: endOfDay.toISOString(),
@@ -52,10 +80,18 @@ const getRecentDateRange = (daysBack = 90) => {
 /**
  * Hook that provides helper functions for working with completions
  * This maintains the same API as the old useCompletions hook
+ *
+ * Performance optimization: Date range is now view-specific to reduce
+ * data load and improve performance:
+ * - today: 7 days back, 1 day forward
+ * - week: 7 days back, 7 days forward
+ * - month: 35 days back, 7 days forward
+ * - calendar: 30 days back, 30 days forward
  */
-export function useCompletionHelpers() {
+export function useCompletionHelpers(viewType = "today", viewDate = null) {
   const { isAuthenticated } = useAuth();
-  const { startDate, endDate } = getRecentDateRange(90);
+  // View-specific date range for better performance
+  const { startDate, endDate } = getDateRangeForView(viewType, viewDate);
   const {
     data: completionsData,
     isLoading,

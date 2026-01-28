@@ -15,59 +15,85 @@ import { useSectionExpansion } from "@/hooks/useSectionExpansion";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 
-const SectionCardComponent = ({ section, index, hoveredDroppable, droppableId, createDraggableId, viewDate }) => {
+const SectionCardComponent = ({
+  section,
+  index,
+  hoveredDroppable,
+  droppableId,
+  createDraggableId,
+  viewDate,
+  // Performance optimization: Accept computed values and handlers as props
+  tasks = [], // Tasks for this section (computed at parent level)
+  isExpanded: isExpandedProp, // Expansion state (computed at parent level)
+  taskOps, // Task operations handlers
+  completionHandlers, // Completion handlers
+  sectionOps, // Section operations handlers
+  getOutcomeOnDate, // Completion helper function
+}) => {
   const [menuAnchor, setMenuAnchor] = useState(null);
 
   // Get selected tag IDs from Redux for auto-tagging new tasks
   const todaySelectedTagIds = useSelector(state => state.ui.todaySelectedTagIds);
 
-  // Use hooks directly (they use Redux internally)
-  const taskOps = useTaskOperations();
-  const completionHandlers = useCompletionHandlers(); // Can be called without section expansion callbacks
+  // Always call hooks (React rules) but use provided props if available
+  const taskOpsInternal = useTaskOperations();
+  const completionHandlersInternal = useCompletionHandlers();
   const { preferences } = usePreferencesContext();
   const showCompletedTasks = preferences.showCompletedTasks;
 
-  // Get section expansion for toggle functionality
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
-  });
-  const sectionExpansion = useSectionExpansion({
-    sections: taskOps.sections,
-    showCompletedTasks,
-    tasksBySection: taskFilters.tasksBySection,
-    viewDate,
-    todaysTasks: taskFilters.todaysTasks,
-  });
-  const sectionOps = useSectionOperations({
-    autoCollapsedSections: sectionExpansion.autoCollapsedSections,
-    setAutoCollapsedSections: sectionExpansion.setAutoCollapsedSections,
-    setManuallyExpandedSections: sectionExpansion.setManuallyExpandedSections,
-    manuallyCollapsedSections: sectionExpansion.manuallyCollapsedSections,
-    setManuallyCollapsedSections: sectionExpansion.setManuallyCollapsedSections,
+  // Use provided handlers or fall back to hooks
+  const taskOpsToUse = taskOps || taskOpsInternal;
+  const completionHandlersToUse = completionHandlers || completionHandlersInternal;
+
+  // Get task filters for backward compatibility (only if tasks not provided)
+  const taskFiltersInternal = useTaskFilters({
+    recentlyCompletedTasks: completionHandlersToUse.recentlyCompletedTasks,
   });
 
-  // Get tasks for this section from Redux - memoized to prevent recreation on every render
-  const tasks = useMemo(() => taskFilters.tasksBySection[section.id] || [], [taskFilters.tasksBySection, section.id]);
+  // Get section expansion for toggle functionality (only if not provided)
+  const sectionExpansionInternal = useSectionExpansion({
+    sections: taskOpsToUse.sections,
+    showCompletedTasks,
+    tasksBySection: tasks.length > 0 ? { [section.id]: tasks } : taskFiltersInternal.tasksBySection,
+    viewDate,
+    todaysTasks: tasks.length > 0 ? tasks : taskFiltersInternal.todaysTasks,
+  });
+
+  const sectionOpsInternal = useSectionOperations({
+    autoCollapsedSections: sectionExpansionInternal.autoCollapsedSections,
+    setAutoCollapsedSections: sectionExpansionInternal.setAutoCollapsedSections,
+    setManuallyExpandedSections: sectionExpansionInternal.setManuallyExpandedSections,
+    manuallyCollapsedSections: sectionExpansionInternal.manuallyCollapsedSections,
+    setManuallyCollapsedSections: sectionExpansionInternal.setManuallyCollapsedSections,
+  });
+
+  const sectionOpsToUse = sectionOps || sectionOpsInternal;
+
+  // Use provided tasks or compute from filters (backward compatibility)
+  const tasksToUse = useMemo(
+    () => (tasks.length > 0 ? tasks : taskFiltersInternal.tasksBySection[section.id] || []),
+    [tasks, taskFiltersInternal.tasksBySection, section.id]
+  );
 
   const IconComponent = SECTION_ICONS.find(i => i.value === section.icon)?.Icon || LightMode;
 
   // Memoize completed count calculation
   const completedCount = useMemo(() => {
-    return tasks.filter(
+    return tasksToUse.filter(
       t => t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed))
     ).length;
-  }, [tasks]);
+  }, [tasksToUse]);
 
   const isDropTarget = hoveredDroppable === droppableId;
 
   // Prepare tasks with draggable IDs - memoized to prevent recreation on every render
   const tasksWithIds = useMemo(
     () =>
-      tasks.map(task => ({
+      tasksToUse.map(task => ({
         ...task,
         draggableId: createDraggableId.todaySection(task.id, section.id),
       })),
-    [tasks, createDraggableId, section.id]
+    [tasksToUse, createDraggableId, section.id]
   );
 
   const handleCreateQuickTask = useCallback(
@@ -75,12 +101,40 @@ const SectionCardComponent = ({ section, index, hoveredDroppable, droppableId, c
       // Convert "no-section" virtual section to null
       const sectionId = section.id === "no-section" ? null : section.id;
       // Pass selected tag IDs so new tasks automatically get filtered tags
-      await taskOps.handleCreateTaskInline(sectionId, title, todaySelectedTagIds);
+      await taskOpsToUse.handleCreateTaskInline(sectionId, title, todaySelectedTagIds);
     },
-    [taskOps, section.id, todaySelectedTagIds]
+    [taskOpsToUse, section.id, todaySelectedTagIds]
   );
 
-  const isExpanded = section.expanded !== false;
+  // Memoize callback handlers to make React.memo effective
+  const handleToggleExpand = useCallback(() => {
+    sectionOpsToUse.handleToggleSectionExpand(section.id);
+  }, [sectionOpsToUse, section.id]);
+
+  const handleAddTask = useCallback(() => {
+    taskOpsToUse.handleAddTask(section.id);
+  }, [taskOpsToUse, section.id]);
+
+  const handleMenuOpen = useCallback(e => {
+    setMenuAnchor(e.currentTarget);
+  }, []);
+
+  const handleMenuClose = useCallback(() => {
+    setMenuAnchor(null);
+  }, []);
+
+  const handleEditSection = useCallback(() => {
+    sectionOpsToUse.handleEditSection(section);
+    setMenuAnchor(null);
+  }, [sectionOpsToUse, section]);
+
+  const handleDeleteSection = useCallback(() => {
+    sectionOpsToUse.handleDeleteSection(section.id);
+    setMenuAnchor(null);
+  }, [sectionOpsToUse, section.id]);
+
+  // Use provided expansion state or fall back to section.expanded
+  const isExpanded = isExpandedProp !== undefined ? isExpandedProp : section.expanded !== false;
 
   // Virtual sections (like "No Section") should not be draggable
   const content = (
@@ -149,18 +203,18 @@ const SectionCardComponent = ({ section, index, hoveredDroppable, droppableId, c
         </Stack>
         <Stack direction="row" spacing={0.5} flexShrink={0}>
           <IconButton
-            onClick={() => sectionOps.handleToggleSectionExpand(section.id)}
+            onClick={handleToggleExpand}
             size="small"
             aria-label={isExpanded ? "Collapse section" : "Expand section"}
           >
             {isExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
           </IconButton>
-          <IconButton onClick={() => taskOps.handleAddTask(section.id)} size="small" aria-label="Add task">
+          <IconButton onClick={handleAddTask} size="small" aria-label="Add task">
             <Add fontSize="small" />
           </IconButton>
           {/* Only show menu for real sections, not virtual "No Section" */}
           {!section.isVirtual && (
-            <IconButton size="small" aria-label="Section menu" onClick={e => setMenuAnchor(e.currentTarget)}>
+            <IconButton size="small" aria-label="Section menu" onClick={handleMenuOpen}>
               <MoreVert fontSize="small" />
             </IconButton>
           )}
@@ -169,22 +223,9 @@ const SectionCardComponent = ({ section, index, hoveredDroppable, droppableId, c
 
       {/* Menu - Only for real sections */}
       {!section.isVirtual && (
-        <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
-          <MenuItem
-            onClick={() => {
-              sectionOps.handleEditSection(section);
-              setMenuAnchor(null);
-            }}
-          >
-            Edit
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              sectionOps.handleDeleteSection(section.id);
-              setMenuAnchor(null);
-            }}
-            sx={{ color: "error.main" }}
-          >
+        <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={handleMenuClose}>
+          <MenuItem onClick={handleEditSection}>Edit</MenuItem>
+          <MenuItem onClick={handleDeleteSection} sx={{ color: "error.main" }}>
             Delete
           </MenuItem>
         </Menu>
@@ -241,6 +282,10 @@ const SectionCardComponent = ({ section, index, hoveredDroppable, droppableId, c
                         hoveredDroppable={hoveredDroppable}
                         draggableId={task.draggableId}
                         viewDate={viewDate}
+                        // Performance optimization: Pass handlers as props
+                        taskOps={taskOpsToUse}
+                        completionHandlers={completionHandlersToUse}
+                        getOutcomeOnDate={getOutcomeOnDate}
                       />
                     ))}
                     {droppableProvided.placeholder}

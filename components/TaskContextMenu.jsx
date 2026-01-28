@@ -107,7 +107,7 @@ export const TaskContextMenu = ({
       )}
 
       {/* Remove from Parent - only show for subtasks */}
-      {isSubtask && [
+      {isSubtask && (
         <MenuItem
           key="remove-from-parent"
           onClick={e => {
@@ -119,9 +119,9 @@ export const TaskContextMenu = ({
             <LinkOff fontSize="small" />
           </ListItemIcon>
           <ListItemText>Remove from Parent</ListItemText>
-        </MenuItem>,
-        <Divider key="divider-remove-parent" />,
-      ]}
+        </MenuItem>
+      )}
+      {isSubtask && <Divider key="divider-remove-parent" />}
 
       {/* Edit Workout option for workout-type tasks */}
       {isWorkoutTask && (

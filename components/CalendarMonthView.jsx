@@ -12,6 +12,7 @@ import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useViewState } from "@/hooks/useViewState";
 import { setCalendarView } from "@/lib/store/slices/uiSlice";
+import { useTaskFiltersContext } from "@/contexts/TaskFiltersContext";
 
 export const CalendarMonthView = ({ date }) => {
   const dispatch = useDispatch();
@@ -23,14 +24,22 @@ export const CalendarMonthView = ({ date }) => {
   const showCompletedTasksCalendar = preferences.showCompletedTasksCalendar || {};
   const showCompleted = showCompletedTasksCalendar.month !== false;
 
-  // Use hooks directly (they use Redux internally)
-  const completionHandlers = useCompletionHandlers();
-  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
+  // Try to use TaskFiltersContext first (performance optimization)
+  const taskFiltersContext = useTaskFiltersContext();
 
-  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+  // Always call hooks (React rules), but use context values if available
+  const completionHandlersHook = useCompletionHandlers();
+  const taskFiltersHook = useTaskFilters({
+    recentlyCompletedTasks: completionHandlersHook.recentlyCompletedTasks,
   });
+
+  // Use context values if available, otherwise use hooks
+  const taskFilters = taskFiltersContext.taskFilters || taskFiltersHook;
+  const contextViewDate = taskFiltersContext.viewDate || date;
+  const tasksByDateRange = taskFiltersContext.tasksByDateRange;
+
+  // Use month view type for optimized date range (35 days back, 7 days forward)
+  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers("month", contextViewDate);
 
   // Get all tasks
   const tasks = taskFilters.tasks;
@@ -62,12 +71,22 @@ export const CalendarMonthView = ({ date }) => {
   today.setHours(0, 0, 0, 0);
 
   // Pre-compute tasks for each day to avoid filtering on every render
+  // Uses pre-computed tasksByDateRange from context if available (performance optimization)
   const tasksByDate = useMemo(() => {
     const map = new Map();
     const allDays = weeks.flat();
     allDays.forEach(day => {
       const dateKey = day.toDateString();
-      let dayTasks = tasks.filter(t => shouldShowOnDate(t, day));
+      let dayTasks = [];
+
+      // Use pre-computed tasksByDateRange if available (no shouldShowOnDate calls needed!)
+      if (tasksByDateRange && tasksByDateRange.has(dateKey)) {
+        dayTasks = tasksByDateRange.get(dateKey);
+      } else {
+        // Fallback to manual filtering
+        dayTasks = tasks.filter(t => shouldShowOnDate(t, day));
+      }
+
       // Filter out completed/not completed tasks if showCompleted is false
       if (!showCompleted) {
         dayTasks = dayTasks.filter(task => {
@@ -81,7 +100,7 @@ export const CalendarMonthView = ({ date }) => {
       map.set(dateKey, dayTasks.slice(0, 3));
     });
     return map;
-  }, [weeks, tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]);
+  }, [weeks, tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate, tasksByDateRange]);
 
   const handleDayClick = useCallback(
     d => {

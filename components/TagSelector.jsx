@@ -67,9 +67,8 @@ export const TagSelector = ({
   const [createTagMutation] = useCreateTagMutation();
 
   // Derive selected tag IDs from task if in autoSave mode, otherwise use external prop
-  const derivedSelectedTagIds = task && autoSave 
-    ? (Array.isArray(task.tags) ? task.tags.map(t => t.id) : [])
-    : externalSelectedTagIds;
+  const derivedSelectedTagIds =
+    task && autoSave ? (Array.isArray(task.tags) ? task.tags.map(t => t.id) : []) : externalSelectedTagIds;
 
   // Internal state
   const [searchQuery, setSearchQuery] = useState("");
@@ -310,16 +309,14 @@ export const TagSelector = ({
       </Box>
 
       {/* Manage Tags button */}
+      {showManageButton && <Divider key="divider-manage-tags" />}
       {showManageButton && (
-        <>
-          <Divider />
-          <MenuItem onClick={handleOpenManageDialog}>
-            <ListItemIcon>
-              <Settings fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Manage Tags</ListItemText>
-          </MenuItem>
-        </>
+        <MenuItem key="manage-tags" onClick={handleOpenManageDialog}>
+          <ListItemIcon>
+            <Settings fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Manage Tags</ListItemText>
+        </MenuItem>
       )}
     </Menu>
   );
@@ -370,7 +367,7 @@ export const TagSelector = ({
   // Render with custom trigger if provided
   if (renderTrigger) {
     const customTrigger = renderTrigger(handleMenuOpen);
-    
+
     // If renderTrigger returns null/undefined and no tags selected, show default button
     if (!customTrigger && derivedSelectedTagIds.length === 0) {
       return (
@@ -382,7 +379,7 @@ export const TagSelector = ({
         </>
       );
     }
-    
+
     return (
       <>
         {customTrigger}

@@ -14,6 +14,7 @@ import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useViewState } from "@/hooks/useViewState";
 import { setCalendarView } from "@/lib/store/slices/uiSlice";
+import { useTaskFiltersContext } from "@/contexts/TaskFiltersContext";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_WEEK;
 
@@ -61,15 +62,24 @@ export const CalendarWeekView = ({
   const showCompletedTasksCalendar = preferences.showCompletedTasksCalendar || {};
   const showCompleted = showCompletedTasksCalendar.week !== false;
 
-  // Use hooks directly (they use Redux internally)
-  const taskOps = useTaskOperations();
-  const completionHandlers = useCompletionHandlers();
-  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
+  // Try to use TaskFiltersContext first (performance optimization)
+  const taskFiltersContext = useTaskFiltersContext();
 
-  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+  // Always call hooks (React rules), but use context values if available
+  const taskOpsHook = useTaskOperations();
+  const completionHandlersHook = useCompletionHandlers();
+  const taskFiltersHook = useTaskFilters({
+    recentlyCompletedTasks: completionHandlersHook.recentlyCompletedTasks,
   });
+
+  // Use context values if available, otherwise use hooks
+  const taskFilters = taskFiltersContext.taskFilters || taskFiltersHook;
+  const taskOps = taskFiltersContext.taskOps || taskOpsHook;
+  const contextViewDate = taskFiltersContext.viewDate || date;
+  const tasksByDateRange = taskFiltersContext.tasksByDateRange;
+
+  // Use calendar view type for optimized date range
+  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers("calendar", contextViewDate);
 
   // Get all tasks
   const tasks = taskFilters.tasks;
@@ -124,8 +134,8 @@ export const CalendarWeekView = ({
   }, [isTodayInWeek, HOUR_HEIGHT, weekDays]);
 
   // Pre-compute ALL tasks for each day in a single pass (OPTIMIZED)
-  // This reduces shouldShowOnDate calls from 2N*7 to N*7 (50% reduction)
-  // and combines timed/untimed filtering into one loop
+  // Uses pre-computed tasksByDateRange from context if available (further optimization)
+  // This reduces shouldShowOnDate calls from N*7 to 0 (100% reduction when context available)
   const tasksByDay = useMemo(() => {
     const timedMap = new Map();
     const untimedMap = new Map();
@@ -138,19 +148,43 @@ export const CalendarWeekView = ({
       untimedMap.set(dateKey, []);
     });
 
-    // Single pass through all tasks, filtering for all days at once
+    // Use pre-computed tasksByDateRange if available, otherwise filter manually
     weekDays.forEach(day => {
       const dateKey = day.toDateString();
-      const filtered = filterTasksForDay(tasks, day, showCompleted, isCompletedOnDate, getOutcomeOnDate);
-      timedMap.set(dateKey, filtered.timed);
-      untimedMap.set(dateKey, filtered.untimed);
+      let dayTasks = [];
+
+      if (tasksByDateRange && tasksByDateRange.has(dateKey)) {
+        // Use pre-computed tasks (no shouldShowOnDate calls needed!)
+        dayTasks = tasksByDateRange.get(dateKey);
+      } else {
+        // Fallback to manual filtering
+        const filtered = filterTasksForDay(tasks, day, showCompleted, isCompletedOnDate, getOutcomeOnDate);
+        dayTasks = [...filtered.timed, ...filtered.untimed];
+      }
+
+      // Filter by completion status if needed
+      if (!showCompleted) {
+        dayTasks = dayTasks.filter(task => {
+          const isCompleted = isCompletedOnDate(task.id, day);
+          const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
+          const hasOutcome = outcome !== null && outcome !== undefined;
+          return !isCompleted && !hasOutcome;
+        });
+      }
+
+      // Sort into timed/untimed
+      const timed = dayTasks.filter(t => t.time);
+      const untimed = dayTasks.filter(t => !t.time);
+
+      timedMap.set(dateKey, timed);
+      untimedMap.set(dateKey, untimed);
 
       // Calculate positions immediately for timed tasks
-      positionedMap.set(dateKey, calculateTaskPositions(filtered.timed));
+      positionedMap.set(dateKey, calculateTaskPositions(timed));
     });
 
     return { timedMap, untimedMap, positionedMap };
-  }, [weekDays, tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]);
+  }, [weekDays, tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate, tasksByDateRange]);
 
   const getUntimedTasksForDay = useCallback(
     day => {
