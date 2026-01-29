@@ -2,6 +2,7 @@ import withSerwist from "@serwist/next";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   reactCompiler: true,
   // Empty turbopack config to silence warning
