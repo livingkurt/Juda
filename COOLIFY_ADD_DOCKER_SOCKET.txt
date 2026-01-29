@@ -1,0 +1,54 @@
+# ============================================
+# Add Docker Socket to Coolify
+# ============================================
+# This is REQUIRED for Coolify to deploy containers
+# ============================================
+
+cd /mnt/user/appdata/coolify
+
+# Step 1: Stop Coolify
+echo "Stopping Coolify..."
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+
+# Step 2: Edit docker-compose.prod.yml
+echo ""
+echo "Now you need to edit docker-compose.prod.yml"
+echo "Add this line under the 'volumes:' section of the 'coolify:' service:"
+echo ""
+echo "      - /var/run/docker.sock:/var/run/docker.sock"
+echo ""
+echo "The volumes section should look like this:"
+echo ""
+echo "  coolify:"
+echo "    volumes:"
+echo "      - type: bind"
+echo "        source: /data/coolify/source/.env"
+echo "        target: /var/www/html/.env"
+echo "        read_only: true"
+echo "      - /data/coolify/ssh:/var/www/html/storage/app/ssh"
+echo "      - /data/coolify/applications:/var/www/html/storage/app/applications"
+echo "      - /data/coolify/databases:/var/www/html/storage/app/databases"
+echo "      - /data/coolify/services:/var/www/html/storage/app/services"
+echo "      - /data/coolify/backups:/var/www/html/storage/app/backups"
+echo "      - /var/run/docker.sock:/var/run/docker.sock    <-- ADD THIS LINE"
+echo ""
+
+read -p "Press Enter after you've edited the file..."
+
+# Step 3: Start Coolify back up
+echo "Starting Coolify..."
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+sleep 10
+
+# Step 4: Verify Docker access
+echo ""
+echo "Testing Docker access..."
+if docker exec coolify docker ps > /dev/null 2>&1; then
+    echo "✅ SUCCESS! Coolify can now access Docker!"
+else
+    echo "❌ Still can't access Docker. Check the docker-compose.prod.yml file."
+fi
+
+echo ""
+echo "✅ Done! Now you can deploy your Juda app in Coolify."

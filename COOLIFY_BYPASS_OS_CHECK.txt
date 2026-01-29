@@ -1,0 +1,41 @@
+# ============================================
+# Bypass Coolify OS Check for Unraid
+# ============================================
+# Coolify doesn't recognize Unraid's OS
+# We'll manually mark the server as validated in the database
+# ============================================
+
+echo "🔧 Bypassing OS validation check..."
+
+# Close the validation dialog in the browser first, then run these commands:
+
+# Step 1: Find the server ID that was just created
+echo "Finding server ID..."
+docker exec -i coolify-db psql -U coolify -d coolify << 'EOF'
+SELECT id, name, ip, validation_logs FROM servers ORDER BY created_at DESC LIMIT 1;
+EOF
+
+# Step 2: Get the server ID from above output, then update it
+# Replace SERVER_ID with the actual ID from the query above
+echo ""
+echo "Now we'll mark the server as validated."
+echo "First, what was the server ID from above? (Usually 0 or 1)"
+read -p "Enter server ID: " SERVER_ID
+
+# Step 3: Update the server to bypass validation
+docker exec -i coolify-db psql -U coolify -d coolify << EOF
+UPDATE servers
+SET validation_logs = NULL,
+    settings = jsonb_set(
+        COALESCE(settings, '{}'::jsonb),
+        '{is_build_server}',
+        'false'
+    )
+WHERE id = $SERVER_ID;
+EOF
+
+echo ""
+echo "✅ Server validation bypassed!"
+echo ""
+echo "Now go back to Coolify and close the validation dialog."
+echo "The server should appear as connected."

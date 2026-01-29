@@ -1,0 +1,52 @@
+# ============================================
+# Start Coolify and Test Docker Access
+# ============================================
+
+cd /mnt/user/appdata/coolify
+
+# Step 1: Start Coolify
+echo "Starting Coolify..."
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+echo "Waiting 15 seconds for Coolify to start..."
+sleep 15
+
+# Step 2: Check if containers are running
+echo ""
+echo "Checking Coolify containers..."
+docker ps | grep coolify
+
+# Step 3: Test Docker access from Coolify
+echo ""
+echo "Testing Docker access from Coolify container..."
+if docker exec coolify docker ps > /dev/null 2>&1; then
+    echo "✅ SUCCESS! Coolify can access Docker!"
+    echo ""
+    echo "Docker containers visible from Coolify:"
+    docker exec coolify docker ps
+    echo ""
+    echo "✅ Everything is working! You can now deploy apps in Coolify!"
+else
+    echo "❌ Still can't access Docker"
+    echo ""
+    echo "Let's diagnose..."
+    echo ""
+
+    # Check if docker.sock is mounted
+    echo "1. Checking if docker.sock exists in container:"
+    docker exec coolify ls -la /var/run/docker.sock 2>&1
+    echo ""
+
+    # Check container mounts
+    echo "2. Checking container mounts:"
+    docker inspect coolify | grep -A 15 "Mounts" | grep -i docker
+    echo ""
+
+    # Check docker-compose config
+    echo "3. Verifying docker-compose.prod.yml has docker.sock:"
+    grep "/var/run/docker.sock" docker-compose.prod.yml
+fi
+
+echo ""
+echo "========================================"
+echo "Done!"

@@ -1,0 +1,74 @@
+# ============================================
+# Complete Coolify Setup for Unraid
+# ============================================
+# This will configure Coolify to work properly with Unraid
+# by using Docker socket instead of SSH
+# ============================================
+
+echo "🔧 Setting up Coolify for Unraid..."
+
+cd /mnt/user/appdata/coolify
+
+# Step 1: Stop Coolify
+echo "Stopping Coolify..."
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+
+# Step 2: Backup current configuration
+echo "Backing up configuration..."
+cp docker-compose.prod.yml docker-compose.prod.yml.backup.$(date +%Y%m%d_%H%M%S)
+
+# Step 3: Check if Docker socket is already mounted
+if grep -q "/var/run/docker.sock" docker-compose.prod.yml; then
+    echo "✅ Docker socket already configured"
+else
+    echo "⚠️  Docker socket not found in config"
+    echo "You need to add it manually or Coolify won't work with Unraid"
+fi
+
+# Step 4: Show current docker-compose.prod.yml coolify service
+echo ""
+echo "Current Coolify service configuration:"
+echo "======================================="
+sed -n '/^  coolify:/,/^  [a-z]/p' docker-compose.prod.yml | head -n -1
+
+# Step 5: Start Coolify back up
+echo ""
+echo "Starting Coolify..."
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+sleep 10
+
+# Step 6: Verify Docker socket access from inside Coolify
+echo ""
+echo "Testing Docker access from Coolify container..."
+if docker exec coolify docker ps > /dev/null 2>&1; then
+    echo "✅ Coolify can access Docker!"
+else
+    echo "❌ Coolify CANNOT access Docker"
+    echo ""
+    echo "This means the Docker socket is not properly mounted."
+    echo "You need to add this to docker-compose.prod.yml under the coolify service:"
+    echo ""
+    echo "  coolify:"
+    echo "    volumes:"
+    echo "      - /var/run/docker.sock:/var/run/docker.sock"
+    echo ""
+fi
+
+echo ""
+echo "======================================="
+echo "Next steps:"
+echo "======================================="
+echo ""
+echo "1. If Docker access test FAILED above:"
+echo "   - Stop Coolify: docker-compose -f docker-compose.yml -f docker-compose.prod.yml down"
+echo "   - Edit docker-compose.prod.yml"
+echo "   - Add Docker socket mount to coolify service volumes"
+echo "   - Restart: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d"
+echo ""
+echo "2. If Docker access test PASSED:"
+echo "   - Go back to Coolify UI: http://192.168.1.133:8001"
+echo "   - Click 'Skip Setup' at the bottom"
+echo "   - Or close the validation dialog"
+echo "   - Coolify should work now!"
+echo ""

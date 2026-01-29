@@ -1,0 +1,56 @@
+# ============================================
+# Coolify + Unraid Docker Socket Fix
+# ============================================
+# Coolify doesn't recognize Unraid's Docker setup
+# We need to give Coolify direct access to Docker socket
+# ============================================
+
+echo "🔧 Configuring Coolify to use Docker socket..."
+
+# Step 1: Stop Coolify
+cd /mnt/user/appdata/coolify
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+
+# Step 2: Check if docker.sock is already mounted
+echo "Checking current mounts..."
+grep -r "docker.sock" docker-compose.yml docker-compose.prod.yml
+
+# Step 3: Edit docker-compose.prod.yml to ensure Docker socket is mounted
+# First, let's back it up
+cp docker-compose.prod.yml docker-compose.prod.yml.backup
+
+# Step 4: Add Docker socket mount if not present
+# We need to edit the coolify service to include:
+# volumes:
+#   - /var/run/docker.sock:/var/run/docker.sock
+
+echo ""
+echo "Please check if docker-compose.prod.yml has this in the coolify service:"
+echo ""
+echo "  coolify:"
+echo "    volumes:"
+echo "      - /var/run/docker.sock:/var/run/docker.sock"
+echo ""
+
+# Step 5: Let's check what's currently there
+echo "Current coolify service volumes:"
+grep -A 10 "coolify:" docker-compose.prod.yml | grep -A 5 "volumes:"
+
+echo ""
+echo "If /var/run/docker.sock is NOT listed above, we need to add it."
+echo ""
+echo "Run this to add it:"
+echo ""
+cat << 'EDITCMD'
+# Edit the file
+nano docker-compose.prod.yml
+
+# Find the coolify service section and add under volumes:
+#   - /var/run/docker.sock:/var/run/docker.sock:ro
+
+# Save and exit (Ctrl+X, Y, Enter)
+EDITCMD
+
+echo ""
+echo "After editing, restart Coolify:"
+echo "docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d"

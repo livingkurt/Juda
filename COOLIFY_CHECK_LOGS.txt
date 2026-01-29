@@ -1,0 +1,12 @@
+# ============================================
+# Check Coolify Logs for the Error
+# ============================================
+# Run on Unraid to see what's actually failing
+# ============================================
+
+echo "Checking Coolify logs for errors..."
+docker logs coolify --tail 100 | grep -i "payload\|error\|exception" -A 5 -B 5
+
+echo ""
+echo "Full recent logs:"
+docker logs coolify --tail 50

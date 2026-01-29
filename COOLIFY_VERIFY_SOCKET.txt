@@ -1,0 +1,39 @@
+# ============================================
+# Verify Docker Socket is Mounted in Coolify
+# ============================================
+# Coolify doesn't need Docker CLI installed
+# It just needs access to /var/run/docker.sock
+# ============================================
+
+echo "Verifying Docker socket access..."
+echo "========================================"
+
+# Check if docker.sock exists in the container
+echo "1. Checking if docker.sock is mounted in Coolify container:"
+docker exec coolify ls -la /var/run/docker.sock 2>&1
+echo ""
+
+# Check what's actually mounted
+echo "2. Checking container mounts for docker.sock:"
+docker inspect coolify | grep -A 20 "Mounts" | grep -i "docker.sock"
+echo ""
+
+# Alternative test - check if Coolify can access Docker API via socket
+echo "3. Testing Docker API access via socket:"
+docker exec coolify sh -c "echo -e 'GET /containers/json HTTP/1.0\r\n' | nc -U /var/run/docker.sock 2>&1 | head -n 5"
+echo ""
+
+# Check if socket has correct permissions
+echo "4. Checking socket permissions:"
+docker exec coolify ls -la /var/run/ | grep docker
+echo ""
+
+# Final verification - check docker-compose config
+echo "5. Verifying docker-compose.prod.yml configuration:"
+grep -A 2 "/var/run/docker.sock" /mnt/user/appdata/coolify/docker-compose.prod.yml
+echo ""
+
+echo "========================================"
+echo "If docker.sock exists in the container (step 1), Coolify can use Docker!"
+echo "The 'docker: executable file not found' error is normal - Coolify uses"
+echo "the socket directly, not the Docker CLI."

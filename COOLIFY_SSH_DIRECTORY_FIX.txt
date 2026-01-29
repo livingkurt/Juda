@@ -1,0 +1,57 @@
+# ============================================
+# Fix Coolify SSH Keys Directory Issue
+# ============================================
+# The error shows PopulateSshKeysDirectorySeeder is failing
+# This means Coolify needs the SSH keys to be accessible inside its container
+# ============================================
+
+echo "🔧 Fixing Coolify SSH Keys Directory..."
+
+# Step 1: Create SSH directory inside Coolify container
+echo "Creating SSH directory in Coolify container..."
+docker exec coolify mkdir -p /root/.ssh
+docker exec coolify chmod 700 /root/.ssh
+
+# Step 2: Copy the SSH key into the Coolify container
+echo "Copying SSH keys into Coolify container..."
+docker cp /root/.ssh/coolify_localhost coolify:/root/.ssh/
+docker cp /root/.ssh/coolify_localhost.pub coolify:/root/.ssh/
+
+# Step 3: Set proper permissions inside container
+echo "Setting permissions..."
+docker exec coolify chmod 600 /root/.ssh/coolify_localhost
+docker exec coolify chmod 644 /root/.ssh/coolify_localhost.pub
+
+# Step 4: Verify the keys are there
+echo "Verifying keys in container..."
+docker exec coolify ls -la /root/.ssh/
+
+# Step 5: Update the database to point to the correct key path
+echo "Updating database with correct key path..."
+PRIVATE_KEY=$(cat /root/.ssh/coolify_localhost)
+
+docker exec -i coolify-db psql -U coolify -d coolify << EOF
+UPDATE private_keys
+SET private_key = '$PRIVATE_KEY',
+    name = 'localhost-key',
+    description = 'SSH key for localhost server'
+WHERE id = 0;
+EOF
+
+# Step 6: Restart Coolify to trigger the seeder again
+echo "Restarting Coolify..."
+docker restart coolify
+
+echo "Waiting 35 seconds for Coolify to fully restart..."
+sleep 35
+
+# Step 7: Check if the seeder succeeded this time
+echo ""
+echo "Checking logs for seeder status..."
+docker logs coolify --tail 50 | grep -i "PopulateSshKeysDirectorySeeder\|payload"
+
+echo ""
+echo "✅ Fix applied!"
+echo ""
+echo "Check if the error is gone in the logs above."
+echo "Then try 'This machine' button again at http://192.168.1.133:8001"

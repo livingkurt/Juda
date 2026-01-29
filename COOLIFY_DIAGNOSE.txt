@@ -1,0 +1,46 @@
+# ============================================
+# Coolify Diagnostic Script
+# ============================================
+# Run on Unraid to diagnose the "This machine" issue
+# ============================================
+
+echo "=== COOLIFY DIAGNOSTIC ==="
+echo ""
+
+echo "1. Checking Coolify container status..."
+docker ps | grep coolify
+echo ""
+
+echo "2. Checking database entries..."
+docker exec -i coolify-db psql -U coolify -d coolify << 'EOF'
+\dt
+SELECT id, name, ip, port, "user", private_key_id FROM servers;
+SELECT id, name FROM private_keys;
+EOF
+echo ""
+
+echo "3. Testing SSH connection from Coolify container..."
+docker exec coolify ssh -i /root/.ssh/coolify_localhost -o StrictHostKeyChecking=no root@host.docker.internal "echo 'SSH from container works'" 2>&1
+echo ""
+
+echo "4. Checking if private key exists in Coolify container..."
+docker exec coolify ls -la /root/.ssh/ 2>&1
+echo ""
+
+echo "5. Checking Coolify logs for errors..."
+docker logs coolify --tail 30 | grep -i "error\|exception\|fail" || echo "No obvious errors in recent logs"
+echo ""
+
+echo "6. Testing network connectivity from Coolify container..."
+docker exec coolify ping -c 2 host.docker.internal 2>&1
+echo ""
+
+echo "7. Checking if Coolify can reach port 22..."
+docker exec coolify nc -zv host.docker.internal 22 2>&1
+echo ""
+
+echo "=== DIAGNOSTIC COMPLETE ==="
+echo ""
+echo "If you see errors above, that's what we need to fix."
+echo "Otherwise, the 'This machine' button might just be buggy."
+echo "Try the manual server setup instead (see COOLIFY_ALTERNATIVE_SETUP.md)"

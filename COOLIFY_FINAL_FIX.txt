@@ -1,0 +1,69 @@
+# ============================================
+# Coolify Complete Database Fix
+# ============================================
+# Run these commands on your Unraid server
+# This will properly clean up and recreate the server entry
+# ============================================
+
+# First, let's check what's in the database
+echo "Current database state:"
+docker exec -i coolify-db psql -U coolify -d coolify << 'EOF'
+SELECT id, name, ip, port, "user", private_key_id FROM servers;
+SELECT id, name FROM private_keys;
+SELECT id, server_id FROM ssl_certificates;
+EOF
+
+# Clean up SSL certificates that reference the server
+echo ""
+echo "Cleaning up SSL certificates..."
+docker exec -i coolify-db psql -U coolify -d coolify << 'EOF'
+DELETE FROM ssl_certificates WHERE server_id = 0;
+EOF
+
+# Now delete the server
+echo "Deleting old server entry..."
+docker exec -i coolify-db psql -U coolify -d coolify << 'EOF'
+DELETE FROM servers WHERE id = 0;
+EOF
+
+# Delete old private key
+echo "Deleting old private key..."
+docker exec -i coolify-db psql -U coolify -d coolify << 'EOF'
+DELETE FROM private_keys WHERE id = 0;
+EOF
+
+# Read the private key we created
+PRIVATE_KEY=$(cat /root/.ssh/coolify_localhost)
+
+# Insert new private key
+echo "Inserting new private key..."
+docker exec -i coolify-db psql -U coolify -d coolify << EOF
+INSERT INTO private_keys (id, uuid, name, description, private_key, team_id, created_at, updated_at)
+VALUES (0, gen_random_uuid(), 'localhost-key', 'SSH key for localhost', '$PRIVATE_KEY', 0, NOW(), NOW());
+EOF
+
+# Insert new server entry
+echo "Inserting new server entry..."
+docker exec -i coolify-db psql -U coolify -d coolify << 'EOF'
+INSERT INTO servers (id, uuid, name, description, ip, port, "user", team_id, private_key_id, created_at, updated_at)
+VALUES (0, gen_random_uuid(), 'localhost', 'This server', 'host.docker.internal', 22, 'root', 0, 0, NOW(), NOW());
+EOF
+
+# Verify
+echo ""
+echo "Verifying new entries:"
+docker exec -i coolify-db psql -U coolify -d coolify << 'EOF'
+SELECT id, name, ip, port, "user", private_key_id FROM servers WHERE id = 0;
+SELECT id, name FROM private_keys WHERE id = 0;
+EOF
+
+# Restart Coolify
+echo ""
+echo "Restarting Coolify..."
+docker restart coolify
+
+echo "Waiting 30 seconds..."
+sleep 30
+
+echo ""
+echo "✅ Complete! Now try 'This machine' again at http://192.168.1.133:8001"

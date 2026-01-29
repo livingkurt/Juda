@@ -1,0 +1,51 @@
+# ============================================
+# Verify and Fix Docker Socket Configuration
+# ============================================
+
+cd /mnt/user/appdata/coolify
+
+# Step 1: Check if the line was added correctly
+echo "Checking docker-compose.prod.yml..."
+echo "========================================"
+grep -A 10 "coolify:" docker-compose.prod.yml | grep -A 8 "volumes:"
+echo ""
+
+# Step 2: Check if docker.sock exists
+echo "Checking if Docker socket exists..."
+ls -la /var/run/docker.sock
+echo ""
+
+# Step 3: Show the exact format needed
+echo "The volumes section should have this format:"
+echo "========================================"
+cat << 'EOF'
+  coolify:
+    image: "${REGISTRY_URL:-ghcr.io}/coollabsio/coolify:${LATEST_IMAGE:-latest}"
+    volumes:
+      - type: bind
+        source: /data/coolify/source/.env
+        target: /var/www/html/.env
+        read_only: true
+      - /data/coolify/ssh:/var/www/html/storage/app/ssh
+      - /data/coolify/applications:/var/www/html/storage/app/applications
+      - /data/coolify/databases:/var/www/html/storage/app/databases
+      - /data/coolify/services:/var/www/html/storage/app/services
+      - /data/coolify/backups:/var/www/html/storage/app/backups
+      - /var/run/docker.sock:/var/run/docker.sock
+EOF
+
+echo ""
+echo "If the docker.sock line is missing or formatted wrong, let's fix it..."
+
+# Step 4: Check current file
+if grep -q "/var/run/docker.sock" docker-compose.prod.yml; then
+    echo "✅ Docker socket line found in file"
+    echo "But it might be formatted incorrectly. Let's check..."
+    grep "/var/run/docker.sock" docker-compose.prod.yml
+else
+    echo "❌ Docker socket line NOT found in file"
+    echo "We need to add it manually"
+fi
+
+echo ""
+echo "Let's verify the exact indentation and format..."

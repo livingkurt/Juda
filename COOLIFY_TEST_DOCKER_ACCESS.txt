@@ -1,0 +1,48 @@
+# ============================================
+# Test Docker Access from Coolify
+# ============================================
+
+echo "Testing Docker access from Coolify container..."
+echo "========================================"
+
+# Test 1: Can Coolify see Docker?
+if docker exec coolify docker ps > /dev/null 2>&1; then
+    echo "✅ SUCCESS! Coolify can access Docker!"
+    echo ""
+    echo "Docker containers visible from Coolify:"
+    docker exec coolify docker ps
+    echo ""
+    echo "✅ Everything is working! You can now deploy apps in Coolify!"
+else
+    echo "❌ Still can't access Docker"
+    echo ""
+    echo "Diagnostics:"
+    echo "========================================"
+
+    # Check if docker.sock is mounted
+    echo "1. Checking if docker.sock is mounted in container:"
+    docker exec coolify ls -la /var/run/docker.sock 2>&1
+    echo ""
+
+    # Check container mounts
+    echo "2. Checking container mounts:"
+    docker inspect coolify | grep -A 10 "Mounts" | grep -i docker
+    echo ""
+
+    # Check permissions
+    echo "3. Checking Docker socket permissions:"
+    ls -la /var/run/docker.sock
+    echo ""
+
+    # Check if coolify user can access
+    echo "4. Checking Coolify container user:"
+    docker exec coolify id
+    echo ""
+
+    # Show current volumes config
+    echo "5. Current docker-compose.prod.yml volumes section:"
+    grep -A 10 "coolify:" /mnt/user/appdata/coolify/docker-compose.prod.yml | grep -A 8 "volumes:"
+fi
+
+echo ""
+echo "========================================"

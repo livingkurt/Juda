@@ -1,0 +1,76 @@
+# ============================================
+# Automatically Fix Docker Socket in Coolify
+# ============================================
+
+cd /mnt/user/appdata/coolify
+
+# Step 1: Stop Coolify
+echo "Stopping Coolify..."
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+
+# Step 2: Backup the file
+cp docker-compose.prod.yml docker-compose.prod.yml.backup
+
+# Step 3: Check if docker.sock line already exists
+if grep -q "/var/run/docker.sock" docker-compose.prod.yml; then
+    echo "Docker socket line found, but might be wrong format. Removing it first..."
+    # Remove any existing docker.sock lines
+    sed -i '/\/var\/run\/docker\.sock/d' docker-compose.prod.yml
+fi
+
+# Step 4: Add docker.sock line after the backups volume line
+echo "Adding Docker socket mount..."
+# Find the backups line and add docker.sock after it
+sed -i '/\/data\/coolify\/backups:\/var\/www\/html\/storage\/app\/backups/a\      - /var/run/docker.sock:/var/run/docker.sock' docker-compose.prod.yml
+
+# Step 5: Verify it was added correctly
+echo ""
+echo "Verifying the change..."
+echo "========================================"
+grep -A 2 "/data/coolify/backups" docker-compose.prod.yml
+echo ""
+
+# Step 6: Check if docker.sock exists on host
+echo "Checking Docker socket on host..."
+if [ -S /var/run/docker.sock ]; then
+    echo "✅ Docker socket exists at /var/run/docker.sock"
+    ls -la /var/run/docker.sock
+else
+    echo "❌ Docker socket NOT found at /var/run/docker.sock"
+    echo "Trying alternative location..."
+    find /var -name "docker.sock" 2>/dev/null
+fi
+
+# Step 7: Start Coolify
+echo ""
+echo "Starting Coolify..."
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+sleep 15
+
+# Step 8: Test Docker access
+echo ""
+echo "Testing Docker access from Coolify container..."
+if docker exec coolify docker ps > /dev/null 2>&1; then
+    echo "✅ SUCCESS! Coolify can now access Docker!"
+    echo ""
+    echo "Docker containers visible from Coolify:"
+    docker exec coolify docker ps
+else
+    echo "❌ Still can't access Docker"
+    echo ""
+    echo "Let's check what's wrong..."
+    echo ""
+    echo "1. Checking if docker.sock is mounted:"
+    docker exec coolify ls -la /var/run/docker.sock 2>&1
+    echo ""
+    echo "2. Checking container mounts:"
+    docker inspect coolify | grep -A 5 "Mounts" | grep docker.sock
+    echo ""
+    echo "3. Current docker-compose.prod.yml volumes section:"
+    grep -A 10 "coolify:" docker-compose.prod.yml | grep -A 8 "volumes:"
+fi
+
+echo ""
+echo "========================================"
+echo "Done!"
