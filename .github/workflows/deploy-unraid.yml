@@ -1,0 +1,74 @@
+name: Deploy to Unraid
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            --build-arg DATABASE_URL="postgresql://juda:${{ secrets.UNRAID_POSTGRES_PASSWORD }}@${{ secrets.UNRAID_HOST }}:5432/juda" \
+            --build-arg NEXT_PUBLIC_APP_URL="${{ secrets.UNRAID_APP_URL }}" \
+            -t juda-app .
+
+      - name: Save Docker image
+        run: |
+          docker save juda-app > juda-app.tar
+
+      - name: Transfer image to Unraid
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.UNRAID_HOST }}
+          username: ${{ secrets.UNRAID_SSH_USER }}
+          key: ${{ secrets.UNRAID_SSH_KEY }}
+          port: ${{ secrets.UNRAID_SSH_PORT || 22 }}
+          source: "juda-app.tar"
+          target: "/tmp"
+
+      - name: Deploy to Unraid
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.UNRAID_HOST }}
+          username: ${{ secrets.UNRAID_SSH_USER }}
+          key: ${{ secrets.UNRAID_SSH_KEY }}
+          port: ${{ secrets.UNRAID_SSH_PORT || 22 }}
+          script: |
+            # Load Docker image
+            docker load < /tmp/juda-app.tar
+            rm /tmp/juda-app.tar
+
+            # Stop and remove old container if it exists
+            docker stop juda-app 2>/dev/null || true
+            docker rm juda-app 2>/dev/null || true
+
+            # Create and start new container
+            docker run -d \
+              --name juda-app \
+              --network bridge \
+              -p 3000:3000 \
+              -e DATABASE_URL="postgresql://juda:${{ secrets.UNRAID_POSTGRES_PASSWORD }}@juda-postgres:5432/juda" \
+              -e NEXT_PUBLIC_APP_URL="${{ secrets.UNRAID_APP_URL }}" \
+              -e NODE_ENV=production \
+              --restart unless-stopped \
+              juda-app
+
+            # Show container status
+            docker ps --filter name=juda-app
+            echo ""
+            echo "✅ Deployment complete!"
+            echo "🌐 App available at: ${{ secrets.UNRAID_APP_URL }}"

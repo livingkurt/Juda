@@ -4,6 +4,7 @@ import withSerwist from "@serwist/next";
 const nextConfig = {
   reactStrictMode: true,
   reactCompiler: true,
+  output: "standalone",
   // Empty turbopack config to silence warning
   turbopack: {},
 };

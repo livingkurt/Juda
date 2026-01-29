@@ -18,7 +18,9 @@
     "db:dump": "bash scripts/db-dump.sh",
     "db:restore": "bash scripts/db-restore.sh",
     "db:sync": "npm run db:dump && npm run db:restore",
-    "clean-install": "rm -rf node_modules && rm -rf package-lock.json && npm install"
+    "clean-install": "rm -rf node_modules && rm -rf package-lock.json && npm install",
+    "deploy": "node scripts/deploy-unraid.js",
+    "test-ssh": "node scripts/test-ssh.js"
   },
   "dependencies": {
     "@emotion/react": "^11.11.1",

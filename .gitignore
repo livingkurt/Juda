@@ -46,3 +46,6 @@ next-env.d.ts
 # SQL files (but not drizzle migrations)
 /*.sql
 !drizzle/*.sql
+
+# Docker deployment artifacts
+juda-app.tar
