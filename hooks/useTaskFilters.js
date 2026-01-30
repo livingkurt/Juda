@@ -52,6 +52,8 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
         .filter(task => {
           // Exclude notes from today's tasks
           if (task.completionType === "note") return false;
+          // Exclude goal-type tasks from today's tasks (they have their own Goals tab)
+          if (task.completionType === "goal") return false;
           // Exclude subtasks (handled by parent)
           if (task.parentId) return false;
 
