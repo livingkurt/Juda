@@ -49,12 +49,12 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     throw Errors.notFound("One or more tasks");
   }
 
-  const values = completionsToCreate.map(({ taskId, date }) => {
+  const values = completionsToCreate.map(({ taskId, date, outcome = "completed" }) => {
     const completionDate = new Date(date);
     const utcDate = new Date(
       Date.UTC(completionDate.getUTCFullYear(), completionDate.getUTCMonth(), completionDate.getUTCDate(), 0, 0, 0, 0)
     );
-    return { taskId, date: utcDate, outcome: "completed" };
+    return { taskId, date: utcDate, outcome };
   });
 
   const createdCompletions = await db.transaction(async tx => {
