@@ -811,35 +811,35 @@ function TaskDialogForm({
                       minHeight: 48,
                     }}
                   >
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-                    {/* Tags - clickable to open selector */}
-                    <TagSelector
-                      selectedTagIds={selectedTagIds}
-                      onSelectionChange={setSelectedTagIds}
-                      showManageButton
-                      renderTrigger={handleMenuOpen =>
-                        selectedTagIds.length > 0 ? (
-                          <>
-                            {Array.isArray(tags) &&
-                              tags
-                                .filter(t => selectedTagIds.includes(t.id))
-                                .map(tag => (
-                                  <Box
-                                    key={tag.id}
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      handleMenuOpen(e);
-                                    }}
-                                    sx={{ cursor: "pointer" }}
-                                  >
-                                    <TagChip tag={tag} size="sm" />
-                                  </Box>
-                                ))}
-                          </>
-                        ) : null
-                      }
-                    />
-                  </Stack>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+                      {/* Tags - clickable to open selector */}
+                      <TagSelector
+                        selectedTagIds={selectedTagIds}
+                        onSelectionChange={setSelectedTagIds}
+                        showManageButton
+                        renderTrigger={handleMenuOpen =>
+                          selectedTagIds.length > 0 ? (
+                            <>
+                              {Array.isArray(tags) &&
+                                tags
+                                  .filter(t => selectedTagIds.includes(t.id))
+                                  .map(tag => (
+                                    <Box
+                                      key={tag.id}
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        handleMenuOpen(e);
+                                      }}
+                                      sx={{ cursor: "pointer" }}
+                                    >
+                                      <TagChip tag={tag} size="sm" />
+                                    </Box>
+                                  ))}
+                            </>
+                          ) : null
+                        }
+                      />
+                    </Stack>
                   </Box>
                 </Box>
               </GLGrid>
