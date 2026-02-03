@@ -71,15 +71,37 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       ),
     });
 
-    const existingKeys = new Set(existingCompletions.map(c => `${c.taskId}|${new Date(c.date).toISOString()}`));
-    const newValues = values.filter(v => !existingKeys.has(`${v.taskId}|${v.date.toISOString()}`));
+    // Create a map of existing completions by taskId|date key
+    const existingMap = new Map(existingCompletions.map(c => [`${c.taskId}|${new Date(c.date).toISOString()}`, c]));
 
-    let newCompletions = [];
-    if (newValues.length > 0) {
-      newCompletions = await tx.insert(taskCompletions).values(newValues).returning();
+    // Separate values into updates (existing) and inserts (new)
+    const valuesToUpdate = [];
+    const valuesToInsert = [];
+
+    for (const value of values) {
+      const key = `${value.taskId}|${value.date.toISOString()}`;
+      const existing = existingMap.get(key);
+      if (existing) {
+        valuesToUpdate.push({ id: existing.id, outcome: value.outcome });
+      } else {
+        valuesToInsert.push(value);
+      }
     }
 
-    return [...existingCompletions, ...newCompletions];
+    // Update existing completions with new outcome
+    const updatedCompletions = [];
+    for (const { id, outcome } of valuesToUpdate) {
+      const [updated] = await tx.update(taskCompletions).set({ outcome }).where(eq(taskCompletions.id, id)).returning();
+      updatedCompletions.push(updated);
+    }
+
+    // Insert new completions
+    let newCompletions = [];
+    if (valuesToInsert.length > 0) {
+      newCompletions = await tx.insert(taskCompletions).values(valuesToInsert).returning();
+    }
+
+    return [...updatedCompletions, ...newCompletions];
   });
 
   // Broadcast batch create to other clients

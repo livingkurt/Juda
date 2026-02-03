@@ -429,9 +429,9 @@ export function useCompletionHandlers({
           // UNCHECKING subtask - only affects this subtask
           await deleteCompletion(subtaskId, dateStr);
 
-          // Also update subtask status if non-recurring
-          const subtaskIsNonRecurring = !subtask.recurrence || subtask.recurrence.type === "none";
-          if (subtaskIsNonRecurring) {
+          // Only update subtask status if parent is non-recurring
+          // Recurring parent tasks don't use status system, so their subtasks shouldn't either
+          if (parentIsNonRecurring) {
             await updateTask(subtaskId, { status: "todo" });
           }
 
@@ -443,9 +443,9 @@ export function useCompletionHandlers({
           // CHECKING subtask - only affects this subtask
           await createCompletion(subtaskId, dateStr, { outcome: "completed" });
 
-          // Also update subtask status if non-recurring
-          const subtaskIsNonRecurring = !subtask.recurrence || subtask.recurrence.type === "none";
-          if (subtaskIsNonRecurring) {
+          // Only update subtask status if parent is non-recurring
+          // Recurring parent tasks don't use status system, so their subtasks shouldn't either
+          if (parentIsNonRecurring) {
             await updateTask(subtaskId, { status: "complete" });
           }
 
@@ -491,7 +491,9 @@ export function useCompletionHandlers({
         if (outcome === null) {
           await deleteCompletion(subtaskId, dateStr);
 
-          if (subtaskIsNonRecurring) {
+          // Only update subtask status if parent is non-recurring
+          // Recurring parent tasks don't use status system, so their subtasks shouldn't either
+          if (parentIsNonRecurring) {
             await updateTask(subtaskId, { status: "todo" });
           }
 
@@ -511,7 +513,9 @@ export function useCompletionHandlers({
 
         await createCompletion(subtaskId, dateStr, { outcome });
 
-        if (outcome === "completed" && subtaskIsNonRecurring) {
+        // Only update subtask status if parent is non-recurring
+        // Recurring parent tasks don't use status system, so their subtasks shouldn't either
+        if (outcome === "completed" && parentIsNonRecurring) {
           await updateTask(subtaskId, { status: "complete" });
         }
 
@@ -648,6 +652,7 @@ export function useCompletionHandlers({
             }
 
             // Only cascade to subtasks if this is a PARENT task
+            // batchCreateCompletions will upsert (update existing or create new)
             if (!isSubtask && task?.subtasks && task.subtasks.length > 0) {
               const creations = task.subtasks.map(subtask => ({
                 taskId: subtask.id,
