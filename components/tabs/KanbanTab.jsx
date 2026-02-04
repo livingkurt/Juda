@@ -23,7 +23,8 @@ import {
   setKanbanShowTodayComplete,
 } from "@/lib/store/slices/uiSlice";
 import { createDraggableId, extractTaskId } from "@/lib/dragHelpers";
-import { useGetTasksQuery, useBatchReorderTasksMutation, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useBatchReorderTasksMutation, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 
 // Kanban column component
 const KanbanColumn = memo(function KanbanColumn({
@@ -317,7 +318,7 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
 // Main Kanban Tab component
 export function KanbanTab({ isLoading }) {
   const dispatch = useDispatch();
-  const { data: tasks = [] } = useGetTasksQuery();
+  const { data: tasks = [] } = useTasksWithDeferred();
   const [batchReorderTasksMutation] = useBatchReorderTasksMutation();
   const [updateTaskMutation] = useUpdateTaskMutation();
 

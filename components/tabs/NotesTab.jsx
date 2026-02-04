@@ -51,11 +51,11 @@ import {
   removeNotesSelectedTag,
 } from "@/lib/store/slices/uiSlice";
 import {
-  useGetTasksQuery,
   useCreateTaskMutation,
   useDeleteTaskMutation,
   useUpdateTaskMutation,
 } from "@/lib/store/api/tasksApi";
+import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetFoldersQuery, useDeleteFolderMutation } from "@/lib/store/api/foldersApi";
 import { useGetSmartFoldersQuery, useDeleteSmartFolderMutation } from "@/lib/store/api/smartFoldersApi";
@@ -252,7 +252,7 @@ export function NotesTab({ isLoading }) {
   const taskOps = useTaskOperations();
 
   // RTK Query
-  const { data: tasks = [] } = useGetTasksQuery();
+  const { data: tasks = [] } = useTasksWithDeferred();
   const { data: sections = [] } = useGetSectionsQuery();
   const { data: folders = [] } = useGetFoldersQuery();
   const { data: smartFolders = [] } = useGetSmartFoldersQuery();

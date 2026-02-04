@@ -40,7 +40,7 @@ import { useSemanticColors } from "@/hooks/useSemanticColors";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useSelectionState } from "@/hooks/useSelectionState";
-import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useCreateCompletionMutation, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
 import { useDialogState } from "@/hooks/useDialogState";
@@ -276,7 +276,7 @@ export const TaskItem = ({
   const taskOps = useTaskOperations();
   const completionHandlers = useCompletionHandlers();
   const selectionState = useSelectionState();
-  const { data: allTasks = [] } = useGetTasksQuery();
+  const { data: allTasks = [] } = useTasksWithDeferred();
   const { getOutcomeOnDate, hasRecordOnDate, getCompletionForDate } = useCompletionHelpers();
   const [createCompletionMutation] = useCreateCompletionMutation();
   const [updateCompletionMutation] = useUpdateCompletionMutation();

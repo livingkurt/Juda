@@ -31,13 +31,13 @@ import { DAYS_OF_WEEK, DURATION_OPTIONS, PRIORITY_LEVELS } from "@/lib/constants
 import { useSelectionState } from "@/hooks/useSelectionState";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery } from "@/lib/store/api/tagsApi";
-import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 
 export const BulkEditDialog = () => {
   const selectionState = useSelectionState();
   const { data: sections = [] } = useGetSectionsQuery();
   const { data: tags = [] } = useGetTagsQuery();
-  const { data: allTasks = [] } = useGetTasksQuery();
+  const { data: allTasks = [] } = useTasksWithDeferred();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isOpen = selectionState.bulkEditDialogOpen;

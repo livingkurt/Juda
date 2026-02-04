@@ -4,12 +4,12 @@ import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { formatLocalDate } from "@/lib/utils";
 import {
-  useGetTasksQuery,
   useCreateTaskMutation,
   useUpdateTaskMutation,
   useDeleteTaskMutation,
   useBatchSaveTasksMutation,
 } from "@/lib/store/api/tasksApi";
+import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
 import {
@@ -36,8 +36,8 @@ export function useTaskOperations() {
     return todayViewDateISO ? new Date(todayViewDateISO) : new Date();
   }, [todayViewDateISO]);
 
-  // RTK Query hooks
-  const { data: tasks = [], refetch: fetchTasks } = useGetTasksQuery();
+  // RTK Query hooks with deferred rendering
+  const { data: tasks = [], refetch: fetchTasks } = useTasksWithDeferred();
   const { data: sections = [] } = useGetSectionsQuery();
   const [createTaskMutation] = useCreateTaskMutation();
   const [updateTaskMutation] = useUpdateTaskMutation();

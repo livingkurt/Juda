@@ -21,7 +21,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { FitnessCenter, Edit } from "@mui/icons-material";
-import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useGetWorkoutHistoryQuery } from "@/lib/store/api/workoutProgramsApi";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useViewState } from "@/hooks/useViewState";
@@ -90,7 +90,7 @@ export function WorkoutTab({ isLoading: tabLoading }) {
   const dispatch = useDispatch();
   const dialogState = useDialogState();
   const viewState = useViewState();
-  const { data: tasks = [] } = useGetTasksQuery();
+  const { data: tasks = [] } = useTasksWithDeferred();
 
   const selectedWorkoutTaskId = useSelector(state => state.ui.selectedWorkoutTaskId);
   const workoutViewMode = useSelector(state => state.ui.workoutViewMode);

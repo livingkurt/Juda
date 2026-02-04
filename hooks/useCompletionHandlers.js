@@ -3,7 +3,8 @@
 import { useRef, useCallback, useEffect, useMemo, startTransition } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
-import { useGetTasksQuery, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import {
   useCreateCompletionMutation,
@@ -51,8 +52,8 @@ export function useCompletionHandlers({
   const { preferences } = usePreferencesContext();
   const showCompletedTasks = preferences.showCompletedTasks;
 
-  // RTK Query hooks
-  const { data: tasks = [] } = useGetTasksQuery();
+  // RTK Query hooks with deferred rendering
+  const { data: tasks = [] } = useTasksWithDeferred();
   const { data: sections = [] } = useGetSectionsQuery();
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();

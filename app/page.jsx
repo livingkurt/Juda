@@ -10,7 +10,7 @@ import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { AppHeader } from "@/components/AppHeader";
 import { TaskDialog } from "@/components/TaskDialog";
 import { SectionDialog } from "@/components/SectionDialog";
-import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery } from "@/lib/store/api/tagsApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
@@ -123,7 +123,7 @@ export default function DailyTasksApp() {
   }, []);
 
   // Redux RTK Query hooks
-  const { data: tasks = [], isLoading: tasksLoading } = useGetTasksQuery(undefined, {
+  const { data: tasks = [], isLoading: tasksLoading } = useTasksWithDeferred(undefined, {
     skip: !isAuthenticated,
   });
 

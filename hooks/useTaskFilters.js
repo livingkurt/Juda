@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import { shouldShowOnDate, hasFutureDateTime, timeToMinutes } from "@/lib/utils";
-import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
@@ -35,8 +35,8 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
   const { preferences } = usePreferencesContext();
   const showCompletedTasks = preferences.showCompletedTasks;
 
-  // RTK Query hooks
-  const { data: tasks = [] } = useGetTasksQuery();
+  // RTK Query hooks with deferred rendering
+  const { data: tasks = [] } = useTasksWithDeferred();
   const { data: sections = [] } = useGetSectionsQuery();
 
   // Completion helpers

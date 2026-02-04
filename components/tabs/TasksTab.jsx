@@ -22,12 +22,8 @@ import { useResizeHandlers } from "@/hooks/useResizeHandlers";
 import { useSectionExpansion } from "@/hooks/useSectionExpansion";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
-import {
-  useGetTasksQuery,
-  useReorderTaskMutation,
-  useBatchReorderTasksMutation,
-  useUpdateTaskMutation,
-} from "@/lib/store/api/tasksApi";
+import { useReorderTaskMutation, useBatchReorderTasksMutation, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useGetSectionsQuery, useReorderSectionsMutation } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useColorMode } from "@/hooks/useColorMode";
@@ -118,7 +114,7 @@ export function TasksTab() {
   };
 
   // Data queries
-  const { data: tasks = [] } = useGetTasksQuery();
+  const { data: tasks = [] } = useTasksWithDeferred();
   const { data: sections = [] } = useGetSectionsQuery();
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();

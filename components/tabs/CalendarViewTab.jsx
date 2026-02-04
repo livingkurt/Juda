@@ -12,7 +12,7 @@ import { CalendarYearView } from "@/components/CalendarYearView";
 import { useViewState } from "@/hooks/useViewState";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
-import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { createDroppableId, createDraggableId } from "@/lib/dragHelpers";
 
@@ -76,7 +76,7 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
   };
 
   // Get tasks and tags from API
-  const { data: tasks = [], isLoading: tasksLoading } = useGetTasksQuery();
+  const { data: tasks = [], isLoading: tasksLoading } = useTasksWithDeferred();
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
 

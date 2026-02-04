@@ -2,7 +2,8 @@
 
 import { useCallback } from "react";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
-import { useGetTasksQuery, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useCreateCompletionMutation, useDeleteCompletionMutation } from "@/lib/store/api/completionsApi";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
@@ -16,8 +17,8 @@ export function useStatusHandlers({
   // This is passed from parent because it's managed by useCompletionHandlers hook
   addToRecentlyCompleted,
 } = {}) {
-  // RTK Query hooks
-  const { data: tasks = [] } = useGetTasksQuery();
+  // RTK Query hooks with deferred rendering
+  const { data: tasks = [] } = useTasksWithDeferred();
   const { data: sections = [] } = useGetSectionsQuery();
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();
