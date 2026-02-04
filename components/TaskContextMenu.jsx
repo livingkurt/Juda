@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { Menu, MenuItem, ListItemIcon, ListItemText, Divider } from "@mui/material";
-import { Edit, ContentCopy, Delete, FitnessCenter, LinkOff } from "@mui/icons-material";
+import { Edit, ContentCopy, Delete, FitnessCenter, LinkOff, EditCalendar } from "@mui/icons-material";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useSelectionState } from "@/hooks/useSelectionState";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { CompletionEditDialog } from "./CompletionEditDialog";
 
 export const TaskContextMenu = ({
   task,
@@ -20,9 +23,19 @@ export const TaskContextMenu = ({
   const taskOps = useTaskOperations();
   const selectionState = useSelectionState();
   const [updateTaskMutation] = useUpdateTaskMutation();
+  const { getCompletionForDate } = useCompletionHelpers();
+
+  // State for completion edit dialog
+  const [completionEditOpen, setCompletionEditOpen] = useState(false);
 
   // Check if multiple tasks are selected
   const hasMultipleSelected = selectionState.selectedCount > 1;
+
+  // Check if task is non-recurring and has been completed
+  const isNonRecurring = !task?.recurrence || task?.recurrence?.type === "none";
+  const hasCompletion =
+    task?.recurrence?.startDate && getCompletionForDate(task?.id, new Date(task.recurrence.startDate));
+  const canEditCompletion = isNonRecurring && hasCompletion && !isSubtask;
 
   const handleRemoveFromParent = async () => {
     // If a custom handler is provided (e.g., from dialog), use it
@@ -45,81 +58,98 @@ export const TaskContextMenu = ({
   if (!open || !anchorEl) return null;
 
   return (
-    <Menu
-      anchorEl={anchorEl}
-      open={open}
-      onClose={onClose}
-      onClick={e => e.stopPropagation()}
-      onMouseDown={e => e.stopPropagation()}
-    >
-      {/* Edit or Bulk Edit - show Bulk Edit when multiple tasks selected */}
-      {hasMultipleSelected ? (
-        <MenuItem
-          onClick={e => {
-            e.stopPropagation();
-            selectionState.handleBulkEdit();
-            onClose?.();
-          }}
-        >
-          <ListItemIcon>
-            <Edit fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Bulk Edit ({selectionState.selectedCount} selected)</ListItemText>
-        </MenuItem>
-      ) : (
-        <MenuItem
-          onClick={e => {
-            e.stopPropagation();
-            // Only pass date if task has a date (recurring or one-time with date)
-            // Backlog tasks (no date) should not have a date passed
-            const taskHasDate = task?.recurrence?.startDate;
-            const clickedDate = taskHasDate && date ? new Date(date) : null;
-            taskOps.handleEditTask(task, clickedDate);
-            onClose?.();
-          }}
-        >
-          <ListItemIcon>
-            <Edit fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Edit</ListItemText>
-        </MenuItem>
-      )}
+    <>
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={onClose}
+        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        {/* Edit or Bulk Edit - show Bulk Edit when multiple tasks selected */}
+        {hasMultipleSelected ? (
+          <MenuItem
+            onClick={e => {
+              e.stopPropagation();
+              selectionState.handleBulkEdit();
+              onClose?.();
+            }}
+          >
+            <ListItemIcon>
+              <Edit fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Bulk Edit ({selectionState.selectedCount} selected)</ListItemText>
+          </MenuItem>
+        ) : (
+          <MenuItem
+            onClick={e => {
+              e.stopPropagation();
+              // Only pass date if task has a date (recurring or one-time with date)
+              // Backlog tasks (no date) should not have a date passed
+              const taskHasDate = task?.recurrence?.startDate;
+              const clickedDate = taskHasDate && date ? new Date(date) : null;
+              taskOps.handleEditTask(task, clickedDate);
+              onClose?.();
+            }}
+          >
+            <ListItemIcon>
+              <Edit fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Edit</ListItemText>
+          </MenuItem>
+        )}
 
-      {/* Remove from Parent - only show for subtasks */}
-      {isSubtask && [
-        <MenuItem
-          key="remove-from-parent"
-          onClick={e => {
-            e.stopPropagation();
-            handleRemoveFromParent();
-          }}
-        >
-          <ListItemIcon>
-            <LinkOff fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Remove from Parent</ListItemText>
-        </MenuItem>,
-        <Divider key="divider-remove-parent" />,
-      ]}
+        {/* Remove from Parent - only show for subtasks */}
+        {isSubtask && [
+          <MenuItem
+            key="remove-from-parent"
+            onClick={e => {
+              e.stopPropagation();
+              handleRemoveFromParent();
+            }}
+          >
+            <ListItemIcon>
+              <LinkOff fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Remove from Parent</ListItemText>
+          </MenuItem>,
+          <Divider key="divider-remove-parent" />,
+        ]}
 
-      {/* Edit Workout option for workout-type tasks */}
-      {isWorkoutTask && (
-        <MenuItem
-          onClick={e => {
-            e.stopPropagation();
-            taskOps.handleEditWorkout(task);
-            onClose?.();
-          }}
-        >
-          <ListItemIcon>
-            <FitnessCenter fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Edit Workout</ListItemText>
-        </MenuItem>
-      )}
+        {/* Edit Completion option for non-recurring completed tasks */}
+        {canEditCompletion && (
+          <MenuItem
+            onClick={e => {
+              e.stopPropagation();
+              setCompletionEditOpen(true);
+              onClose?.();
+            }}
+          >
+            <ListItemIcon>
+              <EditCalendar fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Edit Completion</ListItemText>
+          </MenuItem>
+        )}
 
-      {/* Completion options for recurring tasks */}
-      {/* {isRecurring &&
+        {/* Edit Workout option for workout-type tasks */}
+        {isWorkoutTask && (
+          <MenuItem
+            onClick={e => {
+              e.stopPropagation();
+              taskOps.handleEditWorkout(task);
+              onClose?.();
+            }}
+          >
+            <ListItemIcon>
+              <FitnessCenter fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Edit Workout</ListItemText>
+          </MenuItem>
+        )}
+
+        {/* Completion options for recurring tasks */}
+        {/* {isRecurring &&
         date &&
         [
           outcome !== null && (
@@ -186,8 +216,8 @@ export const TaskContextMenu = ({
           <Divider key="divider-recurring-end" />,
         ].filter(Boolean)} */}
 
-      {/* Status options for non-recurring tasks */}
-      {/* {!isRecurring && [
+        {/* Status options for non-recurring tasks */}
+        {/* {!isRecurring && [
         <Divider key="divider-status-start" />,
         <MenuItem
           key="status-todo"
@@ -234,39 +264,43 @@ export const TaskContextMenu = ({
         <Divider key="divider-status-end" />,
       ]} */}
 
-      <MenuItem
-        onClick={e => {
-          e.stopPropagation();
-          taskOps.handleDuplicateTask(task.id);
-          onClose?.();
-        }}
-      >
-        <ListItemIcon>
-          <ContentCopy fontSize="small" />
-        </ListItemIcon>
-        <ListItemText>Duplicate</ListItemText>
-      </MenuItem>
+        <MenuItem
+          onClick={e => {
+            e.stopPropagation();
+            taskOps.handleDuplicateTask(task.id);
+            onClose?.();
+          }}
+        >
+          <ListItemIcon>
+            <ContentCopy fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Duplicate</ListItemText>
+        </MenuItem>
 
-      {/* Tags submenu */}
-      {/* <TagSelector task={task} autoSave asMenuItem /> */}
+        {/* Tags submenu */}
+        {/* <TagSelector task={task} autoSave asMenuItem /> */}
 
-      {/* Priority submenu */}
-      {/* <PriorityMenuSelector task={task} onClose={onClose} /> */}
+        {/* Priority submenu */}
+        {/* <PriorityMenuSelector task={task} onClose={onClose} /> */}
 
-      <MenuItem
-        onClick={e => {
-          e.stopPropagation();
-          taskOps.handleDeleteTask(task.id);
-          onClose?.();
-        }}
-        sx={{ color: "error.main" }}
-      >
-        <ListItemIcon sx={{ color: "inherit" }}>
-          <Delete fontSize="small" />
-        </ListItemIcon>
-        <ListItemText>Delete</ListItemText>
-      </MenuItem>
-    </Menu>
+        <MenuItem
+          onClick={e => {
+            e.stopPropagation();
+            taskOps.handleDeleteTask(task.id);
+            onClose?.();
+          }}
+          sx={{ color: "error.main" }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <Delete fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      {/* Completion Edit Dialog */}
+      <CompletionEditDialog task={task} open={completionEditOpen} onClose={() => setCompletionEditOpen(false)} />
+    </>
   );
 };
 
