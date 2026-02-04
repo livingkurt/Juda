@@ -25,7 +25,7 @@ import {
   Redo as Redo,
   Highlight as Highlighter,
 } from "@mui/icons-material";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const MenuButton = ({ icon: Icon, isActive, onClick, title }) => (
   <Tooltip title={title}>
@@ -49,6 +49,15 @@ export const RichTextEditor = ({
   editable = true,
   showToolbar = true,
 }) => {
+  // Track the last content we synced from props
+  const lastSyncedContentRef = useRef(content);
+  // Track if we're currently typing (editor has focus and is being updated)
+  const isTypingRef = useRef(false);
+  // Timeout for debouncing onChange callback
+  const onChangeTimeoutRef = useRef(null);
+  // Timeout for resetting typing flag
+  const typingTimeoutRef = useRef(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -63,16 +72,104 @@ export const RichTextEditor = ({
     editable,
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
-      onChange?.(editor.getHTML());
+      const newContent = editor.getHTML();
+
+      // Mark that we're typing
+      isTypingRef.current = true;
+
+      // Clear existing timeouts
+      if (onChangeTimeoutRef.current) {
+        clearTimeout(onChangeTimeoutRef.current);
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      // Debounce onChange callback - only call after user stops typing for 300ms
+      onChangeTimeoutRef.current = setTimeout(() => {
+        onChange?.(newContent);
+      }, 300);
+
+      // Reset typing flag after a longer delay
+      typingTimeoutRef.current = setTimeout(() => {
+        isTypingRef.current = false;
+      }, 1000);
     },
   });
 
-  // Sync content when it changes externally
+  // CRITICAL: Never sync content while typing - this causes cursor jumps
+  // Only sync when content changes externally (e.g., switching notes)
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
+    if (!editor) return;
+
+    // ABSOLUTE RULE: Never sync when user is typing or editor is focused
+    if (isTypingRef.current || editor.isFocused) {
+      return;
+    }
+
+    const currentContent = editor.getHTML();
+
+    // If incoming content matches what editor currently has, don't sync
+    if (content === currentContent) {
+      lastSyncedContentRef.current = content;
+      return;
+    }
+
+    // Only sync if content actually changed from what we last synced
+    // This happens when switching notes or initial load
+    if (content !== lastSyncedContentRef.current) {
       editor.commands.setContent(content, false);
+      lastSyncedContentRef.current = content;
     }
   }, [content, editor]);
+
+  // Sync pending content when editor loses focus (if needed)
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleBlur = () => {
+      // Reset typing flag when editor loses focus
+      isTypingRef.current = false;
+
+      // Flush any pending onChange callback immediately
+      if (onChangeTimeoutRef.current) {
+        clearTimeout(onChangeTimeoutRef.current);
+        onChange?.(editor.getHTML());
+      }
+
+      // Small delay to ensure any pending updates are processed
+      setTimeout(() => {
+        if (editor.isDestroyed) return;
+
+        const currentContent = editor.getHTML();
+
+        // Only sync if content is actually different
+        if (content !== currentContent && content !== lastSyncedContentRef.current) {
+          editor.commands.setContent(content, false);
+          lastSyncedContentRef.current = content;
+        } else {
+          lastSyncedContentRef.current = content;
+        }
+      }, 200);
+    };
+
+    editor.on("blur", handleBlur);
+    return () => {
+      editor.off("blur", handleBlur);
+    };
+  }, [editor, content, onChange]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (onChangeTimeoutRef.current) {
+        clearTimeout(onChangeTimeoutRef.current);
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (!editor) return null;
 
@@ -184,6 +281,16 @@ export const RichTextEditor = ({
           "& .ProseMirror": {
             outline: "none",
             minHeight: "100%",
+            // Mobile-specific fixes to prevent cursor jumping
+            WebkitUserSelect: "text",
+            userSelect: "text",
+            WebkitTapHighlightColor: "transparent",
+            // Prevent iOS from zooming on focus (already handled by MobileZoomFix, but extra safety)
+            fontSize: { xs: "16px", sm: "inherit" },
+            // Improve touch handling on mobile
+            touchAction: "manipulation",
+            // Prevent text selection issues on mobile
+            WebkitTouchCallout: "none",
             "& p": { my: 0.5 },
             "& h1": { fontSize: "1.75rem", fontWeight: 600, my: 1 },
             "& h2": { fontSize: "1.5rem", fontWeight: 600, my: 1 },
