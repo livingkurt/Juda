@@ -18,8 +18,9 @@ import { Close } from "@mui/icons-material";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 import { useGetGoalsQuery } from "@/lib/store/api/goalsApi";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
-import { useCreateCompletionMutation } from "@/lib/store/api/completionsApi";
+import { useCreateCompletionMutation, useDeleteCompletionMutation } from "@/lib/store/api/completionsApi";
 import { GoalCreationQuestion } from "@/components/GoalCreationQuestion";
+import { formatLocalDate } from "@/lib/utils";
 import dayjs from "dayjs";
 
 /**
@@ -71,9 +72,10 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
     return goalsData?.allGoals || [];
   }, [goalsData]);
 
-  // Mutations to update task status and create completions
+  // Mutations to update task status and create/delete completions
   const [updateTask] = useUpdateTaskMutation();
   const [createCompletion] = useCreateCompletionMutation();
+  const [deleteCompletion] = useDeleteCompletionMutation();
 
   // Initialize responses state from existing data or create new structure
   const [responses, setResponses] = useState(() => {
@@ -195,11 +197,14 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
             status: "complete",
           }).unwrap();
 
-          // Create a completion record for this date
+          // Create a completion record for today (so checkbox shows as checked in GoalsTab)
+          // This mirrors the behavior in useStatusHandlers where status -> completion syncs
+          const today = new Date();
+          const todayStr = formatLocalDate(today);
           try {
             await createCompletion({
               taskId: goalId,
-              date: reflectionDate.format("YYYY-MM-DD"),
+              date: todayStr,
               outcome: "completed",
             }).unwrap();
           } catch (error) {
@@ -213,12 +218,31 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
         }
       } else if (updates.status === "todo") {
         // Allow reverting to todo (removes in_progress state)
+        // Find the goal to check its current status
+        const goal = goals.find(g => g.id === goalId);
+        const wasComplete = goal?.status === "complete";
+
         try {
           await updateTask({
             id: goalId,
             status: "todo",
             startedAt: null,
           }).unwrap();
+
+          // If goal was previously complete, delete completion record for today
+          // This syncs "Set to Todo" with unchecking the checkbox (reverse of status -> completion)
+          if (wasComplete) {
+            const today = new Date();
+            const todayStr = formatLocalDate(today);
+            try {
+              await deleteCompletion({ taskId: goalId, date: todayStr }).unwrap();
+            } catch (error) {
+              // Ignore if no completion exists
+              if (!error?.message?.includes("not found")) {
+                console.error("Failed to delete completion when reverting to todo:", error);
+              }
+            }
+          }
         } catch (error) {
           console.error("Failed to revert goal status to todo:", error);
         }
@@ -241,7 +265,7 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
         return updatedResponses;
       });
     },
-    [debouncedSave, updateTask, createCompletion, reflectionDate]
+    [debouncedSave, updateTask, createCompletion, deleteCompletion, goals]
   );
 
   // Update progress note only (no API calls, just local state + debounced save)
