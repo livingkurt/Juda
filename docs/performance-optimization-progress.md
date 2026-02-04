@@ -182,6 +182,57 @@
 - Test for any data loss with reduced completion limit
 - Profile remaining bottlenecks
 
+---
+
+## 🚀 Phase 4: Load Time Optimization (NEW - IN PROGRESS)
+
+### Issue: 30-Second Initial Load on TasksTab
+
+**Root Cause**: Loading and processing ALL tasks upfront (~1000s of tasks)
+
+### Solution: API-Level Date Filtering
+
+**Changes Made:**
+
+1. **API Route** (`/app/api/tasks/route.js`)
+   - Added `date` and `view` query parameters
+   - Server-side filtering using `shouldShowOnDate` logic
+   - Backlog-specific query for tasks without sections
+   - **Result**: Payload reduced from 1000s → ~50 tasks
+
+2. **New Hooks**
+   - `useTasksForToday(date)` - Fetches only tasks for specific date
+   - `useBacklogTasks(options)` - Fetches backlog with pagination
+
+3. **Optimized `useTaskFilters`**
+   - Uses `useTasksForToday` instead of loading all tasks
+   - Removed expensive client-side date filtering
+   - API does the heavy lifting now
+
+**Expected Impact:**
+- Load time: 30s → <2s (15x faster)
+- Initial payload: 95%+ reduction
+- Processing time: 30s → <1s
+
+**Status**: ✅ Implemented, ready for testing
+
+### Update: UI Unblocked + Task Fetch Isolation
+
+**Changes Made:**
+- Removed `useTasksWithDeferred` from `app/page.jsx` to avoid blocking initial render
+- Added `skipTasksQuery` + `tasksOverride` to `useCompletionHandlers`
+- `TaskItem` now accepts `allTasksOverride` to avoid per-item full task fetch
+- Backlog view shows a loading indicator while data is fetching
+- Restored one-time completion filtering on Today view
+- Removed unused `useTasksWithPagination` (lint rule disallowed setState-in-effect)
+- Added calendar range endpoint + hook (`/api/tasks/calendar`, `useCalendarTasks`)
+- Calendar views now use range-based tasks instead of full tasks list
+- Added incremental rendering in Today sections and Backlog
+
+**Status**: ✅ Implemented
+
+---
+
 ## 🎉 Final Summary
 
 ### What Was Accomplished

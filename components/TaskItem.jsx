@@ -26,7 +26,6 @@ import {
   PlayCircle,
   CheckCircle,
   FitnessCenter,
-  Note,
 } from "@mui/icons-material";
 import { formatTime, getTaskDisplayColor } from "@/lib/utils";
 import { TagChip } from "./TagChip";
@@ -42,7 +41,6 @@ import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useSelectionState } from "@/hooks/useSelectionState";
 import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
-import { useCreateCompletionMutation, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { useTheme } from "@/hooks/useTheme";
@@ -50,7 +48,6 @@ import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 import { ReflectionEntry } from "./ReflectionEntry";
 import { usePriorityHandlers } from "@/hooks/usePriorityHandlers";
 import { PRIORITY_LEVELS } from "@/lib/constants";
-import { formatLocalDate } from "@/lib/utils";
 import { RichTextEditor } from "@/components/RichTextEditor";
 
 // Small component to handle text input with state that resets on date change
@@ -271,15 +268,18 @@ export const TaskItem = ({
   parentTaskId, // For subtask variant
   isSelected, // Whether this task is selected for bulk edit
   onRemoveFromParent, // Optional handler for removing subtask from parent (used in dialog)
+  allTasksOverride, // Optional: provide tasks to avoid full fetch
 }) => {
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
-  const completionHandlers = useCompletionHandlers();
+  const completionHandlers = useCompletionHandlers({
+    tasksOverride: allTasksOverride,
+    skipTasksQuery: Boolean(allTasksOverride),
+  });
   const selectionState = useSelectionState();
-  const { data: allTasks = [] } = useTasksWithDeferred();
+  const { data: allTasks = [] } = useTasksWithDeferred(undefined, { skip: Boolean(allTasksOverride) });
+  const tasksForLookup = allTasksOverride || allTasks;
   const { getOutcomeOnDate, hasRecordOnDate, getCompletionForDate } = useCompletionHelpers();
-  const [createCompletionMutation] = useCreateCompletionMutation();
-  const [updateCompletionMutation] = useUpdateCompletionMutation();
   const dialogState = useDialogState();
   const statusHandlers = useStatusHandlers({
     addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
@@ -312,13 +312,13 @@ export const TaskItem = ({
   // For subtasks, inherit parent's tags if subtask has no tags
   const displayTags = useMemo(() => {
     if (task.parentId && (!task.tags || task.tags.length === 0)) {
-      const parentTask = allTasks.find(t => t.id === task.parentId);
+      const parentTask = tasksForLookup.find(t => t.id === task.parentId);
       if (parentTask && parentTask.tags && parentTask.tags.length > 0) {
         return parentTask.tags;
       }
     }
     return task.tags || [];
-  }, [task.parentId, task.tags, allTasks]);
+  }, [task.parentId, task.tags, tasksForLookup]);
 
   const { mode, colorMode } = useSemanticColors();
   const { theme } = useTheme();
@@ -428,13 +428,6 @@ export const TaskItem = ({
   // Get existing completion data for text-type tasks
   const existingCompletion = getCompletionForDate?.(task.id, viewDate);
   const savedNote = existingCompletion?.note || "";
-
-  // Sync editedNote with task.content when it changes (e.g., after save)
-  useEffect(() => {
-    if (!isEditingNote) {
-      setEditedNote(task.content || "");
-    }
-  }, [task.content, isEditingNote]);
 
   // Note editing handlers
   useEffect(() => {

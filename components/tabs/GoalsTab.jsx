@@ -35,11 +35,13 @@ export function GoalsTab({ isLoading }) {
     includeSubgoals: true,
   });
 
+  const allGoals = useMemo(() => goalsData?.allGoals || [], [goalsData]);
+
   // Filter and organize goals - only show yearly goals (monthly goals will be shown as subtasks)
   const yearlyGoals = useMemo(() => {
-    if (!goalsData?.allGoals) return [];
+    if (!allGoals.length) return [];
 
-    let filtered = goalsData.allGoals.filter(g => !g.parentId);
+    let filtered = allGoals.filter(g => !g.parentId);
 
     // Filter by search term
     if (goalsSearchTerm.trim()) {
@@ -64,16 +66,16 @@ export function GoalsTab({ isLoading }) {
       // If orders are equal, sort by id for stable ordering
       return a.id.localeCompare(b.id);
     });
-  }, [goalsData, goalsSearchTerm, goalsSelectedTagIds]);
+  }, [allGoals, goalsSearchTerm, goalsSelectedTagIds]);
 
   // Get all sub-goals (monthly goals) grouped by month
   const monthlyGoalsByMonth = useMemo(() => {
-    if (!goalsData?.allGoals) return {};
+    if (!allGoals.length) return {};
 
     // Group all goals by month (including both standalone monthly goals and subgoals)
     const grouped = {};
 
-    goalsData.allGoals.forEach(goal => {
+    allGoals.forEach(goal => {
       // Check if this goal has goalMonths (is a monthly goal)
       if (goal.goalMonths && Array.isArray(goal.goalMonths) && goal.goalMonths.length > 0) {
         goal.goalMonths.forEach(month => {
@@ -101,7 +103,7 @@ export function GoalsTab({ isLoading }) {
     });
 
     return grouped;
-  }, [goalsData]);
+  }, [allGoals]);
 
   // Get goals for the selected month
   const selectedMonthGoals = useMemo(() => {
@@ -309,6 +311,7 @@ export function GoalsTab({ isLoading }) {
                           date={null}
                           showSubtasks={true}
                           defaultExpanded={true}
+                          allTasksOverride={allGoals}
                         />
                       ))}
                       {provided.placeholder}
@@ -349,6 +352,7 @@ export function GoalsTab({ isLoading }) {
                           viewDate={today}
                           showSubtasks={false}
                           defaultExpanded={false}
+                          allTasksOverride={allGoals}
                         />
                       ))}
                       {provided.placeholder}

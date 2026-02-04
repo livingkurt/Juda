@@ -30,6 +30,8 @@ export function useCompletionHandlers({
   autoCollapsedSections,
   setAutoCollapsedSections,
   checkAndAutoCollapseSection,
+  tasksOverride,
+  skipTasksQuery = false,
 } = {}) {
   const dispatch = useDispatch();
 
@@ -53,7 +55,11 @@ export function useCompletionHandlers({
   const showCompletedTasks = preferences.showCompletedTasks;
 
   // RTK Query hooks with deferred rendering
-  const { data: tasks = [] } = useTasksWithDeferred();
+  // Allow skipping the heavy all-tasks query when tasks are provided by a caller
+  const { data: tasksFromQuery = [] } = useTasksWithDeferred(undefined, {
+    skip: skipTasksQuery || Boolean(tasksOverride),
+  });
+  const tasks = tasksOverride || tasksFromQuery;
   const { data: sections = [] } = useGetSectionsQuery();
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();

@@ -8,8 +8,6 @@ import { HOUR_HEIGHT_WEEK } from "@/lib/calendarConstants";
 import { DayHeaderColumn } from "./DayHeaderColumn";
 import { TimedColumn } from "./TimedColumn";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
-import { useTaskFilters } from "@/hooks/useTaskFilters";
-import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useViewState } from "@/hooks/useViewState";
@@ -47,6 +45,7 @@ const filterTasksForDay = (tasks, day, showCompleted, isCompletedOnDate, getOutc
 
 export const CalendarWeekView = ({
   date,
+  tasks = [],
   createDroppableId: _createDroppableId,
   createDraggableId,
   onDropTimeChange,
@@ -63,16 +62,9 @@ export const CalendarWeekView = ({
 
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
-  const completionHandlers = useCompletionHandlers();
   const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
 
-  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
-  });
-
-  // Get all tasks
-  const tasks = taskFilters.tasks;
+  // Tasks provided by parent
 
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
 

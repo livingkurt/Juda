@@ -1,32 +1,15 @@
 "use client";
 
 import { Menu, MenuItem, ListItemIcon, ListItemText, Divider } from "@mui/material";
-import {
-  Edit,
-  Check,
-  Close,
-  RadioButtonUnchecked,
-  ContentCopy,
-  Delete,
-  FitnessCenter,
-  AccessTime,
-  LinkOff,
-  SkipNext,
-} from "@mui/icons-material";
-import { TagSelector } from "./TagSelector";
-import { PriorityMenuSelector } from "./PriorityMenuSelector";
+import { Edit, ContentCopy, Delete, FitnessCenter, LinkOff } from "@mui/icons-material";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
-import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
-import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { useSelectionState } from "@/hooks/useSelectionState";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
 
 export const TaskContextMenu = ({
   task,
   date,
-  isRecurring,
   isWorkoutTask,
-  outcome,
   isSubtask,
   onClose,
   onRemoveFromParent,
@@ -35,10 +18,6 @@ export const TaskContextMenu = ({
 }) => {
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
-  const completionHandlers = useCompletionHandlers();
-  const statusHandlers = useStatusHandlers({
-    addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
-  });
   const selectionState = useSelectionState();
   const [updateTaskMutation] = useUpdateTaskMutation();
 

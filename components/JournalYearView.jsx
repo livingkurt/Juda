@@ -9,7 +9,6 @@ export const JournalYearView = ({
   selectedDate,
   years,
   journalTasks,
-  allJournalTasks,
   currentYear,
   getCompletionForDate,
   shouldShowTaskOnDate,

@@ -50,12 +50,8 @@ import {
   addNotesSelectedTag,
   removeNotesSelectedTag,
 } from "@/lib/store/slices/uiSlice";
-import {
-  useCreateTaskMutation,
-  useDeleteTaskMutation,
-  useUpdateTaskMutation,
-} from "@/lib/store/api/tasksApi";
-import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
+import { useCreateTaskMutation, useDeleteTaskMutation, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+import { useNoteTasks } from "@/hooks/useNoteTasks";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetFoldersQuery, useDeleteFolderMutation } from "@/lib/store/api/foldersApi";
 import { useGetSmartFoldersQuery, useDeleteSmartFolderMutation } from "@/lib/store/api/smartFoldersApi";
@@ -251,8 +247,8 @@ export function NotesTab({ isLoading }) {
   // Task operations
   const taskOps = useTaskOperations();
 
-  // RTK Query
-  const { data: tasks = [] } = useTasksWithDeferred();
+  // RTK Query - Use dedicated notes endpoint (much faster)
+  const { data: noteTasks = [] } = useNoteTasks();
   const { data: sections = [] } = useGetSectionsQuery();
   const { data: folders = [] } = useGetFoldersQuery();
   const { data: smartFolders = [] } = useGetSmartFoldersQuery();
@@ -265,8 +261,7 @@ export function NotesTab({ isLoading }) {
   const [deleteFolder] = useDeleteFolderMutation();
   const [deleteSmartFolder] = useDeleteSmartFolderMutation();
 
-  // Filter note tasks
-  const noteTasks = useMemo(() => tasks.filter(t => t.completionType === "note"), [tasks]);
+  // Note: noteTasks already comes from useNoteTasks hook (pre-filtered by API)
 
   // Theme hooks for tag colors
   const { theme: customTheme } = useCustomTheme();
@@ -512,7 +507,7 @@ export function NotesTab({ isLoading }) {
       });
     }
 
-    return result.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    return [...result].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   }, [noteTasks, selectedFolderId, selectedSmartFolderId, deferredSearch, smartFolders, notesSelectedTagIds]);
 
   const handleCreateNote = useCallback(

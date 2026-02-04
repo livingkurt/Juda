@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Box, Stack, Menu, MenuItem, IconButton, Checkbox, Chip, Typography, Divider } from "@mui/material";
 import { FilterList, TextFields, List, Psychology } from "@mui/icons-material";
 

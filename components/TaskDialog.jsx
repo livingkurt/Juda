@@ -1794,6 +1794,7 @@ function TaskDialogForm({
                                         variant="subtask"
                                         containerId="task-dialog-search"
                                         draggableId={`dialog-search-${t.id}`}
+                                        allTasksOverride={allTasks}
                                       />
                                       <ListItemSecondaryAction>
                                         <IconButton

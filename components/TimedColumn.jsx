@@ -91,6 +91,7 @@ export const TimedColumn = memo(
             date={day}
             variant="timed-week"
             getTaskStyle={task => getTaskStyle(task, positionedTask)}
+            allTasksOverride={allTasks}
           />
         ))}
 

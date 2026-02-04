@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useCallback, memo, useDeferredValue } from "react";
-import { Box, Stack, Typography, IconButton, Chip, useMediaQuery } from "@mui/material";
+import { useMemo, useCallback, memo, useDeferredValue, useState } from "react";
+import { Box, Stack, Typography, IconButton, Chip, useMediaQuery, CircularProgress, Button } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Droppable } from "@hello-pangea/dnd";
 import { Add } from "@mui/icons-material";
@@ -11,7 +11,6 @@ import { TaskSearchInput } from "./TaskSearchInput";
 import { BacklogTagSidebar, UNTAGGED_ID } from "./BacklogTagSidebar";
 import { QuickTaskInput } from "./QuickTaskInput";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
-import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { getPriorityConfig, PRIORITY_LEVELS } from "@/lib/constants";
@@ -45,22 +44,20 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
 
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
-  const completionHandlers = useCompletionHandlers();
+  const taskFilters = useTaskFilters();
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
 
-  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
-  });
-
   const backlogTasks = taskFilters.backlogTasks;
+  const backlogLoading = taskFilters.backlogLoading;
 
   // Defer expensive filtering when removing filters (going from filtered to unfiltered)
   // This keeps the UI responsive when removing filters
   const deferredSelectedTagIds = useDeferredValue(selectedTagIds);
   const deferredSelectedPriorities = useDeferredValue(selectedPriorities);
   const deferredSearchTerm = useDeferredValue(searchTerm);
+
+  const INITIAL_RENDER_COUNT = 100;
 
   // Filter tasks by search term and tags
   const filteredTasks = useMemo(() => {
@@ -193,13 +190,17 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   );
 
   // Prepare tasks with draggable IDs - memoized to prevent recreation on every render
+  const [extraCount, setExtraCount] = useState(0);
+  const visibleCount = Math.min(filteredTasks.length, INITIAL_RENDER_COUNT + extraCount);
+  const visibleTasks = useMemo(() => filteredTasks.slice(0, visibleCount), [filteredTasks, visibleCount]);
+
   const tasksWithIds = useMemo(
     () =>
-      filteredTasks.map(task => ({
+      visibleTasks.map(task => ({
         ...task,
         draggableId: createDraggableId.backlog(task.id),
       })),
-    [filteredTasks, createDraggableId]
+    [visibleTasks, createDraggableId]
   );
 
   // Group tasks by priority and/or tag when sorting is enabled
@@ -572,6 +573,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                     containerId={priorityDroppableId}
                                     draggableId={task.draggableId}
                                     viewDate={viewDate}
+                                    allTasksOverride={taskFilters.tasks}
                                   />
                                 ))}
                                 {group.tasks.length === 0 && snapshot.isDraggingOver && (
@@ -587,6 +589,16 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                     Drop here to assign {group.label.toLowerCase()} priority
                                   </Box>
                                 )}
+                                {visibleCount < filteredTasks.length && (
+                                  <Box sx={{ display: "flex", justifyContent: "center", pt: 1 }}>
+                                    <Button
+                                      size="small"
+                                      onClick={() => setExtraCount(count => count + INITIAL_RENDER_COUNT)}
+                                    >
+                                      Load more
+                                    </Button>
+                                  </Box>
+                                )}
                                 {provided.placeholder}
                               </Stack>
                             </Box>
@@ -595,6 +607,23 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                       );
                     })}
                 </Stack>
+              </Box>
+            ) : backlogLoading ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  py: 4,
+                  px: 2,
+                  textAlign: "center",
+                }}
+              >
+                <CircularProgress size={24} sx={{ mb: 1 }} />
+                <Typography variant="body2" color="text.secondary">
+                  Loading backlog...
+                </Typography>
               </Box>
             ) : (
               <Box
@@ -795,6 +824,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                             containerId={priorityDroppableId}
                                             draggableId={task.draggableId}
                                             viewDate={viewDate}
+                                            allTasksOverride={taskFilters.tasks}
                                           />
                                         ))}
                                         {group.tasks.length === 0 && snapshot.isDraggingOver && (
@@ -916,6 +946,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                       containerId="backlog"
                                       draggableId={task.draggableId}
                                       viewDate={viewDate}
+                                      allTasksOverride={taskFilters.tasks}
                                     />
                                   ))}
                                 </Stack>
@@ -932,8 +963,16 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                               containerId="backlog"
                               draggableId={task.draggableId}
                               viewDate={viewDate}
+                              allTasksOverride={taskFilters.tasks}
                             />
                           ))}
+                      {visibleCount < filteredTasks.length && (
+                        <Box sx={{ display: "flex", justifyContent: "center", pt: 1 }}>
+                          <Button size="small" onClick={() => setExtraCount(count => count + INITIAL_RENDER_COUNT)}>
+                            Load more
+                          </Button>
+                        </Box>
+                      )}
                       {provided.placeholder}
                       <QuickTaskInput
                         placeholder="New task..."

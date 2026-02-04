@@ -1,13 +1,15 @@
 "use client";
 
-import { Box, Typography, Chip, Button, IconButton } from "@mui/material";
+import { Box, Typography, Chip, Button, IconButton, CircularProgress, Stack } from "@mui/material";
 import { Visibility as Eye, VisibilityOff as EyeOff } from "@mui/icons-material";
 import { DateNavigation } from "@/components/DateNavigation";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
 import { Section } from "@/components/Section";
+import { SectionSkeleton } from "@/components/TaskSkeleton";
 
 export function TodayView({
   isLoading,
+  isLoadingMore = false,
   todayViewDate,
   handleTodayViewDateChange,
   navigateTodayView,
@@ -44,7 +46,11 @@ export function TodayView({
       }}
     >
       {isLoading ? (
-        <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}></Box>
+        <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", p: 3 }}>
+          <SectionSkeleton />
+          <SectionSkeleton />
+          <SectionSkeleton />
+        </Box>
       ) : (
         <>
           {/* Today View Header - Sticky */}
@@ -164,6 +170,18 @@ export function TodayView({
             }}
           >
             <Section createDroppableId={createDroppableId} createDraggableId={createDraggableId} />
+
+            {/* Loading indicator for background loading */}
+            {isLoadingMore && (
+              <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 3 }}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <CircularProgress size={20} />
+                  <Typography variant="body2" color="text.secondary">
+                    Loading more tasks...
+                  </Typography>
+                </Stack>
+              </Box>
+            )}
           </Box>
         </>
       )}

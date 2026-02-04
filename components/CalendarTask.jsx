@@ -28,6 +28,7 @@ export const CalendarTask = memo(
     variant = "timed", // 'timed' | 'untimed' | 'timed-week' | 'untimed-week'
     createDraggableId: _createDraggableId, // Kept for API compatibility
     getTaskStyle,
+    allTasksOverride,
   }) {
     const theme = useTheme();
     const { mode: colorMode } = useColorMode();
@@ -37,7 +38,10 @@ export const CalendarTask = memo(
     // Use hooks directly (they use Redux internally)
     const taskOps = useTaskOperations();
     const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
-    const completionHandlers = useCompletionHandlers();
+    const completionHandlers = useCompletionHandlers({
+      tasksOverride: allTasksOverride,
+      skipTasksQuery: true,
+    });
 
     // Variant flags
     const isTimed = variant === "timed" || variant === "timed-week";

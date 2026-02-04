@@ -43,7 +43,7 @@ import {
 } from "@mui/icons-material";
 import { shouldShowOnDate } from "@/lib/utils";
 import { DateNavigation } from "../DateNavigation";
-import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
+import { useRecurringTasks } from "@/hooks/useRecurringTasks";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import {
   useCreateCompletionMutation,
@@ -456,8 +456,8 @@ const CompletionCell = memo(function CompletionCell({
 
 export function HistoryTab({ isLoading: tabLoading }) {
   const dispatch = useDispatch();
-  // Get data from Redux
-  const { data: tasks = [] } = useTasksWithDeferred();
+  // Get recurring tasks only (much faster - pre-filtered by API)
+  const { data: tasks = [] } = useRecurringTasks();
   const { data: sections = [] } = useGetSectionsQuery();
   const dialogState = useDialogState();
   const viewState = useViewState();

@@ -35,10 +35,14 @@ const KanbanColumn = memo(function KanbanColumn({
   createDraggableId,
   viewDate,
   showTodayComplete,
+  allTasks,
 }) {
   // Use hooks directly
   const taskOps = useTaskOperations();
-  const completionHandlers = useCompletionHandlers();
+  const completionHandlers = useCompletionHandlers({
+    tasksOverride: allTasks,
+    skipTasksQuery: true,
+  });
   const dialogState = useDialogState();
   const { isCompletedOnDate } = useCompletionHelpers();
 
@@ -131,6 +135,7 @@ const KanbanColumn = memo(function KanbanColumn({
                   containerId={`kanban-column|${id}`}
                   draggableId={createDraggableId.kanban(task.id, id)}
                   viewDate={viewDate}
+                  allTasksOverride={allTasks}
                 />
               ))}
               {provided.placeholder}
@@ -173,14 +178,13 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
   const selectedPriorities = useSelector(state => state.ui.kanbanSelectedPriorities);
 
   // Use hooks directly (they use Redux internally)
-  const completionHandlers = useCompletionHandlers();
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
 
-  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
-  });
+  // Get task filters (uses optimized endpoints)
+  const taskFilters = useTaskFilters();
+
+  // Completion handlers are handled in column/task components
 
   // Filter tasks: exclude notes, exclude recurring tasks, filter by date, exclude subtasks
   const kanbanTasks = useMemo(() => {
@@ -308,6 +312,7 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
             createDraggableId={createDraggableId}
             viewDate={selectedDate}
             showTodayComplete={showTodayComplete}
+            allTasks={taskFilters.tasks}
           />
         ))}
       </Stack>

@@ -11,7 +11,7 @@ import { JournalWeekView } from "@/components/JournalWeekView";
 import { JournalMonthView } from "@/components/JournalMonthView";
 import { JournalYearView } from "@/components/JournalYearView";
 import { JournalFilterMenu } from "@/components/JournalFilterMenu";
-import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
+import { useRecurringTasks } from "@/hooks/useRecurringTasks";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useCreateCompletionMutation, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -32,8 +32,8 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
     return dayjs();
   }, [journalSelectedDateISO]);
 
-  // Get data from Redux
-  const { data: tasks = [] } = useTasksWithDeferred();
+  // Get recurring tasks only (much faster - pre-filtered by API)
+  const { data: tasks = [] } = useRecurringTasks();
   const { getCompletionForDate } = useCompletionHelpers();
   const { handleEditTask } = useTaskOperations();
 

@@ -6,14 +6,12 @@ import { Box } from "@mui/material";
 import { shouldShowOnDate } from "@/lib/utils";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 import { TaskCardCompact } from "./shared/TaskCardCompact";
-import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
-import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useViewState } from "@/hooks/useViewState";
 import { setCalendarView } from "@/lib/store/slices/uiSlice";
 
-export const CalendarMonthView = ({ date }) => {
+export const CalendarMonthView = ({ date, tasks = [] }) => {
   const dispatch = useDispatch();
   const viewState = useViewState();
 
@@ -24,16 +22,9 @@ export const CalendarMonthView = ({ date }) => {
   const showCompleted = showCompletedTasksCalendar.month !== false;
 
   // Use hooks directly (they use Redux internally)
-  const completionHandlers = useCompletionHandlers();
   const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
 
-  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
-  });
-
-  // Get all tasks
-  const tasks = taskFilters.tasks;
+  // Tasks provided by parent
 
   const year = date.getFullYear();
   const month = date.getMonth();

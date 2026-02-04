@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tasks, sections, taskTags, tags } from "@/lib/schema";
-import { eq, and, asc, inArray, sql } from "drizzle-orm";
+import { eq, and, asc, inArray, sql, isNull, or } from "drizzle-orm";
 import {
   withApi,
   Errors,
@@ -11,16 +11,22 @@ import {
   getClientIdFromRequest,
   ENTITY_TYPES,
 } from "@/lib/apiHelpers";
+import { shouldShowOnDate } from "@/lib/utils";
 
 const taskBroadcast = withBroadcast(ENTITY_TYPES.TASK);
 
 export const GET = withApi(async (request, { userId, getSearchParams }) => {
+  const apiStart = Date.now();
   const searchParams = getSearchParams();
   const pageParam = searchParams.get("page");
   const limitParam = searchParams.get("limit");
-  const includeAll = searchParams.get("all") === "true" || (!pageParam && !limitParam);
+  const cursorParam = searchParams.get("cursor"); // For cursor-based pagination
+  const dateParam = searchParams.get("date"); // "2024-02-04" for date-based filtering
+  const viewParam = searchParams.get("view"); // "today" | "backlog" | "all"
+  const includeAll =
+    searchParams.get("all") === "true" || (!pageParam && !limitParam && !dateParam && !viewParam && !cursorParam);
   const page = parseInt(pageParam || "1");
-  const limit = parseInt(limitParam || "500");
+  const limit = parseInt(limitParam || "50"); // Reduced default from 500 to 50
   const offset = (page - 1) * limit;
 
   const baseQuery = {
@@ -36,6 +42,63 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
     orderBy: [asc(tasks.sectionId), asc(tasks.order)],
   };
 
+  // Handle backlog view - only tasks without sections/dates
+  if (viewParam === "backlog") {
+    const backlogTasks = await db.query.tasks.findMany({
+      ...baseQuery,
+      where: and(
+        eq(tasks.userId, userId),
+        or(isNull(tasks.sectionId), eq(tasks.sectionId, "")),
+        isNull(tasks.parentId) // Exclude subtasks
+      ),
+      limit: 100, // LIMIT to prevent massive render freeze
+      offset,
+    });
+
+    const tasksWithTags = backlogTasks.map(task => ({
+      ...task,
+      tags: task.taskTags?.map(tt => tt.tag) || [],
+    }));
+
+    return NextResponse.json(tasksWithTags);
+  }
+
+  // Handle date-based filtering for "today" view
+  if (viewParam === "today" && dateParam) {
+    const targetDate = new Date(dateParam);
+
+    // Load ALL tasks to filter by recurrence logic
+    // (We need all tasks because recurrence logic is complex)
+    const allTasks = await db.query.tasks.findMany(baseQuery);
+
+    const tasksWithTags = allTasks.map(task => ({
+      ...task,
+      tags: task.taskTags?.map(tt => tt.tag) || [],
+    }));
+
+    // Filter tasks that should show on this date
+    const filteredTasks = tasksWithTags.filter(task => {
+      // Exclude notes and goals
+      if (task.completionType === "note" || task.completionType === "goal") return false;
+      // Exclude subtasks (they're nested in parent tasks)
+      if (task.parentId) return false;
+
+      // Include in-progress non-recurring tasks with no date
+      const isNonRecurring = !task.recurrence || task.recurrence.type === "none";
+      if (isNonRecurring && task.status === "in_progress") {
+        const hasNoDate = !task.recurrence || !task.recurrence.startDate;
+        if (hasNoDate) return true;
+      }
+
+      // Use the same logic as frontend
+      return shouldShowOnDate(task, targetDate);
+    });
+
+    return NextResponse.json(filteredTasks);
+  }
+
+  // Default: load all tasks (for calendar views, etc.)
+  const dbStart = Date.now();
   const allTasks = includeAll
     ? await db.query.tasks.findMany(baseQuery)
     : await db.query.tasks.findMany({
@@ -43,11 +106,14 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
         limit,
         offset,
       });
+  const dbTime = Date.now() - dbStart;
 
   const tasksWithTags = allTasks.map(task => ({
     ...task,
     tags: task.taskTags?.map(tt => tt.tag) || [],
   }));
+
+  console.warn(`[GET /api/tasks] DB: ${dbTime}ms, Total: ${Date.now() - apiStart}ms, Tasks: ${allTasks.length}`);
 
   if (includeAll) {
     return NextResponse.json(tasksWithTags);

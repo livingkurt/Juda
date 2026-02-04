@@ -8,14 +8,12 @@ import { CalendarTask } from "./CalendarTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
 import { CurrentTimeLine } from "./CurrentTimeLine";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
-import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
-import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_DAY;
 
-export const CalendarDayView = ({ date, createDraggableId, onDropTimeChange }) => {
+export const CalendarDayView = ({ date, tasks = [], createDraggableId, onDropTimeChange }) => {
   // Get preferences
   const { preferences } = usePreferencesContext();
   const zoom = preferences.calendarZoom?.day || 1.0;
@@ -23,16 +21,7 @@ export const CalendarDayView = ({ date, createDraggableId, onDropTimeChange }) =
 
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
-  const completionHandlers = useCompletionHandlers();
   const { getCompletionForDate } = useCompletionHelpers();
-
-  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
-  });
-
-  // Get all tasks (for status blocks and filtering)
-  const tasks = taskFilters.tasks;
 
   // Filter tasks by date (search/tag filtering is now done in parent)
   const dayTasks = useMemo(() => {
@@ -256,6 +245,7 @@ export const CalendarDayView = ({ date, createDraggableId, onDropTimeChange }) =
                     createDraggableId={createDraggableId}
                     date={date}
                     variant="untimed"
+                    allTasksOverride={tasks}
                   />
                 ))}
               </Stack>
@@ -330,6 +320,7 @@ export const CalendarDayView = ({ date, createDraggableId, onDropTimeChange }) =
                 date={date}
                 variant="timed"
                 getTaskStyle={getTaskStyle}
+                allTasksOverride={tasks}
               />
             ))}
 

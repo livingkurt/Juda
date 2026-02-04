@@ -10,7 +10,6 @@ import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { AppHeader } from "@/components/AppHeader";
 import { TaskDialog } from "@/components/TaskDialog";
 import { SectionDialog } from "@/components/SectionDialog";
-import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery } from "@/lib/store/api/tagsApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
@@ -123,10 +122,6 @@ export default function DailyTasksApp() {
   }, []);
 
   // Redux RTK Query hooks
-  const { data: tasks = [], isLoading: tasksLoading } = useTasksWithDeferred(undefined, {
-    skip: !isAuthenticated,
-  });
-
   const { data: sections = [], isLoading: sectionsLoading } = useGetSectionsQuery(undefined, {
     skip: !isAuthenticated,
   });
@@ -161,7 +156,7 @@ export default function DailyTasksApp() {
   const notesListOpen = useSelector(state => state.ui.notesListOpen);
   const notesSidebarWidth = useSelector(state => state.ui.notesSidebarWidth);
   const notesListWidth = useSelector(state => state.ui.notesListWidth);
-  const isLoading = tasksLoading || sectionsLoading || tagsLoading || completionsLoading || !prefsInitialized;
+  const isLoading = sectionsLoading || tagsLoading || completionsLoading || !prefsInitialized;
 
   // Get loadingTab state from MainTabs component
   const { loadingTab } = useLoadingTab();
@@ -183,6 +178,7 @@ export default function DailyTasksApp() {
     autoCollapsedSections: sectionExpansionInitial.autoCollapsedSections,
     setAutoCollapsedSections: sectionExpansionInitial.setAutoCollapsedSections,
     checkAndAutoCollapseSection: sectionExpansionInitial.checkAndAutoCollapseSection,
+    skipTasksQuery: true,
   });
 
   // Sync Redux UI state with preferences on mount
@@ -286,8 +282,7 @@ export default function DailyTasksApp() {
     return <AuthPage />;
   }
 
-  const hasData = tasks.length > 0 || sections.length > 0;
-  if (isLoading || !hasData) {
+  if (isLoading) {
     return (
       <Box sx={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <CircularProgress size={48} />

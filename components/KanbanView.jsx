@@ -16,10 +16,13 @@ import { useDialogState } from "@/hooks/useDialogState";
 import { setKanbanSearchTerm, setKanbanSelectedTagIds } from "@/lib/store/slices/uiSlice";
 
 // Kanban column component
-const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, createDraggableId }) {
+const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, createDraggableId, allTasks }) {
   // Use hooks directly
   const taskOps = useTaskOperations();
-  const completionHandlers = useCompletionHandlers();
+  const completionHandlers = useCompletionHandlers({
+    tasksOverride: allTasks,
+    skipTasksQuery: true,
+  });
   const dialogState = useDialogState();
 
   // Get viewDate from Redux
@@ -101,6 +104,7 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
                   containerId={`kanban-column|${id}`}
                   draggableId={createDraggableId.kanban(task.id, id)}
                   viewDate={viewDate}
+                  allTasksOverride={allTasks}
                 />
               ))}
               {provided.placeholder}
@@ -248,6 +252,7 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
             color={column.color}
             tasks={tasksByStatus[column.id]}
             createDraggableId={createDraggableId}
+            allTasks={taskFilters.tasks}
           />
         ))}
       </Stack>

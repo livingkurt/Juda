@@ -1,5 +1,26 @@
 # Project Decisions Log
 
+## 2026-02-03
+
+### Task Load Performance - Unblock Initial Render
+
+**Problem**: Initial app load was blocked by fetching all tasks in `app/page.jsx` and by handlers that always triggered the full tasks query, causing multi-minute delays with no visible loading state.
+
+**Solution**:
+- Removed `useTasksWithDeferred` from `app/page.jsx` and stopped gating render on task data.
+- Added `skipTasksQuery` and `tasksOverride` options to `useCompletionHandlers` to avoid the full tasks query when not needed.
+- Passed `allTasksOverride` into `TaskItem` from task list containers to avoid per-item full-task fetching.
+- Added a backlog loading state indicator in `BacklogDrawer`.
+- Restored one-time completion filtering in `useTaskFilters` so completed tasks don’t reappear on Today view.
+- Made `useTasksForToday` robust against invalid dates.
+- Ensured backlog endpoint includes subtasks.
+- Removed unused `useTasksWithPagination` (lint rule disallowed setState-in-effect); pagination will be reintroduced later.
+- Added calendar date-range endpoint and hook to avoid loading all tasks in Calendar views.
+- Updated Calendar views to consume range-based data and avoid full-task queries.
+- Added incremental rendering in Today sections and Backlog to reduce initial render cost.
+
+**Why**: This keeps the app interactive while view-specific endpoints load, and prevents unnecessary full-task fetches during initial render.
+
 ## 2026-01-27
 
 ### Tag Components - Unified Design System

@@ -12,7 +12,8 @@ import { CalendarYearView } from "@/components/CalendarYearView";
 import { useViewState } from "@/hooks/useViewState";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
-import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
+import { useCalendarTasks } from "@/hooks/useCalendarTasks";
+import { formatLocalDate } from "@/lib/utils";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { createDroppableId, createDraggableId } from "@/lib/dragHelpers";
 
@@ -75,8 +76,43 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
     }
   };
 
+  // Calculate date range for the current view
+  const getRangeForView = () => {
+    const baseDate = selectedDate ? new Date(selectedDate) : new Date();
+    baseDate.setHours(0, 0, 0, 0);
+
+    if (calendarView === "day") {
+      return { start: baseDate, end: baseDate };
+    }
+
+    if (calendarView === "week") {
+      const start = new Date(baseDate);
+      start.setDate(start.getDate() - start.getDay());
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      return { start, end };
+    }
+
+    if (calendarView === "month") {
+      const start = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+      const end = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
+      return { start, end };
+    }
+
+    // year
+    const start = new Date(baseDate.getFullYear(), 0, 1);
+    const end = new Date(baseDate.getFullYear(), 11, 31);
+    return { start, end };
+  };
+
+  const range = getRangeForView();
+  const rangeParams = {
+    start: formatLocalDate(range.start),
+    end: formatLocalDate(range.end),
+  };
+
   // Get tasks and tags from API
-  const { data: tasks = [], isLoading: tasksLoading } = useTasksWithDeferred();
+  const { data: tasks = [], isLoading: tasksLoading } = useCalendarTasks(rangeParams);
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
 
@@ -309,6 +345,7 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
             {calendarView === "day" && selectedDate && (
               <CalendarDayView
                 date={selectedDate}
+                tasks={filteredTasks}
                 createDroppableId={createDroppableId}
                 createDraggableId={createDraggableId}
                 onDropTimeChange={time => {
@@ -320,6 +357,7 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
             {calendarView === "week" && selectedDate && (
               <CalendarWeekView
                 date={selectedDate}
+                tasks={filteredTasks}
                 createDroppableId={createDroppableId}
                 createDraggableId={createDraggableId}
                 onDropTimeChange={time => {
@@ -328,7 +366,9 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
                 }}
               />
             )}
-            {calendarView === "month" && selectedDate && <CalendarMonthView date={selectedDate} />}
+            {calendarView === "month" && selectedDate && (
+              <CalendarMonthView date={selectedDate} tasks={filteredTasks} />
+            )}
             {calendarView === "year" && selectedDate && (
               <CalendarYearView
                 date={selectedDate}

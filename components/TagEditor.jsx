@@ -15,7 +15,7 @@ import {
   Divider,
   useTheme,
 } from "@mui/material";
-import { Edit, Add, Delete, Close, Check, Label, Search } from "@mui/icons-material";
+import { Edit, Delete, Close, Check, Label, Search } from "@mui/icons-material";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { TagChip } from "./TagChip";
 import { useDialogState } from "@/hooks/useDialogState";

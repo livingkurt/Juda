@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useDeferredValue } from "react";
+import { useMemo, useDeferredValue, useCallback } from "react";
 import { useGetCompletionsQuery } from "@/lib/store/api/completionsApi";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -31,10 +31,34 @@ const normalizeDate = date => {
   return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0));
 };
 
+// Cache for normalized date strings to avoid repeated computation
+const normalizedDateCache = new Map();
+
+// Helper function to get normalized date string (cached)
+const getNormalizedDateString = date => {
+  // Use a cache key based on the input
+  const cacheKey = date instanceof Date ? date.getTime() : String(date);
+
+  if (normalizedDateCache.has(cacheKey)) {
+    return normalizedDateCache.get(cacheKey);
+  }
+
+  const normalized = normalizeDate(date).toISOString();
+
+  // Limit cache size to prevent memory leaks
+  if (normalizedDateCache.size > 100) {
+    // Clear oldest entries (simple strategy)
+    const firstKey = normalizedDateCache.keys().next().value;
+    normalizedDateCache.delete(firstKey);
+  }
+
+  normalizedDateCache.set(cacheKey, normalized);
+  return normalized;
+};
+
 // Helper function to create lookup key from taskId and date
 const createLookupKey = (taskId, date) => {
-  const normalized = normalizeDate(date);
-  return `${taskId}|${normalized.toISOString()}`;
+  return `${taskId}|${getNormalizedDateString(date)}`;
 };
 
 const getRecentDateRange = (daysBack = 90) => {
@@ -134,6 +158,33 @@ export function useCompletionHelpers() {
     return completionsByTask.has(taskId);
   };
 
+  // OPTIMIZATION: Get lookup functions bound to a specific date
+  // This pre-computes the normalized date string ONCE, then reuses it for all tasks
+  // Use this when processing many tasks for the same date
+  const getLookupsForDate = useCallback(
+    date => {
+      const normalizedDateStr = getNormalizedDateString(date);
+
+      return {
+        isCompleted: taskId => {
+          const key = `${taskId}|${normalizedDateStr}`;
+          const completion = completionsByTaskAndDate.get(key);
+          return completion?.outcome === "completed" || (completion && !completion.outcome);
+        },
+        getOutcome: taskId => {
+          const key = `${taskId}|${normalizedDateStr}`;
+          const completion = completionsByTaskAndDate.get(key);
+          return completion?.outcome || null;
+        },
+        hasRecord: taskId => {
+          const key = `${taskId}|${normalizedDateStr}`;
+          return completionsByTaskAndDate.has(key);
+        },
+      };
+    },
+    [completionsByTaskAndDate]
+  );
+
   return {
     completions: deferredCompletions, // Return deferred version
     loading: isLoading,
@@ -141,6 +192,7 @@ export function useCompletionHelpers() {
     isCompletedOnDate,
     getCompletionForDate,
     hasRecordOnDate,
+    getLookupsForDate, // NEW: Optimized batch lookups
     getOutcomeOnDate,
     hasAnyCompletion,
   };

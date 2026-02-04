@@ -23,7 +23,6 @@ import { useSectionExpansion } from "@/hooks/useSectionExpansion";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useReorderTaskMutation, useBatchReorderTasksMutation, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
-import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useGetSectionsQuery, useReorderSectionsMutation } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useColorMode } from "@/hooks/useColorMode";
@@ -113,8 +112,10 @@ export function TasksTab() {
     }
   };
 
-  // Data queries
-  const { data: tasks = [] } = useTasksWithDeferred();
+  // Data queries with loading state
+  // REMOVED useTasksWithDeferred (legacy all-tasks query)
+  // TasksTab now relies on child components (TodayView, BacklogDrawer) to fetch their own data
+  // via useTaskFilters which uses the new optimized endpoints
   const { data: sections = [] } = useGetSectionsQuery();
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
@@ -148,20 +149,27 @@ export function TasksTab() {
     [reorderTaskMutation]
   );
 
-  // Completion handlers (needed for taskFilters)
+  // Task filters (uses optimized endpoints)
+  const taskFilters = useTaskFilters();
+
+  const tasksLoading = taskFilters.isLoading;
+  const isLoadingMore = false; // Not using pagination currently
+
+  // We still need a 'tasks' array for some legacy logic or prop passing
+  // Combine today + backlog tasks from filters
+  const tasks = taskFilters.tasks;
+
+  const backlogTasks = taskFilters.backlogTasks;
+  const tasksBySection = taskFilters.tasksBySection;
+
+  // Completion handlers (use the filtered tasks to avoid full tasks fetch)
   const completionHandlers = useCompletionHandlers({
     autoCollapsedSections: new Set(),
     setAutoCollapsedSections: () => {},
     checkAndAutoCollapseSection: () => {},
+    tasksOverride: tasks,
+    skipTasksQuery: true,
   });
-
-  // Task filters
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
-  });
-
-  const backlogTasks = taskFilters.backlogTasks;
-  const tasksBySection = taskFilters.tasksBySection;
 
   /**
    * Calculate time for a task dropped into a time-ranged section
@@ -1101,7 +1109,8 @@ export function TasksTab() {
               </Box>
 
               <TodayView
-                isLoading={isLoading}
+                isLoading={tasksLoading}
+                isLoadingMore={isLoadingMore}
                 sections={sections}
                 todayViewDate={todayViewDate}
                 handleTodayViewDateChange={handleTodayViewDateChange}
@@ -1250,7 +1259,8 @@ export function TasksTab() {
               }}
             >
               <TodayView
-                isLoading={isLoading}
+                isLoading={tasksLoading}
+                isLoadingMore={isLoadingMore}
                 sections={sections}
                 todayViewDate={todayViewDate}
                 handleTodayViewDateChange={handleTodayViewDateChange}

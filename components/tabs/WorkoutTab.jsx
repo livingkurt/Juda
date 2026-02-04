@@ -21,7 +21,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { FitnessCenter, Edit } from "@mui/icons-material";
-import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
+import { useWorkoutTasks } from "@/hooks/useWorkoutTasks";
 import { useGetWorkoutHistoryQuery } from "@/lib/store/api/workoutProgramsApi";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useViewState } from "@/hooks/useViewState";
@@ -90,13 +90,12 @@ export function WorkoutTab({ isLoading: tabLoading }) {
   const dispatch = useDispatch();
   const dialogState = useDialogState();
   const viewState = useViewState();
-  const { data: tasks = [] } = useTasksWithDeferred();
+  // Use dedicated workout endpoint (much faster - pre-filtered by API)
+  const { data: workoutTasks = [] } = useWorkoutTasks();
 
   const selectedWorkoutTaskId = useSelector(state => state.ui.selectedWorkoutTaskId);
   const workoutViewMode = useSelector(state => state.ui.workoutViewMode);
   const workoutDateRange = useSelector(state => state.ui.workoutDateRange);
-
-  const workoutTasks = tasks.filter(task => task.completionType === "workout");
   const selectedTask = workoutTasks.find(task => task.id === selectedWorkoutTaskId) || workoutTasks[0] || null;
   const hasInitializedRef = useRef(false);
 

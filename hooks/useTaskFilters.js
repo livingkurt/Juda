@@ -2,23 +2,30 @@
 
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
-import { shouldShowOnDate, hasFutureDateTime, timeToMinutes } from "@/lib/utils";
-import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
+import { timeToMinutes } from "@/lib/utils";
+import { useTasksForToday } from "@/hooks/useTasksForToday";
+import { useBacklogTasks } from "@/hooks/useBacklogTasks";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
 /**
- * Task filtering logic using Redux directly
+ * Task filtering logic using SEPARATE API endpoints for each view
+ *
+ * ARCHITECTURE CHANGE:
+ * - Today's tasks: Loaded via /api/tasks/today?date=YYYY-MM-DD
+ * - Backlog tasks: Loaded via /api/tasks/backlog
+ * - Each view loads ONLY what it needs - much faster!
  *
  * @param {Object} options
- * @param {Set} options.recentlyCompletedTasks - Set of recently completed task IDs (from useCompletionHandlers)
+ * @param {Set} options.recentlyCompletedTasks - Set of recently completed task IDs
  */
 export function useTaskFilters({ recentlyCompletedTasks } = {}) {
   // Get state from Redux
   const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
   const todaySearchTerm = useSelector(state => state.ui.todaySearchTerm);
   const todaySelectedTagIds = useSelector(state => state.ui.todaySelectedTagIds);
+  const recentlyCompletedTasksArray = useSelector(state => state.ui.recentlyCompletedTasks);
 
   // Compute dates
   const today = useMemo(() => {
@@ -35,67 +42,47 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
   const { preferences } = usePreferencesContext();
   const showCompletedTasks = preferences.showCompletedTasks;
 
-  // RTK Query hooks with deferred rendering
-  const { data: tasks = [] } = useTasksWithDeferred();
+  // SEPARATE API CALLS - Each loads only what's needed
+  const { data: todayTasksRaw = [], isLoading: todayLoading } = useTasksForToday(viewDate);
+  const { data: backlogTasksRaw = [], isLoading: backlogLoading } = useBacklogTasks();
   const { data: sections = [] } = useGetSectionsQuery();
 
   // Completion helpers
-  const { isCompletedOnDate, getOutcomeOnDate, hasRecordOnDate, hasAnyCompletion } = useCompletionHelpers();
+  const { hasAnyCompletion, getLookupsForDate } = useCompletionHelpers();
 
-  // Default empty set if not provided - wrap in useMemo for stable reference
-  const recentlyCompleted = useMemo(() => recentlyCompletedTasks || new Set(), [recentlyCompletedTasks]);
+  // Default to Redux state if not provided
+  const recentlyCompleted = useMemo(() => {
+    if (recentlyCompletedTasks) return recentlyCompletedTasks;
+    return new Set(recentlyCompletedTasksArray || []);
+  }, [recentlyCompletedTasks, recentlyCompletedTasksArray]);
 
-  // Today's tasks: tasks that should show on the selected date
-  const todaysTasks = useMemo(
-    () =>
-      tasks
-        .filter(task => {
-          // Exclude notes from today's tasks
-          if (task.completionType === "note") return false;
-          // Exclude goal-type tasks from today's tasks (they have their own Goals tab)
-          if (task.completionType === "goal") return false;
-          // Exclude subtasks (handled by parent)
-          if (task.parentId) return false;
+  // Today's tasks - already filtered by API, just add completion status
+  const todaysTasks = useMemo(() => {
+    const lookups = getLookupsForDate(viewDate);
 
-          // Include in-progress non-recurring tasks ONLY if they have no date assigned
-          // If they have a date, they should only show on that date and after (handled by shouldShowOnDate)
-          const isNonRecurring = !task.recurrence || task.recurrence.type === "none";
-          if (isNonRecurring && task.status === "in_progress") {
-            // Only show if task has no date (no recurrence or no startDate)
-            const hasNoDate = !task.recurrence || !task.recurrence.startDate;
-            if (hasNoDate) {
-              return true;
-            }
-          }
-
-          // For one-time tasks (type === "none") that have been completed,
-          // only show them on dates where they have a completion record
-          if (task.recurrence?.type === "none" && hasAnyCompletion(task.id)) {
-            return hasRecordOnDate(task.id, viewDate);
-          }
-
-          // Normal date-based filtering
-          return shouldShowOnDate(task, viewDate);
-        })
-        .map(task => ({
-          ...task,
-          // Override completed field with the selected date's completion record status
-          completed: isCompletedOnDate(task.id, viewDate),
-          // Add outcome and hasRecord for outcome menu
-          outcome: getOutcomeOnDate(task.id, viewDate),
-          hasRecord: hasRecordOnDate(task.id, viewDate),
-          // Also update subtasks with completion status
-          subtasks: task.subtasks
-            ? task.subtasks.map(subtask => ({
-                ...subtask,
-                completed: isCompletedOnDate(subtask.id, viewDate),
-                outcome: getOutcomeOnDate(subtask.id, viewDate),
-                hasRecord: hasRecordOnDate(subtask.id, viewDate),
-              }))
-            : undefined,
-        })),
-    [tasks, viewDate, isCompletedOnDate, getOutcomeOnDate, hasRecordOnDate, hasAnyCompletion]
-  );
+    return todayTasksRaw
+      .filter(task => {
+        // For one-time tasks that have completions, only show on dates with a record
+        if (task.recurrence?.type === "none" && hasAnyCompletion(task.id)) {
+          return lookups.hasRecord(task.id);
+        }
+        return true;
+      })
+      .map(task => ({
+        ...task,
+        completed: lookups.isCompleted(task.id),
+        outcome: lookups.getOutcome(task.id),
+        hasRecord: lookups.hasRecord(task.id),
+        subtasks: task.subtasks
+          ? task.subtasks.map(subtask => ({
+              ...subtask,
+              completed: lookups.isCompleted(subtask.id),
+              outcome: lookups.getOutcome(subtask.id),
+              hasRecord: lookups.hasRecord(subtask.id),
+            }))
+          : undefined,
+      }));
+  }, [todayTasksRaw, viewDate, getLookupsForDate, hasAnyCompletion]);
 
   // Filter today's tasks by search term and tags
   const filteredTodaysTasks = useMemo(() => {
@@ -115,7 +102,7 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
     return result;
   }, [todaysTasks, todaySearchTerm, todaySelectedTagIds]);
 
-  // Group today's tasks by section, optionally filtering out completed tasks
+  // Group today's tasks by section
   const tasksBySection = useMemo(() => {
     const grouped = {};
 
@@ -152,71 +139,46 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
       });
     };
 
-    // Track which tasks have been assigned to time-ranged sections
+    // Track which tasks have been assigned to sections
     const assignedTaskIds = new Set();
 
-    // Sort sections by order to ensure consistent assignment priority
-    const sortedSections = [...sections].sort((a, b) => (a.order || 0) - (b.order || 0));
+    // Process each section
+    sections.forEach(section => {
+      // Get tasks explicitly assigned to this section
+      let sectionTasks = filteredTodaysTasks.filter(t => t.sectionId === section.id);
 
-    // First pass: assign tasks to time-ranged sections
-    for (const section of sortedSections) {
+      // Also get tasks that fall within this section's time range (if defined)
       if (section.startTime && section.endTime) {
-        // This section has a time range - filter tasks by time
-        const sectionTasks = filteredTodaysTasks.filter(task => {
-          if (assignedTaskIds.has(task.id)) return false;
-          if (isTimeInRange(task.time, section.startTime, section.endTime)) {
-            assignedTaskIds.add(task.id);
+        const timeRangeTasks = filteredTodaysTasks.filter(t => {
+          // Skip if already assigned to a specific section
+          if (t.sectionId) return false;
+          // Skip if already assigned to another section
+          if (assignedTaskIds.has(t.id)) return false;
+          // Check if task time falls within section time range
+          return isTimeInRange(t.time, section.startTime, section.endTime);
+        });
+        sectionTasks = [...sectionTasks, ...timeRangeTasks];
+      }
+
+      // Apply completed task filtering
+      if (!showCompletedTasks) {
+        sectionTasks = sectionTasks.filter(t => {
+          const isCompleted =
+            t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
+          const hasOutcome = t.outcome !== null && t.outcome !== undefined;
+          if (isCompleted && recentlyCompleted.has(t.id)) {
             return true;
           }
-          return false;
+          return !isCompleted && !hasOutcome;
         });
-
-        // Filter out completed/not completed tasks if showCompletedTasks is false
-        let filteredSectionTasks = sectionTasks;
-        if (!showCompletedTasks) {
-          filteredSectionTasks = sectionTasks.filter(t => {
-            const isCompleted =
-              t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
-            const hasOutcome = t.outcome !== null && t.outcome !== undefined;
-            if (isCompleted && recentlyCompleted.has(t.id)) {
-              return true;
-            }
-            return !isCompleted && !hasOutcome;
-          });
-        }
-
-        grouped[section.id] = sortByTime(filteredSectionTasks);
       }
-    }
 
-    // Second pass: assign remaining tasks by sectionId (non-time-ranged sections)
-    for (const section of sortedSections) {
-      if (!section.startTime || !section.endTime) {
-        // This section has no time range - use sectionId assignment
-        let sectionTasks = filteredTodaysTasks.filter(task => {
-          if (assignedTaskIds.has(task.id)) return false;
-          return task.sectionId === section.id;
-        });
+      // Sort and store
+      grouped[section.id] = sortByTime(sectionTasks);
 
-        // Mark as assigned
-        sectionTasks.forEach(t => assignedTaskIds.add(t.id));
-
-        // Filter out completed/not completed tasks if showCompletedTasks is false
-        if (!showCompletedTasks) {
-          sectionTasks = sectionTasks.filter(t => {
-            const isCompleted =
-              t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
-            const hasOutcome = t.outcome !== null && t.outcome !== undefined;
-            if (isCompleted && recentlyCompleted.has(t.id)) {
-              return true;
-            }
-            return !isCompleted && !hasOutcome;
-          });
-        }
-
-        grouped[section.id] = sortByTime(sectionTasks);
-      }
-    }
+      // Track assigned task IDs
+      sectionTasks.forEach(t => assignedTaskIds.add(t.id));
+    });
 
     // Handle "no-section" virtual section
     let noSectionTasks = filteredTodaysTasks.filter(t => {
@@ -241,42 +203,23 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
     return grouped;
   }, [filteredTodaysTasks, sections, showCompletedTasks, recentlyCompleted]);
 
-  // Tasks for backlog
+  // Backlog tasks - already filtered by API, just add completion status
   const backlogTasks = useMemo(() => {
-    return tasks
+    const todayLookups = getLookupsForDate(today);
+
+    return backlogTasksRaw
       .filter(task => {
-        // CRITICAL: Tasks with a sectionId should NEVER appear in backlog
-        // They belong to a specific section in the Today view
-        if (task.sectionId) return false;
-
-        // If task shows on today's calendar/today view, don't show in backlog
-        if (shouldShowOnDate(task, today)) return false;
-        // Exclude tasks with future date/time
-        if (hasFutureDateTime(task)) return false;
-
-        // For one-time tasks (type: "none"), if they've been completed on ANY date,
-        // they should stay on that date's calendar view, not reappear in backlog
+        // For one-time tasks that have been completed on ANY date,
+        // filter them out unless recently completed
         if (task.recurrence?.type === "none" && hasAnyCompletion(task.id)) {
-          // Keep task visible if it's recently completed (within delay period)
           if (recentlyCompleted.has(task.id)) {
             return true;
           }
           return false;
         }
 
-        // For recurring tasks (daily, weekly, monthly, interval), they should NEVER appear in backlog
-        if (task.recurrence?.type && task.recurrence.type !== "none") {
-          return false;
-        }
-
-        // Exclude notes from backlog
-        if (task.completionType === "note") return false;
-
-        // Exclude Goal type tasks from backlog
-        if (task.completionType === "goal") return false;
-
         // For tasks without recurrence (null), check if completed today
-        const outcome = getOutcomeOnDate(task.id, today);
+        const outcome = todayLookups.getOutcome(task.id);
         if (outcome !== null) {
           if (recentlyCompleted.has(task.id)) {
             return true;
@@ -288,28 +231,36 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
       .sort((a, b) => (a.order || 0) - (b.order || 0))
       .map(task => ({
         ...task,
-        completed: isCompletedOnDate(task.id, today),
+        completed: todayLookups.isCompleted(task.id),
         subtasks: task.subtasks
           ? task.subtasks.map(subtask => ({
               ...subtask,
-              completed: isCompletedOnDate(subtask.id, today),
+              completed: todayLookups.isCompleted(subtask.id),
             }))
           : undefined,
       }));
-  }, [tasks, today, isCompletedOnDate, getOutcomeOnDate, hasAnyCompletion, recentlyCompleted]);
+  }, [backlogTasksRaw, today, getLookupsForDate, hasAnyCompletion, recentlyCompleted]);
 
-  // Filter tasks that are notes (completionType === "note")
+  // Note tasks - still need legacy query for now
+  // TODO: Create separate /api/tasks/notes endpoint
   const noteTasks = useMemo(() => {
-    return tasks.filter(task => task.completionType === "note");
-  }, [tasks]);
+    // Notes are not included in today or backlog endpoints
+    // For now, return empty array - notes tab will need its own query
+    return [];
+  }, []);
 
   return useMemo(
     () => ({
       // Data
-      tasks,
+      tasks: [...todayTasksRaw, ...backlogTasksRaw], // Combined for components that need all
       sections,
       today,
       viewDate,
+
+      // Loading states
+      isLoading: todayLoading || backlogLoading,
+      todayLoading,
+      backlogLoading,
 
       // Filtered results
       todaysTasks,
@@ -318,6 +269,19 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
       backlogTasks,
       noteTasks,
     }),
-    [tasks, sections, today, viewDate, todaysTasks, filteredTodaysTasks, tasksBySection, backlogTasks, noteTasks]
+    [
+      todayTasksRaw,
+      backlogTasksRaw,
+      sections,
+      today,
+      viewDate,
+      todayLoading,
+      backlogLoading,
+      todaysTasks,
+      filteredTodaysTasks,
+      tasksBySection,
+      backlogTasks,
+      noteTasks,
+    ]
   );
 }
