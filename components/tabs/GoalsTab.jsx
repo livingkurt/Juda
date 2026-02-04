@@ -299,24 +299,29 @@ export function GoalsTab({ isLoading }) {
             <Box>
               <DragDropContext onDragEnd={handleDragEnd}>
                 <Droppable droppableId={`goals-yearly-${selectedYear}`}>
-                  {provided => (
-                    <Stack spacing={1} ref={provided.innerRef} {...provided.droppableProps}>
-                      {yearlyGoals.map((goal, index) => (
-                        <TaskItem
-                          key={goal.id}
-                          task={goal}
-                          variant="today"
-                          draggableId={goal.id}
-                          index={index}
-                          date={null}
-                          showSubtasks={true}
-                          defaultExpanded={true}
-                          allTasksOverride={allGoals}
-                        />
-                      ))}
-                      {provided.placeholder}
-                    </Stack>
-                  )}
+                  {provided => {
+                    // Yearly goals need a date for completion checks (use today)
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    return (
+                      <Stack spacing={1} ref={provided.innerRef} {...provided.droppableProps}>
+                        {yearlyGoals.map((goal, index) => (
+                          <TaskItem
+                            key={goal.id}
+                            task={goal}
+                            variant="today"
+                            draggableId={goal.id}
+                            index={index}
+                            viewDate={today}
+                            showSubtasks={true}
+                            defaultExpanded={true}
+                            allTasksOverride={allGoals}
+                          />
+                        ))}
+                        {provided.placeholder}
+                      </Stack>
+                    );
+                  }}
                 </Droppable>
               </DragDropContext>
             </Box>
