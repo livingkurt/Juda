@@ -986,8 +986,8 @@ export const TaskItem = ({
                   rowGap: 0.5,
                 }}
               >
-                {/* Status badge - only show for non-recurring, non-subtask tasks */}
-                {!isRecurring && !isSubtask && task.status && (
+                {/* Status badge - show for non-recurring, non-subtask tasks OR goal type tasks/subtasks */}
+                {((!isRecurring && !isSubtask) || isGoalTask) && task.status && (
                   <>
                     <Chip
                       size="small"

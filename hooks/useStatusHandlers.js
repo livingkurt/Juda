@@ -94,6 +94,10 @@ export function useStatusHandlers({
       const isSubtask = task.parentId != null;
       const parentTask = isSubtask ? tasks.find(t => t.id === task.parentId) : null;
       const parentIsNonRecurring = parentTask && (!parentTask.recurrence || parentTask.recurrence.type === "none");
+      const isGoalTask = task.completionType === "goal";
+      const parentIsGoalTask = parentTask?.completionType === "goal";
+      // Allow status updates for goal tasks/subtasks even if parent is recurring
+      const shouldAllowStatusUpdate = parentIsNonRecurring || isGoalTask || parentIsGoalTask;
 
       const updates = { status: newStatus };
       const now = new Date();
@@ -127,7 +131,7 @@ export function useStatusHandlers({
         }
 
         // If this is a subtask and parent was "todo", update parent to "in_progress"
-        if (isSubtask && parentIsNonRecurring && parentTask.status === "todo") {
+        if (isSubtask && shouldAllowStatusUpdate && parentTask.status === "todo") {
           await updateTask(parentTask.id, {
             status: "in_progress",
             startedAt: now.toISOString(),
@@ -135,7 +139,7 @@ export function useStatusHandlers({
         }
 
         // If this is a subtask and parent was "complete", update parent to "in_progress"
-        if (isSubtask && parentIsNonRecurring && parentTask.status === "complete") {
+        if (isSubtask && shouldAllowStatusUpdate && parentTask.status === "complete") {
           await updateTask(parentTask.id, { status: "in_progress" });
         }
       } else if (newStatus === "todo") {
@@ -157,7 +161,7 @@ export function useStatusHandlers({
         }
 
         // If this is a subtask and parent was "complete", update parent to "in_progress"
-        if (isSubtask && parentIsNonRecurring && parentTask.status === "complete") {
+        if (isSubtask && shouldAllowStatusUpdate && parentTask.status === "complete") {
           await updateTask(parentTask.id, { status: "in_progress" });
         }
       } else if (newStatus === "complete") {
@@ -225,7 +229,7 @@ export function useStatusHandlers({
         }
 
         // If this is a subtask, update parent intelligently
-        if (isSubtask && parentIsNonRecurring) {
+        if (isSubtask && shouldAllowStatusUpdate) {
           // If parent was "todo", move to "in_progress"
           if (parentTask.status === "todo") {
             await updateTask(parentTask.id, {

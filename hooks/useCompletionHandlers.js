@@ -455,6 +455,10 @@ export function useCompletionHandlers({
 
       // Check if parent is non-recurring (for status sync)
       const parentIsNonRecurring = parentTask && (!parentTask.recurrence || parentTask.recurrence.type === "none");
+      const isGoalSubtask = subtask?.completionType === "goal";
+      const parentIsGoalTask = parentTask?.completionType === "goal";
+      // Allow status updates for goal tasks/subtasks even if parent is recurring
+      const shouldAllowStatusUpdate = parentIsNonRecurring || isGoalSubtask || parentIsGoalTask;
 
       try {
         // Set startDate if subtask has no recurrence and isn't completed yet
@@ -475,28 +479,30 @@ export function useCompletionHandlers({
           // UNCHECKING subtask - only affects this subtask
           await deleteCompletion(subtaskId, dateStr);
 
-          // Only update subtask status if parent is non-recurring
+          // Only update subtask status if parent is non-recurring OR if it's a goal task
           // Recurring parent tasks don't use status system, so their subtasks shouldn't either
-          if (parentIsNonRecurring) {
+          // Exception: Goal tasks/subtasks always use status system
+          if (shouldAllowStatusUpdate) {
             await updateTask(subtaskId, { status: "todo" });
           }
 
           // If parent was "complete", revert to "in_progress"
-          if (parentTask && parentIsNonRecurring && parentTask.status === "complete") {
+          if (parentTask && shouldAllowStatusUpdate && parentTask.status === "complete") {
             await updateTask(parentTask.id, { status: "in_progress" });
           }
         } else {
           // CHECKING subtask - only affects this subtask
           await createCompletion(subtaskId, dateStr, { outcome: "completed" });
 
-          // Only update subtask status if parent is non-recurring
+          // Only update subtask status if parent is non-recurring OR if it's a goal task
           // Recurring parent tasks don't use status system, so their subtasks shouldn't either
-          if (parentIsNonRecurring) {
+          // Exception: Goal tasks/subtasks always use status system
+          if (shouldAllowStatusUpdate) {
             await updateTask(subtaskId, { status: "complete" });
           }
 
           // Update parent status intelligently (status only, NOT completions)
-          if (parentTask && parentIsNonRecurring) {
+          if (parentTask && shouldAllowStatusUpdate) {
             // If parent was "todo", move to "in_progress"
             if (parentTask.status === "todo") {
               await updateTask(parentTask.id, {
@@ -528,6 +534,10 @@ export function useCompletionHandlers({
 
       const parentTask = tasks.find(t => t.id === (parentTaskId || subtask.parentId));
       const parentIsNonRecurring = parentTask && (!parentTask.recurrence || parentTask.recurrence.type === "none");
+      const isGoalSubtask = subtask?.completionType === "goal";
+      const parentIsGoalTask = parentTask?.completionType === "goal";
+      // Allow status updates for goal tasks/subtasks even if parent is recurring
+      const shouldAllowStatusUpdate = parentIsNonRecurring || isGoalSubtask || parentIsGoalTask;
 
       const subtaskIsNonRecurring = !subtask.recurrence || subtask.recurrence.type === "none";
       const targetDate = subtaskIsNonRecurring ? today : viewDate;
@@ -537,12 +547,12 @@ export function useCompletionHandlers({
         // Fire and forget
         deleteCompletion(subtaskId, dateStr);
 
-        // Only update subtask status if parent is non-recurring
-        if (parentIsNonRecurring) {
+        // Only update subtask status if parent is non-recurring OR if it's a goal task
+        if (shouldAllowStatusUpdate) {
           updateTask(subtaskId, { status: "todo" });
         }
 
-        if (parentTask && parentIsNonRecurring && parentTask.status === "complete") {
+        if (parentTask && shouldAllowStatusUpdate && parentTask.status === "complete") {
           updateTask(parentTask.id, { status: "in_progress" });
         }
 
@@ -559,12 +569,12 @@ export function useCompletionHandlers({
       // Fire and forget
       createCompletion(subtaskId, dateStr, { outcome });
 
-      // Only update subtask status if parent is non-recurring
-      if (outcome === "completed" && parentIsNonRecurring) {
+      // Only update subtask status if parent is non-recurring OR if it's a goal task
+      if (outcome === "completed" && shouldAllowStatusUpdate) {
         updateTask(subtaskId, { status: "complete" });
       }
 
-      if (parentTask && parentIsNonRecurring && outcome === "completed") {
+      if (parentTask && shouldAllowStatusUpdate && outcome === "completed") {
         if (parentTask.status === "todo") {
           updateTask(parentTask.id, {
             status: "in_progress",
@@ -624,6 +634,10 @@ export function useCompletionHandlers({
       // Find parent if this is a subtask
       const parentTask = isSubtask ? tasks.find(t => t.id === task.parentId) : null;
       const parentIsNonRecurring = parentTask && (!parentTask.recurrence || parentTask.recurrence.type === "none");
+      const isGoalTask = task?.completionType === "goal";
+      const parentIsGoalTask = parentTask?.completionType === "goal";
+      // Allow status updates for goal tasks/subtasks even if parent is recurring
+      const shouldAllowStatusUpdate = parentIsNonRecurring || isGoalTask || parentIsGoalTask;
 
       console.warn("[handleOutcomeChange] Task found, calling mutation", Date.now());
 
@@ -638,7 +652,7 @@ export function useCompletionHandlers({
         }
 
         // Handle subtask unchecking - update parent if needed
-        if (isSubtask && parentIsNonRecurring && parentTask.status === "complete") {
+        if (isSubtask && shouldAllowStatusUpdate && parentTask.status === "complete") {
           updateTask(parentTask.id, { status: "in_progress" });
         }
 
