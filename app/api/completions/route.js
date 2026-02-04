@@ -80,7 +80,7 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
 export const POST = withApi(async (request, { userId, getBody }) => {
   const clientId = getClientIdFromRequest(request);
   const body = await getBody();
-  const { taskId, date, outcome = "completed", note, time, startedAt, completedAt } = body;
+  const { taskId, date, outcome = "completed", note, selectedOptions, time, startedAt, completedAt } = body;
 
   validateRequired(body, ["taskId"]);
   validateEnum("outcome", outcome, ["completed", "not_completed", "rolled_over"]);
@@ -105,6 +105,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
   if (existing) {
     const updateData = { outcome };
     if (note !== undefined) updateData.note = note || null;
+    if (selectedOptions !== undefined) updateData.selectedOptions = selectedOptions || [];
     if (time !== undefined) updateData.time = time || null;
     if (startedAt !== undefined) updateData.startedAt = startedAt ? new Date(startedAt) : null;
     if (completedAt !== undefined) updateData.completedAt = completedAt ? new Date(completedAt) : null;
@@ -127,6 +128,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       date: utcDate,
       outcome,
       note: note || null,
+      selectedOptions: selectedOptions || [],
       time: time || null,
       startedAt: startedAt ? new Date(startedAt) : null,
       completedAt: completedAt ? new Date(completedAt) : null,
@@ -180,7 +182,7 @@ export const DELETE = withApi(async (request, { userId, getSearchParams }) => {
 export const PUT = withApi(async (request, { userId, getBody }) => {
   const clientId = getClientIdFromRequest(request);
   const body = await getBody();
-  const { taskId, date, outcome, note, time } = body;
+  const { taskId, date, outcome, note, selectedOptions, time } = body;
 
   validateRequired(body, ["taskId", "date"]);
   validateEnum("outcome", outcome, ["completed", "not_completed"]);
@@ -205,6 +207,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
   const updateData = {};
   if (outcome !== undefined) updateData.outcome = outcome;
   if (note !== undefined) updateData.note = note || null;
+  if (selectedOptions !== undefined) updateData.selectedOptions = selectedOptions || [];
   if (time !== undefined) updateData.time = time || null;
 
   if (existing) {
@@ -226,6 +229,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
         date: utcDate,
         outcome: outcome || "completed",
         note: note || null,
+        selectedOptions: selectedOptions || [],
         time: time || null,
       })
       .returning();

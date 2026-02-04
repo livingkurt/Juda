@@ -751,18 +751,35 @@ export function useCompletionHandlers({
     [tasks, today, viewDate, createCompletion, showCompletedTasks, addToRecentlyCompleted]
   );
 
-  // Complete with note
+  // Complete with note (or selection options)
   const handleCompleteWithNote = useCallback(
-    async (taskId, note) => {
+    async (taskId, noteOrOptions) => {
       try {
         const task = tasks.find(t => t.id === taskId);
         const targetDate = viewDate || today;
         // Format date as YYYY-MM-DD to avoid timezone issues
         const dateStr = formatLocalDate(targetDate);
-        await createCompletion(taskId, dateStr, {
+
+        // Determine if this is a selection task with multiple options
+        const isSelectionTask = task?.completionType === "selection";
+        const isArray = Array.isArray(noteOrOptions);
+
+        const completionData = {
           outcome: "completed",
-          note,
-        });
+        };
+
+        if (isSelectionTask && isArray) {
+          // For selection tasks, save to selectedOptions field
+          completionData.selectedOptions = noteOrOptions;
+        } else if (isArray) {
+          // If array but not selection task, join as string for backward compatibility
+          completionData.note = noteOrOptions.join(", ");
+        } else {
+          // Single value - save to note field
+          completionData.note = noteOrOptions;
+        }
+
+        await createCompletion(taskId, dateStr, completionData);
 
         const isRecurringTask = task?.recurrence && task.recurrence.type && task.recurrence.type !== "none";
         if (!isRecurringTask) {

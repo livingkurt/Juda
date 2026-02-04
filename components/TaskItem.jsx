@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, memo, useMemo } from "react";
+import { useState, useRef, useEffect, memo, useMemo, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -168,51 +168,70 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }
 };
 
 // Component to handle selection input with autocomplete dropdown
-const SelectionInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote, options = [] }) => {
-  const [selectedValue, setSelectedValue] = useState(savedNote || null);
-  const [isFocused, setIsFocused] = useState(false);
-  const prevSavedNoteRef = useRef(savedNote);
+const SelectionInputTask = ({ taskId, savedNote, savedOptions, isNotCompleted, onCompleteWithNote, options = [] }) => {
+  // Parse saved selections - support both old single-value (savedNote) and new multi-value (savedOptions)
+  const parseInitialValue = useCallback(() => {
+    if (savedOptions && Array.isArray(savedOptions) && savedOptions.length > 0) {
+      return savedOptions;
+    }
+    if (savedNote && savedNote.trim()) {
+      return [savedNote.trim()];
+    }
+    return [];
+  }, [savedNote, savedOptions]);
 
-  // Sync with savedNote when it changes (e.g., after save or date change)
+  const [selectedValues, setSelectedValues] = useState(parseInitialValue);
+  const [isFocused, setIsFocused] = useState(false);
+  const prevSavedRef = useRef({ savedNote, savedOptions });
+
+  // Sync with saved data when it changes (e.g., after save or date change)
   useEffect(() => {
-    if (prevSavedNoteRef.current !== savedNote && !isFocused) {
-      prevSavedNoteRef.current = savedNote;
+    const hasChanged =
+      prevSavedRef.current.savedNote !== savedNote ||
+      JSON.stringify(prevSavedRef.current.savedOptions) !== JSON.stringify(savedOptions);
+
+    if (hasChanged && !isFocused) {
+      prevSavedRef.current = { savedNote, savedOptions };
       const timeoutId = setTimeout(() => {
-        setSelectedValue(savedNote || null);
+        setSelectedValues(parseInitialValue());
       }, 0);
       return () => clearTimeout(timeoutId);
     }
-  }, [savedNote, isFocused]);
+  }, [savedNote, savedOptions, isFocused, parseInitialValue]);
 
-  // Save function wrapper
-  const saveSelection = value => {
-    const valueStr = value || "";
-    if (valueStr.trim() && valueStr.trim() !== savedNote) {
-      onCompleteWithNote?.(taskId, valueStr.trim());
-    } else if (!valueStr && savedNote) {
-      // Clear selection
-      onCompleteWithNote?.(taskId, "");
-    }
-  };
+  // Save function wrapper - now saves array
+  const saveSelection = useCallback(
+    values => {
+      const valuesArray = Array.isArray(values) ? values : [];
+      const currentArray = parseInitialValue();
+
+      // Only save if changed
+      if (JSON.stringify(valuesArray) !== JSON.stringify(currentArray)) {
+        onCompleteWithNote?.(taskId, valuesArray);
+      }
+    },
+    [parseInitialValue, onCompleteWithNote, taskId]
+  );
 
   const { immediateSave } = useDebouncedSave(saveSelection, 300);
 
-  const handleChange = (event, newValue) => {
-    setSelectedValue(newValue);
-    immediateSave(newValue);
+  const handleChange = (event, newValues) => {
+    setSelectedValues(newValues);
+    immediateSave(newValues);
   };
 
   return (
     <Box sx={{ position: "relative", width: "100%" }}>
       <Autocomplete
+        multiple
         options={options}
-        value={selectedValue}
+        value={selectedValues}
         onChange={handleChange}
         onFocus={() => setIsFocused(true)}
         onBlur={() => {
           setIsFocused(false);
-          prevSavedNoteRef.current = savedNote;
-          immediateSave(selectedValue);
+          prevSavedRef.current = { savedNote, savedOptions };
+          immediateSave(selectedValues);
         }}
         disabled={isNotCompleted}
         size="small"
@@ -220,7 +239,7 @@ const SelectionInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithN
           <TextField
             {...params}
             variant="standard"
-            placeholder="Select an option..."
+            placeholder="Select options..."
             onClick={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
             InputProps={{
@@ -430,6 +449,7 @@ export const TaskItem = ({
   // Get existing completion data for text-type tasks
   const existingCompletion = getCompletionForDate?.(task.id, viewDate);
   const savedNote = existingCompletion?.note || "";
+  const savedOptions = existingCompletion?.selectedOptions || [];
 
   // Note editing handlers
   useEffect(() => {
@@ -957,6 +977,7 @@ export const TaskItem = ({
                 <SelectionInputTask
                   taskId={task.id}
                   savedNote={savedNote}
+                  savedOptions={savedOptions}
                   isNotCompleted={isNotCompleted}
                   onCompleteWithNote={onCompleteWithNote}
                   options={selectionOptions}
