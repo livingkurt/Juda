@@ -140,16 +140,18 @@ export function useCompletionHandlers({
     [batchDeleteCompletionsMutation]
   );
 
-  // Track timeouts for recently completed tasks
-  const recentlyCompletedTimeoutsRef = useRef({});
+  // Track global debounced timeout for all recently completed tasks
+  // This allows the timeout to reset whenever ANY task is checked
+  const globalHideTimeoutRef = useRef(null);
+  const sectionsToCheckRef = useRef(new Set());
 
-  // Cleanup timeouts when component unmounts
+  // Cleanup timeout when component unmounts
   useEffect(() => {
     return () => {
-      Object.values(recentlyCompletedTimeoutsRef.current).forEach(timeout => {
-        clearTimeout(timeout);
-      });
-      recentlyCompletedTimeoutsRef.current = {};
+      if (globalHideTimeoutRef.current) {
+        clearTimeout(globalHideTimeoutRef.current);
+        globalHideTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -157,10 +159,11 @@ export function useCompletionHandlers({
   useEffect(() => {
     if (showCompletedTasks) {
       dispatch(clearRecentlyCompletedTasks());
-      Object.values(recentlyCompletedTimeoutsRef.current).forEach(timeout => {
-        clearTimeout(timeout);
-      });
-      recentlyCompletedTimeoutsRef.current = {};
+      if (globalHideTimeoutRef.current) {
+        clearTimeout(globalHideTimeoutRef.current);
+        globalHideTimeoutRef.current = null;
+      }
+      sectionsToCheckRef.current.clear();
     }
   }, [showCompletedTasks, dispatch]);
 
@@ -168,37 +171,50 @@ export function useCompletionHandlers({
   const removeFromRecentlyCompleted = useCallback(
     taskId => {
       dispatch(removeRecentlyCompletedTask(taskId));
-      if (recentlyCompletedTimeoutsRef.current[taskId]) {
-        clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
-        delete recentlyCompletedTimeoutsRef.current[taskId];
-      }
     },
     [dispatch]
   );
 
-  // Add to recently completed with timeout
+  // Clear all recently completed tasks and check sections for auto-collapse
+  const clearAllRecentlyCompleted = useCallback(() => {
+    dispatch(clearRecentlyCompletedTasks());
+
+    // Check all sections that had tasks completed
+    const sectionsToCheck = Array.from(sectionsToCheckRef.current);
+    sectionsToCheckRef.current.clear();
+
+    sectionsToCheck.forEach(sectionId => {
+      if (checkAndAutoCollapseSection) {
+        setTimeout(() => {
+          checkAndAutoCollapseSection(sectionId);
+        }, 50);
+      }
+    });
+  }, [dispatch, checkAndAutoCollapseSection]);
+
+  // Add to recently completed with debounced timeout
+  // Each new completion RESETS the global timer (Apple Reminders behavior)
   const addToRecentlyCompleted = useCallback(
     (taskId, sectionId) => {
       dispatch(addRecentlyCompletedTask(taskId));
 
-      if (recentlyCompletedTimeoutsRef.current[taskId]) {
-        clearTimeout(recentlyCompletedTimeoutsRef.current[taskId]);
+      // Track section for auto-collapse check later
+      if (sectionId) {
+        sectionsToCheckRef.current.add(sectionId);
       }
 
-      recentlyCompletedTimeoutsRef.current[taskId] = setTimeout(() => {
-        removeFromRecentlyCompleted(taskId);
+      // Clear existing timeout if any
+      if (globalHideTimeoutRef.current) {
+        clearTimeout(globalHideTimeoutRef.current);
+      }
 
-        // After the delay, check if section should auto-collapse
-        if (sectionId) {
-          setTimeout(() => {
-            if (checkAndAutoCollapseSection) {
-              checkAndAutoCollapseSection(sectionId);
-            }
-          }, 50);
-        }
-      }, 5000);
+      // Set new timeout - this will be reset if another task is checked
+      globalHideTimeoutRef.current = setTimeout(() => {
+        clearAllRecentlyCompleted();
+        globalHideTimeoutRef.current = null;
+      }, 10000);
     },
-    [dispatch, removeFromRecentlyCompleted, checkAndAutoCollapseSection]
+    [dispatch, clearAllRecentlyCompleted]
   );
 
   // Collect subtask completions for batch operations
