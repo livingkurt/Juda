@@ -1,5 +1,40 @@
 # Project Decisions Log
 
+## 2026-02-04
+
+### Progress Tab - Visual Progress Tracking
+
+**Feature**: Added a new "Progress" tab that displays task completion progress across different time periods (Daily, Weekly, Monthly, Yearly).
+
+**Implementation**:
+- Created reusable `ProgressBar` component (`components/shared/ProgressBar.jsx`) extracted from `ViewTogglesAndProgress.jsx`
+- Added new `ProgressTab` component (`components/tabs/ProgressTab.jsx`) with four view modes:
+  - **Daily**: Shows progress for each day of the year (365/366 bars)
+  - **Weekly**: Shows progress for each week of the year (52-53 bars, combining 7 days each)
+  - **Monthly**: Shows progress for each month of the year (12 bars, combining all days in each month)
+  - **Yearly**: Shows progress for multiple years (5 bars, showing current year and 4 previous years)
+- Added Redux state management for progress view (`progressView`, `progressSelectedDate`) in `uiSlice.js`
+- Updated `MainTabs` to include Progress tab between Notes and Workout (tab index 4)
+- Updated `app/page.jsx` to render the new ProgressTab component
+- Progress bars show three segments:
+  - Green gradient: Completed tasks
+  - Red gradient: Not completed tasks
+  - Gray: Unchecked tasks
+- Uses existing `useRecurringTasks` hook and `useCompletionHelpers` for data
+- Integrates with `DateNavigation` component for consistent navigation UX
+- **Filtering**: Only shows periods with actual progress (completed or not completed tasks), hiding periods with only unchecked tasks
+- **Sorting**: Displays most recent dates first (reverse chronological order)
+- **Navigation**: Clicking a progress bar navigates to that date in the Today view (first day of period for weekly/monthly/yearly views)
+- **URL Routing**: Updated `urlStateConfig.js` to include Progress tab in URL state management
+  - Added "progress" to `TAB_NAMES` array at index 4
+  - Updated `TAB_INDICES` mapping
+  - Added `progressDate` and `progressView` URL parameters
+  - Updated `activeTabs` indices for Workout (5→6), Kanban (6→7), History (7)
+
+**Why**: Provides users with a visual overview of their productivity patterns over time, helping them identify trends and maintain accountability. The multi-period view allows users to zoom in (daily) or zoom out (yearly) to see progress at different scales. Clickable progress bars enable quick navigation to specific dates for detailed review.
+
+**Tab Order**: Tasks (0), Goals (1), Journal (2), Notes (3), Progress (4), Workout (5), Kanban (6), History (7)
+
 ## 2026-02-03
 
 ### Task Load Performance - Unblock Initial Render

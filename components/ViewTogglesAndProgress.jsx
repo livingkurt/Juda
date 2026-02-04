@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Box, Stack, Typography, ToggleButton, ToggleButtonGroup, useMediaQuery } from "@mui/material";
+import { Box, Stack, ToggleButton, ToggleButtonGroup, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { CalendarToday as Calendar, Dashboard as LayoutDashboard, List } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
@@ -9,12 +9,11 @@ import { setBacklogOpen, setMainContentView } from "@/lib/store/slices/uiSlice";
 import { useViewState } from "@/hooks/useViewState";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
-import { useColorMode } from "@/hooks/useColorMode";
+import { ProgressBar } from "@/components/shared/ProgressBar";
 
 export function ViewTogglesAndProgress() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const { mode: colorMode } = useColorMode();
   const dispatch = useDispatch();
 
   // Get view state
@@ -117,70 +116,22 @@ export function ViewTogglesAndProgress() {
 
       {/* Progress bar */}
       {mainContentView === "today" && (
-        <Box>
-          <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {viewDate && viewDate.toDateString() === today.toDateString()
-                ? "Today's Progress"
-                : `${viewDate?.toLocaleDateString("en-US", {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                  })} Progress`}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {completedTasks}/{totalTasks} ({completedPercent}%)
-            </Typography>
-          </Stack>
-          <Box
-            sx={{
-              height: 8,
-              bgcolor: "action.disabledBackground",
-              borderRadius: "9999px",
-              overflow: "hidden",
-              position: "relative",
-              display: "flex",
-            }}
-          >
-            {completedPercent > 0 && (
-              <Box
-                sx={{
-                  height: "100%",
-                  background:
-                    colorMode === "dark"
-                      ? "linear-gradient(to right, #48BB78, #4299E1)"
-                      : "linear-gradient(to right, #38A169, #3182CE)",
-                  transition: "width 0.3s ease-in-out",
-                  width: `${completedPercent}%`,
-                }}
-              />
-            )}
-            {notCompletedPercent > 0 && (
-              <Box
-                sx={{
-                  height: "100%",
-                  background:
-                    colorMode === "dark"
-                      ? "linear-gradient(to right, #E53E3E, #FC8181)"
-                      : "linear-gradient(to right, #C53030, #E53E3E)",
-                  transition: "width 0.3s ease-in-out",
-                  width: `${notCompletedPercent}%`,
-                }}
-              />
-            )}
-            {uncheckedPercent > 0 && (
-              <Box
-                sx={{
-                  height: "100%",
-                  bgcolor: "action.disabledBackground",
-                  opacity: 0.5,
-                  transition: "width 0.3s ease-in-out",
-                  width: `${uncheckedPercent}%`,
-                }}
-              />
-            )}
-          </Box>
-        </Box>
+        <ProgressBar
+          completedTasks={completedTasks}
+          totalTasks={totalTasks}
+          completedPercent={completedPercent}
+          notCompletedPercent={notCompletedPercent}
+          uncheckedPercent={uncheckedPercent}
+          label={
+            viewDate && viewDate.toDateString() === today.toDateString()
+              ? "Today's Progress"
+              : `${viewDate?.toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })} Progress`
+          }
+        />
       )}
     </Box>
   );

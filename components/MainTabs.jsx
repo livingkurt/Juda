@@ -10,6 +10,7 @@ import {
   Note as StickyNote,
   FitnessCenter,
   AccessTime as Clock,
+  TrendingUp,
 } from "@mui/icons-material";
 import { useViewState } from "@/hooks/useViewState";
 
@@ -58,6 +59,9 @@ export function MainTabs() {
     });
   };
 
+  // Tab indices:
+  // 0 = Tasks, 1 = Goals, 2 = Journal, 3 = Notes, 4 = Progress, 5 = Workout, 6 = Kanban, 7 = History
+
   return (
     <Box>
       <Tabs value={mainTabIndex} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
@@ -83,6 +87,12 @@ export function MainTabs() {
           icon={<StickyNote fontSize="small" />}
           iconPosition="start"
           label="Notes"
+          sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
+        />
+        <Tab
+          icon={<TrendingUp fontSize="small" />}
+          iconPosition="start"
+          label="Progress"
           sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
         />
         <Tab
