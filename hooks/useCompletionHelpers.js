@@ -61,7 +61,7 @@ export function useCompletionHelpers() {
     isLoading,
     error,
   } = useGetCompletionsQuery(
-    { startDate, endDate, limit: 10000 },
+    { startDate, endDate, limit: 5000 },
     {
       skip: !isAuthenticated,
     }
