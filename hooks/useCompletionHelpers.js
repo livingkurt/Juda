@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useDeferredValue } from "react";
 import { useGetCompletionsQuery } from "@/lib/store/api/completionsApi";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -75,27 +75,32 @@ export function useCompletionHelpers() {
     return completionsData.completions || [];
   }, [completionsData]);
 
+  // Defer the completions update to prevent blocking the UI
+  // This tells React: "This update is low priority, don't block user interactions"
+  const deferredCompletions = useDeferredValue(completions);
+
   // Memoized lookup maps for O(1) access instead of O(n) array searches
+  // Use deferredCompletions to prevent blocking UI during re-computation
   const completionsByTaskAndDate = useMemo(() => {
     const map = new Map();
-    completions.forEach(completion => {
+    deferredCompletions.forEach(completion => {
       const key = createLookupKey(completion.taskId, completion.date);
       map.set(key, completion);
     });
     return map;
-  }, [completions]);
+  }, [deferredCompletions]);
 
   // Map of taskId -> Set of dates (for hasAnyCompletion)
   const completionsByTask = useMemo(() => {
     const map = new Map();
-    completions.forEach(completion => {
+    deferredCompletions.forEach(completion => {
       if (!map.has(completion.taskId)) {
         map.set(completion.taskId, new Set());
       }
       map.get(completion.taskId).add(normalizeDate(completion.date).toISOString());
     });
     return map;
-  }, [completions]);
+  }, [deferredCompletions]);
 
   // Check if a task is completed on a specific date (only counts 'completed' outcome) - O(1) lookup
   const isCompletedOnDate = (taskId, date) => {
@@ -130,7 +135,7 @@ export function useCompletionHelpers() {
   };
 
   return {
-    completions,
+    completions: deferredCompletions, // Return deferred version
     loading: isLoading,
     error,
     isCompletedOnDate,

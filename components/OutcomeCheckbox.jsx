@@ -92,28 +92,19 @@ export const OutcomeCheckbox = ({
   // Determine if we should show the menu (when task has an outcome OR is recurring and can be rolled over)
   const shouldShowMenu = outcome !== null || (isRecurring && onRollover && taskId && viewDate);
 
-  // Close menu when outcome changes, but not when menu first opens
+  // Track outcome changes for debugging (no longer used for menu closing)
   useEffect(() => {
-    // If menu just opened, don't close it
+    // If menu just opened, don't update ref
     if (menuJustOpenedRef.current) {
       menuJustOpenedRef.current = false;
       return;
     }
 
-    // Only close if outcome actually changed from a previous value
-    if (menuOpen && previousOutcomeRef.current !== null && previousOutcomeRef.current !== outcome) {
-      const timer = setTimeout(() => {
-        setMenuOpen(false);
-        setAnchorEl(null);
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-
-    // Update ref
+    // Update ref for tracking
     if (outcome !== null || previousOutcomeRef.current !== null) {
       previousOutcomeRef.current = outcome;
     }
-  }, [outcome, menuOpen]);
+  }, [outcome]);
 
   const handleCheckboxChange = () => {
     // If menu should show, don't toggle - menu will be opened by onClick
@@ -278,10 +269,13 @@ export const OutcomeCheckbox = ({
               key="uncheck"
               onClick={e => {
                 stopMenuEvent(e);
+                // Close menu IMMEDIATELY - don't wait for outcome to change
+                setMenuOpen(false);
+                setAnchorEl(null);
+                // Then trigger the change
                 if (onOutcomeChange) {
                   onOutcomeChange(null);
                 }
-                handleMenuClose();
               }}
             >
               <Stack direction="row" spacing={1} alignItems="center">
@@ -297,9 +291,14 @@ export const OutcomeCheckbox = ({
               <MenuItem
                 key="completed"
                 onClick={e => {
+                  console.warn("[OutcomeCheckbox] Completed clicked START", Date.now());
                   stopMenuEvent(e);
+                  // Close menu IMMEDIATELY - don't wait for outcome to change
+                  setMenuOpen(false);
+                  setAnchorEl(null);
+                  // Then trigger the change
                   onOutcomeChange("completed");
-                  handleMenuClose();
+                  console.warn("[OutcomeCheckbox] Completed clicked END", Date.now());
                 }}
               >
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -315,8 +314,11 @@ export const OutcomeCheckbox = ({
                 key="not-completed"
                 onClick={e => {
                   stopMenuEvent(e);
+                  // Close menu IMMEDIATELY - don't wait for outcome to change
+                  setMenuOpen(false);
+                  setAnchorEl(null);
+                  // Then trigger the change
                   onOutcomeChange("not_completed");
-                  handleMenuClose();
                 }}
               >
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -338,8 +340,11 @@ export const OutcomeCheckbox = ({
                 key="rollover"
                 onClick={e => {
                   stopMenuEvent(e);
+                  // Close menu IMMEDIATELY
+                  setMenuOpen(false);
+                  setAnchorEl(null);
+                  // Then trigger the rollover
                   onRollover(taskId, viewDate);
-                  handleMenuClose();
                 }}
               >
                 <Stack direction="row" spacing={1} alignItems="center">
