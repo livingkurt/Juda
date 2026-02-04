@@ -1,18 +1,25 @@
 "use client";
 
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Box, Typography, TextField, Stack, IconButton, Collapse, Autocomplete } from "@mui/material";
 import { Add, ExpandMore, ChevronRight, MoreVert } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 import { TaskContextMenu } from "./TaskContextMenu";
 import { ReflectionEntry } from "./ReflectionEntry";
+import { clearJournalScrollTarget } from "@/lib/store/slices/uiSlice";
 import dayjs from "dayjs";
 
 export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave, viewType = "day" }) => {
   const theme = useTheme();
+  const dispatch = useDispatch();
   const isReflectionTask = task.completionType === "reflection";
   const isSelectionTask = task.completionType === "selection";
+
+  // Get scroll target from Redux
+  const scrollToTaskId = useSelector(state => state.ui.journalScrollToTaskId);
+  const scrollToGoalId = useSelector(state => state.ui.journalScrollToGoalId);
 
   // Initialize state from props - state will reset when key changes (completion note changes)
   const currentNote = completion?.note || "";
@@ -81,6 +88,33 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
       return () => clearTimeout(timeoutId);
     }
   }, [defaultExpanded]);
+
+  // Handle scroll target - expand and scroll to goal if this is the target task
+  useEffect(() => {
+    if (scrollToTaskId === task.id && scrollToGoalId) {
+      // Defer setState to avoid synchronous setState in effect
+      const expandTimeout = setTimeout(() => {
+        // Expand this reflection
+        setExpanded(true);
+        userToggledRef.current = true;
+      }, 0);
+
+      // Wait for expansion animation and ReflectionEntry to render, then scroll
+      const scrollTimeout = setTimeout(() => {
+        const goalElement = document.getElementById(`goal-progress-${scrollToGoalId}`);
+        if (goalElement) {
+          goalElement.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Clear the scroll target after scrolling
+          dispatch(clearJournalScrollTarget());
+        }
+      }, 500); // Longer delay to ensure Collapse animation completes
+
+      return () => {
+        clearTimeout(expandTimeout);
+        clearTimeout(scrollTimeout);
+      };
+    }
+  }, [scrollToTaskId, scrollToGoalId, task.id, dispatch]);
 
   // Save function wrapper with error handling
   const saveNote = useCallback(

@@ -489,6 +489,7 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
                       return (
                         <Box
                           key={goal.id}
+                          id={`goal-progress-${goal.id}`}
                           sx={{
                             p: 1.5,
                             border: 1,

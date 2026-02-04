@@ -49,6 +49,7 @@ import { ReflectionEntry } from "./ReflectionEntry";
 import { usePriorityHandlers } from "@/hooks/usePriorityHandlers";
 import { PRIORITY_LEVELS } from "@/lib/constants";
 import { RichTextEditor } from "@/components/RichTextEditor";
+import { GoalReflectionsModal } from "./GoalReflectionsModal";
 
 // Small component to handle text input with state that resets on date change
 const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }) => {
@@ -350,6 +351,7 @@ export const TaskItem = ({
   const [statusMenuAnchor, setStatusMenuAnchor] = useState(null);
   const [priorityMenuOpen, setPriorityMenuOpen] = useState(false);
   const [priorityMenuAnchor, setPriorityMenuAnchor] = useState(null);
+  const [reflectionsModalOpen, setReflectionsModalOpen] = useState(false);
 
   // Focus and select text when entering edit mode
   useEffect(() => {
@@ -1094,6 +1096,24 @@ export const TaskItem = ({
                         }}
                       />
                     )}
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setReflectionsModalOpen(true);
+                      }}
+                      sx={{
+                        height: 20,
+                        fontSize: { xs: "0.625rem", md: "0.75rem" },
+                        minWidth: "auto",
+                        px: 1,
+                        py: 0,
+                        textTransform: "none",
+                      }}
+                    >
+                      View Reflections
+                    </Button>
                   </>
                 )}
                 {/* Reflection badge */}
@@ -1457,23 +1477,47 @@ export const TaskItem = ({
 
   // For subtasks or dialog subtasks that can't be dragged, render without Draggable
   if (isDragDisabledDuringEdit) {
-    return taskContent;
+    return (
+      <>
+        {taskContent}
+        {/* Goal Reflections Modal */}
+        {isGoalTask && (
+          <GoalReflectionsModal
+            open={reflectionsModalOpen}
+            onClose={() => setReflectionsModalOpen(false)}
+            goalId={task.id}
+            goalTitle={task.title}
+          />
+        )}
+      </>
+    );
   }
 
   // For draggable tasks, wrap with Draggable
   return (
-    <Draggable draggableId={draggableId} index={index}>
-      {(provided, snapshot) => (
-        <Box
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          sx={{ width: "100%", maxWidth: "100%", opacity: snapshot.isDragging ? 0.5 : 1 }}
-        >
-          {taskContent}
-        </Box>
+    <>
+      <Draggable draggableId={draggableId} index={index}>
+        {(provided, snapshot) => (
+          <Box
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            sx={{ width: "100%", maxWidth: "100%", opacity: snapshot.isDragging ? 0.5 : 1 }}
+          >
+            {taskContent}
+          </Box>
+        )}
+      </Draggable>
+      {/* Goal Reflections Modal */}
+      {isGoalTask && (
+        <GoalReflectionsModal
+          open={reflectionsModalOpen}
+          onClose={() => setReflectionsModalOpen(false)}
+          goalId={task.id}
+          goalTitle={task.title}
+        />
       )}
-    </Draggable>
+    </>
   );
 };
 
