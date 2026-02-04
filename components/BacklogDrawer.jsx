@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useCallback, memo, useDeferredValue, useState } from "react";
-import { Box, Stack, Typography, IconButton, Chip, useMediaQuery, CircularProgress, Button } from "@mui/material";
+import { Box, Stack, Typography, IconButton, Chip, useMediaQuery, Button } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Droppable } from "@hello-pangea/dnd";
 import { Add } from "@mui/icons-material";
@@ -10,6 +10,7 @@ import { TaskItem } from "./TaskItem";
 import { TaskSearchInput } from "./TaskSearchInput";
 import { BacklogTagSidebar, UNTAGGED_ID } from "./BacklogTagSidebar";
 import { QuickTaskInput } from "./QuickTaskInput";
+import { TaskSkeleton } from "./TaskSkeleton";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
@@ -50,6 +51,14 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
 
   const backlogTasks = taskFilters.backlogTasks;
   const backlogLoading = taskFilters.backlogLoading;
+  const backlogFetching = taskFilters.backlogFetching;
+  const backlogRawTasks = taskFilters.backlogRawTasks;
+  // Show loading state when:
+  // 1. We're fetching AND have no raw data yet, OR
+  // 2. Raw data arrived but deferred data hasn't caught up yet
+  const backlogIsLoading =
+    ((backlogLoading || backlogFetching) && backlogRawTasks.length === 0) ||
+    (backlogRawTasks.length > 0 && backlogTasks.length === 0);
 
   // Defer expensive filtering when removing filters (going from filtered to unfiltered)
   // This keeps the UI responsive when removing filters
@@ -331,6 +340,15 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     return null;
   }, [tasksWithIds, sortByPriority, sortByTag]);
 
+  console.log({
+    tasksGrouped,
+    length: tasksGrouped?.length,
+    tasksWithIds: tasksWithIds?.length,
+    backlogFetching,
+    backlogRawTasks,
+    backlogIsLoading,
+  });
+
   return (
     <Box
       sx={{
@@ -454,7 +472,11 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
             }}
           >
             {/* Unscheduled Tasks */}
-            {tasksWithIds.length > 0 ? (
+            {backlogIsLoading ? (
+              <Box sx={{ px: { xs: 1.5, md: 2 }, pb: 2 }}>
+                <TaskSkeleton count={6} />
+              </Box>
+            ) : tasksWithIds.length > 0 ? (
               <Box>
                 <Stack spacing={1} sx={{ px: { xs: 0.5, md: 1 }, width: "100%", maxWidth: "100%" }}>
                   {tasksGrouped &&
@@ -608,23 +630,6 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                     })}
                 </Stack>
               </Box>
-            ) : backlogLoading ? (
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  py: 4,
-                  px: 2,
-                  textAlign: "center",
-                }}
-              >
-                <CircularProgress size={24} sx={{ mb: 1 }} />
-                <Typography variant="body2" color="text.secondary">
-                  Loading backlog...
-                </Typography>
-              </Box>
             ) : (
               <Box
                 sx={{
@@ -661,7 +666,11 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                 }}
               >
                 {/* Unscheduled Tasks */}
-                {tasksWithIds.length > 0 ? (
+                {backlogIsLoading ? (
+                  <Box sx={{ px: { xs: 1.5, md: 2 }, pb: 2 }}>
+                    <TaskSkeleton count={6} />
+                  </Box>
+                ) : tasksWithIds.length > 0 ? (
                   <Box>
                     <Stack spacing={1} sx={{ px: { xs: 0.5, md: 1 }, width: "100%", maxWidth: "100%" }}>
                       {tasksGrouped

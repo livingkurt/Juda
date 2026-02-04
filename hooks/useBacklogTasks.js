@@ -20,6 +20,7 @@ export function useBacklogTasks(options = {}) {
   return {
     data: deferredTasks,
     tasks: deferredTasks,
+    rawTasks: tasks, // Non-deferred for loading checks
     isLoading,
     isFetching,
     error,

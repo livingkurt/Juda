@@ -44,7 +44,12 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
 
   // SEPARATE API CALLS - Each loads only what's needed
   const { data: todayTasksRaw = [], isLoading: todayLoading } = useTasksForToday(viewDate);
-  const { data: backlogTasksRaw = [], isLoading: backlogLoading } = useBacklogTasks();
+  const {
+    data: backlogTasksRaw = [],
+    rawTasks: backlogRawTasks = [],
+    isLoading: backlogLoading,
+    isFetching: backlogFetching,
+  } = useBacklogTasks();
   const { data: sections = [] } = useGetSectionsQuery();
 
   // Completion helpers
@@ -261,6 +266,8 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
       isLoading: todayLoading || backlogLoading,
       todayLoading,
       backlogLoading,
+      backlogFetching,
+      backlogRawTasks, // Non-deferred tasks for loading checks
 
       // Filtered results
       todaysTasks,
@@ -272,11 +279,13 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
     [
       todayTasksRaw,
       backlogTasksRaw,
+      backlogRawTasks,
       sections,
       today,
       viewDate,
       todayLoading,
       backlogLoading,
+      backlogFetching,
       todaysTasks,
       filteredTodaysTasks,
       tasksBySection,

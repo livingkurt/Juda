@@ -5,7 +5,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
 import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
-import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import {
   useCreateCompletionMutation,
   useDeleteCompletionMutation,
@@ -60,7 +59,6 @@ export function useCompletionHandlers({
     skip: skipTasksQuery || Boolean(tasksOverride),
   });
   const tasks = tasksOverride || tasksFromQuery;
-  const { data: sections = [] } = useGetSectionsQuery();
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();
   const [deleteCompletionMutation] = useDeleteCompletionMutation();
@@ -303,10 +301,8 @@ export function useCompletionHandlers({
             status: "complete",
           };
 
-          // If task doesn't have a sectionId (backlog task), assign it to the first section
-          if (!task.sectionId && sections.length > 0) {
-            updates.sectionId = sections[0].id;
-          }
+          // Don't set sectionId - sections are determined by time ranges
+          // The UI will display the task in the appropriate section based on its time
 
           await updateTask(taskId, updates);
         } else if (!isRecurringTask && !task.time && !isCompletedOnTargetDate) {
@@ -315,10 +311,8 @@ export function useCompletionHandlers({
             status: "complete",
           };
 
-          // If task doesn't have a sectionId (backlog task), assign it to the first section
-          if (!task.sectionId && sections.length > 0) {
-            updates.sectionId = sections[0].id;
-          }
+          // Don't set sectionId - sections are determined by time ranges
+          // The UI will display the task in the appropriate section based on its time
 
           await updateTask(taskId, updates);
         } else if (!isRecurringTask && !isCompletedOnTargetDate) {
@@ -326,10 +320,8 @@ export function useCompletionHandlers({
             status: "complete",
           };
 
-          // If task doesn't have a sectionId (backlog task), assign it to the first section
-          if (!task.sectionId && sections.length > 0) {
-            updates.sectionId = sections[0].id;
-          }
+          // Don't set sectionId - sections are determined by time ranges
+          // The UI will display the task in the appropriate section based on its time
 
           await updateTask(taskId, updates);
         }
@@ -397,7 +389,6 @@ export function useCompletionHandlers({
     },
     [
       tasks,
-      sections,
       today,
       viewDate,
       isCompletedOnDate,
