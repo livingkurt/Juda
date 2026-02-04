@@ -593,7 +593,7 @@ export function useCompletionHandlers({
     ]
   );
 
-  // Handle outcome change (completed/not_completed) - NON-BLOCKING for instant UI
+  // Handle outcome change (completed/not_completed/rolled_over) - NON-BLOCKING for instant UI
   const handleOutcomeChange = useCallback(
     (taskId, date, outcome) => {
       console.warn("[handleOutcomeChange] START", Date.now());
@@ -601,6 +601,15 @@ export function useCompletionHandlers({
       const dateObj = date instanceof Date ? date : new Date(date);
       // Format date as YYYY-MM-DD to avoid timezone issues
       const dateStr = formatLocalDate(dateObj);
+
+      // Special handling for rolled_over outcome - use rollover API endpoint
+      if (outcome === "rolled_over") {
+        console.warn("[handleOutcomeChange] rolled_over outcome detected, calling rollover API");
+        rolloverTaskMutation({ taskId, date: dateStr })
+          .unwrap()
+          .catch(err => console.error("Rollover failed:", err));
+        return;
+      }
 
       // Find task - need to search both root tasks AND subtasks
       let task = tasks.find(t => t.id === taskId);
@@ -704,6 +713,7 @@ export function useCompletionHandlers({
       addToRecentlyCompleted,
       removeFromRecentlyCompleted,
       areAllSubtasksComplete,
+      rolloverTaskMutation,
     ]
   );
 

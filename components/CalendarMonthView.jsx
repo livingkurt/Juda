@@ -58,7 +58,7 @@ export const CalendarMonthView = ({ date, tasks = [] }) => {
     const allDays = weeks.flat();
     allDays.forEach(day => {
       const dateKey = day.toDateString();
-      let dayTasks = tasks.filter(t => shouldShowOnDate(t, day));
+      let dayTasks = tasks.filter(t => shouldShowOnDate(t, day, getOutcomeOnDate));
       // Filter out completed/not completed tasks if showCompleted is false
       if (!showCompleted) {
         dayTasks = dayTasks.filter(task => {

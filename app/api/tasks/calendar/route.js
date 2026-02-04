@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tasks } from "@/lib/schema";
-import { eq, and, asc, isNotNull, sql } from "drizzle-orm";
+import { tasks, taskCompletions } from "@/lib/schema";
+import { eq, and, asc, isNotNull, sql, gte, lte, inArray } from "drizzle-orm";
 import { withApi } from "@/lib/apiHelpers";
 import { shouldShowOnDate } from "@/lib/utils";
 
@@ -14,10 +14,10 @@ const parseLocalDate = dateStr => {
   return d;
 };
 
-const dateIsInRange = (task, startDate, endDate) => {
+const dateIsInRange = (task, startDate, endDate, getOutcomeOnDate) => {
   const cursor = new Date(startDate);
   while (cursor <= endDate) {
-    if (shouldShowOnDate(task, cursor)) return true;
+    if (shouldShowOnDate(task, cursor, getOutcomeOnDate)) return true;
     cursor.setDate(cursor.getDate() + 1);
   }
   return false;
@@ -61,6 +61,49 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
     orderBy: [asc(tasks.sectionId), asc(tasks.order)],
   });
 
+  // Load completions for the date range (including one day before for rollover logic)
+  const rangeStartWithBuffer = new Date(startDate);
+  rangeStartWithBuffer.setDate(rangeStartWithBuffer.getDate() - 1);
+  const rangeStartUTC = new Date(
+    Date.UTC(
+      rangeStartWithBuffer.getFullYear(),
+      rangeStartWithBuffer.getMonth(),
+      rangeStartWithBuffer.getDate(),
+      0,
+      0,
+      0,
+      0
+    )
+  );
+  const rangeEndUTC = new Date(Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999));
+
+  const completions = await db.query.taskCompletions.findMany({
+    where: and(
+      inArray(
+        taskCompletions.taskId,
+        allTasks.map(t => t.id)
+      ),
+      gte(taskCompletions.date, rangeStartUTC),
+      lte(taskCompletions.date, rangeEndUTC)
+    ),
+  });
+
+  // Build completion lookup map
+  const completionMap = new Map();
+  completions.forEach(completion => {
+    const dateStr = completion.date.toISOString().split("T")[0];
+    const key = `${completion.taskId}|${dateStr}`;
+    completionMap.set(key, completion);
+  });
+
+  // Helper to get outcome for a task on a specific date
+  const getOutcomeOnDate = (taskId, date) => {
+    const d = new Date(date);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const key = `${taskId}|${dateStr}`;
+    return completionMap.get(key)?.outcome || null;
+  };
+
   const dbTime = Date.now() - apiStart;
 
   // Build task tree with tags
@@ -77,7 +120,7 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
     }
   });
 
-  const calendarTasks = rootTasks.filter(task => dateIsInRange(task, startDate, endDate));
+  const calendarTasks = rootTasks.filter(task => dateIsInRange(task, startDate, endDate, getOutcomeOnDate));
 
   console.warn(
     `[GET /api/tasks/calendar] DB: ${dbTime}ms, Total: ${Date.now() - apiStart}ms, All: ${allTasks.length}, Filtered: ${calendarTasks.length}`

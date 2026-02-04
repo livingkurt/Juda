@@ -43,7 +43,7 @@ export const CalendarYearView = ({
     const targetDate = new Date(year, month, day);
     targetDate.setHours(0, 0, 0, 0);
 
-    let dayTasks = tasks.filter(t => shouldShowOnDate(t, targetDate));
+    let dayTasks = tasks.filter(t => shouldShowOnDate(t, targetDate, getOutcomeOnDate));
 
     // Filter completed if needed
     if (!showCompleted) {

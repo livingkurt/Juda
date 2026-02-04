@@ -21,6 +21,31 @@
 
 **Why**: This keeps the app interactive while view-specific endpoints load, and prevents unnecessary full-task fetches during initial render.
 
+## 2026-02-04
+
+### Rollover System - Infinite Carry Forward
+
+**Problem**: Rolled-over recurring tasks were not showing on the next day (or only showed for one day). The system needed to carry tasks forward indefinitely until completion, then stop showing them.
+
+**Solution**:
+- Updated `shouldShowOnDate()` to support infinite rollover by checking the latest completion outcome on or before the target date.
+- Added a new `getLatestOutcomeOnOrBeforeDate` hook path so the server can determine rollover state without scanning day-by-day.
+- Updated `/api/tasks/today` to compute the latest completion per task up to the target date and pass it into `shouldShowOnDate()`.
+- Fixed incorrect `eq(..., array)` usage by switching to `inArray` for completion queries.
+- Ensured rollover is triggered via the dedicated rollover endpoint when selecting the outcome menu in Today view.
+
+**Why**: This guarantees that once a task is rolled over, it appears every subsequent day until it receives a completed/not_completed outcome, which matches expected rollover behavior.
+
+### Legacy Endpoints Cleanup
+
+**Problem**: `/api/tasks?view=today` and `/api/tasks?view=backlog` were legacy endpoints and no longer used by the UI.
+
+**Solution**:
+- Removed legacy today/backlog filtering from `/app/api/tasks/route.js`.
+- Confirmed all current callers use `/api/tasks/today` and `/api/tasks/backlog`.
+
+**Why**: Reduces maintenance surface area and avoids duplication with dedicated endpoints.
+
 ## 2026-01-27
 
 ### Tag Components - Unified Design System

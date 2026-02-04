@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tasks, taskCompletions, taskTags } from "@/lib/schema";
+import { tasks, taskCompletions } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
 import {
   withApi,
@@ -11,7 +11,6 @@ import {
   ENTITY_TYPES,
 } from "@/lib/apiHelpers";
 
-const taskBroadcast = withBroadcast(ENTITY_TYPES.TASK);
 const completionBroadcast = withBroadcast(ENTITY_TYPES.COMPLETION);
 
 export const POST = withApi(async (request, { userId, getBody }) => {
@@ -60,97 +59,40 @@ export const POST = withApi(async (request, { userId, getBody }) => {
   const nextDay = new Date(utcDate);
   nextDay.setUTCDate(nextDay.getUTCDate() + 1);
 
-  // Use a transaction to ensure both operations succeed or fail together
-  const result = await db.transaction(async tx => {
-    // 1. Create completion record with rolled_over outcome
-    const existingCompletion = await tx.query.taskCompletions.findFirst({
-      where: and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)),
-    });
+  // Create or update completion record with rolled_over outcome
+  const existingCompletion = await db.query.taskCompletions.findFirst({
+    where: and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, utcDate)),
+  });
 
-    let completion;
-    if (existingCompletion) {
-      // Update existing completion
-      const [updated] = await tx
-        .update(taskCompletions)
-        .set({ outcome: "rolled_over" })
-        .where(eq(taskCompletions.id, existingCompletion.id))
-        .returning();
-      completion = updated;
-    } else {
-      // Create new completion
-      const [created] = await tx
-        .insert(taskCompletions)
-        .values({
-          taskId,
-          date: utcDate,
-          outcome: "rolled_over",
-        })
-        .returning();
-      completion = created;
-    }
-
-    // 2. Create new rollover task
-    const nextDayISO = nextDay.toISOString();
-    const [rolloverTask] = await tx
-      .insert(tasks)
+  let completion;
+  if (existingCompletion) {
+    // Update existing completion
+    const [updated] = await db
+      .update(taskCompletions)
+      .set({ outcome: "rolled_over" })
+      .where(eq(taskCompletions.id, existingCompletion.id))
+      .returning();
+    completion = updated;
+  } else {
+    // Create new completion
+    const [created] = await db
+      .insert(taskCompletions)
       .values({
-        userId,
-        title: originalTask.title,
-        sectionId: originalTask.sectionId,
-        time: originalTask.time,
-        duration: originalTask.duration,
-        recurrence: {
-          type: "none",
-          startDate: nextDayISO,
-        },
-        order: originalTask.order,
-        completionType: originalTask.completionType,
-        content: originalTask.content,
-        folderId: originalTask.folderId,
-        sourceTaskId: originalTask.id,
-        rolledFromDate: utcDate,
-        isRollover: true,
+        taskId,
+        date: utcDate,
+        outcome: "rolled_over",
       })
       .returning();
-
-    // 3. Copy tags if they exist
-    if (originalTask.taskTags && originalTask.taskTags.length > 0) {
-      const tagAssignments = originalTask.taskTags.map(tt => ({
-        taskId: rolloverTask.id,
-        tagId: tt.tag.id,
-      }));
-      await tx.insert(taskTags).values(tagAssignments);
-    }
-
-    return { completion, rolloverTask };
-  });
-
-  // Fetch the rollover task with relations for broadcast
-  const rolloverTaskWithRelations = await db.query.tasks.findFirst({
-    where: eq(tasks.id, result.rolloverTask.id),
-    with: {
-      section: true,
-      taskTags: {
-        with: {
-          tag: true,
-        },
-      },
-    },
-  });
-
-  const rolloverTaskWithTags = {
-    ...rolloverTaskWithRelations,
-    tags: rolloverTaskWithRelations.taskTags?.map(tt => tt.tag) || [],
-  };
+    completion = created;
+  }
 
   // Broadcast to other clients
-  completionBroadcast.onUpdate(userId, result.completion, clientId);
-  taskBroadcast.onCreate(userId, rolloverTaskWithTags, clientId);
+  completionBroadcast.onUpdate(userId, completion, clientId);
 
   return NextResponse.json(
     {
-      completion: result.completion,
-      rolloverTask: rolloverTaskWithTags,
+      completion,
+      task: originalTask,
     },
     { status: 201 }
   );

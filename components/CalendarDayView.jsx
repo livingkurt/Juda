@@ -21,16 +21,16 @@ export const CalendarDayView = ({ date, tasks = [], createDraggableId, onDropTim
 
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
-  const { getCompletionForDate } = useCompletionHelpers();
+  const { getCompletionForDate, getOutcomeOnDate } = useCompletionHelpers();
 
   // Filter tasks by date (search/tag filtering is now done in parent)
   const dayTasks = useMemo(() => {
-    return tasks.filter(t => t.time && shouldShowOnDate(t, date));
-  }, [tasks, date]);
+    return tasks.filter(t => t.time && shouldShowOnDate(t, date, getOutcomeOnDate));
+  }, [tasks, date, getOutcomeOnDate]);
 
   const untimedTasks = useMemo(() => {
-    return tasks.filter(t => !t.time && shouldShowOnDate(t, date));
-  }, [tasks, date]);
+    return tasks.filter(t => !t.time && shouldShowOnDate(t, date, getOutcomeOnDate));
+  }, [tasks, date, getOutcomeOnDate]);
 
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
 

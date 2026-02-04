@@ -17,7 +17,7 @@ import { isOverdue, getRecurrenceLabel } from "@/lib/utils";
 export const TaskBadges = ({ task, viewDate, size = "sm", showEndDate = true, compact = false, hasRecordOnDate }) => {
   const isRecurring = task.recurrence && task.recurrence.type !== "none";
   const isWorkoutTask = task.completionType === "workout";
-  const isRolloverTask = task.isRollover === true;
+  const isRolloverTask = task.isRollover === true || task.rolloverCarryForward === true;
   const isOffScheduleTask = task.isOffSchedule === true;
   const taskIsOverdue =
     viewDate && hasRecordOnDate ? isOverdue(task, viewDate, hasRecordOnDate(task.id, viewDate)) : false;
@@ -185,7 +185,7 @@ export const TaskBadges = ({ task, viewDate, size = "sm", showEndDate = true, co
 
       {isRolloverTask && !isOffScheduleTask && (
         <Chip
-          label="Rolled Over"
+          label={task.rolledOverFromDate ? `Rolled Over (${task.rolledOverFromDate})` : "Rolled Over"}
           color="warning"
           size={chipSize}
           sx={{

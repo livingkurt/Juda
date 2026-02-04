@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tasks } from "@/lib/schema";
-import { eq, asc } from "drizzle-orm";
+import { tasks, taskCompletions } from "@/lib/schema";
+import { eq, asc, and, lte, inArray, desc } from "drizzle-orm";
 import { withApi } from "@/lib/apiHelpers";
-import { shouldShowOnDate } from "@/lib/utils";
+import { shouldShowOnDate, formatLocalDate } from "@/lib/utils";
 
 /**
  * GET /api/tasks/today?date=2024-02-04
@@ -15,6 +15,7 @@ import { shouldShowOnDate } from "@/lib/utils";
  * - Excludes notes and goals (they have their own tabs)
  * - Excludes subtasks (they're nested in parent tasks)
  * - Includes tasks that match the date via shouldShowOnDate()
+ * - Includes tasks rolled over from the previous day
  * - Includes in-progress non-recurring tasks with no date
  */
 export const GET = withApi(async (request, { userId, getSearchParams }) => {
@@ -27,6 +28,10 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
   }
 
   const targetDate = new Date(dateParam);
+
+  const targetDayEnd = new Date(
+    Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999)
+  );
 
   // Load all tasks for this user (we need to filter by recurrence logic)
   const allTasks = await db.query.tasks.findMany({
@@ -41,6 +46,36 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
     },
     orderBy: [asc(tasks.sectionId), asc(tasks.order)],
   });
+
+  // Load completions up to target day (for rollover detection)
+  const completions = await db.query.taskCompletions.findMany({
+    where: and(
+      inArray(
+        taskCompletions.taskId,
+        allTasks.map(t => t.id)
+      ),
+      lte(taskCompletions.date, targetDayEnd)
+    ),
+    orderBy: [desc(taskCompletions.date)],
+  });
+
+  // Build latest completion map (most recent per task)
+  const latestCompletionByTask = new Map();
+  completions.forEach(completion => {
+    if (!latestCompletionByTask.has(completion.taskId)) {
+      latestCompletionByTask.set(completion.taskId, completion);
+    }
+  });
+
+  // Helper to get latest outcome on or before a date
+  const getLatestOutcomeOnOrBeforeDate = (taskId, date) => {
+    const completion = latestCompletionByTask.get(taskId);
+    if (!completion) return null;
+    const completionDateStr = formatLocalDate(completion.date);
+    const targetDateStr = formatLocalDate(date);
+    if (completionDateStr > targetDateStr) return null;
+    return { outcome: completion.outcome || null, date: completion.date };
+  };
 
   const dbTime = Date.now() - apiStart;
 
@@ -59,6 +94,8 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
     }
   });
 
+  const targetDateStr = formatLocalDate(targetDate);
+
   // Filter tasks for this date
   const todayTasks = rootTasks.filter(task => {
     // Exclude notes
@@ -73,17 +110,30 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
       if (hasNoDate) return true;
     }
 
-    // Use shouldShowOnDate for recurrence logic
-    return shouldShowOnDate(task, targetDate);
+    // Use shouldShowOnDate for recurrence logic (with rollover support)
+    return shouldShowOnDate(task, targetDate, null, getLatestOutcomeOnOrBeforeDate);
   });
 
-  // Filter out completed tasks if they shouldn't show (basic server-side check)
-  // Note: Frontend does more advanced filtering based on user preference
-  // We just want to ensure we don't send tasks that are definitely not for today
+  // Attach rollover metadata for UI (if latest outcome is rolled_over)
+  const todayTasksWithRollover = todayTasks.map(task => {
+    const latest = getLatestOutcomeOnOrBeforeDate(task.id, targetDate);
+    const latestDateStr = latest?.date ? formatLocalDate(latest.date) : null;
+    const rolloverCarryForward = latest?.outcome === "rolled_over" && latestDateStr && latestDateStr <= targetDateStr;
+
+    if (!rolloverCarryForward) {
+      return task;
+    }
+
+    return {
+      ...task,
+      rolloverCarryForward: true,
+      rolledOverFromDate: latestDateStr,
+    };
+  });
 
   console.warn(
     `[GET /api/tasks/today] DB: ${dbTime}ms, Total: ${Date.now() - apiStart}ms, All: ${allTasks.length}, Filtered: ${todayTasks.length}`
   );
 
-  return NextResponse.json(todayTasks);
+  return NextResponse.json(todayTasksWithRollover);
 });

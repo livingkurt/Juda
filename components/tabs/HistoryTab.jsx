@@ -528,6 +528,14 @@ export function HistoryTab({ isLoading: tabLoading }) {
     [completionsByTaskAndDate]
   );
 
+  const getOutcomeOnDate = useCallback(
+    (taskId, date) => {
+      const completion = getCompletionForDate(taskId, date);
+      return completion?.outcome || null;
+    },
+    [getCompletionForDate]
+  );
+
   // Get the first date of the range for DateNavigation (or today if no dates)
   const selectedDate = useMemo(() => {
     if (dates.length === 0) return new Date();
@@ -628,7 +636,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
   // Handle cell update - memoized
   const handleCellUpdate = useCallback(
     async (task, date, data) => {
-      const isScheduled = shouldShowOnDate(task, date);
+      const isScheduled = shouldShowOnDate(task, date, getOutcomeOnDate);
 
       // Special handling for Roll Over on scheduled days
       if (data.outcome === "rolled_over" && isScheduled) {
@@ -655,13 +663,20 @@ export function HistoryTab({ isLoading: tabLoading }) {
         }
       }
     },
-    [getCompletionForDate, createCompletion, updateCompletion, createOffScheduleCompletion, rolloverTask]
+    [
+      getCompletionForDate,
+      getOutcomeOnDate,
+      createCompletion,
+      updateCompletion,
+      createOffScheduleCompletion,
+      rolloverTask,
+    ]
   );
 
   // Handle cell delete - memoized
   const handleCellDelete = useCallback(
     async (task, date) => {
-      const isScheduled = shouldShowOnDate(task, date);
+      const isScheduled = shouldShowOnDate(task, date, getOutcomeOnDate);
 
       if (!isScheduled) {
         // Off-schedule: Delete both completion and the off-schedule task
@@ -674,7 +689,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
         await deleteCompletion({ taskId: task.id, date }).unwrap();
       }
     },
-    [deleteCompletion, deleteOffScheduleCompletion]
+    [deleteCompletion, deleteOffScheduleCompletion, getOutcomeOnDate]
   );
 
   // Handle text modal open - memoized
@@ -958,7 +973,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
                   {/* Task completion cells */}
                   {allTasks.map(task => {
                     const completion = getCompletionForDate?.(task.id, date);
-                    const isScheduled = shouldShowOnDate(task, date);
+                    const isScheduled = shouldShowOnDate(task, date, getOutcomeOnDate);
                     // Check if this is the last task in its section
                     const isLastInSection = (() => {
                       // Find which section this task belongs to

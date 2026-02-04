@@ -20,9 +20,9 @@ const filterTasksForDay = (tasks, day, showCompleted, isCompletedOnDate, getOutc
   const result = { timed: [], untimed: [] };
 
   for (const task of tasks) {
-    // Check if task should show on this date
-    if (!task.time && !shouldShowOnDate(task, day)) continue;
-    if (task.time && !shouldShowOnDate(task, day)) continue;
+    // Check if task should show on this date (with rollover support)
+    if (!task.time && !shouldShowOnDate(task, day, getOutcomeOnDate)) continue;
+    if (task.time && !shouldShowOnDate(task, day, getOutcomeOnDate)) continue;
 
     // Check completion status if needed
     if (!showCompleted) {

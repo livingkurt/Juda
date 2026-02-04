@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tasks } from "@/lib/schema";
-import { eq, and, isNull, or, asc, inArray } from "drizzle-orm";
+import { tasks, taskCompletions } from "@/lib/schema";
+import { eq, and, isNull, or, asc, inArray, gte, lte } from "drizzle-orm";
 import { withApi } from "@/lib/apiHelpers";
 import { shouldShowOnDate, hasFutureDateTime } from "@/lib/utils";
 
@@ -42,6 +42,41 @@ export const GET = withApi(async (request, { userId }) => {
     },
     orderBy: [asc(tasks.order)],
   });
+
+  // Load completions for yesterday and today (for rollover logic)
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayUTC = new Date(
+    Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0, 0)
+  );
+  const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999));
+
+  const completions = await db.query.taskCompletions.findMany({
+    where: and(
+      inArray(
+        taskCompletions.taskId,
+        potentialBacklogTasks.map(t => t.id)
+      ),
+      gte(taskCompletions.date, yesterdayUTC),
+      lte(taskCompletions.date, todayUTC)
+    ),
+  });
+
+  // Build completion lookup map
+  const completionMap = new Map();
+  completions.forEach(completion => {
+    const dateStr = completion.date.toISOString().split("T")[0];
+    const key = `${completion.taskId}|${dateStr}`;
+    completionMap.set(key, completion);
+  });
+
+  // Helper to get outcome for a task on a specific date
+  const getOutcomeOnDate = (taskId, date) => {
+    const d = new Date(date);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const key = `${taskId}|${dateStr}`;
+    return completionMap.get(key)?.outcome || null;
+  };
 
   const dbTime = Date.now() - apiStart;
 
@@ -84,8 +119,8 @@ export const GET = withApi(async (request, { userId }) => {
     // Already filtered by sectionId in query, but double-check
     if (task.sectionId) return false;
 
-    // If task shows on today's view, don't show in backlog
-    if (shouldShowOnDate(task, today)) return false;
+    // If task shows on today's view, don't show in backlog (with rollover support)
+    if (shouldShowOnDate(task, today, getOutcomeOnDate)) return false;
 
     // Exclude tasks with future date/time
     if (hasFutureDateTime(task)) return false;
