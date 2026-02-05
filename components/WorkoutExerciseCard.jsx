@@ -15,6 +15,7 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
   const [showSecondTimer, setShowSecondTimer] = useState(false);
   const [secondStartSignal, setSecondStartSignal] = useState(0);
   const prevSetKeyRef = useRef(setKey);
+  const [prevIsCompleted, setPrevIsCompleted] = useState(isCompleted);
 
   const handleTimerComplete = () => {
     if (!completedFirstSide) {
@@ -33,7 +34,7 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
     }
   };
 
-  // Reset when setKey changes (when user unchecks checkbox or moves to next set)
+  // Reset when setKey changes (when moving to next set)
   useEffect(() => {
     if (prevSetKeyRef.current !== setKey) {
       prevSetKeyRef.current = setKey;
@@ -46,6 +47,16 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
       return () => clearTimeout(timer);
     }
   }, [setKey]);
+
+  // Reset when user unchecks the checkbox (using React pattern for prop changes)
+  if (prevIsCompleted === true && isCompleted === false) {
+    setPrevIsCompleted(isCompleted);
+    setCompletedFirstSide(false);
+    setShowSecondTimer(false);
+    setSecondStartSignal(0);
+  } else if (prevIsCompleted !== isCompleted) {
+    setPrevIsCompleted(isCompleted);
+  }
 
   return (
     <Box>
@@ -293,7 +304,7 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                     <BothSidesTimer
                       targetSeconds={getTargetSeconds()}
                       isCompleted={isComplete}
-                      setKey={`${exercise.id}-${setNumber}-${isComplete}`}
+                      setKey={`${exercise.id}-${setNumber}`}
                       onComplete={() => {
                         // Auto-check when both sides complete
                         if (!isComplete) {

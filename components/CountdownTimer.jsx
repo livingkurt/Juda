@@ -566,7 +566,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
           )}
         </Stack>
 
-        {timeRemaining === 0 && !isCompleted && (
+        {timeRemaining === 0 && (
           <Typography variant="caption" color="success.main" fontWeight={600}>
             Time&apos;s up! ✓
           </Typography>

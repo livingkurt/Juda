@@ -12,6 +12,7 @@
 - Preserved the first side’s 5-second count-in and existing completion sounds/behavior.
 - Adjusted `CountdownTimer` start logic to only resume the AudioContext on user-initiated starts so automatic second-side starts don't fail on iOS.
 - Fixed completion notification to use a separate effect that runs after render, preventing "setState during render" errors.
+- Used React's recommended pattern for "Adjusting some state when a prop changes" (from React docs) to trigger the second timer start during render instead of in an effect.
 - Removed all debug console logs after successful implementation.
 - Hide "First Side" / "Second Side" label when exercise is completed to match single-timer completion UI.
 
