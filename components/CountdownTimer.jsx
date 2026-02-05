@@ -11,14 +11,25 @@ import { PlayArrow, Pause, Refresh, LightMode, Warning } from "@mui/icons-materi
  * - Wake Lock API to keep screen awake (prevents iOS from sleeping)
  * - End time calculation (detects if timer finished while in background)
  * - Page visibility detection (handles app switching/screen lock)
+ * - Count-up mode for test workouts
  *
  * @param {number} targetSeconds - Target time in seconds
- * @param {Function} onComplete - Callback when timer reaches 0
+ * @param {Function} onComplete - Callback when timer reaches 0 (or when stopped in count-up mode)
  * @param {boolean} isCompleted - Whether the set is already completed
  * @param {number} prepSeconds - Countdown seconds before timer starts
  * @param {number} startSignal - Incrementing signal to start the timer
+ * @param {boolean} isTest - If true, count up instead of down and record value on stop
+ * @param {Function} onStop - Callback when timer is stopped in count-up mode (receives elapsed seconds)
  */
-export default function CountdownTimer({ targetSeconds, onComplete, isCompleted, prepSeconds = 5, startSignal = 0 }) {
+export default function CountdownTimer({
+  targetSeconds,
+  onComplete,
+  isCompleted,
+  prepSeconds = 5,
+  startSignal = 0,
+  isTest = false,
+  onStop,
+}) {
   // Track elapsed time instead of remaining time
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
@@ -175,8 +186,8 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
     }
   }, []);
 
-  // Derive remaining time from target and elapsed
-  const timeRemaining = Math.max(0, targetSeconds - elapsedSeconds);
+  // Derive remaining time from target and elapsed (only for countdown mode)
+  const timeRemaining = isTest ? 0 : Math.max(0, targetSeconds - elapsedSeconds);
 
   // Format seconds to MM:SS
   const formatTime = seconds => {
@@ -197,7 +208,11 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
       await requestWakeLock();
 
       // If starting from the beginning, start preparation countdown
-      if (timeRemaining === targetSeconds && prepCountdown === null) {
+      const shouldStartPrep = isTest
+        ? elapsedSeconds === 0 && prepCountdown === null
+        : timeRemaining === targetSeconds && prepCountdown === null;
+
+      if (shouldStartPrep) {
         setPrepCountdown(prepSeconds);
         lastPrepCountdownRef.current = null;
         pendingCompleteRef.current = false;
@@ -205,12 +220,14 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
       } else {
         // Resume from pause - start timer directly
         setIsRunning(true);
-        // Set end time based on remaining time
-        endTimeRef.current = Date.now() + timeRemaining * 1000;
+        if (!isTest) {
+          // Set end time based on remaining time (only for countdown mode)
+          endTimeRef.current = Date.now() + timeRemaining * 1000;
+        }
         pendingCompleteRef.current = false;
       }
     },
-    [timeRemaining, targetSeconds, prepCountdown, prepSeconds, requestWakeLock]
+    [timeRemaining, targetSeconds, prepCountdown, prepSeconds, requestWakeLock, isTest, elapsedSeconds]
   );
 
   // Pause timer
@@ -224,13 +241,20 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
     await releaseWakeLock();
     // Clear end time when paused
     endTimeRef.current = null;
+    // In test mode, record the elapsed time when stopped
+    if (isTest && elapsedSeconds > 0 && onStop) {
+      onStop(elapsedSeconds);
+    }
   };
 
   // Start when startSignal increments (using React docs pattern for prop changes)
   const [prevStartSignal, setPrevStartSignal] = useState(-1);
   if (startSignal !== prevStartSignal && startSignal > 0) {
     setPrevStartSignal(startSignal);
-    if (!isCompleted && !isRunning && prepCountdown === null && timeRemaining === targetSeconds) {
+    const shouldStart = isTest
+      ? !isCompleted && !isRunning && prepCountdown === null && elapsedSeconds === 0
+      : !isCompleted && !isRunning && prepCountdown === null && timeRemaining === targetSeconds;
+    if (shouldStart) {
       // Trigger start by setting prep countdown directly during render
       setPrepCountdown(prepSeconds);
     }
@@ -304,36 +328,46 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
       const timer = setTimeout(() => {
         setIsRunning(true);
         setPrepCountdown(null); // Exit preparation phase
-        // Set end time when actual timer starts
-        endTimeRef.current = Date.now() + targetSeconds * 1000;
+        // Set end time when actual timer starts (only for countdown mode)
+        if (!isTest) {
+          endTimeRef.current = Date.now() + targetSeconds * 1000;
+        }
       }, 800); // Brief delay to show "START"
 
       return () => clearTimeout(timer);
     }
-  }, [prepCountdown, targetSeconds]);
+  }, [prepCountdown, targetSeconds, isTest]);
 
-  // Countdown effect
+  // Countdown/count-up effect
   useEffect(() => {
-    if (isRunning && timeRemaining > 0) {
-      intervalRef.current = setInterval(() => {
-        setElapsedSeconds(prev => {
-          const newElapsed = prev + 1;
-          const newRemaining = targetSeconds - newElapsed;
+    if (isRunning) {
+      if (isTest) {
+        // Count-up mode: just increment elapsed time indefinitely
+        intervalRef.current = setInterval(() => {
+          setElapsedSeconds(prev => prev + 1);
+        }, 1000);
+      } else if (timeRemaining > 0) {
+        // Countdown mode: decrement remaining time
+        intervalRef.current = setInterval(() => {
+          setElapsedSeconds(prev => {
+            const newElapsed = prev + 1;
+            const newRemaining = targetSeconds - newElapsed;
 
-          // Play countdown beeps at 3, 2, 1 seconds remaining
-          if (newRemaining > 0 && newRemaining <= 3 && newRemaining !== lastCountdownSecondRef.current) {
-            playCountdownBeep();
-            lastCountdownSecondRef.current = newRemaining;
-          }
+            // Play countdown beeps at 3, 2, 1 seconds remaining
+            if (newRemaining > 0 && newRemaining <= 3 && newRemaining !== lastCountdownSecondRef.current) {
+              playCountdownBeep();
+              lastCountdownSecondRef.current = newRemaining;
+            }
 
-          if (newRemaining <= 0) {
-            setIsRunning(false);
-            pendingCompleteRef.current = true;
-            return targetSeconds; // Set elapsed to target (remaining = 0)
-          }
-          return newElapsed;
-        });
-      }, 1000);
+            if (newRemaining <= 0) {
+              setIsRunning(false);
+              pendingCompleteRef.current = true;
+              return targetSeconds; // Set elapsed to target (remaining = 0)
+            }
+            return newElapsed;
+          });
+        }, 1000);
+      }
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -346,7 +380,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
         clearInterval(intervalRef.current);
       }
     };
-  }, [isRunning, timeRemaining, targetSeconds, onComplete, playCountdownBeep, playCompletionSound]);
+  }, [isRunning, timeRemaining, targetSeconds, onComplete, playCountdownBeep, playCompletionSound, isTest]);
 
   // Reset completion sound flag when timer starts running again (but not countdown/start sounds)
   useEffect(() => {
@@ -359,8 +393,9 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
     }
   }, [isRunning, timeRemaining, elapsedSeconds]);
 
-  // Notify completion after render to avoid state updates during render
+  // Notify completion after render to avoid state updates during render (skip in test mode)
   useEffect(() => {
+    if (isTest) return; // Don't auto-complete in test mode
     if (timeRemaining !== 0) return;
     if (!pendingCompleteRef.current) return;
     pendingCompleteRef.current = false;
@@ -373,7 +408,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
     if (onComplete) {
       onComplete();
     }
-  }, [timeRemaining, onComplete, playCompletionSound]);
+  }, [timeRemaining, onComplete, playCompletionSound, isTest]);
 
   // Handle page visibility changes (app switching, screen lock)
   useEffect(() => {
@@ -436,7 +471,12 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
   }, [releaseWakeLock]);
 
   // Calculate progress percentage
-  const progress = prepCountdown !== null ? 0 : ((targetSeconds - timeRemaining) / targetSeconds) * 100;
+  const progress =
+    prepCountdown !== null
+      ? 0
+      : isTest
+        ? 0 // No progress bar for count-up mode
+        : ((targetSeconds - timeRemaining) / targetSeconds) * 100;
 
   // Display text based on state
   const getDisplayText = () => {
@@ -449,6 +489,10 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
         return "START";
       }
     }
+    if (isTest) {
+      // In test mode, show elapsed time counting up
+      return formatTime(elapsedSeconds);
+    }
     return formatTime(timeRemaining);
   };
 
@@ -459,6 +503,9 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
         return "warning.main"; // Orange/yellow for "START"
       }
       return "primary.main"; // Blue for countdown
+    }
+    if (isTest) {
+      return "primary.main"; // Blue for count-up mode
     }
     if (timeRemaining === 0) {
       return "success.main";
@@ -525,7 +572,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
           {!isRunning && prepCountdown === null ? (
             <IconButton
               onClick={handleStart}
-              disabled={timeRemaining === 0 || isCompleted}
+              disabled={(!isTest && timeRemaining === 0) || isCompleted}
               color="primary"
               size="small"
             >
@@ -534,7 +581,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
           ) : (
             <IconButton
               onClick={handlePause}
-              color="warning"
+              color={isTest ? "error" : "warning"}
               size="small"
               disabled={prepCountdown === null && isCompleted}
             >
@@ -566,9 +613,14 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
           )}
         </Stack>
 
-        {timeRemaining === 0 && (
+        {!isTest && timeRemaining === 0 && (
           <Typography variant="caption" color="success.main" fontWeight={600}>
             Time&apos;s up! ✓
+          </Typography>
+        )}
+        {isTest && isRunning && (
+          <Typography variant="caption" color="text.secondary">
+            Tap pause to record your time
           </Typography>
         )}
       </Stack>

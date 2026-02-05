@@ -32,7 +32,12 @@ const WorkoutDaySection = memo(function WorkoutDaySection({
   };
 
   // Calculate progress
-  const totalSets = day.exercises.reduce((sum, ex) => sum + ex.sets, 0);
+  // For test days, count only 1 set per exercise instead of all sets
+  const totalSets = day.exercises.reduce((sum, ex) => {
+    const weekProgression = ex.weeklyProgression?.find(p => p.week === currentWeek);
+    const isTest = weekProgression?.isTest || false;
+    return sum + (isTest ? 1 : ex.sets);
+  }, 0);
   const completedSets = day.exercises.reduce((sum, exercise) => {
     const exerciseData = completionData.exercises?.[exercise.id];
     if (!exerciseData?.sets) return sum;

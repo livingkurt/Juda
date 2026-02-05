@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import { Box, Stack, Typography, Paper, TextField, Chip, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { OutcomeCheckbox } from "./OutcomeCheckbox";
@@ -10,14 +10,21 @@ import CountdownTimer from "./CountdownTimer";
  * BothSidesTimer - Handles timer for exercises that need both sides
  * Runs timer twice with a 10-second count-in before second side
  */
-function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
+function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey, isTest = false, onStop }) {
   const [completedFirstSide, setCompletedFirstSide] = useState(false);
   const [showSecondTimer, setShowSecondTimer] = useState(false);
   const [secondStartSignal, setSecondStartSignal] = useState(0);
   const [prevSetKey, setPrevSetKey] = useState(setKey);
   const [prevIsCompleted, setPrevIsCompleted] = useState(isCompleted);
+  const firstSideTimeRef = useRef(0);
+  const prevSetKeyRef = useRef(setKey);
+  const prevIsCompletedRef = useRef(isCompleted);
 
   const handleTimerComplete = () => {
+    if (isTest) {
+      // In test mode, completion is handled by onStop
+      return;
+    }
     if (!completedFirstSide) {
       // First side just completed, show second timer after brief delay
       setCompletedFirstSide(true);
@@ -30,6 +37,26 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
       // Second side completed, mark the whole exercise as complete
       if (onComplete) {
         onComplete();
+      }
+    }
+  };
+
+  const handleStop = elapsedSeconds => {
+    if (isTest) {
+      if (!completedFirstSide) {
+        // First side stopped - record time and show second timer
+        firstSideTimeRef.current = elapsedSeconds;
+        setCompletedFirstSide(true);
+        setTimeout(() => {
+          setShowSecondTimer(true);
+          setSecondStartSignal(prev => prev + 1);
+        }, 1000);
+      } else {
+        // Second side stopped - calculate total and call onStop
+        const totalTime = firstSideTimeRef.current + elapsedSeconds;
+        if (onStop) {
+          onStop(totalTime);
+        }
       }
     }
   };
@@ -52,6 +79,15 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
     setPrevIsCompleted(isCompleted);
   }
 
+  // Reset ref when setKey changes or when unchecked
+  useEffect(() => {
+    if (prevSetKeyRef.current !== setKey || (prevIsCompletedRef.current === true && isCompleted === false)) {
+      firstSideTimeRef.current = 0;
+      prevSetKeyRef.current = setKey;
+      prevIsCompletedRef.current = isCompleted;
+    }
+  }, [setKey, isCompleted]);
+
   return (
     <Box>
       {!isCompleted && (
@@ -63,7 +99,9 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
         key={showSecondTimer ? "second" : "first"}
         targetSeconds={targetSeconds}
         isCompleted={isCompleted}
+        isTest={isTest}
         onComplete={handleTimerComplete}
+        onStop={handleStop}
         prepSeconds={showSecondTimer ? 10 : 5}
         startSignal={showSecondTimer ? secondStartSignal : 0}
       />
@@ -117,15 +155,18 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
   // Count completed sets
   const completedSets = completionData.sets?.filter(s => isSetComplete(s)).length || 0;
 
+  // For test days, only show 1 set
+  const setsToShow = isTest ? 1 : exercise.sets;
+
   // Format target display
   const getTargetDisplay = () => {
     if (exercise.type === "time") {
-      return `${exercise.sets > 1 ? `${exercise.sets} x` : ""} ${targetValue} ${exercise.unit || "secs"}`;
+      return `${setsToShow > 1 ? `${setsToShow} x` : ""} ${targetValue} ${exercise.unit || "secs"}`;
     }
     if (exercise.type === "distance") {
-      return `${exercise.sets > 1 ? `${exercise.sets} x` : ""} ${targetValue} ${exercise.unit || "miles"}`;
+      return `${setsToShow > 1 ? `${setsToShow} x` : ""} ${targetValue} ${exercise.unit || "miles"}`;
     }
-    return `${exercise.sets > 1 ? `${exercise.sets} x` : ""} ${targetValue} reps`;
+    return `${setsToShow > 1 ? `${setsToShow} x` : ""} ${targetValue} reps`;
   };
 
   return (
@@ -159,7 +200,7 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
           <Stack direction="row" spacing={1} alignItems="flex-start">
             {exercise.type !== "distance" && exercise.type !== "time" && (
               <Stack direction="row" spacing={1} alignItems="flex-start">
-                {Array.from({ length: exercise.sets }, (_, i) => {
+                {Array.from({ length: setsToShow }, (_, i) => {
                   const setNumber = i + 1;
                   const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
                   const outcome = setData.outcome || null;
@@ -227,7 +268,7 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
       {/* Time-based exercises: Sets with checkbox, input, and timer grouped together */}
       {exercise.type === "time" && (
         <Stack spacing={2} sx={{ mt: 2 }}>
-          {Array.from({ length: exercise.sets }, (_, i) => {
+          {Array.from({ length: setsToShow }, (_, i) => {
             const setNumber = i + 1;
             const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
             const outcome = setData.outcome || null;
@@ -298,12 +339,29 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                     <BothSidesTimer
                       targetSeconds={getTargetSeconds()}
                       isCompleted={isComplete}
+                      isTest={isTest}
                       setKey={`${exercise.id}-${setNumber}`}
                       onComplete={() => {
-                        // Auto-check when both sides complete
-                        if (!isComplete) {
+                        // Auto-check when both sides complete (only for countdown mode)
+                        if (!isTest && !isComplete) {
                           onSetToggle?.(exercise.id, setNumber, "completed");
                           onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
+                        }
+                      }}
+                      onStop={totalSeconds => {
+                        // Record total time when stopped in test mode
+                        if (isTest) {
+                          const unit = exercise.unit?.toLowerCase() || "secs";
+                          let recordedValue = totalSeconds;
+                          // Convert to appropriate unit
+                          if (unit === "mins" || unit === "min" || unit === "minutes") {
+                            recordedValue = Math.round((totalSeconds / 60) * 10) / 10; // Round to 1 decimal
+                          } else if (unit === "hours" || unit === "hour" || unit === "hrs") {
+                            recordedValue = Math.round((totalSeconds / 3600) * 10) / 10; // Round to 1 decimal
+                          }
+                          // Record the value and mark as completed
+                          onActualValueChange?.(exercise.id, setNumber, "actualValue", String(recordedValue));
+                          onSetToggle?.(exercise.id, setNumber, "completed");
                         }
                       }}
                     />
@@ -311,11 +369,28 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
                     <CountdownTimer
                       targetSeconds={getTargetSeconds()}
                       isCompleted={isComplete}
+                      isTest={isTest}
                       onComplete={() => {
-                        // Auto-check when timer completes
-                        if (!isComplete) {
+                        // Auto-check when timer completes (only for countdown mode)
+                        if (!isTest && !isComplete) {
                           onSetToggle?.(exercise.id, setNumber, "completed");
                           onActualValueChange?.(exercise.id, setNumber, "actualValue", targetValue);
+                        }
+                      }}
+                      onStop={elapsedSeconds => {
+                        // Record elapsed time when stopped in test mode
+                        if (isTest) {
+                          const unit = exercise.unit?.toLowerCase() || "secs";
+                          let recordedValue = elapsedSeconds;
+                          // Convert to appropriate unit
+                          if (unit === "mins" || unit === "min" || unit === "minutes") {
+                            recordedValue = Math.round((elapsedSeconds / 60) * 10) / 10; // Round to 1 decimal
+                          } else if (unit === "hours" || unit === "hour" || unit === "hrs") {
+                            recordedValue = Math.round((elapsedSeconds / 3600) * 10) / 10; // Round to 1 decimal
+                          }
+                          // Record the value and mark as completed
+                          onActualValueChange?.(exercise.id, setNumber, "actualValue", String(recordedValue));
+                          onSetToggle?.(exercise.id, setNumber, "completed");
                         }
                       }}
                     />
@@ -330,7 +405,7 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
       {/* Mobile: Sets in column layout with label, checkbox, input on same line (non-time exercises) */}
       {isMobile && exercise.type !== "distance" && exercise.type !== "time" && (
         <Stack spacing={1.5} sx={{ mt: 1 }}>
-          {Array.from({ length: exercise.sets }, (_, i) => {
+          {Array.from({ length: setsToShow }, (_, i) => {
             const setNumber = i + 1;
             const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
             const outcome = setData.outcome || null;
@@ -378,7 +453,7 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
       {exercise.type === "distance" ? (
         // Distance exercise - full width with time, distance, pace inputs
         <Box>
-          {Array.from({ length: exercise.sets }, (_, i) => {
+          {Array.from({ length: setsToShow }, (_, i) => {
             const setNumber = i + 1;
             const setData = completionData.sets?.find(s => s.setNumber === setNumber) || {};
             const outcome = setData.outcome || null;
@@ -480,7 +555,7 @@ const WorkoutExerciseCard = memo(function WorkoutExerciseCard({
 
       {/* Progress indicator */}
       <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: "block" }}>
-        {completedSets} / {exercise.sets} sets
+        {completedSets} / {setsToShow} sets
       </Typography>
     </Paper>
   );
