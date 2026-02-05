@@ -1,5 +1,27 @@
 # Project Decisions Log
 
+## 2026-02-05
+
+### Both-Sides Workout Timers - Staged Count-In
+
+**Feature**: Updated both-sides workout timers so the second side starts with a 10-second count-in instead of relying on the broken auto-start behavior.
+
+**Implementation**:
+- Added `prepSeconds` and `startSignal` props to `CountdownTimer` to control count-in length and trigger a start on demand.
+- Updated `BothSidesTimer` to trigger the second timer via `startSignal` and use a 10-second count-in.
+- Preserved the first side’s 5-second count-in and existing completion sounds/behavior.
+- Adjusted `CountdownTimer` start logic to only resume the AudioContext on user-initiated starts so automatic second-side starts don't fail on iOS.
+- Fixed completion notification to use a separate effect that runs after render, preventing "setState during render" errors.
+- Removed all debug console logs after successful implementation.
+- Hide "First Side" / "Second Side" label when exercise is completed to match single-timer completion UI.
+
+**Timer Flow**:
+1. First side: 5-second count-in → main timer → completion sound
+2. Brief 1-second pause (for completion sound to play)
+3. Second side: 10-second count-in → main timer → completion sound → auto-check exercise
+
+**Why**: Both-sides exercises require a clear transition between sides. The explicit `startSignal` avoids the broken `autoStart` path and ensures the 10-second count-in reliably runs before the second timer. The longer second count-in gives users time to switch sides.
+
 ## 2026-02-04
 
 ### Progress Tab - Visual Progress Tracking

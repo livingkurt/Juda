@@ -8,11 +8,12 @@ import CountdownTimer from "./CountdownTimer";
 
 /**
  * BothSidesTimer - Handles timer for exercises that need both sides
- * Runs timer twice with a 5-second transition between sides
+ * Runs timer twice with a 10-second count-in before second side
  */
 function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
   const [completedFirstSide, setCompletedFirstSide] = useState(false);
   const [showSecondTimer, setShowSecondTimer] = useState(false);
+  const [secondStartSignal, setSecondStartSignal] = useState(0);
   const prevSetKeyRef = useRef(setKey);
 
   const handleTimerComplete = () => {
@@ -22,6 +23,7 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
       // Brief delay to let completion sound play
       setTimeout(() => {
         setShowSecondTimer(true);
+        setSecondStartSignal(prev => prev + 1);
       }, 1000);
     } else {
       // Second side completed, mark the whole exercise as complete
@@ -39,6 +41,7 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
       const timer = setTimeout(() => {
         setCompletedFirstSide(false);
         setShowSecondTimer(false);
+        setSecondStartSignal(0);
       }, 0);
       return () => clearTimeout(timer);
     }
@@ -46,15 +49,18 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
 
   return (
     <Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1, textAlign: "center" }}>
-        {showSecondTimer ? "Second Side" : "First Side"}
-      </Typography>
+      {!isCompleted && (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, textAlign: "center" }}>
+          {showSecondTimer ? "Second Side" : "First Side"}
+        </Typography>
+      )}
       <CountdownTimer
         key={showSecondTimer ? "second" : "first"}
         targetSeconds={targetSeconds}
         isCompleted={isCompleted}
         onComplete={handleTimerComplete}
-        autoStart={showSecondTimer}
+        prepSeconds={showSecondTimer ? 10 : 5}
+        startSignal={showSecondTimer ? secondStartSignal : 0}
       />
     </Box>
   );

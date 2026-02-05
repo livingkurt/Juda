@@ -340,15 +340,6 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
     return null;
   }, [tasksWithIds, sortByPriority, sortByTag]);
 
-  console.log({
-    tasksGrouped,
-    length: tasksGrouped?.length,
-    tasksWithIds: tasksWithIds?.length,
-    backlogFetching,
-    backlogRawTasks,
-    backlogIsLoading,
-  });
-
   return (
     <Box
       sx={{

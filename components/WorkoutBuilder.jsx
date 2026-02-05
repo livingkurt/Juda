@@ -30,6 +30,8 @@ import { useGetWorkoutProgramQuery, useSaveWorkoutProgramMutation } from "@/lib/
 import { useDialogState } from "@/hooks/useDialogState";
 import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useTheme, useMediaQuery } from "@mui/material";
+import { useDispatch } from "react-redux";
+import { showError, showSuccess } from "@/lib/store/slices/snackbarSlice";
 
 // Generate unique IDs
 function generateCuid() {
@@ -564,6 +566,7 @@ export default function WorkoutBuilder({
   taskId: propsTaskId,
   onSaveComplete: propsOnSaveComplete,
 } = {}) {
+  const dispatch = useDispatch();
   const dialogState = useDialogState();
   const { refetch: refetchTasks } = useGetTasksQuery();
   const theme = useTheme();
@@ -575,7 +578,7 @@ export default function WorkoutBuilder({
   const { data: existingProgram, isLoading: programLoading } = useGetWorkoutProgramQuery(taskId, {
     skip: !taskId || !isOpen,
   });
-  const [saveWorkoutProgramMutation] = useSaveWorkoutProgramMutation();
+  const [saveWorkoutProgramMutation, { isLoading: isSaving }] = useSaveWorkoutProgramMutation();
 
   // State declarations - MUST come before functions that use them
   const [sections, setSections] = useState([]);
@@ -814,6 +817,11 @@ export default function WorkoutBuilder({
 
   // Save workout
   const handleSave = useCallback(async () => {
+    if (!taskId) {
+      dispatch(showError({ message: "Cannot save: No task selected" }));
+      return;
+    }
+
     try {
       await saveWorkoutProgramMutation({
         taskId,
@@ -821,12 +829,15 @@ export default function WorkoutBuilder({
         numberOfWeeks,
         sections,
       }).unwrap();
+      dispatch(showSuccess({ message: "Workout saved successfully" }));
       handleSaveComplete();
       handleClose();
     } catch (err) {
       console.error("Failed to save workout:", err);
+      const errorMessage = err?.data?.message || err?.message || "Failed to save workout. Please try again.";
+      dispatch(showError({ message: errorMessage }));
     }
-  }, [saveWorkoutProgramMutation, taskId, name, numberOfWeeks, sections, handleSaveComplete, handleClose]);
+  }, [dispatch, saveWorkoutProgramMutation, taskId, name, numberOfWeeks, sections, handleSaveComplete, handleClose]);
 
   // Toggle section expansion
   const toggleSection = useCallback(sectionId => {
@@ -957,9 +968,11 @@ export default function WorkoutBuilder({
       </DialogContent>
 
       <DialogActions sx={{ p: 2 }}>
-        <Button onClick={handleClose}>Cancel</Button>
-        <Button variant="contained" onClick={handleSave} disabled={programLoading}>
-          Save Workout
+        <Button onClick={handleClose} disabled={isSaving}>
+          Cancel
+        </Button>
+        <Button variant="contained" onClick={handleSave} disabled={programLoading || isSaving || !taskId}>
+          {isSaving ? "Saving..." : "Save Workout"}
         </Button>
       </DialogActions>
     </Dialog>

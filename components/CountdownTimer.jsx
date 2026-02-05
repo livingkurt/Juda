@@ -15,9 +15,10 @@ import { PlayArrow, Pause, Refresh, LightMode, Warning } from "@mui/icons-materi
  * @param {number} targetSeconds - Target time in seconds
  * @param {Function} onComplete - Callback when timer reaches 0
  * @param {boolean} isCompleted - Whether the set is already completed
- * @param {boolean} autoStart - Whether to automatically start the timer (for transitions)
+ * @param {number} prepSeconds - Countdown seconds before timer starts
+ * @param {number} startSignal - Incrementing signal to start the timer
  */
-export default function CountdownTimer({ targetSeconds, onComplete, isCompleted, autoStart = false }) {
+export default function CountdownTimer({ targetSeconds, onComplete, isCompleted, prepSeconds = 5, startSignal = 0 }) {
   // Track elapsed time instead of remaining time
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
@@ -30,10 +31,10 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
   const lastCountdownSecondRef = useRef(null);
   const lastPrepCountdownRef = useRef(null);
   const audioContextRef = useRef(null);
-  const hasAutoStartedRef = useRef(false);
   const wakeLockRef = useRef(null);
   const endTimeRef = useRef(null); // Store when timer should complete
   const wasRunningRef = useRef(false); // Track if timer was running before page hide
+  const pendingCompleteRef = useRef(false);
 
   // Get or create AudioContext (reused across all sounds)
   const getAudioContext = async () => {
@@ -185,25 +186,32 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
   };
 
   // Start/Resume timer
-  const handleStart = useCallback(async () => {
-    // Resume AudioContext on user interaction (required for iOS)
-    await getAudioContext();
+  const handleStart = useCallback(
+    async ({ isUserStart = true } = {}) => {
+      // Resume AudioContext only on user interaction (required for iOS)
+      if (isUserStart) {
+        await getAudioContext();
+      }
 
-    // Request Wake Lock to keep screen awake
-    await requestWakeLock();
+      // Request Wake Lock to keep screen awake
+      await requestWakeLock();
 
-    // If starting from the beginning, start preparation countdown
-    if (timeRemaining === targetSeconds && prepCountdown === null) {
-      setPrepCountdown(5);
-      lastPrepCountdownRef.current = null;
-      // Don't set end time yet - will be set when actual timer starts
-    } else {
-      // Resume from pause - start timer directly
-      setIsRunning(true);
-      // Set end time based on remaining time
-      endTimeRef.current = Date.now() + timeRemaining * 1000;
-    }
-  }, [timeRemaining, targetSeconds, prepCountdown, requestWakeLock]);
+      // If starting from the beginning, start preparation countdown
+      if (timeRemaining === targetSeconds && prepCountdown === null) {
+        setPrepCountdown(prepSeconds);
+        lastPrepCountdownRef.current = null;
+        pendingCompleteRef.current = false;
+        // Don't set end time yet - will be set when actual timer starts
+      } else {
+        // Resume from pause - start timer directly
+        setIsRunning(true);
+        // Set end time based on remaining time
+        endTimeRef.current = Date.now() + timeRemaining * 1000;
+        pendingCompleteRef.current = false;
+      }
+    },
+    [timeRemaining, targetSeconds, prepCountdown, prepSeconds, requestWakeLock]
+  );
 
   // Pause timer
   const handlePause = async () => {
@@ -218,23 +226,15 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
     endTimeRef.current = null;
   };
 
-  // Auto-start if requested (for transitions)
-  useEffect(() => {
-    if (
-      autoStart &&
-      timeRemaining === targetSeconds &&
-      prepCountdown === null &&
-      !isCompleted &&
-      !hasAutoStartedRef.current
-    ) {
-      hasAutoStartedRef.current = true;
-      // Use setTimeout to avoid synchronous setState in effect
-      const timer = setTimeout(() => {
-        handleStart();
-      }, 0);
-      return () => clearTimeout(timer);
+  // Start when startSignal increments (using React docs pattern for prop changes)
+  const [prevStartSignal, setPrevStartSignal] = useState(-1);
+  if (startSignal !== prevStartSignal && startSignal > 0) {
+    setPrevStartSignal(startSignal);
+    if (!isCompleted && !isRunning && prepCountdown === null && timeRemaining === targetSeconds) {
+      // Trigger start by setting prep countdown directly during render
+      setPrepCountdown(prepSeconds);
     }
-  }, [autoStart, timeRemaining, targetSeconds, prepCountdown, isCompleted, handleStart]);
+  }
 
   // Reset timer
   const handleReset = async () => {
@@ -245,6 +245,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
     lastCountdownSecondRef.current = null;
     lastPrepCountdownRef.current = null;
     endTimeRef.current = null;
+    pendingCompleteRef.current = false;
     setShowBackgroundWarning(false);
     // Release Wake Lock when reset
     await releaseWakeLock();
@@ -327,15 +328,7 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
 
           if (newRemaining <= 0) {
             setIsRunning(false);
-            // Play completion sound (only once per completion)
-            if (!hasPlayedSoundRef.current) {
-              playCompletionSound();
-              hasPlayedSoundRef.current = true;
-            }
-            // Call onComplete when timer reaches 0
-            if (onComplete) {
-              onComplete();
-            }
+            pendingCompleteRef.current = true;
             return targetSeconds; // Set elapsed to target (remaining = 0)
           }
           return newElapsed;
@@ -365,6 +358,22 @@ export default function CountdownTimer({ targetSeconds, onComplete, isCompleted,
       }
     }
   }, [isRunning, timeRemaining, elapsedSeconds]);
+
+  // Notify completion after render to avoid state updates during render
+  useEffect(() => {
+    if (timeRemaining !== 0) return;
+    if (!pendingCompleteRef.current) return;
+    pendingCompleteRef.current = false;
+
+    if (!hasPlayedSoundRef.current) {
+      playCompletionSound();
+      hasPlayedSoundRef.current = true;
+    }
+
+    if (onComplete) {
+      onComplete();
+    }
+  }, [timeRemaining, onComplete, playCompletionSound]);
 
   // Handle page visibility changes (app switching, screen lock)
   useEffect(() => {
