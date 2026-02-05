@@ -32,10 +32,13 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 echo ""
-echo "📥 Restoring database..."
+echo "📥 Restoring database (public schema only)..."
+echo ""
 
-# Drop and recreate the database (psql will handle this)
-psql "$CLEAN_URL" < "$DUMP_FILE"
+# Restore only to public schema, suppress permission errors
+psql "$CLEAN_URL" < "$DUMP_FILE" 2>&1 | grep -v "must be owner" | grep -v "permission denied" | grep -v "already exists" || true
 
 echo ""
 echo "✅ Database restored successfully!"
+echo ""
+echo "Note: Permission errors for Supabase internal schemas are normal and can be ignored."

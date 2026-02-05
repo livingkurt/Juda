@@ -19,8 +19,8 @@ mkdir -p dumps
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
 DUMP_FILE="dumps/production-dump-${TIMESTAMP}.sql"
 
-echo "📦 Dumping production database..."
-pg_dump "$CLEAN_URL" --clean --if-exists --no-owner --no-acl > "$DUMP_FILE"
+echo "📦 Dumping production database (public schema only)..."
+pg_dump "$CLEAN_URL" --schema=public --clean --if-exists --no-owner --no-acl > "$DUMP_FILE"
 
 echo "✅ Dump saved to: $DUMP_FILE"
 echo ""
