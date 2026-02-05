@@ -2,6 +2,66 @@
 
 ## 2026-02-05
 
+### React useEffect setState Pattern - Proper Implementation
+
+**Problem**: Multiple components were using `setTimeout` as a workaround to avoid the `react-hooks/set-state-in-effect` linting error. This pattern causes cascading renders and hurts performance.
+
+**Solution**: Implemented proper React patterns according to official documentation:
+
+1. **BothSidesTimer Component** (`components/WorkoutExerciseCard.jsx`):
+   - **Before**: Used `useEffect` with synchronous `setState` calls to reset state when `setKey` changed
+   - **After**: Used "adjusting state during render" pattern - checking `prevSetKey !== setKey` and calling `setState` directly during render
+   - Removed unnecessary `useEffect` and `useRef` imports
+   - Pattern: Store previous prop value in state, compare during render, update if different
+
+2. **useWorkoutProgress Hook** (`hooks/useWorkoutProgress.js`):
+   - **Before**: Used `setTimeout(..., 0)` to defer `setState` in effect when props were invalid
+   - **After**: Removed synchronous setState from early return, added proper cleanup with `ignore` flag for async operations
+   - Pattern: Use cleanup function with `ignore` flag to prevent state updates after unmount (race condition protection)
+   - Follows React's data fetching pattern from official docs
+
+3. **JournalDayEntry Component** (`components/JournalDayEntry.jsx`):
+   - **Before**: Used `setTimeout(..., 0)` to defer `setState` when `defaultExpanded` changed, when handling scroll targets, and when syncing with `currentNote`
+   - **After**: 
+     - Converted `userToggledRef` to state (`userToggled`) to avoid accessing refs during render
+     - Converted `isFocusedRef` to state (`isFocused`) for render-time checks
+     - Used "adjusting state during render" for expansion state updates and note syncing
+     - Split scroll logic: state updates during render, DOM manipulation in effect
+     - Replaced all `prevSavedNoteRef` references with `prevCurrentNote` state
+   - Pattern: Handle state changes during render, keep only side effects (DOM manipulation) in useEffect
+
+4. **TextInputTask Component** (`components/TaskItem.jsx`):
+   - **Before**: Used `setTimeout(..., 0)` to defer `setState` when syncing with `savedNote` prop
+   - **After**: Used "adjusting state during render" pattern with `prevSavedNote` state
+   - Removed `prevSavedNoteRef` and replaced with state-based tracking
+   - Pattern: Compare previous prop value during render, update state if changed
+
+5. **ReflectionEntry Component** (`components/ReflectionEntry.jsx`):
+   - **Before**: Used `setTimeout(..., 0)` to defer `setState` when syncing with external completion data
+   - **After**: Used `queueMicrotask` to defer setState while checking refs
+   - Pattern: For external data syncing that requires ref checks, use `queueMicrotask` as last resort
+   - This is acceptable because it's syncing with external system data (API responses) and needs to check focus refs
+
+**Key Learnings**:
+- **Never access refs during render** - convert to state if needed for render-time decisions
+- **Separate concerns**: State updates during render, side effects (DOM manipulation, API calls) in useEffect
+- **For prop-driven state changes**: Use "adjusting state during render" pattern
+- **For async operations**: Use cleanup functions with `ignore` flags
+- **For external data syncing with ref checks**: Use `queueMicrotask` as last resort (better than `setTimeout`)
+- **Convert refs to state**: If a ref value is needed for render decisions, it should be state instead
+
+**Why**: According to React 19 documentation:
+- Calling `setState` synchronously within an effect causes cascading renders
+- Effects should only update state in response to external system changes (like API responses)
+- State adjustments based on prop changes should happen during render, not in effects
+- Data fetching effects should use cleanup functions to avoid race conditions
+- Refs should never be accessed during render (only in event handlers or effects)
+
+**References**:
+- [React Docs: You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect)
+- [React Docs: Adjusting some state when a prop changes](https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
+- [React Docs: useRef - Cannot access refs during render](https://react.dev/reference/react/useRef)
+
 ### Both-Sides Workout Timers - Staged Count-In
 
 **Feature**: Updated both-sides workout timers so the second side starts with a 10-second count-in instead of relying on the broken auto-start behavior.

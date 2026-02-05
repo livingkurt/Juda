@@ -24,8 +24,10 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
   // Initialize state from props - state will reset when key changes (completion note changes)
   const currentNote = completion?.note || "";
   const [noteInput, setNoteInput] = useState(currentNote);
+  const [prevCurrentNote, setPrevCurrentNote] = useState(currentNote);
   const [selectedValue, setSelectedValue] = useState(currentNote || null);
   const [showTextarea, setShowTextarea] = useState(Boolean(currentNote));
+  const [isFocused, setIsFocused] = useState(false);
   // For selection tasks, always show the dropdown when expanded (no need for showSelection state)
   const hasEntry = currentNote && currentNote.trim().length > 0;
 
@@ -67,38 +69,32 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
   }, [viewType, taskType, hasEntry]);
 
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [prevDefaultExpanded, setPrevDefaultExpanded] = useState(defaultExpanded);
+  const [userToggled, setUserToggled] = useState(false);
+  const [prevScrollToTaskId, setPrevScrollToTaskId] = useState(null);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const textareaRef = useRef(null);
   const autocompleteRef = useRef(null);
-  // Track if textarea/autocomplete is focused
-  const isFocusedRef = useRef(false);
-  // Track previous saved note to detect external changes
-  const prevSavedNoteRef = useRef(currentNote);
-  // Track if user has manually toggled expansion
-  const userToggledRef = useRef(false);
 
   // Update expansion state when defaultExpanded changes (but only if user hasn't manually toggled)
-  useEffect(() => {
-    if (!userToggledRef.current) {
-      // Defer setState to avoid synchronous setState in effect
-      const timeoutId = setTimeout(() => {
-        setExpanded(defaultExpanded);
-      }, 0);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [defaultExpanded]);
+  // Use "adjusting state during render" pattern
+  if (prevDefaultExpanded !== defaultExpanded && !userToggled) {
+    setPrevDefaultExpanded(defaultExpanded);
+    setExpanded(defaultExpanded);
+  }
 
-  // Handle scroll target - expand and scroll to goal if this is the target task
-  useEffect(() => {
-    if (scrollToTaskId === task.id && scrollToGoalId) {
-      // Defer setState to avoid synchronous setState in effect
-      const expandTimeout = setTimeout(() => {
-        // Expand this reflection
-        setExpanded(true);
-        userToggledRef.current = true;
-      }, 0);
+  // Handle scroll target expansion during render
+  if (scrollToTaskId === task.id && scrollToGoalId && prevScrollToTaskId !== scrollToTaskId) {
+    setPrevScrollToTaskId(scrollToTaskId);
+    setExpanded(true);
+    setUserToggled(true);
+  }
 
+  // Handle scroll target - scroll to goal after expansion
+  // This effect only handles DOM manipulation (scrolling), not state updates
+  useEffect(() => {
+    if (scrollToTaskId === task.id && scrollToGoalId && expanded) {
       // Wait for expansion animation and ReflectionEntry to render, then scroll
       const scrollTimeout = setTimeout(() => {
         const goalElement = document.getElementById(`goal-progress-${scrollToGoalId}`);
@@ -110,11 +106,10 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
       }, 500); // Longer delay to ensure Collapse animation completes
 
       return () => {
-        clearTimeout(expandTimeout);
         clearTimeout(scrollTimeout);
       };
     }
-  }, [scrollToTaskId, scrollToGoalId, task.id, dispatch]);
+  }, [scrollToTaskId, scrollToGoalId, task.id, dispatch, expanded]);
 
   // Save function wrapper with error handling
   const saveNote = useCallback(
@@ -146,17 +141,12 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
   const { debouncedSave, immediateSave } = useDebouncedSave(saveNote, 300);
 
   // Sync with savedNote when it changes externally (not during typing)
-  useEffect(() => {
-    if (prevSavedNoteRef.current !== currentNote && !isFocusedRef.current) {
-      prevSavedNoteRef.current = currentNote;
-      // Defer update to avoid synchronous setState
-      const timeoutId = setTimeout(() => {
-        setNoteInput(currentNote);
-        setSelectedValue(currentNote || null);
-      }, 0);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [currentNote]);
+  // Use "adjusting state during render" pattern
+  if (prevCurrentNote !== currentNote && !isFocused) {
+    setPrevCurrentNote(currentNote);
+    setNoteInput(currentNote);
+    setSelectedValue(currentNote || null);
+  }
 
   const handleChange = e => {
     const newValue = e.target.value;
@@ -175,19 +165,19 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
 
   const handleBlur = async () => {
     // Clear focus tracking on intentional blur
-    isFocusedRef.current = false;
+    setIsFocused(false);
 
     // Save immediately on blur if there are changes
     if (isSelectionTask) {
       await immediateSave(selectedValue);
-      prevSavedNoteRef.current = currentNote;
+      setPrevCurrentNote(currentNote);
       if (!selectedValue && completion?.note) {
         setSelectedValue(completion?.note);
       }
     } else {
       await immediateSave(noteInput);
-      // Update ref to current note
-      prevSavedNoteRef.current = currentNote;
+      // Update state to track current note
+      setPrevCurrentNote(currentNote);
 
       // Reset to saved note if cleared
       if (!noteInput.trim() && completion?.note) {
@@ -207,14 +197,14 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
     setTimeout(
       () => {
         if (isSelectionTask && autocompleteRef.current) {
-          isFocusedRef.current = true;
+          setIsFocused(true);
           autocompleteRef.current.focus();
           // Smooth scroll into view after focus
           if (isMobile) {
             autocompleteRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
           }
         } else if (textareaRef.current) {
-          isFocusedRef.current = true;
+          setIsFocused(true);
           textareaRef.current.focus({ preventScroll: true });
           // Smooth scroll into view after focus
           if (isMobile) {
@@ -229,7 +219,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
   const handleToggleExpand = () => {
     const newExpanded = !expanded;
     setExpanded(newExpanded);
-    userToggledRef.current = true;
+    setUserToggled(true);
   };
 
   const handleMenuOpen = e => {
@@ -362,7 +352,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
                   value={selectedValue}
                   onChange={handleSelectionChange}
                   onFocus={() => {
-                    isFocusedRef.current = true;
+                    setIsFocused(true);
                     if (!expanded) {
                       setExpanded(true);
                     }
@@ -416,7 +406,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
                   onBlur={handleBlur}
                   onFocus={() => {
                     // Track that textarea is focused
-                    isFocusedRef.current = true;
+                    setIsFocused(true);
                     // Ensure expanded when focused
                     if (!expanded) {
                       setExpanded(true);

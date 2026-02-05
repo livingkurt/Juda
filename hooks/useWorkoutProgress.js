@@ -11,25 +11,23 @@ import { useAuthFetch } from "./useAuthFetch.js";
  * @returns {boolean} - Whether the task has workout progress for this date
  */
 export const useWorkoutProgress = (taskId, date, isWorkoutTask) => {
-  // Initialize state based on props to avoid setState in effect
-  const [hasProgress, setHasProgress] = useState(() => {
-    return Boolean(taskId && date && isWorkoutTask);
-  });
+  const [hasProgress, setHasProgress] = useState(false);
   const authFetch = useAuthFetch();
 
   useEffect(() => {
+    // If required props are missing, don't fetch
     if (!taskId || !date || !isWorkoutTask) {
-      // Use setTimeout to avoid synchronous setState in effect
-      const timeoutId = setTimeout(() => {
-        setHasProgress(false);
-      }, 0);
-      return () => clearTimeout(timeoutId);
+      return;
     }
+
+    let ignore = false;
 
     const checkProgress = async () => {
       try {
         const dateKey = date.toISOString().split("T")[0]; // YYYY-MM-DD
         const response = await authFetch(`/api/workout-set-completions?taskId=${taskId}&date=${dateKey}`);
+
+        if (ignore) return;
 
         if (response.ok) {
           const data = await response.json();
@@ -39,12 +37,17 @@ export const useWorkoutProgress = (taskId, date, isWorkoutTask) => {
           setHasProgress(false);
         }
       } catch (err) {
+        if (ignore) return;
         console.error("Failed to check workout progress:", err);
         setHasProgress(false);
       }
     };
 
     checkProgress();
+
+    return () => {
+      ignore = true;
+    };
   }, [taskId, date, isWorkoutTask, authFetch]);
 
   return hasProgress;

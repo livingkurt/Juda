@@ -54,22 +54,16 @@ import { GoalReflectionsModal } from "./GoalReflectionsModal";
 // Small component to handle text input with state that resets on date change
 const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }) => {
   const [noteInput, setNoteInput] = useState(savedNote || "");
+  const [prevSavedNote, setPrevSavedNote] = useState(savedNote);
   const [isFocused, setIsFocused] = useState(false);
   const noteInputRef = useRef(null);
-  const prevSavedNoteRef = useRef(savedNote);
 
   // Sync with savedNote when it changes (e.g., after save or date change)
-  // Defer state update to avoid synchronous setState in effect
-  useEffect(() => {
-    if (prevSavedNoteRef.current !== savedNote && !isFocused) {
-      prevSavedNoteRef.current = savedNote;
-      // Defer update to next tick to avoid synchronous setState
-      const timeoutId = setTimeout(() => {
-        setNoteInput(savedNote || "");
-      }, 0);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [savedNote, isFocused]);
+  // Use "adjusting state during render" pattern
+  if (prevSavedNote !== savedNote && !isFocused) {
+    setPrevSavedNote(savedNote);
+    setNoteInput(savedNote || "");
+  }
 
   // Adjust height when content or focus changes
   useEffect(() => {
@@ -113,8 +107,8 @@ const TextInputTask = ({ taskId, savedNote, isNotCompleted, onCompleteWithNote }
         onFocus={() => setIsFocused(true)}
         onBlur={() => {
           setIsFocused(false);
-          // Update ref to current savedNote
-          prevSavedNoteRef.current = savedNote;
+          // Update state to track current savedNote
+          setPrevSavedNote(savedNote);
           // Save immediately on blur
           immediateSave(noteInput);
           // If cleared, reset to saved note

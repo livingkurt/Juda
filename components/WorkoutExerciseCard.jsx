@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useEffect, useRef } from "react";
+import { memo, useState } from "react";
 import { Box, Stack, Typography, Paper, TextField, Chip, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { OutcomeCheckbox } from "./OutcomeCheckbox";
@@ -14,7 +14,7 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
   const [completedFirstSide, setCompletedFirstSide] = useState(false);
   const [showSecondTimer, setShowSecondTimer] = useState(false);
   const [secondStartSignal, setSecondStartSignal] = useState(0);
-  const prevSetKeyRef = useRef(setKey);
+  const [prevSetKey, setPrevSetKey] = useState(setKey);
   const [prevIsCompleted, setPrevIsCompleted] = useState(isCompleted);
 
   const handleTimerComplete = () => {
@@ -34,19 +34,13 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey }) {
     }
   };
 
-  // Reset when setKey changes (when moving to next set)
-  useEffect(() => {
-    if (prevSetKeyRef.current !== setKey) {
-      prevSetKeyRef.current = setKey;
-      // Use setTimeout to avoid synchronous setState in effect
-      const timer = setTimeout(() => {
-        setCompletedFirstSide(false);
-        setShowSecondTimer(false);
-        setSecondStartSignal(0);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [setKey]);
+  // Reset when setKey changes (when moving to next set) - adjust state during render
+  if (prevSetKey !== setKey) {
+    setPrevSetKey(setKey);
+    setCompletedFirstSide(false);
+    setShowSecondTimer(false);
+    setSecondStartSignal(0);
+  }
 
   // Reset when user unchecks the checkbox (using React pattern for prop changes)
   if (prevIsCompleted === true && isCompleted === false) {

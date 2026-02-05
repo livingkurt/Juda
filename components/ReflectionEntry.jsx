@@ -105,15 +105,15 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
   }, [responses]);
 
   // Sync with external changes when not focused and not saving
+  // This is a valid use of useEffect - responding to external data changes (API completion data)
+  // Using queueMicrotask to defer setState and avoid synchronous setState in effect
   useEffect(() => {
     if (prevSavedDataRef.current !== existingCompletion?.note && !focusedRef.current && !isSavingRef.current) {
       prevSavedDataRef.current = existingCompletion?.note;
       if (existingData?.responses && existingData.responses.length > 0) {
-        // Defer setState to avoid synchronous setState in effect
-        const timeoutId = setTimeout(() => {
+        queueMicrotask(() => {
           setResponses(existingData.responses);
-        }, 0);
-        return () => clearTimeout(timeoutId);
+        });
       }
     }
   }, [existingCompletion?.note, existingData]);

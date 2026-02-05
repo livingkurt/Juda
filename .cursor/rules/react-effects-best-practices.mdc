@@ -1,0 +1,337 @@
+---
+description: React Effects best practices - avoid unnecessary Effects and use proper patterns
+alwaysApply: true
+---
+
+# React Effects Best Practices
+
+## ⚠️ CRITICAL: You Might Not Need an Effect
+
+Effects are an escape hatch from the React paradigm. They let you "step outside" of React and synchronize your components with some external system. **If there is no external system involved, you shouldn't need an Effect.**
+
+## When NOT to Use Effects
+
+### ❌ Don't Use Effects For:
+
+1. **Transforming data for rendering** - Calculate during render instead
+2. **Handling user events** - Use event handlers instead
+3. **Updating state based on props/state** - Calculate during render or use keys
+4. **Chains of computations** - Calculate during render or in event handlers
+5. **Notifying parent components** - Update state in event handlers
+6. **Passing data to parent** - Lift state up instead
+
+### ✅ Use Effects For:
+
+1. **Synchronizing with external systems** (DOM, network, third-party libraries)
+2. **Subscribing to external stores** (use `useSyncExternalStore` when possible)
+3. **Fetching data** (though modern frameworks provide better alternatives)
+
+---
+
+## Common Patterns to Avoid
+
+### 1. Updating State Based on Props/State
+
+```javascript
+// ❌ BAD: Redundant state and unnecessary Effect
+const [fullName, setFullName] = useState('');
+useEffect(() => {
+  setFullName(firstName + ' ' + lastName);
+}, [firstName, lastName]);
+
+// ✅ GOOD: Calculate during rendering
+const fullName = firstName + ' ' + lastName;
+```
+
+### 2. Caching Expensive Calculations
+
+```javascript
+// ❌ BAD: Storing filtered results in state
+const [visibleTodos, setVisibleTodos] = useState([]);
+useEffect(() => {
+  setVisibleTodos(getFilteredTodos(todos, filter));
+}, [todos, filter]);
+
+// ✅ GOOD: Calculate during render (or useMemo if expensive)
+const visibleTodos = getFilteredTodos(todos, filter);
+// Or if expensive:
+const visibleTodos = useMemo(() => getFilteredTodos(todos, filter), [todos, filter]);
+```
+
+### 3. Resetting State When Prop Changes
+
+```javascript
+// ❌ BAD: Resetting state in Effect
+useEffect(() => {
+  setComment('');
+}, [userId]);
+
+// ✅ GOOD: Use key prop to reset component
+<Profile userId={userId} key={userId} />
+```
+
+### 4. Adjusting State During Render (Same Component Only)
+
+```javascript
+// ✅ GOOD: Adjust state during render for same component
+const [prevItems, setPrevItems] = useState(items);
+if (items !== prevItems) {
+  setPrevItems(items);
+  setSelection(null); // Only works for same component's state
+}
+```
+
+**Note**: This pattern only works for updating the same component's state during render. React will re-render immediately after. You cannot update other components' state during render.
+
+### 5. Event-Specific Logic
+
+```javascript
+// ❌ BAD: Event logic in Effect
+useEffect(() => {
+  if (product.isInCart) {
+    showNotification(`Added ${product.name} to cart!`);
+  }
+}, [product]);
+
+// ✅ GOOD: Event logic in event handler
+function handleBuyClick() {
+  addToCart(product);
+  showNotification(`Added ${product.name} to cart!`);
+}
+```
+
+### 6. POST Requests
+
+```javascript
+// ❌ BAD: POST request triggered by state change
+const [jsonToSubmit, setJsonToSubmit] = useState(null);
+useEffect(() => {
+  if (jsonToSubmit !== null) {
+    post('/api/register', jsonToSubmit);
+  }
+}, [jsonToSubmit]);
+
+// ✅ GOOD: POST request in event handler
+function handleSubmit(e) {
+  e.preventDefault();
+  post('/api/register', { firstName, lastName });
+}
+```
+
+### 7. Chains of Computations
+
+```javascript
+// ❌ BAD: Chain of Effects
+useEffect(() => {
+  if (card !== null && card.gold) {
+    setGoldCardCount(c => c + 1);
+  }
+}, [card]);
+
+useEffect(() => {
+  if (goldCardCount > 3) {
+    setRound(r => r + 1);
+  }
+}, [goldCardCount]);
+
+// ✅ GOOD: Calculate during render and update in event handler
+const isGameOver = round > 5; // Calculate during render
+
+function handlePlaceCard(nextCard) {
+  setCard(nextCard);
+  if (nextCard.gold) {
+    if (goldCardCount < 3) {
+      setGoldCardCount(goldCardCount + 1);
+    } else {
+      setGoldCardCount(0);
+      setRound(round + 1);
+    }
+  }
+}
+```
+
+### 8. Notifying Parent Components
+
+```javascript
+// ❌ BAD: Notify parent in Effect
+useEffect(() => {
+  onChange(isOn);
+}, [isOn, onChange]);
+
+// ✅ GOOD: Update both states in event handler
+function updateToggle(nextIsOn) {
+  setIsOn(nextIsOn);
+  onChange(nextIsOn); // Update parent immediately
+}
+```
+
+### 9. Passing Data to Parent
+
+```javascript
+// ❌ BAD: Child fetches and passes to parent via Effect
+useEffect(() => {
+  if (data) {
+    onFetched(data);
+  }
+}, [onFetched, data]);
+
+// ✅ GOOD: Parent fetches and passes down
+function Parent() {
+  const data = useSomeAPI();
+  return <Child data={data} />;
+}
+```
+
+---
+
+## When Effects ARE Appropriate
+
+### 1. Subscribing to External Stores
+
+```javascript
+// ✅ GOOD: Subscribe to external store
+function useOnlineStatus() {
+  return useSyncExternalStore(
+    subscribe,
+    () => navigator.onLine,
+    () => true
+  );
+}
+```
+
+### 2. Fetching Data (with cleanup)
+
+```javascript
+// ✅ GOOD: Fetch with race condition cleanup
+useEffect(() => {
+  let ignore = false;
+  fetchResults(query, page).then(json => {
+    if (!ignore) {
+      setResults(json);
+    }
+  });
+  return () => {
+    ignore = true;
+  };
+}, [query, page]);
+```
+
+### 3. Synchronizing with External Systems
+
+```javascript
+// ✅ GOOD: Sync with non-React widget
+useEffect(() => {
+  const widget = new ThirdPartyWidget();
+  widget.sync(state);
+  return () => widget.destroy();
+}, [state]);
+```
+
+---
+
+## Key Principles
+
+1. **Calculate during render** - If something can be computed from props/state, don't store it in state
+2. **Use event handlers** - If logic is triggered by user interaction, use event handlers
+3. **Use keys for reset** - To reset component state when prop changes, use key prop
+4. **Lift state up** - If child needs to update parent, lift state to parent
+5. **Effects are for external systems** - Only use Effects to sync with external systems
+
+---
+
+## Linting Error: setState in Effect
+
+If you see this error:
+```
+Error: Calling setState synchronously within an effect can trigger cascading renders
+```
+
+**Solutions:**
+
+1. **Move to event handler** - If triggered by user action
+2. **Calculate during render** - If derived from props/state
+3. **Use key prop** - If resetting component state
+4. **Adjust during render** - If updating same component's state (use with caution)
+5. **Use queueMicrotask** - For external data syncing that requires ref checks (last resort)
+
+**Never call setState synchronously in an Effect body** - Effects should only update external systems or subscribe to them.
+
+---
+
+## Special Cases and Patterns
+
+### Adjusting State During Render - Cannot Access Refs
+
+```javascript
+// ❌ BAD: Cannot access refs during render
+const userToggledRef = useRef(false);
+if (prevProp !== prop && !userToggledRef.current) {
+  setPrevProp(prop);
+  setState(newValue);
+}
+
+// ✅ GOOD: Convert ref to state if needed for render decisions
+const [userToggled, setUserToggled] = useState(false);
+if (prevProp !== prop && !userToggled) {
+  setPrevProp(prop);
+  setState(newValue);
+}
+```
+
+**Rule**: Refs can only be accessed in event handlers or effects, never during render. If you need a ref value for a render-time decision, convert it to state.
+
+### External Data Syncing with Ref Checks
+
+When you need to sync with external data (like API responses) but also need to check refs (like focus state), use `queueMicrotask` as a last resort:
+
+```javascript
+// ⚠️ ACCEPTABLE: External data sync with ref checks
+useEffect(() => {
+  if (prevDataRef.current !== externalData && !focusedRef.current) {
+    prevDataRef.current = externalData;
+    // Use queueMicrotask to defer setState
+    queueMicrotask(() => {
+      setState(externalData);
+    });
+  }
+}, [externalData]);
+```
+
+**When to use this pattern:**
+- Syncing with external system data (API responses, external stores)
+- Need to check ref values (can't convert to state)
+- Cannot move logic to event handler or render
+
+**Why queueMicrotask over setTimeout:**
+- Executes before next render (faster)
+- More predictable timing
+- Still defers setState to avoid synchronous call
+
+### Separating State Updates from Side Effects
+
+When responding to external changes (like Redux state), separate state updates from side effects:
+
+```javascript
+// ❌ BAD: State update in effect
+useEffect(() => {
+  if (externalTrigger) {
+    setExpanded(true);
+    scrollToElement();
+  }
+}, [externalTrigger]);
+
+// ✅ GOOD: State update during render, side effect in effect
+const [prevTrigger, setPrevTrigger] = useState(null);
+if (externalTrigger && prevTrigger !== externalTrigger) {
+  setPrevTrigger(externalTrigger);
+  setExpanded(true);
+}
+
+useEffect(() => {
+  if (externalTrigger && expanded) {
+    scrollToElement();
+  }
+}, [externalTrigger, expanded]);
+```
+
+**Pattern**: Update state during render based on external changes, keep only DOM manipulation/API calls in effects.
