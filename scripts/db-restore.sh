@@ -32,7 +32,7 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 echo ""
-echo "📥 Restoring database (public schema only)..."
+echo "📥 Restoring database (public and drizzle schemas)..."
 echo ""
 
 # Restore only to public schema, suppress permission errors
