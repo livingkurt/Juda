@@ -116,26 +116,28 @@ export function useCompletionHandlers({
 
   const batchCreateCompletions = useCallback(
     completionsToCreate => {
-      queueMicrotask(() => {
-        startTransition(() => {
-          batchCreateCompletionsMutation(completionsToCreate)
-            .unwrap()
-            .catch(err => console.error("Batch create completions failed:", err));
+      // Dispatch immediately - onQueryStarted runs synchronously for instant optimistic updates
+      // Return promise for error handling, but UI updates immediately via optimistic update
+      return batchCreateCompletionsMutation(completionsToCreate)
+        .unwrap()
+        .catch(err => {
+          console.error("Batch create completions failed:", err);
+          throw err;
         });
-      });
     },
     [batchCreateCompletionsMutation]
   );
 
   const batchDeleteCompletions = useCallback(
     completionsToDelete => {
-      queueMicrotask(() => {
-        startTransition(() => {
-          batchDeleteCompletionsMutation(completionsToDelete)
-            .unwrap()
-            .catch(err => console.error("Batch delete completions failed:", err));
+      // Dispatch immediately - onQueryStarted runs synchronously for instant optimistic updates
+      // Return promise for error handling, but UI updates immediately via optimistic update
+      return batchDeleteCompletionsMutation(completionsToDelete)
+        .unwrap()
+        .catch(err => {
+          console.error("Batch delete completions failed:", err);
+          throw err;
         });
-      });
     },
     [batchDeleteCompletionsMutation]
   );
