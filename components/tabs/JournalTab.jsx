@@ -154,18 +154,35 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
   };
 
   // Handle saving journal entries
-  const handleSaveEntry = async (taskId, date, note) => {
+  const handleSaveEntry = async (taskId, date, noteOrOptions) => {
     // If date is already a string in YYYY-MM-DD format, use it directly
     // Otherwise, format it properly to avoid timezone issues
     const dateStr =
       typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : dayjs(date).format("YYYY-MM-DD");
     const existingCompletion = getCompletionForDate?.(taskId, dateStr);
 
+    // Determine if this is a selection task with multiple options
+    const task = allJournalTasks.find(t => t.id === taskId);
+    const isSelectionTask = task?.completionType === "selection";
+    const isArray = Array.isArray(noteOrOptions);
+
+    const completionData = {};
+    if (isSelectionTask && isArray) {
+      // For selection tasks, save to selectedOptions field
+      completionData.selectedOptions = noteOrOptions;
+    } else if (isArray) {
+      // If array but not selection task, join as string for backward compatibility
+      completionData.note = noteOrOptions.join(", ");
+    } else {
+      // Single value - save to note field
+      completionData.note = noteOrOptions;
+    }
+
     try {
       if (existingCompletion) {
-        await updateCompletionMutation({ id: existingCompletion.id, taskId, date: dateStr, note }).unwrap();
+        await updateCompletionMutation({ id: existingCompletion.id, taskId, date: dateStr, ...completionData }).unwrap();
       } else {
-        await createCompletionMutation({ taskId, date: dateStr, note }).unwrap();
+        await createCompletionMutation({ taskId, date: dateStr, ...completionData }).unwrap();
       }
     } catch (error) {
       console.error("Error saving journal entry:", error);

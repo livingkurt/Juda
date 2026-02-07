@@ -23,13 +23,28 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
 
   // Initialize state from props - state will reset when key changes (completion note changes)
   const currentNote = completion?.note || "";
+  // For selection tasks, parse selectedOptions array; for others, use note
+  const parseInitialSelectionValues = useCallback(() => {
+    if (isSelectionTask && completion?.selectedOptions && Array.isArray(completion.selectedOptions)) {
+      return completion.selectedOptions;
+    }
+    if (isSelectionTask && currentNote && currentNote.trim()) {
+      // Backward compatibility: if note exists but no selectedOptions, treat as single selection
+      return [currentNote.trim()];
+    }
+    return [];
+  }, [isSelectionTask, completion?.selectedOptions, currentNote]);
+
   const [noteInput, setNoteInput] = useState(currentNote);
   const [prevCurrentNote, setPrevCurrentNote] = useState(currentNote);
-  const [selectedValue, setSelectedValue] = useState(currentNote || null);
+  const [selectedValues, setSelectedValues] = useState(parseInitialSelectionValues);
+  const [prevSelectedOptions, setPrevSelectedOptions] = useState(completion?.selectedOptions);
   const [showTextarea, setShowTextarea] = useState(Boolean(currentNote));
   const [isFocused, setIsFocused] = useState(false);
-  // For selection tasks, always show the dropdown when expanded (no need for showSelection state)
-  const hasEntry = currentNote && currentNote.trim().length > 0;
+  // For selection tasks, check if there are selected values; for others, check note
+  const hasEntry = isSelectionTask
+    ? selectedValues.length > 0
+    : currentNote && currentNote.trim().length > 0;
 
   // Get selection options from task
   const selectionOptions = useMemo(() => {
@@ -114,38 +129,63 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
   // Save function wrapper with error handling
   const saveNote = useCallback(
     async value => {
-      const valueStr = typeof value === "string" ? value : value || "";
-      if (isCurrentYear && valueStr.trim() && valueStr.trim() !== (completion?.note || "")) {
-        try {
-          await onSave(task.id, date, valueStr.trim());
-        } catch (error) {
-          console.error("Failed to save journal entry:", error);
-          // Reset to original note on error
-          setNoteInput(completion?.note || "");
-          setSelectedValue(completion?.note || null);
+      if (isSelectionTask) {
+        // For selection tasks, value is an array
+        const valuesArray = Array.isArray(value) ? value : [];
+        const currentArray = parseInitialSelectionValues();
+        // Only save if changed
+        if (JSON.stringify(valuesArray) !== JSON.stringify(currentArray)) {
+          try {
+            await onSave(task.id, date, valuesArray);
+          } catch (error) {
+            console.error("Failed to save journal entry:", error);
+            // Reset to original values on error
+            setSelectedValues(parseInitialSelectionValues());
+          }
         }
-      } else if (isCurrentYear && !valueStr && completion?.note) {
-        // Clear selection
-        try {
-          await onSave(task.id, date, "");
-        } catch (error) {
-          console.error("Failed to save journal entry:", error);
-          setNoteInput(completion?.note || "");
-          setSelectedValue(completion?.note || null);
+      } else {
+        // For text tasks, value is a string
+        const valueStr = typeof value === "string" ? value : value || "";
+        if (isCurrentYear && valueStr.trim() && valueStr.trim() !== (completion?.note || "")) {
+          try {
+            await onSave(task.id, date, valueStr.trim());
+          } catch (error) {
+            console.error("Failed to save journal entry:", error);
+            // Reset to original note on error
+            setNoteInput(completion?.note || "");
+          }
+        } else if (isCurrentYear && !valueStr && completion?.note) {
+          // Clear selection
+          try {
+            await onSave(task.id, date, "");
+          } catch (error) {
+            console.error("Failed to save journal entry:", error);
+            setNoteInput(completion?.note || "");
+          }
         }
       }
     },
-    [isCurrentYear, task.id, date, completion?.note, onSave]
+    [isCurrentYear, isSelectionTask, task.id, date, completion?.note, completion?.selectedOptions, onSave, parseInitialSelectionValues]
   );
 
   const { debouncedSave, immediateSave } = useDebouncedSave(saveNote, 300);
 
-  // Sync with savedNote when it changes externally (not during typing)
+  // Sync with saved data when it changes externally (not during typing)
   // Use "adjusting state during render" pattern
-  if (prevCurrentNote !== currentNote && !isFocused) {
-    setPrevCurrentNote(currentNote);
-    setNoteInput(currentNote);
-    setSelectedValue(currentNote || null);
+  if (isSelectionTask) {
+    const currentSelectedOptions = completion?.selectedOptions || [];
+    if (
+      JSON.stringify(prevSelectedOptions) !== JSON.stringify(currentSelectedOptions) &&
+      !isFocused
+    ) {
+      setPrevSelectedOptions(currentSelectedOptions);
+      setSelectedValues(parseInitialSelectionValues());
+    }
+  } else {
+    if (prevCurrentNote !== currentNote && !isFocused) {
+      setPrevCurrentNote(currentNote);
+      setNoteInput(currentNote);
+    }
   }
 
   const handleChange = e => {
@@ -158,9 +198,10 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
     debouncedSave(newValue);
   };
 
-  const handleSelectionChange = (event, newValue) => {
-    setSelectedValue(newValue);
-    immediateSave(newValue);
+  const handleSelectionChange = (event, newValues) => {
+    const valuesArray = Array.isArray(newValues) ? newValues : [];
+    setSelectedValues(valuesArray);
+    immediateSave(valuesArray);
   };
 
   const handleBlur = async () => {
@@ -169,10 +210,11 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
 
     // Save immediately on blur if there are changes
     if (isSelectionTask) {
-      await immediateSave(selectedValue);
-      setPrevCurrentNote(currentNote);
-      if (!selectedValue && completion?.note) {
-        setSelectedValue(completion?.note);
+      await immediateSave(selectedValues);
+      setPrevSelectedOptions(completion?.selectedOptions);
+      // Reset to saved values if cleared
+      if (selectedValues.length === 0 && completion?.selectedOptions && completion.selectedOptions.length > 0) {
+        setSelectedValues(parseInitialSelectionValues());
       }
     } else {
       await immediateSave(noteInput);
@@ -344,12 +386,13 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
               />
             </Box>
           ) : isSelectionTask ? (
-            // Render Autocomplete for selection tasks
+            // Render multi-select Autocomplete for selection tasks
             isCurrentYear ? (
               <Box sx={{ mt: 2 }}>
                 <Autocomplete
+                  multiple
                   options={selectionOptions}
-                  value={selectedValue}
+                  value={selectedValues}
                   onChange={handleSelectionChange}
                   onFocus={() => {
                     setIsFocused(true);
@@ -363,7 +406,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
                     <TextField
                       {...params}
                       variant="filled"
-                      placeholder="Select an option..."
+                      placeholder="Select options..."
                       inputRef={autocompleteRef}
                       onClick={e => e.stopPropagation()}
                       onMouseDown={e => e.stopPropagation()}
@@ -387,7 +430,9 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
                       fontSize: { xs: "0.75rem", md: "0.875rem" },
                     }}
                   >
-                    {completion.note}
+                    {selectedValues.length > 0
+                      ? selectedValues.join(", ")
+                      : completion?.note || ""}
                   </Typography>
                 ) : (
                   <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic", mt: 2 }}>
