@@ -61,6 +61,9 @@
 - `components/CalendarMonthView.jsx`
 - `components/tabs/HistoryTab.jsx`
 
+**Follow-up Fix**:
+- Stabilized `useWorkoutProgressMap` fetches by keying the effect on a sorted task-id signature and date key to prevent repeated requests on re-renders (Tasks tab).
+
 ### Replace Legacy All-Tasks Hook and Prevent Per-Item Fetching
 
 **Problem**: Removing `useTasksWithDeferred` caused build errors and, after migration, per-item hooks (like `TaskItem` and `CalendarTask`) were triggering heavy task fetching and filter computation, slowing the UI.

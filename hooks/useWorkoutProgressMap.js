@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthFetch } from "./useAuthFetch.js";
 
 /**
@@ -11,12 +11,15 @@ export const useWorkoutProgressMap = ({ taskIds = [], date, enabled = true } = {
   const authFetch = useAuthFetch();
   const [progressMap, setProgressMap] = useState(new Map());
 
-  const normalizedTaskIds = useMemo(() => {
-    const unique = new Set(taskIds.filter(Boolean));
-    return Array.from(unique);
-  }, [taskIds]);
+  const idsKey =
+    taskIds && taskIds.length > 0
+      ? Array.from(new Set(taskIds.filter(Boolean)))
+          .sort()
+          .join(",")
+      : "";
+  const dateKey = date ? date.toISOString().split("T")[0] : "";
 
-  const shouldBeEmpty = !enabled || !date || normalizedTaskIds.length === 0;
+  const shouldBeEmpty = !enabled || !dateKey || idsKey.length === 0;
   if (shouldBeEmpty && progressMap.size !== 0) {
     setProgressMap(new Map());
   }
@@ -27,12 +30,12 @@ export const useWorkoutProgressMap = ({ taskIds = [], date, enabled = true } = {
     }
 
     let ignore = false;
-    const dateKey = date.toISOString().split("T")[0];
+    const taskIdsForFetch = idsKey.split(",");
 
     const fetchProgress = async () => {
       try {
         const results = await Promise.all(
-          normalizedTaskIds.map(async taskId => {
+          taskIdsForFetch.map(async taskId => {
             const response = await authFetch(`/api/workout-set-completions?taskId=${taskId}&date=${dateKey}`);
             if (!response.ok) {
               return { taskId, hasProgress: false };
@@ -60,7 +63,7 @@ export const useWorkoutProgressMap = ({ taskIds = [], date, enabled = true } = {
     return () => {
       ignore = true;
     };
-  }, [authFetch, date, normalizedTaskIds, shouldBeEmpty]);
+  }, [authFetch, dateKey, idsKey, shouldBeEmpty]);
 
   return progressMap;
 };
