@@ -26,6 +26,18 @@
 - `lib/store/api/tasksApi.js`
 - `components/tabs/KanbanTab.jsx`
 
+### Fix Backlog ↔ Today DnD
+
+**Problem**: Dragging between Today and Backlog still snapped back or failed when Backlog priority grouping was enabled. Tasks were not added to backlog optimistically when unscheduling, and backlog-priority droppables were not treated as backlog sources for Today drops.
+
+**Solution**:
+1. Added optimistic backlog insertion when a task is unscheduled (recurrence set to `null`).
+2. Treated `backlog-priority|*` droppables as backlog sources for Today section drops.
+
+**Files Updated**:
+- `lib/store/api/tasksApi.js`
+- `components/tabs/TasksTab.jsx`
+
 ### Task Lookup Maps for O(1) Rendering
 
 **Problem**: Several per-row operations were repeatedly filtering/finding tasks, tags, and sections, which scales poorly as list sizes grow (especially during drag-and-drop and section grouping).

@@ -571,8 +571,8 @@ export function TasksTab() {
         return;
       }
 
-      // Backlog to Section
-      if (sourceId === "backlog" && destId.startsWith("section-")) {
+      // Backlog to Section (supports backlog-priority droppables)
+      if ((sourceId === "backlog" || sourceParsed.type === "backlog-priority") && destId.startsWith("section-")) {
         const destSectionId = destId.replace("section-", "");
         const destSection = sectionById.get(destSectionId);
 
