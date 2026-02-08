@@ -305,7 +305,7 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
     [debouncedSave]
   );
 
-  // Clear goal progress entry from a reflection (for cleaning up legacy data)
+  // Clear a goal progress entry from a reflection
   const handleClearGoalProgress = useCallback(
     (questionId, goalId) => {
       setResponses(prev => {

@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import { timeToMinutes } from "@/lib/utils";
 import { useTasksForToday } from "@/hooks/useTasksForToday";
 import { useBacklogTasks } from "@/hooks/useBacklogTasks";
+import { useNoteTasks } from "@/hooks/useNoteTasks";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
@@ -20,7 +21,7 @@ import { usePreferencesContext } from "@/hooks/usePreferencesContext";
  * @param {Object} options
  * @param {Set} options.recentlyCompletedTasks - Set of recently completed task IDs
  */
-export function useTaskFilters({ recentlyCompletedTasks } = {}) {
+export function useTaskFilters({ recentlyCompletedTasks, skip = false } = {}) {
   // Get state from Redux
   const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
   const todaySearchTerm = useSelector(state => state.ui.todaySearchTerm);
@@ -43,14 +44,15 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
   const showCompletedTasks = preferences.showCompletedTasks;
 
   // SEPARATE API CALLS - Each loads only what's needed
-  const { data: todayTasksRaw = [], isLoading: todayLoading } = useTasksForToday(viewDate);
+  const { data: todayTasksRaw = [], isLoading: todayLoading } = useTasksForToday(viewDate, { skip });
   const {
     data: backlogTasksRaw = [],
     rawTasks: backlogRawTasks = [],
     isLoading: backlogLoading,
     isFetching: backlogFetching,
-  } = useBacklogTasks();
+  } = useBacklogTasks({ skip });
   const { data: sections = [] } = useGetSectionsQuery();
+  const { data: noteTasks = [] } = useNoteTasks({ skip });
 
   // Completion helpers
   const { hasAnyCompletion, getLookupsForDate } = useCompletionHelpers();
@@ -246,18 +248,10 @@ export function useTaskFilters({ recentlyCompletedTasks } = {}) {
       }));
   }, [backlogTasksRaw, today, getLookupsForDate, hasAnyCompletion, recentlyCompleted]);
 
-  // Note tasks - still need legacy query for now
-  // TODO: Create separate /api/tasks/notes endpoint
-  const noteTasks = useMemo(() => {
-    // Notes are not included in today or backlog endpoints
-    // For now, return empty array - notes tab will need its own query
-    return [];
-  }, []);
-
   return useMemo(
     () => ({
       // Data
-      tasks: [...todayTasksRaw, ...backlogTasksRaw], // Combined for components that need all
+      tasks: [...todayTasksRaw, ...backlogTasksRaw, ...noteTasks], // Combined for components that need all
       sections,
       today,
       viewDate,

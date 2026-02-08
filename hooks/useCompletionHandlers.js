@@ -4,7 +4,7 @@ import { useRef, useCallback, useEffect, useMemo, startTransition } from "react"
 import { useDispatch, useSelector } from "react-redux";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
-import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
 import {
   useCreateCompletionMutation,
   useDeleteCompletionMutation,
@@ -53,11 +53,12 @@ export function useCompletionHandlers({
   const { preferences } = usePreferencesContext();
   const showCompletedTasks = preferences.showCompletedTasks;
 
-  // RTK Query hooks with deferred rendering
-  // Allow skipping the heavy all-tasks query when tasks are provided by a caller
-  const { data: tasksFromQuery = [] } = useTasksWithDeferred(undefined, {
-    skip: skipTasksQuery || Boolean(tasksOverride),
-  });
+  // Get tasks from specialized queries (today + backlog combined)
+  // Allow skipping when tasks are provided by a caller
+  const taskFilters = useTaskFilters({ skip: skipTasksQuery || Boolean(tasksOverride) });
+  const tasksFromQuery = skipTasksQuery || Boolean(tasksOverride)
+    ? []
+    : [...(taskFilters.todaysTasks || []), ...(taskFilters.backlogTasks || [])];
   const tasks = tasksOverride || tasksFromQuery;
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();

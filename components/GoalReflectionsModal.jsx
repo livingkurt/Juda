@@ -19,7 +19,7 @@ import {
 } from "@mui/material";
 import { Close, RadioButtonUnchecked, PlayCircle, CheckCircle, ArrowForward } from "@mui/icons-material";
 import dayjs from "dayjs";
-import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useGetRecurringTasksQuery } from "@/lib/store/api/tasksApi";
 import { useGetCompletionsQuery, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
 import {
   setMainTabIndex,
@@ -38,8 +38,8 @@ import {
 export const GoalReflectionsModal = ({ open, onClose, goalId, goalTitle }) => {
   const dispatch = useDispatch();
 
-  // Fetch all reflection tasks
-  const { data: allTasks = [], isLoading: tasksLoading } = useGetTasksQuery();
+  // Fetch all recurring tasks (includes reflections)
+  const { data: allTasks = [], isLoading: tasksLoading } = useGetRecurringTasksQuery();
 
   // Fetch all completions
   const { data: completionsData, isLoading: completionsLoading } = useGetCompletionsQuery();

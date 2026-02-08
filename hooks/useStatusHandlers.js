@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
-import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useCreateCompletionMutation, useDeleteCompletionMutation } from "@/lib/store/api/completionsApi";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
@@ -16,9 +16,16 @@ import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 export function useStatusHandlers({
   // This is passed from parent because it's managed by useCompletionHandlers hook
   addToRecentlyCompleted,
+  tasksOverride,
+  skipTasksQuery = false,
 } = {}) {
-  // RTK Query hooks with deferred rendering
-  const { data: tasks = [] } = useTasksWithDeferred();
+  // Get tasks from specialized queries (today + backlog combined)
+  const taskFilters = useTaskFilters({ skip: skipTasksQuery || Boolean(tasksOverride) });
+  const tasksFromQuery =
+    skipTasksQuery || Boolean(tasksOverride)
+      ? []
+      : [...(taskFilters.todaysTasks || []), ...(taskFilters.backlogTasks || [])];
+  const tasks = tasksOverride || tasksFromQuery;
   const { data: sections = [] } = useGetSectionsQuery();
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();

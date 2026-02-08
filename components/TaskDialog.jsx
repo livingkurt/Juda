@@ -53,7 +53,6 @@ import { TagChip } from "./TagChip";
 // import WorkoutBuilder from "./WorkoutBuilder";
 import WeekdaySelector from "./WeekdaySelector";
 import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
-import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery, useCreateTagMutation, useDeleteTagMutation } from "@/lib/store/api/tagsApi";
 import { useDialogState } from "@/hooks/useDialogState";
@@ -1948,10 +1947,10 @@ export const TaskDialog = () => {
   const dialogState = useDialogState();
   const { data: sections = [] } = useGetSectionsQuery();
   const { data: tags = [] } = useGetTagsQuery();
-  const { data: allTasks = [] } = useTasksWithDeferred();
+  const taskOps = useTaskOperations();
+  const allTasks = taskOps.tasks || [];
   const [createTagMutation] = useCreateTagMutation();
   const [deleteTagMutation] = useDeleteTagMutation();
-  const taskOps = useTaskOperations();
 
   const isOpen = dialogState.taskDialogOpen;
   const task = dialogState.editingTask;

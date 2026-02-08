@@ -121,10 +121,9 @@ export function WorkoutTab({ isLoading: tabLoading }) {
 
   const completions = workoutHistory?.completions || [];
   const program = workoutHistory?.program || null;
-  // Calculate total weeks from cycles (sum of all cycle numberOfWeeks)
   const totalWeeks = program?.cycles
     ? program.cycles.reduce((sum, cycle) => sum + (cycle.numberOfWeeks || 1), 0)
-    : program?.numberOfWeeks || 1; // Fallback for legacy data
+    : program?.numberOfWeeks || 1;
   const stats = buildSummaryStats(completions, selectedTask, totalWeeks);
 
   const handleStartWorkout = () => {

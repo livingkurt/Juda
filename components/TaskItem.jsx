@@ -36,10 +36,9 @@ import { TaskContextMenu } from "./TaskContextMenu";
 import { OutcomeCheckbox } from "./OutcomeCheckbox";
 import { useWorkoutProgress } from "@/hooks/useWorkoutProgress";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
-import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useTaskActions } from "@/hooks/useTaskActions";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useSelectionState } from "@/hooks/useSelectionState";
-import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useStatusHandlers } from "@/hooks/useStatusHandlers";
@@ -285,18 +284,19 @@ export const TaskItem = ({
   allTasksOverride, // Optional: provide tasks to avoid full fetch
 }) => {
   // Use hooks directly (they use Redux internally)
-  const taskOps = useTaskOperations();
+  const taskOps = useTaskActions({ tasks: allTasksOverride || [] });
   const completionHandlers = useCompletionHandlers({
     tasksOverride: allTasksOverride,
     skipTasksQuery: Boolean(allTasksOverride),
   });
   const selectionState = useSelectionState();
-  const { data: allTasks = [] } = useTasksWithDeferred(undefined, { skip: Boolean(allTasksOverride) });
-  const tasksForLookup = allTasksOverride || allTasks;
+  const tasksForLookup = allTasksOverride || [];
   const { getOutcomeOnDate, hasRecordOnDate, getCompletionForDate } = useCompletionHelpers();
   const dialogState = useDialogState();
   const statusHandlers = useStatusHandlers({
     addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
+    tasksOverride: allTasksOverride,
+    skipTasksQuery: Boolean(allTasksOverride),
   });
   const priorityHandlers = usePriorityHandlers();
 

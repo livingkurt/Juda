@@ -6,7 +6,7 @@ import { useTheme } from "@mui/material/styles";
 import { Repeat, FitnessCenter } from "@mui/icons-material";
 import { TaskContextMenu } from "./TaskContextMenu";
 import { OutcomeCheckbox } from "./OutcomeCheckbox";
-import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useTaskActions } from "@/hooks/useTaskActions";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { getTaskDisplayColor } from "@/lib/utils";
@@ -36,7 +36,7 @@ export const CalendarTask = memo(
     const taskRef = useRef(null);
 
     // Use hooks directly (they use Redux internally)
-    const taskOps = useTaskOperations();
+    const taskOps = useTaskActions({ tasks: allTasksOverride || [] });
     const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
     const completionHandlers = useCompletionHandlers({
       tasksOverride: allTasksOverride,

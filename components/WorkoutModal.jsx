@@ -69,10 +69,8 @@ export default function WorkoutModal() {
   // Keep ref in sync with state
   completionDataRef.current = completionData;
 
-  // Get cycles from workout program
   const cycles = useMemo(() => {
     const cyclesData = workoutProgram?.cycles || [];
-    // If no cycles but sections exist (legacy data), wrap in default cycle
     if (cyclesData.length === 0 && workoutProgram?.sections) {
       return [
         {

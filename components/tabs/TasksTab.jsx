@@ -113,9 +113,6 @@ export function TasksTab() {
   };
 
   // Data queries with loading state
-  // REMOVED useTasksWithDeferred (legacy all-tasks query)
-  // TasksTab now relies on child components (TodayView, BacklogDrawer) to fetch their own data
-  // via useTaskFilters which uses the new optimized endpoints
   const { data: sections = [] } = useGetSectionsQuery();
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
@@ -155,8 +152,6 @@ export function TasksTab() {
   const tasksLoading = taskFilters.isLoading;
   const isLoadingMore = false; // Not using pagination currently
 
-  // We still need a 'tasks' array for some legacy logic or prop passing
-  // Combine today + backlog tasks from filters
   const tasks = taskFilters.tasks;
 
   const backlogTasks = taskFilters.backlogTasks;

@@ -36,7 +36,6 @@ import {
 import { EXERCISE_TYPES, WORKOUT_SECTION_TYPES, DAYS_OF_WEEK } from "@/lib/constants";
 import { useGetWorkoutProgramQuery, useSaveWorkoutProgramMutation } from "@/lib/store/api/workoutProgramsApi";
 import { useDialogState } from "@/hooks/useDialogState";
-import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
 import { useTheme, useMediaQuery } from "@mui/material";
 import { useDispatch } from "react-redux";
 import { showError, showSuccess } from "@/lib/store/slices/snackbarSlice";
@@ -713,7 +712,6 @@ export default function WorkoutBuilder({
 } = {}) {
   const dispatch = useDispatch();
   const dialogState = useDialogState();
-  const { refetch: refetchTasks } = useGetTasksQuery();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   // Support both prop-controlled and dialogState-controlled modes
@@ -761,8 +759,8 @@ export default function WorkoutBuilder({
       dialogState.setEditingWorkoutTask(null);
     }
     resetState();
-    refetchTasks();
-  }, [propsOnSaveComplete, dialogState, resetState, refetchTasks]);
+    // RTK Query automatically invalidates and refetches workout tasks after save
+  }, [propsOnSaveComplete, dialogState, resetState]);
 
   // Toggle exercise progression expansion
   const toggleExerciseProgression = useCallback(exerciseId => {

@@ -1,5 +1,79 @@
 # Project Decisions Log
 
+## 2026-02-08
+
+### Replace Legacy All-Tasks Hook and Prevent Per-Item Fetching
+
+**Problem**: Removing `useTasksWithDeferred` caused build errors and, after migration, per-item hooks (like `TaskItem` and `CalendarTask`) were triggering heavy task fetching and filter computation, slowing the UI.
+
+**Solution**:
+
+1. **Removed Legacy Hook**
+   - Deleted `hooks/useTasksWithDeferred.js`
+   - Replaced all imports with specialized query usage (`useTaskFilters`) or `useTaskOperations` data
+
+2. **Added Lightweight Task Actions Hook**
+   - **New**: `hooks/useTaskActions.js`
+   - Provides task handlers (edit, delete, duplicate, subtask, toggle expand) without fetching tasks
+   - Accepts `tasks` as input for lookups, preventing per-item network overhead
+
+3. **Prevented Per-Item Fetching**
+   - `TaskItem` and `CalendarTask` now use `useTaskActions` and rely on `allTasksOverride`
+   - `useCompletionHandlers` and `useStatusHandlers` now accept `skipTasksQuery` and `tasksOverride`
+   - `useTaskFilters` accepts `skip` to avoid unnecessary query work
+
+4. **Preserved Performance Optimizations**
+   - Kept specialized endpoints (`/api/tasks/today`, `/api/tasks/backlog`)
+   - Deferred rendering preserved in `useTasksForToday` and `useBacklogTasks`
+   - Reduced redundant work across large task lists
+
+**Files Updated**:
+- `hooks/useTaskActions.js` (new)
+- `hooks/useTaskFilters.js` (skip support)
+- `hooks/useNoteTasks.js` (used for notes)
+- `hooks/useCompletionHandlers.js` (skip support)
+- `hooks/useStatusHandlers.js` (skip support)
+- `components/TaskItem.jsx` (useTaskActions)
+- `components/CalendarTask.jsx` (useTaskActions)
+
+### Remove Legacy Notes Placeholder
+
+**Problem**: `useTaskFilters` still had legacy placeholder code returning empty notes, even though `/api/tasks/notes` and `useNoteTasks` already exist.
+
+**Solution**:
+1. Switched `useTaskFilters` to use `useNoteTasks`
+2. Added notes into the combined `tasks` list for components that need all tasks
+3. Removed outdated legacy comments
+
+**Files Updated**:
+- `hooks/useTaskFilters.js`
+
+### Remove Legacy Comments
+
+**Problem**: Several files still contained "legacy" comments after the migration work.
+
+**Solution**: Removed legacy-only comments while keeping functional compatibility paths intact.
+
+**Files Updated**:
+- `components/ReflectionEntry.jsx`
+- `components/WorkoutExerciseProgress.jsx`
+- `components/WorkoutModal.jsx`
+- `components/WorkoutProgressCalendar.jsx`
+- `components/tabs/TasksTab.jsx`
+- `components/tabs/WorkoutTab.jsx`
+
+### Restore Snappy SSE Updates
+
+**Problem**: Task SSE updates were invalidating caches instead of directly patching them, which caused slower UI updates during sync events.
+
+**Solution**:
+1. Added direct cache patching for task-related SSE updates.
+2. Applied task inclusion checks per endpoint to keep caches correct without refetch.
+3. Kept specialized endpoint behavior (today/backlog/calendar/notes/workout/recurring).
+
+**Files Updated**:
+- `lib/store/sseSyncMiddleware.js`
+
 ## 2026-02-05
 
 ### React useEffect setState Pattern - Proper Implementation

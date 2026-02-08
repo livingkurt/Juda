@@ -9,7 +9,7 @@ import {
   useDeleteTaskMutation,
   useBatchSaveTasksMutation,
 } from "@/lib/store/api/tasksApi";
-import { useTasksWithDeferred } from "@/hooks/useTasksWithDeferred";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
 import {
@@ -36,8 +36,13 @@ export function useTaskOperations() {
     return todayViewDateISO ? new Date(todayViewDateISO) : new Date();
   }, [todayViewDateISO]);
 
-  // RTK Query hooks with deferred rendering
-  const { data: tasks = [], refetch: fetchTasks } = useTasksWithDeferred();
+  // Get tasks from specialized queries (today + backlog combined)
+  const taskFilters = useTaskFilters();
+  const tasks = useMemo(() => {
+    // Combine today's tasks and backlog tasks for operations that need all tasks
+    return [...taskFilters.todaysTasks, ...taskFilters.backlogTasks];
+  }, [taskFilters.todaysTasks, taskFilters.backlogTasks]);
+
   const { data: sections = [] } = useGetSectionsQuery();
   const [createTaskMutation] = useCreateTaskMutation();
   const [updateTaskMutation] = useUpdateTaskMutation();
@@ -374,15 +379,14 @@ export function useTaskOperations() {
 
         await createTask(taskData);
 
-        await fetchTasks();
-
+        // RTK Query will automatically refetch due to invalidatesTags
         console.warn("Subtask created");
       } catch (error) {
         const errorMessage = error?.message || error?.toString() || "Unknown error";
         console.error("Failed to create subtask:", errorMessage);
       }
     },
-    [tasks, createTask, fetchTasks]
+    [tasks, createTask]
   );
 
   // Create backlog task inline
@@ -477,7 +481,6 @@ export function useTaskOperations() {
       duplicateTask,
       saveTask,
       batchUpdateTaskTags,
-      fetchTasks,
 
       // Handler functions
       handleEditTask,
@@ -508,7 +511,6 @@ export function useTaskOperations() {
       duplicateTask,
       saveTask,
       batchUpdateTaskTags,
-      fetchTasks,
       handleEditTask,
       handleEditWorkout,
       handleUpdateTaskTitle,
