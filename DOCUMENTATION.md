@@ -789,3 +789,8 @@
 - Stabilized calendar preference setter callbacks in `TasksTab` so memoized children keep stable props during drag.
 - Removed `contain: layout style` from droppable containers and removed section-level `will-change: transform` to prevent dragged items from disappearing in Today view.
 - Fired `reorderTask` without awaiting it in Today section drops so `batchReorderTasksMutation` applies immediately, preventing snapback before the list updates.
+
+### iPad touch resize handles
+
+- Fixed touch resizing regression by showing resize handles on all breakpoints for backlog/today and notes panels.
+- Kept existing touch event handlers and `touchAction: "none"` so iPad drag resizing works as before.

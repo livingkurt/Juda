@@ -1228,7 +1228,7 @@ export function TasksTab() {
                     zIndex: 10,
                     userSelect: "none",
                     touchAction: "none",
-                    display: { xs: "none", md: "block" },
+                    display: "block",
                     "&:hover": {
                       bgcolor: "primary.main",
                     },
