@@ -1506,7 +1506,12 @@ export const TaskItem = ({
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            sx={{ width: "100%", maxWidth: "100%", opacity: snapshot.isDragging ? 0.5 : 1 }}
+            sx={{
+              width: "100%",
+              maxWidth: "100%",
+              opacity: snapshot.isDragging ? 0.5 : 1,
+              willChange: "transform",
+            }}
           >
             {taskContent}
           </Box>

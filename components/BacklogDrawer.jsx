@@ -533,121 +533,130 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                           droppableId={priorityDroppableId}
                           type="TASK"
                         >
-                          {(provided, snapshot) => (
-                            <Box
-                              ref={provided.innerRef}
-                              {...provided.droppableProps}
-                              sx={{
-                                minHeight: group.tasks.length === 0 ? 80 : "auto",
-                                borderRadius: 0,
-                                bgcolor: "transparent",
-                                transition: "background-color 0.2s",
-                                border: 0,
-                                borderColor: "transparent",
-                              }}
-                            >
-                              {shouldShowDivider && (
-                                <Box
-                                  sx={{
-                                    my: 1.5,
-                                    mx: 1,
-                                    borderTop: 1,
-                                    borderColor: "divider",
-                                  }}
-                                />
-                              )}
-                              {/* Group Label with Quick Task Input */}
+                          {(provided, snapshot) => {
+                            const dragOverStyles = snapshot.isDraggingOver
+                              ? {
+                                  minHeight: 80,
+                                }
+                              : {};
+
+                            return (
                               <Box
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
                                 sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 1,
-                                  px: 1,
-                                  py: 0.75,
-                                  mb: 0.5,
+                                  minHeight: group.tasks.length === 0 ? 80 : undefined,
+                                  borderRadius: 0,
+                                  bgcolor: "transparent",
+                                  transition: "background-color 0.2s, min-height 0.2s",
+                                  border: 0,
+                                  borderColor: "transparent",
+                                  ...dragOverStyles,
                                 }}
                               >
-                                {IconComponent && (
-                                  <IconComponent
-                                    fontSize="small"
-                                    sx={{
-                                      color: labelColor,
-                                      fontSize: "1rem",
-                                      flexShrink: 0,
-                                    }}
-                                  />
-                                )}
-                                <Typography
-                                  variant="caption"
-                                  sx={{
-                                    fontSize: "0.75rem",
-                                    fontWeight: 600,
-                                    color: labelColor,
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.05em",
-                                    flexShrink: 0,
-                                    minWidth: "fit-content",
-                                  }}
-                                >
-                                  {group.label}
-                                </Typography>
-                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                  <QuickTaskInput
-                                    placeholder={`Add ${group.label.toLowerCase()} task...`}
-                                    onCreate={title => handleCreateQuickTaskWithPriority(title, priority || null)}
-                                    size="small"
-                                    variant="standard"
-                                    showUnderlineWhenActive={false}
-                                    sx={{
-                                      "& .MuiInputBase-root": {
-                                        fontSize: "0.75rem",
-                                      },
-                                    }}
-                                  />
-                                </Box>
-                              </Box>
-                              <Stack spacing={1}>
-                                {group.tasks.map((task, taskIndex) => (
-                                  <TaskItem
-                                    key={task.id}
-                                    task={task}
-                                    variant="backlog"
-                                    index={taskIndex}
-                                    containerId={priorityDroppableId}
-                                    draggableId={task.draggableId}
-                                    viewDate={viewDate}
-                                    allTasksOverride={taskFilters.tasks}
-                                    shared={taskItemShared}
-                                    meta={taskItemShared?.taskMetaById?.get(task.id)}
-                                  />
-                                ))}
-                                {group.tasks.length === 0 && snapshot.isDraggingOver && (
+                                {shouldShowDivider && (
                                   <Box
                                     sx={{
-                                      py: 2,
-                                      px: 1,
-                                      textAlign: "center",
-                                      color: "text.secondary",
+                                      my: 1.5,
+                                      mx: 1,
+                                      borderTop: 1,
+                                      borderColor: "divider",
+                                    }}
+                                  />
+                                )}
+                                {/* Group Label with Quick Task Input */}
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    px: 1,
+                                    py: 0.75,
+                                    mb: 0.5,
+                                  }}
+                                >
+                                  {IconComponent && (
+                                    <IconComponent
+                                      fontSize="small"
+                                      sx={{
+                                        color: labelColor,
+                                        fontSize: "1rem",
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                  )}
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
                                       fontSize: "0.75rem",
+                                      fontWeight: 600,
+                                      color: labelColor,
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.05em",
+                                      flexShrink: 0,
+                                      minWidth: "fit-content",
                                     }}
                                   >
-                                    Drop here to assign {group.label.toLowerCase()} priority
-                                  </Box>
-                                )}
-                                {visibleCount < filteredTasks.length && (
-                                  <Box sx={{ display: "flex", justifyContent: "center", pt: 1 }}>
-                                    <Button
+                                    {group.label}
+                                  </Typography>
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <QuickTaskInput
+                                      placeholder={`Add ${group.label.toLowerCase()} task...`}
+                                      onCreate={title => handleCreateQuickTaskWithPriority(title, priority || null)}
                                       size="small"
-                                      onClick={() => setExtraCount(count => count + INITIAL_RENDER_COUNT)}
-                                    >
-                                      Load more
-                                    </Button>
+                                      variant="standard"
+                                      showUnderlineWhenActive={false}
+                                      sx={{
+                                        "& .MuiInputBase-root": {
+                                          fontSize: "0.75rem",
+                                        },
+                                      }}
+                                    />
                                   </Box>
-                                )}
-                                {provided.placeholder}
-                              </Stack>
-                            </Box>
-                          )}
+                                </Box>
+                                <Stack spacing={1}>
+                                  {group.tasks.map((task, taskIndex) => (
+                                    <TaskItem
+                                      key={task.id}
+                                      task={task}
+                                      variant="backlog"
+                                      index={taskIndex}
+                                      containerId={priorityDroppableId}
+                                      draggableId={task.draggableId}
+                                      viewDate={viewDate}
+                                      allTasksOverride={taskFilters.tasks}
+                                      shared={taskItemShared}
+                                      meta={taskItemShared?.taskMetaById?.get(task.id)}
+                                    />
+                                  ))}
+                                  {group.tasks.length === 0 && snapshot.isDraggingOver && (
+                                    <Box
+                                      sx={{
+                                        py: 2,
+                                        px: 1,
+                                        textAlign: "center",
+                                        color: "text.secondary",
+                                        fontSize: "0.75rem",
+                                      }}
+                                    >
+                                      Drop here to assign {group.label.toLowerCase()} priority
+                                    </Box>
+                                  )}
+                                  {visibleCount < filteredTasks.length && (
+                                    <Box sx={{ display: "flex", justifyContent: "center", pt: 1 }}>
+                                      <Button
+                                        size="small"
+                                        onClick={() => setExtraCount(count => count + INITIAL_RENDER_COUNT)}
+                                      >
+                                        Load more
+                                      </Button>
+                                    </Box>
+                                  )}
+                                  {provided.placeholder}
+                                </Stack>
+                              </Box>
+                            );
+                          }}
                         </Droppable>
                       );
                     })}
@@ -682,11 +691,11 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                 {...provided.droppableProps}
                 sx={{
                   flex: 1,
-                  minHeight: 0,
+                  minHeight: snapshot.isDraggingOver || tasksWithIds.length === 0 ? 48 : 0,
                   overflowY: "auto",
                   p: tasksWithIds.length === 0 ? { xs: 1.5, md: 2 } : { xs: 0.5, md: 1 },
                   borderRadius: 1,
-                  transition: "background-color 0.2s, padding 0.2s",
+                  transition: "background-color 0.2s, padding 0.2s, min-height 0.2s",
                   width: "100%",
                   maxWidth: "100%",
                 }}
@@ -770,113 +779,126 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                 droppableId={priorityDroppableId}
                                 type="TASK"
                               >
-                                {(provided, snapshot) => (
-                                  <Box
-                                    ref={provided.innerRef}
-                                    {...provided.droppableProps}
-                                    sx={{
-                                      minHeight: group.tasks.length === 0 ? 80 : "auto",
-                                      borderRadius: snapshot.isDraggingOver ? 1 : 0,
-                                      bgcolor: snapshot.isDraggingOver ? "action.hover" : "transparent",
-                                      transition: "background-color 0.2s",
-                                      border: snapshot.isDraggingOver && group.tasks.length === 0 ? 2 : 0,
-                                      borderColor:
-                                        snapshot.isDraggingOver && group.tasks.length === 0
-                                          ? "primary.main"
-                                          : "transparent",
-                                      borderStyle: "dashed",
-                                    }}
-                                  >
-                                    {shouldShowDivider && (
-                                      <Box
-                                        sx={{
-                                          my: 1.5,
-                                          mx: 1,
-                                          borderTop: 1,
-                                          borderColor: "divider",
-                                        }}
-                                      />
-                                    )}
-                                    {/* Group Label with Quick Task Input */}
+                                {(provided, snapshot) => {
+                                  const dragOverStyles = snapshot.isDraggingOver
+                                    ? {
+                                        borderRadius: 1,
+                                        bgcolor: "action.hover",
+                                        transition: "background-color 0.2s, min-height 0.2s",
+                                        border: group.tasks.length === 0 ? 2 : 0,
+                                        borderColor: group.tasks.length === 0 ? "primary.main" : "transparent",
+                                      }
+                                    : {
+                                        borderRadius: 0,
+                                        bgcolor: "transparent",
+                                        transition: "background-color 0.2s, min-height 0.2s",
+                                        border: 0,
+                                        borderColor: "transparent",
+                                      };
+
+                                  return (
                                     <Box
+                                      ref={provided.innerRef}
+                                      {...provided.droppableProps}
                                       sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 1,
-                                        px: 1,
-                                        py: 0.75,
-                                        mb: 0.5,
+                                        minHeight: snapshot.isDraggingOver || group.tasks.length === 0 ? 80 : undefined,
+                                        borderStyle: "dashed",
+                                        ...dragOverStyles,
                                       }}
                                     >
-                                      {IconComponent && (
-                                        <IconComponent
-                                          fontSize="small"
-                                          sx={{
-                                            color: labelColor,
-                                            fontSize: "1rem",
-                                            flexShrink: 0,
-                                          }}
-                                        />
-                                      )}
-                                      <Typography
-                                        variant="caption"
-                                        sx={{
-                                          fontSize: "0.75rem",
-                                          fontWeight: 600,
-                                          color: labelColor,
-                                          textTransform: "uppercase",
-                                          letterSpacing: "0.05em",
-                                          flexShrink: 0,
-                                          minWidth: "fit-content",
-                                        }}
-                                      >
-                                        {group.label}
-                                      </Typography>
-                                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                                        <QuickTaskInput
-                                          placeholder={`Add ${group.label.toLowerCase()} task...`}
-                                          onCreate={title => handleCreateQuickTaskWithPriority(title, priority || null)}
-                                          size="small"
-                                          variant="standard"
-                                          showUnderlineWhenActive={false}
-                                          sx={{
-                                            "& .MuiInputBase-root": {
-                                              fontSize: "0.75rem",
-                                            },
-                                          }}
-                                        />
-                                      </Box>
-                                    </Box>
-                                    <Stack spacing={1}>
-                                      {group.tasks.map((task, taskIndex) => (
-                                        <TaskItem
-                                          key={task.id}
-                                          task={task}
-                                          variant="backlog"
-                                          index={taskIndex}
-                                          containerId={priorityDroppableId}
-                                          draggableId={task.draggableId}
-                                          viewDate={viewDate}
-                                          allTasksOverride={taskFilters.tasks}
-                                        />
-                                      ))}
-                                      {group.tasks.length === 0 && snapshot.isDraggingOver && (
+                                      {shouldShowDivider && (
                                         <Box
                                           sx={{
-                                            py: 2,
-                                            px: 1,
-                                            textAlign: "center",
-                                            color: "text.secondary",
+                                            my: 1.5,
+                                            mx: 1,
+                                            borderTop: 1,
+                                            borderColor: "divider",
+                                          }}
+                                        />
+                                      )}
+                                      {/* Group Label with Quick Task Input */}
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 1,
+                                          px: 1,
+                                          py: 0.75,
+                                          mb: 0.5,
+                                        }}
+                                      >
+                                        {IconComponent && (
+                                          <IconComponent
+                                            fontSize="small"
+                                            sx={{
+                                              color: labelColor,
+                                              fontSize: "1rem",
+                                              flexShrink: 0,
+                                            }}
+                                          />
+                                        )}
+                                        <Typography
+                                          variant="caption"
+                                          sx={{
                                             fontSize: "0.75rem",
+                                            fontWeight: 600,
+                                            color: labelColor,
+                                            textTransform: "uppercase",
+                                            letterSpacing: "0.05em",
+                                            flexShrink: 0,
+                                            minWidth: "fit-content",
                                           }}
                                         >
-                                          Drop here to assign {group.label.toLowerCase()} priority
+                                          {group.label}
+                                        </Typography>
+                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                          <QuickTaskInput
+                                            placeholder={`Add ${group.label.toLowerCase()} task...`}
+                                            onCreate={title =>
+                                              handleCreateQuickTaskWithPriority(title, priority || null)
+                                            }
+                                            size="small"
+                                            variant="standard"
+                                            showUnderlineWhenActive={false}
+                                            sx={{
+                                              "& .MuiInputBase-root": {
+                                                fontSize: "0.75rem",
+                                              },
+                                            }}
+                                          />
                                         </Box>
-                                      )}
-                                      {provided.placeholder}
-                                    </Stack>
-                                  </Box>
-                                )}
+                                      </Box>
+                                      <Stack spacing={1}>
+                                        {group.tasks.map((task, taskIndex) => (
+                                          <TaskItem
+                                            key={task.id}
+                                            task={task}
+                                            variant="backlog"
+                                            index={taskIndex}
+                                            containerId={priorityDroppableId}
+                                            draggableId={task.draggableId}
+                                            viewDate={viewDate}
+                                            allTasksOverride={taskFilters.tasks}
+                                          />
+                                        ))}
+                                        {group.tasks.length === 0 && snapshot.isDraggingOver && (
+                                          <Box
+                                            sx={{
+                                              py: 2,
+                                              px: 1,
+                                              textAlign: "center",
+                                              color: "text.secondary",
+                                              fontSize: "0.75rem",
+                                            }}
+                                          >
+                                            Drop here to assign {group.label.toLowerCase()} priority
+                                          </Box>
+                                        )}
+                                        {provided.placeholder}
+                                      </Stack>
+                                    </Box>
+                                  );
+                                }}
                               </Droppable>
                             );
                           }

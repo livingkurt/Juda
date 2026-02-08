@@ -86,32 +86,41 @@ export function TasksTab() {
 
   const setShowCompletedTasks = useCallback(value => updatePreference("showCompletedTasks", value), [updatePreference]);
 
-  const setShowCompletedTasksCalendar = updater => {
-    if (typeof updater === "function") {
-      const newValue = updater(showCompletedTasksCalendar);
-      updatePreference("showCompletedTasksCalendar", newValue);
-    } else {
-      updatePreference("showCompletedTasksCalendar", updater);
-    }
-  };
+  const setShowCompletedTasksCalendar = useCallback(
+    updater => {
+      if (typeof updater === "function") {
+        const newValue = updater(showCompletedTasksCalendar);
+        updatePreference("showCompletedTasksCalendar", newValue);
+      } else {
+        updatePreference("showCompletedTasksCalendar", updater);
+      }
+    },
+    [showCompletedTasksCalendar, updatePreference]
+  );
 
-  const setShowRecurringTasks = updater => {
-    if (typeof updater === "function") {
-      const newValue = updater(showRecurringTasks);
-      updatePreference("showRecurringTasks", newValue);
-    } else {
-      updatePreference("showRecurringTasks", updater);
-    }
-  };
+  const setShowRecurringTasks = useCallback(
+    updater => {
+      if (typeof updater === "function") {
+        const newValue = updater(showRecurringTasks);
+        updatePreference("showRecurringTasks", newValue);
+      } else {
+        updatePreference("showRecurringTasks", updater);
+      }
+    },
+    [showRecurringTasks, updatePreference]
+  );
 
-  const setCalendarZoom = updater => {
-    if (typeof updater === "function") {
-      const newZoom = updater(calendarZoom);
-      updatePreference("calendarZoom", newZoom);
-    } else {
-      updatePreference("calendarZoom", updater);
-    }
-  };
+  const setCalendarZoom = useCallback(
+    updater => {
+      if (typeof updater === "function") {
+        const newZoom = updater(calendarZoom);
+        updatePreference("calendarZoom", newZoom);
+      } else {
+        updatePreference("calendarZoom", updater);
+      }
+    },
+    [calendarZoom, updatePreference]
+  );
 
   // Data queries with loading state
   const { data: sections = [] } = useGetSectionsQuery();
@@ -799,9 +808,6 @@ export function TasksTab() {
 
         updateTaskMutation(allUpdates);
 
-        // Update sectionId and order via reorderTask
-        await reorderTask(taskId, sourceSectionId, destSectionId, destination.index);
-
         if (sourceSectionId === destSectionId) {
           const sourceTasks = [...destSectionTasks]
             .filter(t => !t.parentId)
@@ -825,6 +831,7 @@ export function TasksTab() {
 
           const updates = sourceTasks.map((t, idx) => ({ id: t.id, order: idx }));
           batchReorderTasksMutation(updates);
+          reorderTask(taskId, sourceSectionId, destSectionId, destination.index).catch(() => {});
           return;
         }
 
@@ -847,9 +854,8 @@ export function TasksTab() {
         destTasks.splice(destination.index, 0, task);
         const destUpdates = destTasks.map((t, idx) => ({ id: t.id, order: idx }));
 
-        // Update sectionId and order via reorderTask
-        await reorderTask(taskId, sourceSectionId, destSectionId, destination.index);
         batchReorderTasksMutation([...sourceUpdates, ...destUpdates]);
+        reorderTask(taskId, sourceSectionId, destSectionId, destination.index).catch(() => {});
         return;
       }
     },

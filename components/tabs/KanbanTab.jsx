@@ -140,6 +140,7 @@ const KanbanColumn = memo(function KanbanColumn({
               borderRadius: 1,
               border: 2,
               borderColor: "divider",
+              minHeight: snapshot.isDraggingOver || visibleTasks.length === 0 ? 100 : undefined,
               maxHeight: "calc(100vh - 300px)",
               overflowY: "auto",
               p: 1,

@@ -206,65 +206,71 @@ const SectionCardComponent = ({
           }}
         >
           <Droppable droppableId={`section-${section.id}`} type="TASK">
-            {(droppableProvided, droppableSnapshot) => (
-              <Box
-                ref={droppableProvided.innerRef}
-                {...droppableProvided.droppableProps}
-                sx={{
-                  borderRadius: 1,
-                  minHeight: tasksWithIds.length === 0 ? { xs: 80, md: 120 } : { xs: 40, md: 60 },
-                  p: tasksWithIds.length === 0 ? { xs: 2, md: 3 } : { xs: 1, md: 1.5 },
-                  transition: "background-color 0.2s, padding 0.2s, min-height 0.2s",
-                }}
-              >
-                {tasksWithIds.length === 0 ? (
-                  <Stack spacing={1}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontSize: { xs: "0.75rem", md: "0.875rem" },
-                        textAlign: "center",
-                        py: { xs: 2, md: 4 },
-                        color: "text.secondary",
-                      }}
-                    >
-                      {droppableSnapshot.isDraggingOver ? "Drop here" : "No tasks"}
-                    </Typography>
-                    <QuickTaskInput
-                      placeholder="New task..."
-                      onCreate={handleCreateQuickTask}
-                      size="small"
-                      variant="standard"
-                    />
-                  </Stack>
-                ) : (
-                  <Stack spacing={{ xs: 1, md: 1.5 }} sx={{ py: { xs: 0.5, md: 1 } }}>
-                    {tasksWithIds.map((task, index) => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        variant="today"
-                        index={index}
-                        containerId={droppableId}
-                        hoveredDroppable={hoveredDroppable}
-                        draggableId={task.draggableId}
-                        viewDate={viewDate}
-                        allTasksOverride={taskFilters.tasks}
-                        shared={taskItemShared}
-                        meta={taskItemShared?.taskMetaById?.get(task.id)}
+            {(droppableProvided, droppableSnapshot) => {
+              const droppableMinHeight =
+                droppableSnapshot.isDraggingOver || tasksWithIds.length === 0 ? { xs: 80, md: 120 } : undefined;
+
+              return (
+                <Box
+                  ref={droppableProvided.innerRef}
+                  {...droppableProvided.droppableProps}
+                  sx={{
+                    borderRadius: 1,
+                    minHeight:
+                      droppableMinHeight ?? (tasksWithIds.length === 0 ? { xs: 80, md: 120 } : { xs: 40, md: 60 }),
+                    p: tasksWithIds.length === 0 ? { xs: 2, md: 3 } : { xs: 1, md: 1.5 },
+                    transition: "background-color 0.2s, padding 0.2s, min-height 0.2s",
+                  }}
+                >
+                  {tasksWithIds.length === 0 ? (
+                    <Stack spacing={1}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: { xs: "0.75rem", md: "0.875rem" },
+                          textAlign: "center",
+                          py: { xs: 2, md: 4 },
+                          color: "text.secondary",
+                        }}
+                      >
+                        {droppableSnapshot.isDraggingOver ? "Drop here" : "No tasks"}
+                      </Typography>
+                      <QuickTaskInput
+                        placeholder="New task..."
+                        onCreate={handleCreateQuickTask}
+                        size="small"
+                        variant="standard"
                       />
-                    ))}
-                    {droppableProvided.placeholder}
-                    <QuickTaskInput
-                      placeholder="New task..."
-                      onCreate={handleCreateQuickTask}
-                      size="small"
-                      variant="standard"
-                    />
-                  </Stack>
-                )}
-              </Box>
-            )}
+                    </Stack>
+                  ) : (
+                    <Stack spacing={{ xs: 1, md: 1.5 }} sx={{ py: { xs: 0.5, md: 1 } }}>
+                      {tasksWithIds.map((task, index) => (
+                        <TaskItem
+                          key={task.id}
+                          task={task}
+                          variant="today"
+                          index={index}
+                          containerId={droppableId}
+                          hoveredDroppable={hoveredDroppable}
+                          draggableId={task.draggableId}
+                          viewDate={viewDate}
+                          allTasksOverride={taskFilters.tasks}
+                          shared={taskItemShared}
+                          meta={taskItemShared?.taskMetaById?.get(task.id)}
+                        />
+                      ))}
+                      {droppableProvided.placeholder}
+                      <QuickTaskInput
+                        placeholder="New task..."
+                        onCreate={handleCreateQuickTask}
+                        size="small"
+                        variant="standard"
+                      />
+                    </Stack>
+                  )}
+                </Box>
+              );
+            }}
           </Droppable>
         </Box>
       </Collapse>

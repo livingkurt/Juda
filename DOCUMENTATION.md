@@ -779,3 +779,13 @@
 - Added per-endpoint relevance checks in `lib/store/sseSyncMiddleware.js` so task SSE updates only patch caches that are relevant to the task or already contain it.
 - Included the previous task snapshot in task update and delete broadcasts to correctly clean up source caches when tasks move between views or are removed.
 - Added a debug flag (`localStorage.sseDebug = "true"`) to log which task caches are patched vs skipped.
+
+## 2026-02-08
+
+### Drag and drop layout optimization
+
+- Added `will-change: transform` to draggable wrappers in `TaskItem` and section drag containers for smoother compositor promotion.
+- Added `contain: layout style` and defensive `min-height` to DnD droppable containers in Backlog, Today sections, Kanban columns, and Goals lists to reduce layout recalculation scope.
+- Stabilized calendar preference setter callbacks in `TasksTab` so memoized children keep stable props during drag.
+- Removed `contain: layout style` from droppable containers and removed section-level `will-change: transform` to prevent dragged items from disappearing in Today view.
+- Fired `reorderTask` without awaiting it in Today section drops so `batchReorderTasksMutation` applies immediately, preventing snapback before the list updates.

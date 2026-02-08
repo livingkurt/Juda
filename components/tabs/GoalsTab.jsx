@@ -315,8 +315,16 @@ export function GoalsTab({ isLoading }) {
             <Box>
               <DragDropContext onDragEnd={handleDragEnd}>
                 <Droppable droppableId={`goals-yearly-${selectedYear}`}>
-                  {provided => (
-                    <Stack spacing={1} ref={provided.innerRef} {...provided.droppableProps}>
+                  {(provided, snapshot) => (
+                    <Stack
+                      spacing={1}
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      sx={{
+                        minHeight: snapshot.isDraggingOver || yearlyGoals.length === 0 ? 48 : undefined,
+                        transition: "min-height 0.2s ease",
+                      }}
+                    >
                       {yearlyGoals.map((goal, index) => (
                         <TaskItem
                           key={goal.id}
@@ -353,8 +361,16 @@ export function GoalsTab({ isLoading }) {
           <Box>
             <DragDropContext onDragEnd={handleDragEnd}>
               <Droppable droppableId={`goals-monthly-${selectedYear}-${selectedMonth}`}>
-                {provided => (
-                  <Stack spacing={1} ref={provided.innerRef} {...provided.droppableProps}>
+                {(provided, snapshot) => (
+                  <Stack
+                    spacing={1}
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    sx={{
+                      minHeight: snapshot.isDraggingOver || selectedMonthGoals.length === 0 ? 48 : undefined,
+                      transition: "min-height 0.2s ease",
+                    }}
+                  >
                     {selectedMonthGoals.map((goal, index) => (
                       <TaskItem
                         key={goal.id}
