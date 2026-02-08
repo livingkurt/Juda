@@ -400,14 +400,10 @@ export function useTaskOperations() {
           recurrence: null,
           status: "todo", // Backlog tasks should have status: todo
           priority: priority || null,
+          tagIds: tagIds && tagIds.length > 0 ? tagIds : undefined, // Include tagIds in initial request
           subtasks: [],
           order: 999,
         });
-
-        // Apply tags if provided
-        if (tagIds && tagIds.length > 0) {
-          await batchUpdateTaskTags(newTask.id, tagIds);
-        }
 
         dispatch(showSuccess({ message: "Task created" }));
         return newTask;
@@ -418,7 +414,7 @@ export function useTaskOperations() {
         throw error; // Re-throw so caller can handle it
       }
     },
-    [createTask, batchUpdateTaskTags, dispatch]
+    [createTask, dispatch]
   );
 
   // Create kanban task inline
