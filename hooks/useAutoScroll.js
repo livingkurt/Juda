@@ -14,7 +14,7 @@ export function useAutoScroll({ todayViewDate, computedSections, tasksBySection,
     // On desktop, we need the container ref. On mobile, we scroll the window.
     if (!isMobile && !todayScrollContainerRef.current) return;
     // Wait for tasks to be loaded
-    if (computedSections.length === 0 || Object.keys(tasksBySection).length === 0) return;
+    if (computedSections.length === 0 || tasksBySection.size === 0) return;
 
     const scrollToNextIncompleteTask = () => {
       // Find the first incomplete task across all sections
@@ -22,7 +22,7 @@ export function useAutoScroll({ todayViewDate, computedSections, tasksBySection,
 
       // Iterate through sections in order
       for (const section of computedSections) {
-        const sectionTasks = tasksBySection[section.id] || [];
+        const sectionTasks = tasksBySection.get(section.id) || [];
 
         // Find first incomplete task in this section
         for (const task of sectionTasks) {

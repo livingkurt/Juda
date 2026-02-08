@@ -21,6 +21,7 @@ import { Close, RadioButtonUnchecked, PlayCircle, CheckCircle, ArrowForward } fr
 import dayjs from "dayjs";
 import { useGetRecurringTasksQuery } from "@/lib/store/api/tasksApi";
 import { useGetCompletionsQuery, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
+import { useTaskLookups } from "@/hooks/useTaskLookups";
 import {
   setMainTabIndex,
   setJournalSelectedDate,
@@ -65,6 +66,7 @@ export const GoalReflectionsModal = ({ open, onClose, goalId, goalTitle }) => {
   const reflectionTasks = useMemo(() => {
     return allTasks.filter(task => task.completionType === "reflection");
   }, [allTasks]);
+  const { taskById: reflectionTaskById } = useTaskLookups({ tasks: reflectionTasks });
 
   // Find all reflections that reference this goal
   const goalReflections = useMemo(() => {
@@ -74,7 +76,7 @@ export const GoalReflectionsModal = ({ open, onClose, goalId, goalTitle }) => {
 
     completions.forEach(completion => {
       // Find the reflection task for this completion
-      const reflectionTask = reflectionTasks.find(t => t.id === completion.taskId);
+      const reflectionTask = reflectionTaskById.get(completion.taskId);
       if (!reflectionTask) return;
 
       // Parse the completion note (should be JSON for reflections)
@@ -118,7 +120,7 @@ export const GoalReflectionsModal = ({ open, onClose, goalId, goalTitle }) => {
       const dateB = new Date(b.date);
       return dateB - dateA;
     });
-  }, [goalId, completions, reflectionTasks]);
+  }, [goalId, completions, reflectionTasks, reflectionTaskById]);
 
   const isLoading = tasksLoading || completionsLoading;
 

@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { formatLocalDate } from "@/lib/utils";
 import { useCreateTaskMutation, useUpdateTaskMutation, useDeleteTaskMutation } from "@/lib/store/api/tasksApi";
+import { useTaskLookups } from "@/hooks/useTaskLookups";
 import {
   openEditTaskDialog,
   setEditingTask,
@@ -13,17 +14,6 @@ import {
   setDefaultDate,
   openTaskDialog,
 } from "@/lib/store/slices/uiSlice";
-
-const findTaskInTree = (taskList, id) => {
-  for (const task of taskList) {
-    if (task.id === id) return task;
-    if (task.subtasks && task.subtasks.length > 0) {
-      const found = findTaskInTree(task.subtasks, id);
-      if (found) return found;
-    }
-  }
-  return null;
-};
 
 /**
  * Lightweight task actions hook.
@@ -39,6 +29,7 @@ export function useTaskActions({ tasks = [] } = {}) {
   const [createTaskMutation] = useCreateTaskMutation();
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [deleteTaskMutation] = useDeleteTaskMutation();
+  const { taskById } = useTaskLookups({ tasks });
 
   const createTask = useCallback(
     async taskData => {
@@ -63,7 +54,7 @@ export function useTaskActions({ tasks = [] } = {}) {
 
   const duplicateTask = useCallback(
     async taskId => {
-      const taskToDuplicate = findTaskInTree(tasks, taskId);
+      const taskToDuplicate = taskById.get(taskId);
       if (!taskToDuplicate) {
         throw new Error("Task not found");
       }
@@ -80,7 +71,7 @@ export function useTaskActions({ tasks = [] } = {}) {
 
       return await createTask(duplicatedTaskData);
     },
-    [tasks, createTask]
+    [taskById, createTask]
   );
 
   const handleEditTask = useCallback(
@@ -141,7 +132,7 @@ export function useTaskActions({ tasks = [] } = {}) {
     async (parentTaskId, subtaskTitle) => {
       if (!subtaskTitle.trim()) return;
 
-      const parentTask = tasks.find(t => t.id === parentTaskId);
+      const parentTask = taskById.get(parentTaskId);
       if (!parentTask) return;
 
       const taskData = {
@@ -159,16 +150,16 @@ export function useTaskActions({ tasks = [] } = {}) {
       await createTask(taskData);
       console.warn("Subtask created");
     },
-    [tasks, createTask]
+    [taskById, createTask]
   );
 
   const handleToggleExpand = useCallback(
     async taskId => {
-      const task = tasks.find(t => t.id === taskId);
+      const task = taskById.get(taskId);
       if (!task) return;
       await updateTask(taskId, { expanded: !task.expanded });
     },
-    [tasks, updateTask]
+    [taskById, updateTask]
   );
 
   const handleAddTask = useCallback(

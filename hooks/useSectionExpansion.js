@@ -50,7 +50,7 @@ export function useSectionExpansion({ sections, showCompletedTasks, tasksBySecti
       if (manuallyExpandedSections.has(sectionId)) return;
 
       // Get visible tasks for this section
-      const visibleTasks = tasksBySection[sectionId] || [];
+      const visibleTasks = tasksBySection?.get?.(sectionId) || [];
 
       // Auto-collapse if no visible tasks remain
       if (visibleTasks.length === 0) {
@@ -86,7 +86,7 @@ export function useSectionExpansion({ sections, showCompletedTasks, tasksBySecti
 
     // Skip if tasksBySection is not initialized (still loading)
     // We need at least one section to have been processed (even if empty)
-    if (!tasksBySection || typeof tasksBySection !== "object") return;
+    if (!tasksBySection || !(tasksBySection instanceof Map)) return;
 
     // Check if date changed (need to reset manual expansions and recalculate)
     const viewDateStr = viewDate?.toISOString?.() || viewDate?.toString() || "today";
@@ -104,7 +104,7 @@ export function useSectionExpansion({ sections, showCompletedTasks, tasksBySecti
 
     // Ensure we have processed all sections (tasksBySection should have entries for all sections)
     // This ensures tasksBySection has been fully computed
-    const allSectionsProcessed = sections.every(section => section.id in tasksBySection);
+    const allSectionsProcessed = sections.every(section => tasksBySection.has(section.id));
     if (!allSectionsProcessed) return;
 
     // Mark as done before dispatching to prevent race conditions
@@ -168,7 +168,7 @@ export function useSectionExpansion({ sections, showCompletedTasks, tasksBySecti
 
     // Add virtual "No Section" section at the beginning (order -1)
     // Only show if there are tasks without a section
-    const noSectionTasks = tasksBySection["no-section"] || [];
+    const noSectionTasks = tasksBySection.get("no-section") || [];
     if (noSectionTasks.length > 0) {
       const isManuallyCollapsed = manuallyCollapsedSections.has("no-section");
       const isAutoCollapsed = autoCollapsedSections.has("no-section");

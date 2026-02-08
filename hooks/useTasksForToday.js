@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo } from "react";
+import { useMemo } from "react";
 import { useGetTasksForDateQuery } from "@/lib/store/api/tasksApi";
 import { formatLocalDate } from "@/lib/utils";
 
@@ -29,12 +29,9 @@ export function useTasksForToday(date, options = {}) {
     isFetching,
   } = useGetTasksForDateQuery(dateStr, { skip: !dateStr || options.skip, ...options });
 
-  // Defer the tasks update to prevent blocking the UI
-  const deferredTasks = useDeferredValue(tasks);
-
   return {
-    data: deferredTasks,
-    tasks: deferredTasks,
+    data: tasks,
+    tasks,
     isLoading,
     isFetching,
     error,

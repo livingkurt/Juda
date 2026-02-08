@@ -10,6 +10,7 @@ import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { usePriorityHandlers } from "@/hooks/usePriorityHandlers";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useWorkoutProgressMap } from "@/hooks/useWorkoutProgressMap";
+import { useTaskLookups } from "@/hooks/useTaskLookups";
 
 const collectTasks = tasks => {
   const collected = [];
@@ -60,6 +61,8 @@ export const useTaskItemShared = ({
   }, [viewDate, getLookupsForDate]);
 
   const allTasksFlat = useMemo(() => collectTasks(allTasks), [allTasks]);
+
+  const { tagsForTask } = useTaskLookups({ tasks: allTasks, tags });
 
   const taskById = useMemo(() => {
     const map = new Map();
@@ -174,6 +177,7 @@ export const useTaskItemShared = ({
     statusHandlers,
     priorityHandlers,
     tags,
+    tagsForTask,
     onCreateTag,
     removeFromParent: async taskId => {
       if (!taskId) return;

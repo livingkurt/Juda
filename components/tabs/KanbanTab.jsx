@@ -17,6 +17,7 @@ import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useTaskItemShared } from "@/hooks/useTaskItemShared";
+import { useTaskLookups } from "@/hooks/useTaskLookups";
 import {
   setKanbanSearchTerm,
   setKanbanSelectedTagIds,
@@ -331,14 +332,14 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
   }, [kanbanTasks, deferredSearchTerm, deferredSelectedTagIds, deferredSelectedPriorities]);
 
   // Group tasks by status
-  const tasksByStatus = useMemo(
-    () => ({
-      todo: filteredTasks.filter(t => t.status === "todo"),
-      in_progress: filteredTasks.filter(t => t.status === "in_progress"),
-      complete: filteredTasks.filter(t => t.status === "complete"),
-    }),
-    [filteredTasks]
-  );
+  const tasksByStatus = useMemo(() => {
+    const sortByOrder = (a, b) => (a.order || 0) - (b.order || 0);
+    return {
+      todo: filteredTasks.filter(t => t.status === "todo").sort(sortByOrder),
+      in_progress: filteredTasks.filter(t => t.status === "in_progress").sort(sortByOrder),
+      complete: filteredTasks.filter(t => t.status === "complete").sort(sortByOrder),
+    };
+  }, [filteredTasks]);
 
   const handleTagSelect = useCallback(
     tagId => {
@@ -412,7 +413,11 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
 export function KanbanTab({ isLoading }) {
   const dispatch = useDispatch();
   const taskFilters = useTaskFilters();
-  const tasks = [...(taskFilters.todaysTasks || []), ...(taskFilters.backlogTasks || [])];
+  const tasks = useMemo(
+    () => [...(taskFilters.todaysTasks || []), ...(taskFilters.backlogTasks || [])],
+    [taskFilters.todaysTasks, taskFilters.backlogTasks]
+  );
+  const { taskById } = useTaskLookups({ tasks });
   const [batchReorderTasksMutation] = useBatchReorderTasksMutation();
   const [updateTaskMutation] = useUpdateTaskMutation();
 
@@ -514,7 +519,7 @@ export function KanbanTab({ isLoading }) {
 
         // Different column - move task and reorder
         // Find the task being moved
-        const movedTask = kanbanTasks.find(t => t.id === taskId);
+        const movedTask = taskById.get(taskId);
         if (!movedTask) return;
 
         // Update status - optimistic update handles UI
@@ -541,7 +546,7 @@ export function KanbanTab({ isLoading }) {
         return;
       }
     },
-    [tasks, batchReorderTasksMutation, updateTaskMutation]
+    [tasks, taskById, batchReorderTasksMutation, updateTaskMutation]
   );
 
   if (isLoading) {

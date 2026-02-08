@@ -16,6 +16,7 @@ import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useCreateCompletionMutation, useUpdateCompletionMutation } from "@/lib/store/api/completionsApi";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { setJournalView, setJournalSelectedDate } from "@/lib/store/slices/uiSlice";
+import { useTaskLookups } from "@/hooks/useTaskLookups";
 
 export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
   const dispatch = useDispatch();
@@ -120,6 +121,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
         task.completionType === "text" || task.completionType === "selection" || task.completionType === "reflection"
     );
   }, [tasks]);
+  const { taskById } = useTaskLookups({ tasks: allJournalTasks });
 
   // Apply filters to journal tasks
   const journalTasks = useMemo(() => {
@@ -164,7 +166,7 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
     const existingCompletion = getCompletionForDate?.(taskId, dateStr);
 
     // Determine if this is a selection task with multiple options
-    const task = allJournalTasks.find(t => t.id === taskId);
+    const task = taskById.get(taskId);
     const isSelectionTask = task?.completionType === "selection";
     const isArray = Array.isArray(noteOrOptions);
 

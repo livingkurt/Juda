@@ -2,6 +2,69 @@
 
 ## 2026-02-08
 
+### Fix Drag-and-Drop Lag From Deferred Data
+
+**Problem**: Drag-and-drop in Today and Kanban views was lagging and visually snapping back before updating. Recent optimizations deferred task list updates, so DnD rendered stale lists until the deferred value caught up.
+
+**Solution**:
+1. Removed `useDeferredValue` from task data hooks that feed DnD.
+2. Kept deferred inputs (search/tag filters) elsewhere so typing remains responsive while drag updates are immediate.
+
+**Files Updated**:
+- `hooks/useTasksForToday.js`
+- `hooks/useBacklogTasks.js`
+
+### Restore Immediate DnD Reordering
+
+**Problem**: Drag-and-drop still snapped back because task order/status updates were only reflected after query invalidation and refetch. Kanban columns also relied on array order, so optimistic order updates were not reflected immediately.
+
+**Solution**:
+1. Added optimistic cache updates for `updateTask` and `batchReorderTasks` to patch task order/status in Today/Backlog caches immediately.
+2. Sorted Kanban columns by `order` so order field updates re-render instantly.
+
+**Files Updated**:
+- `lib/store/api/tasksApi.js`
+- `components/tabs/KanbanTab.jsx`
+
+### Task Lookup Maps for O(1) Rendering
+
+**Problem**: Several per-row operations were repeatedly filtering/finding tasks, tags, and sections, which scales poorly as list sizes grow (especially during drag-and-drop and section grouping).
+
+**Solution**:
+
+1. **Centralized Lookup Hook**
+   - **New**: `hooks/useTaskLookups.js`
+   - Builds stable Maps (`taskById`, `tagById`, `sectionById`, `tasksBySection`, `tagsForTask`) once per source-array change.
+
+2. **Section Grouping Optimization**
+   - `useTaskFilters` now groups tasks via `tasksBySection` Map to avoid per-section full list scans.
+   - `tasksBySection` is now a Map across Today view, section expansion, and auto-scroll logic.
+
+3. **O(1) DnD Resolution**
+   - Drag-and-drop handlers now resolve tasks and sections via `taskById.get()` / `sectionById.get()`.
+
+4. **Per-Row Tag Resolution**
+   - `TaskItem` uses `tagsForTask.get(task.id)` to avoid per-row tag filtering.
+
+**Files Updated**:
+- `hooks/useTaskLookups.js` (new)
+- `hooks/useTaskFilters.js`
+- `hooks/useTaskItemShared.js`
+- `hooks/useTaskActions.js`
+- `hooks/useTaskOperations.js`
+- `hooks/useCompletionHandlers.js`
+- `hooks/useStatusHandlers.js`
+- `hooks/useSectionExpansion.js`
+- `hooks/useAutoScroll.js`
+- `components/TaskItem.jsx`
+- `components/Section.jsx`
+- `components/SectionCard.jsx`
+- `components/tabs/TasksTab.jsx`
+- `components/tabs/KanbanTab.jsx`
+- `components/tabs/JournalTab.jsx`
+- `components/GoalReflectionsModal.jsx`
+- `lib/store/api/tasksApi.js`
+
 ### List Item Precomputation and Shared Lookups
 
 **Problem**: Task list items (TaskItem, CalendarTask, compact month cards, and history cells) were still doing per-item hooks and repeated work (completion lookups, tag inheritance, status checks, and menu preparation), leading to avoidable CPU overhead when rendering large lists.

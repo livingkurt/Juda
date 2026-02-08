@@ -52,7 +52,10 @@ const SectionCardComponent = ({
   });
 
   // Get tasks for this section from Redux - memoized to prevent recreation on every render
-  const tasks = useMemo(() => taskFilters.tasksBySection[section.id] || [], [taskFilters.tasksBySection, section.id]);
+  const tasks = useMemo(
+    () => taskFilters.tasksBySection.get(section.id) || [],
+    [taskFilters.tasksBySection, section.id]
+  );
 
   const IconComponent = SECTION_ICONS.find(i => i.value === section.icon)?.Icon || LightMode;
 

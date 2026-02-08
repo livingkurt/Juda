@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { formatLocalDate, minutesToTime } from "@/lib/utils";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
+import { useTaskLookups } from "@/hooks/useTaskLookups";
 import {
   useCreateCompletionMutation,
   useDeleteCompletionMutation,
@@ -61,6 +62,7 @@ export function useCompletionHandlers({
       ? []
       : [...(taskFilters.todaysTasks || []), ...(taskFilters.backlogTasks || [])];
   const tasks = tasksOverride || tasksFromQuery;
+  const { taskById } = useTaskLookups({ tasks });
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();
   const [deleteCompletionMutation] = useDeleteCompletionMutation();
@@ -263,14 +265,9 @@ export function useCompletionHandlers({
   const handleToggleTask = useCallback(
     async taskId => {
       console.warn("[handleToggleTask] CALLED with taskId:", taskId);
-      const task = tasks.find(t => t.id === taskId);
+      const task = taskById.get(taskId);
       console.warn("[handleToggleTask] task found:", task?.title, "parentId:", task?.parentId);
       if (!task) {
-        const isSubtaskId = tasks.some(t => t.subtasks?.some(st => st.id === taskId));
-        if (isSubtaskId) {
-          console.error("[handleToggleTask] BLOCKED - subtask ID detected:", taskId);
-          return;
-        }
         return;
       }
 
@@ -408,7 +405,7 @@ export function useCompletionHandlers({
       }
     },
     [
-      tasks,
+      taskById,
       today,
       viewDate,
       isCompletedOnDate,
@@ -446,12 +443,11 @@ export function useCompletionHandlers({
   // It does NOT cascade to other subtasks or create completions for the parent
   const handleToggleSubtask = useCallback(
     async (parentTaskId, subtaskId) => {
-      const subtask =
-        tasks.find(t => t.id === subtaskId) || tasks.flatMap(t => t.subtasks || []).find(st => st.id === subtaskId);
+      const subtask = taskById.get(subtaskId);
       if (!subtask) return;
 
       // Find parent task
-      const parentTask = tasks.find(t => t.id === subtask.parentId);
+      const parentTask = taskById.get(subtask.parentId);
 
       const hasNoRecurrence = !subtask.recurrence;
       const targetDate = hasNoRecurrence ? today : viewDate;
@@ -528,15 +524,24 @@ export function useCompletionHandlers({
         console.error("Error toggling subtask completion:", error);
       }
     },
-    [tasks, today, viewDate, isCompletedOnDate, updateTask, createCompletion, deleteCompletion, areAllSubtasksComplete]
+    [
+      taskById,
+      today,
+      viewDate,
+      isCompletedOnDate,
+      updateTask,
+      createCompletion,
+      deleteCompletion,
+      areAllSubtasksComplete,
+    ]
   );
 
   const handleSubtaskOutcomeChange = useCallback(
     (parentTaskId, subtaskId, outcome) => {
-      const subtask = tasks.flatMap(t => t.subtasks || []).find(st => st.id === subtaskId);
+      const subtask = taskById.get(subtaskId);
       if (!subtask) return;
 
-      const parentTask = tasks.find(t => t.id === (parentTaskId || subtask.parentId));
+      const parentTask = taskById.get(parentTaskId || subtask.parentId);
       const parentIsNonRecurring = parentTask && (!parentTask.recurrence || parentTask.recurrence.type === "none");
       const isGoalSubtask = subtask?.completionType === "goal";
       const parentIsGoalTask = parentTask?.completionType === "goal";
@@ -593,7 +598,7 @@ export function useCompletionHandlers({
       }
     },
     [
-      tasks,
+      taskById,
       today,
       viewDate,
       showCompletedTasks,
@@ -626,17 +631,13 @@ export function useCompletionHandlers({
       }
 
       // Find task - need to search both root tasks AND subtasks
-      let task = tasks.find(t => t.id === taskId);
-      if (!task) {
-        // Search in subtasks
-        task = tasks.flatMap(t => t.subtasks || []).find(st => st.id === taskId);
-      }
+      const task = taskById.get(taskId);
 
       const isSubtask = task?.parentId != null;
       const isRecurringTask = task?.recurrence && task.recurrence.type && task.recurrence.type !== "none";
 
       // Find parent if this is a subtask
-      const parentTask = isSubtask ? tasks.find(t => t.id === task.parentId) : null;
+      const parentTask = isSubtask ? taskById.get(task.parentId) : null;
       const parentIsNonRecurring = parentTask && (!parentTask.recurrence || parentTask.recurrence.type === "none");
       const isGoalTask = task?.completionType === "goal";
       const parentIsGoalTask = parentTask?.completionType === "goal";
@@ -720,7 +721,7 @@ export function useCompletionHandlers({
       // Auto-collapse check will happen in addToRecentlyCompleted after the delay
     },
     [
-      tasks,
+      taskById,
       createCompletion,
       deleteCompletion,
       batchCreateCompletions,
@@ -739,7 +740,7 @@ export function useCompletionHandlers({
   const handleNotCompletedTask = useCallback(
     async taskId => {
       try {
-        const task = tasks.find(t => t.id === taskId);
+        const task = taskById.get(taskId);
         const targetDate = viewDate || today;
         // Format date as YYYY-MM-DD to avoid timezone issues
         const dateStr = formatLocalDate(targetDate);
@@ -752,14 +753,14 @@ export function useCompletionHandlers({
         console.error("Error marking task as not completed:", error);
       }
     },
-    [tasks, today, viewDate, createCompletion, showCompletedTasks, addToRecentlyCompleted]
+    [taskById, today, viewDate, createCompletion, showCompletedTasks, addToRecentlyCompleted]
   );
 
   // Complete with note (or selection options)
   const handleCompleteWithNote = useCallback(
     async (taskId, noteOrOptions) => {
       try {
-        const task = tasks.find(t => t.id === taskId);
+        const task = taskById.get(taskId);
         const targetDate = viewDate || today;
         // Format date as YYYY-MM-DD to avoid timezone issues
         const dateStr = formatLocalDate(targetDate);
@@ -797,14 +798,14 @@ export function useCompletionHandlers({
         console.error("Error completing task with note:", error);
       }
     },
-    [tasks, today, viewDate, createCompletion, updateTask, showCompletedTasks, addToRecentlyCompleted]
+    [taskById, today, viewDate, createCompletion, updateTask, showCompletedTasks, addToRecentlyCompleted]
   );
 
   // Roll over task to next day
   const handleRolloverTask = useCallback(
     async (taskId, date) => {
       try {
-        const task = tasks.find(t => t.id === taskId);
+        const task = taskById.get(taskId);
         if (!task) {
           throw new Error("Task not found");
         }
@@ -824,7 +825,7 @@ export function useCompletionHandlers({
         throw error;
       }
     },
-    [tasks, rolloverTaskMutation]
+    [taskById, rolloverTaskMutation]
   );
 
   return useMemo(

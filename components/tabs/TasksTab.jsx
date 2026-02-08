@@ -15,6 +15,7 @@ import { timeToMinutes, minutesToTime, formatLocalDate } from "@/lib/utils";
 import { getPriorityConfig } from "@/lib/constants";
 import { useViewState } from "@/hooks/useViewState";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
+import { useTaskLookups } from "@/hooks/useTaskLookups";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
@@ -154,8 +155,12 @@ export function TasksTab() {
 
   const tasks = taskFilters.tasks;
 
-  const backlogTasks = taskFilters.backlogTasks;
   const tasksBySection = taskFilters.tasksBySection;
+
+  const { taskById, sectionById } = useTaskLookups({
+    tasks,
+    sections,
+  });
 
   // Completion handlers (use the filtered tasks to avoid full tasks fetch)
   const completionHandlers = useCompletionHandlers({
@@ -255,7 +260,7 @@ export function TasksTab() {
       const destId = destination.droppableId;
 
       // Find the task
-      const task = tasks.find(t => t.id === taskId);
+      const task = taskById.get(taskId);
       if (!task) {
         console.error("Task not found:", taskId);
         return;
@@ -569,14 +574,14 @@ export function TasksTab() {
       // Backlog to Section
       if (sourceId === "backlog" && destId.startsWith("section-")) {
         const destSectionId = destId.replace("section-", "");
-        const destSection = sections.find(s => s.id === destSectionId);
+        const destSection = sectionById.get(destSectionId);
 
         if (!destSection) {
           console.error("Destination section not found:", destSectionId);
           return;
         }
 
-        const sectionTasks = tasksBySection[destSectionId] || [];
+        const sectionTasks = tasksBySection.get(destSectionId) || [];
         const destTasks = [...sectionTasks]
           .filter(t => !t.parentId && t.id !== taskId)
           .sort((a, b) => {
@@ -737,14 +742,14 @@ export function TasksTab() {
         const sourceSectionId = sourceId.replace("section-", "");
         const destSectionId = destId.replace("section-", "");
 
-        const destSection = sections.find(s => s.id === destSectionId);
+        const destSection = sectionById.get(destSectionId);
 
         if (!destSection) {
           console.error("Destination section not found:", destSectionId);
           return;
         }
 
-        const destSectionTasks = tasksBySection[destSectionId] || [];
+        const destSectionTasks = tasksBySection.get(destSectionId) || [];
         const destTasks = [...destSectionTasks]
           .filter(t => !t.parentId && t.id !== taskId)
           .sort((a, b) => {
@@ -823,7 +828,7 @@ export function TasksTab() {
           return;
         }
 
-        const sourceSectionTasks = tasksBySection[sourceSectionId] || [];
+        const sourceSectionTasks = tasksBySection.get(sourceSectionId) || [];
         const sourceTasks = [...sourceSectionTasks]
           .filter(t => !t.parentId && t.id !== taskId)
           .sort((a, b) => {
@@ -850,11 +855,11 @@ export function TasksTab() {
     },
     [
       sections,
-      tasks,
       viewDate,
       taskFilters,
-      backlogTasks,
       tasksBySection,
+      taskById,
+      sectionById,
       reorderSectionsMutation,
       batchReorderTasksMutation,
       updateTaskMutation,

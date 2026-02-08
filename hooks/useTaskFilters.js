@@ -9,6 +9,7 @@ import { useNoteTasks } from "@/hooks/useNoteTasks";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
+import { useTaskLookups } from "@/hooks/useTaskLookups";
 
 /**
  * Task filtering logic using SEPARATE API endpoints for each view
@@ -112,9 +113,14 @@ export function useTaskFilters({ recentlyCompletedTasks, skip = false } = {}) {
     return result;
   }, [todaysTasks, deferredTodaySearchTerm, deferredTodaySelectedTagIds]);
 
+  const { tasksBySection: tasksBySectionLookup } = useTaskLookups({
+    tasks: filteredTodaysTasks,
+    sections,
+  });
+
   // Group today's tasks by section
   const tasksBySection = useMemo(() => {
-    const grouped = {};
+    const grouped = new Map();
 
     // Helper to check if a time falls within a range
     const isTimeInRange = (taskTime, startTime, endTime) => {
@@ -155,11 +161,12 @@ export function useTaskFilters({ recentlyCompletedTasks, skip = false } = {}) {
     // Process each section
     sections.forEach(section => {
       // Get tasks explicitly assigned to this section
-      let sectionTasks = filteredTodaysTasks.filter(t => t.sectionId === section.id);
+      let sectionTasks = tasksBySectionLookup.get(section.id) || [];
 
       // Also get tasks that fall within this section's time range (if defined)
       if (section.startTime && section.endTime) {
-        const timeRangeTasks = filteredTodaysTasks.filter(t => {
+        const noSectionTasks = tasksBySectionLookup.get("no-section") || [];
+        const timeRangeTasks = noSectionTasks.filter(t => {
           // Skip if already assigned to a specific section
           if (t.sectionId) return false;
           // Skip if already assigned to another section
@@ -184,14 +191,14 @@ export function useTaskFilters({ recentlyCompletedTasks, skip = false } = {}) {
       }
 
       // Sort and store
-      grouped[section.id] = sortByTime(sectionTasks);
+      grouped.set(section.id, sortByTime(sectionTasks));
 
       // Track assigned task IDs
       sectionTasks.forEach(t => assignedTaskIds.add(t.id));
     });
 
     // Handle "no-section" virtual section
-    let noSectionTasks = filteredTodaysTasks.filter(t => {
+    let noSectionTasks = (tasksBySectionLookup.get("no-section") || []).filter(t => {
       if (assignedTaskIds.has(t.id)) return false;
       return !t.sectionId;
     });
@@ -208,10 +215,10 @@ export function useTaskFilters({ recentlyCompletedTasks, skip = false } = {}) {
       });
     }
 
-    grouped["no-section"] = sortByTime(noSectionTasks);
+    grouped.set("no-section", sortByTime(noSectionTasks));
 
     return grouped;
-  }, [filteredTodaysTasks, sections, showCompletedTasks, recentlyCompleted]);
+  }, [sections, showCompletedTasks, recentlyCompleted, tasksBySectionLookup]);
 
   // Backlog tasks - already filtered by API, just add completion status
   const backlogTasks = useMemo(() => {

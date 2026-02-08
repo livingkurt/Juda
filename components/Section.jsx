@@ -34,7 +34,7 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
   const sectionExpansionInitial = useSectionExpansion({
     sections: taskOps.sections,
     showCompletedTasks,
-    tasksBySection: {},
+    tasksBySection: new Map(),
     viewDate,
     todaysTasks: [],
   });

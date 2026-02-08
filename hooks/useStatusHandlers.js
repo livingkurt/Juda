@@ -8,6 +8,7 @@ import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useCreateCompletionMutation, useDeleteCompletionMutation } from "@/lib/store/api/completionsApi";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { useTaskLookups } from "@/hooks/useTaskLookups";
 
 /**
  * Handles task status changes (todo/in_progress/complete)
@@ -26,6 +27,7 @@ export function useStatusHandlers({
       ? []
       : [...(taskFilters.todaysTasks || []), ...(taskFilters.backlogTasks || [])];
   const tasks = tasksOverride || tasksFromQuery;
+  const { taskById } = useTaskLookups({ tasks });
   const { data: sections = [] } = useGetSectionsQuery();
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();
@@ -99,7 +101,7 @@ export function useStatusHandlers({
 
       // Check if this is a subtask
       const isSubtask = task.parentId != null;
-      const parentTask = isSubtask ? tasks.find(t => t.id === task.parentId) : null;
+      const parentTask = isSubtask ? taskById.get(task.parentId) : null;
       const parentIsNonRecurring = parentTask && (!parentTask.recurrence || parentTask.recurrence.type === "none");
       const isGoalTask = task.completionType === "goal";
       const parentIsGoalTask = parentTask?.completionType === "goal";
@@ -268,6 +270,7 @@ export function useStatusHandlers({
     },
     [
       tasks,
+      taskById,
       sections,
       updateTask,
       createCompletion,

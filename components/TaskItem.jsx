@@ -286,6 +286,7 @@ export const TaskItem = ({
   const statusHandlers = sharedState.statusHandlers;
   const priorityHandlers = sharedState.priorityHandlers;
   const tagOptions = sharedState.tags || [];
+  const tagsForTask = sharedState.tagsForTask;
   const onCreateTag = sharedState.onCreateTag;
   const removeFromParentHandler = onRemoveFromParent || sharedState.removeFromParent;
 
@@ -314,7 +315,7 @@ export const TaskItem = ({
     isSelected !== undefined ? isSelected : selectionState?.selectedTaskIds?.has(task.id) || false;
 
   // For subtasks, inherit parent's tags if subtask has no tags (precomputed by parent)
-  const displayTags = taskMeta.displayTags || task.tags || [];
+  const displayTags = taskMeta.displayTags || tagsForTask?.get(task.id) || task.tags || [];
 
   const { mode, colorMode } = useSemanticColors();
   const { theme } = useTheme();

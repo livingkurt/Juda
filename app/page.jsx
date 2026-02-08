@@ -177,7 +177,7 @@ export default function DailyTasksApp() {
   const sectionExpansionInitial = useSectionExpansion({
     sections,
     showCompletedTasks: preferences.showCompletedTasks,
-    tasksBySection: {},
+    tasksBySection: new Map(),
     viewDate,
     todaysTasks: [],
   });

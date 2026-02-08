@@ -12,6 +12,7 @@ import {
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
+import { useTaskLookups } from "@/hooks/useTaskLookups";
 import {
   openTaskDialog,
   setEditingTask,
@@ -42,6 +43,7 @@ export function useTaskOperations() {
     // Combine today's tasks and backlog tasks for operations that need all tasks
     return [...taskFilters.todaysTasks, ...taskFilters.backlogTasks];
   }, [taskFilters.todaysTasks, taskFilters.backlogTasks]);
+  const { taskById } = useTaskLookups({ tasks });
 
   const { data: sections = [] } = useGetSectionsQuery();
   const [createTaskMutation] = useCreateTaskMutation();
@@ -351,7 +353,7 @@ export function useTaskOperations() {
       if (!subtaskTitle.trim()) return;
 
       try {
-        const parentTask = tasks.find(t => t.id === parentTaskId);
+        const parentTask = taskById.get(parentTaskId);
         if (!parentTask) return;
 
         // Check if parent is a goal - if so, create a sub-goal with proper fields
@@ -386,7 +388,7 @@ export function useTaskOperations() {
         console.error("Failed to create subtask:", errorMessage);
       }
     },
-    [tasks, createTask]
+    [taskById, createTask]
   );
 
   // Create backlog task inline
@@ -460,11 +462,11 @@ export function useTaskOperations() {
   // Toggle task expand
   const handleToggleExpand = useCallback(
     async taskId => {
-      const task = tasks.find(t => t.id === taskId);
+      const task = taskById.get(taskId);
       if (!task) return;
       await updateTask(taskId, { expanded: !task.expanded });
     },
-    [tasks, updateTask]
+    [taskById, updateTask]
   );
 
   return useMemo(
