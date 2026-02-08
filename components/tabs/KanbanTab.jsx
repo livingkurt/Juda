@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, memo, useCallback, useRef } from "react";
+import { useMemo, memo, useCallback, useRef, useDeferredValue } from "react";
 import { Box, Stack, Typography, IconButton, Chip, CircularProgress, Button } from "@mui/material";
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 import { Add, Visibility as Eye, VisibilityOff as EyeOff } from "@mui/icons-material";
@@ -243,6 +243,11 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
   const selectedTagIds = useSelector(state => state.ui.kanbanSelectedTagIds);
   const selectedPriorities = useSelector(state => state.ui.kanbanSelectedPriorities);
 
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const deferredSelectedTagIds = useDeferredValue(selectedTagIds);
+  const deferredSelectedPriorities = useDeferredValue(selectedPriorities);
+  const deferredSelectedDate = useDeferredValue(selectedDate);
+
   // Use hooks directly (they use Redux internally)
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
@@ -264,12 +269,12 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
       if (isRecurring) return false;
 
       // Date filtering: show tasks that should appear on the selected date
-      if (selectedDate) {
+      if (deferredSelectedDate) {
         // Tasks with no recurrence - show if they match the selected date or have no date set
         if (task.date) {
           const taskDate = new Date(task.date);
           taskDate.setHours(0, 0, 0, 0);
-          const checkDate = new Date(selectedDate);
+          const checkDate = new Date(deferredSelectedDate);
           checkDate.setHours(0, 0, 0, 0);
           return taskDate.getTime() === checkDate.getTime();
         }
@@ -280,15 +285,15 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
       // No date selected - show all non-recurring tasks
       return true;
     });
-  }, [taskFilters.tasks, selectedDate]);
+  }, [taskFilters.tasks, deferredSelectedDate]);
 
   // Apply search and tag filters
   const filteredTasks = useMemo(() => {
     let filtered = kanbanTasks;
 
     // Search filter
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
+    if (deferredSearchTerm) {
+      const search = deferredSearchTerm.toLowerCase();
       filtered = filtered.filter(
         task =>
           task.title.toLowerCase().includes(search) ||
@@ -297,17 +302,17 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
     }
 
     // Tag filter
-    if (selectedTagIds.length > 0) {
-      filtered = filtered.filter(task => task.taskTags?.some(tt => selectedTagIds.includes(tt.tagId)));
+    if (deferredSelectedTagIds.length > 0) {
+      filtered = filtered.filter(task => task.taskTags?.some(tt => deferredSelectedTagIds.includes(tt.tagId)));
     }
 
     // Priority filter
-    if (selectedPriorities.length > 0) {
-      filtered = filtered.filter(task => selectedPriorities.includes(task.priority));
+    if (deferredSelectedPriorities.length > 0) {
+      filtered = filtered.filter(task => deferredSelectedPriorities.includes(task.priority));
     }
 
     return filtered;
-  }, [kanbanTasks, searchTerm, selectedTagIds, selectedPriorities]);
+  }, [kanbanTasks, deferredSearchTerm, deferredSelectedTagIds, deferredSelectedPriorities]);
 
   // Group tasks by status
   const tasksByStatus = useMemo(

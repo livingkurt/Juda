@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, memo, useState } from "react";
+import { useEffect, useMemo, memo, useState, useDeferredValue } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Box, CircularProgress, Stack } from "@mui/material";
 import dayjs from "dayjs";
@@ -44,6 +44,8 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
   // Filter state
   const [selectedCompletionTypes, setSelectedCompletionTypes] = useState([]);
   const [selectedTaskIds, setSelectedTaskIds] = useState([]);
+  const deferredCompletionTypes = useDeferredValue(selectedCompletionTypes);
+  const deferredSelectedTaskIds = useDeferredValue(selectedTaskIds);
 
   const currentYear = dayjs().year();
 
@@ -124,17 +126,17 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
     let filtered = allJournalTasks;
 
     // Filter by completion type
-    if (selectedCompletionTypes.length > 0) {
-      filtered = filtered.filter(task => selectedCompletionTypes.includes(task.completionType));
+    if (deferredCompletionTypes.length > 0) {
+      filtered = filtered.filter(task => deferredCompletionTypes.includes(task.completionType));
     }
 
     // Filter by specific task IDs
-    if (selectedTaskIds.length > 0) {
-      filtered = filtered.filter(task => selectedTaskIds.includes(task.id));
+    if (deferredSelectedTaskIds.length > 0) {
+      filtered = filtered.filter(task => deferredSelectedTaskIds.includes(task.id));
     }
 
     return filtered;
-  }, [allJournalTasks, selectedCompletionTypes, selectedTaskIds]);
+  }, [allJournalTasks, deferredCompletionTypes, deferredSelectedTaskIds]);
 
   // Filter handlers
   const handleCompletionTypeSelect = type => {

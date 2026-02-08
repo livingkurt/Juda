@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useDeferredValue } from "react";
 import { useSelector } from "react-redux";
 import { timeToMinutes } from "@/lib/utils";
 import { useTasksForToday } from "@/hooks/useTasksForToday";
@@ -63,6 +63,9 @@ export function useTaskFilters({ recentlyCompletedTasks, skip = false } = {}) {
     return new Set(recentlyCompletedTasksArray || []);
   }, [recentlyCompletedTasks, recentlyCompletedTasksArray]);
 
+  const deferredTodaySearchTerm = useDeferredValue(todaySearchTerm);
+  const deferredTodaySelectedTagIds = useDeferredValue(todaySelectedTagIds);
+
   // Today's tasks - already filtered by API, just add completion status
   const todaysTasks = useMemo(() => {
     const lookups = getLookupsForDate(viewDate);
@@ -96,18 +99,18 @@ export function useTaskFilters({ recentlyCompletedTasks, skip = false } = {}) {
     let result = todaysTasks;
 
     // Filter by search term
-    if (todaySearchTerm.trim()) {
-      const lowerSearch = todaySearchTerm.toLowerCase();
+    if (deferredTodaySearchTerm.trim()) {
+      const lowerSearch = deferredTodaySearchTerm.toLowerCase();
       result = result.filter(task => task.title.toLowerCase().includes(lowerSearch));
     }
 
     // Filter by tags
-    if (todaySelectedTagIds.length > 0) {
-      result = result.filter(task => task.tags?.some(tag => todaySelectedTagIds.includes(tag.id)));
+    if (deferredTodaySelectedTagIds.length > 0) {
+      result = result.filter(task => task.tags?.some(tag => deferredTodaySelectedTagIds.includes(tag.id)));
     }
 
     return result;
-  }, [todaysTasks, todaySearchTerm, todaySelectedTagIds]);
+  }, [todaysTasks, deferredTodaySearchTerm, deferredTodaySelectedTagIds]);
 
   // Group today's tasks by section
   const tasksBySection = useMemo(() => {

@@ -488,6 +488,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
   const [taskMenuAnchor, setTaskMenuAnchor] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
   const [expandedTaskIds, setExpandedTaskIds] = useState(new Set());
+  const deferredExpandedTaskIds = useDeferredValue(expandedTaskIds);
 
   // Generate dates
   const dates = useMemo(() => generateDates(range, page), [range, page]);
@@ -575,8 +576,8 @@ export function HistoryTab({ isLoading: tabLoading }) {
 
   // Flatten all tasks including expanded subtasks for column headers
   const allTasks = useMemo(() => {
-    return groupedTasks.flatMap(g => flattenTasksWithSubtasks(g.tasks, expandedTaskIds));
-  }, [groupedTasks, expandedTaskIds]);
+    return groupedTasks.flatMap(g => flattenTasksWithSubtasks(g.tasks, deferredExpandedTaskIds));
+  }, [groupedTasks, deferredExpandedTaskIds]);
 
   // Total task count (including expanded subtasks)
   const totalTasks = useMemo(() => {
@@ -813,7 +814,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
               {/* Section headers spanning task columns */}
               {groupedTasks.map(({ section, tasks: sectionTasks }) => {
                 // Count all tasks including expanded subtasks
-                const taskCount = flattenTasksWithSubtasks(sectionTasks, expandedTaskIds).length;
+                const taskCount = flattenTasksWithSubtasks(sectionTasks, deferredExpandedTaskIds).length;
                 return (
                   <TableCell
                     key={section.id}
@@ -850,7 +851,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
                 const isLastInSection = (() => {
                   // Find which section this task belongs to
                   for (const group of groupedTasks) {
-                    const sectionTasks = flattenTasksWithSubtasks(group.tasks, expandedTaskIds);
+                    const sectionTasks = flattenTasksWithSubtasks(group.tasks, deferredExpandedTaskIds);
                     const indexInSection = sectionTasks.findIndex(t => t.id === task.id);
                     if (indexInSection !== -1) {
                       return indexInSection === sectionTasks.length - 1;
@@ -978,7 +979,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
                     const isLastInSection = (() => {
                       // Find which section this task belongs to
                       for (const group of groupedTasks) {
-                        const sectionTasks = flattenTasksWithSubtasks(group.tasks, expandedTaskIds);
+                        const sectionTasks = flattenTasksWithSubtasks(group.tasks, deferredExpandedTaskIds);
                         const indexInSection = sectionTasks.findIndex(t => t.id === task.id);
                         if (indexInSection !== -1) {
                           return indexInSection === sectionTasks.length - 1;

@@ -241,6 +241,10 @@ export function NotesTab({ isLoading }) {
   const selectedSmartFolderId = useSelector(state => state.ui.selectedSmartFolderId);
   const notesSelectedTagIds = useSelector(state => state.ui.notesSelectedTagIds || []);
 
+  const deferredSelectedFolderId = useDeferredValue(selectedFolderId);
+  const deferredSelectedSmartFolderId = useDeferredValue(selectedSmartFolderId);
+  const deferredNotesSelectedTagIds = useDeferredValue(notesSelectedTagIds);
+
   // Dialog state
   const dialogState = useDialogState();
 
@@ -446,12 +450,12 @@ export function NotesTab({ isLoading }) {
   const filteredNotes = useMemo(() => {
     let result = noteTasks;
 
-    if (selectedFolderId) {
-      result = result.filter(n => n.folderId === selectedFolderId);
+    if (deferredSelectedFolderId) {
+      result = result.filter(n => n.folderId === deferredSelectedFolderId);
     }
 
-    if (selectedSmartFolderId) {
-      const sf = smartFolders.find(s => s.id === selectedSmartFolderId);
+    if (deferredSelectedSmartFolderId) {
+      const sf = smartFolders.find(s => s.id === deferredSelectedSmartFolderId);
       const tagIds = sf?.filters?.tags || [];
       const operator = sf?.filters?.operator || "any";
 
@@ -480,9 +484,9 @@ export function NotesTab({ isLoading }) {
     }
 
     // Filter by tags
-    if (notesSelectedTagIds.length > 0) {
-      const hasUntagged = notesSelectedTagIds.includes(UNTAGGED_ID);
-      const regularTagIds = notesSelectedTagIds.filter(id => id !== UNTAGGED_ID);
+    if (deferredNotesSelectedTagIds.length > 0) {
+      const hasUntagged = deferredNotesSelectedTagIds.includes(UNTAGGED_ID);
+      const regularTagIds = deferredNotesSelectedTagIds.filter(id => id !== UNTAGGED_ID);
 
       result = result.filter(note => {
         const noteTagIds = note.tags?.map(t => t.id) || [];
@@ -508,7 +512,14 @@ export function NotesTab({ isLoading }) {
     }
 
     return [...result].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-  }, [noteTasks, selectedFolderId, selectedSmartFolderId, deferredSearch, smartFolders, notesSelectedTagIds]);
+  }, [
+    noteTasks,
+    deferredSelectedFolderId,
+    deferredSelectedSmartFolderId,
+    deferredSearch,
+    smartFolders,
+    deferredNotesSelectedTagIds,
+  ]);
 
   const handleCreateNote = useCallback(
     async titleOverride => {

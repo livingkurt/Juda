@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useDeferredValue } from "react";
 import { Box, Stack, Typography, Button, IconButton, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Visibility as Eye, VisibilityOff as EyeOff, Repeat, Close as X, ZoomIn, ZoomOut } from "@mui/icons-material";
@@ -125,34 +126,50 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
 
   // Combine loading states
   const isActuallyLoading = isLoading || tasksLoading;
-  // Filter tasks based on recurring preference for current view
-  let filteredTasks = showRecurringTasks[calendarView]
-    ? tasks
-    : tasks.filter(task => !task.recurrence || task.recurrence.type === "none");
+  const deferredSearchTerm = useDeferredValue(calendarSearchTerm);
+  const deferredSelectedTagIds = useDeferredValue(calendarSelectedTagIds);
+
+  const baseTasks = useMemo(() => {
+    return showRecurringTasks[calendarView]
+      ? tasks
+      : tasks.filter(task => !task.recurrence || task.recurrence.type === "none");
+  }, [tasks, showRecurringTasks, calendarView]);
 
   // Tasks for tag counts (before search/tag/completed filtering)
-  const tasksForTagCounts = filteredTasks;
+  const tasksForTagCounts = baseTasks;
 
-  // Filter by search term
-  if (calendarSearchTerm.trim()) {
-    const lowerSearch = calendarSearchTerm.toLowerCase();
-    filteredTasks = filteredTasks.filter(task => task.title.toLowerCase().includes(lowerSearch));
-  }
+  const filteredTasks = useMemo(() => {
+    let filtered = baseTasks;
 
-  // Filter by tags
-  if (calendarSelectedTagIds.length > 0) {
-    filteredTasks = filteredTasks.filter(task => task.tags?.some(tag => calendarSelectedTagIds.includes(tag.id)));
-  }
+    if (deferredSearchTerm.trim()) {
+      const lowerSearch = deferredSearchTerm.toLowerCase();
+      filtered = filtered.filter(task => task.title.toLowerCase().includes(lowerSearch));
+    }
 
-  // Filter tasks based on completed preference for current view
-  if (!showCompletedTasksCalendar[calendarView] && calendarView === "day" && selectedDate) {
-    filteredTasks = filteredTasks.filter(task => {
-      const isCompleted = isCompletedOnDate(task.id, selectedDate);
-      const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, selectedDate) : null;
-      const hasOutcome = outcome !== null && outcome !== undefined;
-      return !isCompleted && !hasOutcome;
-    });
-  }
+    if (deferredSelectedTagIds.length > 0) {
+      filtered = filtered.filter(task => task.tags?.some(tag => deferredSelectedTagIds.includes(tag.id)));
+    }
+
+    if (!showCompletedTasksCalendar[calendarView] && calendarView === "day" && selectedDate) {
+      filtered = filtered.filter(task => {
+        const isCompleted = isCompletedOnDate(task.id, selectedDate);
+        const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, selectedDate) : null;
+        const hasOutcome = outcome !== null && outcome !== undefined;
+        return !isCompleted && !hasOutcome;
+      });
+    }
+
+    return filtered;
+  }, [
+    baseTasks,
+    deferredSearchTerm,
+    deferredSelectedTagIds,
+    showCompletedTasksCalendar,
+    calendarView,
+    selectedDate,
+    isCompletedOnDate,
+    getOutcomeOnDate,
+  ]);
 
   return (
     <Box

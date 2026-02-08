@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useDeferredValue } from "react";
 import { Box, Typography, Button, Stack, CircularProgress } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
@@ -28,6 +28,8 @@ export function GoalsTab({ isLoading }) {
   const [createTagMutation] = useCreateTagMutation();
   const goalsSearchTerm = useSelector(state => state.ui.goalsSearchTerm || "");
   const goalsSelectedTagIds = useSelector(state => state.ui.goalsSelectedTagIds || []);
+  const deferredGoalsSearchTerm = useDeferredValue(goalsSearchTerm);
+  const deferredGoalsSelectedTagIds = useDeferredValue(goalsSelectedTagIds);
 
   // Fetch all goals with subtasks
   const { data: goalsData, isLoading: tasksLoading } = useGetGoalsQuery({
@@ -44,16 +46,16 @@ export function GoalsTab({ isLoading }) {
     let filtered = allGoals.filter(g => !g.parentId);
 
     // Filter by search term
-    if (goalsSearchTerm.trim()) {
-      const search = goalsSearchTerm.toLowerCase();
+    if (deferredGoalsSearchTerm.trim()) {
+      const search = deferredGoalsSearchTerm.toLowerCase();
       filtered = filtered.filter(
         goal => goal.title?.toLowerCase().includes(search) || goal.description?.toLowerCase().includes(search)
       );
     }
 
     // Filter by tags
-    if (goalsSelectedTagIds.length > 0) {
-      filtered = filtered.filter(goal => goal.tags?.some(tag => goalsSelectedTagIds.includes(tag.id)));
+    if (deferredGoalsSelectedTagIds.length > 0) {
+      filtered = filtered.filter(goal => goal.tags?.some(tag => deferredGoalsSelectedTagIds.includes(tag.id)));
     }
 
     // Use stable sort: first by order, then by id for consistent ordering
@@ -66,7 +68,7 @@ export function GoalsTab({ isLoading }) {
       // If orders are equal, sort by id for stable ordering
       return a.id.localeCompare(b.id);
     });
-  }, [allGoals, goalsSearchTerm, goalsSelectedTagIds]);
+  }, [allGoals, deferredGoalsSearchTerm, deferredGoalsSelectedTagIds]);
 
   // Get all sub-goals (monthly goals) grouped by month
   const monthlyGoalsByMonth = useMemo(() => {
@@ -110,20 +112,20 @@ export function GoalsTab({ isLoading }) {
     let filtered = monthlyGoalsByMonth[selectedMonth] || [];
 
     // Filter by search term
-    if (goalsSearchTerm.trim()) {
-      const search = goalsSearchTerm.toLowerCase();
+    if (deferredGoalsSearchTerm.trim()) {
+      const search = deferredGoalsSearchTerm.toLowerCase();
       filtered = filtered.filter(
         goal => goal.title?.toLowerCase().includes(search) || goal.description?.toLowerCase().includes(search)
       );
     }
 
     // Filter by tags
-    if (goalsSelectedTagIds.length > 0) {
-      filtered = filtered.filter(goal => goal.tags?.some(tag => goalsSelectedTagIds.includes(tag.id)));
+    if (deferredGoalsSelectedTagIds.length > 0) {
+      filtered = filtered.filter(goal => goal.tags?.some(tag => deferredGoalsSelectedTagIds.includes(tag.id)));
     }
 
     return filtered;
-  }, [monthlyGoalsByMonth, selectedMonth, goalsSearchTerm, goalsSelectedTagIds]);
+  }, [monthlyGoalsByMonth, selectedMonth, deferredGoalsSearchTerm, deferredGoalsSelectedTagIds]);
 
   const handleCreateGoal = () => {
     dispatch(

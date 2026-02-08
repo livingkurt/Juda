@@ -74,6 +74,24 @@
 **Files Updated**:
 - `lib/store/sseSyncMiddleware.js`
 
+### Defer User Inputs in Heavy Filters
+
+**Problem**: Several views ran multi-pass filter/sort chains on every render against large task/note lists, causing noticeable input lag during typing and occasional jank during UI interactions.
+
+**Solution**:
+1. Deferred user-driven inputs (search terms, tag filters, date filters, expanded rows) with `useDeferredValue`.
+2. Routed expensive filter chains through `useMemo` and the deferred inputs to keep typing and dragging responsive.
+3. Left data arrays and optimistic updates untouched to preserve instant mutation feedback.
+
+**Files Updated**:
+- `hooks/useTaskFilters.js`
+- `components/tabs/KanbanTab.jsx`
+- `components/tabs/HistoryTab.jsx`
+- `components/tabs/CalendarViewTab.jsx`
+- `components/tabs/NotesTab.jsx`
+- `components/tabs/GoalsTab.jsx`
+- `components/tabs/JournalTab.jsx`
+
 ## 2026-02-05
 
 ### React useEffect setState Pattern - Proper Implementation
