@@ -613,3 +613,8 @@
   - `KanbanTab.jsx`: Virtualizes each Kanban column independently when it exceeds 50 items
 - **Performance impact**: Reduces DOM nodes from O(n) to O(visible), making the UI snappy even with many sections or 1000+ tasks in a single list.
 - **Dynamic measurement**: Sections use dynamic height measurement via `measureElement`, allowing them to expand/collapse naturally while maintaining virtualization performance.
+
+### React Compiler + virtualization compatibility
+
+- Added local eslint suppressions for `react-hooks/incompatible-library` where `useVirtualizer()` is used.
+- Rationale: TanStack Virtual returns functions that React Compiler cannot safely memoize; keeping the hook local and avoiding passing its return values into memoized hooks/components prevents stale UI.

@@ -348,6 +348,9 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   const parentRef = useRef(null);
 
   // Virtualizer for ungrouped list only
+  // TanStack Virtual returns functions that React Compiler cannot memoize safely.
+  // We keep this hook local and avoid passing its return value into memoized hooks/components.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: !tasksGrouped ? tasksWithIds.length : 0,
     getScrollElement: () => parentRef.current,

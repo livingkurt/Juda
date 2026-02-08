@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { workoutSetCompletions, workoutPrograms, workoutCycles, exercises, tasks, taskCompletions } from "@/lib/schema";
+import { workoutSetCompletions, workoutPrograms, exercises, tasks, taskCompletions } from "@/lib/schema";
 import { and, eq, gte, lte, asc } from "drizzle-orm";
 import { withApi, Errors } from "@/lib/apiHelpers";
 
@@ -201,6 +201,7 @@ export const GET = withApi(async (request, { userId, getRequiredParam, getSearch
             notes: exercise.notes,
             bothSides: exercise.bothSides || false,
             order: exercise.order,
+            // eslint-disable-next-line max-nested-callbacks
             weeklyProgression: exercise.weeklyProgressions.map(wp => ({
               week: wp.week,
               targetValue: wp.targetValue,

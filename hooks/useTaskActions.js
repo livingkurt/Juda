@@ -14,6 +14,17 @@ import {
   openTaskDialog,
 } from "@/lib/store/slices/uiSlice";
 
+const findTaskInTree = (taskList, id) => {
+  for (const task of taskList) {
+    if (task.id === id) return task;
+    if (task.subtasks && task.subtasks.length > 0) {
+      const found = findTaskInTree(task.subtasks, id);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
 /**
  * Lightweight task actions hook.
  * Does not fetch tasks; callers must provide tasks for lookups.
@@ -50,17 +61,6 @@ export function useTaskActions({ tasks = [] } = {}) {
     [deleteTaskMutation]
   );
 
-  const findTaskInTree = useCallback((taskList, id) => {
-    for (const task of taskList) {
-      if (task.id === id) return task;
-      if (task.subtasks && task.subtasks.length > 0) {
-        const found = findTaskInTree(task.subtasks, id);
-        if (found) return found;
-      }
-    }
-    return null;
-  }, []);
-
   const duplicateTask = useCallback(
     async taskId => {
       const taskToDuplicate = findTaskInTree(tasks, taskId);
@@ -80,7 +80,7 @@ export function useTaskActions({ tasks = [] } = {}) {
 
       return await createTask(duplicatedTaskData);
     },
-    [tasks, findTaskInTree, createTask]
+    [tasks, createTask]
   );
 
   const handleEditTask = useCallback(

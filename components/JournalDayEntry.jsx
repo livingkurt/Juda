@@ -24,7 +24,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
   // Initialize state from props - state will reset when key changes (completion note changes)
   const currentNote = completion?.note || "";
   // For selection tasks, parse selectedOptions array; for others, use note
-  const parseInitialSelectionValues = useCallback(() => {
+  const selectionValuesFromCompletion = useMemo(() => {
     if (isSelectionTask && completion?.selectedOptions && Array.isArray(completion.selectedOptions)) {
       return completion.selectedOptions;
     }
@@ -37,7 +37,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
 
   const [noteInput, setNoteInput] = useState(currentNote);
   const [prevCurrentNote, setPrevCurrentNote] = useState(currentNote);
-  const [selectedValues, setSelectedValues] = useState(parseInitialSelectionValues);
+  const [selectedValues, setSelectedValues] = useState(selectionValuesFromCompletion);
   const [prevSelectedOptions, setPrevSelectedOptions] = useState(completion?.selectedOptions);
   const [showTextarea, setShowTextarea] = useState(Boolean(currentNote));
   const [isFocused, setIsFocused] = useState(false);
@@ -130,7 +130,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
       if (isSelectionTask) {
         // For selection tasks, value is an array
         const valuesArray = Array.isArray(value) ? value : [];
-        const currentArray = parseInitialSelectionValues();
+        const currentArray = selectionValuesFromCompletion;
         // Only save if changed
         if (JSON.stringify(valuesArray) !== JSON.stringify(currentArray)) {
           try {
@@ -138,7 +138,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
           } catch (error) {
             console.error("Failed to save journal entry:", error);
             // Reset to original values on error
-            setSelectedValues(parseInitialSelectionValues());
+            setSelectedValues(selectionValuesFromCompletion);
           }
         }
       } else {
@@ -171,7 +171,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
       completion?.note,
       completion?.selectedOptions,
       onSave,
-      parseInitialSelectionValues,
+      selectionValuesFromCompletion,
     ]
   );
 
@@ -183,7 +183,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
     const currentSelectedOptions = completion?.selectedOptions || [];
     if (JSON.stringify(prevSelectedOptions) !== JSON.stringify(currentSelectedOptions) && !isFocused) {
       setPrevSelectedOptions(currentSelectedOptions);
-      setSelectedValues(parseInitialSelectionValues());
+      setSelectedValues(selectionValuesFromCompletion);
     }
   } else {
     if (prevCurrentNote !== currentNote && !isFocused) {
@@ -218,7 +218,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
       setPrevSelectedOptions(completion?.selectedOptions);
       // Reset to saved values if cleared
       if (selectedValues.length === 0 && completion?.selectedOptions && completion.selectedOptions.length > 0) {
-        setSelectedValues(parseInitialSelectionValues());
+        setSelectedValues(selectionValuesFromCompletion);
       }
     } else {
       await immediateSave(noteInput);

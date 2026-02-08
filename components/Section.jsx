@@ -78,6 +78,9 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
 
   // Virtualization setup
   const parentRef = useRef(null);
+  // TanStack Virtual returns functions that React Compiler cannot memoize safely.
+  // We keep this hook local and avoid passing its return value into memoized hooks/components.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: sortedSections.length,
     getScrollElement: () => parentRef.current,
