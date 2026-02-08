@@ -761,3 +761,9 @@
 
 - Added local eslint suppressions for `react-hooks/incompatible-library` where `useVirtualizer()` is used.
 - Rationale: TanStack Virtual returns functions that React Compiler cannot safely memoize; keeping the hook local and avoiding passing its return values into memoized hooks/components prevents stale UI.
+
+### SSE task cache relevance filtering
+
+- Added per-endpoint relevance checks in `lib/store/sseSyncMiddleware.js` so task SSE updates only patch caches that are relevant to the task or already contain it.
+- Included the previous task snapshot in task update and delete broadcasts to correctly clean up source caches when tasks move between views or are removed.
+- Added a debug flag (`localStorage.sseDebug = "true"`) to log which task caches are patched vs skipped.

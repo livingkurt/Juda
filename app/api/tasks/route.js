@@ -378,8 +378,8 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     tags: taskWithRelations.taskTags?.map(tt => tt.tag) || [],
   };
 
-  // Broadcast to other clients
-  taskBroadcast.onUpdate(userId, taskWithTags, clientId);
+  // Broadcast to other clients (include previous state for cache relevance)
+  taskBroadcast.onUpdate(userId, { task: taskWithTags, previousTask: existingTask }, clientId);
 
   return NextResponse.json(taskWithTags);
 });
@@ -388,10 +388,22 @@ export const DELETE = withApi(async (request, { userId, getRequiredParam }) => {
   const clientId = getClientIdFromRequest(request);
   const id = getRequiredParam("id");
 
+  const existingTask = await db.query.tasks.findFirst({
+    where: and(eq(tasks.id, id), eq(tasks.userId, userId)),
+    with: {
+      section: true,
+      taskTags: {
+        with: {
+          tag: true,
+        },
+      },
+    },
+  });
+
   await db.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
 
   // Broadcast to other clients
-  taskBroadcast.onDelete(userId, id, clientId);
+  taskBroadcast.onDelete(userId, { id, previousTask: existingTask }, clientId);
 
   return NextResponse.json({ success: true });
 });
