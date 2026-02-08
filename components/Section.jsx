@@ -4,6 +4,8 @@ import { Box, Button } from "@mui/material";
 import { Droppable } from "@hello-pangea/dnd";
 import { Add } from "@mui/icons-material";
 import { useSelector } from "react-redux";
+import { useRef, useMemo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { SectionCard } from "./SectionCard";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
@@ -65,11 +67,33 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
     setManuallyCollapsedSections: sectionExpansion.setManuallyCollapsedSections,
   });
 
+  // Prepare filtered and sorted sections
+  const sortedSections = useMemo(
+    () =>
+      sectionExpansion.computedSections
+        .filter(section => (sectionFilter ? sectionFilter(section) : true))
+        .sort((a, b) => (a.order || 0) - (b.order || 0)),
+    [sectionExpansion.computedSections, sectionFilter]
+  );
+
+  // Virtualization setup
+  const parentRef = useRef(null);
+  const virtualizer = useVirtualizer({
+    count: sortedSections.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 300, // Approximate section height (will be measured dynamically)
+    overscan: 2,
+    enabled: sortedSections.length > 5, // Only virtualize if more than 5 sections
+  });
+
   return (
     <Droppable droppableId="sections-list" type="SECTION">
       {provided => (
         <Box
-          ref={provided.innerRef}
+          ref={el => {
+            provided.innerRef(el);
+            parentRef.current = el;
+          }}
           {...provided.droppableProps}
           sx={{
             bgcolor: "transparent",
@@ -79,10 +103,43 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
             minHeight: 100,
           }}
         >
-          {sectionExpansion.computedSections
-            .filter(section => (sectionFilter ? sectionFilter(section) : true))
-            .sort((a, b) => (a.order || 0) - (b.order || 0))
-            .map((section, index) => (
+          {sortedSections.length > 5 ? (
+            <Box
+              sx={{
+                height: `${virtualizer.getTotalSize()}px`,
+                width: "100%",
+                position: "relative",
+              }}
+            >
+              {virtualizer.getVirtualItems().map(virtualItem => {
+                const section = sortedSections[virtualItem.index];
+                return (
+                  <Box
+                    key={section.id}
+                    data-index={virtualItem.index}
+                    ref={virtualizer.measureElement}
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualItem.start}px)`,
+                    }}
+                  >
+                    <SectionCard
+                      section={section}
+                      index={virtualItem.index}
+                      hoveredDroppable={hoveredDroppable}
+                      droppableId={createDroppableId.todaySection(section.id)}
+                      createDraggableId={createDraggableId}
+                      viewDate={viewDate}
+                    />
+                  </Box>
+                );
+              })}
+            </Box>
+          ) : (
+            sortedSections.map((section, index) => (
               <SectionCard
                 key={section.id}
                 section={section}
@@ -92,7 +149,8 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
                 createDraggableId={createDraggableId}
                 viewDate={viewDate}
               />
-            ))}
+            ))
+          )}
           {provided.placeholder}
           <Button
             variant="outlined"

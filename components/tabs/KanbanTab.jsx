@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, memo, useCallback } from "react";
+import { useMemo, memo, useCallback, useRef } from "react";
 import { Box, Stack, Typography, IconButton, Chip, CircularProgress, Button } from "@mui/material";
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 import { Add, Visibility as Eye, VisibilityOff as EyeOff } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { TaskItem } from "@/components/TaskItem";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
 import { QuickTaskInput } from "@/components/QuickTaskInput";
@@ -24,6 +25,9 @@ import {
 } from "@/lib/store/slices/uiSlice";
 import { createDraggableId, extractTaskId } from "@/lib/dragHelpers";
 import { useBatchReorderTasksMutation, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
+
+const TASK_HEIGHT = 72; // Approximate height of TaskItem
+const TASK_SPACING = 8; // spacing={1} = 8px in MUI
 
 // Kanban column component
 const KanbanColumn = memo(function KanbanColumn({
@@ -83,6 +87,16 @@ const KanbanColumn = memo(function KanbanColumn({
     dialogState.openTaskDialog();
   };
 
+  // Virtualization setup
+  const parentRef = useRef(null);
+  const virtualizer = useVirtualizer({
+    count: visibleTasks.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => TASK_HEIGHT + TASK_SPACING,
+    overscan: 5,
+    enabled: visibleTasks.length > 50, // Only virtualize large columns
+  });
+
   return (
     <Box sx={{ flex: 1, minWidth: 280, maxWidth: 400, borderRadius: 2, p: 1.5 }}>
       {/* Column Header */}
@@ -110,7 +124,10 @@ const KanbanColumn = memo(function KanbanColumn({
       <Droppable droppableId={`kanban-${id}`} type="TASK">
         {(provided, snapshot) => (
           <Box
-            ref={provided.innerRef}
+            ref={el => {
+              provided.innerRef(el);
+              parentRef.current = el;
+            }}
             {...provided.droppableProps}
             sx={{
               bgcolor: "background.paper",
@@ -124,42 +141,89 @@ const KanbanColumn = memo(function KanbanColumn({
               position: "relative",
             }}
           >
-            <Stack spacing={1} sx={{ minHeight: snapshot.isDraggingOver ? 100 : "auto" }}>
-              {visibleTasks.map((task, index) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  variant="kanban"
-                  index={index}
-                  containerId={`kanban-column|${id}`}
-                  draggableId={createDraggableId.kanban(task.id, id)}
-                  viewDate={viewDate}
-                  allTasksOverride={allTasks}
-                />
-              ))}
-              {provided.placeholder}
-              {visibleTasks.length === 0 && !snapshot.isDraggingOver && (
-                <Stack spacing={1}>
-                  <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
-                    No tasks
-                  </Typography>
-                  <QuickTaskInput
-                    placeholder="New task..."
-                    onCreate={handleCreateQuickTask}
-                    size="small"
-                    variant="standard"
-                  />
-                </Stack>
-              )}
-              {visibleTasks.length > 0 && (
+            {visibleTasks.length === 0 ? (
+              <Stack spacing={1}>
+                <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
+                  {snapshot.isDraggingOver ? "Drop here" : "No tasks"}
+                </Typography>
                 <QuickTaskInput
                   placeholder="New task..."
                   onCreate={handleCreateQuickTask}
                   size="small"
                   variant="standard"
                 />
-              )}
-            </Stack>
+                {provided.placeholder}
+              </Stack>
+            ) : visibleTasks.length > 50 ? (
+              <Box>
+                <Box
+                  sx={{
+                    height: `${virtualizer.getTotalSize()}px`,
+                    width: "100%",
+                    position: "relative",
+                  }}
+                >
+                  {virtualizer.getVirtualItems().map(virtualItem => {
+                    const task = visibleTasks[virtualItem.index];
+                    return (
+                      <Box
+                        key={task.id}
+                        data-index={virtualItem.index}
+                        ref={virtualizer.measureElement}
+                        sx={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          transform: `translateY(${virtualItem.start}px)`,
+                        }}
+                      >
+                        <TaskItem
+                          task={task}
+                          variant="kanban"
+                          index={virtualItem.index}
+                          containerId={`kanban-column|${id}`}
+                          draggableId={createDraggableId.kanban(task.id, id)}
+                          viewDate={viewDate}
+                          allTasksOverride={allTasks}
+                        />
+                      </Box>
+                    );
+                  })}
+                </Box>
+                {provided.placeholder}
+                <Box sx={{ mt: 1 }}>
+                  <QuickTaskInput
+                    placeholder="New task..."
+                    onCreate={handleCreateQuickTask}
+                    size="small"
+                    variant="standard"
+                  />
+                </Box>
+              </Box>
+            ) : (
+              <Stack spacing={1} sx={{ minHeight: snapshot.isDraggingOver ? 100 : "auto" }}>
+                {visibleTasks.map((task, index) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    variant="kanban"
+                    index={index}
+                    containerId={`kanban-column|${id}`}
+                    draggableId={createDraggableId.kanban(task.id, id)}
+                    viewDate={viewDate}
+                    allTasksOverride={allTasks}
+                  />
+                ))}
+                {provided.placeholder}
+                <QuickTaskInput
+                  placeholder="New task..."
+                  onCreate={handleCreateQuickTask}
+                  size="small"
+                  variant="standard"
+                />
+              </Stack>
+            )}
           </Box>
         )}
       </Droppable>

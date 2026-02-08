@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, memo, useMemo } from "react";
-import { Box, Paper, Stack, Typography, IconButton, Menu, MenuItem, Collapse, Button } from "@mui/material";
+import { Box, Paper, Stack, Typography, IconButton, Menu, MenuItem, Collapse } from "@mui/material";
 import { Draggable, Droppable } from "@hello-pangea/dnd";
 import { Add, MoreVert, DragIndicator, LightMode, ExpandMore, ExpandLess } from "@mui/icons-material";
 import { useSelector } from "react-redux";
@@ -57,8 +57,6 @@ const SectionCardComponent = ({ section, index, hoveredDroppable, droppableId, c
 
   const isDropTarget = hoveredDroppable === droppableId;
 
-  const INITIAL_RENDER_COUNT = 50;
-
   // Prepare tasks with draggable IDs - memoized to prevent recreation on every render
   const tasksWithIds = useMemo(
     () =>
@@ -68,10 +66,6 @@ const SectionCardComponent = ({ section, index, hoveredDroppable, droppableId, c
       })),
     [tasks, createDraggableId, section.id]
   );
-
-  const [extraCount, setExtraCount] = useState(0);
-  const visibleCount = Math.min(tasksWithIds.length, INITIAL_RENDER_COUNT + extraCount);
-  const visibleTasks = useMemo(() => tasksWithIds.slice(0, visibleCount), [tasksWithIds, visibleCount]);
 
   const handleCreateQuickTask = useCallback(
     async title => {
@@ -234,7 +228,7 @@ const SectionCardComponent = ({ section, index, hoveredDroppable, droppableId, c
                   </Stack>
                 ) : (
                   <Stack spacing={{ xs: 1, md: 1.5 }} sx={{ py: { xs: 0.5, md: 1 } }}>
-                    {visibleTasks.map((task, index) => (
+                    {tasksWithIds.map((task, index) => (
                       <TaskItem
                         key={task.id}
                         task={task}
@@ -247,13 +241,6 @@ const SectionCardComponent = ({ section, index, hoveredDroppable, droppableId, c
                         allTasksOverride={taskFilters.tasks}
                       />
                     ))}
-                    {visibleCount < tasksWithIds.length && (
-                      <Box sx={{ display: "flex", justifyContent: "center", pt: 1 }}>
-                        <Button size="small" onClick={() => setExtraCount(count => count + INITIAL_RENDER_COUNT)}>
-                          Load more
-                        </Button>
-                      </Box>
-                    )}
                     {droppableProvided.placeholder}
                     <QuickTaskInput
                       placeholder="New task..."

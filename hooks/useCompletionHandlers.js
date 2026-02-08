@@ -56,9 +56,10 @@ export function useCompletionHandlers({
   // Get tasks from specialized queries (today + backlog combined)
   // Allow skipping when tasks are provided by a caller
   const taskFilters = useTaskFilters({ skip: skipTasksQuery || Boolean(tasksOverride) });
-  const tasksFromQuery = skipTasksQuery || Boolean(tasksOverride)
-    ? []
-    : [...(taskFilters.todaysTasks || []), ...(taskFilters.backlogTasks || [])];
+  const tasksFromQuery =
+    skipTasksQuery || Boolean(tasksOverride)
+      ? []
+      : [...(taskFilters.todaysTasks || []), ...(taskFilters.backlogTasks || [])];
   const tasks = tasksOverride || tasksFromQuery;
   const [updateTaskMutation] = useUpdateTaskMutation();
   const [createCompletionMutation] = useCreateCompletionMutation();

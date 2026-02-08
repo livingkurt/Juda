@@ -600,3 +600,16 @@
 ### Offline completion deletes
 
 - Fixed IndexedDB cache deletes for completions to use the `taskId_date` index instead of passing invalid keys to the store delete call.
+
+### List virtualization for performance
+
+- **Implementation**: Added `@tanstack/react-virtual` to virtualize long lists in Backlog, Today view, and Kanban columns.
+- **Threshold**: Virtualization activates based on list size to keep small lists simple and fast.
+- **DnD compatibility**: Preserved `@hello-pangea/dnd` behavior by maintaining stable droppable containers and using absolute positioning for virtual items.
+- **Components updated**:
+  - `BacklogDrawer.jsx`: Virtualizes ungrouped backlog list when >50 tasks (grouped lists remain non-virtualized for simplicity)
+  - `Section.jsx`: Virtualizes the sections list itself when >5 sections, allowing each section to expand naturally to its content height
+  - `SectionCard.jsx`: Sections expand to fit all their tasks without individual scroll containers
+  - `KanbanTab.jsx`: Virtualizes each Kanban column independently when it exceeds 50 items
+- **Performance impact**: Reduces DOM nodes from O(n) to O(visible), making the UI snappy even with many sections or 1000+ tasks in a single list.
+- **Dynamic measurement**: Sections use dynamic height measurement via `measureElement`, allowing them to expand/collapse naturally while maintaining virtualization performance.
