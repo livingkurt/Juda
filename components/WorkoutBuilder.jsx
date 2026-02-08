@@ -23,8 +23,16 @@ import {
   ToggleButtonGroup,
   FormControlLabel,
   Checkbox,
+  Tooltip,
 } from "@mui/material";
-import { Close, Add as Plus, Delete as Trash2, ExpandMore as ChevronDown, ChevronRight } from "@mui/icons-material";
+import {
+  Close,
+  Add as Plus,
+  Delete as Trash2,
+  ExpandMore as ChevronDown,
+  ChevronRight,
+  ContentCopy as Copy,
+} from "@mui/icons-material";
 import { EXERCISE_TYPES, WORKOUT_SECTION_TYPES, DAYS_OF_WEEK } from "@/lib/constants";
 import { useGetWorkoutProgramQuery, useSaveWorkoutProgramMutation } from "@/lib/store/api/workoutProgramsApi";
 import { useDialogState } from "@/hooks/useDialogState";
@@ -116,6 +124,7 @@ const WeekProgressionCard = memo(function WeekProgressionCard({
   progression,
   weekIndex,
   exerciseId,
+  cycleId,
   sectionId,
   dayId,
   onUpdateProgression,
@@ -123,24 +132,24 @@ const WeekProgressionCard = memo(function WeekProgressionCard({
   const handleTargetChange = useCallback(
     e => {
       const newValue = parseFloat(e.target.value) || 0;
-      onUpdateProgression(sectionId, dayId, exerciseId, weekIndex, { targetValue: newValue });
+      onUpdateProgression(cycleId, sectionId, dayId, exerciseId, weekIndex, { targetValue: newValue });
     },
-    [onUpdateProgression, sectionId, dayId, exerciseId, weekIndex]
+    [onUpdateProgression, cycleId, sectionId, dayId, exerciseId, weekIndex]
   );
 
   const handleDeloadToggle = useCallback(() => {
-    onUpdateProgression(sectionId, dayId, exerciseId, weekIndex, {
+    onUpdateProgression(cycleId, sectionId, dayId, exerciseId, weekIndex, {
       isDeload: !progression.isDeload,
       isTest: false,
     });
-  }, [onUpdateProgression, sectionId, dayId, exerciseId, weekIndex, progression.isDeload]);
+  }, [onUpdateProgression, cycleId, sectionId, dayId, exerciseId, weekIndex, progression.isDeload]);
 
   const handleTestToggle = useCallback(() => {
-    onUpdateProgression(sectionId, dayId, exerciseId, weekIndex, {
+    onUpdateProgression(cycleId, sectionId, dayId, exerciseId, weekIndex, {
       isTest: !progression.isTest,
       isDeload: false,
     });
-  }, [onUpdateProgression, sectionId, dayId, exerciseId, weekIndex, progression.isTest]);
+  }, [onUpdateProgression, cycleId, sectionId, dayId, exerciseId, weekIndex, progression.isTest]);
 
   return (
     <Paper
@@ -202,6 +211,7 @@ const WeekProgressionCard = memo(function WeekProgressionCard({
 // Memoized Exercise Component
 const WorkoutExercise = memo(function WorkoutExercise({
   exercise,
+  cycleId,
   sectionId,
   dayId,
   onUpdate,
@@ -213,36 +223,36 @@ const WorkoutExercise = memo(function WorkoutExercise({
 }) {
   const handleNameChange = useCallback(
     e => {
-      onUpdate(sectionId, dayId, exercise.id, { name: e.target.value });
+      onUpdate(cycleId, sectionId, dayId, exercise.id, { name: e.target.value });
     },
-    [onUpdate, sectionId, dayId, exercise.id]
+    [onUpdate, cycleId, sectionId, dayId, exercise.id]
   );
 
   const handleTypeChange = useCallback(
     e => {
       const { type, unit } = parseExerciseSelectValue(e.target.value);
-      onUpdate(sectionId, dayId, exercise.id, { type, unit });
+      onUpdate(cycleId, sectionId, dayId, exercise.id, { type, unit });
     },
-    [onUpdate, sectionId, dayId, exercise.id]
+    [onUpdate, cycleId, sectionId, dayId, exercise.id]
   );
 
   const handleSetsChange = useCallback(
     e => {
-      onUpdate(sectionId, dayId, exercise.id, { sets: parseInt(e.target.value) || 1 });
+      onUpdate(cycleId, sectionId, dayId, exercise.id, { sets: parseInt(e.target.value) || 1 });
     },
-    [onUpdate, sectionId, dayId, exercise.id]
+    [onUpdate, cycleId, sectionId, dayId, exercise.id]
   );
 
   const handleTargetChange = useCallback(
     e => {
-      onUpdate(sectionId, dayId, exercise.id, { targetValue: parseFloat(e.target.value) || 0 });
+      onUpdate(cycleId, sectionId, dayId, exercise.id, { targetValue: parseFloat(e.target.value) || 0 });
     },
-    [onUpdate, sectionId, dayId, exercise.id]
+    [onUpdate, cycleId, sectionId, dayId, exercise.id]
   );
 
   const handleDelete = useCallback(() => {
-    onDelete(sectionId, dayId, exercise.id);
-  }, [onDelete, sectionId, dayId, exercise.id]);
+    onDelete(cycleId, sectionId, dayId, exercise.id);
+  }, [onDelete, cycleId, sectionId, dayId, exercise.id]);
 
   const handleToggleProgression = useCallback(() => {
     onToggleProgression(exercise.id);
@@ -250,9 +260,9 @@ const WorkoutExercise = memo(function WorkoutExercise({
 
   const handleBothSidesChange = useCallback(
     e => {
-      onUpdate(sectionId, dayId, exercise.id, { bothSides: e.target.checked });
+      onUpdate(cycleId, sectionId, dayId, exercise.id, { bothSides: e.target.checked });
     },
-    [onUpdate, sectionId, dayId, exercise.id]
+    [onUpdate, cycleId, sectionId, dayId, exercise.id]
   );
 
   const showProgression = numberOfWeeks > 0 && exercise.weeklyProgression && exercise.weeklyProgression.length > 0;
@@ -338,6 +348,7 @@ const WorkoutExercise = memo(function WorkoutExercise({
                     progression={progression}
                     weekIndex={weekIndex}
                     exerciseId={exercise.id}
+                    cycleId={cycleId}
                     sectionId={sectionId}
                     dayId={dayId}
                     onUpdateProgression={onUpdateProgression}
@@ -355,6 +366,7 @@ const WorkoutExercise = memo(function WorkoutExercise({
 // Memoized Day Component
 const WorkoutDay = memo(function WorkoutDay({
   day,
+  cycleId,
   sectionId,
   expanded,
   onToggle,
@@ -370,25 +382,25 @@ const WorkoutDay = memo(function WorkoutDay({
 }) {
   const handleNameChange = useCallback(
     e => {
-      onUpdate(sectionId, day.id, { name: e.target.value });
+      onUpdate(cycleId, sectionId, day.id, { name: e.target.value });
     },
-    [onUpdate, sectionId, day.id]
+    [onUpdate, cycleId, sectionId, day.id]
   );
 
   const handleDaysOfWeekChange = useCallback(
     newDays => {
-      onUpdate(sectionId, day.id, { daysOfWeek: newDays });
+      onUpdate(cycleId, sectionId, day.id, { daysOfWeek: newDays });
     },
-    [onUpdate, sectionId, day.id]
+    [onUpdate, cycleId, sectionId, day.id]
   );
 
   const handleDelete = useCallback(() => {
-    onDelete(sectionId, day.id);
-  }, [onDelete, sectionId, day.id]);
+    onDelete(cycleId, sectionId, day.id);
+  }, [onDelete, cycleId, sectionId, day.id]);
 
   const handleAddExercise = useCallback(() => {
-    onAddExercise(sectionId, day.id);
-  }, [onAddExercise, sectionId, day.id]);
+    onAddExercise(cycleId, sectionId, day.id);
+  }, [onAddExercise, cycleId, sectionId, day.id]);
 
   const handleToggle = useCallback(() => {
     onToggle(day.id);
@@ -436,6 +448,7 @@ const WorkoutDay = memo(function WorkoutDay({
             <WorkoutExercise
               key={exercise.id}
               exercise={exercise}
+              cycleId={cycleId}
               sectionId={sectionId}
               dayId={day.id}
               onUpdate={onUpdateExercise}
@@ -452,9 +465,140 @@ const WorkoutDay = memo(function WorkoutDay({
   );
 });
 
+// Memoized Cycle Panel Component
+const WorkoutCyclePanel = memo(function WorkoutCyclePanel({
+  cycle,
+  expanded,
+  onToggle,
+  onUpdate,
+  onUpdateNumberOfWeeks,
+  onDelete,
+  onDuplicate,
+  onAddSection,
+  expandedSections,
+  onToggleSection,
+  expandedDays,
+  onToggleDay,
+  expandedExercises,
+  onToggleExercise,
+  onUpdateSection,
+  onDeleteSection,
+  onAddDay,
+  onUpdateDay,
+  onDeleteDay,
+  onAddExercise,
+  onUpdateExercise,
+  onDeleteExercise,
+  onUpdateProgression,
+}) {
+  const handleNameChange = useCallback(
+    e => {
+      onUpdate(cycle.id, { name: e.target.value });
+    },
+    [onUpdate, cycle.id]
+  );
+
+  const handleNumberOfWeeksChange = useCallback(
+    e => {
+      onUpdateNumberOfWeeks(cycle.id, parseInt(e.target.value) || 1);
+    },
+    [onUpdateNumberOfWeeks, cycle.id]
+  );
+
+  const handleDelete = useCallback(() => {
+    onDelete(cycle.id);
+  }, [onDelete, cycle.id]);
+
+  const handleDuplicate = useCallback(() => {
+    onDuplicate(cycle.id);
+  }, [onDuplicate, cycle.id]);
+
+  const handleAddSection = useCallback(() => {
+    onAddSection(cycle.id);
+  }, [onAddSection, cycle.id]);
+
+  const handleToggle = useCallback(() => {
+    onToggle(cycle.id);
+  }, [onToggle, cycle.id]);
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      {/* Cycle Header */}
+      <Stack direction="row" spacing={2} alignItems="center" mb={expanded ? 2 : 0}>
+        <IconButton size="small" onClick={handleToggle}>
+          {expanded ? <ChevronDown fontSize="small" /> : <ChevronRight fontSize="small" />}
+        </IconButton>
+
+        <TextField value={cycle.name} onChange={handleNameChange} size="small" sx={{ flex: 1 }} />
+
+        <TextField
+          label="Weeks"
+          type="number"
+          value={cycle.numberOfWeeks}
+          onChange={handleNumberOfWeeksChange}
+          size="small"
+          inputProps={{ min: 1 }}
+          sx={{ width: 100 }}
+        />
+
+        <Tooltip title="Duplicate Cycle">
+          <IconButton size="small" onClick={handleDuplicate}>
+            <Copy fontSize="small" />
+          </IconButton>
+        </Tooltip>
+
+        <IconButton size="small" color="error" onClick={handleDelete}>
+          <Trash2 fontSize="small" />
+        </IconButton>
+      </Stack>
+
+      {/* Cycle Content */}
+      <Collapse in={expanded} unmountOnExit>
+        <Stack spacing={2} sx={{ pl: 2 }}>
+          {/* Add Section button */}
+          <Button
+            startIcon={<Plus fontSize="small" />}
+            onClick={handleAddSection}
+            size="small"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Add Section
+          </Button>
+
+          {/* Render sections */}
+          {cycle.sections?.map(section => (
+            <WorkoutSection
+              key={section.id}
+              section={section}
+              cycleId={cycle.id}
+              expanded={expandedSections[section.id]}
+              onToggle={onToggleSection}
+              onUpdate={onUpdateSection}
+              onDelete={onDeleteSection}
+              onAddDay={onAddDay}
+              numberOfWeeks={cycle.numberOfWeeks}
+              expandedDays={expandedDays}
+              onToggleDay={onToggleDay}
+              expandedExercises={expandedExercises}
+              onToggleExercise={onToggleExercise}
+              onUpdateDay={onUpdateDay}
+              onDeleteDay={onDeleteDay}
+              onAddExercise={onAddExercise}
+              onUpdateExercise={onUpdateExercise}
+              onDeleteExercise={onDeleteExercise}
+              onUpdateProgression={onUpdateProgression}
+            />
+          ))}
+        </Stack>
+      </Collapse>
+    </Paper>
+  );
+});
+
 // Memoized Section Component
 const WorkoutSection = memo(function WorkoutSection({
   section,
+  cycleId,
   expanded,
   onToggle,
   onUpdate,
@@ -474,25 +618,25 @@ const WorkoutSection = memo(function WorkoutSection({
 }) {
   const handleNameChange = useCallback(
     e => {
-      onUpdate(section.id, { name: e.target.value });
+      onUpdate(cycleId, section.id, { name: e.target.value });
     },
-    [onUpdate, section.id]
+    [onUpdate, cycleId, section.id]
   );
 
   const handleTypeChange = useCallback(
     e => {
-      onUpdate(section.id, { type: e.target.value });
+      onUpdate(cycleId, section.id, { type: e.target.value });
     },
-    [onUpdate, section.id]
+    [onUpdate, cycleId, section.id]
   );
 
   const handleDelete = useCallback(() => {
-    onDelete(section.id);
-  }, [onDelete, section.id]);
+    onDelete(cycleId, section.id);
+  }, [onDelete, cycleId, section.id]);
 
   const handleAddDay = useCallback(() => {
-    onAddDay(section.id);
-  }, [onAddDay, section.id]);
+    onAddDay(cycleId, section.id);
+  }, [onAddDay, cycleId, section.id]);
 
   const handleToggle = useCallback(() => {
     onToggle(section.id);
@@ -540,6 +684,7 @@ const WorkoutSection = memo(function WorkoutSection({
             <WorkoutDay
               key={day.id}
               day={day}
+              cycleId={cycleId}
               sectionId={section.id}
               expanded={expandedDays[day.id]}
               onToggle={onToggleDay}
@@ -581,11 +726,11 @@ export default function WorkoutBuilder({
   const [saveWorkoutProgramMutation, { isLoading: isSaving }] = useSaveWorkoutProgramMutation();
 
   // State declarations - MUST come before functions that use them
-  const [sections, setSections] = useState([]);
+  const [cycles, setCycles] = useState([]);
+  const [expandedCycles, setExpandedCycles] = useState({});
   const [expandedSections, setExpandedSections] = useState({});
   const [expandedDays, setExpandedDays] = useState({});
   const [expandedExercises, setExpandedExercises] = useState({});
-  const [numberOfWeeks, setNumberOfWeeks] = useState(0);
   const [name, setName] = useState("");
   const loadedProgramIdRef = useRef(null);
 
@@ -593,8 +738,8 @@ export default function WorkoutBuilder({
   const resetState = useCallback(() => {
     loadedProgramIdRef.current = null;
     setName("");
-    setNumberOfWeeks(0);
-    setSections([]);
+    setCycles([]);
+    setExpandedCycles({});
     setExpandedSections({});
     setExpandedDays({});
     setExpandedExercises({});
@@ -634,87 +779,175 @@ export default function WorkoutBuilder({
     loadedProgramIdRef.current = existingProgram.taskId;
 
     setName(existingProgram.name || "");
-    setNumberOfWeeks(existingProgram.numberOfWeeks || 0);
 
-    // Ensure sections is always an array
-    const sectionsData = Array.isArray(existingProgram.sections) ? existingProgram.sections : [];
-    setSections(sectionsData);
+    // Load cycles from existing program, or create default cycle if none exist (defensive)
+    const cyclesData =
+      Array.isArray(existingProgram.cycles) && existingProgram.cycles.length > 0
+        ? existingProgram.cycles
+        : [
+            {
+              id: generateCuid(),
+              name: "Cycle 1",
+              numberOfWeeks: existingProgram.numberOfWeeks || 1,
+              order: 0,
+              sections: Array.isArray(existingProgram.sections) ? existingProgram.sections : [],
+            },
+          ];
+    setCycles(cyclesData);
+    // Auto-expand first cycle
+    if (cyclesData.length > 0) {
+      setExpandedCycles({ [cyclesData[0].id]: true });
+    }
   }, [existingProgram, isOpen]);
 
-  // Add section
-  const addSection = useCallback(() => {
+  // Cycle CRUD functions
+  const addCycle = useCallback(() => {
+    const newCycle = {
+      id: generateCuid(),
+      name: `Cycle ${cycles.length + 1}`,
+      numberOfWeeks: 1,
+      order: cycles.length,
+      sections: [],
+    };
+    setCycles(prev => [...prev, newCycle]);
+    setExpandedCycles(prev => ({ ...prev, [newCycle.id]: true }));
+  }, [cycles.length]);
+
+  const updateCycle = useCallback((cycleId, updates) => {
+    setCycles(prev => prev.map(c => (c.id === cycleId ? { ...c, ...updates } : c)));
+  }, []);
+
+  const deleteCycle = useCallback(cycleId => {
+    setCycles(prev => prev.filter(c => c.id !== cycleId));
+  }, []);
+
+  const duplicateCycle = useCallback(cycleId => {
+    const newCycleId = generateCuid();
+
+    setCycles(prev => {
+      const sourceCycle = prev.find(c => c.id === cycleId);
+      if (!sourceCycle) return prev;
+      const sourceIndex = prev.indexOf(sourceCycle);
+
+      const newCycle = {
+        id: newCycleId,
+        name: `${sourceCycle.name} (Copy)`,
+        numberOfWeeks: sourceCycle.numberOfWeeks,
+        order: prev.length,
+        sections: sourceCycle.sections.map(section => ({
+          ...section,
+          id: generateCuid(),
+          days: section.days.map(day => ({
+            ...day,
+            id: generateCuid(),
+            exercises: day.exercises.map(exercise => ({
+              ...exercise,
+              id: generateCuid(),
+              weeklyProgression: (exercise.weeklyProgression || []).map(wp => ({
+                ...wp,
+                id: generateCuid(),
+              })),
+            })),
+          })),
+        })),
+      };
+
+      const result = [...prev];
+      result.splice(sourceIndex + 1, 0, newCycle);
+      return result;
+    });
+
+    setExpandedCycles(prev => ({ ...prev, [newCycleId]: true }));
+  }, []);
+
+  // Section CRUD functions (cycle-scoped)
+  const addSection = useCallback(cycleId => {
     const newSection = {
       id: generateCuid(),
       name: "New Section",
       type: "workout",
       days: [],
     };
-    setSections(prev => [...prev, newSection]);
+    setCycles(prev => prev.map(c => (c.id === cycleId ? { ...c, sections: [...(c.sections || []), newSection] } : c)));
     setExpandedSections(prev => ({ ...prev, [newSection.id]: true }));
   }, []);
 
-  // Update section
-  const updateSection = useCallback((sectionId, updates) => {
-    setSections(prev => prev.map(s => (s.id === sectionId ? { ...s, ...updates } : s)));
+  const updateSection = useCallback((cycleId, sectionId, updates) => {
+    setCycles(prev =>
+      prev.map(c =>
+        c.id === cycleId ? { ...c, sections: c.sections.map(s => (s.id === sectionId ? { ...s, ...updates } : s)) } : c
+      )
+    );
   }, []);
 
-  // Delete section
-  const deleteSection = useCallback(sectionId => {
-    setSections(prev => prev.filter(s => s.id !== sectionId));
+  const deleteSection = useCallback((cycleId, sectionId) => {
+    setCycles(prev =>
+      prev.map(c => (c.id === cycleId ? { ...c, sections: c.sections.filter(s => s.id !== sectionId) } : c))
+    );
   }, []);
 
-  // Add day to section - MEMOIZED with functional update
+  // Day CRUD functions (cycle-scoped)
   const addDay = useCallback(
-    sectionId => {
+    (cycleId, sectionId) => {
       const newDay = {
         id: generateCuid(),
         name: "New Day",
         dayOfWeek: 1,
         exercises: [],
       };
-      setSections(prev =>
-        prev.map(s => {
-          if (s.id === sectionId) {
-            return { ...s, days: [...(s.days || []), newDay] };
-          }
-          return s;
-        })
+      setCycles(prev =>
+        prev.map(c =>
+          c.id === cycleId
+            ? {
+                ...c,
+                sections: c.sections.map(s => (s.id === sectionId ? { ...s, days: [...(s.days || []), newDay] } : s)),
+              }
+            : c
+        )
       );
       setExpandedDays(prev => ({ ...prev, [newDay.id]: true }));
     },
     [] // Empty deps - uses functional update
   );
 
-  // Update day - MEMOIZED with functional update
-  const updateDay = useCallback((sectionId, dayId, updates) => {
-    setSections(prev =>
-      prev.map(s => {
-        if (s.id === sectionId) {
-          return {
-            ...s,
-            days: s.days.map(d => (d.id === dayId ? { ...d, ...updates } : d)),
-          };
-        }
-        return s;
-      })
+  const updateDay = useCallback((cycleId, sectionId, dayId, updates) => {
+    setCycles(prev =>
+      prev.map(c =>
+        c.id === cycleId
+          ? {
+              ...c,
+              sections: c.sections.map(s =>
+                s.id === sectionId
+                  ? {
+                      ...s,
+                      days: s.days.map(d => (d.id === dayId ? { ...d, ...updates } : d)),
+                    }
+                  : s
+              ),
+            }
+          : c
+      )
     );
   }, []); // Empty deps - uses functional update
 
-  // Delete day - MEMOIZED with functional update
-  const deleteDay = useCallback((sectionId, dayId) => {
-    setSections(prev =>
-      prev.map(s => {
-        if (s.id === sectionId) {
-          return { ...s, days: s.days.filter(d => d.id !== dayId) };
-        }
-        return s;
-      })
+  const deleteDay = useCallback((cycleId, sectionId, dayId) => {
+    setCycles(prev =>
+      prev.map(c =>
+        c.id === cycleId
+          ? {
+              ...c,
+              sections: c.sections.map(s =>
+                s.id === sectionId ? { ...s, days: s.days.filter(d => d.id !== dayId) } : s
+              ),
+            }
+          : c
+      )
     );
   }, []); // Empty deps - uses functional update
 
-  // Add exercise to day - MEMOIZED with functional update
+  // Exercise CRUD functions (cycle-scoped)
   const addExercise = useCallback(
-    (sectionId, dayId) => {
+    (cycleId, sectionId, dayId) => {
       const newExercise = {
         id: generateCuid(),
         name: "New Exercise",
@@ -725,95 +958,135 @@ export default function WorkoutBuilder({
         bothSides: false,
         weeklyProgression: [],
       };
-      setSections(prev =>
-        prev.map(s => {
-          if (s.id === sectionId) {
-            return {
-              ...s,
-              days: s.days.map(d => {
-                if (d.id === dayId) {
-                  return { ...d, exercises: [...(d.exercises || []), newExercise] };
-                }
-                return d;
-              }),
-            };
-          }
-          return s;
-        })
+      setCycles(prev =>
+        prev.map(c =>
+          c.id === cycleId
+            ? {
+                ...c,
+                sections: c.sections.map(s =>
+                  s.id === sectionId
+                    ? {
+                        ...s,
+                        days: s.days.map(d =>
+                          d.id === dayId ? { ...d, exercises: [...(d.exercises || []), newExercise] } : d
+                        ),
+                      }
+                    : s
+                ),
+              }
+            : c
+        )
       );
     },
     [] // Empty deps - uses functional update
   );
 
-  // Update exercise - MEMOIZED with functional update
-  const updateExercise = useCallback((sectionId, dayId, exerciseId, updates) => {
-    setSections(prev =>
-      prev.map(s => {
-        if (s.id !== sectionId) return s;
-        const updatedDays = s.days.map(d => updateDayExercises(d, dayId, exerciseId, updates));
-        return { ...s, days: updatedDays };
-      })
+  const updateExercise = useCallback((cycleId, sectionId, dayId, exerciseId, updates) => {
+    setCycles(prev =>
+      prev.map(c =>
+        c.id === cycleId
+          ? {
+              ...c,
+              sections: c.sections.map(s =>
+                s.id === sectionId
+                  ? {
+                      ...s,
+                      days: s.days.map(d => updateDayExercises(d, dayId, exerciseId, updates)),
+                    }
+                  : s
+              ),
+            }
+          : c
+      )
     );
   }, []); // Empty deps - uses functional update
 
-  // Delete exercise - MEMOIZED with functional update
-  const deleteExercise = useCallback((sectionId, dayId, exerciseId) => {
-    setSections(prev =>
-      prev.map(s => {
-        if (s.id !== sectionId) return s;
-        const updatedDays = s.days.map(d => deleteDayExercise(d, dayId, exerciseId));
-        return { ...s, days: updatedDays };
-      })
+  const deleteExercise = useCallback((cycleId, sectionId, dayId, exerciseId) => {
+    setCycles(prev =>
+      prev.map(c =>
+        c.id === cycleId
+          ? {
+              ...c,
+              sections: c.sections.map(s =>
+                s.id === sectionId
+                  ? {
+                      ...s,
+                      days: s.days.map(d => deleteDayExercise(d, dayId, exerciseId)),
+                    }
+                  : s
+              ),
+            }
+          : c
+      )
     );
   }, []); // Empty deps - uses functional update
 
-  // Update number of weeks (propagate to all exercises) - MEMOIZED with functional update
-  const updateNumberOfWeeks = useCallback(weeks => {
-    setNumberOfWeeks(weeks);
-
-    // Helper function to build progression array for an exercise
-    const buildProgression = (exercise, weeks) => {
-      const existingProgressions = exercise.weeklyProgression || [];
-      const newProgressions = [];
-      for (let w = 1; w <= weeks; w++) {
-        const existing = existingProgressions.find(p => p.week === w);
-        newProgressions.push(
-          existing || {
-            week: w,
-            targetValue: exercise.targetValue || 0,
-            actualValue: null,
-            isDeload: false,
-            isTest: false,
-          }
-        );
-      }
-      return newProgressions;
-    };
-
-    setSections(prevSections =>
-      prevSections.map(section => ({
-        ...section,
-        days: section.days?.map(day => ({
-          ...day,
-          exercises: day.exercises?.map(exercise => ({
-            ...exercise,
-            weeklyProgression: buildProgression(exercise, weeks),
-          })),
-        })),
-      }))
+  // Update weekly progression (cycle-scoped)
+  const updateWeeklyProgression = useCallback((cycleId, sectionId, dayId, exerciseId, weekIndex, updates) => {
+    setCycles(prev =>
+      prev.map(c =>
+        c.id === cycleId
+          ? {
+              ...c,
+              sections: c.sections.map(s =>
+                s.id === sectionId
+                  ? {
+                      ...s,
+                      days: s.days.map(d => updateDayExercisesProgression(d, dayId, exerciseId, weekIndex, updates)),
+                    }
+                  : s
+              ),
+            }
+          : c
+      )
     );
   }, []); // Empty deps - uses functional update
 
-  // Update weekly progression - MEMOIZED with functional update
-  const updateWeeklyProgression = useCallback((sectionId, dayId, exerciseId, weekIndex, updates) => {
-    setSections(prev =>
-      prev.map(s => {
-        if (s.id !== sectionId) return s;
-        const updatedDays = s.days.map(d => updateDayExercisesProgression(d, dayId, exerciseId, weekIndex, updates));
-        return { ...s, days: updatedDays };
-      })
-    );
-  }, []); // Empty deps - uses functional update
+  // Helper to build progression array for an exercise when cycle weeks change
+  const buildProgression = useCallback((exercise, weeks) => {
+    const existingProgressions = exercise.weeklyProgression || [];
+    const newProgressions = [];
+    for (let w = 1; w <= weeks; w++) {
+      const existing = existingProgressions.find(p => p.week === w);
+      newProgressions.push(
+        existing || {
+          week: w,
+          targetValue: exercise.targetValue || 0,
+          actualValue: null,
+          isDeload: false,
+          isTest: false,
+        }
+      );
+    }
+    return newProgressions;
+  }, []);
+
+  // Update cycle numberOfWeeks and propagate to exercises
+  const updateCycleNumberOfWeeks = useCallback(
+    (cycleId, weeks) => {
+      setCycles(prev =>
+        prev.map(c =>
+          c.id === cycleId
+            ? {
+                ...c,
+                numberOfWeeks: weeks,
+                sections: c.sections.map(section => ({
+                  ...section,
+                  days: section.days?.map(day => ({
+                    ...day,
+                    exercises: day.exercises?.map(exercise => ({
+                      ...exercise,
+                      weeklyProgression: buildProgression(exercise, weeks),
+                    })),
+                  })),
+                })),
+              }
+            : c
+        )
+      );
+    },
+    [buildProgression]
+  );
 
   // Save workout
   const handleSave = useCallback(async () => {
@@ -823,12 +1096,48 @@ export default function WorkoutBuilder({
     }
 
     try {
-      await saveWorkoutProgramMutation({
+      const programData = {
         taskId,
         name,
-        numberOfWeeks,
-        sections,
-      }).unwrap();
+        cycles: cycles.map((cycle, cIdx) => ({
+          id: cycle.id,
+          name: cycle.name,
+          numberOfWeeks: cycle.numberOfWeeks,
+          order: cIdx,
+          sections: cycle.sections.map((section, sIdx) => ({
+            id: section.id,
+            name: section.name,
+            type: section.type,
+            order: sIdx,
+            days: section.days.map((day, dIdx) => ({
+              id: day.id,
+              name: day.name,
+              daysOfWeek: day.daysOfWeek || (day.dayOfWeek !== undefined ? [day.dayOfWeek] : [1]),
+              order: dIdx,
+              exercises: day.exercises.map((exercise, eIdx) => ({
+                id: exercise.id,
+                name: exercise.name,
+                type: exercise.type,
+                sets: exercise.sets,
+                targetValue: exercise.targetValue,
+                unit: exercise.unit,
+                goal: exercise.goal || null,
+                notes: exercise.notes || null,
+                bothSides: exercise.bothSides || false,
+                order: eIdx,
+                weeklyProgression: (exercise.weeklyProgression || []).map(wp => ({
+                  week: wp.week,
+                  targetValue: wp.targetValue,
+                  isDeload: wp.isDeload || false,
+                  isTest: wp.isTest || false,
+                })),
+              })),
+            })),
+          })),
+        })),
+      };
+
+      await saveWorkoutProgramMutation(programData).unwrap();
       dispatch(showSuccess({ message: "Workout saved successfully" }));
       handleSaveComplete();
       handleClose();
@@ -837,11 +1146,16 @@ export default function WorkoutBuilder({
       const errorMessage = err?.data?.message || err?.message || "Failed to save workout. Please try again.";
       dispatch(showError({ message: errorMessage }));
     }
-  }, [dispatch, saveWorkoutProgramMutation, taskId, name, numberOfWeeks, sections, handleSaveComplete, handleClose]);
+  }, [dispatch, saveWorkoutProgramMutation, taskId, name, cycles, handleSaveComplete, handleClose]);
 
   // Toggle section expansion
   const toggleSection = useCallback(sectionId => {
     setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
+  }, []);
+
+  // Toggle cycle expansion
+  const toggleCycle = useCallback(cycleId => {
+    setExpandedCycles(prev => ({ ...prev, [cycleId]: !prev[cycleId] }));
   }, []);
 
   // Toggle day expansion
@@ -853,14 +1167,6 @@ export default function WorkoutBuilder({
   const handleNameChange = useCallback(e => {
     setName(e.target.value);
   }, []);
-
-  // Handle number of weeks change
-  const handleNumberOfWeeksChange = useCallback(
-    e => {
-      updateNumberOfWeeks(parseInt(e.target.value) || 0);
-    },
-    [updateNumberOfWeeks]
-  );
 
   // Don't render anything if not open
   if (!isOpen) {
@@ -913,47 +1219,37 @@ export default function WorkoutBuilder({
               sx={{ maxWidth: 400 }}
             />
 
-            {/* Number of Weeks */}
-            <Box>
-              <TextField
-                label="Number of Weeks"
-                type="number"
-                value={numberOfWeeks}
-                onChange={handleNumberOfWeeksChange}
-                size="small"
-                inputProps={{ min: 0 }}
-                sx={{ maxWidth: 200 }}
-              />
-              <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-                Controls weekly progression for all exercises
-              </Typography>
-            </Box>
-
-            {/* Sections */}
+            {/* Cycles */}
             <Stack spacing={2}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography variant="subtitle1" fontWeight={600}>
-                  Sections
+                  Cycles
                 </Typography>
-                <Button startIcon={<Plus fontSize="small" />} onClick={addSection} size="small">
-                  Add Section
+                <Button startIcon={<Plus fontSize="small" />} onClick={addCycle} size="small">
+                  Add Cycle
                 </Button>
               </Stack>
 
-              {sections.map(section => (
-                <WorkoutSection
-                  key={section.id}
-                  section={section}
-                  expanded={expandedSections[section.id]}
-                  onToggle={toggleSection}
-                  onUpdate={updateSection}
-                  onDelete={deleteSection}
-                  onAddDay={addDay}
-                  numberOfWeeks={numberOfWeeks}
+              {[...cycles].reverse().map(cycle => (
+                <WorkoutCyclePanel
+                  key={cycle.id}
+                  cycle={cycle}
+                  expanded={expandedCycles[cycle.id]}
+                  onToggle={toggleCycle}
+                  onUpdate={updateCycle}
+                  onUpdateNumberOfWeeks={updateCycleNumberOfWeeks}
+                  onDelete={deleteCycle}
+                  onDuplicate={duplicateCycle}
+                  onAddSection={addSection}
+                  expandedSections={expandedSections}
+                  onToggleSection={toggleSection}
                   expandedDays={expandedDays}
                   onToggleDay={toggleDay}
                   expandedExercises={expandedExercises}
                   onToggleExercise={toggleExerciseProgression}
+                  onUpdateSection={updateSection}
+                  onDeleteSection={deleteSection}
+                  onAddDay={addDay}
                   onUpdateDay={updateDay}
                   onDeleteDay={deleteDay}
                   onAddExercise={addExercise}

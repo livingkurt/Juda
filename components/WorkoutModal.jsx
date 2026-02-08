@@ -69,13 +69,56 @@ export default function WorkoutModal() {
   // Keep ref in sync with state
   completionDataRef.current = completionData;
 
-  // Get total weeks from workout program (not from task recurrence)
+  // Get cycles from workout program
+  const cycles = useMemo(() => {
+    const cyclesData = workoutProgram?.cycles || [];
+    // If no cycles but sections exist (legacy data), wrap in default cycle
+    if (cyclesData.length === 0 && workoutProgram?.sections) {
+      return [
+        {
+          id: "default",
+          name: "Cycle 1",
+          numberOfWeeks: workoutProgram.numberOfWeeks || 1,
+          sections: workoutProgram.sections,
+        },
+      ];
+    }
+    return cyclesData;
+  }, [workoutProgram]);
+
+  // Calculate total weeks across all cycles
   const totalWeeks = useMemo(() => {
-    return workoutProgram?.numberOfWeeks || 1;
-  }, [workoutProgram?.numberOfWeeks]);
+    return cycles.reduce((sum, cycle) => sum + (cycle.numberOfWeeks || 1), 0);
+  }, [cycles]);
+
+  // Get active cycle and week within that cycle based on cumulative weeks
+  const getActiveCycleAndWeek = useCallback((cycles, currentWeekOverall) => {
+    // Handle empty cycles array
+    if (!cycles || cycles.length === 0) {
+      return { cycle: null, weekInCycle: 1 };
+    }
+
+    let cumulativeWeeks = 0;
+    for (const cycle of cycles) {
+      if (!cycle || !cycle.numberOfWeeks) continue;
+      if (currentWeekOverall <= cumulativeWeeks + cycle.numberOfWeeks) {
+        return {
+          cycle,
+          weekInCycle: currentWeekOverall - cumulativeWeeks,
+        };
+      }
+      cumulativeWeeks += cycle.numberOfWeeks;
+    }
+    // Past all cycles — return last cycle, last week
+    const lastCycle = cycles[cycles.length - 1];
+    if (!lastCycle) {
+      return { cycle: null, weekInCycle: 1 };
+    }
+    return { cycle: lastCycle, weekInCycle: lastCycle.numberOfWeeks || 1 };
+  }, []);
 
   // Calculate current week based on the workout program start date
-  const currentWeek = useMemo(() => {
+  const currentWeekOverall = useMemo(() => {
     if (!task?.recurrence?.startDate) return 1;
 
     // Parse start date from ISO string (YYYY-MM-DD format)
@@ -97,11 +140,19 @@ export default function WorkoutModal() {
     return Math.min(Math.max(1, weekNumber), totalWeeks);
   }, [task?.recurrence, currentDate, totalWeeks]);
 
+  // Get active cycle and week within cycle
+  const { cycle: activeCycle, weekInCycle } = useMemo(() => {
+    return getActiveCycleAndWeek(cycles, currentWeekOverall);
+  }, [cycles, currentWeekOverall, getActiveCycleAndWeek]);
+
+  // Get sections from active cycle
+  const sections = useMemo(() => activeCycle?.sections || [], [activeCycle?.sections]);
+
   // Get current day of week (0-6)
   const currentDayOfWeek = currentDate.getDay();
 
-  // Get sections from workout program
-  const sections = useMemo(() => workoutProgram?.sections || [], [workoutProgram?.sections]);
+  // Current week display (overall week)
+  const currentWeek = currentWeekOverall;
 
   // Get current day for a section
   const getCurrentDayForSection = useCallback(
@@ -482,6 +533,7 @@ export default function WorkoutModal() {
             <Typography variant="h6">{task.title}</Typography>
             <Typography variant="caption" color="text.secondary">
               Week {currentWeek} of {totalWeeks}
+              {activeCycle ? ` (${activeCycle.name}, Week ${weekInCycle})` : ""}
             </Typography>
           </Box>
           {isSaving && <CircularProgress size={20} />}

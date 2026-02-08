@@ -48,7 +48,10 @@ export function WorkoutProgressCalendar({ completions, task, program, startDate,
 
   // Get program start date from task recurrence
   const programStartDate = task?.recurrence?.startDate || null;
-  const totalWeeks = program?.numberOfWeeks || null;
+  // Calculate total weeks from cycles (sum of all cycle numberOfWeeks)
+  const totalWeeks = program?.cycles
+    ? program.cycles.reduce((sum, cycle) => sum + (cycle.numberOfWeeks || 1), 0)
+    : program?.numberOfWeeks || null; // Fallback for legacy data
 
   // Get all unique dates from completions and scheduled dates
   const allDates = new Set();
@@ -84,9 +87,23 @@ export function WorkoutProgressCalendar({ completions, task, program, startDate,
     weeksMap.get(weekNumber).push(dayjs(dateStr));
   });
 
-  // Sort weeks and days within each week
+  // Calculate current week
+  const currentWeek = getWorkoutWeek(today, programStartDate, totalWeeks);
+
+  // Generate all weeks from 1 to current week (not future weeks)
+  if (totalWeeks && programStartDate && currentWeek) {
+    for (let weekNum = 1; weekNum <= currentWeek; weekNum++) {
+      if (!weeksMap.has(weekNum)) {
+        weeksMap.set(weekNum, []);
+      }
+    }
+  }
+
+  // Sort weeks in descending order (latest week at top) and days within each week
+  // Filter to only show current week and below (no future weeks)
   const weeks = Array.from(weeksMap.entries())
-    .sort((a, b) => a[0] - b[0])
+    .filter(([weekNumber]) => !currentWeek || weekNumber <= currentWeek)
+    .sort((a, b) => b[0] - a[0]) // Reverse sort: highest week number first
     .map(([weekNumber, dates]) => ({
       weekNumber,
       dates: dates.sort((a, b) => a.diff(b, "day")),
@@ -100,10 +117,21 @@ export function WorkoutProgressCalendar({ completions, task, program, startDate,
   };
 
   const filledWeeks = weeks.map(({ weekNumber, dates }) => {
-    if (dates.length === 0) return { weekNumber, days: [] };
-
-    const firstDate = dates[0];
-    const weekStart = getWeekStart(firstDate);
+    // Calculate week start date based on program start date and week number
+    let weekStart;
+    if (dates.length > 0) {
+      // Use first date in the week if available
+      weekStart = getWeekStart(dates[0]);
+    } else if (programStartDate && totalWeeks) {
+      // Calculate week start from program start date
+      const start = dayjs(programStartDate).startOf("day");
+      const weekOffset = (weekNumber - 1) * 7;
+      const weekStartDate = start.add(weekOffset, "day");
+      weekStart = getWeekStart(weekStartDate);
+    } else {
+      // Fallback: return empty days if we can't calculate
+      return { weekNumber, days: [] };
+    }
 
     const days = [];
     for (let i = 0; i < 7; i += 1) {

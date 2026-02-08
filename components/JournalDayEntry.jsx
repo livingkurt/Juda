@@ -42,9 +42,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
   const [showTextarea, setShowTextarea] = useState(Boolean(currentNote));
   const [isFocused, setIsFocused] = useState(false);
   // For selection tasks, check if there are selected values; for others, check note
-  const hasEntry = isSelectionTask
-    ? selectedValues.length > 0
-    : currentNote && currentNote.trim().length > 0;
+  const hasEntry = isSelectionTask ? selectedValues.length > 0 : currentNote && currentNote.trim().length > 0;
 
   // Get selection options from task
   const selectionOptions = useMemo(() => {
@@ -165,7 +163,16 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
         }
       }
     },
-    [isCurrentYear, isSelectionTask, task.id, date, completion?.note, completion?.selectedOptions, onSave, parseInitialSelectionValues]
+    [
+      isCurrentYear,
+      isSelectionTask,
+      task.id,
+      date,
+      completion?.note,
+      completion?.selectedOptions,
+      onSave,
+      parseInitialSelectionValues,
+    ]
   );
 
   const { debouncedSave, immediateSave } = useDebouncedSave(saveNote, 300);
@@ -174,10 +181,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
   // Use "adjusting state during render" pattern
   if (isSelectionTask) {
     const currentSelectedOptions = completion?.selectedOptions || [];
-    if (
-      JSON.stringify(prevSelectedOptions) !== JSON.stringify(currentSelectedOptions) &&
-      !isFocused
-    ) {
+    if (JSON.stringify(prevSelectedOptions) !== JSON.stringify(currentSelectedOptions) && !isFocused) {
       setPrevSelectedOptions(currentSelectedOptions);
       setSelectedValues(parseInitialSelectionValues());
     }
@@ -430,9 +434,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
                       fontSize: { xs: "0.75rem", md: "0.875rem" },
                     }}
                   >
-                    {selectedValues.length > 0
-                      ? selectedValues.join(", ")
-                      : completion?.note || ""}
+                    {selectedValues.length > 0 ? selectedValues.join(", ") : completion?.note || ""}
                   </Typography>
                 ) : (
                   <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic", mt: 2 }}>

@@ -14,9 +14,12 @@ const getWeekIndex = (startDate, date, totalWeeks) => {
 };
 
 const buildExerciseList = program => {
-  if (!program?.sections) return [];
+  // Support both cycles structure and legacy sections structure
+  const sections = program?.cycles ? program.cycles.flatMap(cycle => cycle.sections || []) : program?.sections || [];
+
+  if (sections.length === 0) return [];
   const exercises = [];
-  program.sections.forEach(section => {
+  sections.forEach(section => {
     section.days?.forEach(day => {
       day.exercises?.forEach(exercise => {
         exercises.push({
@@ -84,7 +87,10 @@ export function WorkoutExerciseProgress({ program, completions, task, startDate 
   }
 
   const exerciseList = buildExerciseList(program);
-  const totalWeeks = program.numberOfWeeks || 1;
+  // Calculate total weeks from cycles (sum of all cycle numberOfWeeks)
+  const totalWeeks = program?.cycles
+    ? program.cycles.reduce((sum, cycle) => sum + (cycle.numberOfWeeks || 1), 0)
+    : program?.numberOfWeeks || 1; // Fallback for legacy data
   const programStart = startDate || task?.recurrence?.startDate || null;
 
   const weekExerciseMap = new Map();

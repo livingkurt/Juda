@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { workoutSetCompletions, workoutPrograms, exercises, tasks, taskCompletions } from "@/lib/schema";
+import { workoutSetCompletions, workoutPrograms, workoutCycles, exercises, tasks, taskCompletions } from "@/lib/schema";
 import { and, eq, gte, lte, asc } from "drizzle-orm";
 import { withApi, Errors } from "@/lib/apiHelpers";
 
@@ -140,17 +140,22 @@ export const GET = withApi(async (request, { userId, getRequiredParam, getSearch
   const program = await db.query.workoutPrograms.findFirst({
     where: eq(workoutPrograms.taskId, taskId),
     with: {
-      sections: {
-        orderBy: (sections, { asc }) => [asc(sections.order)],
+      cycles: {
+        orderBy: (cycles, { asc }) => [asc(cycles.order)],
         with: {
-          days: {
-            orderBy: (days, { asc }) => [asc(days.order)],
+          sections: {
+            orderBy: (sections, { asc }) => [asc(sections.order)],
             with: {
-              exercises: {
-                orderBy: (exerciseRows, { asc }) => [asc(exerciseRows.order)],
+              days: {
+                orderBy: (days, { asc }) => [asc(days.order)],
                 with: {
-                  weeklyProgressions: {
-                    orderBy: (progressions, { asc }) => [asc(progressions.week)],
+                  exercises: {
+                    orderBy: (exerciseRows, { asc }) => [asc(exerciseRows.order)],
+                    with: {
+                      weeklyProgressions: {
+                        orderBy: (progressions, { asc }) => [asc(progressions.week)],
+                      },
+                    },
                   },
                 },
               },
@@ -169,33 +174,39 @@ export const GET = withApi(async (request, { userId, getRequiredParam, getSearch
     id: program.id,
     taskId: program.taskId,
     name: program.name,
-    numberOfWeeks: program.numberOfWeeks,
-    sections: program.sections.map(section => ({
-      id: section.id,
-      name: section.name,
-      type: section.type,
-      order: section.order,
-      days: section.days.map(day => ({
-        id: day.id,
-        name: day.name,
-        daysOfWeek: day.daysOfWeek,
-        order: day.order,
-        exercises: day.exercises.map(exercise => ({
-          id: exercise.id,
-          name: exercise.name,
-          type: exercise.type,
-          sets: exercise.sets,
-          targetValue: exercise.targetValue,
-          unit: exercise.unit,
-          goal: exercise.goal,
-          notes: exercise.notes,
-          bothSides: exercise.bothSides || false,
-          order: exercise.order,
-          weeklyProgression: exercise.weeklyProgressions.map(wp => ({
-            week: wp.week,
-            targetValue: wp.targetValue,
-            isDeload: wp.isDeload,
-            isTest: wp.isTest,
+    progress: program.progress || 0.0,
+    cycles: (program.cycles || []).map(cycle => ({
+      id: cycle.id,
+      name: cycle.name,
+      numberOfWeeks: cycle.numberOfWeeks,
+      order: cycle.order,
+      sections: cycle.sections.map(section => ({
+        id: section.id,
+        name: section.name,
+        type: section.type,
+        order: section.order,
+        days: section.days.map(day => ({
+          id: day.id,
+          name: day.name,
+          daysOfWeek: day.daysOfWeek,
+          order: day.order,
+          exercises: day.exercises.map(exercise => ({
+            id: exercise.id,
+            name: exercise.name,
+            type: exercise.type,
+            sets: exercise.sets,
+            targetValue: exercise.targetValue,
+            unit: exercise.unit,
+            goal: exercise.goal,
+            notes: exercise.notes,
+            bothSides: exercise.bothSides || false,
+            order: exercise.order,
+            weeklyProgression: exercise.weeklyProgressions.map(wp => ({
+              week: wp.week,
+              targetValue: wp.targetValue,
+              isDeload: wp.isDeload,
+              isTest: wp.isTest,
+            })),
           })),
         })),
       })),

@@ -180,7 +180,12 @@ export const JournalTab = memo(function JournalTab({ isLoading: tabLoading }) {
 
     try {
       if (existingCompletion) {
-        await updateCompletionMutation({ id: existingCompletion.id, taskId, date: dateStr, ...completionData }).unwrap();
+        await updateCompletionMutation({
+          id: existingCompletion.id,
+          taskId,
+          date: dateStr,
+          ...completionData,
+        }).unwrap();
       } else {
         await createCompletionMutation({ taskId, date: dateStr, ...completionData }).unwrap();
       }

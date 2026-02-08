@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { workoutPrograms, workoutSections, workoutDays, exercises, weeklyProgressions, tasks } from "@/lib/schema";
+import {
+  workoutPrograms,
+  workoutCycles,
+  workoutSections,
+  workoutDays,
+  exercises,
+  weeklyProgressions,
+  tasks,
+} from "@/lib/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { withApi, Errors, validateRequired } from "@/lib/apiHelpers";
 
@@ -18,17 +26,22 @@ export const GET = withApi(async (request, { userId, getRequiredParam }) => {
   const program = await db.query.workoutPrograms.findFirst({
     where: eq(workoutPrograms.taskId, taskId),
     with: {
-      sections: {
-        orderBy: (sections, { asc }) => [asc(sections.order)],
+      cycles: {
+        orderBy: (cycles, { asc }) => [asc(cycles.order)],
         with: {
-          days: {
-            orderBy: (days, { asc }) => [asc(days.order)],
+          sections: {
+            orderBy: (sections, { asc }) => [asc(sections.order)],
             with: {
-              exercises: {
-                orderBy: (exercises, { asc }) => [asc(exercises.order)],
+              days: {
+                orderBy: (days, { asc }) => [asc(days.order)],
                 with: {
-                  weeklyProgressions: {
-                    orderBy: (progressions, { asc }) => [asc(progressions.week)],
+                  exercises: {
+                    orderBy: (exercises, { asc }) => [asc(exercises.order)],
+                    with: {
+                      weeklyProgressions: {
+                        orderBy: (progressions, { asc }) => [asc(progressions.week)],
+                      },
+                    },
                   },
                 },
               },
@@ -43,37 +56,44 @@ export const GET = withApi(async (request, { userId, getRequiredParam }) => {
     return NextResponse.json(null);
   }
 
+  // Transform to match expected response shape
   const transformed = {
     id: program.id,
     taskId: program.taskId,
     name: program.name,
-    numberOfWeeks: program.numberOfWeeks,
-    sections: program.sections.map(section => ({
-      id: section.id,
-      name: section.name,
-      type: section.type,
-      order: section.order,
-      days: section.days.map(day => ({
-        id: day.id,
-        name: day.name,
-        daysOfWeek: day.daysOfWeek,
-        order: day.order,
-        exercises: day.exercises.map(exercise => ({
-          id: exercise.id,
-          name: exercise.name,
-          type: exercise.type,
-          sets: exercise.sets,
-          targetValue: exercise.targetValue,
-          unit: exercise.unit,
-          goal: exercise.goal,
-          notes: exercise.notes,
-          bothSides: exercise.bothSides || false,
-          order: exercise.order,
-          weeklyProgression: exercise.weeklyProgressions.map(wp => ({
-            week: wp.week,
-            targetValue: wp.targetValue,
-            isDeload: wp.isDeload,
-            isTest: wp.isTest,
+    progress: program.progress || 0.0,
+    cycles: (program.cycles || []).map(cycle => ({
+      id: cycle.id,
+      name: cycle.name,
+      numberOfWeeks: cycle.numberOfWeeks,
+      order: cycle.order,
+      sections: cycle.sections.map(section => ({
+        id: section.id,
+        name: section.name,
+        type: section.type,
+        order: section.order,
+        days: section.days.map(day => ({
+          id: day.id,
+          name: day.name,
+          daysOfWeek: day.daysOfWeek,
+          order: day.order,
+          exercises: day.exercises.map(exercise => ({
+            id: exercise.id,
+            name: exercise.name,
+            type: exercise.type,
+            sets: exercise.sets,
+            targetValue: exercise.targetValue,
+            unit: exercise.unit,
+            goal: exercise.goal,
+            notes: exercise.notes,
+            bothSides: exercise.bothSides || false,
+            order: exercise.order,
+            weeklyProgression: exercise.weeklyProgressions.map(wp => ({
+              week: wp.week,
+              targetValue: wp.targetValue,
+              isDeload: wp.isDeload,
+              isTest: wp.isTest,
+            })),
           })),
         })),
       })),
@@ -85,7 +105,7 @@ export const GET = withApi(async (request, { userId, getRequiredParam }) => {
 
 export const POST = withApi(async (request, { userId, getBody }) => {
   const body = await getBody();
-  const { taskId, name, numberOfWeeks, sections: sectionsData } = body;
+  const { taskId, name, cycles: cyclesData } = body;
 
   validateRequired(body, ["taskId"]);
 
@@ -110,12 +130,12 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       // Update existing program
       await tx
         .update(workoutPrograms)
-        .set({ name, numberOfWeeks, updatedAt: new Date() })
+        .set({ name, updatedAt: new Date() })
         .where(eq(workoutPrograms.id, existingProgram.id));
       programId = existingProgram.id;
     } else {
       // Create new program
-      const [newProgram] = await tx.insert(workoutPrograms).values({ taskId, name, numberOfWeeks }).returning();
+      const [newProgram] = await tx.insert(workoutPrograms).values({ taskId, name }).returning();
       programId = newProgram.id;
     }
 
@@ -134,181 +154,258 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       await tx.insert(weeklyProgressions).values(progressionValues);
     };
 
-    const normalizedSections = Array.isArray(sectionsData) ? sectionsData : [];
+    const normalizedCycles = Array.isArray(cyclesData) ? cyclesData : [];
 
-    const existingSections = await tx.query.workoutSections.findMany({
-      where: eq(workoutSections.programId, programId),
+    // Get existing cycles with all nested data
+    const existingCycles = await tx.query.workoutCycles.findMany({
+      where: eq(workoutCycles.programId, programId),
       with: {
-        days: {
+        sections: {
           with: {
-            exercises: true,
+            days: {
+              with: {
+                exercises: true,
+              },
+            },
           },
         },
       },
     });
 
-    const existingSectionIds = new Set(existingSections.map(section => section.id));
-    const existingDayIds = new Set(existingSections.flatMap(section => section.days || []).map(day => day.id));
+    const existingCycleIds = new Set(existingCycles.map(cycle => cycle.id));
+    const existingSectionIds = new Set(
+      existingCycles.flatMap(cycle => cycle.sections || []).map(section => section.id)
+    );
+    const existingDayIds = new Set(
+      existingCycles
+        .flatMap(cycle => cycle.sections || [])
+        .flatMap(section => section.days || [])
+        .map(day => day.id)
+    );
     const existingExerciseIds = new Set(
-      existingSections
+      existingCycles
+        .flatMap(cycle => cycle.sections || [])
         .flatMap(section => section.days || [])
         .flatMap(day => day.exercises || [])
         .map(exercise => exercise.id)
     );
 
+    const incomingCycleIds = new Set();
     const incomingSectionIds = new Set();
     const incomingDayIds = new Set();
     const incomingExerciseIds = new Set();
 
-    for (let sIdx = 0; sIdx < normalizedSections.length; sIdx++) {
-      const sectionData = normalizedSections[sIdx];
-      const sectionId = sectionData.id;
+    // Process cycles
+    for (let cIdx = 0; cIdx < normalizedCycles.length; cIdx++) {
+      const cycleData = normalizedCycles[cIdx];
+      const cycleId = cycleData.id;
 
-      if (sectionId) {
-        incomingSectionIds.add(sectionId);
+      if (cycleId) {
+        incomingCycleIds.add(cycleId);
       }
 
-      let finalSectionId = sectionId;
+      let finalCycleId = cycleId;
 
-      if (sectionId && existingSectionIds.has(sectionId)) {
+      if (cycleId && existingCycleIds.has(cycleId)) {
         await tx
-          .update(workoutSections)
+          .update(workoutCycles)
           .set({
-            name: sectionData.name,
-            type: sectionData.type || "workout",
-            order: sIdx,
+            name: cycleData.name,
+            numberOfWeeks: cycleData.numberOfWeeks || 1,
+            order: cIdx,
+            updatedAt: new Date(),
           })
-          .where(eq(workoutSections.id, sectionId));
+          .where(eq(workoutCycles.id, cycleId));
       } else {
-        const [section] = await tx
-          .insert(workoutSections)
+        const [cycle] = await tx
+          .insert(workoutCycles)
           .values({
-            id: sectionId,
+            id: cycleId,
             programId,
-            name: sectionData.name,
-            type: sectionData.type || "workout",
-            order: sIdx,
+            name: cycleData.name || `Cycle ${cIdx + 1}`,
+            numberOfWeeks: cycleData.numberOfWeeks || 1,
+            order: cIdx,
           })
           .returning();
-        finalSectionId = section.id;
-        incomingSectionIds.add(finalSectionId);
+        finalCycleId = cycle.id;
+        incomingCycleIds.add(finalCycleId);
       }
 
-      if (!sectionData.days || sectionData.days.length === 0) {
-        continue;
-      }
+      // Process sections within this cycle
+      const normalizedSections = Array.isArray(cycleData.sections) ? cycleData.sections : [];
 
-      for (let dIdx = 0; dIdx < sectionData.days.length; dIdx++) {
-        const dayData = sectionData.days[dIdx];
-        const dayId = dayData.id;
+      for (let sIdx = 0; sIdx < normalizedSections.length; sIdx++) {
+        const sectionData = normalizedSections[sIdx];
+        const sectionId = sectionData.id;
 
-        if (dayId) {
-          incomingDayIds.add(dayId);
+        if (sectionId) {
+          incomingSectionIds.add(sectionId);
         }
 
-        let finalDayId = dayId;
+        let finalSectionId = sectionId;
 
-        if (dayId && existingDayIds.has(dayId)) {
+        if (sectionId && existingSectionIds.has(sectionId)) {
           await tx
-            .update(workoutDays)
+            .update(workoutSections)
             .set({
-              sectionId: finalSectionId,
-              name: dayData.name,
-              daysOfWeek: dayData.daysOfWeek || [1],
-              order: dIdx,
+              cycleId: finalCycleId,
+              name: sectionData.name,
+              type: sectionData.type || "workout",
+              order: sIdx,
             })
-            .where(eq(workoutDays.id, dayId));
+            .where(eq(workoutSections.id, sectionId));
         } else {
-          const [day] = await tx
-            .insert(workoutDays)
+          const [section] = await tx
+            .insert(workoutSections)
             .values({
-              id: dayId,
-              sectionId: finalSectionId,
-              name: dayData.name,
-              daysOfWeek: dayData.daysOfWeek || [1],
-              order: dIdx,
+              id: sectionId,
+              cycleId: finalCycleId,
+              name: sectionData.name,
+              type: sectionData.type || "workout",
+              order: sIdx,
             })
             .returning();
-          finalDayId = day.id;
-          incomingDayIds.add(finalDayId);
+          finalSectionId = section.id;
+          incomingSectionIds.add(finalSectionId);
         }
 
-        if (!dayData.exercises || dayData.exercises.length === 0) {
+        if (!sectionData.days || sectionData.days.length === 0) {
           continue;
         }
 
-        for (let eIdx = 0; eIdx < dayData.exercises.length; eIdx++) {
-          const exerciseData = dayData.exercises[eIdx];
-          const exerciseId = exerciseData.id;
+        for (let dIdx = 0; dIdx < sectionData.days.length; dIdx++) {
+          const dayData = sectionData.days[dIdx];
+          const dayId = dayData.id;
 
-          if (exerciseId) {
-            incomingExerciseIds.add(exerciseId);
+          if (dayId) {
+            incomingDayIds.add(dayId);
           }
 
-          let finalExerciseId = exerciseId;
+          let finalDayId = dayId;
 
-          if (exerciseId && existingExerciseIds.has(exerciseId)) {
+          if (dayId && existingDayIds.has(dayId)) {
             await tx
-              .update(exercises)
+              .update(workoutDays)
               .set({
-                dayId: finalDayId,
-                name: exerciseData.name,
-                type: exerciseData.type || "reps",
-                sets: exerciseData.sets || 3,
-                targetValue: exerciseData.targetValue,
-                unit: exerciseData.unit || "reps",
-                goal: exerciseData.goal || null,
-                notes: exerciseData.notes || null,
-                bothSides: exerciseData.bothSides || false,
-                order: eIdx,
+                sectionId: finalSectionId,
+                name: dayData.name,
+                daysOfWeek: dayData.daysOfWeek || [1],
+                order: dIdx,
               })
-              .where(eq(exercises.id, exerciseId));
+              .where(eq(workoutDays.id, dayId));
           } else {
-            const [exercise] = await tx
-              .insert(exercises)
+            const [day] = await tx
+              .insert(workoutDays)
               .values({
-                id: exerciseId,
-                dayId: finalDayId,
-                name: exerciseData.name,
-                type: exerciseData.type || "reps",
-                sets: exerciseData.sets || 3,
-                targetValue: exerciseData.targetValue,
-                unit: exerciseData.unit || "reps",
-                goal: exerciseData.goal || null,
-                notes: exerciseData.notes || null,
-                bothSides: exerciseData.bothSides || false,
-                order: eIdx,
+                id: dayId,
+                sectionId: finalSectionId,
+                name: dayData.name,
+                daysOfWeek: dayData.daysOfWeek || [1],
+                order: dIdx,
               })
               .returning();
-            finalExerciseId = exercise.id;
-            incomingExerciseIds.add(finalExerciseId);
+            finalDayId = day.id;
+            incomingDayIds.add(finalDayId);
           }
 
-          await tx.delete(weeklyProgressions).where(eq(weeklyProgressions.exerciseId, finalExerciseId));
-          await createWeeklyProgressions(tx, finalExerciseId, exerciseData.weeklyProgression);
+          if (!dayData.exercises || dayData.exercises.length === 0) {
+            continue;
+          }
+
+          for (let eIdx = 0; eIdx < dayData.exercises.length; eIdx++) {
+            const exerciseData = dayData.exercises[eIdx];
+            const exerciseId = exerciseData.id;
+
+            if (exerciseId) {
+              incomingExerciseIds.add(exerciseId);
+            }
+
+            let finalExerciseId = exerciseId;
+
+            if (exerciseId && existingExerciseIds.has(exerciseId)) {
+              await tx
+                .update(exercises)
+                .set({
+                  dayId: finalDayId,
+                  name: exerciseData.name,
+                  type: exerciseData.type || "reps",
+                  sets: exerciseData.sets || 3,
+                  targetValue: exerciseData.targetValue,
+                  unit: exerciseData.unit || "reps",
+                  goal: exerciseData.goal || null,
+                  notes: exerciseData.notes || null,
+                  bothSides: exerciseData.bothSides || false,
+                  order: eIdx,
+                })
+                .where(eq(exercises.id, exerciseId));
+            } else {
+              const [exercise] = await tx
+                .insert(exercises)
+                .values({
+                  id: exerciseId,
+                  dayId: finalDayId,
+                  name: exerciseData.name,
+                  type: exerciseData.type || "reps",
+                  sets: exerciseData.sets || 3,
+                  targetValue: exerciseData.targetValue,
+                  unit: exerciseData.unit || "reps",
+                  goal: exerciseData.goal || null,
+                  notes: exerciseData.notes || null,
+                  bothSides: exerciseData.bothSides || false,
+                  order: eIdx,
+                })
+                .returning();
+              finalExerciseId = exercise.id;
+              incomingExerciseIds.add(finalExerciseId);
+            }
+
+            await tx.delete(weeklyProgressions).where(eq(weeklyProgressions.exerciseId, finalExerciseId));
+            await createWeeklyProgressions(tx, finalExerciseId, exerciseData.weeklyProgression);
+          }
         }
       }
     }
 
-    const sectionIdsToDelete = existingSections.map(section => section.id).filter(id => !incomingSectionIds.has(id));
-    const dayIdsToDelete = existingSections
+    // Delete removed cycles (cascade will handle sections/days/exercises)
+    const cycleIdsToDelete = existingCycles.map(cycle => cycle.id).filter(id => !incomingCycleIds.has(id));
+    if (cycleIdsToDelete.length > 0) {
+      await tx.delete(workoutCycles).where(inArray(workoutCycles.id, cycleIdsToDelete));
+    }
+
+    // Delete removed sections (only those still in existing cycles)
+    const sectionIdsToDelete = existingCycles
+      .filter(cycle => incomingCycleIds.has(cycle.id))
+      .flatMap(cycle => cycle.sections || [])
+      .map(section => section.id)
+      .filter(id => !incomingSectionIds.has(id));
+    if (sectionIdsToDelete.length > 0) {
+      await tx.delete(workoutSections).where(inArray(workoutSections.id, sectionIdsToDelete));
+    }
+
+    // Delete removed days
+    const dayIdsToDelete = existingCycles
+      .filter(cycle => incomingCycleIds.has(cycle.id))
+      .flatMap(cycle => cycle.sections || [])
+      .filter(section => incomingSectionIds.has(section.id))
       .flatMap(section => section.days || [])
       .map(day => day.id)
       .filter(id => !incomingDayIds.has(id));
-    const exerciseIdsToDelete = existingSections
-      .flatMap(section => section.days || [])
-      .flatMap(day => day.exercises || [])
-      .map(exercise => exercise.id)
-      .filter(id => !incomingExerciseIds.has(id));
-
-    if (exerciseIdsToDelete.length > 0) {
-      await tx.delete(exercises).where(inArray(exercises.id, exerciseIdsToDelete));
-    }
     if (dayIdsToDelete.length > 0) {
       await tx.delete(workoutDays).where(inArray(workoutDays.id, dayIdsToDelete));
     }
-    if (sectionIdsToDelete.length > 0) {
-      await tx.delete(workoutSections).where(inArray(workoutSections.id, sectionIdsToDelete));
+
+    // Delete removed exercises
+    const exerciseIdsToDelete = existingCycles
+      .filter(cycle => incomingCycleIds.has(cycle.id))
+      .flatMap(cycle => cycle.sections || [])
+      .filter(section => incomingSectionIds.has(section.id))
+      .flatMap(section => section.days || [])
+      .filter(day => incomingDayIds.has(day.id))
+      .flatMap(day => day.exercises || [])
+      .map(exercise => exercise.id)
+      .filter(id => !incomingExerciseIds.has(id));
+    if (exerciseIdsToDelete.length > 0) {
+      await tx.delete(exercises).where(inArray(exercises.id, exerciseIdsToDelete));
     }
 
     return { programId };
