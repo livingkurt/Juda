@@ -9,7 +9,7 @@ import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { CompletionEditDialog } from "./CompletionEditDialog";
 
-export const TaskContextMenu = ({
+export const TaskContextMenuBase = ({
   task,
   date,
   isWorkoutTask,
@@ -18,42 +18,17 @@ export const TaskContextMenu = ({
   onRemoveFromParent,
   anchorEl,
   open,
+  onEdit,
+  onEditWorkout,
+  onDuplicate,
+  onDelete,
+  onBulkEdit,
+  hasMultipleSelected = false,
+  selectedCount = 0,
+  canEditCompletion = false,
 }) => {
-  // Use hooks directly (they use Redux internally)
-  const taskOps = useTaskOperations();
-  const selectionState = useSelectionState();
-  const [updateTaskMutation] = useUpdateTaskMutation();
-  const { getCompletionForDate } = useCompletionHelpers();
-
   // State for completion edit dialog
   const [completionEditOpen, setCompletionEditOpen] = useState(false);
-
-  // Check if multiple tasks are selected
-  const hasMultipleSelected = selectionState.selectedCount > 1;
-
-  // Check if task is non-recurring and has been completed
-  const isNonRecurring = !task?.recurrence || task?.recurrence?.type === "none";
-  const hasCompletion =
-    task?.recurrence?.startDate && getCompletionForDate(task?.id, new Date(task.recurrence.startDate));
-  const canEditCompletion = isNonRecurring && hasCompletion && !isSubtask;
-
-  const handleRemoveFromParent = async () => {
-    // If a custom handler is provided (e.g., from dialog), use it
-    if (onRemoveFromParent) {
-      onRemoveFromParent();
-      onClose?.();
-      return;
-    }
-
-    // Otherwise, update via API
-    try {
-      await updateTaskMutation({ id: task.id, parentId: null }).unwrap();
-      console.warn("Subtask promoted: Task is now a regular task");
-      onClose?.();
-    } catch (error) {
-      console.error("Failed to remove from parent:", error);
-    }
-  };
 
   if (!open || !anchorEl) return null;
 
@@ -71,14 +46,14 @@ export const TaskContextMenu = ({
           <MenuItem
             onClick={e => {
               e.stopPropagation();
-              selectionState.handleBulkEdit();
+              onBulkEdit?.();
               onClose?.();
             }}
           >
             <ListItemIcon>
               <Edit fontSize="small" />
             </ListItemIcon>
-            <ListItemText>Bulk Edit ({selectionState.selectedCount} selected)</ListItemText>
+            <ListItemText>Bulk Edit ({selectedCount} selected)</ListItemText>
           </MenuItem>
         ) : (
           <MenuItem
@@ -88,7 +63,7 @@ export const TaskContextMenu = ({
               // Backlog tasks (no date) should not have a date passed
               const taskHasDate = task?.recurrence?.startDate;
               const clickedDate = taskHasDate && date ? new Date(date) : null;
-              taskOps.handleEditTask(task, clickedDate);
+              onEdit?.(task, clickedDate);
               onClose?.();
             }}
           >
@@ -105,7 +80,8 @@ export const TaskContextMenu = ({
             key="remove-from-parent"
             onClick={e => {
               e.stopPropagation();
-              handleRemoveFromParent();
+              onRemoveFromParent?.();
+              onClose?.();
             }}
           >
             <ListItemIcon>
@@ -137,7 +113,7 @@ export const TaskContextMenu = ({
           <MenuItem
             onClick={e => {
               e.stopPropagation();
-              taskOps.handleEditWorkout(task);
+              onEditWorkout?.(task);
               onClose?.();
             }}
           >
@@ -267,7 +243,7 @@ export const TaskContextMenu = ({
         <MenuItem
           onClick={e => {
             e.stopPropagation();
-            taskOps.handleDuplicateTask(task.id);
+            onDuplicate?.(task.id);
             onClose?.();
           }}
         >
@@ -286,7 +262,7 @@ export const TaskContextMenu = ({
         <MenuItem
           onClick={e => {
             e.stopPropagation();
-            taskOps.handleDeleteTask(task.id);
+            onDelete?.(task.id);
             onClose?.();
           }}
           sx={{ color: "error.main" }}
@@ -301,6 +277,71 @@ export const TaskContextMenu = ({
       {/* Completion Edit Dialog */}
       <CompletionEditDialog task={task} open={completionEditOpen} onClose={() => setCompletionEditOpen(false)} />
     </>
+  );
+};
+
+export const TaskContextMenu = ({
+  task,
+  date,
+  isWorkoutTask,
+  isSubtask,
+  onClose,
+  onRemoveFromParent,
+  anchorEl,
+  open,
+}) => {
+  // Use hooks directly (they use Redux internally)
+  const taskOps = useTaskOperations();
+  const selectionState = useSelectionState();
+  const [updateTaskMutation] = useUpdateTaskMutation();
+  const { getCompletionForDate } = useCompletionHelpers();
+
+  // Check if multiple tasks are selected
+  const hasMultipleSelected = selectionState.selectedCount > 1;
+
+  // Check if task is non-recurring and has been completed
+  const isNonRecurring = !task?.recurrence || task?.recurrence?.type === "none";
+  const hasCompletion =
+    task?.recurrence?.startDate && getCompletionForDate(task?.id, new Date(task.recurrence.startDate));
+  const canEditCompletion = isNonRecurring && hasCompletion && !isSubtask;
+
+  const handleRemoveFromParent = async () => {
+    // If a custom handler is provided (e.g., from dialog), use it
+    if (onRemoveFromParent) {
+      onRemoveFromParent();
+      onClose?.();
+      return;
+    }
+
+    // Otherwise, update via API
+    try {
+      await updateTaskMutation({ id: task.id, parentId: null }).unwrap();
+      console.warn("Subtask promoted: Task is now a regular task");
+      onClose?.();
+    } catch (error) {
+      console.error("Failed to remove from parent:", error);
+    }
+  };
+
+  return (
+    <TaskContextMenuBase
+      task={task}
+      date={date}
+      isWorkoutTask={isWorkoutTask}
+      isSubtask={isSubtask}
+      onClose={onClose}
+      onRemoveFromParent={handleRemoveFromParent}
+      anchorEl={anchorEl}
+      open={open}
+      onEdit={taskOps.handleEditTask}
+      onEditWorkout={taskOps.handleEditWorkout}
+      onDuplicate={taskOps.handleDuplicateTask}
+      onDelete={taskOps.handleDeleteTask}
+      onBulkEdit={selectionState.handleBulkEdit}
+      hasMultipleSelected={hasMultipleSelected}
+      selectedCount={selectionState.selectedCount}
+      canEditCompletion={canEditCompletion}
+    />
   );
 };
 

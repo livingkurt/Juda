@@ -579,6 +579,28 @@ export function HistoryTab({ isLoading: tabLoading }) {
     return groupedTasks.flatMap(g => flattenTasksWithSubtasks(g.tasks, deferredExpandedTaskIds));
   }, [groupedTasks, deferredExpandedTaskIds]);
 
+  const isLastInSectionByTaskId = useMemo(() => {
+    const map = new Map();
+    groupedTasks.forEach(group => {
+      const sectionTasks = flattenTasksWithSubtasks(group.tasks, deferredExpandedTaskIds);
+      sectionTasks.forEach((task, index) => {
+        map.set(task.id, index === sectionTasks.length - 1);
+      });
+    });
+    return map;
+  }, [groupedTasks, deferredExpandedTaskIds]);
+
+  const scheduledByTaskDate = useMemo(() => {
+    const map = new Map();
+    dates.forEach(dateStr => {
+      allTasks.forEach(task => {
+        const key = `${task.id}|${dateStr}`;
+        map.set(key, shouldShowOnDate(task, dateStr, getOutcomeOnDate));
+      });
+    });
+    return map;
+  }, [dates, allTasks, getOutcomeOnDate]);
+
   // Total task count (including expanded subtasks)
   const totalTasks = useMemo(() => {
     return allTasks.length;
@@ -847,18 +869,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
               />
               {/* Task name headers */}
               {allTasks.map(task => {
-                // Check if this is the last task in its section
-                const isLastInSection = (() => {
-                  // Find which section this task belongs to
-                  for (const group of groupedTasks) {
-                    const sectionTasks = flattenTasksWithSubtasks(group.tasks, deferredExpandedTaskIds);
-                    const indexInSection = sectionTasks.findIndex(t => t.id === task.id);
-                    if (indexInSection !== -1) {
-                      return indexInSection === sectionTasks.length - 1;
-                    }
-                  }
-                  return false;
-                })();
+                const isLastInSection = isLastInSectionByTaskId.get(task.id) || false;
 
                 const hasSubtasks = task.subtasks?.length > 0;
                 const subtaskCount = task.subtasks?.length || 0;
@@ -974,19 +985,8 @@ export function HistoryTab({ isLoading: tabLoading }) {
                   {/* Task completion cells */}
                   {allTasks.map(task => {
                     const completion = getCompletionForDate?.(task.id, date);
-                    const isScheduled = shouldShowOnDate(task, date, getOutcomeOnDate);
-                    // Check if this is the last task in its section
-                    const isLastInSection = (() => {
-                      // Find which section this task belongs to
-                      for (const group of groupedTasks) {
-                        const sectionTasks = flattenTasksWithSubtasks(group.tasks, deferredExpandedTaskIds);
-                        const indexInSection = sectionTasks.findIndex(t => t.id === task.id);
-                        if (indexInSection !== -1) {
-                          return indexInSection === sectionTasks.length - 1;
-                        }
-                      }
-                      return false;
-                    })();
+                    const isScheduled = scheduledByTaskDate.get(`${task.id}|${date}`) || false;
+                    const isLastInSection = isLastInSectionByTaskId.get(task.id) || false;
 
                     return (
                       <MemoizedCompletionCell

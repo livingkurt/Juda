@@ -43,7 +43,9 @@ import { TagChip } from "./TagChip";
  * @param {Function} props.onClose - Close callback (controlled mode)
  * @param {boolean} props.asMenuItem - Render as MenuItem (for context menus)
  */
-export const TagSelector = ({
+export const TagSelectorBase = ({
+  tags = [],
+  onCreateTag,
   selectedTagIds: externalSelectedTagIds = [],
   onSelectionChange,
   task,
@@ -61,10 +63,6 @@ export const TagSelector = ({
   const dialogState = useDialogState();
   const taskOps = useTaskOperations();
   const searchInputRef = useRef(null);
-
-  // Fetch tags
-  const { data: tags = [] } = useGetTagsQuery();
-  const [createTagMutation] = useCreateTagMutation();
 
   // Derive selected tag IDs from task if in autoSave mode, otherwise use external prop
   const derivedSelectedTagIds =
@@ -123,12 +121,10 @@ export const TagSelector = ({
   // Create new tag with selected color
   const handleCreateTag = async colorIndex => {
     if (!searchQuery.trim()) return;
+    if (!onCreateTag) return;
 
     try {
-      const newTag = await createTagMutation({
-        name: searchQuery.trim(),
-        color: canonicalColors[colorIndex],
-      }).unwrap();
+      const newTag = await onCreateTag(searchQuery.trim(), canonicalColors[colorIndex]);
 
       // Auto-select the newly created tag
       const newTagIds = [...internalSelectedTagIds, newTag.id];
@@ -226,7 +222,7 @@ export const TagSelector = ({
       <Divider />
 
       {/* Create new tag button */}
-      {showCreateButton && !showColorPicker && (
+      {showCreateButton && !showColorPicker && Boolean(onCreateTag) && (
         <Box sx={{ px: 2, py: 2 }}>
           <Button
             size="small"
@@ -244,7 +240,7 @@ export const TagSelector = ({
       )}
 
       {/* Color picker */}
-      {showCreateButton && showColorPicker && (
+      {showCreateButton && showColorPicker && Boolean(onCreateTag) && (
         <Box sx={{ px: 2, py: 2 }}>
           <Typography variant="caption" fontWeight={600} color="text.secondary" mb={1}>
             Choose a color:
@@ -277,7 +273,7 @@ export const TagSelector = ({
         </Box>
       )}
 
-      {showCreateButton && showColorPicker && <Divider />}
+      {showCreateButton && showColorPicker && Boolean(onCreateTag) && <Divider />}
 
       {/* Tag list */}
       <Box sx={{ maxHeight: "300px", overflowY: "auto" }}>
@@ -402,4 +398,15 @@ export const TagSelector = ({
 
   // If tags are selected, don't show the button (tags are displayed elsewhere)
   return menuContent;
+};
+
+export const TagSelector = props => {
+  const { data: tags = [] } = useGetTagsQuery();
+  const [createTagMutation] = useCreateTagMutation();
+
+  const handleCreateTag = async (name, color) => {
+    return await createTagMutation({ name, color }).unwrap();
+  };
+
+  return <TagSelectorBase {...props} tags={tags} onCreateTag={handleCreateTag} />;
 };

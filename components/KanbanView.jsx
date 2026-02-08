@@ -14,9 +14,19 @@ import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useDialogState } from "@/hooks/useDialogState";
 import { setKanbanSearchTerm, setKanbanSelectedTagIds } from "@/lib/store/slices/uiSlice";
+import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
+import { useTaskItemShared } from "@/hooks/useTaskItemShared";
 
 // Kanban column component
-const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, createDraggableId, allTasks }) {
+const KanbanColumn = memo(function KanbanColumn({
+  id,
+  title,
+  tasks,
+  color,
+  createDraggableId,
+  allTasks,
+  taskItemShared,
+}) {
   // Use hooks directly
   const taskOps = useTaskOperations();
   const completionHandlers = useCompletionHandlers({
@@ -105,6 +115,8 @@ const KanbanColumn = memo(function KanbanColumn({ id, title, tasks, color, creat
                   draggableId={createDraggableId.kanban(task.id, id)}
                   viewDate={viewDate}
                   allTasksOverride={allTasks}
+                  shared={taskItemShared}
+                  meta={taskItemShared?.taskMetaById?.get(task.id)}
                 />
               ))}
               {provided.placeholder}
@@ -166,13 +178,28 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
   // Get search/filter state from Redux
   const searchTerm = useSelector(state => state.ui.kanbanSearchTerm);
   const selectedTagIds = useSelector(state => state.ui.kanbanSelectedTagIds);
+  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const viewDate = todayViewDateISO ? new Date(todayViewDateISO) : new Date();
 
   // Use hooks directly (they use Redux internally)
   const completionHandlers = useCompletionHandlers();
+  const { data: tags = [] } = useGetTagsQuery();
+  const [createTagMutation] = useCreateTagMutation();
+  const handleCreateTag = async (name, color) => {
+    return await createTagMutation({ name, color }).unwrap();
+  };
 
   // Get task filters (needs recentlyCompletedTasks from completionHandlers)
   const taskFilters = useTaskFilters({
     recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+  });
+
+  const taskItemShared = useTaskItemShared({
+    allTasks: taskFilters.tasks,
+    viewDate,
+    tags,
+    onCreateTag: handleCreateTag,
+    completionHandlers,
   });
 
   // Filter tasks: non-recurring only, exclude notes
@@ -253,6 +280,7 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
             tasks={tasksByStatus[column.id]}
             createDraggableId={createDraggableId}
             allTasks={taskFilters.tasks}
+            taskItemShared={taskItemShared}
           />
         ))}
       </Stack>

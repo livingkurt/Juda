@@ -8,7 +8,10 @@ import { CalendarTask } from "./CalendarTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
 import { CurrentTimeLine } from "./CurrentTimeLine";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useTaskActions } from "@/hooks/useTaskActions";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
+import { useSelectionState } from "@/hooks/useSelectionState";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
 const BASE_HOUR_HEIGHT = HOUR_HEIGHT_DAY;
@@ -21,7 +24,10 @@ export const CalendarDayView = ({ date, tasks = [], createDraggableId, onDropTim
 
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
-  const { getCompletionForDate, getOutcomeOnDate } = useCompletionHelpers();
+  const taskActions = useTaskActions({ tasks });
+  const completionHandlers = useCompletionHandlers({ tasksOverride: tasks, skipTasksQuery: true });
+  const selectionState = useSelectionState();
+  const { getCompletionForDate, getOutcomeOnDate, isCompletedOnDate } = useCompletionHelpers();
 
   // Filter tasks by date (search/tag filtering is now done in parent)
   const dayTasks = useMemo(() => {
@@ -89,6 +95,19 @@ export const CalendarDayView = ({ date, tasks = [], createDraggableId, onDropTim
     });
     return styles;
   }, [positionedTasks, HOUR_HEIGHT]);
+
+  const menuHandlers = useMemo(
+    () => ({
+      onEdit: taskActions.handleEditTask,
+      onEditWorkout: taskActions.handleEditWorkout,
+      onDuplicate: taskActions.handleDuplicateTask,
+      onDelete: taskActions.handleDeleteTask,
+      onBulkEdit: selectionState.handleBulkEdit,
+      hasMultipleSelected: selectionState.selectedCount > 1,
+      selectedCount: selectionState.selectedCount,
+    }),
+    [taskActions, selectionState.handleBulkEdit, selectionState.selectedCount]
+  );
 
   const getTaskStyle = useCallback(
     task => {
@@ -238,16 +257,37 @@ export const CalendarDayView = ({ date, tasks = [], createDraggableId, onDropTim
             {/* Scrollable tasks container */}
             <Box sx={{ px: { xs: 2, md: 4 }, pb: 1, maxHeight: "100px", overflowY: "auto", flexShrink: 0 }}>
               <Stack spacing={1}>
-                {untimedTasks.map(task => (
-                  <CalendarTask
-                    key={task.id}
-                    task={task}
-                    createDraggableId={createDraggableId}
-                    date={date}
-                    variant="untimed"
-                    allTasksOverride={tasks}
-                  />
-                ))}
+                {untimedTasks.map(task => {
+                  const outcome = getOutcomeOnDate(task.id, date);
+                  const isCompleted = isCompletedOnDate(task.id, date);
+                  const isNotCompleted = outcome === "not_completed";
+                  const isRecurring = task.recurrence && task.recurrence.type !== "none";
+                  const isWorkoutTask = task.completionType === "workout";
+                  const isNonRecurring = !task.recurrence || task.recurrence.type === "none";
+                  const completionForStartDate =
+                    task.recurrence?.startDate && getCompletionForDate(task.id, new Date(task.recurrence.startDate));
+                  const canEditCompletion = isNonRecurring && Boolean(completionForStartDate) && !task.parentId;
+
+                  return (
+                    <CalendarTask
+                      key={task.id}
+                      task={task}
+                      createDraggableId={createDraggableId}
+                      date={date}
+                      variant="untimed"
+                      outcome={outcome}
+                      isCompleted={isCompleted}
+                      isNotCompleted={isNotCompleted}
+                      isRecurring={isRecurring}
+                      isWorkoutTask={isWorkoutTask}
+                      onOutcomeChange={completionHandlers.handleOutcomeChange}
+                      onRollover={completionHandlers.handleRolloverTask}
+                      onEdit={taskActions.handleEditTask}
+                      menuHandlers={menuHandlers}
+                      canEditCompletion={canEditCompletion}
+                    />
+                  );
+                })}
               </Stack>
             </Box>
           </Stack>
@@ -312,17 +352,38 @@ export const CalendarDayView = ({ date, tasks = [], createDraggableId, onDropTim
             }}
           >
             {/* Render positioned tasks */}
-            {positionedTasks.map(task => (
-              <CalendarTask
-                key={task.id}
-                task={task}
-                createDraggableId={createDraggableId}
-                date={date}
-                variant="timed"
-                getTaskStyle={getTaskStyle}
-                allTasksOverride={tasks}
-              />
-            ))}
+            {positionedTasks.map(task => {
+              const outcome = getOutcomeOnDate(task.id, date);
+              const isCompleted = isCompletedOnDate(task.id, date);
+              const isNotCompleted = outcome === "not_completed";
+              const isRecurring = task.recurrence && task.recurrence.type !== "none";
+              const isWorkoutTask = task.completionType === "workout";
+              const isNonRecurring = !task.recurrence || task.recurrence.type === "none";
+              const completionForStartDate =
+                task.recurrence?.startDate && getCompletionForDate(task.id, new Date(task.recurrence.startDate));
+              const canEditCompletion = isNonRecurring && Boolean(completionForStartDate) && !task.parentId;
+
+              return (
+                <CalendarTask
+                  key={task.id}
+                  task={task}
+                  createDraggableId={createDraggableId}
+                  date={date}
+                  variant="timed"
+                  getTaskStyle={getTaskStyle}
+                  outcome={outcome}
+                  isCompleted={isCompleted}
+                  isNotCompleted={isNotCompleted}
+                  isRecurring={isRecurring}
+                  isWorkoutTask={isWorkoutTask}
+                  onOutcomeChange={completionHandlers.handleOutcomeChange}
+                  onRollover={completionHandlers.handleRolloverTask}
+                  onEdit={taskActions.handleEditTask}
+                  menuHandlers={menuHandlers}
+                  canEditCompletion={canEditCompletion}
+                />
+              );
+            })}
 
             {/* Render status task blocks (in-progress and completed with time tracking) */}
             {statusTasks.map(({ task, isInProgress, startedAt, completedAt, top, height }) => (

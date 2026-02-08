@@ -10,6 +10,8 @@ import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useViewState } from "@/hooks/useViewState";
 import { setCalendarView } from "@/lib/store/slices/uiSlice";
+import { useTaskActions } from "@/hooks/useTaskActions";
+import { useSelectionState } from "@/hooks/useSelectionState";
 
 export const CalendarMonthView = ({ date, tasks = [] }) => {
   const dispatch = useDispatch();
@@ -22,7 +24,22 @@ export const CalendarMonthView = ({ date, tasks = [] }) => {
   const showCompleted = showCompletedTasksCalendar.month !== false;
 
   // Use hooks directly (they use Redux internally)
-  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
+  const { isCompletedOnDate, getOutcomeOnDate, getCompletionForDate } = useCompletionHelpers();
+  const taskActions = useTaskActions({ tasks });
+  const selectionState = useSelectionState();
+
+  const menuHandlers = useMemo(
+    () => ({
+      onEdit: taskActions.handleEditTask,
+      onEditWorkout: taskActions.handleEditWorkout,
+      onDuplicate: taskActions.handleDuplicateTask,
+      onDelete: taskActions.handleDeleteTask,
+      onBulkEdit: selectionState.handleBulkEdit,
+      hasMultipleSelected: selectionState.selectedCount > 1,
+      selectedCount: selectionState.selectedCount,
+    }),
+    [taskActions, selectionState.handleBulkEdit, selectionState.selectedCount]
+  );
 
   // Tasks provided by parent
 
@@ -59,20 +76,28 @@ export const CalendarMonthView = ({ date, tasks = [] }) => {
     allDays.forEach(day => {
       const dateKey = day.toDateString();
       let dayTasks = tasks.filter(t => shouldShowOnDate(t, day, getOutcomeOnDate));
-      // Filter out completed/not completed tasks if showCompleted is false
+
+      let dayTaskMetas = dayTasks.map(task => {
+        const isCompleted = isCompletedOnDate(task.id, day);
+        const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
+        const isNonRecurring = !task.recurrence || task.recurrence.type === "none";
+        const completionForStartDate =
+          task.recurrence?.startDate && getCompletionForDate(task.id, new Date(task.recurrence.startDate));
+        const canEditCompletion = isNonRecurring && Boolean(completionForStartDate) && !task.parentId;
+        return { task, isCompleted, outcome, canEditCompletion };
+      });
+
       if (!showCompleted) {
-        dayTasks = dayTasks.filter(task => {
-          const isCompleted = isCompletedOnDate(task.id, day);
-          const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
-          const hasOutcome = outcome !== null && outcome !== undefined;
-          return !isCompleted && !hasOutcome;
+        dayTaskMetas = dayTaskMetas.filter(meta => {
+          const hasOutcome = meta.outcome !== null && meta.outcome !== undefined;
+          return !meta.isCompleted && !hasOutcome;
         });
       }
-      // Limit to 3 tasks per day for display
-      map.set(dateKey, dayTasks.slice(0, 3));
+
+      map.set(dateKey, dayTaskMetas.slice(0, 3));
     });
     return map;
-  }, [weeks, tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]);
+  }, [weeks, tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate, getCompletionForDate]);
 
   const handleDayClick = useCallback(
     d => {
@@ -199,21 +224,18 @@ export const CalendarMonthView = ({ date, tasks = [] }) => {
                   {day.getDate()}
                 </Box>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, overflow: "hidden" }}>
-                  {dayTasks.map(task => {
-                    const isCompleted = isCompletedOnDate(task.id, day);
-                    const outcome = getOutcomeOnDate ? getOutcomeOnDate(task.id, day) : null;
-
-                    return (
-                      <TaskCardCompact
-                        key={task.id}
-                        task={task}
-                        date={day}
-                        zoom={zoom}
-                        isCompleted={isCompleted}
-                        outcome={outcome}
-                      />
-                    );
-                  })}
+                  {dayTasks.map(({ task, isCompleted, outcome, canEditCompletion }) => (
+                    <TaskCardCompact
+                      key={task.id}
+                      task={task}
+                      date={day}
+                      zoom={zoom}
+                      isCompleted={isCompleted}
+                      outcome={outcome}
+                      menuHandlers={menuHandlers}
+                      canEditCompletion={canEditCompletion}
+                    />
+                  ))}
                 </Box>
               </Box>
             );

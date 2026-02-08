@@ -4,11 +4,8 @@ import { memo, useState, useRef, useCallback } from "react";
 import { Box, Typography, Paper, Stack } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Repeat, FitnessCenter } from "@mui/icons-material";
-import { TaskContextMenu } from "./TaskContextMenu";
+import { TaskContextMenuBase } from "./TaskContextMenu";
 import { OutcomeCheckbox } from "./OutcomeCheckbox";
-import { useTaskActions } from "@/hooks/useTaskActions";
-import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
-import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
 import { getTaskDisplayColor } from "@/lib/utils";
 import { useColorMode } from "@/hooks/useColorMode";
 
@@ -28,20 +25,21 @@ export const CalendarTask = memo(
     variant = "timed", // 'timed' | 'untimed' | 'timed-week' | 'untimed-week'
     createDraggableId: _createDraggableId, // Kept for API compatibility
     getTaskStyle,
-    allTasksOverride,
+    outcome,
+    isCompleted,
+    isNotCompleted,
+    isRecurring,
+    isWorkoutTask,
+    onOutcomeChange,
+    onRollover,
+    onEdit,
+    menuHandlers,
+    canEditCompletion,
   }) {
     const theme = useTheme();
     const { mode: colorMode } = useColorMode();
     const [anchorEl, setAnchorEl] = useState(null);
     const taskRef = useRef(null);
-
-    // Use hooks directly (they use Redux internally)
-    const taskOps = useTaskActions({ tasks: allTasksOverride || [] });
-    const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
-    const completionHandlers = useCompletionHandlers({
-      tasksOverride: allTasksOverride,
-      skipTasksQuery: true,
-    });
 
     // Variant flags
     const isTimed = variant === "timed" || variant === "timed-week";
@@ -49,11 +47,11 @@ export const CalendarTask = memo(
     const fontSize = isWeek ? "0.7rem" : "0.8rem";
 
     // Completion state for recurring tasks
-    const outcome = getOutcomeOnDate(task.id, date);
-    const isCompleted = isCompletedOnDate(task.id, date);
-    const isNotCompleted = outcome === "not_completed";
-    const isRecurring = task.recurrence && task.recurrence.type !== "none";
-    const isWorkoutTask = task.completionType === "workout";
+    const effectiveOutcome = outcome ?? null;
+    const effectiveCompleted = Boolean(isCompleted);
+    const effectiveNotCompleted = Boolean(isNotCompleted);
+    const effectiveIsRecurring = Boolean(isRecurring);
+    const effectiveIsWorkout = Boolean(isWorkoutTask);
 
     // Get task color from first tag, or use neutral gray if no tags
     const taskColor = getTaskDisplayColor(task, null, colorMode);
@@ -63,15 +61,15 @@ export const CalendarTask = memo(
 
     // Background based on completion state
     const getBgColor = () => {
-      if (isNotCompleted) return "transparent";
-      if (isCompleted) return theme.palette.success.dark + "20";
+      if (effectiveNotCompleted) return "transparent";
+      if (effectiveCompleted) return theme.palette.success.dark + "20";
       return taskColor || theme.palette.background.paper;
     };
 
     // Border color based on completion
     const getBorderColor = () => {
-      if (isCompleted) return theme.palette.success.main;
-      if (isNotCompleted) return theme.palette.error.main;
+      if (effectiveCompleted) return theme.palette.success.main;
+      if (effectiveNotCompleted) return theme.palette.error.main;
       return theme.palette.divider;
     };
 
@@ -84,17 +82,9 @@ export const CalendarTask = memo(
     // Handle outcome change (reused from OutcomeCheckbox logic)
     const handleOutcomeChange = useCallback(
       newOutcome => {
-        completionHandlers.handleOutcomeChange(task.id, date, newOutcome);
+        onOutcomeChange?.(task.id, date, newOutcome);
       },
-      [task.id, date, completionHandlers]
-    );
-
-    // Handle rollover (for recurring tasks)
-    const handleRollover = useCallback(
-      (taskId, viewDate) => {
-        completionHandlers.handleRolloverTask(taskId, viewDate);
-      },
-      [completionHandlers]
+      [task.id, date, onOutcomeChange]
     );
 
     // Handle click - open task editor
@@ -108,9 +98,9 @@ export const CalendarTask = memo(
         if (e.target.closest("button[aria-label]")) return;
 
         // Open task editor - pass the date for recurring tasks
-        taskOps.handleEditTask(task, date);
+        onEdit?.(task, date);
       },
-      [taskOps, task, date]
+      [onEdit, task, date]
     );
 
     const isNoDuration = !task.duration || task.duration === 0;
@@ -144,8 +134,8 @@ export const CalendarTask = memo(
                   position: "relative",
                 }),
             // Apple Calendar style - task stays visible and elevated during drag
-            opacity: isCompleted || isNotCompleted ? 0.6 : 1,
-            filter: isCompleted || isNotCompleted ? "brightness(0.7)" : "none",
+            opacity: effectiveCompleted || effectiveNotCompleted ? 0.6 : 1,
+            filter: effectiveCompleted || effectiveNotCompleted ? "brightness(0.7)" : "none",
             p: 0,
             bgcolor: getBgColor(),
             borderColor: getBorderColor(),
@@ -154,7 +144,7 @@ export const CalendarTask = memo(
             cursor: isTimed ? "grab" : "default",
             overflow: "hidden",
             touchAction: isTimed ? "none" : "auto", // Prevent default touch behaviors during drag
-            backgroundImage: isNotCompleted ? getStripedBg(theme) : "none",
+            backgroundImage: effectiveNotCompleted ? getStripedBg(theme) : "none",
             color: taskColor ? "white" : theme.palette.text.primary,
             minHeight: isTimed ? (isNoDuration ? 24 : undefined) : undefined,
             userSelect: "none",
@@ -165,7 +155,7 @@ export const CalendarTask = memo(
         >
           <Stack direction="row" spacing={0.5} alignItems="flex-start">
             {/* Outcome Checkbox (for recurring tasks) */}
-            {isRecurring && (
+            {effectiveIsRecurring && (
               <Box
                 onMouseDown={e => e.stopPropagation()} // Prevent drag start when clicking
                 onClick={e => e.stopPropagation()} // Prevent task click when clicking checkbox
@@ -175,13 +165,13 @@ export const CalendarTask = memo(
                 }}
               >
                 <OutcomeCheckbox
-                  outcome={outcome}
+                  outcome={effectiveOutcome}
                   onOutcomeChange={handleOutcomeChange}
-                  isChecked={isCompleted}
+                  isChecked={effectiveCompleted}
                   size={isWeek ? "sm" : "md"}
-                  isRecurring={isRecurring}
+                  isRecurring={effectiveIsRecurring}
                   viewDate={date}
-                  onRollover={handleRollover}
+                  onRollover={onRollover}
                   taskId={task.id}
                 />
               </Box>
@@ -193,8 +183,8 @@ export const CalendarTask = memo(
                 sx={{
                   fontSize,
                   fontWeight: 500,
-                  color: isCompleted ? "text.secondary" : "inherit",
-                  textDecoration: isCompleted || isNotCompleted ? "line-through" : "none",
+                  color: effectiveCompleted ? "text.secondary" : "inherit",
+                  textDecoration: effectiveCompleted || effectiveNotCompleted ? "line-through" : "none",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -225,27 +215,30 @@ export const CalendarTask = memo(
 
             {/* Indicators */}
             <Stack direction="row" spacing={0.25} alignItems="center">
-              {isRecurring && <Repeat fontSize={isWeek ? "inherit" : "small"} sx={{ opacity: 0.6 }} />}
-              {isWorkoutTask && <FitnessCenter fontSize={isWeek ? "inherit" : "small"} sx={{ opacity: 0.6 }} />}
+              {effectiveIsRecurring && <Repeat fontSize={isWeek ? "inherit" : "small"} sx={{ opacity: 0.6 }} />}
+              {effectiveIsWorkout && <FitnessCenter fontSize={isWeek ? "inherit" : "small"} sx={{ opacity: 0.6 }} />}
             </Stack>
           </Stack>
         </Paper>
 
         {/* Context Menu */}
-        <TaskContextMenu
+        <TaskContextMenuBase
           task={task}
           date={date}
-          isRecurring={isRecurring}
-          isWorkoutTask={isWorkoutTask}
-          outcome={outcome}
+          isWorkoutTask={effectiveIsWorkout}
           open={Boolean(anchorEl)}
           anchorEl={anchorEl}
           onClose={() => {
             setAnchorEl(null);
           }}
-          onEdit={taskOps.handleEditTask}
-          onDelete={taskOps.handleDeleteTask}
-          onDuplicate={taskOps.handleDuplicateTask}
+          onEdit={menuHandlers?.onEdit}
+          onEditWorkout={menuHandlers?.onEditWorkout}
+          onDuplicate={menuHandlers?.onDuplicate}
+          onDelete={menuHandlers?.onDelete}
+          onBulkEdit={menuHandlers?.onBulkEdit}
+          hasMultipleSelected={menuHandlers?.hasMultipleSelected}
+          selectedCount={menuHandlers?.selectedCount}
+          canEditCompletion={canEditCompletion}
         />
       </>
     );
@@ -261,7 +254,10 @@ export const CalendarTask = memo(
       prevProps.task.color === nextProps.task.color &&
       prevProps.task.tags?.length === nextProps.task.tags?.length &&
       prevProps.variant === nextProps.variant &&
-      prevProps.date?.getTime() === nextProps.date?.getTime()
+      prevProps.date?.getTime() === nextProps.date?.getTime() &&
+      prevProps.outcome === nextProps.outcome &&
+      prevProps.isCompleted === nextProps.isCompleted &&
+      prevProps.isNotCompleted === nextProps.isNotCompleted
     );
   }
 );

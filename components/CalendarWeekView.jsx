@@ -8,7 +8,10 @@ import { HOUR_HEIGHT_WEEK } from "@/lib/calendarConstants";
 import { DayHeaderColumn } from "./DayHeaderColumn";
 import { TimedColumn } from "./TimedColumn";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useTaskActions } from "@/hooks/useTaskActions";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
+import { useSelectionState } from "@/hooks/useSelectionState";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useViewState } from "@/hooks/useViewState";
 import { setCalendarView } from "@/lib/store/slices/uiSlice";
@@ -62,11 +65,27 @@ export const CalendarWeekView = ({
 
   // Use hooks directly (they use Redux internally)
   const taskOps = useTaskOperations();
-  const { isCompletedOnDate, getOutcomeOnDate } = useCompletionHelpers();
+  const taskActions = useTaskActions({ tasks });
+  const completionHandlers = useCompletionHandlers({ tasksOverride: tasks, skipTasksQuery: true });
+  const selectionState = useSelectionState();
+  const { isCompletedOnDate, getOutcomeOnDate, getCompletionForDate } = useCompletionHelpers();
 
   // Tasks provided by parent
 
   const HOUR_HEIGHT = BASE_HOUR_HEIGHT * zoom;
+
+  const menuHandlers = useMemo(
+    () => ({
+      onEdit: taskActions.handleEditTask,
+      onEditWorkout: taskActions.handleEditWorkout,
+      onDuplicate: taskActions.handleDuplicateTask,
+      onDelete: taskActions.handleDeleteTask,
+      onBulkEdit: selectionState.handleBulkEdit,
+      hasMultipleSelected: selectionState.selectedCount > 1,
+      selectedCount: selectionState.selectedCount,
+    }),
+    [taskActions, selectionState.handleBulkEdit, selectionState.selectedCount]
+  );
 
   // Calculate week days - memoized to prevent recalculation on every render
   const weekDays = useMemo(() => {
@@ -122,6 +141,7 @@ export const CalendarWeekView = ({
     const timedMap = new Map();
     const untimedMap = new Map();
     const positionedMap = new Map();
+    const statusTasksMap = new Map();
 
     // Pre-populate maps with empty arrays for each day
     weekDays.forEach(day => {
@@ -139,10 +159,69 @@ export const CalendarWeekView = ({
 
       // Calculate positions immediately for timed tasks
       positionedMap.set(dateKey, calculateTaskPositions(filtered.timed));
+
+      // Pre-compute status tasks for this day
+      if (showStatusTasks && getCompletionForDate) {
+        const statusTasks = tasks
+          .filter(task => {
+            if (task.recurrence && task.recurrence.type !== "none") return false;
+            if (task.completionType === "note") return false;
+            if (task.parentId) return false;
+            if (task.status === "in_progress" && task.startedAt) return true;
+            const completion = getCompletionForDate(task.id, day);
+            return completion && completion.startedAt && completion.completedAt;
+          })
+          .map(task => {
+            const isInProgress = task.status === "in_progress";
+            let startedAt, completedAt, top, height;
+
+            if (isInProgress) {
+              startedAt = task.startedAt;
+              completedAt = new Date().toISOString();
+
+              const startTime = new Date(startedAt);
+              const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+              const now = new Date();
+              const nowMinutes = now.getHours() * 60 + now.getMinutes();
+              const durationMinutes = nowMinutes - startMinutes;
+
+              top = (startMinutes / 60) * HOUR_HEIGHT;
+              height = (durationMinutes / 60) * HOUR_HEIGHT;
+            } else {
+              const completion = getCompletionForDate(task.id, day);
+              startedAt = completion.startedAt;
+              completedAt = completion.completedAt;
+
+              const startTime = new Date(startedAt);
+              const endTime = new Date(completedAt);
+              const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+              const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+              const durationMinutes = endMinutes - startMinutes;
+
+              top = (startMinutes / 60) * HOUR_HEIGHT;
+              height = (durationMinutes / 60) * HOUR_HEIGHT;
+            }
+
+            return { task, isInProgress, startedAt, completedAt, top, height };
+          });
+
+        statusTasksMap.set(dateKey, statusTasks);
+      } else {
+        statusTasksMap.set(dateKey, []);
+      }
     });
 
-    return { timedMap, untimedMap, positionedMap };
-  }, [weekDays, tasks, showCompleted, isCompletedOnDate, getOutcomeOnDate]);
+    return { timedMap, untimedMap, positionedMap, statusTasksMap };
+  }, [
+    weekDays,
+    tasks,
+    showCompleted,
+    showStatusTasks,
+    isCompletedOnDate,
+    getOutcomeOnDate,
+    getCompletionForDate,
+    HOUR_HEIGHT,
+  ]);
 
   const getUntimedTasksForDay = useCallback(
     day => {
@@ -307,6 +386,12 @@ export const CalendarWeekView = ({
                   onDayClick={handleDayClick}
                   createDraggableId={createDraggableId}
                   dropHighlight="action.hover"
+                  getOutcomeOnDate={getOutcomeOnDate}
+                  isCompletedOnDate={isCompletedOnDate}
+                  getCompletionForDate={getCompletionForDate}
+                  completionHandlers={completionHandlers}
+                  menuHandlers={menuHandlers}
+                  onEdit={taskActions.handleEditTask}
                 />
               );
             })}
@@ -377,6 +462,7 @@ export const CalendarWeekView = ({
             {weekDays.map((day, i) => {
               const positionedTasks = getPositionedTasksForDay(day);
               const isTodayColumn = i === todayIndex;
+              const statusTasks = tasksByDay.statusTasksMap.get(day.toDateString()) || [];
 
               return (
                 <TimedColumn
@@ -385,6 +471,7 @@ export const CalendarWeekView = ({
                   dayIndex={i}
                   timedTasks={positionedTasks}
                   allTasks={tasks}
+                  statusTasks={statusTasks}
                   handleColumnClick={handleColumnClick}
                   handleDropTimeCalculation={handleDropTimeCalculation}
                   createDraggableId={createDraggableId}
@@ -393,6 +480,12 @@ export const CalendarWeekView = ({
                   showStatusTasks={showStatusTasks}
                   hourHeight={HOUR_HEIGHT}
                   isToday={isTodayColumn}
+                  getOutcomeOnDate={getOutcomeOnDate}
+                  isCompletedOnDate={isCompletedOnDate}
+                  getCompletionForDate={getCompletionForDate}
+                  completionHandlers={completionHandlers}
+                  menuHandlers={menuHandlers}
+                  onEdit={taskActions.handleEditTask}
                 />
               );
             })}

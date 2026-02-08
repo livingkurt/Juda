@@ -13,6 +13,8 @@ import { useSectionOperations } from "@/hooks/useSectionOperations";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useSectionExpansion } from "@/hooks/useSectionExpansion";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
+import { useTaskItemShared } from "@/hooks/useTaskItemShared";
+import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 
 // Main Section component that renders all sections
 export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId, sectionFilter }) => {
@@ -47,6 +49,20 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
   // Get task filters (needs recentlyCompletedTasks from completionHandlers)
   const taskFilters = useTaskFilters({
     recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
+  });
+
+  const { data: tags = [] } = useGetTagsQuery();
+  const [createTagMutation] = useCreateTagMutation();
+  const handleCreateTag = async (name, color) => {
+    return await createTagMutation({ name, color }).unwrap();
+  };
+
+  const taskItemShared = useTaskItemShared({
+    allTasks: taskFilters.tasks,
+    viewDate,
+    tags,
+    onCreateTag: handleCreateTag,
+    completionHandlers,
   });
 
   // Recreate section expansion with actual tasksBySection
@@ -136,6 +152,7 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
                       droppableId={createDroppableId.todaySection(section.id)}
                       createDraggableId={createDraggableId}
                       viewDate={viewDate}
+                      taskItemShared={taskItemShared}
                     />
                   </Box>
                 );
@@ -151,6 +168,7 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
                 droppableId={createDroppableId.todaySection(section.id)}
                 createDraggableId={createDraggableId}
                 viewDate={viewDate}
+                taskItemShared={taskItemShared}
               />
             ))
           )}

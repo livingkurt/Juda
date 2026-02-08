@@ -14,14 +14,27 @@ import { isOverdue, getRecurrenceLabel } from "@/lib/utils";
  * @param {boolean} props.compact - Use compact layout (fewer badges)
  * @param {Function} props.hasRecordOnDate - Function to check if task has record on date
  */
-export const TaskBadges = ({ task, viewDate, size = "sm", showEndDate = true, compact = false, hasRecordOnDate }) => {
-  const isRecurring = task.recurrence && task.recurrence.type !== "none";
+export const TaskBadges = ({
+  task,
+  viewDate,
+  size = "sm",
+  showEndDate = true,
+  compact = false,
+  hasRecordOnDate,
+  isRecurring: isRecurringProp,
+  recurrenceLabel: recurrenceLabelProp,
+  isOverdue: isOverdueProp,
+  hasEndDate: hasEndDateProp,
+}) => {
+  const isRecurring = isRecurringProp ?? (task.recurrence && task.recurrence.type !== "none");
   const isWorkoutTask = task.completionType === "workout";
   const isRolloverTask = task.isRollover === true || task.rolloverCarryForward === true;
   const isOffScheduleTask = task.isOffSchedule === true;
   const taskIsOverdue =
-    viewDate && hasRecordOnDate ? isOverdue(task, viewDate, hasRecordOnDate(task.id, viewDate)) : false;
-  const hasEndDate = task.recurrence?.endDate;
+    isOverdueProp ??
+    (viewDate && hasRecordOnDate ? isOverdue(task, viewDate, hasRecordOnDate(task.id, viewDate)) : false);
+  const hasEndDate = hasEndDateProp ?? task.recurrence?.endDate;
+  const recurrenceLabel = recurrenceLabelProp ?? getRecurrenceLabel(task.recurrence);
 
   // Map sizes to MUI chip sizes
   const chipSizeMap = {
@@ -100,7 +113,7 @@ export const TaskBadges = ({ task, viewDate, size = "sm", showEndDate = true, co
 
       {isRecurring && (
         <Chip
-          label={getRecurrenceLabel(task.recurrence) || "Recurring"}
+          label={recurrenceLabel || "Recurring"}
           color="secondary"
           size={chipSize}
           sx={{

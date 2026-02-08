@@ -16,6 +16,7 @@ import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useDialogState } from "@/hooks/useDialogState";
+import { useTaskItemShared } from "@/hooks/useTaskItemShared";
 import {
   setKanbanSearchTerm,
   setKanbanSelectedTagIds,
@@ -39,6 +40,7 @@ const KanbanColumn = memo(function KanbanColumn({
   viewDate,
   showTodayComplete,
   allTasks,
+  taskItemShared,
 }) {
   // Use hooks directly
   const taskOps = useTaskOperations();
@@ -189,6 +191,8 @@ const KanbanColumn = memo(function KanbanColumn({
                           draggableId={createDraggableId.kanban(task.id, id)}
                           viewDate={viewDate}
                           allTasksOverride={allTasks}
+                          shared={taskItemShared}
+                          meta={taskItemShared?.taskMetaById?.get(task.id)}
                         />
                       </Box>
                     );
@@ -216,6 +220,8 @@ const KanbanColumn = memo(function KanbanColumn({
                     draggableId={createDraggableId.kanban(task.id, id)}
                     viewDate={viewDate}
                     allTasksOverride={allTasks}
+                    shared={taskItemShared}
+                    meta={taskItemShared?.taskMetaById?.get(task.id)}
                   />
                 ))}
                 {provided.placeholder}
@@ -251,11 +257,21 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
   // Use hooks directly (they use Redux internally)
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
+  const handleCreateTag = async (name, color) => {
+    return await createTagMutation({ name, color }).unwrap();
+  };
 
   // Get task filters (uses optimized endpoints)
   const taskFilters = useTaskFilters();
 
   // Completion handlers are handled in column/task components
+
+  const taskItemShared = useTaskItemShared({
+    allTasks: taskFilters.tasks,
+    viewDate: deferredSelectedDate,
+    tags,
+    onCreateTag: handleCreateTag,
+  });
 
   // Filter tasks: exclude notes, exclude recurring tasks, filter by date, exclude subtasks
   const kanbanTasks = useMemo(() => {
@@ -384,6 +400,7 @@ const KanbanView = memo(function KanbanView({ createDraggableId, selectedDate, s
             viewDate={selectedDate}
             showTodayComplete={showTodayComplete}
             allTasks={taskFilters.tasks}
+            taskItemShared={taskItemShared}
           />
         ))}
       </Stack>

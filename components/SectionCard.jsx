@@ -14,7 +14,15 @@ import { useSectionExpansion } from "@/hooks/useSectionExpansion";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 
-const SectionCardComponent = ({ section, index, hoveredDroppable, droppableId, createDraggableId, viewDate }) => {
+const SectionCardComponent = ({
+  section,
+  index,
+  hoveredDroppable,
+  droppableId,
+  createDraggableId,
+  viewDate,
+  taskItemShared,
+}) => {
   const [menuAnchor, setMenuAnchor] = useState(null);
 
   // Get selected tag IDs from Redux for auto-tagging new tasks
@@ -239,6 +247,8 @@ const SectionCardComponent = ({ section, index, hoveredDroppable, droppableId, c
                         draggableId={task.draggableId}
                         viewDate={viewDate}
                         allTasksOverride={taskFilters.tasks}
+                        shared={taskItemShared}
+                        meta={taskItemShared?.taskMetaById?.get(task.id)}
                       />
                     ))}
                     {droppableProvided.placeholder}

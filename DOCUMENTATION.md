@@ -2,6 +2,65 @@
 
 ## 2026-02-08
 
+### List Item Precomputation and Shared Lookups
+
+**Problem**: Task list items (TaskItem, CalendarTask, compact month cards, and history cells) were still doing per-item hooks and repeated work (completion lookups, tag inheritance, status checks, and menu preparation), leading to avoidable CPU overhead when rendering large lists.
+
+**Solution**:
+
+1. **Shared TaskItem Data + Handlers**
+   - **New**: `hooks/useTaskItemShared.js`
+   - Centralizes completion lookups, tag inheritance, subtask stats, recurrence labels, and overdue checks.
+   - Provides stable task handlers and context-menu handlers once per list.
+   - Keeps existing `allTasksOverride` pattern while removing per-item hooks.
+
+2. **Batch Workout Progress Lookup**
+   - **New**: `hooks/useWorkoutProgressMap.js`
+   - Runs a single list-level effect to fetch workout progress across multiple tasks.
+
+3. **Pure List-Item Components**
+   - `components/TaskItem.jsx` now consumes precomputed `meta` and shared handlers only.
+   - `components/CalendarTask.jsx` and `components/shared/TaskCardCompact.jsx` no longer call completion hooks directly.
+   - **New** `TagSelectorBase` and `TaskContextMenuBase` provide hook-free versions for list items.
+
+4. **Parent-Level Precomputation**
+   - Task list parents now pass shared lookups and per-task `meta` to list items:
+     - `Section.jsx` / `SectionCard.jsx`
+     - `BacklogDrawer.jsx`
+     - `components/tabs/KanbanTab.jsx`
+     - `components/tabs/GoalsTab.jsx`
+     - `components/TaskDialog.jsx`
+   - Calendar views now precompute outcomes/completions per day:
+     - `CalendarDayView.jsx`
+     - `CalendarWeekView.jsx` + `TimedColumn.jsx` + `DayHeaderColumn.jsx`
+     - `CalendarMonthView.jsx`
+
+5. **History Cell Optimization**
+   - `components/tabs/HistoryTab.jsx` now precomputes section boundaries and schedule visibility once per range.
+
+**Files Updated**:
+- `hooks/useTaskItemShared.js` (new)
+- `hooks/useWorkoutProgressMap.js` (new)
+- `components/TaskItem.jsx`
+- `components/TagSelector.jsx`
+- `components/TaskContextMenu.jsx`
+- `components/shared/TaskBadges.jsx`
+- `components/shared/TaskCardCompact.jsx`
+- `components/BacklogDrawer.jsx`
+- `components/Section.jsx`
+- `components/SectionCard.jsx`
+- `components/tabs/KanbanTab.jsx`
+- `components/tabs/GoalsTab.jsx`
+- `components/TaskDialog.jsx`
+- `components/KanbanView.jsx`
+- `components/CalendarTask.jsx`
+- `components/CalendarDayView.jsx`
+- `components/CalendarWeekView.jsx`
+- `components/TimedColumn.jsx`
+- `components/DayHeaderColumn.jsx`
+- `components/CalendarMonthView.jsx`
+- `components/tabs/HistoryTab.jsx`
+
 ### Replace Legacy All-Tasks Hook and Prevent Per-Item Fetching
 
 **Problem**: Removing `useTasksWithDeferred` caused build errors and, after migration, per-item hooks (like `TaskItem` and `CalendarTask`) were triggering heavy task fetching and filter computation, slowing the UI.

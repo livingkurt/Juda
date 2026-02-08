@@ -12,6 +12,12 @@ export const DayHeaderColumn = memo(function DayHeaderColumn({
   isToday,
   onDayClick,
   createDraggableId,
+  getOutcomeOnDate,
+  isCompletedOnDate,
+  getCompletionForDate,
+  completionHandlers,
+  menuHandlers,
+  onEdit,
 }) {
   const untimedRef = useRef(null);
 
@@ -87,15 +93,37 @@ export const DayHeaderColumn = memo(function DayHeaderColumn({
         }}
       >
         <Stack spacing={0.5}>
-          {untimedTasks.map(task => (
-            <CalendarTask
-              key={task.id}
-              task={task}
-              createDraggableId={createDraggableId}
-              date={day}
-              variant="untimed-week"
-            />
-          ))}
+          {untimedTasks.map(task => {
+            const outcome = getOutcomeOnDate?.(task.id, day) ?? null;
+            const isCompleted = isCompletedOnDate?.(task.id, day) || false;
+            const isNotCompleted = outcome === "not_completed";
+            const isRecurring = task.recurrence && task.recurrence.type !== "none";
+            const isWorkoutTask = task.completionType === "workout";
+            const isNonRecurring = !task.recurrence || task.recurrence.type === "none";
+            const completionForStartDate =
+              task.recurrence?.startDate && getCompletionForDate?.(task.id, new Date(task.recurrence.startDate));
+            const canEditCompletion = isNonRecurring && Boolean(completionForStartDate) && !task.parentId;
+
+            return (
+              <CalendarTask
+                key={task.id}
+                task={task}
+                createDraggableId={createDraggableId}
+                date={day}
+                variant="untimed-week"
+                outcome={outcome}
+                isCompleted={isCompleted}
+                isNotCompleted={isNotCompleted}
+                isRecurring={isRecurring}
+                isWorkoutTask={isWorkoutTask}
+                onOutcomeChange={completionHandlers?.handleOutcomeChange}
+                onRollover={completionHandlers?.handleRolloverTask}
+                onEdit={onEdit}
+                menuHandlers={menuHandlers}
+                canEditCompletion={canEditCompletion}
+              />
+            );
+          })}
         </Stack>
       </Box>
     </Box>

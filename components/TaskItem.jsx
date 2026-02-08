@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, memo, useMemo, useCallback } from "react";
+import { useState, useRef, useEffect, memo, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -29,23 +29,15 @@ import {
 } from "@mui/icons-material";
 import { formatTime, getTaskDisplayColor } from "@/lib/utils";
 import { TagChip } from "./TagChip";
-import { TagSelector } from "./TagSelector";
+import { TagSelectorBase } from "./TagSelector";
 import { PriorityChip } from "./PriorityChip";
 import { TaskBadges } from "./shared/TaskBadges";
-import { TaskContextMenu } from "./TaskContextMenu";
+import { TaskContextMenuBase } from "./TaskContextMenu";
 import { OutcomeCheckbox } from "./OutcomeCheckbox";
-import { useWorkoutProgress } from "@/hooks/useWorkoutProgress";
 import { useSemanticColors } from "@/hooks/useSemanticColors";
-import { useTaskActions } from "@/hooks/useTaskActions";
-import { useCompletionHandlers } from "@/hooks/useCompletionHandlers";
-import { useSelectionState } from "@/hooks/useSelectionState";
-import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
-import { useDialogState } from "@/hooks/useDialogState";
-import { useStatusHandlers } from "@/hooks/useStatusHandlers";
 import { useTheme } from "@/hooks/useTheme";
 import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 import { ReflectionEntry } from "./ReflectionEntry";
-import { usePriorityHandlers } from "@/hooks/usePriorityHandlers";
 import { PRIORITY_LEVELS } from "@/lib/constants";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { GoalReflectionsModal } from "./GoalReflectionsModal";
@@ -281,58 +273,48 @@ export const TaskItem = ({
   parentTaskId, // For subtask variant
   isSelected, // Whether this task is selected for bulk edit
   onRemoveFromParent, // Optional handler for removing subtask from parent (used in dialog)
-  allTasksOverride, // Optional: provide tasks to avoid full fetch
+  allTasksOverride: _allTasksOverride, // Optional: provide tasks to avoid full fetch
+  shared,
+  meta,
 }) => {
-  // Use hooks directly (they use Redux internally)
-  const taskOps = useTaskActions({ tasks: allTasksOverride || [] });
-  const completionHandlers = useCompletionHandlers({
-    tasksOverride: allTasksOverride,
-    skipTasksQuery: Boolean(allTasksOverride),
-  });
-  const selectionState = useSelectionState();
-  const tasksForLookup = allTasksOverride || [];
-  const { getOutcomeOnDate, hasRecordOnDate, getCompletionForDate } = useCompletionHelpers();
-  const dialogState = useDialogState();
-  const statusHandlers = useStatusHandlers({
-    addToRecentlyCompleted: completionHandlers.addToRecentlyCompleted,
-    tasksOverride: allTasksOverride,
-    skipTasksQuery: Boolean(allTasksOverride),
-  });
-  const priorityHandlers = usePriorityHandlers();
+  const sharedState = shared || {};
+  const taskMeta = meta || {};
+  const taskOps = sharedState.taskActions;
+  const completionHandlers = sharedState.completionHandlers;
+  const selectionState = sharedState.selectionState;
+  const dialogState = sharedState.dialogState;
+  const statusHandlers = sharedState.statusHandlers;
+  const priorityHandlers = sharedState.priorityHandlers;
+  const tagOptions = sharedState.tags || [];
+  const onCreateTag = sharedState.onCreateTag;
+  const removeFromParentHandler = onRemoveFromParent || sharedState.removeFromParent;
 
   const isBacklog = variant === "backlog";
   const isToday = variant === "today";
   const isSubtask = variant === "subtask";
 
   // Extract handlers from hooks
-  const onToggle = isSubtask ? completionHandlers.handleToggleSubtask : completionHandlers.handleToggleTask;
-  const onToggleSubtask = completionHandlers.handleToggleSubtask;
-  const onToggleExpand = taskOps.handleToggleExpand;
-  const onEdit = taskOps.handleEditTask;
-  const onEditWorkout = taskOps.handleEditWorkout;
-  const onUpdateTitle = taskOps.handleUpdateTaskTitle;
-  const onDelete = taskOps.handleDeleteTask;
-  const onDuplicate = taskOps.handleDuplicateTask;
-  const onOutcomeChange = completionHandlers.handleOutcomeChange;
-  const onSubtaskOutcomeChange = completionHandlers.handleSubtaskOutcomeChange;
-  const onCompleteWithNote = completionHandlers.handleCompleteWithNote;
-  const onSelect = selectionState.handleTaskSelect;
-  const onBeginWorkout = dialogState.handleBeginWorkout;
-  const onCreateSubtask = taskOps.handleCreateSubtask;
+  const onToggle = isSubtask ? completionHandlers?.handleToggleSubtask : completionHandlers?.handleToggleTask;
+  const onToggleSubtask = completionHandlers?.handleToggleSubtask;
+  const onToggleExpand = taskOps?.handleToggleExpand;
+  const onEdit = taskOps?.handleEditTask;
+  const onEditWorkout = taskOps?.handleEditWorkout;
+  const onUpdateTitle = taskOps?.handleUpdateTaskTitle;
+  const onDelete = taskOps?.handleDeleteTask;
+  const onDuplicate = taskOps?.handleDuplicateTask;
+  const onOutcomeChange = completionHandlers?.handleOutcomeChange;
+  const onSubtaskOutcomeChange = completionHandlers?.handleSubtaskOutcomeChange;
+  const onCompleteWithNote = completionHandlers?.handleCompleteWithNote;
+  const onSelect = selectionState?.handleTaskSelect;
+  const onBeginWorkout = dialogState?.handleBeginWorkout;
+  const onCreateSubtask = taskOps?.handleCreateSubtask;
 
   // Compute selection state from Redux (use props if provided, otherwise use Redux)
-  const isSelectedComputed = isSelected !== undefined ? isSelected : selectionState.selectedTaskIds.has(task.id);
+  const isSelectedComputed =
+    isSelected !== undefined ? isSelected : selectionState?.selectedTaskIds?.has(task.id) || false;
 
-  // For subtasks, inherit parent's tags if subtask has no tags
-  const displayTags = useMemo(() => {
-    if (task.parentId && (!task.tags || task.tags.length === 0)) {
-      const parentTask = tasksForLookup.find(t => t.id === task.parentId);
-      if (parentTask && parentTask.tags && parentTask.tags.length > 0) {
-        return parentTask.tags;
-      }
-    }
-    return task.tags || [];
-  }, [task.parentId, task.tags, tasksForLookup]);
+  // For subtasks, inherit parent's tags if subtask has no tags (precomputed by parent)
+  const displayTags = taskMeta.displayTags || task.tags || [];
 
   const { mode, colorMode } = useSemanticColors();
   const { theme } = useTheme();
@@ -440,8 +422,8 @@ export const TaskItem = ({
     // Allow normal Enter for new lines
   };
 
-  // Get existing completion data for text-type tasks
-  const existingCompletion = getCompletionForDate?.(task.id, viewDate);
+  // Get existing completion data for text-type tasks (precomputed by parent)
+  const existingCompletion = taskMeta.completion || null;
   const savedNote = existingCompletion?.note || "";
   const savedOptions = existingCompletion?.selectedOptions || [];
 
@@ -558,29 +540,29 @@ export const TaskItem = ({
     }
   };
 
-  const allSubtasksComplete = task.subtasks && task.subtasks.length > 0 && task.subtasks.every(st => st.completed);
   // For subtasks, just check their own completion status. For parent tasks, check if all subtasks are complete too.
-  const isChecked = isSubtask ? task.completed : task.completed || allSubtasksComplete;
+  const isChecked = taskMeta.isChecked ?? (isSubtask ? task.completed : task.completed);
 
   // Task type checks (existingCompletion and savedNote already declared above)
-  const isTextTask = task.completionType === "text";
-  const isSelectionTask = task.completionType === "selection";
+  const isTextTask = taskMeta.isTextTask ?? task.completionType === "text";
+  const isSelectionTask = taskMeta.isSelectionTask ?? task.completionType === "selection";
   const isReflectionTask = task.completionType === "reflection";
-  const isWorkoutTask = task.completionType === "workout";
-  const isGoalTask = task.completionType === "goal";
-  const isNotCompleted = existingCompletion?.outcome === "not_completed" || false;
+  const isWorkoutTask = taskMeta.isWorkoutTask ?? task.completionType === "workout";
+  const isGoalTask = taskMeta.isGoalTask ?? task.completionType === "goal";
+  const isNotCompleted = taskMeta.isNotCompleted ?? false;
 
   // Get selection options from task
-  const selectionOptions = useMemo(() => {
-    if (!isSelectionTask || !task.selectionData?.options) return [];
-    return task.selectionData.options.filter(opt => opt && opt.trim() !== "");
-  }, [isSelectionTask, task.selectionData]);
+  const selectionOptions =
+    !isSelectionTask || !task.selectionData?.options
+      ? []
+      : task.selectionData.options.filter(opt => opt && opt.trim() !== "");
 
   // For workout tasks, only mark complete if outcome is explicitly "completed" (not "in_progress")
-  const isWorkoutTaskCompleted = isWorkoutTask && existingCompletion?.outcome === "completed";
+  const isWorkoutTaskCompleted =
+    taskMeta.isWorkoutTaskCompleted ?? (isWorkoutTask && existingCompletion?.outcome === "completed");
 
-  // Check if workout has in-progress data
-  const hasWorkoutProgress = useWorkoutProgress(task.id, viewDate, isWorkoutTask);
+  // Check if workout has in-progress data (precomputed by parent)
+  const hasWorkoutProgress = taskMeta.hasWorkoutProgress || false;
 
   // Determine workout button text based on completion status
   const getWorkoutButtonText = () => {
@@ -597,34 +579,37 @@ export const TaskItem = ({
 
   // For text tasks, completion status comes from the completion record, not task.completed
   const isTextTaskCompleted =
-    isTextTask &&
-    (existingCompletion?.outcome === "completed" ||
-      (existingCompletion && existingCompletion.outcome !== "not_completed" && existingCompletion.note));
+    taskMeta.isTextTaskCompleted ??
+    (isTextTask &&
+      (existingCompletion?.outcome === "completed" ||
+        (existingCompletion && existingCompletion.outcome !== "not_completed" && existingCompletion.note)));
 
   // For selection tasks, completion status comes from the completion record
   const isSelectionTaskCompleted =
-    isSelectionTask &&
-    (existingCompletion?.outcome === "completed" ||
-      (existingCompletion && existingCompletion.outcome !== "not_completed" && existingCompletion.note));
+    taskMeta.isSelectionTaskCompleted ??
+    (isSelectionTask &&
+      (existingCompletion?.outcome === "completed" ||
+        (existingCompletion && existingCompletion.outcome !== "not_completed" && existingCompletion.note)));
 
   // For goal tasks, completion status comes from the completion record
-  const isGoalTaskCompleted = isGoalTask && existingCompletion?.outcome === "completed";
+  const isGoalTaskCompleted =
+    taskMeta.isGoalTaskCompleted ?? (isGoalTask && existingCompletion?.outcome === "completed");
 
   // Get outcome for today view tasks, subtasks, and backlog items
-  const outcome =
-    (isToday || isSubtask || isBacklog) && getOutcomeOnDate && viewDate ? getOutcomeOnDate(task.id, viewDate) : null;
+  const outcome = taskMeta.outcome ?? null;
 
   // Check if task has any outcome (completed or not completed) - should show strikethrough
-  const hasAnyOutcome = outcome !== null;
-  const shouldShowStrikethrough = isChecked || hasAnyOutcome;
+  const hasAnyOutcome = taskMeta.hasAnyOutcome ?? outcome !== null;
+  const shouldShowStrikethrough = taskMeta.shouldShowStrikethrough ?? (isChecked || hasAnyOutcome);
 
   // Check if task is recurring (has recurrence and type is not "none")
-  const isRecurring = task.recurrence && task.recurrence.type !== "none";
+  const isRecurring = taskMeta.isRecurring ?? (task.recurrence && task.recurrence.type !== "none");
 
   // For subtasks, also check if parent is recurring (subtasks inherit parent's recurring behavior)
   // This is passed via the task object from the parent component
-  const parentIsRecurring = task.parentRecurrence && task.parentRecurrence.type !== "none";
-  const effectivelyRecurring = isRecurring || (isSubtask && parentIsRecurring);
+  const parentIsRecurring =
+    taskMeta.parentIsRecurring ?? (task.parentRecurrence && task.parentRecurrence.type !== "none");
+  const effectivelyRecurring = taskMeta.effectivelyRecurring ?? (isRecurring || (isSubtask && parentIsRecurring));
 
   // Check if we should show menu: for recurring tasks (parent or subtask) that are overdue OR have outcome set
   // Subtasks should have same menu access as parent tasks
@@ -870,7 +855,7 @@ export const TaskItem = ({
                   size="lg"
                   isRecurring={effectivelyRecurring}
                   viewDate={viewDate}
-                  onRollover={completionHandlers.handleRolloverTask}
+                  onRollover={completionHandlers?.handleRolloverTask}
                   taskId={task.id}
                 />
               )}
@@ -939,7 +924,7 @@ export const TaskItem = ({
                   {task.title}
                 </Typography>
               )}
-              {task.subtasks && task.subtasks.length > 0 && (
+              {taskMeta.subtaskTotal > 0 && (
                 <Typography
                   component="span"
                   variant="caption"
@@ -950,7 +935,7 @@ export const TaskItem = ({
                     flexShrink: 0,
                   }}
                 >
-                  ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})
+                  ({taskMeta.subtaskCompletedCount}/{taskMeta.subtaskTotal})
                 </Typography>
               )}
             </Stack>
@@ -1049,7 +1034,7 @@ export const TaskItem = ({
                       <MenuItem
                         onClick={e => {
                           e.stopPropagation();
-                          statusHandlers.handleStatusChange(task.id, "todo");
+                          statusHandlers?.handleStatusChange(task.id, "todo");
                           setStatusMenuOpen(false);
                           setStatusMenuAnchor(null);
                         }}
@@ -1061,7 +1046,7 @@ export const TaskItem = ({
                       <MenuItem
                         onClick={e => {
                           e.stopPropagation();
-                          statusHandlers.handleStatusChange(task.id, "in_progress");
+                          statusHandlers?.handleStatusChange(task.id, "in_progress");
                           setStatusMenuOpen(false);
                           setStatusMenuAnchor(null);
                         }}
@@ -1073,7 +1058,7 @@ export const TaskItem = ({
                       <MenuItem
                         onClick={e => {
                           e.stopPropagation();
-                          statusHandlers.handleStatusChange(task.id, "complete");
+                          statusHandlers?.handleStatusChange(task.id, "complete");
                           setStatusMenuOpen(false);
                           setStatusMenuAnchor(null);
                         }}
@@ -1190,7 +1175,7 @@ export const TaskItem = ({
                       key={level.value || "none"}
                       onClick={e => {
                         e.stopPropagation();
-                        priorityHandlers.handlePriorityChange(task.id, level.value);
+                        priorityHandlers?.handlePriorityChange(task.id, level.value);
                         setPriorityMenuOpen(false);
                         setPriorityMenuAnchor(null);
                       }}
@@ -1213,11 +1198,16 @@ export const TaskItem = ({
                   size={variant === "kanban" ? "xs" : "sm"}
                   showNoTime={!isBacklog}
                   showEndDate={true}
-                  hasRecordOnDate={hasRecordOnDate}
+                  isRecurring={isRecurring}
+                  recurrenceLabel={taskMeta.recurrenceLabel}
+                  isOverdue={taskMeta.isOverdue}
+                  hasEndDate={Boolean(task.recurrence?.endDate)}
                 />
                 {/* Tags inline with badges */}
                 {/* Tags - unified TagSelector with custom trigger */}
-                <TagSelector
+                <TagSelectorBase
+                  tags={tagOptions}
+                  onCreateTag={onCreateTag}
                   task={task}
                   autoSave
                   showManageButton
@@ -1397,25 +1387,24 @@ export const TaskItem = ({
                 <MoreVert fontSize="small" />
               </IconButton>
               {/* Shared context menu for common actions */}
-              <TaskContextMenu
+              <TaskContextMenuBase
                 task={task}
                 date={viewDate}
-                isRecurring={effectivelyRecurring}
                 isWorkoutTask={isWorkoutTask}
-                outcome={outcome}
                 isSubtask={isSubtask}
-                parentTaskId={parentTaskId}
                 onEdit={onEdit}
                 onEditWorkout={onEditWorkout}
                 onDuplicate={onDuplicate}
                 onDelete={isSubtask ? taskId => onDelete?.(parentTaskId, taskId) : onDelete}
-                onOutcomeChange={onOutcomeChange}
+                onBulkEdit={selectionState?.handleBulkEdit}
+                hasMultipleSelected={(selectionState?.selectedCount || 0) > 1}
+                selectedCount={selectionState?.selectedCount || 0}
+                canEditCompletion={taskMeta.canEditCompletion}
+                onRemoveFromParent={removeFromParentHandler}
                 onClose={() => {
                   setActionMenuOpen(false);
                   setActionMenuAnchor(null);
                 }}
-                onStatusChange={statusHandlers.handleStatusChange}
-                onRemoveFromParent={onRemoveFromParent}
                 anchorEl={actionMenuAnchor}
                 open={actionMenuOpen}
               />
@@ -1442,6 +1431,8 @@ export const TaskItem = ({
                       containerId={`subtask-${task.id}`}
                       parentTaskId={task.id}
                       draggableId={`subtask-${task.id}-${subtask.id}`}
+                      shared={sharedState}
+                      meta={sharedState.taskMetaById?.get(subtask.id)}
                       onToggle={onToggleSubtask}
                       onEdit={onEdit ? () => onEdit(subtask) : undefined}
                       onDuplicate={onDuplicate}
@@ -1450,9 +1441,6 @@ export const TaskItem = ({
                       mutedTextColor={mutedText}
                       gripColor={gripColor}
                       viewDate={viewDate}
-                      onOutcomeChange={onOutcomeChange}
-                      getOutcomeOnDate={getOutcomeOnDate}
-                      hasRecordOnDate={hasRecordOnDate}
                     />
                   ))}
                 {/* New subtask input */}

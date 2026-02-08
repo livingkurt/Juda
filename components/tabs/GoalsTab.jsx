@@ -14,6 +14,7 @@ import { useGetGoalsQuery } from "@/lib/store/api/goalsApi";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { TaskItem } from "@/components/TaskItem";
+import { useTaskItemShared } from "@/hooks/useTaskItemShared";
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 import { DateNavigation } from "@/components/DateNavigation";
 import { TaskSearchInput } from "@/components/TaskSearchInput";
@@ -26,6 +27,9 @@ export function GoalsTab({ isLoading }) {
   const [updateTask] = useUpdateTaskMutation();
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
+  const handleCreateTag = async (name, color) => {
+    return await createTagMutation({ name, color }).unwrap();
+  };
   const goalsSearchTerm = useSelector(state => state.ui.goalsSearchTerm || "");
   const goalsSelectedTagIds = useSelector(state => state.ui.goalsSelectedTagIds || []);
   const deferredGoalsSearchTerm = useDeferredValue(goalsSearchTerm);
@@ -38,6 +42,16 @@ export function GoalsTab({ isLoading }) {
   });
 
   const allGoals = useMemo(() => goalsData?.allGoals || [], [goalsData]);
+
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+
+  const taskItemShared = useTaskItemShared({
+    allTasks: allGoals,
+    viewDate: todayDate,
+    tags,
+    onCreateTag: handleCreateTag,
+  });
 
   // Filter and organize goals - only show yearly goals (monthly goals will be shown as subtasks)
   const yearlyGoals = useMemo(() => {
@@ -301,29 +315,26 @@ export function GoalsTab({ isLoading }) {
             <Box>
               <DragDropContext onDragEnd={handleDragEnd}>
                 <Droppable droppableId={`goals-yearly-${selectedYear}`}>
-                  {provided => {
-                    // Yearly goals need a date for completion checks (use today)
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    return (
-                      <Stack spacing={1} ref={provided.innerRef} {...provided.droppableProps}>
-                        {yearlyGoals.map((goal, index) => (
-                          <TaskItem
-                            key={goal.id}
-                            task={goal}
-                            variant="today"
-                            draggableId={goal.id}
-                            index={index}
-                            viewDate={today}
-                            showSubtasks={true}
-                            defaultExpanded={true}
-                            allTasksOverride={allGoals}
-                          />
-                        ))}
-                        {provided.placeholder}
-                      </Stack>
-                    );
-                  }}
+                  {provided => (
+                    <Stack spacing={1} ref={provided.innerRef} {...provided.droppableProps}>
+                      {yearlyGoals.map((goal, index) => (
+                        <TaskItem
+                          key={goal.id}
+                          task={goal}
+                          variant="today"
+                          draggableId={goal.id}
+                          index={index}
+                          viewDate={todayDate}
+                          showSubtasks={true}
+                          defaultExpanded={true}
+                          allTasksOverride={allGoals}
+                          shared={taskItemShared}
+                          meta={taskItemShared?.taskMetaById?.get(goal.id)}
+                        />
+                      ))}
+                      {provided.placeholder}
+                    </Stack>
+                  )}
                 </Droppable>
               </DragDropContext>
             </Box>
@@ -342,30 +353,26 @@ export function GoalsTab({ isLoading }) {
           <Box>
             <DragDropContext onDragEnd={handleDragEnd}>
               <Droppable droppableId={`goals-monthly-${selectedYear}-${selectedMonth}`}>
-                {provided => {
-                  // Monthly goals are non-recurring, so use today's date for completion checks
-                  // This ensures the checkbox works correctly for monthly goals
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  return (
-                    <Stack spacing={1} ref={provided.innerRef} {...provided.droppableProps}>
-                      {selectedMonthGoals.map((goal, index) => (
-                        <TaskItem
-                          key={goal.id}
-                          task={goal}
-                          variant="today"
-                          draggableId={goal.id}
-                          index={index}
-                          viewDate={today}
-                          showSubtasks={false}
-                          defaultExpanded={false}
-                          allTasksOverride={allGoals}
-                        />
-                      ))}
-                      {provided.placeholder}
-                    </Stack>
-                  );
-                }}
+                {provided => (
+                  <Stack spacing={1} ref={provided.innerRef} {...provided.droppableProps}>
+                    {selectedMonthGoals.map((goal, index) => (
+                      <TaskItem
+                        key={goal.id}
+                        task={goal}
+                        variant="today"
+                        draggableId={goal.id}
+                        index={index}
+                        viewDate={todayDate}
+                        showSubtasks={false}
+                        defaultExpanded={false}
+                        allTasksOverride={allGoals}
+                        shared={taskItemShared}
+                        meta={taskItemShared?.taskMetaById?.get(goal.id)}
+                      />
+                    ))}
+                    {provided.placeholder}
+                  </Stack>
+                )}
               </Droppable>
             </DragDropContext>
           </Box>

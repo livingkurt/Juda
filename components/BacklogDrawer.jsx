@@ -15,6 +15,7 @@ import { TaskSkeleton } from "./TaskSkeleton";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
+import { useTaskItemShared } from "@/hooks/useTaskItemShared";
 import { getPriorityConfig, PRIORITY_LEVELS } from "@/lib/constants";
 import { KeyboardArrowDown, KeyboardArrowUp, Remove, PriorityHigh } from "@mui/icons-material";
 import { createDroppableId } from "@/lib/dragHelpers";
@@ -52,6 +53,9 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   const taskFilters = useTaskFilters();
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
+  const handleCreateTag = async (name, color) => {
+    return await createTagMutation({ name, color }).unwrap();
+  };
 
   const backlogTasks = taskFilters.backlogTasks;
   const backlogLoading = taskFilters.backlogLoading;
@@ -69,6 +73,13 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   const deferredSelectedTagIds = useDeferredValue(selectedTagIds);
   const deferredSelectedPriorities = useDeferredValue(selectedPriorities);
   const deferredSearchTerm = useDeferredValue(searchTerm);
+
+  const taskItemShared = useTaskItemShared({
+    allTasks: taskFilters.tasks,
+    viewDate,
+    tags,
+    onCreateTag: handleCreateTag,
+  });
 
   const INITIAL_RENDER_COUNT = 100;
 
@@ -606,6 +617,8 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                     draggableId={task.draggableId}
                                     viewDate={viewDate}
                                     allTasksOverride={taskFilters.tasks}
+                                    shared={taskItemShared}
+                                    meta={taskItemShared?.taskMetaById?.get(task.id)}
                                   />
                                 ))}
                                 {group.tasks.length === 0 && snapshot.isDraggingOver && (
@@ -967,6 +980,8 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                     draggableId={task.draggableId}
                                     viewDate={viewDate}
                                     allTasksOverride={taskFilters.tasks}
+                                    shared={taskItemShared}
+                                    meta={taskItemShared?.taskMetaById?.get(task.id)}
                                   />
                                 ))}
                               </Stack>
@@ -1005,6 +1020,8 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                                   draggableId={task.draggableId}
                                   viewDate={viewDate}
                                   allTasksOverride={taskFilters.tasks}
+                                  shared={taskItemShared}
+                                  meta={taskItemShared?.taskMetaById?.get(task.id)}
                                 />
                               </Box>
                             );
@@ -1022,6 +1039,8 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
                             draggableId={task.draggableId}
                             viewDate={viewDate}
                             allTasksOverride={taskFilters.tasks}
+                            shared={taskItemShared}
+                            meta={taskItemShared?.taskMetaById?.get(task.id)}
                           />
                         ))
                       )}

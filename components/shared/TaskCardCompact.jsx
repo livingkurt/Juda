@@ -3,8 +3,7 @@
 import { useState, memo } from "react";
 import { Box, Menu } from "@mui/material";
 import { getTaskDisplayColor } from "@/lib/utils";
-import { TaskContextMenu } from "../TaskContextMenu";
-import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
+import { TaskContextMenuBase } from "../TaskContextMenu";
 import { useTheme } from "@/hooks/useTheme";
 
 /**
@@ -15,22 +14,19 @@ export const TaskCardCompact = memo(function TaskCardCompact({
   task,
   date,
   zoom = 1.0,
-  isCompleted = false,
-  outcome = null,
+  isCompleted,
+  outcome,
+  menuHandlers,
+  canEditCompletion,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const { theme } = useTheme();
 
-  // Use hooks directly (they use Redux internally)
-  const { getOutcomeOnDate } = useCompletionHelpers();
-
-  // Get outcome from Redux if not provided
-  const actualOutcome = outcome !== null ? outcome : getOutcomeOnDate(task.id, date);
+  const actualOutcome = outcome ?? null;
   const actualIsCompleted = isCompleted !== undefined ? isCompleted : actualOutcome === "completed";
 
   const taskColor = getTaskDisplayColor(task, theme, "dark");
-  const isRecurring = task.recurrence && task.recurrence.type !== "none";
   const isWorkoutTask = task.completionType === "workout";
   const isNotCompleted = actualOutcome === "not_completed";
   const hasOutcome = actualIsCompleted || isNotCompleted;
@@ -83,13 +79,19 @@ export const TaskCardCompact = memo(function TaskCardCompact({
         onClick={e => e.stopPropagation()}
         onMouseDown={e => e.stopPropagation()}
       >
-        <TaskContextMenu
+        <TaskContextMenuBase
           task={task}
           date={date}
-          isRecurring={isRecurring}
           isWorkoutTask={isWorkoutTask}
-          outcome={actualOutcome}
           onClose={handleMenuClose}
+          onEdit={menuHandlers?.onEdit}
+          onEditWorkout={menuHandlers?.onEditWorkout}
+          onDuplicate={menuHandlers?.onDuplicate}
+          onDelete={menuHandlers?.onDelete}
+          onBulkEdit={menuHandlers?.onBulkEdit}
+          hasMultipleSelected={menuHandlers?.hasMultipleSelected}
+          selectedCount={menuHandlers?.selectedCount}
+          canEditCompletion={canEditCompletion}
         />
       </Menu>
     </>

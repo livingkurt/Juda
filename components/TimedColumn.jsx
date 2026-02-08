@@ -5,7 +5,6 @@ import { Box } from "@mui/material";
 import { CalendarTask } from "./CalendarTask";
 import { StatusTaskBlock } from "./StatusTaskBlock";
 import { CurrentTimeLine } from "./CurrentTimeLine";
-import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
 
 export const TimedColumn = memo(
@@ -13,7 +12,8 @@ export const TimedColumn = memo(
     day,
     dayIndex,
     timedTasks,
-    allTasks = [],
+    allTasks: _allTasks = [],
+    statusTasks = [],
     handleColumnClick,
     handleDropTimeCalculation,
     createDraggableId,
@@ -22,11 +22,14 @@ export const TimedColumn = memo(
     showStatusTasks = true,
     hourHeight = 48,
     isToday = false,
+    getOutcomeOnDate,
+    isCompletedOnDate,
+    getCompletionForDate,
+    completionHandlers,
+    menuHandlers,
+    onEdit,
   }) {
     const columnRef = useRef(null);
-
-    // Use hooks directly (they use Redux internally)
-    const { getCompletionForDate } = useCompletionHelpers();
 
     // Get preferences
     const { preferences } = usePreferencesContext();
@@ -83,80 +86,53 @@ export const TimedColumn = memo(
         {isToday && <CurrentTimeLine hourHeight={hourHeight} startHour={0} />}
 
         {/* Render tasks */}
-        {positionedTasks.map(positionedTask => (
-          <CalendarTask
-            key={positionedTask.id}
-            task={positionedTask}
-            createDraggableId={createDraggableId}
-            date={day}
-            variant="timed-week"
-            getTaskStyle={task => getTaskStyle(task, positionedTask)}
-            allTasksOverride={allTasks}
-          />
-        ))}
+        {positionedTasks.map(positionedTask => {
+          const outcome = getOutcomeOnDate?.(positionedTask.id, day) ?? null;
+          const isCompleted = isCompletedOnDate?.(positionedTask.id, day) || false;
+          const isNotCompleted = outcome === "not_completed";
+          const isRecurring = positionedTask.recurrence && positionedTask.recurrence.type !== "none";
+          const isWorkoutTask = positionedTask.completionType === "workout";
+          const isNonRecurring = !positionedTask.recurrence || positionedTask.recurrence.type === "none";
+          const completionForStartDate =
+            positionedTask.recurrence?.startDate &&
+            getCompletionForDate?.(positionedTask.id, new Date(positionedTask.recurrence.startDate));
+          const canEditCompletion = isNonRecurring && Boolean(completionForStartDate) && !positionedTask.parentId;
+
+          return (
+            <CalendarTask
+              key={positionedTask.id}
+              task={positionedTask}
+              createDraggableId={createDraggableId}
+              date={day}
+              variant="timed-week"
+              getTaskStyle={task => getTaskStyle(task, positionedTask)}
+              outcome={outcome}
+              isCompleted={isCompleted}
+              isNotCompleted={isNotCompleted}
+              isRecurring={isRecurring}
+              isWorkoutTask={isWorkoutTask}
+              onOutcomeChange={completionHandlers?.handleOutcomeChange}
+              onRollover={completionHandlers?.handleRolloverTask}
+              onEdit={onEdit}
+              menuHandlers={menuHandlers}
+              canEditCompletion={canEditCompletion}
+            />
+          );
+        })}
 
         {/* Render status task blocks (in-progress and completed with time tracking) */}
         {actualShowStatusTasks &&
-          getCompletionForDate &&
-          allTasks
-            .filter(task => {
-              // Only show non-recurring tasks with status tracking
-              if (task.recurrence && task.recurrence.type !== "none") return false;
-              if (task.completionType === "note") return false;
-              if (task.parentId) return false;
-
-              // Show in-progress tasks
-              if (task.status === "in_progress" && task.startedAt) return true;
-
-              // Show completed tasks with timing data
-              const completion = getCompletionForDate(task.id, day);
-              return completion && completion.startedAt && completion.completedAt;
-            })
-            .map(task => {
-              const isInProgress = task.status === "in_progress";
-              let startedAt, completedAt, top, height;
-
-              if (isInProgress) {
-                // In-progress task: use task.startedAt to now
-                startedAt = task.startedAt;
-                completedAt = new Date().toISOString();
-
-                const startTime = new Date(startedAt);
-                const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
-                const now = new Date();
-                const nowMinutes = now.getHours() * 60 + now.getMinutes();
-                const durationMinutes = nowMinutes - startMinutes;
-
-                top = (startMinutes / 60) * hourHeight;
-                height = (durationMinutes / 60) * hourHeight;
-              } else {
-                // Completed task: use completion timing data
-                const completion = getCompletionForDate(task.id, day);
-                startedAt = completion.startedAt;
-                completedAt = completion.completedAt;
-
-                const startTime = new Date(startedAt);
-                const endTime = new Date(completedAt);
-                const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
-                const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
-                const durationMinutes = endMinutes - startMinutes;
-
-                top = (startMinutes / 60) * hourHeight;
-                height = (durationMinutes / 60) * hourHeight;
-              }
-
-              return (
-                <StatusTaskBlock
-                  key={`status-${task.id}`}
-                  task={task}
-                  top={top}
-                  height={height}
-                  isInProgress={isInProgress}
-                  startedAt={startedAt}
-                  completedAt={completedAt}
-                />
-              );
-            })}
+          statusTasks.map(({ task, isInProgress, startedAt, completedAt, top, height }) => (
+            <StatusTaskBlock
+              key={`status-${task.id}`}
+              task={task}
+              top={top}
+              height={height}
+              isInProgress={isInProgress}
+              startedAt={startedAt}
+              completedAt={completedAt}
+            />
+          ))}
       </Box>
     );
   },
@@ -169,6 +145,7 @@ export const TimedColumn = memo(
       prevProps.isToday === nextProps.isToday &&
       prevProps.hourHeight === nextProps.hourHeight &&
       prevProps.showStatusTasks === nextProps.showStatusTasks &&
+      prevProps.statusTasks === nextProps.statusTasks &&
       // Only check if tasks array reference changed (shallow comparison)
       prevProps.timedTasks === nextProps.timedTasks
     );

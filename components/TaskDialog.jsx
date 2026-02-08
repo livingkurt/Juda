@@ -57,6 +57,7 @@ import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery, useCreateTagMutation, useDeleteTagMutation } from "@/lib/store/api/tagsApi";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
+import { useTaskItemShared } from "@/hooks/useTaskItemShared";
 import RecurringEditScopeDialog from "./RecurringEditScopeDialog";
 import {
   requiresSeriesScopeDecision,
@@ -77,10 +78,20 @@ function TaskDialogForm({
   defaultCompletionType,
   defaultGoalYear,
   tags,
+  onCreateTag,
   allTasks,
 }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const dialogViewDate = new Date();
+  dialogViewDate.setHours(0, 0, 0, 0);
+
+  const taskItemShared = useTaskItemShared({
+    allTasks,
+    viewDate: dialogViewDate,
+    tags,
+    onCreateTag,
+  });
   // Initialize state from task or defaults
   const [title, setTitle] = useState(task?.title || "");
   // Use null for sectionId if task has null, otherwise use defaultSectionId (don't auto-select first section)
@@ -1794,6 +1805,9 @@ function TaskDialogForm({
                                         containerId="task-dialog-search"
                                         draggableId={`dialog-search-${t.id}`}
                                         allTasksOverride={allTasks}
+                                        viewDate={dialogViewDate}
+                                        shared={taskItemShared}
+                                        meta={taskItemShared?.taskMetaById?.get(t.id)}
                                       />
                                       <ListItemSecondaryAction>
                                         <IconButton
