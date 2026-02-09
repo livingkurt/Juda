@@ -827,3 +827,7 @@
 - The reorder operation updates both the local state (optimistic update) and persists to the backend immediately.
 - Each cycle has its own independent droppable area, so sections can only be reordered within their parent cycle.
 - Added visual feedback during drag with opacity and background color changes to indicate the dragged section.
+
+### Today view auto-collapse with hide completed
+
+- Rewired Today view completion handlers to use the live section expansion state (not the empty initial state) so auto-collapse checks never run against an empty section map.

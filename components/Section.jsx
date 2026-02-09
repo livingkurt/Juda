@@ -30,40 +30,13 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
   // Call hooks in the correct order (matching page.jsx pattern)
   const taskOps = useTaskOperations();
 
-  // Initialize section expansion early (will be updated when tasksBySection is available)
-  const sectionExpansionInitial = useSectionExpansion({
-    sections: taskOps.sections,
-    showCompletedTasks,
-    tasksBySection: new Map(),
-    viewDate,
-    todaysTasks: [],
-  });
-
-  // Initialize completion handlers (needs sectionExpansionInitial callbacks)
-  const completionHandlers = useCompletionHandlers({
-    autoCollapsedSections: sectionExpansionInitial.autoCollapsedSections,
-    setAutoCollapsedSections: sectionExpansionInitial.setAutoCollapsedSections,
-    checkAndAutoCollapseSection: sectionExpansionInitial.checkAndAutoCollapseSection,
-  });
-
-  // Get task filters (needs recentlyCompletedTasks from completionHandlers)
-  const taskFilters = useTaskFilters({
-    recentlyCompletedTasks: completionHandlers.recentlyCompletedTasks,
-  });
+  const taskFilters = useTaskFilters();
 
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
   const handleCreateTag = async (name, color) => {
     return await createTagMutation({ name, color }).unwrap();
   };
-
-  const taskItemShared = useTaskItemShared({
-    allTasks: taskFilters.tasks,
-    viewDate,
-    tags,
-    onCreateTag: handleCreateTag,
-    completionHandlers,
-  });
 
   // Recreate section expansion with actual tasksBySection
   const sectionExpansion = useSectionExpansion({
@@ -72,6 +45,22 @@ export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId
     tasksBySection: taskFilters.tasksBySection,
     viewDate,
     todaysTasks: taskFilters.todaysTasks,
+  });
+
+  const completionHandlers = useCompletionHandlers({
+    autoCollapsedSections: sectionExpansion.autoCollapsedSections,
+    setAutoCollapsedSections: sectionExpansion.setAutoCollapsedSections,
+    checkAndAutoCollapseSection: sectionExpansion.checkAndAutoCollapseSection,
+    tasksOverride: taskFilters.tasks,
+    skipTasksQuery: true,
+  });
+
+  const taskItemShared = useTaskItemShared({
+    allTasks: taskFilters.tasks,
+    viewDate,
+    tags,
+    onCreateTag: handleCreateTag,
+    completionHandlers,
   });
 
   // Update section ops with section expansion callbacks
