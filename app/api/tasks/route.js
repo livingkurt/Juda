@@ -104,6 +104,8 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     goalMonths,
   } = body;
 
+  const normalizedTagIds = Array.isArray(tagIds) ? Array.from(new Set(tagIds.filter(Boolean))) : [];
+
   // Validate section exists if sectionId is provided
   // Allow null sectionId for backlog tasks
   if (sectionId !== null && sectionId !== undefined) {
@@ -181,18 +183,18 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       .returning();
 
     // Assign tags if provided
-    if (tagIds && Array.isArray(tagIds) && tagIds.length > 0) {
+    if (normalizedTagIds.length > 0) {
       // Verify all tags belong to the user
       const userTags = await tx.query.tags.findMany({
-        where: and(inArray(tags.id, tagIds), eq(tags.userId, userId)),
+        where: and(inArray(tags.id, normalizedTagIds), eq(tags.userId, userId)),
       });
 
-      if (userTags.length !== tagIds.length) {
+      if (userTags.length !== normalizedTagIds.length) {
         throw Errors.notFound("One or more tags");
       }
 
       // Create task-tag relations
-      const tagAssignments = tagIds.map(tagId => ({
+      const tagAssignments = normalizedTagIds.map(tagId => ({
         taskId: task.id,
         tagId,
       }));

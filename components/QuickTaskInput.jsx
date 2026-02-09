@@ -20,6 +20,7 @@ export const QuickTaskInput = ({
   const [value, setValue] = useState("");
   const [isActive, setIsActive] = useState(false);
   const inputRef = useRef(null);
+  const isSubmittingRef = useRef(false);
 
   const handleClick = () => {
     setIsActive(true);
@@ -28,19 +29,31 @@ export const QuickTaskInput = ({
     }, 0);
   };
 
-  const handleBlur = async () => {
-    if (value.trim()) {
-      await onCreate(value.trim());
-      setValue("");
+  const submitIfNeeded = async () => {
+    const trimmedValue = value.trim();
+    if (!trimmedValue || isSubmittingRef.current) {
+      return false;
     }
+
+    isSubmittingRef.current = true;
+    try {
+      await onCreate(trimmedValue);
+      setValue("");
+      return true;
+    } finally {
+      isSubmittingRef.current = false;
+    }
+  };
+
+  const handleBlur = async () => {
+    await submitIfNeeded();
     setIsActive(false);
   };
 
   const handleKeyDown = async e => {
     if (e.key === "Enter" && value.trim()) {
       e.preventDefault();
-      await onCreate(value.trim());
-      setValue("");
+      await submitIfNeeded();
       setIsActive(false);
     } else if (e.key === "Escape") {
       setValue("");

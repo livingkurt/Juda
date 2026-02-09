@@ -836,3 +836,8 @@
 
 - Paused the global “recently completed” hide timer while the outcome menu is open and resume it on close.
 - Prevents tasks from disappearing mid-selection when users open the outcome menu during the debounce window.
+
+### Quick task create stability guard
+
+- Added a submission guard in `QuickTaskInput` to prevent duplicate create calls when Enter and blur fire together.
+- Normalized tag ID input on task creation by filtering falsy values and de-duping before tag assignment.
