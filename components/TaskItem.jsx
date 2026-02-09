@@ -724,6 +724,14 @@ export const TaskItem = ({
     }
   };
 
+  const handleCompletionMenuOpen = () => {
+    completionHandlers?.setCompletionMenuOpen?.(true);
+  };
+
+  const handleCompletionMenuClose = () => {
+    completionHandlers?.setCompletionMenuOpen?.(false);
+  };
+
   // Enable drag-and-drop for dialog subtasks, but disable for subtasks in the main view
   const isDialogSubtask = containerId === "task-dialog-subtasks";
   const isDragDisabled = isSubtask && !isDialogSubtask;
@@ -836,6 +844,8 @@ export const TaskItem = ({
                               outcome
                   }
                   onOutcomeChange={handleOutcomeChange}
+                  onMenuOpen={handleCompletionMenuOpen}
+                  onMenuClose={handleCompletionMenuClose}
                   isChecked={
                     // For text tasks, show checked if completed (even without explicit outcome)
                     isTextTask

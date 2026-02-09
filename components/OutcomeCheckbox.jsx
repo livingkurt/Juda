@@ -74,6 +74,8 @@ const getSizeConfig = size => {
 export const OutcomeCheckbox = ({
   outcome,
   onOutcomeChange,
+  onMenuOpen,
+  onMenuClose,
   isChecked = false,
   disabled = false,
   size = "md",
@@ -117,6 +119,14 @@ export const OutcomeCheckbox = ({
     }
   };
 
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setAnchorEl(null);
+    if (onMenuClose) {
+      onMenuClose();
+    }
+  };
+
   const handleClick = e => {
     e.stopPropagation();
     // If has outcome, open menu instead of toggling
@@ -126,6 +136,9 @@ export const OutcomeCheckbox = ({
       menuJustOpenedRef.current = true;
       setMenuOpen(true);
       setAnchorEl(e.currentTarget);
+      if (onMenuOpen) {
+        onMenuOpen();
+      }
     }
   };
 
@@ -139,8 +152,7 @@ export const OutcomeCheckbox = ({
   };
 
   const handleMenuClose = () => {
-    setMenuOpen(false);
-    setAnchorEl(null);
+    closeMenu();
   };
 
   const stopMenuEvent = event => {
@@ -270,8 +282,7 @@ export const OutcomeCheckbox = ({
               onClick={e => {
                 stopMenuEvent(e);
                 // Close menu IMMEDIATELY - don't wait for outcome to change
-                setMenuOpen(false);
-                setAnchorEl(null);
+                closeMenu();
                 // Then trigger the change
                 if (onOutcomeChange) {
                   onOutcomeChange(null);
@@ -294,8 +305,7 @@ export const OutcomeCheckbox = ({
                   console.warn("[OutcomeCheckbox] Completed clicked START", Date.now());
                   stopMenuEvent(e);
                   // Close menu IMMEDIATELY - don't wait for outcome to change
-                  setMenuOpen(false);
-                  setAnchorEl(null);
+                  closeMenu();
                   // Then trigger the change
                   onOutcomeChange("completed");
                   console.warn("[OutcomeCheckbox] Completed clicked END", Date.now());
@@ -315,8 +325,7 @@ export const OutcomeCheckbox = ({
                 onClick={e => {
                   stopMenuEvent(e);
                   // Close menu IMMEDIATELY - don't wait for outcome to change
-                  setMenuOpen(false);
-                  setAnchorEl(null);
+                  closeMenu();
                   // Then trigger the change
                   onOutcomeChange("not_completed");
                 }}
@@ -341,8 +350,7 @@ export const OutcomeCheckbox = ({
                 onClick={e => {
                   stopMenuEvent(e);
                   // Close menu IMMEDIATELY
-                  setMenuOpen(false);
-                  setAnchorEl(null);
+                  closeMenu();
                   // Then trigger the rollover
                   onRollover(taskId, viewDate);
                 }}

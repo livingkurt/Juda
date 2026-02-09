@@ -831,3 +831,8 @@
 ### Today view auto-collapse with hide completed
 
 - Rewired Today view completion handlers to use the live section expansion state (not the empty initial state) so auto-collapse checks never run against an empty section map.
+
+### Completion debounce pause on menu open
+
+- Paused the global “recently completed” hide timer while the outcome menu is open and resume it on close.
+- Prevents tasks from disappearing mid-selection when users open the outcome menu during the debounce window.

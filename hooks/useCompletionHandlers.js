@@ -149,6 +149,9 @@ export function useCompletionHandlers({
   // Track global debounced timeout for all recently completed tasks
   // This allows the timeout to reset whenever ANY task is checked
   const globalHideTimeoutRef = useRef(null);
+  const hideDeadlineRef = useRef(null);
+  const remainingHideMsRef = useRef(null);
+  const menuOpenCountRef = useRef(0);
   const sectionsToCheckRef = useRef(new Set());
 
   // Cleanup timeout when component unmounts
@@ -169,6 +172,9 @@ export function useCompletionHandlers({
         clearTimeout(globalHideTimeoutRef.current);
         globalHideTimeoutRef.current = null;
       }
+      hideDeadlineRef.current = null;
+      remainingHideMsRef.current = null;
+      menuOpenCountRef.current = 0;
       sectionsToCheckRef.current.clear();
     }
   }, [showCompletedTasks, dispatch]);
@@ -185,6 +191,9 @@ export function useCompletionHandlers({
   const clearAllRecentlyCompleted = useCallback(() => {
     dispatch(clearRecentlyCompletedTasks());
 
+    hideDeadlineRef.current = null;
+    remainingHideMsRef.current = null;
+
     // Check all sections that had tasks completed
     const sectionsToCheck = Array.from(sectionsToCheckRef.current);
     sectionsToCheckRef.current.clear();
@@ -200,6 +209,28 @@ export function useCompletionHandlers({
 
   // Add to recently completed with debounced timeout
   // Each new completion RESETS the global timer (Apple Reminders behavior)
+  const startHideTimer = useCallback(
+    delayMs => {
+      if (globalHideTimeoutRef.current) {
+        clearTimeout(globalHideTimeoutRef.current);
+        globalHideTimeoutRef.current = null;
+      }
+
+      if (delayMs == null || delayMs <= 0) {
+        clearAllRecentlyCompleted();
+        return;
+      }
+
+      hideDeadlineRef.current = Date.now() + delayMs;
+      remainingHideMsRef.current = null;
+      globalHideTimeoutRef.current = setTimeout(() => {
+        clearAllRecentlyCompleted();
+        globalHideTimeoutRef.current = null;
+      }, delayMs);
+    },
+    [clearAllRecentlyCompleted]
+  );
+
   const addToRecentlyCompleted = useCallback(
     (taskId, sectionId) => {
       dispatch(addRecentlyCompletedTask(taskId));
@@ -209,18 +240,44 @@ export function useCompletionHandlers({
         sectionsToCheckRef.current.add(sectionId);
       }
 
-      // Clear existing timeout if any
-      if (globalHideTimeoutRef.current) {
-        clearTimeout(globalHideTimeoutRef.current);
+      const delayMs = 10000;
+      if (menuOpenCountRef.current > 0) {
+        remainingHideMsRef.current = delayMs;
+        hideDeadlineRef.current = Date.now() + delayMs;
+        return;
       }
 
-      // Set new timeout - this will be reset if another task is checked
-      globalHideTimeoutRef.current = setTimeout(() => {
-        clearAllRecentlyCompleted();
-        globalHideTimeoutRef.current = null;
-      }, 10000);
+      startHideTimer(delayMs);
     },
-    [dispatch, clearAllRecentlyCompleted]
+    [dispatch, startHideTimer]
+  );
+
+  const setCompletionMenuOpen = useCallback(
+    isOpen => {
+      if (isOpen) {
+        menuOpenCountRef.current += 1;
+        if (globalHideTimeoutRef.current) {
+          const remaining = hideDeadlineRef.current ? Math.max(0, hideDeadlineRef.current - Date.now()) : null;
+          if (remaining != null) {
+            remainingHideMsRef.current = remaining;
+          }
+          clearTimeout(globalHideTimeoutRef.current);
+          globalHideTimeoutRef.current = null;
+        }
+        return;
+      }
+
+      if (menuOpenCountRef.current > 0) {
+        menuOpenCountRef.current -= 1;
+      }
+
+      if (menuOpenCountRef.current === 0 && remainingHideMsRef.current != null) {
+        const remaining = remainingHideMsRef.current;
+        remainingHideMsRef.current = null;
+        startHideTimer(remaining);
+      }
+    },
+    [startHideTimer]
   );
 
   // Collect subtask completions for batch operations
@@ -847,6 +904,7 @@ export function useCompletionHandlers({
       // Helpers
       addToRecentlyCompleted,
       removeFromRecentlyCompleted,
+      setCompletionMenuOpen,
     }),
     [
       recentlyCompletedTasks,
@@ -861,6 +919,7 @@ export function useCompletionHandlers({
       handleRolloverTask,
       addToRecentlyCompleted,
       removeFromRecentlyCompleted,
+      setCompletionMenuOpen,
     ]
   );
 }
