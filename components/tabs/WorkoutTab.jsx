@@ -336,6 +336,44 @@ const parseCsvText = csvText => {
   return rows;
 };
 
+const buildBothSidesMap = csvText => {
+  const rows = parseCsvText(csvText);
+  const headerRowIndex = rows.findIndex(row => row[0]?.trim() === "Cycle" && row[1]?.trim() === "Cycle Week");
+  if (headerRowIndex === -1) {
+    return { error: "CSV header row not found. Please export from Juda or match the documented format." };
+  }
+
+  const headerRow = rows[headerRowIndex].map(value => value.trim());
+  const headerIndex = {};
+  headerRow.forEach((label, idx) => {
+    headerIndex[label] = idx;
+  });
+
+  if (headerIndex["Both Sides"] === undefined) {
+    return { error: "CSV is missing the Both Sides column." };
+  }
+
+  const dataRows = rows.slice(headerRowIndex + 1);
+  const map = new Map();
+
+  dataRows.forEach(row => {
+    const sectionName = row[headerIndex.Section]?.trim();
+    const dayName = row[headerIndex.Day]?.trim();
+    const exerciseName = row[headerIndex.Exercise]?.trim();
+    const bothSidesRaw = row[headerIndex["Both Sides"]] || "";
+    const bothSidesValue = `${bothSidesRaw}`.trim().toLowerCase();
+
+    if (!sectionName || !dayName || !exerciseName) return;
+    const isBothSides =
+      bothSidesValue === "true" || bothSidesValue === "yes" || bothSidesValue === "1" || bothSidesValue === "y";
+    if (!isBothSides) return;
+    const key = `${sectionName}|${dayName}|${exerciseName}`;
+    map.set(key, true);
+  });
+
+  return { map };
+};
+
 const getDayOfWeekIndex = dayLabel => {
   const normalized = dayLabel.trim().toLowerCase();
   if (normalized.startsWith("sunday")) return 0;
@@ -571,6 +609,11 @@ export function WorkoutTab({ isLoading: tabLoading }) {
   const [importCsvText, setImportCsvText] = useState("");
   const [importCsvName, setImportCsvName] = useState("");
   const [importError, setImportError] = useState("");
+  const [bothSidesDialogOpen, setBothSidesDialogOpen] = useState(false);
+  const [bothSidesCycleId, setBothSidesCycleId] = useState("");
+  const [bothSidesCsvText, setBothSidesCsvText] = useState("");
+  const [bothSidesCsvName, setBothSidesCsvName] = useState("");
+  const [bothSidesError, setBothSidesError] = useState("");
   const [saveWorkoutProgramMutation, { isLoading: isSavingProgram }] = useSaveWorkoutProgramMutation();
 
   // Only set default selection once when workoutTasks first loads
@@ -669,6 +712,26 @@ export function WorkoutTab({ isLoading: tabLoading }) {
     reader.readAsText(file);
   };
 
+  const handleOpenBothSides = () => {
+    setBothSidesDialogOpen(true);
+    const hasSelection = cycleOptions.some(cycle => cycle.id === bothSidesCycleId);
+    if ((!bothSidesCycleId || !hasSelection) && cycleOptions.length) {
+      setBothSidesCycleId(cycleOptions[0].id);
+    }
+  };
+
+  const handleBothSidesFile = event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      setBothSidesCsvText(e.target?.result || "");
+      setBothSidesCsvName(file.name);
+      setBothSidesError("");
+    };
+    reader.readAsText(file);
+  };
+
   const handleImport = async () => {
     setImportError("");
     if (!importCsvText) {
@@ -731,6 +794,58 @@ export function WorkoutTab({ isLoading: tabLoading }) {
     }
   };
 
+  const handleApplyBothSides = async () => {
+    setBothSidesError("");
+    if (!bothSidesCsvText) {
+      setBothSidesError("Please choose a CSV file with Both Sides data.");
+      return;
+    }
+    if (!bothSidesCycleId) {
+      setBothSidesError("Please select a cycle to update.");
+      return;
+    }
+
+    const parsed = buildBothSidesMap(bothSidesCsvText);
+    if (parsed.error) {
+      setBothSidesError(parsed.error);
+      return;
+    }
+    if (!parsed.map?.size) {
+      setBothSidesError("No Both Sides flags found in the CSV.");
+      return;
+    }
+
+    const updatedCycles = (program?.cycles || []).map(cycle => {
+      if (cycle.id !== bothSidesCycleId) return cycle;
+      return {
+        ...cycle,
+        sections: (cycle.sections || []).map(section => ({
+          ...section,
+          days: (section.days || []).map(day => ({
+            ...day,
+            exercises: (day.exercises || []).map(exercise => {
+              const key = `${section.name}|${day.name}|${exercise.name}`;
+              if (!parsed.map.has(key)) return exercise;
+              return { ...exercise, bothSides: true };
+            }),
+          })),
+        })),
+      };
+    });
+
+    const programName = program?.name || selectedTask?.title || "Workout Program";
+
+    try {
+      await saveWorkoutProgramMutation({ taskId: selectedTask.id, name: programName, cycles: updatedCycles }).unwrap();
+      setBothSidesDialogOpen(false);
+      setBothSidesCsvText("");
+      setBothSidesCsvName("");
+    } catch (error) {
+      setBothSidesError("Failed to apply Both Sides. Please try again.");
+      console.error("Failed to apply bothSides flags:", error);
+    }
+  };
+
   if (tabLoading) {
     return (
       <Box sx={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -785,6 +900,9 @@ export function WorkoutTab({ isLoading: tabLoading }) {
             </Button>
             <Button variant="outlined" onClick={handleOpenImport}>
               Import Cycle
+            </Button>
+            <Button variant="outlined" onClick={handleOpenBothSides}>
+              Apply Both Sides
             </Button>
             <Button variant="contained" startIcon={<FitnessCenter />} onClick={handleStartWorkout}>
               Start Today&apos;s Workout
@@ -995,6 +1113,50 @@ export function WorkoutTab({ isLoading: tabLoading }) {
             startIcon={isSavingProgram ? <CircularProgress size={18} color="inherit" /> : null}
           >
             {isSavingProgram ? "Importing..." : "Import"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={bothSidesDialogOpen} onClose={() => setBothSidesDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Apply Both Sides</DialogTitle>
+        <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Upload a CSV that includes the Both Sides column and choose which cycle to update.
+          </Typography>
+          <FormControl fullWidth size="small">
+            <InputLabel id="both-sides-cycle-select-label">Cycle</InputLabel>
+            <Select
+              labelId="both-sides-cycle-select-label"
+              label="Cycle"
+              value={bothSidesCycleId}
+              onChange={event => setBothSidesCycleId(event.target.value)}
+            >
+              {cycleOptions.map(cycle => (
+                <MenuItem key={cycle.id} value={cycle.id}>
+                  {cycle.name} · Weeks {cycle.startWeek}-{cycle.endWeek}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Button variant="outlined" component="label">
+              Choose CSV
+              <input type="file" accept=".csv" hidden onChange={handleBothSidesFile} />
+            </Button>
+            <Typography variant="body2" color="text.secondary">
+              {bothSidesCsvName || "No file selected"}
+            </Typography>
+          </Stack>
+          {bothSidesError && <Alert severity="error">{bothSidesError}</Alert>}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setBothSidesDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleApplyBothSides}
+            disabled={!bothSidesCycleId || !bothSidesCsvText || isSavingProgram}
+          >
+            Apply
           </Button>
         </DialogActions>
       </Dialog>

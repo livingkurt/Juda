@@ -809,6 +809,7 @@
 - Import supports overwriting an existing cycle or creating the next cycle.
 - Added `WORKOUT_CYCLE_IMPORT_FORMAT.md` documenting the expected CSV format and rules.
 - Export/import now includes the `bothSides` flag via the `Both Sides` CSV column.
+- Added a Both Sides helper modal to apply `bothSides` flags from an exported CSV to an existing cycle without changing targets.
 
 ### Workout cycle import/save performance
 
