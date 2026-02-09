@@ -211,10 +211,11 @@ const buildCycleCsv = ({ program, cycleOption, completions, programStartDate, to
     "Actual",
     "Set Outcome",
     "Session Note",
+    "Both Sides",
   ]);
 
   if (!cycleCompletions.length) {
-    rows.push([cycleOption.name, "", "", "No completion data for this cycle", "", "", "", "", "", "", "", ""]);
+    rows.push([cycleOption.name, "", "", "No completion data for this cycle", "", "", "", "", "", "", "", "", ""]);
   }
 
   cycleCompletions.forEach(day => {
@@ -225,6 +226,7 @@ const buildCycleCsv = ({ program, cycleOption, completions, programStartDate, to
         const details = exerciseIndex.get(exercise.exerciseId);
         const target = getTargetForWeek(details, cycleWeek);
         const targetLabel = formatValueWithUnit(target.targetValue, target.targetUnit);
+        const bothSidesValue = details?.bothSides ? "true" : "";
         if (exercise.sets?.length) {
           exercise.sets.forEach(set => {
             rows.push([
@@ -240,6 +242,7 @@ const buildCycleCsv = ({ program, cycleOption, completions, programStartDate, to
               formatActualValue(set),
               set.outcome || "",
               day.note || "",
+              bothSidesValue,
             ]);
           });
         } else {
@@ -256,11 +259,26 @@ const buildCycleCsv = ({ program, cycleOption, completions, programStartDate, to
             "",
             "",
             day.note || "",
+            bothSidesValue,
           ]);
         }
       });
     } else {
-      rows.push([cycleOption.name, cycleWeek, day.date, day.outcome || "", "", "", "", "", "", "", "", day.note || ""]);
+      rows.push([
+        cycleOption.name,
+        cycleWeek,
+        day.date,
+        day.outcome || "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        day.note || "",
+        "",
+      ]);
     }
   });
 
@@ -412,6 +430,8 @@ const buildImportCycleFromCsv = csvText => {
     const exerciseName = row[headerIndex.Exercise]?.trim();
     const setNumber = Number(row[headerIndex["Set #"]] || 1);
     const targetText = row[headerIndex.Target]?.trim() || "";
+    const bothSidesRaw = row[headerIndex["Both Sides"]] || "";
+    const bothSidesValue = `${bothSidesRaw}`.trim().toLowerCase();
 
     if (!sectionName || !dayName || !exerciseName) return;
 
@@ -444,6 +464,8 @@ const buildImportCycleFromCsv = csvText => {
         unit: "",
         type: "reps",
         weeklyTargets: new Map(),
+        bothSides:
+          bothSidesValue === "true" || bothSidesValue === "yes" || bothSidesValue === "1" || bothSidesValue === "y",
       });
     }
 
@@ -513,6 +535,7 @@ const buildImportCycleFromCsv = csvText => {
             sets: exercise.sets,
             targetValue: defaultTargetValue,
             unit: exercise.unit || "reps",
+            bothSides: exercise.bothSides || false,
             order: exerciseIndex,
             weeklyProgression,
           };

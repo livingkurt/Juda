@@ -32,7 +32,7 @@ Total Sessions,25
 The importer looks for this exact header row:
 
 ```
-Cycle,Cycle Week,Date,Session Outcome,Section,Day,Exercise,Set #,Target,Actual,Set Outcome,Session Note
+Cycle,Cycle Week,Date,Session Outcome,Section,Day,Exercise,Set #,Target,Actual,Set Outcome,Session Note,Both Sides
 ```
 
 ### Data Rows (Required)
@@ -53,6 +53,7 @@ Cycle 2,1,2026-02-09,,Workout,Monday - Leg,Single Leg Box Squat (Elevated Heel),
 - **Exercise**: The exercise name for that day.
 - **Set #**: The set number for the exercise (1, 2, 3, ...).
 - **Target**: The target value and unit (e.g. `8 reps`, `30 secs`, `1.25 miles`, `MAX REPS`).
+- **Both Sides**: Optional. Use `true`/`yes`/`1` to mark an exercise as both-sides.
 - **Actual / Set Outcome / Session Outcome / Session Note**: These are ignored during import and may be blank.
 
 ## Supported Target Formats
