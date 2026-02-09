@@ -32,6 +32,7 @@ import {
   ExpandMore as ChevronDown,
   ChevronRight,
   ContentCopy as Copy,
+  DragIndicator,
 } from "@mui/icons-material";
 import { EXERCISE_TYPES, WORKOUT_SECTION_TYPES, DAYS_OF_WEEK } from "@/lib/constants";
 import { useGetWorkoutProgramQuery, useSaveWorkoutProgramMutation } from "@/lib/store/api/workoutProgramsApi";
@@ -39,6 +40,7 @@ import { useDialogState } from "@/hooks/useDialogState";
 import { useTheme, useMediaQuery } from "@mui/material";
 import { useDispatch } from "react-redux";
 import { showError, showSuccess } from "@/lib/store/slices/snackbarSlice";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 // Generate unique IDs
 function generateCuid() {
@@ -564,30 +566,44 @@ const WorkoutCyclePanel = memo(function WorkoutCyclePanel({
             Add Section
           </Button>
 
-          {/* Render sections */}
-          {cycle.sections?.map(section => (
-            <WorkoutSection
-              key={section.id}
-              section={section}
-              cycleId={cycle.id}
-              expanded={expandedSections[section.id]}
-              onToggle={onToggleSection}
-              onUpdate={onUpdateSection}
-              onDelete={onDeleteSection}
-              onAddDay={onAddDay}
-              numberOfWeeks={cycle.numberOfWeeks}
-              expandedDays={expandedDays}
-              onToggleDay={onToggleDay}
-              expandedExercises={expandedExercises}
-              onToggleExercise={onToggleExercise}
-              onUpdateDay={onUpdateDay}
-              onDeleteDay={onDeleteDay}
-              onAddExercise={onAddExercise}
-              onUpdateExercise={onUpdateExercise}
-              onDeleteExercise={onDeleteExercise}
-              onUpdateProgression={onUpdateProgression}
-            />
-          ))}
+          {/* Render sections with drag-and-drop */}
+          <Droppable droppableId={`cycle-sections-${cycle.id}`} type="SECTION">
+            {provided => (
+              <Stack spacing={2} ref={provided.innerRef} {...provided.droppableProps}>
+                {cycle.sections?.map((section, index) => (
+                  <Draggable key={section.id} draggableId={section.id} index={index}>
+                    {(provided, snapshot) => (
+                      <div ref={provided.innerRef} {...provided.draggableProps}>
+                        <WorkoutSection
+                          section={section}
+                          cycleId={cycle.id}
+                          expanded={expandedSections[section.id]}
+                          onToggle={onToggleSection}
+                          onUpdate={onUpdateSection}
+                          onDelete={onDeleteSection}
+                          onAddDay={onAddDay}
+                          numberOfWeeks={cycle.numberOfWeeks}
+                          expandedDays={expandedDays}
+                          onToggleDay={onToggleDay}
+                          expandedExercises={expandedExercises}
+                          onToggleExercise={onToggleExercise}
+                          onUpdateDay={onUpdateDay}
+                          onDeleteDay={onDeleteDay}
+                          onAddExercise={onAddExercise}
+                          onUpdateExercise={onUpdateExercise}
+                          onDeleteExercise={onDeleteExercise}
+                          onUpdateProgression={onUpdateProgression}
+                          dragHandleProps={provided.dragHandleProps}
+                          isDragging={snapshot.isDragging}
+                        />
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </Stack>
+            )}
+          </Droppable>
         </Stack>
       </Collapse>
     </Paper>
@@ -614,6 +630,8 @@ const WorkoutSection = memo(function WorkoutSection({
   onUpdateExercise,
   onDeleteExercise,
   onUpdateProgression,
+  dragHandleProps,
+  isDragging,
 }) {
   const handleNameChange = useCallback(
     e => {
@@ -642,9 +660,21 @@ const WorkoutSection = memo(function WorkoutSection({
   }, [onToggle, section.id]);
 
   return (
-    <Paper key={section.id} variant="outlined" sx={{ p: 2 }}>
+    <Paper
+      key={section.id}
+      variant="outlined"
+      sx={{
+        p: 2,
+        opacity: isDragging ? 0.5 : 1,
+        bgcolor: isDragging ? "action.hover" : "background.paper",
+      }}
+    >
       {/* Section Header */}
       <Stack direction="row" spacing={2} alignItems="center" mb={expanded ? 2 : 0}>
+        <Box {...dragHandleProps} sx={{ display: "flex", alignItems: "center", cursor: "grab" }}>
+          <DragIndicator fontSize="small" sx={{ color: "text.secondary" }} />
+        </Box>
+
         <IconButton size="small" onClick={handleToggle}>
           {expanded ? <ChevronDown fontSize="small" /> : <ChevronRight fontSize="small" />}
         </IconButton>
@@ -883,6 +913,48 @@ export default function WorkoutBuilder({
       prev.map(c => (c.id === cycleId ? { ...c, sections: c.sections.filter(s => s.id !== sectionId) } : c))
     );
   }, []);
+
+  // Reorder sections within a cycle
+  const reorderSections = useCallback(
+    async (cycleId, startIndex, endIndex) => {
+      setCycles(prev => {
+        const newCycles = [...prev];
+        const cycleIndex = newCycles.findIndex(c => c.id === cycleId);
+        if (cycleIndex === -1) return prev;
+
+        const cycle = newCycles[cycleIndex];
+        const newSections = [...cycle.sections];
+        const [removed] = newSections.splice(startIndex, 1);
+        newSections.splice(endIndex, 0, removed);
+
+        newCycles[cycleIndex] = { ...cycle, sections: newSections };
+        return newCycles;
+      });
+
+      // Persist to backend
+      try {
+        const cycle = cycles.find(c => c.id === cycleId);
+        if (!cycle) return;
+
+        const newSections = [...cycle.sections];
+        const [removed] = newSections.splice(startIndex, 1);
+        newSections.splice(endIndex, 0, removed);
+
+        await fetch("/api/workout-sections/reorder", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cycleId,
+            sections: newSections.map(s => ({ id: s.id })),
+          }),
+        });
+      } catch (err) {
+        console.error("Failed to reorder sections:", err);
+        dispatch(showError({ message: "Failed to reorder sections" }));
+      }
+    },
+    [cycles, dispatch]
+  );
 
   // Day CRUD functions (cycle-scoped)
   const addDay = useCallback(
@@ -1166,6 +1238,28 @@ export default function WorkoutBuilder({
     setName(e.target.value);
   }, []);
 
+  // Handle drag end for sections
+  const handleDragEnd = useCallback(
+    result => {
+      const { destination, source, type } = result;
+
+      // Dropped outside the list
+      if (!destination) return;
+
+      // No movement
+      if (destination.droppableId === source.droppableId && destination.index === source.index) {
+        return;
+      }
+
+      // Only handle section reordering
+      if (type === "SECTION") {
+        const cycleId = source.droppableId.replace("cycle-sections-", "");
+        reorderSections(cycleId, source.index, destination.index);
+      }
+    },
+    [reorderSections]
+  );
+
   // Don't render anything if not open
   if (!isOpen) {
     return null;
@@ -1206,58 +1300,60 @@ export default function WorkoutBuilder({
             </Stack>
           </Box>
         ) : (
-          <Stack spacing={3}>
-            {/* Workout Name */}
-            <TextField
-              label="Workout Name (optional)"
-              value={name}
-              onChange={handleNameChange}
-              placeholder="My Workout Program"
-              size="small"
-              sx={{ maxWidth: 400 }}
-            />
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Stack spacing={3}>
+              {/* Workout Name */}
+              <TextField
+                label="Workout Name (optional)"
+                value={name}
+                onChange={handleNameChange}
+                placeholder="My Workout Program"
+                size="small"
+                sx={{ maxWidth: 400 }}
+              />
 
-            {/* Cycles */}
-            <Stack spacing={2}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="subtitle1" fontWeight={600}>
-                  Cycles
-                </Typography>
-                <Button startIcon={<Plus fontSize="small" />} onClick={addCycle} size="small">
-                  Add Cycle
-                </Button>
+              {/* Cycles */}
+              <Stack spacing={2}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    Cycles
+                  </Typography>
+                  <Button startIcon={<Plus fontSize="small" />} onClick={addCycle} size="small">
+                    Add Cycle
+                  </Button>
+                </Stack>
+
+                {[...cycles].reverse().map(cycle => (
+                  <WorkoutCyclePanel
+                    key={cycle.id}
+                    cycle={cycle}
+                    expanded={expandedCycles[cycle.id]}
+                    onToggle={toggleCycle}
+                    onUpdate={updateCycle}
+                    onUpdateNumberOfWeeks={updateCycleNumberOfWeeks}
+                    onDelete={deleteCycle}
+                    onDuplicate={duplicateCycle}
+                    onAddSection={addSection}
+                    expandedSections={expandedSections}
+                    onToggleSection={toggleSection}
+                    expandedDays={expandedDays}
+                    onToggleDay={toggleDay}
+                    expandedExercises={expandedExercises}
+                    onToggleExercise={toggleExerciseProgression}
+                    onUpdateSection={updateSection}
+                    onDeleteSection={deleteSection}
+                    onAddDay={addDay}
+                    onUpdateDay={updateDay}
+                    onDeleteDay={deleteDay}
+                    onAddExercise={addExercise}
+                    onUpdateExercise={updateExercise}
+                    onDeleteExercise={deleteExercise}
+                    onUpdateProgression={updateWeeklyProgression}
+                  />
+                ))}
               </Stack>
-
-              {[...cycles].reverse().map(cycle => (
-                <WorkoutCyclePanel
-                  key={cycle.id}
-                  cycle={cycle}
-                  expanded={expandedCycles[cycle.id]}
-                  onToggle={toggleCycle}
-                  onUpdate={updateCycle}
-                  onUpdateNumberOfWeeks={updateCycleNumberOfWeeks}
-                  onDelete={deleteCycle}
-                  onDuplicate={duplicateCycle}
-                  onAddSection={addSection}
-                  expandedSections={expandedSections}
-                  onToggleSection={toggleSection}
-                  expandedDays={expandedDays}
-                  onToggleDay={toggleDay}
-                  expandedExercises={expandedExercises}
-                  onToggleExercise={toggleExerciseProgression}
-                  onUpdateSection={updateSection}
-                  onDeleteSection={deleteSection}
-                  onAddDay={addDay}
-                  onUpdateDay={updateDay}
-                  onDeleteDay={deleteDay}
-                  onAddExercise={addExercise}
-                  onUpdateExercise={updateExercise}
-                  onDeleteExercise={deleteExercise}
-                  onUpdateProgression={updateWeeklyProgression}
-                />
-              ))}
             </Stack>
-          </Stack>
+          </DragDropContext>
         )}
       </DialogContent>
 

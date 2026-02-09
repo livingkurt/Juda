@@ -808,3 +808,17 @@
 - Added an Import Cycle modal on `WorkoutTab` to load cycle targets from CSV.
 - Import supports overwriting an existing cycle or creating the next cycle.
 - Added `WORKOUT_CYCLE_IMPORT_FORMAT.md` documenting the expected CSV format and rules.
+
+### Workout cycle import/save performance
+
+- Batched weekly progression updates in `app/api/workout-programs/route.js` by deleting per-exercise progressions in one query and inserting all new rows in a single batch.
+- Added an inline loading indicator and label change on the Import button in `WorkoutTab` so users can see when a cycle import is running.
+
+### Workout section drag-and-drop reordering
+
+- Added drag-and-drop reordering for workout sections within cycles in `WorkoutBuilder.jsx` using `@hello-pangea/dnd`.
+- Created a new API endpoint `/api/workout-sections/reorder` to persist section order changes to the database.
+- Sections can now be reordered by dragging the drag handle icon on the left side of each section header.
+- The reorder operation updates both the local state (optimistic update) and persists to the backend immediately.
+- Each cycle has its own independent droppable area, so sections can only be reordered within their parent cycle.
+- Added visual feedback during drag with opacity and background color changes to indicate the dragged section.

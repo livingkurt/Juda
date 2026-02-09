@@ -139,20 +139,8 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       programId = newProgram.id;
     }
 
-    // Helper function to create weekly progressions for an exercise (no nesting)
-    const createWeeklyProgressions = async (tx, exerciseId, weeklyProgression) => {
-      if (!weeklyProgression || weeklyProgression.length === 0) return;
-
-      const progressionValues = weeklyProgression.map(wp => ({
-        exerciseId,
-        week: wp.week,
-        targetValue: wp.targetValue,
-        isDeload: wp.isDeload || false,
-        isTest: wp.isTest || false,
-      }));
-
-      await tx.insert(weeklyProgressions).values(progressionValues);
-    };
+    const weeklyProgressionRows = [];
+    const touchedExerciseIds = new Set();
 
     const normalizedCycles = Array.isArray(cyclesData) ? cyclesData : [];
 
@@ -359,11 +347,28 @@ export const POST = withApi(async (request, { userId, getBody }) => {
               incomingExerciseIds.add(finalExerciseId);
             }
 
-            await tx.delete(weeklyProgressions).where(eq(weeklyProgressions.exerciseId, finalExerciseId));
-            await createWeeklyProgressions(tx, finalExerciseId, exerciseData.weeklyProgression);
+            touchedExerciseIds.add(finalExerciseId);
+            if (exerciseData.weeklyProgression && exerciseData.weeklyProgression.length > 0) {
+              weeklyProgressionRows.push(
+                ...exerciseData.weeklyProgression.map(wp => ({
+                  exerciseId: finalExerciseId,
+                  week: wp.week,
+                  targetValue: wp.targetValue,
+                  isDeload: wp.isDeload || false,
+                  isTest: wp.isTest || false,
+                }))
+              );
+            }
           }
         }
       }
+    }
+
+    if (touchedExerciseIds.size > 0) {
+      await tx.delete(weeklyProgressions).where(inArray(weeklyProgressions.exerciseId, Array.from(touchedExerciseIds)));
+    }
+    if (weeklyProgressionRows.length > 0) {
+      await tx.insert(weeklyProgressions).values(weeklyProgressionRows);
     }
 
     // Delete removed cycles (cascade will handle sections/days/exercises)

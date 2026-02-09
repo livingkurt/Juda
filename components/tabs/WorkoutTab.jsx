@@ -400,6 +400,7 @@ const buildImportCycleFromCsv = csvText => {
   });
 
   const sectionsMap = new Map();
+  let sectionInsertIndex = 0;
   let maxWeek = 1;
 
   dataRows.forEach(row => {
@@ -419,7 +420,9 @@ const buildImportCycleFromCsv = csvText => {
         name: sectionName,
         type: getSectionType(sectionName),
         days: new Map(),
+        createdIndex: sectionInsertIndex,
       });
+      sectionInsertIndex += 1;
     }
 
     const sectionEntry = sectionsMap.get(sectionName);
@@ -462,46 +465,60 @@ const buildImportCycleFromCsv = csvText => {
 
   const numberOfWeeks = meta.cycleWeeks ? Number(meta.cycleWeeks.split("-").pop()) || maxWeek || 1 : maxWeek || 1;
 
-  const sections = Array.from(sectionsMap.values()).map((section, sectionIndex) => ({
-    name: section.name,
-    type: section.type,
-    order: sectionIndex,
-    days: Array.from(section.days.values()).map((day, dayIndex) => ({
-      name: day.name,
-      daysOfWeek: day.daysOfWeek,
-      order: dayIndex,
-      exercises: Array.from(day.exercises.values()).map((exercise, exerciseIndex) => {
-        const weeklyProgression = Array.from(exercise.weeklyTargets.entries())
-          .sort((a, b) => a[0] - b[0])
-          .map(([week, value]) => {
-            if (`${value}`.toUpperCase() === "MAX") {
+  const sectionOrder = {
+    warmup: 0,
+    workout: 1,
+    cooldown: 2,
+    stretches: 3,
+  };
+
+  const sections = Array.from(sectionsMap.values())
+    .sort((a, b) => {
+      const aOrder = sectionOrder[a.type] ?? 99;
+      const bOrder = sectionOrder[b.type] ?? 99;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return a.createdIndex - b.createdIndex;
+    })
+    .map((section, sectionIndex) => ({
+      name: section.name,
+      type: section.type,
+      order: sectionIndex,
+      days: Array.from(section.days.values()).map((day, dayIndex) => ({
+        name: day.name,
+        daysOfWeek: day.daysOfWeek,
+        order: dayIndex,
+        exercises: Array.from(day.exercises.values()).map((exercise, exerciseIndex) => {
+          const weeklyProgression = Array.from(exercise.weeklyTargets.entries())
+            .sort((a, b) => a[0] - b[0])
+            .map(([week, value]) => {
+              if (`${value}`.toUpperCase() === "MAX") {
+                return {
+                  week,
+                  targetValue: null,
+                  isDeload: false,
+                  isTest: true,
+                };
+              }
               return {
                 week,
-                targetValue: null,
+                targetValue: value,
                 isDeload: false,
-                isTest: true,
+                isTest: false,
               };
-            }
-            return {
-              week,
-              targetValue: value,
-              isDeload: false,
-              isTest: false,
-            };
-          });
-        const defaultTargetValue = weeklyProgression.length ? weeklyProgression[0].targetValue : "";
-        return {
-          name: exercise.name,
-          type: exercise.type,
-          sets: exercise.sets,
-          targetValue: defaultTargetValue,
-          unit: exercise.unit || "reps",
-          order: exerciseIndex,
-          weeklyProgression,
-        };
-      }),
-    })),
-  }));
+            });
+          const defaultTargetValue = weeklyProgression.length ? weeklyProgression[0].targetValue : "";
+          return {
+            name: exercise.name,
+            type: exercise.type,
+            sets: exercise.sets,
+            targetValue: defaultTargetValue,
+            unit: exercise.unit || "reps",
+            order: exerciseIndex,
+            weeklyProgression,
+          };
+        }),
+      })),
+    }));
 
   return {
     cycleName: meta.cycleName || "",
@@ -952,8 +969,9 @@ export function WorkoutTab({ isLoading: tabLoading }) {
             variant="contained"
             onClick={handleImport}
             disabled={!importCycleId || !importCsvText || isSavingProgram}
+            startIcon={isSavingProgram ? <CircularProgress size={18} color="inherit" /> : null}
           >
-            Import
+            {isSavingProgram ? "Importing..." : "Import"}
           </Button>
         </DialogActions>
       </Dialog>
