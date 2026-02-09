@@ -802,3 +802,9 @@
 - Added an Export Cycle modal on `WorkoutTab` that lets users pick a cycle and download a CSV.
 - CSV includes cycle metadata and per-set rows with session outcome, target values, and actual values when available.
 - Extended workout history API to include time, distance, and pace fields in set completions for richer exports.
+
+### Workout cycle CSV import
+
+- Added an Import Cycle modal on `WorkoutTab` to load cycle targets from CSV.
+- Import supports overwriting an existing cycle or creating the next cycle.
+- Added `WORKOUT_CYCLE_IMPORT_FORMAT.md` documenting the expected CSV format and rules.

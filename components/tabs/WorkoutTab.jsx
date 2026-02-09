@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Alert,
   FormControl,
   InputLabel,
   Select,
@@ -26,7 +27,7 @@ import {
 } from "@mui/material";
 import { FitnessCenter, Edit } from "@mui/icons-material";
 import { useWorkoutTasks } from "@/hooks/useWorkoutTasks";
-import { useGetWorkoutHistoryQuery } from "@/lib/store/api/workoutProgramsApi";
+import { useGetWorkoutHistoryQuery, useSaveWorkoutProgramMutation } from "@/lib/store/api/workoutProgramsApi";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useViewState } from "@/hooks/useViewState";
 import {
@@ -266,6 +267,249 @@ const buildCycleCsv = ({ program, cycleOption, completions, programStartDate, to
   return rows.map(row => row.map(toCsvValue).join(",")).join("\n");
 };
 
+const parseCsvText = csvText => {
+  const rows = [];
+  let current = "";
+  let insideQuotes = false;
+  let row = [];
+
+  for (let i = 0; i < csvText.length; i += 1) {
+    const char = csvText[i];
+    const nextChar = csvText[i + 1];
+
+    if (char === '"' && nextChar === '"') {
+      current += '"';
+      i += 1;
+      continue;
+    }
+
+    if (char === '"') {
+      insideQuotes = !insideQuotes;
+      continue;
+    }
+
+    if (char === "," && !insideQuotes) {
+      row.push(current);
+      current = "";
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !insideQuotes) {
+      if (char === "\r" && nextChar === "\n") {
+        i += 1;
+      }
+      row.push(current);
+      const hasValues = row.some(value => value && value.trim() !== "");
+      if (hasValues) rows.push(row);
+      row = [];
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current.length || row.length) {
+    row.push(current);
+    const hasValues = row.some(value => value && value.trim() !== "");
+    if (hasValues) rows.push(row);
+  }
+
+  return rows;
+};
+
+const getDayOfWeekIndex = dayLabel => {
+  const normalized = dayLabel.trim().toLowerCase();
+  if (normalized.startsWith("sunday")) return 0;
+  if (normalized.startsWith("monday")) return 1;
+  if (normalized.startsWith("tuesday")) return 2;
+  if (normalized.startsWith("wednesday")) return 3;
+  if (normalized.startsWith("thursday")) return 4;
+  if (normalized.startsWith("friday")) return 5;
+  if (normalized.startsWith("saturday")) return 6;
+  return null;
+};
+
+const parseTarget = targetText => {
+  const trimmed = `${targetText || ""}`.trim();
+  if (!trimmed) return { value: "", unit: "" };
+  const upper = trimmed.toUpperCase();
+  if (upper.startsWith("MAX")) {
+    const unitText = upper.replace("MAX", "").trim();
+    const unit = unitText ? unitText.toLowerCase() : "";
+    return { value: "MAX", unit };
+  }
+  const match = trimmed.match(/^([0-9.]+)\s*(.*)$/);
+  if (!match) return { value: trimmed, unit: "" };
+  const value = match[1];
+  const unit = match[2]?.trim()?.toLowerCase() || "";
+  return { value, unit };
+};
+
+const normalizeUnit = unit => {
+  if (!unit) return "";
+  if (unit === "rep" || unit === "reps") return "reps";
+  if (unit === "sec" || unit === "secs" || unit === "seconds") return "secs";
+  if (unit === "min" || unit === "mins" || unit === "minutes") return "mins";
+  if (unit === "mile" || unit === "miles") return "miles";
+  return unit;
+};
+
+const getExerciseType = unit => {
+  if (unit === "miles") return "distance";
+  if (unit === "secs" || unit === "mins") return "time";
+  return "reps";
+};
+
+const getSectionType = sectionName => {
+  const name = sectionName.toLowerCase();
+  if (name.includes("warm")) return "warmup";
+  if (name.includes("cool")) return "cooldown";
+  if (name.includes("stretch")) return "stretches";
+  return "workout";
+};
+
+const buildImportCycleFromCsv = csvText => {
+  const rows = parseCsvText(csvText);
+  const headerRowIndex = rows.findIndex(row => row[0]?.trim() === "Cycle" && row[1]?.trim() === "Cycle Week");
+
+  if (headerRowIndex === -1) {
+    return { error: "CSV header row not found. Please export from Juda or match the documented format." };
+  }
+
+  const metaRows = rows.slice(0, headerRowIndex);
+  const dataRows = rows.slice(headerRowIndex + 1);
+  const headerRow = rows[headerRowIndex].map(value => value.trim());
+  const headerIndex = {};
+  headerRow.forEach((label, idx) => {
+    headerIndex[label] = idx;
+  });
+
+  const meta = {};
+  metaRows.forEach(row => {
+    const key = row[0]?.trim();
+    const value = row[1]?.trim() || "";
+    if (!key) return;
+    if (key.toLowerCase().startsWith("cycle weeks")) {
+      meta.cycleWeeks = value;
+      return;
+    }
+    if (key.toLowerCase().startsWith("cycle")) {
+      meta.cycleName = value || key;
+    }
+  });
+
+  const sectionsMap = new Map();
+  let maxWeek = 1;
+
+  dataRows.forEach(row => {
+    const cycleWeek = Number(row[headerIndex["Cycle Week"]] || 0);
+    if (cycleWeek) maxWeek = Math.max(maxWeek, cycleWeek);
+
+    const sectionName = row[headerIndex.Section]?.trim();
+    const dayName = row[headerIndex.Day]?.trim();
+    const exerciseName = row[headerIndex.Exercise]?.trim();
+    const setNumber = Number(row[headerIndex["Set #"]] || 1);
+    const targetText = row[headerIndex.Target]?.trim() || "";
+
+    if (!sectionName || !dayName || !exerciseName) return;
+
+    if (!sectionsMap.has(sectionName)) {
+      sectionsMap.set(sectionName, {
+        name: sectionName,
+        type: getSectionType(sectionName),
+        days: new Map(),
+      });
+    }
+
+    const sectionEntry = sectionsMap.get(sectionName);
+    if (!sectionEntry.days.has(dayName)) {
+      const dayLabel = dayName.split("-")[0] || dayName;
+      const dayIndex = getDayOfWeekIndex(dayLabel);
+      sectionEntry.days.set(dayName, {
+        name: dayName,
+        daysOfWeek: dayIndex === null ? [1] : [dayIndex],
+        exercises: new Map(),
+      });
+    }
+
+    const dayEntry = sectionEntry.days.get(dayName);
+    if (!dayEntry.exercises.has(exerciseName)) {
+      dayEntry.exercises.set(exerciseName, {
+        name: exerciseName,
+        sets: setNumber || 1,
+        unit: "",
+        type: "reps",
+        weeklyTargets: new Map(),
+      });
+    }
+
+    const exerciseEntry = dayEntry.exercises.get(exerciseName);
+    exerciseEntry.sets = Math.max(exerciseEntry.sets, setNumber || 1);
+
+    const parsedTarget = parseTarget(targetText);
+    if (parsedTarget.value) {
+      const normalizedUnit = normalizeUnit(parsedTarget.unit);
+      if (normalizedUnit) {
+        exerciseEntry.unit = normalizedUnit;
+        exerciseEntry.type = getExerciseType(normalizedUnit);
+      }
+      if (cycleWeek) {
+        exerciseEntry.weeklyTargets.set(cycleWeek, parsedTarget.value);
+      }
+    }
+  });
+
+  const numberOfWeeks = meta.cycleWeeks ? Number(meta.cycleWeeks.split("-").pop()) || maxWeek || 1 : maxWeek || 1;
+
+  const sections = Array.from(sectionsMap.values()).map((section, sectionIndex) => ({
+    name: section.name,
+    type: section.type,
+    order: sectionIndex,
+    days: Array.from(section.days.values()).map((day, dayIndex) => ({
+      name: day.name,
+      daysOfWeek: day.daysOfWeek,
+      order: dayIndex,
+      exercises: Array.from(day.exercises.values()).map((exercise, exerciseIndex) => {
+        const weeklyProgression = Array.from(exercise.weeklyTargets.entries())
+          .sort((a, b) => a[0] - b[0])
+          .map(([week, value]) => {
+            if (`${value}`.toUpperCase() === "MAX") {
+              return {
+                week,
+                targetValue: null,
+                isDeload: false,
+                isTest: true,
+              };
+            }
+            return {
+              week,
+              targetValue: value,
+              isDeload: false,
+              isTest: false,
+            };
+          });
+        const defaultTargetValue = weeklyProgression.length ? weeklyProgression[0].targetValue : "";
+        return {
+          name: exercise.name,
+          type: exercise.type,
+          sets: exercise.sets,
+          targetValue: defaultTargetValue,
+          unit: exercise.unit || "reps",
+          order: exerciseIndex,
+          weeklyProgression,
+        };
+      }),
+    })),
+  }));
+
+  return {
+    cycleName: meta.cycleName || "",
+    numberOfWeeks,
+    sections,
+  };
+};
+
 // Removed WorkoutOption - using inline MenuItems instead
 
 export function WorkoutTab({ isLoading: tabLoading }) {
@@ -282,6 +526,12 @@ export function WorkoutTab({ isLoading: tabLoading }) {
   const hasInitializedRef = useRef(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [selectedCycleId, setSelectedCycleId] = useState("");
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importCycleId, setImportCycleId] = useState("");
+  const [importCsvText, setImportCsvText] = useState("");
+  const [importCsvName, setImportCsvName] = useState("");
+  const [importError, setImportError] = useState("");
+  const [saveWorkoutProgramMutation, { isLoading: isSavingProgram }] = useSaveWorkoutProgramMutation();
 
   // Only set default selection once when workoutTasks first loads
   useEffect(() => {
@@ -311,6 +561,8 @@ export function WorkoutTab({ isLoading: tabLoading }) {
   const stats = buildSummaryStats(completions, selectedTask, totalWeeks);
   const programStartDate = getProgramStartDate(selectedTask, startDate, completions);
   const cycleOptions = buildCycleOptions(program, programStartDate);
+  const importTargetCycle = program?.cycles?.find(cycle => cycle.id === importCycleId) || null;
+  const importTargetHasContent = Boolean(importTargetCycle?.sections?.length);
 
   const handleStartWorkout = () => {
     if (!selectedTask) return;
@@ -355,6 +607,88 @@ export function WorkoutTab({ isLoading: tabLoading }) {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     setExportDialogOpen(false);
+  };
+
+  const handleOpenImport = () => {
+    setImportDialogOpen(true);
+    const hasSelection = cycleOptions.some(cycle => cycle.id === importCycleId);
+    if ((!importCycleId || !hasSelection) && cycleOptions.length) {
+      setImportCycleId(cycleOptions[0].id);
+    }
+  };
+
+  const handleImportFile = event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      setImportCsvText(e.target?.result || "");
+      setImportCsvName(file.name);
+      setImportError("");
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImport = async () => {
+    setImportError("");
+    if (!importCsvText) {
+      setImportError("Please choose a CSV file to import.");
+      return;
+    }
+    if (!importCycleId) {
+      setImportError("Please select a cycle to import into.");
+      return;
+    }
+
+    const parsed = buildImportCycleFromCsv(importCsvText);
+    if (parsed.error) {
+      setImportError(parsed.error);
+      return;
+    }
+
+    const existingCycles = program?.cycles || [];
+    const isNewCycle = importCycleId === "__new__";
+    const cycleName = (isNewCycle ? parsed.cycleName : "") || (isNewCycle ? `Cycle ${existingCycles.length + 1}` : "");
+
+    const updatedCycles = isNewCycle
+      ? [
+          ...existingCycles.map(cycle => ({
+            ...cycle,
+            sections: cycle.sections || [],
+          })),
+          {
+            name: cycleName,
+            numberOfWeeks: parsed.numberOfWeeks,
+            order: existingCycles.length,
+            sections: parsed.sections,
+          },
+        ]
+      : existingCycles.map((cycle, index) =>
+          cycle.id === importCycleId
+            ? {
+                ...cycle,
+                numberOfWeeks: parsed.numberOfWeeks,
+                order: index,
+                sections: parsed.sections,
+              }
+            : {
+                ...cycle,
+                order: index,
+                sections: cycle.sections || [],
+              }
+        );
+
+    const programName = program?.name || selectedTask?.title || "Workout Program";
+
+    try {
+      await saveWorkoutProgramMutation({ taskId: selectedTask.id, name: programName, cycles: updatedCycles }).unwrap();
+      setImportDialogOpen(false);
+      setImportCsvText("");
+      setImportCsvName("");
+    } catch (error) {
+      setImportError("Failed to import cycle. Please try again.");
+      console.error("Failed to import workout cycle:", error);
+    }
   };
 
   if (tabLoading) {
@@ -408,6 +742,9 @@ export function WorkoutTab({ isLoading: tabLoading }) {
             </Button>
             <Button variant="outlined" onClick={handleOpenExport}>
               Export Cycle
+            </Button>
+            <Button variant="outlined" onClick={handleOpenImport}>
+              Import Cycle
             </Button>
             <Button variant="contained" startIcon={<FitnessCenter />} onClick={handleStartWorkout}>
               Start Today&apos;s Workout
@@ -569,6 +906,54 @@ export function WorkoutTab({ isLoading: tabLoading }) {
           <Button onClick={() => setExportDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleExport} disabled={!selectedCycleId || !cycleOptions.length}>
             Export
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={importDialogOpen} onClose={() => setImportDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Import Cycle</DialogTitle>
+        <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Choose a cycle to import into and select the CSV file.
+          </Typography>
+          <FormControl fullWidth size="small">
+            <InputLabel id="cycle-import-select-label">Cycle</InputLabel>
+            <Select
+              labelId="cycle-import-select-label"
+              label="Cycle"
+              value={importCycleId}
+              onChange={event => setImportCycleId(event.target.value)}
+            >
+              {cycleOptions.map(cycle => (
+                <MenuItem key={cycle.id} value={cycle.id}>
+                  {cycle.name} · Weeks {cycle.startWeek}-{cycle.endWeek}
+                </MenuItem>
+              ))}
+              <MenuItem value="__new__">Create next cycle</MenuItem>
+            </Select>
+          </FormControl>
+          {importCycleId !== "__new__" && importTargetHasContent && (
+            <Alert severity="warning">Importing will replace all sections, days, and exercises in this cycle.</Alert>
+          )}
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Button variant="outlined" component="label">
+              Choose CSV
+              <input type="file" accept=".csv" hidden onChange={handleImportFile} />
+            </Button>
+            <Typography variant="body2" color="text.secondary">
+              {importCsvName || "No file selected"}
+            </Typography>
+          </Stack>
+          {importError && <Alert severity="error">{importError}</Alert>}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setImportDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleImport}
+            disabled={!importCycleId || !importCsvText || isSavingProgram}
+          >
+            Import
           </Button>
         </DialogActions>
       </Dialog>
