@@ -813,6 +813,9 @@
 
 - Batched weekly progression updates in `app/api/workout-programs/route.js` by deleting per-exercise progressions in one query and inserting all new rows in a single batch.
 - Added an inline loading indicator and label change on the Import button in `WorkoutTab` so users can see when a cycle import is running.
+- Reworked workout program saves to pre-generate IDs and upsert cycles, sections, days, and exercises in batched queries (one per table) instead of per-item inserts/updates.
+- Replaced the deep nested workout cycle fetch used for deletions with lightweight ID-only selects per table to avoid heavy relational loads during imports.
+- Added a fast path to delete all cycles when the incoming program has no cycles, relying on cascade deletes to clear child records in one query.
 
 ### Workout section drag-and-drop reordering
 
