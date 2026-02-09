@@ -70,6 +70,9 @@ export const GET = withApi(async (request, { userId, getRequiredParam, getSearch
       outcome: workoutSetCompletions.outcome,
       actualValue: workoutSetCompletions.actualValue,
       unit: workoutSetCompletions.unit,
+      time: workoutSetCompletions.time,
+      distance: workoutSetCompletions.distance,
+      pace: workoutSetCompletions.pace,
       exerciseName: exercises.name,
     })
     .from(workoutSetCompletions)
@@ -110,6 +113,9 @@ export const GET = withApi(async (request, { userId, getRequiredParam, getSearch
       outcome: row.outcome,
       actualValue: row.actualValue,
       unit: row.unit,
+      time: row.time,
+      distance: row.distance,
+      pace: row.pace,
     });
     exerciseEntry.totalSets += 1;
     if (row.outcome === "completed") {
