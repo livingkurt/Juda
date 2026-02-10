@@ -98,6 +98,13 @@ function updateDayExercisesProgression(day, dayId, exerciseId, weekIndex, update
   return { ...day, exercises: updatedExercises };
 }
 
+function reorderItems(items, startIndex, endIndex) {
+  const reordered = [...items];
+  const [removed] = reordered.splice(startIndex, 1);
+  reordered.splice(endIndex, 0, removed);
+  return reordered;
+}
+
 // Simple WeekdaySelector component using MUI - memoized for performance
 const WeekdaySelector = memo(function WeekdaySelector({ selectedDays = [], onChange, size = "small" }) {
   const handleChange = useCallback(
@@ -221,6 +228,8 @@ const WorkoutExercise = memo(function WorkoutExercise({
   progressionExpanded,
   onToggleProgression,
   onUpdateProgression,
+  dragHandleProps,
+  isDragging,
 }) {
   const handleNameChange = useCallback(
     e => {
@@ -271,8 +280,21 @@ const WorkoutExercise = memo(function WorkoutExercise({
   const isTimeExercise = exercise.type === "time";
 
   return (
-    <Paper key={exercise.id} variant="outlined" sx={{ p: 1.5 }}>
+    <Paper
+      key={exercise.id}
+      variant="outlined"
+      sx={{
+        p: 1.5,
+        opacity: isDragging ? 0.5 : 1,
+        bgcolor: isDragging ? "action.hover" : "background.paper",
+      }}
+    >
       <Grid container spacing={1} alignItems="center">
+        <Grid item xs={12} sm="auto">
+          <Box {...dragHandleProps} sx={{ display: "flex", alignItems: "center", cursor: "grab", height: "100%" }}>
+            <DragIndicator fontSize="small" sx={{ color: "text.secondary" }} />
+          </Box>
+        </Grid>
         <Grid item xs={12} sm={4}>
           <TextField label="Exercise Name" value={exercise.name} onChange={handleNameChange} size="small" fullWidth />
         </Grid>
@@ -380,6 +402,8 @@ const WorkoutDay = memo(function WorkoutDay({
   onUpdateExercise,
   onDeleteExercise,
   onUpdateProgression,
+  dragHandleProps,
+  isDragging,
 }) {
   const handleNameChange = useCallback(
     e => {
@@ -408,9 +432,21 @@ const WorkoutDay = memo(function WorkoutDay({
   }, [onToggle, day.id]);
 
   return (
-    <Paper key={day.id} variant="outlined" sx={{ p: 1.5 }}>
+    <Paper
+      key={day.id}
+      variant="outlined"
+      sx={{
+        p: 1.5,
+        opacity: isDragging ? 0.5 : 1,
+        bgcolor: isDragging ? "action.hover" : "background.paper",
+      }}
+    >
       {/* Day Header */}
       <Stack direction="row" spacing={2} alignItems="center" mb={expanded ? 1.5 : 0}>
+        <Box {...dragHandleProps} sx={{ display: "flex", alignItems: "center", cursor: "grab" }}>
+          <DragIndicator fontSize="small" sx={{ color: "text.secondary" }} />
+        </Box>
+
         <IconButton size="small" onClick={handleToggle}>
           {expanded ? <ChevronDown fontSize="small" /> : <ChevronRight fontSize="small" />}
         </IconButton>
@@ -445,21 +481,35 @@ const WorkoutDay = memo(function WorkoutDay({
             Add Exercise
           </Button>
 
-          {day.exercises?.map(exercise => (
-            <WorkoutExercise
-              key={exercise.id}
-              exercise={exercise}
-              cycleId={cycleId}
-              sectionId={sectionId}
-              dayId={day.id}
-              onUpdate={onUpdateExercise}
-              onDelete={onDeleteExercise}
-              numberOfWeeks={numberOfWeeks}
-              progressionExpanded={expandedExercises[exercise.id]}
-              onToggleProgression={onToggleExercise}
-              onUpdateProgression={onUpdateProgression}
-            />
-          ))}
+          <Droppable droppableId={`day-exercises|${cycleId}|${sectionId}|${day.id}`} type="EXERCISE">
+            {provided => (
+              <Stack spacing={1.5} ref={provided.innerRef} {...provided.droppableProps}>
+                {day.exercises?.map((exercise, index) => (
+                  <Draggable key={exercise.id} draggableId={`exercise-${exercise.id}`} index={index}>
+                    {(provided, snapshot) => (
+                      <div ref={provided.innerRef} {...provided.draggableProps}>
+                        <WorkoutExercise
+                          exercise={exercise}
+                          cycleId={cycleId}
+                          sectionId={sectionId}
+                          dayId={day.id}
+                          onUpdate={onUpdateExercise}
+                          onDelete={onDeleteExercise}
+                          numberOfWeeks={numberOfWeeks}
+                          progressionExpanded={expandedExercises[exercise.id]}
+                          onToggleProgression={onToggleExercise}
+                          onUpdateProgression={onUpdateProgression}
+                          dragHandleProps={provided.dragHandleProps}
+                          isDragging={snapshot.isDragging}
+                        />
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </Stack>
+            )}
+          </Droppable>
         </Stack>
       </Collapse>
     </Paper>
@@ -709,25 +759,39 @@ const WorkoutSection = memo(function WorkoutSection({
             Add Day
           </Button>
 
-          {section.days?.map(day => (
-            <WorkoutDay
-              key={day.id}
-              day={day}
-              cycleId={cycleId}
-              sectionId={section.id}
-              expanded={expandedDays[day.id]}
-              onToggle={onToggleDay}
-              onUpdate={onUpdateDay}
-              onDelete={onDeleteDay}
-              onAddExercise={onAddExercise}
-              numberOfWeeks={numberOfWeeks}
-              expandedExercises={expandedExercises}
-              onToggleExercise={onToggleExercise}
-              onUpdateExercise={onUpdateExercise}
-              onDeleteExercise={onDeleteExercise}
-              onUpdateProgression={onUpdateProgression}
-            />
-          ))}
+          <Droppable droppableId={`section-days|${cycleId}|${section.id}`} type="DAY">
+            {provided => (
+              <Stack spacing={2} ref={provided.innerRef} {...provided.droppableProps}>
+                {section.days?.map((day, index) => (
+                  <Draggable key={day.id} draggableId={`day-${day.id}`} index={index}>
+                    {(provided, snapshot) => (
+                      <div ref={provided.innerRef} {...provided.draggableProps}>
+                        <WorkoutDay
+                          day={day}
+                          cycleId={cycleId}
+                          sectionId={section.id}
+                          expanded={expandedDays[day.id]}
+                          onToggle={onToggleDay}
+                          onUpdate={onUpdateDay}
+                          onDelete={onDeleteDay}
+                          onAddExercise={onAddExercise}
+                          numberOfWeeks={numberOfWeeks}
+                          expandedExercises={expandedExercises}
+                          onToggleExercise={onToggleExercise}
+                          onUpdateExercise={onUpdateExercise}
+                          onDeleteExercise={onDeleteExercise}
+                          onUpdateProgression={onUpdateProgression}
+                          dragHandleProps={provided.dragHandleProps}
+                          isDragging={snapshot.isDragging}
+                        />
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </Stack>
+            )}
+          </Droppable>
         </Stack>
       </Collapse>
     </Paper>
@@ -1091,6 +1155,43 @@ export default function WorkoutBuilder({
     );
   }, []); // Empty deps - uses functional update
 
+  const reorderDays = useCallback((cycleId, sectionId, startIndex, endIndex) => {
+    setCycles(prev =>
+      prev.map(c =>
+        c.id === cycleId
+          ? {
+              ...c,
+              sections: c.sections.map(s =>
+                s.id === sectionId ? { ...s, days: reorderItems(s.days || [], startIndex, endIndex) } : s
+              ),
+            }
+          : c
+      )
+    );
+  }, []);
+
+  const reorderExercises = useCallback((cycleId, sectionId, dayId, startIndex, endIndex) => {
+    setCycles(prev =>
+      prev.map(c =>
+        c.id === cycleId
+          ? {
+              ...c,
+              sections: c.sections.map(s =>
+                s.id === sectionId
+                  ? {
+                      ...s,
+                      days: s.days.map(d =>
+                        d.id === dayId ? { ...d, exercises: reorderItems(d.exercises || [], startIndex, endIndex) } : d
+                      ),
+                    }
+                  : s
+              ),
+            }
+          : c
+      )
+    );
+  }, []);
+
   // Update weekly progression (cycle-scoped)
   const updateWeeklyProgression = useCallback((cycleId, sectionId, dayId, exerciseId, weekIndex, updates) => {
     setCycles(prev =>
@@ -1251,13 +1352,29 @@ export default function WorkoutBuilder({
         return;
       }
 
-      // Only handle section reordering
+      // Handle section reordering
       if (type === "SECTION") {
         const cycleId = source.droppableId.replace("cycle-sections-", "");
         reorderSections(cycleId, source.index, destination.index);
+        return;
+      }
+
+      // Handle day reordering within a section
+      if (type === "DAY") {
+        if (source.droppableId !== destination.droppableId) return;
+        const [, cycleId, sectionId] = source.droppableId.split("|");
+        reorderDays(cycleId, sectionId, source.index, destination.index);
+        return;
+      }
+
+      // Handle exercise reordering within a day
+      if (type === "EXERCISE") {
+        if (source.droppableId !== destination.droppableId) return;
+        const [, cycleId, sectionId, dayId] = source.droppableId.split("|");
+        reorderExercises(cycleId, sectionId, dayId, source.index, destination.index);
       }
     },
-    [reorderSections]
+    [reorderSections, reorderDays, reorderExercises]
   );
 
   // Don't render anything if not open

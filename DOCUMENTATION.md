@@ -842,3 +842,16 @@
 
 - Added a submission guard in `QuickTaskInput` to prevent duplicate create calls when Enter and blur fire together.
 - Normalized tag ID input on task creation by filtering falsy values and de-duping before tag assignment.
+
+## 2026-02-10
+
+### Workout builder nested drag-and-drop reordering
+
+- Extended `WorkoutBuilder.jsx` to support nested `@hello-pangea/dnd` reordering for:
+  - workout days within each section
+  - exercises within each workout day
+- Kept existing section drag-and-drop behavior unchanged, including the `/api/workout-sections/reorder` persistence path.
+- Added dedicated day and exercise drag handles with the same visual drag feedback pattern already used by sections (reduced opacity + hover background while dragging).
+- Introduced local reorder helpers (`reorderDays`, `reorderExercises`) that update builder state immutably and preserve the existing save flow where final order is persisted on save.
+- Used pipe-delimited droppable IDs for nested lists (`section-days|...`, `day-exercises|...`) to avoid parsing issues with IDs that may include hyphens.
+- Scoped day/exercise reordering to the same source container to keep behavior simple and predictable (reorder-only, no cross-day/cross-section moves).
