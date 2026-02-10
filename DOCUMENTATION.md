@@ -810,6 +810,7 @@
 - Added `WORKOUT_CYCLE_IMPORT_FORMAT.md` documenting the expected CSV format and rules.
 - Export/import now includes the `bothSides` flag via the `Both Sides` CSV column.
 - Added a Both Sides helper modal to apply `bothSides` flags from an exported CSV to an existing cycle without changing targets.
+- Export row ordering now follows workout structure order (section/day/exercise) instead of completion storage order to keep imports stable.
 
 ### Workout cycle import/save performance
 

@@ -129,6 +129,9 @@ const buildExerciseIndex = cycle => {
           ...exercise,
           sectionName: section.name,
           dayName: day.name,
+          sectionOrder: section.order ?? 0,
+          dayOrder: day.order ?? 0,
+          exerciseOrder: exercise.order ?? 0,
         });
       });
     });
@@ -222,7 +225,26 @@ const buildCycleCsv = ({ program, cycleOption, completions, programStartDate, to
     const overallWeek = programStartDate ? getWeekFromStart(programStartDate, day.date, totalWeeks) : null;
     const cycleWeek = overallWeek ? overallWeek - cycleOption.startWeek + 1 : "";
     if (day.exercises?.length) {
-      day.exercises.forEach(exercise => {
+      const sortedExercises = [...day.exercises].sort((a, b) => {
+        const detailsA = exerciseIndex.get(a.exerciseId);
+        const detailsB = exerciseIndex.get(b.exerciseId);
+
+        const sectionOrderA = detailsA?.sectionOrder ?? Number.MAX_SAFE_INTEGER;
+        const sectionOrderB = detailsB?.sectionOrder ?? Number.MAX_SAFE_INTEGER;
+        if (sectionOrderA !== sectionOrderB) return sectionOrderA - sectionOrderB;
+
+        const dayOrderA = detailsA?.dayOrder ?? Number.MAX_SAFE_INTEGER;
+        const dayOrderB = detailsB?.dayOrder ?? Number.MAX_SAFE_INTEGER;
+        if (dayOrderA !== dayOrderB) return dayOrderA - dayOrderB;
+
+        const exerciseOrderA = detailsA?.exerciseOrder ?? Number.MAX_SAFE_INTEGER;
+        const exerciseOrderB = detailsB?.exerciseOrder ?? Number.MAX_SAFE_INTEGER;
+        if (exerciseOrderA !== exerciseOrderB) return exerciseOrderA - exerciseOrderB;
+
+        return (detailsA?.name || a.exerciseName || "").localeCompare(detailsB?.name || b.exerciseName || "");
+      });
+
+      sortedExercises.forEach(exercise => {
         const details = exerciseIndex.get(exercise.exerciseId);
         const target = getTargetForWeek(details, cycleWeek);
         const targetLabel = formatValueWithUnit(target.targetValue, target.targetUnit);
