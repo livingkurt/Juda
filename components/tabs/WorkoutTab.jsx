@@ -129,6 +129,7 @@ const buildExerciseIndex = cycle => {
           ...exercise,
           sectionName: section.name,
           dayName: day.name,
+          daysOfWeek: Array.isArray(day.daysOfWeek) ? day.daysOfWeek : [],
           sectionOrder: section.order ?? 0,
           dayOrder: day.order ?? 0,
           exerciseOrder: exercise.order ?? 0,
@@ -208,6 +209,7 @@ const buildCycleCsv = ({ program, cycleOption, completions, programStartDate, to
     "Session Outcome",
     "Section",
     "Day",
+    "Days of Week",
     "Exercise",
     "Set #",
     "Target",
@@ -218,7 +220,7 @@ const buildCycleCsv = ({ program, cycleOption, completions, programStartDate, to
   ]);
 
   if (!cycleCompletions.length) {
-    rows.push([cycleOption.name, "", "", "No completion data for this cycle", "", "", "", "", "", "", "", "", ""]);
+    rows.push([cycleOption.name, "", "", "No completion data for this cycle", "", "", "", "", "", "", "", "", "", ""]);
   }
 
   cycleCompletions.forEach(day => {
@@ -249,6 +251,7 @@ const buildCycleCsv = ({ program, cycleOption, completions, programStartDate, to
         const target = getTargetForWeek(details, cycleWeek);
         const targetLabel = formatValueWithUnit(target.targetValue, target.targetUnit);
         const bothSidesValue = details?.bothSides ? "true" : "";
+        const daysOfWeekValue = Array.isArray(details?.daysOfWeek) ? details.daysOfWeek.join("|") : "";
         if (exercise.sets?.length) {
           exercise.sets.forEach(set => {
             rows.push([
@@ -258,6 +261,7 @@ const buildCycleCsv = ({ program, cycleOption, completions, programStartDate, to
               day.outcome || "",
               details?.sectionName || "",
               details?.dayName || "",
+              daysOfWeekValue,
               details?.name || exercise.exerciseName || "Unknown exercise",
               set.setNumber,
               targetLabel,
@@ -275,6 +279,7 @@ const buildCycleCsv = ({ program, cycleOption, completions, programStartDate, to
             day.outcome || "",
             details?.sectionName || "",
             details?.dayName || "",
+            daysOfWeekValue,
             details?.name || exercise.exerciseName || "Unknown exercise",
             "",
             targetLabel,
@@ -291,6 +296,7 @@ const buildCycleCsv = ({ program, cycleOption, completions, programStartDate, to
         cycleWeek,
         day.date,
         day.outcome || "",
+        "",
         "",
         "",
         "",
@@ -356,6 +362,22 @@ const parseCsvText = csvText => {
   }
 
   return rows;
+};
+
+const parseDaysOfWeek = (value, fallbackDayName) => {
+  if (value && `${value}`.trim()) {
+    const parsed = `${value}`
+      .split(/[|,]/)
+      .map(part => Number(part.trim()))
+      .filter(part => Number.isInteger(part) && part >= 0 && part <= 6);
+    if (parsed.length) {
+      return Array.from(new Set(parsed)).sort((a, b) => a - b);
+    }
+  }
+
+  const dayLabel = fallbackDayName?.split("-")[0] || fallbackDayName || "";
+  const fallbackDay = getDayOfWeekIndex(dayLabel);
+  return fallbackDay === null ? [1] : [fallbackDay];
 };
 
 const buildBothSidesMap = csvText => {
@@ -487,6 +509,7 @@ const buildImportCycleFromCsv = csvText => {
 
     const sectionName = row[headerIndex.Section]?.trim();
     const dayName = row[headerIndex.Day]?.trim();
+    const daysOfWeekRaw = headerIndex["Days of Week"] !== undefined ? row[headerIndex["Days of Week"]] : "";
     const exerciseName = row[headerIndex.Exercise]?.trim();
     const setNumber = Number(row[headerIndex["Set #"]] || 1);
     const targetText = row[headerIndex.Target]?.trim() || "";
@@ -507,11 +530,10 @@ const buildImportCycleFromCsv = csvText => {
 
     const sectionEntry = sectionsMap.get(sectionName);
     if (!sectionEntry.days.has(dayName)) {
-      const dayLabel = dayName.split("-")[0] || dayName;
-      const dayIndex = getDayOfWeekIndex(dayLabel);
+      const parsedDaysOfWeek = parseDaysOfWeek(daysOfWeekRaw, dayName);
       sectionEntry.days.set(dayName, {
         name: dayName,
-        daysOfWeek: dayIndex === null ? [1] : [dayIndex],
+        daysOfWeek: parsedDaysOfWeek,
         exercises: new Map(),
       });
     }
@@ -565,42 +587,49 @@ const buildImportCycleFromCsv = csvText => {
       name: section.name,
       type: section.type,
       order: sectionIndex,
-      days: Array.from(section.days.values()).map((day, dayIndex) => ({
-        name: day.name,
-        daysOfWeek: day.daysOfWeek,
-        order: dayIndex,
-        exercises: Array.from(day.exercises.values()).map((exercise, exerciseIndex) => {
-          const weeklyProgression = Array.from(exercise.weeklyTargets.entries())
-            .sort((a, b) => a[0] - b[0])
-            .map(([week, value]) => {
-              if (`${value}`.toUpperCase() === "MAX") {
+      days: Array.from(section.days.values())
+        .sort((a, b) => {
+          const aDays = a.daysOfWeek.join("|");
+          const bDays = b.daysOfWeek.join("|");
+          if (aDays !== bDays) return aDays.localeCompare(bDays);
+          return a.name.localeCompare(b.name);
+        })
+        .map((day, dayIndex) => ({
+          name: day.name,
+          daysOfWeek: day.daysOfWeek,
+          order: dayIndex,
+          exercises: Array.from(day.exercises.values()).map((exercise, exerciseIndex) => {
+            const weeklyProgression = Array.from(exercise.weeklyTargets.entries())
+              .sort((a, b) => a[0] - b[0])
+              .map(([week, value]) => {
+                if (`${value}`.toUpperCase() === "MAX") {
+                  return {
+                    week,
+                    targetValue: null,
+                    isDeload: false,
+                    isTest: true,
+                  };
+                }
                 return {
                   week,
-                  targetValue: null,
+                  targetValue: value,
                   isDeload: false,
-                  isTest: true,
+                  isTest: false,
                 };
-              }
-              return {
-                week,
-                targetValue: value,
-                isDeload: false,
-                isTest: false,
-              };
-            });
-          const defaultTargetValue = weeklyProgression.length ? weeklyProgression[0].targetValue : "";
-          return {
-            name: exercise.name,
-            type: exercise.type,
-            sets: exercise.sets,
-            targetValue: defaultTargetValue,
-            unit: exercise.unit || "reps",
-            bothSides: exercise.bothSides || false,
-            order: exerciseIndex,
-            weeklyProgression,
-          };
-        }),
-      })),
+              });
+            const defaultTargetValue = weeklyProgression.length ? weeklyProgression[0].targetValue : "";
+            return {
+              name: exercise.name,
+              type: exercise.type,
+              sets: exercise.sets,
+              targetValue: defaultTargetValue,
+              unit: exercise.unit || "reps",
+              bothSides: exercise.bothSides || false,
+              order: exerciseIndex,
+              weeklyProgression,
+            };
+          }),
+        })),
     }));
 
   return {

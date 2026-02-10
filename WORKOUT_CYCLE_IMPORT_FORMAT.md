@@ -32,7 +32,7 @@ Total Sessions,25
 The importer looks for this exact header row:
 
 ```
-Cycle,Cycle Week,Date,Session Outcome,Section,Day,Exercise,Set #,Target,Actual,Set Outcome,Session Note,Both Sides
+Cycle,Cycle Week,Date,Session Outcome,Section,Day,Days of Week,Exercise,Set #,Target,Actual,Set Outcome,Session Note,Both Sides
 ```
 
 ### Data Rows (Required)
@@ -50,6 +50,7 @@ Cycle 2,1,2026-02-09,,Workout,Monday - Leg,Single Leg Box Squat (Elevated Heel),
 - **Cycle Week**: The week number in the cycle (1, 2, 3, ...).
 - **Section**: One of Warmup, Workout, Cool Down, or Stretches (case-insensitive).
 - **Day**: A label like `Monday - Leg`. The first word is used to infer the day of week.
+- **Days of Week**: Optional but recommended. Pipe/comma-separated day indices (`0=Sun ... 6=Sat`), e.g. `2|4` for Tue/Thu.
 - **Exercise**: The exercise name for that day.
 - **Set #**: The set number for the exercise (1, 2, 3, ...).
 - **Target**: The target value and unit (e.g. `8 reps`, `30 secs`, `1.25 miles`, `MAX REPS`).
@@ -71,3 +72,4 @@ Cycle 2,1,2026-02-09,,Workout,Monday - Leg,Single Leg Box Squat (Elevated Heel),
 - Importing into **Create next cycle** appends a new cycle.
 - If Cycle Weeks is missing, the importer uses the largest Cycle Week value it finds.
 - `MAX` targets are stored as test weeks with no numeric target value.
+- If `Days of Week` is present, importer preserves multi-day schedules (for example one day config spanning Tue/Thu).
