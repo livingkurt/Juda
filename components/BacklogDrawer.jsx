@@ -245,12 +245,14 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
       });
 
       // Show all priority levels, even if they have no tasks
-      const sortedGroups = PRIORITY_LEVELS.sort((a, b) => a.sortOrder - b.sortOrder).map(level => ({
-        type: "priority",
-        priority: level.value,
-        label: level.label,
-        tasks: groups[level.value] || [],
-      }));
+      const sortedGroups = [...PRIORITY_LEVELS]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(level => ({
+          type: "priority",
+          priority: level.value,
+          label: level.label,
+          tasks: groups[level.value] || [],
+        }));
 
       return sortedGroups;
     }
@@ -316,18 +318,20 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
 
       // Always show "Untagged" first
       const untaggedPriorities = tagGroups["Untagged"] || {};
-      PRIORITY_LEVELS.sort((a, b) => a.sortOrder - b.sortOrder).forEach(level => {
-        const priority = level.value;
-        sortedGroups.push({
-          type: "tag-priority",
-          tagName: "Untagged",
-          tagLabel: "Untagged",
-          priority,
-          priorityLabel: level.label,
-          label: `Untagged - ${level.label}`,
-          tasks: untaggedPriorities[priority] || [],
+      [...PRIORITY_LEVELS]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .forEach(level => {
+          const priority = level.value;
+          sortedGroups.push({
+            type: "tag-priority",
+            tagName: "Untagged",
+            tagLabel: "Untagged",
+            priority,
+            priorityLabel: level.label,
+            label: `Untagged - ${level.label}`,
+            tasks: untaggedPriorities[priority] || [],
+          });
         });
-      });
 
       // Then show other tags alphabetically
       const sortedTagNames = Object.keys(tagGroups)
@@ -335,18 +339,20 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
         .sort();
       sortedTagNames.forEach(tagName => {
         const priorities = tagGroups[tagName] || {};
-        PRIORITY_LEVELS.sort((a, b) => a.sortOrder - b.sortOrder).forEach(level => {
-          const priority = level.value;
-          sortedGroups.push({
-            type: "tag-priority",
-            tagName,
-            tagLabel: tagName,
-            priority,
-            priorityLabel: level.label,
-            label: `${tagName} - ${level.label}`,
-            tasks: priorities[priority] || [],
+        [...PRIORITY_LEVELS]
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .forEach(level => {
+            const priority = level.value;
+            sortedGroups.push({
+              type: "tag-priority",
+              tagName,
+              tagLabel: tagName,
+              priority,
+              priorityLabel: level.label,
+              label: `${tagName} - ${level.label}`,
+              tasks: priorities[priority] || [],
+            });
           });
-        });
       });
 
       return sortedGroups;

@@ -894,3 +894,14 @@
 - Introduced local reorder helpers (`reorderDays`, `reorderExercises`) that update builder state immutably and preserve the existing save flow where final order is persisted on save.
 - Used pipe-delimited droppable IDs for nested lists (`section-days|...`, `day-exercises|...`) to avoid parsing issues with IDs that may include hyphens.
 - Scoped day/exercise reordering to the same source container to keep behavior simple and predictable (reorder-only, no cross-day/cross-section moves).
+
+## 2026-02-11
+
+### Urgent quick-create intermittent 500 hardening
+
+- Hardened `QuickTaskInput` so Enter + blur in the same interaction can only submit once, preventing duplicate create requests from race timing.
+- Added local duplicate-value guard + microtask reset in `QuickTaskInput` to allow normal retries while blocking immediate accidental re-submits.
+- Prevented unhandled promise noise in quick input key/blur handlers by swallowing thrown create errors after caller-level handling.
+- Improved task creation error logging in `useTaskOperations` to print structured RTK Query error details (`error.data.error`, status payload) instead of `[object Object]`.
+- Hardened `/api/tasks` POST response path so a missing relation re-fetch or broadcast failure no longer turns a successful DB insert into a 500.
+- Added explicit title required validation and support for optional `status`/`startedAt` on task create to keep create behavior consistent with existing update semantics.

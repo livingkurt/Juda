@@ -89,6 +89,8 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     recurrence,
     order,
     completionType,
+    status,
+    startedAt,
     content,
     priority,
     folderId,
@@ -103,6 +105,8 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     goalYear,
     goalMonths,
   } = body;
+
+  validateRequired(body, ["title"]);
 
   const normalizedTagIds = Array.isArray(tagIds) ? Array.from(new Set(tagIds.filter(Boolean))) : [];
 
@@ -151,6 +155,9 @@ export const POST = withApi(async (request, { userId, getBody }) => {
 
   // Create task and assign tags in a transaction
   const result = await db.transaction(async tx => {
+    if (status !== undefined && status !== null) {
+      validateEnum("status", status, ["todo", "in_progress", "complete"]);
+    }
     if (priority !== undefined && priority !== null) {
       validateEnum("priority", priority, ["low", "medium", "high", "urgent"]);
     }
@@ -167,6 +174,8 @@ export const POST = withApi(async (request, { userId, getBody }) => {
         recurrence: recurrence || null,
         order: order ?? 0,
         completionType: completionType || "checkbox",
+        status: status || "todo",
+        startedAt: startedAt ? new Date(startedAt) : null,
         content: content || null,
         priority: priority ?? null,
         folderId: folderId || null,
@@ -217,13 +226,23 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     },
   });
 
-  const taskWithTags = {
-    ...taskWithRelations,
-    tags: taskWithRelations.taskTags?.map(tt => tt.tag) || [],
-  };
+  const taskWithTags = taskWithRelations
+    ? {
+        ...taskWithRelations,
+        tags: taskWithRelations.taskTags?.map(tt => tt.tag) || [],
+      }
+    : {
+        ...result,
+        tags: [],
+      };
 
   // Broadcast to other clients (exclude the one that made this request)
-  taskBroadcast.onCreate(userId, taskWithTags, clientId);
+  try {
+    taskBroadcast.onCreate(userId, taskWithTags, clientId);
+  } catch (broadcastError) {
+    // Broadcast failures should not fail the write path.
+    console.error("Task created but broadcast failed:", broadcastError);
+  }
 
   return NextResponse.json(taskWithTags, { status: 201 });
 });

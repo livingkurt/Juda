@@ -21,6 +21,7 @@ export const QuickTaskInput = ({
   const [isActive, setIsActive] = useState(false);
   const inputRef = useRef(null);
   const isSubmittingRef = useRef(false);
+  const lastSubmittedValueRef = useRef(null);
 
   const handleClick = () => {
     setIsActive(true);
@@ -31,29 +32,48 @@ export const QuickTaskInput = ({
 
   const submitIfNeeded = async () => {
     const trimmedValue = value.trim();
-    if (!trimmedValue || isSubmittingRef.current) {
+    if (!trimmedValue || isSubmittingRef.current || lastSubmittedValueRef.current === trimmedValue) {
       return false;
     }
 
     isSubmittingRef.current = true;
+    lastSubmittedValueRef.current = trimmedValue;
     try {
       await onCreate(trimmedValue);
       setValue("");
       return true;
+    } catch (error) {
+      // Allow retry if the request fails.
+      lastSubmittedValueRef.current = null;
+      throw error;
     } finally {
       isSubmittingRef.current = false;
+      // Clear on next tick so Enter+blur in the same interaction only submits once.
+      queueMicrotask(() => {
+        if (!isSubmittingRef.current) {
+          lastSubmittedValueRef.current = null;
+        }
+      });
     }
   };
 
   const handleBlur = async () => {
-    await submitIfNeeded();
+    try {
+      await submitIfNeeded();
+    } catch {
+      // Error handling is done by the caller's onCreate.
+    }
     setIsActive(false);
   };
 
   const handleKeyDown = async e => {
     if (e.key === "Enter" && value.trim()) {
       e.preventDefault();
-      await submitIfNeeded();
+      try {
+        await submitIfNeeded();
+      } catch {
+        // Error handling is done by the caller's onCreate.
+      }
       setIsActive(false);
     } else if (e.key === "Escape") {
       setValue("");

@@ -24,6 +24,13 @@ import {
 } from "@/lib/store/slices/uiSlice";
 import { showSuccess, showError } from "@/lib/store/slices/snackbarSlice";
 
+const getMutationErrorMessage = error => {
+  if (typeof error === "string") return error;
+  if (error?.data?.error) return error.data.error;
+  if (error?.error) return error.error;
+  return error?.message || "Unknown error";
+};
+
 /**
  * Task operation handlers (edit, delete, duplicate, etc.)
  * Uses Redux directly - no prop drilling needed
@@ -338,8 +345,8 @@ export function useTaskOperations() {
         dispatch(showSuccess({ message: "Task created" }));
         return newTask;
       } catch (error) {
-        const errorMessage = error?.message || error?.toString() || "Unknown error";
-        console.error("Failed to create task:", errorMessage);
+        const errorMessage = getMutationErrorMessage(error);
+        console.error("Failed to create task:", { errorMessage, error });
         dispatch(showError({ message: "Failed to create task" }));
         throw error; // Re-throw so caller can handle it
       }
@@ -384,8 +391,8 @@ export function useTaskOperations() {
         // RTK Query will automatically refetch due to invalidatesTags
         console.warn("Subtask created");
       } catch (error) {
-        const errorMessage = error?.message || error?.toString() || "Unknown error";
-        console.error("Failed to create subtask:", errorMessage);
+        const errorMessage = getMutationErrorMessage(error);
+        console.error("Failed to create subtask:", { errorMessage, error });
       }
     },
     [taskById, createTask]
@@ -414,8 +421,8 @@ export function useTaskOperations() {
         dispatch(showSuccess({ message: "Task created" }));
         return newTask;
       } catch (error) {
-        const errorMessage = error?.message || error?.toString() || "Unknown error";
-        console.error("Failed to create task:", errorMessage);
+        const errorMessage = getMutationErrorMessage(error);
+        console.error("Failed to create task:", { errorMessage, error });
         dispatch(showError({ message: "Failed to create task" }));
         throw error; // Re-throw so caller can handle it
       }
@@ -450,8 +457,8 @@ export function useTaskOperations() {
         });
         dispatch(showSuccess({ message: "Task created" }));
       } catch (error) {
-        const errorMessage = error?.message || error?.toString() || "Unknown error";
-        console.error("Failed to create task:", errorMessage);
+        const errorMessage = getMutationErrorMessage(error);
+        console.error("Failed to create task:", { errorMessage, error });
         dispatch(showError({ message: "Failed to create task" }));
         throw error; // Re-throw so caller can handle it
       }
