@@ -84,10 +84,12 @@ export default function WorkoutModal() {
     return cyclesData;
   }, [workoutProgram]);
 
-  // Calculate total weeks across all cycles
+  // Calculate total weeks across all cycles (0 = repeat forever)
   const totalWeeks = useMemo(() => {
-    return cycles.reduce((sum, cycle) => sum + (cycle.numberOfWeeks || 1), 0);
+    return cycles.reduce((sum, cycle) => sum + (cycle.numberOfWeeks === 0 ? 0 : cycle.numberOfWeeks || 1), 0);
   }, [cycles]);
+
+  const repeatsForever = totalWeeks === 0 && cycles.length > 0;
 
   // Get active cycle and week within that cycle based on cumulative weeks
   const getActiveCycleAndWeek = useCallback((cycles, currentWeekOverall) => {
@@ -98,6 +100,13 @@ export default function WorkoutModal() {
 
     let cumulativeWeeks = 0;
     for (const cycle of cycles) {
+      // numberOfWeeks 0 = repeat forever (same every day)
+      if (cycle.numberOfWeeks === 0) {
+        if (currentWeekOverall > cumulativeWeeks || cumulativeWeeks === 0) {
+          return { cycle, weekInCycle: 1 };
+        }
+        continue;
+      }
       if (!cycle || !cycle.numberOfWeeks) continue;
       if (currentWeekOverall <= cumulativeWeeks + cycle.numberOfWeeks) {
         return {
@@ -112,7 +121,7 @@ export default function WorkoutModal() {
     if (!lastCycle) {
       return { cycle: null, weekInCycle: 1 };
     }
-    return { cycle: lastCycle, weekInCycle: lastCycle.numberOfWeeks || 1 };
+    return { cycle: lastCycle, weekInCycle: lastCycle.numberOfWeeks > 0 ? lastCycle.numberOfWeeks : 1 };
   }, []);
 
   // Calculate current week based on the workout program start date
@@ -135,7 +144,7 @@ export default function WorkoutModal() {
     // Calculate difference in days
     const daysDiff = Math.floor((currentDateLocal - startDateLocal) / (1000 * 60 * 60 * 24));
     const weekNumber = Math.floor(daysDiff / 7) + 1;
-    return Math.min(Math.max(1, weekNumber), totalWeeks);
+    return totalWeeks > 0 ? Math.min(Math.max(1, weekNumber), totalWeeks) : Math.max(1, weekNumber);
   }, [task?.recurrence, currentDate, totalWeeks]);
 
   // Get active cycle and week within cycle
@@ -530,8 +539,14 @@ export default function WorkoutModal() {
           <Box flex={1}>
             <Typography variant="h6">{task.title}</Typography>
             <Typography variant="caption" color="text.secondary">
-              Week {currentWeek} of {totalWeeks}
-              {activeCycle ? ` (${activeCycle.name}, Week ${weekInCycle})` : ""}
+              {repeatsForever ? (
+                "Same every day · Repeats forever"
+              ) : (
+                <>
+                  Week {currentWeek} of {totalWeeks}
+                  {activeCycle ? ` (${activeCycle.name}, Week ${weekInCycle})` : ""}
+                </>
+              )}
             </Typography>
           </Box>
           {isSaving && <CircularProgress size={20} />}

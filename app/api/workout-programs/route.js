@@ -200,7 +200,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
         id: cycleId,
         programId,
         name: cycleData.name || `Cycle ${cIdx + 1}`,
-        numberOfWeeks: cycleData.numberOfWeeks || 1,
+        numberOfWeeks: cycleData.numberOfWeeks === 0 ? 0 : cycleData.numberOfWeeks || 1,
         order: cIdx,
         updatedAt: now,
       });

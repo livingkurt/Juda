@@ -1,5 +1,43 @@
 # Project Decisions Log
 
+## 2026-02-11
+
+### Workout Repeat Forever (No Cycles)
+
+**Problem**: Users wanted workout type tasks that don't require choosing a number of weeks/cycles. They need workouts that are "the same every day and repeat forever" without using cycles.
+
+**Solution**:
+1. **WorkoutBuilder.jsx**: Allow `numberOfWeeks` to be 0. When set to 0, the cycle repeats forever—same workout every day. Added helper text "0 = same every day, repeats forever". Weekly progression UI is hidden when `numberOfWeeks` is 0 (no week-by-week variations).
+2. **WorkoutModal.jsx**: When `totalWeeks` is 0 (all cycles have `numberOfWeeks: 0`), display "Same every day · Repeats forever" instead of "Week X of Y". `getActiveCycleAndWeek` treats cycles with `numberOfWeeks: 0` as infinite—always use week 1.
+3. **API (workout-programs/route.js)**: Accept and persist `numberOfWeeks: 0` (previously `|| 1` would convert 0 to 1).
+4. **WorkoutProgressCalendar.jsx**, **WorkoutExerciseProgress.jsx**, **WorkoutTab.jsx**: Updated `totalWeeks` calculation to treat `numberOfWeeks: 0` as 0 (preserve repeat-forever). WorkoutExerciseProgress shows "Exercise progress (same every week)" and a single Week 1 column when `totalWeeks` is 0.
+
+**Files Updated**:
+- `components/WorkoutBuilder.jsx`
+- `components/WorkoutModal.jsx`
+- `components/WorkoutProgressCalendar.jsx`
+- `components/WorkoutExerciseProgress.jsx`
+- `components/tabs/WorkoutTab.jsx`
+- `app/api/workout-programs/route.js`
+
+### Unify Hide Flow for Complete, Not Complete, and Roll Over
+
+**Problem**: With "Hide Completed" enabled, marking a task as "not complete" or "rolled over" caused it to disappear immediately instead of using the debounced hide (10-second delay). Only tasks marked as "complete" used the debounce system correctly.
+
+**Root Cause**:
+1. **Visibility filter**: `useTaskFilters` only showed tasks in `recentlyCompleted` when `isCompleted` was true. Tasks with outcome "not_completed" or "rolled_over" have `hasOutcome=true` but `isCompleted=false`, so they were filtered out immediately.
+2. **Not-complete action path**: The context menu "Not Complete" action uses `handleOutcomeChange`, and that handler only added to `recentlyCompleted` for `"completed"` outcomes.
+3. **Rollover handlers**: `handleOutcomeChange` (for outcome "rolled_over") and `handleRolloverTask` did not call `addToRecentlyCompleted`, so rolled-over tasks were never added to the debounce set.
+
+**Solution**:
+1. **useTaskFilters.js**: Changed the visibility condition from `isCompleted && recentlyCompleted.has(t.id)` to `(isCompleted || hasOutcome) && recentlyCompleted.has(t.id)`. Any task with a completion record (completed, not_completed, or rolled_over) that is in recentlyCompleted now gets the same debounced hide.
+2. **useCompletionHandlers.js (round 1)**: Added `addToRecentlyCompleted` for rolled_over in `handleOutcomeChange` and for `handleRolloverTask` when hide completed is on.
+3. **useCompletionHandlers.js (round 2 fix)**: Updated `handleOutcomeChange` to add tasks to `recentlyCompleted` for all non-null outcomes (not just `"completed"`), which includes `"not_completed"` from the context menu flow.
+
+**Files Updated**:
+- `hooks/useTaskFilters.js`
+- `hooks/useCompletionHandlers.js`
+
 ## 2026-02-08
 
 ### Fix Drag-and-Drop Lag From Deferred Data

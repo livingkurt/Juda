@@ -86,11 +86,12 @@ export function WorkoutExerciseProgress({ program, completions, task, startDate 
   }
 
   const exerciseList = buildExerciseList(program);
-  // Calculate total weeks from cycles (sum of all cycle numberOfWeeks)
+  // Calculate total weeks from cycles (0 = repeat forever)
   const totalWeeks = program?.cycles
-    ? program.cycles.reduce((sum, cycle) => sum + (cycle.numberOfWeeks || 1), 0)
+    ? program.cycles.reduce((sum, cycle) => sum + (cycle.numberOfWeeks === 0 ? 0 : cycle.numberOfWeeks || 1), 0)
     : program?.numberOfWeeks || 1;
   const programStart = startDate || task?.recurrence?.startDate || null;
+  const displayWeeks = totalWeeks > 0 ? totalWeeks : 1;
 
   const weekExerciseMap = new Map();
   completions.forEach(day => {
@@ -107,13 +108,15 @@ export function WorkoutExerciseProgress({ program, completions, task, startDate 
   return (
     <Stack spacing={2}>
       <Typography variant="body2" color="text.secondary">
-        Exercise progress across {totalWeeks} week{totalWeeks !== 1 ? "s" : ""}
+        {totalWeeks === 0
+          ? "Exercise progress (same every week)"
+          : `Exercise progress across ${totalWeeks} week${totalWeeks !== 1 ? "s" : ""}`}
       </Typography>
       <Table size="small" stickyHeader>
         <TableHead>
           <TableRow>
             <TableCell>Exercise</TableCell>
-            {Array.from({ length: totalWeeks }, (_, idx) => {
+            {Array.from({ length: displayWeeks }, (_, idx) => {
               const weekNumber = idx + 1;
               return (
                 <TableCell key={weekNumber} align="center">
@@ -139,7 +142,7 @@ export function WorkoutExerciseProgress({ program, completions, task, startDate 
                   </Typography>
                 </Stack>
               </TableCell>
-              {Array.from({ length: totalWeeks }, (_, idx) => {
+              {Array.from({ length: displayWeeks }, (_, idx) => {
                 const weekNumber = idx + 1;
                 const key = `${exercise.id}|${weekNumber}`;
                 const summary = summarizeExerciseWeek(weekExerciseMap.get(key));
@@ -156,7 +159,7 @@ export function WorkoutExerciseProgress({ program, completions, task, startDate 
           ))}
           {exerciseList.length === 0 && (
             <TableRow>
-              <TableCell colSpan={totalWeeks + 2} align="center" sx={{ py: 6 }}>
+              <TableCell colSpan={displayWeeks + 2} align="center" sx={{ py: 6 }}>
                 <Typography color="text.secondary">No exercises in this program.</Typography>
               </TableCell>
             </TableRow>

@@ -100,17 +100,17 @@ const buildCycleOptions = (program, programStartDate) => {
   if (!program?.cycles?.length) return [];
   let weekCursor = 1;
   return program.cycles.map(cycle => {
-    const weeks = cycle.numberOfWeeks || 1;
+    const weeks = cycle.numberOfWeeks === 0 ? 1 : cycle.numberOfWeeks || 1;
     const startWeek = weekCursor;
     const endWeek = weekCursor + weeks - 1;
     const startDate = programStartDate ? dayjs(programStartDate).add((startWeek - 1) * 7, "day") : null;
     const endDate = programStartDate ? dayjs(programStartDate).add(endWeek * 7 - 1, "day") : null;
-    weekCursor += weeks;
+    weekCursor += cycle.numberOfWeeks === 0 ? 1 : weeks;
     return {
       id: cycle.id,
       name: cycle.name || `Cycle ${cycle.order + 1}`,
       order: cycle.order,
-      numberOfWeeks: weeks,
+      numberOfWeeks: cycle.numberOfWeeks === 0 ? 0 : weeks,
       startWeek,
       endWeek,
       startDate,
@@ -690,7 +690,7 @@ export function WorkoutTab({ isLoading: tabLoading }) {
   const completions = workoutHistory?.completions || [];
   const program = workoutHistory?.program || null;
   const totalWeeks = program?.cycles
-    ? program.cycles.reduce((sum, cycle) => sum + (cycle.numberOfWeeks || 1), 0)
+    ? program.cycles.reduce((sum, cycle) => sum + (cycle.numberOfWeeks === 0 ? 0 : cycle.numberOfWeeks || 1), 0)
     : program?.numberOfWeeks || 1;
   const stats = buildSummaryStats(completions, selectedTask, totalWeeks);
   const programStartDate = getProgramStartDate(selectedTask, startDate, completions);

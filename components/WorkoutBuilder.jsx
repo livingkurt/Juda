@@ -551,7 +551,8 @@ const WorkoutCyclePanel = memo(function WorkoutCyclePanel({
 
   const handleNumberOfWeeksChange = useCallback(
     e => {
-      onUpdateNumberOfWeeks(cycle.id, parseInt(e.target.value) || 1);
+      const val = parseInt(e.target.value, 10);
+      onUpdateNumberOfWeeks(cycle.id, Number.isNaN(val) || val < 0 ? 0 : val);
     },
     [onUpdateNumberOfWeeks, cycle.id]
   );
@@ -588,7 +589,8 @@ const WorkoutCyclePanel = memo(function WorkoutCyclePanel({
           value={cycle.numberOfWeeks}
           onChange={handleNumberOfWeeksChange}
           size="small"
-          inputProps={{ min: 1 }}
+          inputProps={{ min: 0 }}
+          helperText={cycle.numberOfWeeks === 0 ? "0 = same every day, repeats forever" : ""}
           sx={{ width: 100 }}
         />
 
@@ -1215,6 +1217,7 @@ export default function WorkoutBuilder({
 
   // Helper to build progression array for an exercise when cycle weeks change
   const buildProgression = useCallback((exercise, weeks) => {
+    if (weeks <= 0) return [];
     const existingProgressions = exercise.weeklyProgression || [];
     const newProgressions = [];
     for (let w = 1; w <= weeks; w++) {

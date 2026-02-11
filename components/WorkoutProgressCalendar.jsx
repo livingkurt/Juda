@@ -49,7 +49,7 @@ export function WorkoutProgressCalendar({ completions, task, program, startDate,
   // Get program start date from task recurrence
   const programStartDate = task?.recurrence?.startDate || null;
   const totalWeeks = program?.cycles
-    ? program.cycles.reduce((sum, cycle) => sum + (cycle.numberOfWeeks || 1), 0)
+    ? program.cycles.reduce((sum, cycle) => sum + (cycle.numberOfWeeks === 0 ? 0 : cycle.numberOfWeeks || 1), 0)
     : program?.numberOfWeeks || null;
 
   // Get all unique dates from completions and scheduled dates
