@@ -183,7 +183,8 @@ export function useTaskFilters({ recentlyCompletedTasks, skip = false } = {}) {
           const isCompleted =
             t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
           const hasOutcome = t.outcome !== null && t.outcome !== undefined;
-          if (isCompleted && recentlyCompleted.has(t.id)) {
+          // Show tasks with any completion record (completed, not_completed, rolled_over) if in recentlyCompleted - same debounced hide for all
+          if ((isCompleted || hasOutcome) && recentlyCompleted.has(t.id)) {
             return true;
           }
           return !isCompleted && !hasOutcome;
@@ -208,7 +209,8 @@ export function useTaskFilters({ recentlyCompletedTasks, skip = false } = {}) {
         const isCompleted =
           t.completed || (t.subtasks && t.subtasks.length > 0 && t.subtasks.every(st => st.completed));
         const hasOutcome = t.outcome !== null && t.outcome !== undefined;
-        if (isCompleted && recentlyCompleted.has(t.id)) {
+        // Show tasks with any completion record (completed, not_completed, rolled_over) if in recentlyCompleted - same debounced hide for all
+        if ((isCompleted || hasOutcome) && recentlyCompleted.has(t.id)) {
           return true;
         }
         return !isCompleted && !hasOutcome;

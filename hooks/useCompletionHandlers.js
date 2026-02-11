@@ -731,7 +731,9 @@ export function useCompletionHandlers({
           batchDeleteCompletions(deletions);
         }
       } else {
-        if (outcome === "completed" && !showCompletedTasks) {
+        // Keep all non-null outcomes visible during the shared debounce window
+        // when "Hide Completed" is enabled (completed, not_completed, rolled_over).
+        if (!showCompletedTasks) {
           addToRecentlyCompleted(taskId, task?.sectionId);
         }
 
@@ -875,6 +877,10 @@ export function useCompletionHandlers({
         const targetDate = date instanceof Date ? date : new Date(date);
         const dateStr = formatLocalDate(targetDate);
 
+        if (!showCompletedTasks) {
+          addToRecentlyCompleted(taskId, task?.sectionId);
+        }
+
         // Call the rollover API endpoint
         await rolloverTaskMutation({ taskId, date: dateStr }).unwrap();
       } catch (error) {
@@ -882,7 +888,7 @@ export function useCompletionHandlers({
         throw error;
       }
     },
-    [taskById, rolloverTaskMutation]
+    [taskById, rolloverTaskMutation, showCompletedTasks, addToRecentlyCompleted]
   );
 
   return useMemo(

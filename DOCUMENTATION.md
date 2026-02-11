@@ -27,11 +27,11 @@
 **Root Cause**:
 1. **Visibility filter**: `useTaskFilters` only showed tasks in `recentlyCompleted` when `isCompleted` was true. Tasks with outcome "not_completed" or "rolled_over" have `hasOutcome=true` but `isCompleted=false`, so they were filtered out immediately.
 2. **Not-complete action path**: The context menu "Not Complete" action uses `handleOutcomeChange`, and that handler only added to `recentlyCompleted` for `"completed"` outcomes.
-3. **Rollover handlers**: `handleOutcomeChange` (for outcome "rolled_over") and `handleRolloverTask` did not call `addToRecentlyCompleted`, so rolled-over tasks were never added to the debounce set.
+3. **Rollover handler**: `handleRolloverTask` did not call `addToRecentlyCompleted`, so rolled-over tasks were never added to the debounce set.
 
 **Solution**:
 1. **useTaskFilters.js**: Changed the visibility condition from `isCompleted && recentlyCompleted.has(t.id)` to `(isCompleted || hasOutcome) && recentlyCompleted.has(t.id)`. Any task with a completion record (completed, not_completed, or rolled_over) that is in recentlyCompleted now gets the same debounced hide.
-2. **useCompletionHandlers.js (round 1)**: Added `addToRecentlyCompleted` for rolled_over in `handleOutcomeChange` and for `handleRolloverTask` when hide completed is on.
+2. **useCompletionHandlers.js**: Added `addToRecentlyCompleted` for `handleRolloverTask` when hide completed is on.
 3. **useCompletionHandlers.js (round 2 fix)**: Updated `handleOutcomeChange` to add tasks to `recentlyCompleted` for all non-null outcomes (not just `"completed"`), which includes `"not_completed"` from the context menu flow.
 
 **Files Updated**:
