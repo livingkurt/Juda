@@ -53,7 +53,7 @@ export async function POST(request) {
     // Re-send the same refresh token cookie to ensure it persists
     const cookie = serialize("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.SECURE_COOKIES !== "false" && process.env.NODE_ENV === "production",
       sameSite: "strict", // Use strict for better persistence
       maxAge: 60 * 60 * 24 * 365, // 365 days - keep users signed in "forever"
       path: "/",

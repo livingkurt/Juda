@@ -19,7 +19,7 @@ export async function POST(request) {
     // Clear the cookie
     const cookie = serialize("refreshToken", "", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.SECURE_COOKIES !== "false" && process.env.NODE_ENV === "production",
       sameSite: "strict", // Match the sameSite setting used when setting the cookie
       maxAge: 0,
       path: "/",
