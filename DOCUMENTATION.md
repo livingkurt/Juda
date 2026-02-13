@@ -881,6 +881,8 @@
 
 - Added a submission guard in `QuickTaskInput` to prevent duplicate create calls when Enter and blur fire together.
 - Normalized tag ID input on task creation by filtering falsy values and de-duping before tag assignment.
+- Updated inline backlog quick-create ordering to insert at the top of the relevant priority group instead of fixed `order: 999`, so newly-created tasks remain visible in capped lists.
+- Quick-create success now requires a confirmed server task payload (not offline placeholder data), preventing false-positive “Task created” snackbars.
 
 ## 2026-02-10
 

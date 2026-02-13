@@ -59,6 +59,27 @@ export function useTaskOperations() {
   const [updateTaskTagsMutation] = useUpdateTaskTagsMutation();
   const [batchSaveTasksMutation] = useBatchSaveTasksMutation();
 
+  const getNextBacklogOrder = useCallback(
+    (priority = null) => {
+      const normalizedPriority = priority ?? null;
+      const samePriorityBacklogTasks = taskFilters.backlogTasks.filter(
+        task => (task.priority ?? null) === normalizedPriority
+      );
+
+      if (samePriorityBacklogTasks.length === 0) {
+        return 0;
+      }
+
+      const minOrder = samePriorityBacklogTasks.reduce((currentMin, task) => {
+        const taskOrder = typeof task.order === "number" ? task.order : 0;
+        return Math.min(currentMin, taskOrder);
+      }, 0);
+
+      return minOrder - 1;
+    },
+    [taskFilters.backlogTasks]
+  );
+
   // Wrapper functions for mutations
   const createTask = useCallback(
     async taskData => {
@@ -404,6 +425,7 @@ export function useTaskOperations() {
       if (!title.trim()) return;
 
       try {
+        const normalizedPriority = priority || null;
         const newTask = await createTask({
           title: title.trim(),
           sectionId: null, // Backlog tasks should NOT have a sectionId
@@ -412,11 +434,16 @@ export function useTaskOperations() {
           color: "#3b82f6",
           recurrence: null,
           status: "todo", // Backlog tasks should have status: todo
-          priority: priority || null,
+          priority: normalizedPriority,
           tagIds: tagIds && tagIds.length > 0 ? tagIds : undefined, // Include tagIds in initial request
           subtasks: [],
-          order: 999,
+          // Keep quick-add tasks visible by placing them at top of their priority group.
+          order: getNextBacklogOrder(normalizedPriority),
         });
+
+        if (!newTask?.id || newTask._isOffline) {
+          throw new Error("Task was not confirmed by server");
+        }
 
         dispatch(showSuccess({ message: "Task created" }));
         return newTask;
@@ -427,7 +454,7 @@ export function useTaskOperations() {
         throw error; // Re-throw so caller can handle it
       }
     },
-    [createTask, dispatch]
+    [createTask, dispatch, getNextBacklogOrder]
   );
 
   // Create kanban task inline
