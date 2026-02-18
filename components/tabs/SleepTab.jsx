@@ -22,8 +22,8 @@ import {
 import { Hotel, TrendingUp } from "@mui/icons-material";
 import { DateNavigation } from "@/components/DateNavigation";
 import { setSleepView, setSleepSelectedDate } from "@/lib/store/slices/uiSlice";
-import { useGetTaskCompletionsQuery } from "@/lib/store/api/completionsApi";
-import { useGetTasksQuery } from "@/lib/store/api/tasksApi";
+import { useGetCompletionsByDateRangeQuery } from "@/lib/store/api/completionsApi";
+import { useGetRecurringTasksQuery } from "@/lib/store/api/tasksApi";
 
 // Helper to format sleep time
 const formatSleepTime = (isoString) => {
@@ -312,19 +312,25 @@ export const SleepTab = memo(function SleepTab({ isLoading: tabLoading }) {
   }, [sleepSelectedDateISO]);
 
   // Get sleep tasks
-  const { data: allTasks = [] } = useGetTasksQuery();
+  const { data: allTasks = [] } = useGetRecurringTasksQuery();
   const sleepTasks = allTasks.filter(task => task.completionType === "sleep");
   const sleepTask = sleepTasks[0] || null;
 
   // Get completions for sleep tasks
-  const { data: completionsData = [], isLoading: completionsLoading } = useGetTaskCompletionsQuery(
+  const { data: completionsData = [], isLoading: completionsLoading } = useGetCompletionsByDateRangeQuery(
     {
-      taskIds: sleepTasks.map(t => t.id),
       startDate: selectedDate.subtract(1, "year").format("YYYY-MM-DD"),
       endDate: selectedDate.add(1, "month").format("YYYY-MM-DD"),
     },
     { skip: sleepTasks.length === 0 }
   );
+
+  // Filter completions to only sleep tasks
+  const sleepTaskIds = new Set(sleepTasks.map(t => t.id));
+  const sleepCompletions = useMemo(() => {
+    const data = Array.isArray(completionsData) ? completionsData : completionsData?.completions || [];
+    return data.filter(c => sleepTaskIds.has(c.taskId));
+  }, [completionsData, sleepTaskIds]);
 
   // Initialize Redux state from URL on mount if not set
   useEffect(() => {
@@ -450,13 +456,13 @@ export const SleepTab = memo(function SleepTab({ isLoading: tabLoading }) {
         ) : sleepView === "day" ? (
           <SleepDayView
             selectedDate={selectedDate}
-            sleepCompletions={completionsData}
+            sleepCompletions={sleepCompletions}
             sleepTask={sleepTask}
           />
         ) : (
           <SleepListView
             selectedDate={selectedDate}
-            sleepCompletions={completionsData}
+            sleepCompletions={sleepCompletions}
             viewType={sleepView}
           />
         )}
