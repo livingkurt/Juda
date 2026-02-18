@@ -33,7 +33,7 @@ export async function POST(request) {
     const body = await request.json();
     console.log("Sleep webhook received body:", JSON.stringify(body).substring(0, 500));
 
-    const { email, source, timestamps, sleepStart, sleepEnd, date, durationMinutes } = body;
+    const { email, source, timestamps, startDates, endDates, sleepStart, sleepEnd, date, durationMinutes } = body;
 
     // Find user by email
     if (!email) {
@@ -49,22 +49,32 @@ export async function POST(request) {
     let sleepDate = null;
     let duration = null;
 
-    // Strategy 1: Parse newline-separated timestamps from iOS Shortcuts
-    // First timestamp = sleep start, last timestamp = sleep end
-    if (timestamps && typeof timestamps === "string" && timestamps.includes("\n")) {
-      const lines = timestamps.split("\n").map(l => l.trim()).filter(l => l);
-      if (lines.length >= 2) {
-        parsedStart = parseFlexibleDate(lines[0]);
-        parsedEnd = parseFlexibleDate(lines[lines.length - 1]);
-      } else if (lines.length === 1) {
-        parsedStart = parseFlexibleDate(lines[0]);
-      }
-    } else if (timestamps) {
-      // Single timestamp
-      parsedStart = parseFlexibleDate(timestamps);
+    // Parse newline-separated date lists from iOS Shortcuts
+    function getFirstAndLast(str) {
+      if (!str || typeof str !== "string") return [null, null];
+      const lines = str.split("\n").map(l => l.trim()).filter(l => l);
+      if (lines.length === 0) return [null, null];
+      return [parseFlexibleDate(lines[0]), parseFlexibleDate(lines[lines.length - 1])];
     }
 
-    // Strategy 2: Use explicit sleepStart/sleepEnd if provided
+    // Strategy 1: Separate startDates/endDates fields
+    if (startDates) {
+      const [first] = getFirstAndLast(startDates);
+      if (first) parsedStart = first;
+    }
+    if (endDates) {
+      const [, last] = getFirstAndLast(endDates);
+      if (last) parsedEnd = last;
+    }
+
+    // Strategy 2: Combined timestamps field
+    if (!parsedStart && timestamps) {
+      const [first, last] = getFirstAndLast(timestamps);
+      if (first) parsedStart = first;
+      if (last && !parsedEnd) parsedEnd = last;
+    }
+
+    // Strategy 3: Explicit sleepStart/sleepEnd
     if (!parsedStart && sleepStart) parsedStart = parseFlexibleDate(sleepStart);
     if (!parsedEnd && sleepEnd) parsedEnd = parseFlexibleDate(sleepEnd);
 
