@@ -3,22 +3,24 @@ import { db } from "@/lib/db.js";
 import { sleepEntries, users } from "@/lib/schema.js";
 import { eq, and } from "drizzle-orm";
 
-// Try to parse any date string into a valid Date
+// Parse flexible date strings like "Feb 18, 2026 at 8:51 AM"
 function parseFlexibleDate(str) {
   if (!str || str.trim() === "") return null;
-  // Try native Date parse first (handles ISO, RFC, and many formats)
-  const d = new Date(str);
+  // Remove "at" which Date() doesn't understand
+  const cleaned = str.replace(" at ", " ");
+  const d = new Date(cleaned);
   if (!isNaN(d.getTime())) return d;
+  // Try original string
+  const d2 = new Date(str);
+  if (!isNaN(d2.getTime())) return d2;
   return null;
 }
 
-// Format date as YYYY-MM-DD
 function toDateString(d) {
   return d.toISOString().split("T")[0];
 }
 
-// POST /api/sleep/webhook - Receive sleep data from iOS Shortcut
-// Authenticated via SLEEP_WEBHOOK_KEY header (no user login needed)
+// POST /api/sleep/webhook
 export async function POST(request) {
   try {
     const webhookKey = request.headers.get("x-webhook-key");
@@ -29,46 +31,62 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    console.log("Sleep webhook received body:", JSON.stringify(body));
+    console.log("Sleep webhook received body:", JSON.stringify(body).substring(0, 500));
 
-    const { email, date, sleepStart, sleepEnd, durationMinutes, source } = body;
+    const { email, source, timestamps, sleepStart, sleepEnd, date, durationMinutes } = body;
 
-    // Find user - by email if provided, otherwise use first user (single-user app)
-    let user;
-    if (email) {
-      [user] = await db.select().from(users).where(eq(users.email, email));
+    // Find user by email
+    if (!email) {
+      return NextResponse.json({ error: "email is required" }, { status: 400 });
     }
+    const [user] = await db.select().from(users).where(eq(users.email, email));
     if (!user) {
-      // Fallback: get first user (Juda is single-user)
-      const allUsers = await db.select().from(users).limit(1);
-      user = allUsers[0];
-    }
-    if (!user) {
-      return NextResponse.json({ error: "No user found" }, { status: 404 });
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Parse dates flexibly
-    const parsedStart = parseFlexibleDate(sleepStart);
-    const parsedEnd = parseFlexibleDate(sleepEnd);
+    let parsedStart = null;
+    let parsedEnd = null;
+    let sleepDate = null;
+    let duration = null;
 
-    // Determine the date - use provided date, or derive from sleep end (wake date), or start
-    let sleepDate = date && date.trim() !== "" ? date : null;
-    if (!sleepDate && parsedEnd) {
+    // Strategy 1: Parse newline-separated timestamps from iOS Shortcuts
+    // First timestamp = sleep start, last timestamp = sleep end
+    if (timestamps && typeof timestamps === "string" && timestamps.includes("\n")) {
+      const lines = timestamps.split("\n").map(l => l.trim()).filter(l => l);
+      if (lines.length >= 2) {
+        parsedStart = parseFlexibleDate(lines[0]);
+        parsedEnd = parseFlexibleDate(lines[lines.length - 1]);
+      } else if (lines.length === 1) {
+        parsedStart = parseFlexibleDate(lines[0]);
+      }
+    } else if (timestamps) {
+      // Single timestamp
+      parsedStart = parseFlexibleDate(timestamps);
+    }
+
+    // Strategy 2: Use explicit sleepStart/sleepEnd if provided
+    if (!parsedStart && sleepStart) parsedStart = parseFlexibleDate(sleepStart);
+    if (!parsedEnd && sleepEnd) parsedEnd = parseFlexibleDate(sleepEnd);
+
+    // Derive date from wake time (end), or sleep time (start), or explicit date, or today
+    if (date && date.trim() !== "") {
+      sleepDate = date;
+    } else if (parsedEnd) {
       sleepDate = toDateString(parsedEnd);
-    } else if (!sleepDate && parsedStart) {
+    } else if (parsedStart) {
       sleepDate = toDateString(parsedStart);
-    }
-
-    if (!sleepDate) {
-      // Last resort: use today
+    } else {
       sleepDate = toDateString(new Date());
     }
 
     // Calculate duration
-    let duration = durationMinutes && durationMinutes !== "" ? Number(durationMinutes) : null;
-    if (!duration && parsedStart && parsedEnd) {
+    if (durationMinutes && durationMinutes !== "") {
+      duration = Number(durationMinutes);
+    } else if (parsedStart && parsedEnd) {
       duration = Math.round((parsedEnd - parsedStart) / (1000 * 60));
     }
+
+    console.log(`Sleep webhook parsed: date=${sleepDate}, start=${parsedStart}, end=${parsedEnd}, duration=${duration}min`);
 
     // Upsert sleep entry
     const existing = await db
