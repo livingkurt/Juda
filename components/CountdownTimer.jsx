@@ -29,6 +29,7 @@ export default function CountdownTimer({
   startSignal = 0,
   isTest = false,
   onStop,
+  sharedAudioContext = null,
 }) {
   // Track elapsed time instead of remaining time
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -48,11 +49,23 @@ export default function CountdownTimer({
   const pendingCompleteRef = useRef(false);
 
   // Get or create AudioContext (reused across all sounds)
+  // If a shared AudioContext ref is provided (e.g. from BothSidesTimer), use it
+  // so the second side inherits the user-gesture-unlocked context from the first side
   const getAudioContext = async () => {
+    if (sharedAudioContext?.current) {
+      if (sharedAudioContext.current.state === "suspended") {
+        await sharedAudioContext.current.resume();
+      }
+      audioContextRef.current = sharedAudioContext.current;
+      return sharedAudioContext.current;
+    }
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      // Store in shared ref so the second timer can reuse it
+      if (sharedAudioContext) {
+        sharedAudioContext.current = audioContextRef.current;
+      }
     }
-    // iOS requires AudioContext to be resumed after user interaction
     if (audioContextRef.current.state === "suspended") {
       await audioContextRef.current.resume();
     }

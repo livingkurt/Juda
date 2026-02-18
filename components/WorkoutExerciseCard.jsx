@@ -19,6 +19,7 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey, isTest
   const firstSideTimeRef = useRef(0);
   const prevSetKeyRef = useRef(setKey);
   const prevIsCompletedRef = useRef(isCompleted);
+  const sharedAudioContextRef = useRef(null);
 
   const handleTimerComplete = () => {
     if (isTest) {
@@ -104,6 +105,7 @@ function BothSidesTimer({ targetSeconds, isCompleted, onComplete, setKey, isTest
         onStop={handleStop}
         prepSeconds={showSecondTimer ? 10 : 5}
         startSignal={showSecondTimer ? secondStartSignal : 0}
+        sharedAudioContext={sharedAudioContextRef}
       />
     </Box>
   );
