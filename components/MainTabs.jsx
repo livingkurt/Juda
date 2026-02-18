@@ -11,6 +11,7 @@ import {
   FitnessCenter,
   AccessTime as Clock,
   TrendingUp,
+  Hotel,
 } from "@mui/icons-material";
 import { useViewState } from "@/hooks/useViewState";
 
@@ -60,7 +61,7 @@ export function MainTabs() {
   };
 
   // Tab indices:
-  // 0 = Tasks, 1 = Goals, 2 = Journal, 3 = Notes, 4 = Progress, 5 = Workout, 6 = Kanban, 7 = History
+  // 0 = Tasks, 1 = Goals, 2 = Journal, 3 = Notes, 4 = Progress, 5 = Workout, 6 = Sleep, 7 = Kanban, 8 = History
 
   return (
     <Box>
@@ -99,6 +100,12 @@ export function MainTabs() {
           icon={<FitnessCenter fontSize="small" />}
           iconPosition="start"
           label="Workout"
+          sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
+        />
+        <Tab
+          icon={<Hotel fontSize="small" />}
+          iconPosition="start"
+          label="Sleep"
           sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
         />
         <Tab

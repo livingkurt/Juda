@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db.js";
-import { sleepEntries, users } from "@/lib/schema.js";
+import { users, tasks, taskCompletions } from "@/lib/schema.js";
 import { eq, and } from "drizzle-orm";
 
 // Parse flexible date strings like "Feb 18, 2026 at 8:51 AM"
@@ -121,40 +121,66 @@ export async function POST(request) {
 
     console.log(`Sleep webhook parsed: date=${sleepDate}, start=${parsedStart?.toISOString()}, end=${parsedEnd?.toISOString()}, duration=${duration}min`);
 
-    // Upsert sleep entry
+    // Find the user's sleep task
+    const [sleepTask] = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.userId, user.id), eq(tasks.completionType, "sleep")));
+
+    if (!sleepTask) {
+      return NextResponse.json({ error: "No sleep task found for this user" }, { status: 404 });
+    }
+
+    // Convert sleepDate to Date object for TaskCompletion
+    const completionDate = new Date(sleepDate + "T00:00:00.000Z");
+
+    // Create sleep data for selectedOptions
+    const sleepData = {
+      sleepStart: parsedStart ? parsedStart.toISOString() : null,
+      sleepEnd: parsedEnd ? parsedEnd.toISOString() : null,
+      durationMinutes: duration || null,
+      source: source || "apple_health",
+    };
+
+    // Upsert task completion
     const existing = await db
       .select()
-      .from(sleepEntries)
-      .where(and(eq(sleepEntries.userId, user.id), eq(sleepEntries.date, sleepDate)));
+      .from(taskCompletions)
+      .where(and(eq(taskCompletions.taskId, sleepTask.id), eq(taskCompletions.date, completionDate)));
 
-    let entry;
+    let completion;
     if (existing.length > 0) {
-      [entry] = await db
-        .update(sleepEntries)
+      // Update existing completion
+      const existingData = existing[0].selectedOptions || {};
+      const mergedData = {
+        ...existingData,
+        ...sleepData,
+      };
+
+      [completion] = await db
+        .update(taskCompletions)
         .set({
-          sleepStart: parsedStart || existing[0].sleepStart,
-          sleepEnd: parsedEnd || existing[0].sleepEnd,
-          durationMinutes: duration || existing[0].durationMinutes,
-          source: source || "apple_health",
-          updatedAt: new Date(),
+          outcome: "completed",
+          selectedOptions: mergedData,
+          completedAt: new Date(),
         })
-        .where(and(eq(sleepEntries.userId, user.id), eq(sleepEntries.date, sleepDate)))
+        .where(and(eq(taskCompletions.taskId, sleepTask.id), eq(taskCompletions.date, completionDate)))
         .returning();
     } else {
-      [entry] = await db
-        .insert(sleepEntries)
+      // Create new completion
+      [completion] = await db
+        .insert(taskCompletions)
         .values({
-          userId: user.id,
-          date: sleepDate,
-          sleepStart: parsedStart,
-          sleepEnd: parsedEnd,
-          durationMinutes: duration,
-          source: source || "apple_health",
+          taskId: sleepTask.id,
+          date: completionDate,
+          outcome: "completed",
+          selectedOptions: sleepData,
+          completedAt: new Date(),
         })
         .returning();
     }
 
-    return NextResponse.json({ success: true, entry });
+    return NextResponse.json({ success: true, completion, sleepTask: sleepTask.title });
   } catch (error) {
     console.error("Sleep webhook error:", error);
     return NextResponse.json({ error: "Failed to save sleep data", details: error.message }, { status: 500 });

@@ -26,6 +26,7 @@ import {
   PlayCircle,
   CheckCircle,
   FitnessCenter,
+  Hotel,
 } from "@mui/icons-material";
 import { formatTime, getTaskDisplayColor } from "@/lib/utils";
 import { TagChip } from "./TagChip";
@@ -251,6 +252,135 @@ const SelectionInputTask = ({ taskId, savedNote, savedOptions, isNotCompleted, o
           e.stopPropagation();
         }}
       />
+      {isNotCompleted && (
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+          Not Completed
+        </Typography>
+      )}
+    </Box>
+  );
+};
+
+// Component to handle sleep input with time pickers
+const SleepInputTask = ({ taskId, savedOptions, isNotCompleted, onCompleteWithNote }) => {
+  const sleepData = savedOptions || {};
+  const [sleepStart, setSleepStart] = useState(
+    sleepData.sleepStart ? new Date(sleepData.sleepStart).toTimeString().slice(0, 5) : ""
+  );
+  const [sleepEnd, setSleepEnd] = useState(
+    sleepData.sleepEnd ? new Date(sleepData.sleepEnd).toTimeString().slice(0, 5) : ""
+  );
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Calculate duration in minutes
+  const calculateDuration = useCallback((start, end) => {
+    if (!start || !end) return null;
+    const startTime = new Date(`2000-01-01T${start}:00`);
+    let endTime = new Date(`2000-01-01T${end}:00`);
+    
+    // Handle overnight sleep (end time is next day)
+    if (endTime <= startTime) {
+      endTime = new Date(`2000-01-02T${end}:00`);
+    }
+    
+    return Math.round((endTime - startTime) / (1000 * 60));
+  }, []);
+
+  const duration = calculateDuration(sleepStart, sleepEnd);
+
+  // Save function wrapper
+  const saveSleep = useCallback((start, end) => {
+    if (start && end) {
+      const today = new Date();
+      const startDateTime = new Date(today);
+      const endDateTime = new Date(today);
+      
+      // Set start time (usually previous night)
+      const [startHour, startMin] = start.split(':');
+      startDateTime.setHours(parseInt(startHour), parseInt(startMin), 0, 0);
+      
+      // If start time is after 18:00, assume it's the previous night
+      if (parseInt(startHour) >= 18) {
+        startDateTime.setDate(startDateTime.getDate() - 1);
+      }
+      
+      // Set end time (wake up time)
+      const [endHour, endMin] = end.split(':');
+      endDateTime.setHours(parseInt(endHour), parseInt(endMin), 0, 0);
+      
+      const durationMinutes = calculateDuration(start, end);
+      
+      const sleepData = {
+        sleepStart: startDateTime.toISOString(),
+        sleepEnd: endDateTime.toISOString(),
+        durationMinutes,
+        source: "manual"
+      };
+      
+      onCompleteWithNote?.(taskId, sleepData);
+    }
+  }, [calculateDuration, onCompleteWithNote, taskId]);
+
+  const { debouncedSave, immediateSave } = useDebouncedSave(
+    (start, end) => saveSleep(start, end),
+    1000
+  );
+
+  const handleStartChange = (e) => {
+    const newStart = e.target.value;
+    setSleepStart(newStart);
+    debouncedSave(newStart, sleepEnd);
+  };
+
+  const handleEndChange = (e) => {
+    const newEnd = e.target.value;
+    setSleepEnd(newEnd);
+    debouncedSave(sleepStart, newEnd);
+  };
+
+  return (
+    <Box sx={{ position: "relative", width: "100%" }}>
+      <Stack direction="row" spacing={2} alignItems="center">
+        <TextField
+          label="Sleep Start"
+          type="time"
+          size="small"
+          value={sleepStart}
+          onChange={handleStartChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => {
+            setIsFocused(false);
+            immediateSave(sleepStart, sleepEnd);
+          }}
+          disabled={isNotCompleted}
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+          InputLabelProps={{ shrink: true }}
+          sx={{ flex: 1 }}
+        />
+        <TextField
+          label="Sleep End"
+          type="time"
+          size="small"
+          value={sleepEnd}
+          onChange={handleEndChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => {
+            setIsFocused(false);
+            immediateSave(sleepStart, sleepEnd);
+          }}
+          disabled={isNotCompleted}
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+          InputLabelProps={{ shrink: true }}
+          sx={{ flex: 1 }}
+        />
+        <Box sx={{ minWidth: 80 }}>
+          <Typography variant="body2" color="text.secondary">
+            {duration ? `${Math.floor(duration / 60)}h ${duration % 60}m` : "—"}
+          </Typography>
+        </Box>
+      </Stack>
       {isNotCompleted && (
         <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
           Not Completed
@@ -550,6 +680,7 @@ export const TaskItem = ({
   const isReflectionTask = task.completionType === "reflection";
   const isWorkoutTask = taskMeta.isWorkoutTask ?? task.completionType === "workout";
   const isGoalTask = taskMeta.isGoalTask ?? task.completionType === "goal";
+  const isSleepTask = taskMeta.isSleepTask ?? task.completionType === "sleep";
   const isNotCompleted = taskMeta.isNotCompleted ?? false;
 
   // Get selection options from task
@@ -595,6 +726,10 @@ export const TaskItem = ({
   // For goal tasks, completion status comes from the completion record
   const isGoalTaskCompleted =
     taskMeta.isGoalTaskCompleted ?? (isGoalTask && existingCompletion?.outcome === "completed");
+
+  // For sleep tasks, completion status comes from the completion record
+  const isSleepTaskCompleted =
+    taskMeta.isSleepTaskCompleted ?? (isSleepTask && existingCompletion?.outcome === "completed");
 
   // Get outcome for today view tasks, subtasks, and backlog items
   const outcome = taskMeta.outcome ?? null;
@@ -670,6 +805,15 @@ export const TaskItem = ({
     // For goal tasks, handle completion with outcome system
     if (isGoalTask) {
       // Goal tasks use outcome system like text/selection tasks
+      if (onOutcomeChange && viewDate) {
+        onOutcomeChange(task.id, viewDate, newOutcome);
+      }
+      return;
+    }
+
+    // For sleep tasks, handle completion with outcome system
+    if (isSleepTask) {
+      // Sleep tasks use outcome system like text/selection tasks
       if (onOutcomeChange && viewDate) {
         onOutcomeChange(task.id, viewDate, newOutcome);
       }
@@ -837,11 +981,14 @@ export const TaskItem = ({
                         : // For goal tasks, use outcome from completion record
                           isGoalTask
                           ? existingCompletion?.outcome || null
-                          : // For workout tasks, use outcome from completion
-                            isWorkoutTask
-                            ? outcome
-                            : // For regular tasks, use outcome or null
-                              outcome
+                          : // For sleep tasks, use outcome from completion record
+                            isSleepTask
+                            ? existingCompletion?.outcome || null
+                            : // For workout tasks, use outcome from completion
+                              isWorkoutTask
+                              ? outcome
+                              : // For regular tasks, use outcome or null
+                                outcome
                   }
                   onOutcomeChange={handleOutcomeChange}
                   onMenuOpen={handleCompletionMenuOpen}
@@ -856,11 +1003,14 @@ export const TaskItem = ({
                         : // For goal tasks, show checked if completed
                           isGoalTask
                           ? isGoalTaskCompleted
-                          : // For workout tasks, show checked if completed
-                            isWorkoutTask
-                            ? isWorkoutTaskCompleted
-                            : // For non-recurring tasks without outcomes, use isChecked
-                              !shouldShowMenu && isChecked
+                          : // For sleep tasks, show checked if completed
+                            isSleepTask
+                            ? isSleepTaskCompleted
+                            : // For workout tasks, show checked if completed
+                              isWorkoutTask
+                              ? isWorkoutTaskCompleted
+                              : // For non-recurring tasks without outcomes, use isChecked
+                                !shouldShowMenu && isChecked
                   }
                   disabled={false}
                   size="lg"
@@ -983,6 +1133,17 @@ export const TaskItem = ({
                   existingCompletion={existingCompletion}
                   onSave={onCompleteWithNote}
                   compact={false}
+                />
+              </Box>
+            )}
+            {/* Sleep Input for sleep-type tasks */}
+            {isSleepTask && (isToday || isBacklog) && (
+              <Box sx={{ width: "100%", mt: 1 }} key={`sleep-input-${task.id}-${viewDate?.toISOString()}`}>
+                <SleepInputTask
+                  taskId={task.id}
+                  savedOptions={existingCompletion?.selectedOptions}
+                  isNotCompleted={isNotCompleted}
+                  onCompleteWithNote={onCompleteWithNote}
                 />
               </Box>
             )}
