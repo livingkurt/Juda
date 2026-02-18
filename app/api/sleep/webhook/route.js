@@ -15,10 +15,11 @@ export async function POST(request) {
     }
 
     const body = await request.json();
+    console.log("Sleep webhook received body:", JSON.stringify(body));
     const { email, date, sleepStart, sleepEnd, durationMinutes, source } = body;
 
     if (!email || !date) {
-      return NextResponse.json({ error: "email and date are required" }, { status: 400 });
+      return NextResponse.json({ error: "email and date are required", receivedBody: body }, { status: 400 });
     }
 
     // Find user by email
