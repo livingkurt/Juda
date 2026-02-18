@@ -619,7 +619,7 @@ export default function WorkoutModal() {
                     onActualValueChange={(dayId, exerciseId, setNumber, field, value) => {
                       handleActualValueChange(section.id, dayId, exerciseId, setNumber, field, value);
                     }}
-                    currentWeek={currentWeek}
+                    currentWeek={weekInCycle}
                   />
                 </Paper>
               );
