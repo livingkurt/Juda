@@ -6,11 +6,9 @@ import { eq, and } from "drizzle-orm";
 // Parse flexible date strings like "Feb 18, 2026 at 8:51 AM"
 function parseFlexibleDate(str) {
   if (!str || str.trim() === "") return null;
-  // Remove "at" which Date() doesn't understand
   const cleaned = str.replace(" at ", " ");
   const d = new Date(cleaned);
   if (!isNaN(d.getTime())) return d;
-  // Try original string
   const d2 = new Date(str);
   if (!isNaN(d2.getTime())) return d2;
   return null;
@@ -18,6 +16,29 @@ function parseFlexibleDate(str) {
 
 function toDateString(d) {
   return d.toISOString().split("T")[0];
+}
+
+// Parse all timestamps from a newline-separated string
+function parseAllDates(str) {
+  if (!str || typeof str !== "string") return [];
+  return str.split("\n").map(l => l.trim()).filter(l => l).map(parseFlexibleDate).filter(d => d !== null);
+}
+
+// Find the last sleep session from a list of timestamps
+// A "gap" of > 4 hours between consecutive timestamps means a new session
+function getLastSession(dates) {
+  if (dates.length === 0) return [];
+  const sorted = [...dates].sort((a, b) => a - b);
+  
+  let sessionStart = 0;
+  for (let i = 1; i < sorted.length; i++) {
+    const gap = (sorted[i] - sorted[i - 1]) / (1000 * 60 * 60); // hours
+    if (gap > 4) {
+      sessionStart = i; // New session begins here
+    }
+  }
+  
+  return sorted.slice(sessionStart);
 }
 
 // POST /api/sleep/webhook
@@ -49,29 +70,31 @@ export async function POST(request) {
     let sleepDate = null;
     let duration = null;
 
-    // Parse newline-separated date lists from iOS Shortcuts
-    function getFirstAndLast(str) {
-      if (!str || typeof str !== "string") return [null, null];
-      const lines = str.split("\n").map(l => l.trim()).filter(l => l);
-      if (lines.length === 0) return [null, null];
-      return [parseFlexibleDate(lines[0]), parseFlexibleDate(lines[lines.length - 1])];
-    }
-
-    // Strategy 1: Separate startDates/endDates fields
-    if (startDates) {
-      const [first] = getFirstAndLast(startDates);
-      if (first) parsedStart = first;
-    }
-    if (endDates) {
-      const [, last] = getFirstAndLast(endDates);
-      if (last) parsedEnd = last;
+    // Strategy 1: Parse startDates/endDates from iOS Shortcuts
+    // These are newline-separated lists of all sleep stage timestamps
+    // We find the last sleep session (gap > 4h = new session)
+    if (startDates || endDates) {
+      const allStarts = parseAllDates(startDates);
+      const allEnds = parseAllDates(endDates);
+      const allTimestamps = [...allStarts, ...allEnds].sort((a, b) => a - b);
+      
+      const lastSession = getLastSession(allTimestamps);
+      if (lastSession.length >= 2) {
+        parsedStart = lastSession[0];
+        parsedEnd = lastSession[lastSession.length - 1];
+      } else if (lastSession.length === 1) {
+        parsedStart = lastSession[0];
+      }
     }
 
     // Strategy 2: Combined timestamps field
     if (!parsedStart && timestamps) {
-      const [first, last] = getFirstAndLast(timestamps);
-      if (first) parsedStart = first;
-      if (last && !parsedEnd) parsedEnd = last;
+      const allDates = parseAllDates(timestamps);
+      const lastSession = getLastSession(allDates);
+      if (lastSession.length >= 2) {
+        parsedStart = lastSession[0];
+        parsedEnd = lastSession[lastSession.length - 1];
+      }
     }
 
     // Strategy 3: Explicit sleepStart/sleepEnd
@@ -96,7 +119,7 @@ export async function POST(request) {
       duration = Math.round((parsedEnd - parsedStart) / (1000 * 60));
     }
 
-    console.log(`Sleep webhook parsed: date=${sleepDate}, start=${parsedStart}, end=${parsedEnd}, duration=${duration}min`);
+    console.log(`Sleep webhook parsed: date=${sleepDate}, start=${parsedStart?.toISOString()}, end=${parsedEnd?.toISOString()}, duration=${duration}min`);
 
     // Upsert sleep entry
     const existing = await db
