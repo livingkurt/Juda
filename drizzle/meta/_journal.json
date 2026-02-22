@@ -344,6 +344,13 @@
       "when": 1771450753169,
       "tag": "0049_add_sleep_task_type",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1771784989951,
+      "tag": "0050_import_autosleep_sleep_completions",
+      "breakpoints": true
     }
   ]
 }

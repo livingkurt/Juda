@@ -329,6 +329,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
       "workout",
       "goal",
       "reflection",
+      "sleep",
     ]);
     updateData.completionType = completionType;
   }

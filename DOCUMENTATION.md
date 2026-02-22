@@ -2,6 +2,25 @@
 
 ## 2026-02-22
 
+### AutoSleep CSV sleep completion backfill + duration alignment
+
+**Problem**: Sleep completions needed to be backfilled from the provided AutoSleep CSV, and sleep duration must match AutoSleep's "asleep" value (which already excludes awake time) instead of being derived from sleep start/end timestamps.
+
+**Solution**:
+1. Generated Drizzle migration `0050_import_autosleep_sleep_completions.sql` using `npm run db:generate import_autosleep_sleep_completions`.
+2. Added a data migration that upserts one `TaskCompletion` per day for the sleep task across `2026-01-01` to `2026-02-22`.
+3. Stored sleep completion payload in `TaskCompletion.selectedOptions` with:
+   - `sleepStart` (ISO timestamp),
+   - `sleepEnd` (ISO timestamp),
+   - `durationMinutes` (from AutoSleep `asleep`, not computed),
+   - `source: "autosleep_csv"`.
+4. Updated `app/api/sleep/webhook/route.js` duration logic to prioritize:
+   - `durationMinutes`,
+   - then `asleep` (`HH:MM:SS` -> minutes),
+   - and only fall back to `sleepEnd - sleepStart` for non-AutoSleep sources.
+
+**Why**: This keeps imported and webhook sleep data faithful to AutoSleep's actual asleep duration and avoids overstating sleep when wake periods happen during a sleep session.
+
 ### Update DB Dump/Restore/Sync for Self-Hosted Flow
 
 **Problem**: `db:dump`/`db:sync` still used old production-oriented assumptions, and failed dumps could still produce 0-byte files that were later "restored" as if successful.

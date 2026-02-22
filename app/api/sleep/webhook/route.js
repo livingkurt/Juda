@@ -18,6 +18,24 @@ function toDateString(d) {
   return d.toISOString().split("T")[0];
 }
 
+function parseDurationToMinutes(value) {
+  if (!value || typeof value !== "string") return null;
+  const parts = value.trim().split(":").map(Number);
+  if (parts.some(Number.isNaN)) return null;
+
+  if (parts.length === 3) {
+    const [hours, minutes, seconds] = parts;
+    return hours * 60 + minutes + Math.round(seconds / 60);
+  }
+
+  if (parts.length === 2) {
+    const [hours, minutes] = parts;
+    return hours * 60 + minutes;
+  }
+
+  return null;
+}
+
 // Parse all timestamps from a newline-separated string
 function parseAllDates(str) {
   if (!str || typeof str !== "string") return [];
@@ -54,7 +72,8 @@ export async function POST(request) {
     const body = await request.json();
     console.log("Sleep webhook received body:", JSON.stringify(body).substring(0, 500));
 
-    const { email, source, timestamps, startDates, endDates, sleepStart, sleepEnd, date, durationMinutes } = body;
+    const { email, source, timestamps, startDates, endDates, sleepStart, sleepEnd, date, durationMinutes, asleep } =
+      body;
 
     // Find user by email
     if (!email) {
@@ -112,10 +131,19 @@ export async function POST(request) {
       sleepDate = toDateString(new Date());
     }
 
-    // Calculate duration
+    // Duration priority:
+    // 1) Explicit durationMinutes from source
+    // 2) AutoSleep "asleep" value (already excludes awake gaps)
+    // 3) Fallback math from start/end only for non-AutoSleep sources
+    const normalizedSource = typeof source === "string" ? source.toLowerCase() : "";
+    const isAutoSleepSource = normalizedSource.includes("autosleep") || normalizedSource === "apple_health";
+
     if (durationMinutes && durationMinutes !== "") {
-      duration = Number(durationMinutes);
-    } else if (parsedStart && parsedEnd) {
+      const parsed = Number(durationMinutes);
+      duration = Number.isFinite(parsed) ? parsed : null;
+    } else if (asleep && asleep !== "") {
+      duration = parseDurationToMinutes(asleep);
+    } else if (!isAutoSleepSource && parsedStart && parsedEnd) {
       duration = Math.round((parsedEnd - parsedStart) / (1000 * 60));
     }
 
