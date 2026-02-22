@@ -1,5 +1,29 @@
 # Project Decisions Log
 
+## 2026-02-22
+
+### Update DB Dump/Restore/Sync for Self-Hosted Flow
+
+**Problem**: `db:dump`/`db:sync` still used old production-oriented assumptions, and failed dumps could still produce 0-byte files that were later "restored" as if successful.
+
+**Solution**:
+1. `scripts/db-dump.sh` now resolves source DB URL in this order: `SOURCE_DATABASE_URL` → `SELF_HOSTED_DATABASE_URL` → `PRODUCTION_DATABASE_URL`.
+2. `scripts/db-restore.sh` now resolves target DB URL in this order: `TARGET_DATABASE_URL` → `DATABASE_URL` → `SELF_HOSTED_DATABASE_URL`.
+3. Added guardrails:
+   - dump now exits on `pg_dump` failure
+   - dump now fails if file is empty
+   - restore now fails early on empty dump files
+4. Replaced `db:sync` command with new `scripts/db-sync.sh` that performs source→target sync using the same env priorities.
+5. Updated docs/examples so commands and env names reflect the self-hosted workflow.
+
+**Files Updated**:
+- `scripts/db-dump.sh`
+- `scripts/db-restore.sh`
+- `scripts/db-sync.sh` (new)
+- `package.json`
+- `.env.example`
+- `README.md`
+
 ## 2026-02-11
 
 ### Workout Repeat Forever (No Cycles)
@@ -907,3 +931,29 @@
 - Improved task creation error logging in `useTaskOperations` to print structured RTK Query error details (`error.data.error`, status payload) instead of `[object Object]`.
 - Hardened `/api/tasks` POST response path so a missing relation re-fetch or broadcast failure no longer turns a successful DB insert into a 500.
 - Added explicit title required validation and support for optional `status`/`startedAt` on task create to keep create behavior consistent with existing update semantics.
+
+## 2026-02-22
+
+### History recurring task consistency analytics
+
+- Added a recurring-task consistency analytics modal in `components/tabs/HistoryTab.jsx` that opens by clicking a task column header in the History table.
+- Modal includes an in-place recurring task selector so users can switch tasks and refresh analytics without leaving the modal.
+- Added a day/week/month/year bar chart and per-period completion stats (scheduled, completed, missed, rolled over, and completion percentage).
+- Wired analytics to a trailing 365-day completion query so week/month/year views use complete recent history independent of the currently visible History range.
+
+### Sleep column migration alignment fix
+
+- Resolved runtime 500s on `/api/tasks/notes` and `/api/tasks/recurring` caused by DB schema drift where `Task.sleepData` was missing.
+- Applied pending Drizzle migrations with `npm run db:migrate` so runtime schema matches `lib/schema.js`.
+- Verified `sleepData` now exists in the `Task` table and endpoint behavior returned to auth-level responses instead of SQL column errors.
+
+### History header click behavior refinement
+
+- Updated `HistoryTab` so clicking a task column header always opens the recurring consistency analytics modal.
+- Removed direct “click title to edit” behavior from the task header; editing remains available via the 3-dot action menu.
+
+### History analytics view redesign (YTD outcomes)
+
+- Replaced the day/week/month/year split analytics with a single year-to-date comparison view in the History consistency modal.
+- Added four outcome categories based on scheduled days since Jan 1: Completed, Not completed, Rolled over, and Unchecked (scheduled with no completion record).
+- Added color-coded bars and a matching legend/breakdown so outcomes are readable at a glance.

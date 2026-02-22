@@ -336,11 +336,14 @@ npm run db:migrate
 # Open Drizzle Studio
 npm run db:studio
 
-# Dump production database (if configured)
+# Dump source database (self-hosted/remote if configured)
 npm run db:dump
 
-# Restore to development (if configured)
-npm run db:restore-dev
+# Restore latest dump to target database (local by default)
+npm run db:restore
+
+# Sync source -> target in one step
+npm run db:sync
 ```
 
 ## Deployment

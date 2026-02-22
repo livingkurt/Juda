@@ -233,6 +233,70 @@ const MemoizedCompletionCell = memo(function MemoizedCompletionCell({
   );
 });
 
+const OUTCOME_DEFINITIONS = [
+  { key: "completed", label: "Completed", color: "success.main" },
+  { key: "notCompleted", label: "Not completed", color: "error.main" },
+  { key: "rolledOver", label: "Rolled over", color: "warning.main" },
+  { key: "unchecked", label: "Unchecked", color: "grey.500" },
+];
+
+const buildYearToDateDates = () => {
+  const today = dayjs().startOf("day");
+  const startOfYear = today.startOf("year");
+  const result = [];
+  let current = startOfYear;
+  while (current.isBefore(today) || current.isSame(today, "day")) {
+    result.push(current.format("YYYY-MM-DD"));
+    current = current.add(1, "day");
+  }
+  return result;
+};
+
+const computeYearToDateStats = (task, getCompletionForDate, getOutcomeOnDate) => {
+  const dates = buildYearToDateDates();
+  const stats = {
+    scheduled: 0,
+    completed: 0,
+    notCompleted: 0,
+    rolledOver: 0,
+    unchecked: 0,
+  };
+
+  dates.forEach(date => {
+    const scheduled = shouldShowOnDate(task, date, getOutcomeOnDate);
+    if (!scheduled) return;
+
+    stats.scheduled += 1;
+    const completion = getCompletionForDate(task.id, date);
+    if (!completion) {
+      stats.unchecked += 1;
+      return;
+    }
+
+    if (completion.outcome === "completed") stats.completed += 1;
+    else if (completion.outcome === "not_completed") stats.notCompleted += 1;
+    else if (completion.outcome === "rolled_over") stats.rolledOver += 1;
+    else stats.unchecked += 1;
+  });
+
+  const completionRate = stats.scheduled > 0 ? Math.round((stats.completed / stats.scheduled) * 100) : 0;
+  const outcomeBreakdown = OUTCOME_DEFINITIONS.map(item => {
+    const count = stats[item.key];
+    const percentage = stats.scheduled > 0 ? Math.round((count / stats.scheduled) * 100) : 0;
+    return {
+      ...item,
+      count,
+      percentage,
+    };
+  });
+
+  return {
+    ...stats,
+    completionRate,
+    outcomeBreakdown,
+  };
+};
+
 // Completion Cell Component
 const CompletionCell = memo(function CompletionCell({
   task,
@@ -489,6 +553,10 @@ export function HistoryTab({ isLoading: tabLoading }) {
   const [selectedTask, setSelectedTask] = useState(null);
   const [expandedTaskIds, setExpandedTaskIds] = useState(new Set());
   const deferredExpandedTaskIds = useDeferredValue(expandedTaskIds);
+  const [taskAnalyticsModal, setTaskAnalyticsModal] = useState({
+    open: false,
+    selectedTaskId: null,
+  });
 
   // Generate dates
   const dates = useMemo(() => generateDates(range, page), [range, page]);
@@ -510,6 +578,14 @@ export function HistoryTab({ isLoading: tabLoading }) {
     { skip: !dateRangeStart || !dateRangeEnd }
   );
 
+  const analyticsStartDate = useMemo(() => dayjs().startOf("day").subtract(364, "day").toISOString(), []);
+  const analyticsEndDate = useMemo(() => dayjs().endOf("day").toISOString(), []);
+
+  const { data: analyticsCompletions = [] } = useGetCompletionsByDateRangeQuery({
+    startDate: analyticsStartDate,
+    endDate: analyticsEndDate,
+  });
+
   const completionsByTaskAndDate = useMemo(() => {
     const map = new Map();
     rangeCompletions.forEach(completion => {
@@ -519,6 +595,16 @@ export function HistoryTab({ isLoading: tabLoading }) {
     });
     return map;
   }, [rangeCompletions]);
+
+  const analyticsCompletionsByTaskAndDate = useMemo(() => {
+    const map = new Map();
+    analyticsCompletions.forEach(completion => {
+      const dateStr = dayjs(completion.date).format("YYYY-MM-DD");
+      const key = `${completion.taskId}|${dateStr}`;
+      map.set(key, completion);
+    });
+    return map;
+  }, [analyticsCompletions]);
 
   const getCompletionForDate = useCallback(
     (taskId, date) => {
@@ -535,6 +621,23 @@ export function HistoryTab({ isLoading: tabLoading }) {
       return completion?.outcome || null;
     },
     [getCompletionForDate]
+  );
+
+  const getAnalyticsCompletionForDate = useCallback(
+    (taskId, date) => {
+      const dateStr = dayjs(date).format("YYYY-MM-DD");
+      const key = `${taskId}|${dateStr}`;
+      return analyticsCompletionsByTaskAndDate.get(key) || null;
+    },
+    [analyticsCompletionsByTaskAndDate]
+  );
+
+  const getAnalyticsOutcomeOnDate = useCallback(
+    (taskId, date) => {
+      const completion = getAnalyticsCompletionForDate(taskId, date);
+      return completion?.outcome || null;
+    },
+    [getAnalyticsCompletionForDate]
   );
 
   // Get the first date of the range for DateNavigation (or today if no dates)
@@ -605,6 +708,50 @@ export function HistoryTab({ isLoading: tabLoading }) {
   const totalTasks = useMemo(() => {
     return allTasks.length;
   }, [allTasks]);
+
+  const recurringTaskOptions = useMemo(() => {
+    const seen = new Set();
+    return allTasks.filter(task => {
+      if (seen.has(task.id)) return false;
+      seen.add(task.id);
+      return true;
+    });
+  }, [allTasks]);
+
+  const selectedAnalyticsTask = useMemo(
+    () =>
+      recurringTaskOptions.find(task => task.id === taskAnalyticsModal.selectedTaskId) ||
+      recurringTaskOptions[0] ||
+      null,
+    [taskAnalyticsModal.selectedTaskId, recurringTaskOptions]
+  );
+
+  const analyticsYearToDate = useMemo(() => {
+    if (!selectedAnalyticsTask) return null;
+    return computeYearToDateStats(selectedAnalyticsTask, getAnalyticsCompletionForDate, getAnalyticsOutcomeOnDate);
+  }, [selectedAnalyticsTask, getAnalyticsCompletionForDate, getAnalyticsOutcomeOnDate]);
+
+  const analyticsByTaskId = useMemo(() => {
+    const map = new Map();
+    recurringTaskOptions.forEach(task => {
+      map.set(task.id, computeYearToDateStats(task, getAnalyticsCompletionForDate, getAnalyticsOutcomeOnDate));
+    });
+    return map;
+  }, [recurringTaskOptions, getAnalyticsCompletionForDate, getAnalyticsOutcomeOnDate]);
+
+  const openTaskAnalytics = useCallback(taskId => {
+    setTaskAnalyticsModal({
+      open: true,
+      selectedTaskId: taskId,
+    });
+  }, []);
+
+  const closeTaskAnalytics = useCallback(() => {
+    setTaskAnalyticsModal(prev => ({
+      ...prev,
+      open: false,
+    }));
+  }, []);
 
   // Toggle task expansion
   const toggleTaskExpansion = useCallback(taskId => {
@@ -880,6 +1027,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
                   <TableCell
                     key={task.id}
                     align="center"
+                    onClick={() => openTaskAnalytics(task.id)}
                     sx={{
                       minWidth: 100,
                       maxWidth: 150,
@@ -889,6 +1037,8 @@ export function HistoryTab({ isLoading: tabLoading }) {
                       position: "relative",
                       pl: isSubtask ? 3 : 1,
                       bgcolor: isSubtask ? "action.hover" : "transparent",
+                      cursor: "pointer",
+                      "&:hover": { bgcolor: "action.selected" },
                     }}
                   >
                     <Stack direction="row" alignItems="center" spacing={0.5} justifyContent="flex-start">
@@ -929,10 +1079,8 @@ export function HistoryTab({ isLoading: tabLoading }) {
                           sx={{
                             flex: 1,
                             cursor: "pointer",
-                            "&:hover": { color: "primary.main" },
                             fontWeight: isSubtask ? 400 : 500,
                           }}
-                          onClick={() => taskOps.handleEditTask(task)}
                         >
                           {task.title}
                           {hasSubtasks && !isExpanded && (
@@ -958,6 +1106,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
                       <IconButton
                         size="small"
                         onClick={e => {
+                          e.stopPropagation();
                           setSelectedTask(task);
                           setTaskMenuAnchor(e.currentTarget);
                         }}
@@ -966,6 +1115,60 @@ export function HistoryTab({ isLoading: tabLoading }) {
                         <MoreVert fontSize="small" sx={{ fontSize: "0.875rem" }} />
                       </IconButton>
                     </Stack>
+                    {(() => {
+                      const taskAnalytics = analyticsByTaskId.get(task.id);
+                      if (!taskAnalytics || taskAnalytics.scheduled === 0) {
+                        return (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ mt: 0.75, display: "block", textAlign: "left" }}
+                          >
+                            No schedule YTD
+                          </Typography>
+                        );
+                      }
+
+                      return (
+                        <Tooltip
+                          title={taskAnalytics.outcomeBreakdown
+                            .map(
+                              item => `${item.label}: ${item.count}/${taskAnalytics.scheduled} (${item.percentage}%)`
+                            )
+                            .join(" • ")}
+                        >
+                          <Box sx={{ mt: 0.75 }}>
+                            <Box
+                              sx={{
+                                height: 8,
+                                borderRadius: 999,
+                                overflow: "hidden",
+                                display: "flex",
+                                bgcolor: "action.hover",
+                              }}
+                            >
+                              {taskAnalytics.outcomeBreakdown.map(item => (
+                                <Box
+                                  key={`${task.id}-${item.key}`}
+                                  sx={{
+                                    width: `${item.percentage}%`,
+                                    bgcolor: item.color,
+                                    minWidth: item.count > 0 ? 2 : 0,
+                                  }}
+                                />
+                              ))}
+                            </Box>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ mt: 0.25, display: "block", textAlign: "left" }}
+                            >
+                              {taskAnalytics.completed}/{taskAnalytics.scheduled} ({taskAnalytics.completionRate}%)
+                            </Typography>
+                          </Box>
+                        </Tooltip>
+                      );
+                    })()}
                   </TableCell>
                 );
               })}
@@ -1105,6 +1308,118 @@ export function HistoryTab({ isLoading: tabLoading }) {
                 }
               />
             </Box>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={taskAnalyticsModal.open} onClose={closeTaskAnalytics} fullWidth maxWidth="md">
+        <DialogTitle>
+          Recurring Task Consistency
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+            Year-to-date outcomes (Jan 1 through today)
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          {recurringTaskOptions.length === 0 ? (
+            <Typography color="text.secondary">No recurring tasks available.</Typography>
+          ) : (
+            <Stack spacing={3} sx={{ pt: 1 }}>
+              <TextField
+                select
+                label="Recurring Task"
+                value={selectedAnalyticsTask?.id || ""}
+                onChange={e =>
+                  setTaskAnalyticsModal(prev => ({
+                    ...prev,
+                    selectedTaskId: e.target.value,
+                  }))
+                }
+                fullWidth
+              >
+                {recurringTaskOptions.map(task => (
+                  <MenuItem key={task.id} value={task.id}>
+                    {task.title}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              {analyticsYearToDate && (
+                <>
+                  <Box sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 1 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                      <Typography variant="body2" fontWeight={600}>
+                        Year-to-date completion
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {analyticsYearToDate.completionRate}%
+                      </Typography>
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary">
+                      Scheduled days: {analyticsYearToDate.scheduled}
+                    </Typography>
+                  </Box>
+
+                  <Stack direction="row" spacing={2} alignItems="flex-end" sx={{ minHeight: 220 }}>
+                    {analyticsYearToDate.outcomeBreakdown.map(item => (
+                      <Stack key={item.key} spacing={1} alignItems="center" sx={{ flex: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          {item.percentage}%
+                        </Typography>
+                        <Box
+                          sx={{
+                            width: "100%",
+                            maxWidth: 96,
+                            height: 140,
+                            border: 1,
+                            borderColor: "divider",
+                            borderRadius: 1,
+                            display: "flex",
+                            alignItems: "flex-end",
+                            overflow: "hidden",
+                            bgcolor: "action.hover",
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: "100%",
+                              height: `${Math.max(item.percentage, item.count > 0 ? 4 : 0)}%`,
+                              transition: "height 200ms ease",
+                              bgcolor: item.color,
+                            }}
+                          />
+                        </Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {item.label}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {item.count}/{analyticsYearToDate.scheduled}
+                        </Typography>
+                      </Stack>
+                    ))}
+                  </Stack>
+
+                  <Stack spacing={1}>
+                    {analyticsYearToDate.outcomeBreakdown.map(item => (
+                      <Stack
+                        key={`${item.key}-legend`}
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                        sx={{ p: 1.25, border: 1, borderColor: "divider", borderRadius: 1 }}
+                      >
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Box sx={{ width: 12, height: 12, borderRadius: "50%", bgcolor: item.color }} />
+                          <Typography variant="body2">{item.label}</Typography>
+                        </Stack>
+                        <Typography variant="body2" color="text.secondary">
+                          {item.count} ({item.percentage}%)
+                        </Typography>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </>
+              )}
+            </Stack>
           )}
         </DialogContent>
       </Dialog>

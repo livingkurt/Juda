@@ -18,7 +18,7 @@
     "db:dump": "bash scripts/db-dump.sh",
     "db:restore": "bash scripts/db-restore.sh",
     "db:transfer": "bash scripts/db-transfer.sh",
-    "db:sync": "npm run db:dump && npm run db:restore",
+    "db:sync": "bash scripts/db-sync.sh",
     "clean-install": "rm -rf node_modules && rm -rf package-lock.json && npm install"
   },
   "dependencies": {
