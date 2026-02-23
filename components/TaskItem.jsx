@@ -261,86 +261,145 @@ const SelectionInputTask = ({ taskId, savedNote, savedOptions, isNotCompleted, o
   );
 };
 
-// Component to handle sleep input with time pickers
+// Component to handle sleep input with start/end/duration fields
 const SleepInputTask = ({ taskId, savedOptions, isNotCompleted, onCompleteWithNote }) => {
   const sleepData = savedOptions || {};
+  const getDurationParts = useCallback(data => {
+    if (Number.isFinite(data?.durationHours) || Number.isFinite(data?.durationMinutesPart)) {
+      return {
+        hours: Number.isFinite(data?.durationHours) ? Math.max(0, Math.floor(data.durationHours)) : 0,
+        minutes: Number.isFinite(data?.durationMinutesPart) ? Math.max(0, Math.floor(data.durationMinutesPart)) : 0,
+      };
+    }
+
+    const totalMinutes = Number.isFinite(data?.durationMinutes) ? Math.max(0, Math.floor(data.durationMinutes)) : null;
+    if (totalMinutes === null) {
+      return { hours: "", minutes: "" };
+    }
+
+    return {
+      hours: Math.floor(totalMinutes / 60),
+      minutes: totalMinutes % 60,
+    };
+  }, []);
+
+  const initialDuration = getDurationParts(sleepData);
   const [sleepStart, setSleepStart] = useState(
     sleepData.sleepStart ? new Date(sleepData.sleepStart).toTimeString().slice(0, 5) : ""
   );
   const [sleepEnd, setSleepEnd] = useState(
     sleepData.sleepEnd ? new Date(sleepData.sleepEnd).toTimeString().slice(0, 5) : ""
   );
+  const [durationHoursInput, setDurationHoursInput] = useState(
+    initialDuration.hours === "" ? "" : String(initialDuration.hours)
+  );
+  const [durationMinutesInput, setDurationMinutesInput] = useState(
+    initialDuration.minutes === "" ? "" : String(initialDuration.minutes)
+  );
+  const [prevSavedOptions, setPrevSavedOptions] = useState(savedOptions);
   const [isFocused, setIsFocused] = useState(false);
 
-  // Calculate duration in minutes
-  const calculateDuration = useCallback((start, end) => {
-    if (!start || !end) return null;
-    const startTime = new Date(`2000-01-01T${start}:00`);
-    let endTime = new Date(`2000-01-01T${end}:00`);
-    
-    // Handle overnight sleep (end time is next day)
-    if (endTime <= startTime) {
-      endTime = new Date(`2000-01-02T${end}:00`);
-    }
-    
-    return Math.round((endTime - startTime) / (1000 * 60));
-  }, []);
-
-  const duration = calculateDuration(sleepStart, sleepEnd);
+  // Sync local state when completion data changes externally
+  if (prevSavedOptions !== savedOptions && !isFocused) {
+    setPrevSavedOptions(savedOptions);
+    setSleepStart(sleepData.sleepStart ? new Date(sleepData.sleepStart).toTimeString().slice(0, 5) : "");
+    setSleepEnd(sleepData.sleepEnd ? new Date(sleepData.sleepEnd).toTimeString().slice(0, 5) : "");
+    const syncedDuration = getDurationParts(sleepData);
+    setDurationHoursInput(syncedDuration.hours === "" ? "" : String(syncedDuration.hours));
+    setDurationMinutesInput(syncedDuration.minutes === "" ? "" : String(syncedDuration.minutes));
+  }
 
   // Save function wrapper
-  const saveSleep = useCallback((start, end) => {
-    if (start && end) {
+  const saveSleep = useCallback(
+    (start, end, durationHoursValue, durationMinutesValue) => {
+      const parsedHours = Number(durationHoursValue);
+      const parsedMinutes = Number(durationMinutesValue);
+      const hasHours = durationHoursValue !== "" && Number.isFinite(parsedHours) && parsedHours >= 0;
+      const hasMinutes = durationMinutesValue !== "" && Number.isFinite(parsedMinutes) && parsedMinutes >= 0;
+      const hasDuration = hasHours || hasMinutes;
+
+      if (!start && !end && !hasDuration) return;
+
+      let normalizedHours = hasHours ? Math.floor(parsedHours) : 0;
+      let normalizedMinutes = hasMinutes ? Math.floor(parsedMinutes) : 0;
+      normalizedHours += Math.floor(normalizedMinutes / 60);
+      normalizedMinutes %= 60;
+
       const today = new Date();
-      const startDateTime = new Date(today);
-      const endDateTime = new Date(today);
-      
-      // Set start time (usually previous night)
-      const [startHour, startMin] = start.split(':');
-      startDateTime.setHours(parseInt(startHour), parseInt(startMin), 0, 0);
-      
-      // If start time is after 18:00, assume it's the previous night
-      if (parseInt(startHour) >= 18) {
-        startDateTime.setDate(startDateTime.getDate() - 1);
+      let startIso = null;
+      let endIso = null;
+
+      if (start) {
+        const [startHour, startMin] = start.split(":");
+        const startDateTime = new Date(today);
+        startDateTime.setHours(parseInt(startHour, 10), parseInt(startMin, 10), 0, 0);
+
+        // If start time is after 18:00, assume it's the previous night
+        if (parseInt(startHour, 10) >= 18) {
+          startDateTime.setDate(startDateTime.getDate() - 1);
+        }
+        startIso = startDateTime.toISOString();
       }
-      
-      // Set end time (wake up time)
-      const [endHour, endMin] = end.split(':');
-      endDateTime.setHours(parseInt(endHour), parseInt(endMin), 0, 0);
-      
-      const durationMinutes = calculateDuration(start, end);
-      
+
+      if (end) {
+        const [endHour, endMin] = end.split(":");
+        const endDateTime = new Date(today);
+        endDateTime.setHours(parseInt(endHour, 10), parseInt(endMin, 10), 0, 0);
+        endIso = endDateTime.toISOString();
+      }
+
       const sleepData = {
-        sleepStart: startDateTime.toISOString(),
-        sleepEnd: endDateTime.toISOString(),
-        durationMinutes,
-        source: "manual"
+        sleepStart: startIso,
+        sleepEnd: endIso,
+        durationHours: hasDuration ? normalizedHours : null,
+        durationMinutesPart: hasDuration ? normalizedMinutes : null,
+        source: "manual",
       };
-      
+
       onCompleteWithNote?.(taskId, sleepData);
-    }
-  }, [calculateDuration, onCompleteWithNote, taskId]);
+    },
+    [onCompleteWithNote, taskId]
+  );
 
   const { debouncedSave, immediateSave } = useDebouncedSave(
-    (start, end) => saveSleep(start, end),
+    (start, end, durationHours, durationMinutes) => saveSleep(start, end, durationHours, durationMinutes),
     1000
   );
 
-  const handleStartChange = (e) => {
+  const handleStartChange = e => {
     const newStart = e.target.value;
     setSleepStart(newStart);
-    debouncedSave(newStart, sleepEnd);
+    debouncedSave(newStart, sleepEnd, durationHoursInput, durationMinutesInput);
   };
 
-  const handleEndChange = (e) => {
+  const handleEndChange = e => {
     const newEnd = e.target.value;
     setSleepEnd(newEnd);
-    debouncedSave(sleepStart, newEnd);
+    debouncedSave(sleepStart, newEnd, durationHoursInput, durationMinutesInput);
+  };
+
+  const handleDurationHoursChange = e => {
+    const newValue = e.target.value;
+    setDurationHoursInput(newValue);
+    debouncedSave(sleepStart, sleepEnd, newValue, durationMinutesInput);
+  };
+
+  const handleDurationMinutesChange = e => {
+    const newValue = e.target.value;
+    setDurationMinutesInput(newValue);
+    debouncedSave(sleepStart, sleepEnd, durationHoursInput, newValue);
   };
 
   return (
     <Box sx={{ position: "relative", width: "100%" }}>
-      <Stack direction="row" spacing={2} alignItems="center">
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: 2,
+          alignItems: "center",
+        }}
+      >
         <TextField
           label="Sleep Start"
           type="time"
@@ -350,13 +409,13 @@ const SleepInputTask = ({ taskId, savedOptions, isNotCompleted, onCompleteWithNo
           onFocus={() => setIsFocused(true)}
           onBlur={() => {
             setIsFocused(false);
-            immediateSave(sleepStart, sleepEnd);
+            immediateSave(sleepStart, sleepEnd, durationHoursInput, durationMinutesInput);
           }}
           disabled={isNotCompleted}
           onClick={e => e.stopPropagation()}
           onMouseDown={e => e.stopPropagation()}
           InputLabelProps={{ shrink: true }}
-          sx={{ flex: 1 }}
+          sx={{ width: "100%" }}
         />
         <TextField
           label="Sleep End"
@@ -367,20 +426,53 @@ const SleepInputTask = ({ taskId, savedOptions, isNotCompleted, onCompleteWithNo
           onFocus={() => setIsFocused(true)}
           onBlur={() => {
             setIsFocused(false);
-            immediateSave(sleepStart, sleepEnd);
+            immediateSave(sleepStart, sleepEnd, durationHoursInput, durationMinutesInput);
           }}
           disabled={isNotCompleted}
           onClick={e => e.stopPropagation()}
           onMouseDown={e => e.stopPropagation()}
           InputLabelProps={{ shrink: true }}
-          sx={{ flex: 1 }}
+          sx={{ width: "100%" }}
         />
-        <Box sx={{ minWidth: 80 }}>
-          <Typography variant="body2" color="text.secondary">
-            {duration ? `${Math.floor(duration / 60)}h ${duration % 60}m` : "—"}
-          </Typography>
-        </Box>
-      </Stack>
+        <TextField
+          label="Duration (h)"
+          type="number"
+          size="small"
+          value={durationHoursInput}
+          onChange={handleDurationHoursChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => {
+            setIsFocused(false);
+            immediateSave(sleepStart, sleepEnd, durationHoursInput, durationMinutesInput);
+          }}
+          placeholder="8"
+          disabled={isNotCompleted}
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+          inputProps={{ min: 0, step: 1 }}
+          InputLabelProps={{ shrink: true }}
+          sx={{ width: "100%" }}
+        />
+        <TextField
+          label="Duration (m)"
+          type="number"
+          size="small"
+          value={durationMinutesInput}
+          onChange={handleDurationMinutesChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => {
+            setIsFocused(false);
+            immediateSave(sleepStart, sleepEnd, durationHoursInput, durationMinutesInput);
+          }}
+          placeholder="17"
+          disabled={isNotCompleted}
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+          inputProps={{ min: 0, max: 59, step: 1 }}
+          InputLabelProps={{ shrink: true }}
+          sx={{ width: "100%" }}
+        />
+      </Box>
       {isNotCompleted && (
         <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
           Not Completed

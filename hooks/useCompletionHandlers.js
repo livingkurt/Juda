@@ -826,13 +826,15 @@ export function useCompletionHandlers({
 
         // Determine if this is a selection task with multiple options
         const isSelectionTask = task?.completionType === "selection";
+        const isSleepTask = task?.completionType === "sleep";
         const isArray = Array.isArray(noteOrOptions);
+        const isObject = noteOrOptions !== null && typeof noteOrOptions === "object" && !isArray;
 
         const completionData = {
           outcome: "completed",
         };
 
-        if (isSelectionTask && isArray) {
+        if ((isSelectionTask && isArray) || (isSleepTask && isObject)) {
           // For selection tasks, save to selectedOptions field
           completionData.selectedOptions = noteOrOptions;
         } else if (isArray) {

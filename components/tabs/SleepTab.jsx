@@ -39,6 +39,20 @@ const formatDuration = (minutes) => {
   return `${hours}h ${mins}m`;
 };
 
+const getDurationMinutes = (sleepData = {}) => {
+  if (Number.isFinite(sleepData.durationHours) || Number.isFinite(sleepData.durationMinutesPart)) {
+    const hours = Number.isFinite(sleepData.durationHours) ? sleepData.durationHours : 0;
+    const minutesPart = Number.isFinite(sleepData.durationMinutesPart) ? sleepData.durationMinutesPart : 0;
+    return Math.max(0, Math.floor(hours) * 60 + Math.floor(minutesPart));
+  }
+
+  if (Number.isFinite(sleepData.durationMinutes)) {
+    return Math.max(0, Math.floor(sleepData.durationMinutes));
+  }
+
+  return 0;
+};
+
 // Helper to get sleep quality based on duration
 const getSleepQuality = (minutes, targetMinutes = 8 * 60) => {
   if (!minutes) return null;
@@ -56,7 +70,8 @@ const SleepDayView = memo(({ selectedDate, sleepCompletions, sleepTask }) => {
   );
   
   const sleepData = completion?.selectedOptions || {};
-  const quality = getSleepQuality(sleepData.durationMinutes);
+  const durationMinutes = getDurationMinutes(sleepData);
+  const quality = getSleepQuality(durationMinutes);
 
   if (!completion) {
     return (
@@ -113,7 +128,7 @@ const SleepDayView = memo(({ selectedDate, sleepCompletions, sleepTask }) => {
                   </Typography>
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <Typography variant="h5">
-                      {formatDuration(sleepData.durationMinutes)}
+                      {formatDuration(durationMinutes)}
                     </Typography>
                     {quality && (
                       <Typography
@@ -197,8 +212,9 @@ const SleepListView = memo(({ selectedDate, sleepCompletions, viewType }) => {
   }
 
   // Calculate stats
-  const totalSleep = sortedCompletions.reduce((sum, completion) => 
-    sum + (completion.selectedOptions?.durationMinutes || 0), 0
+  const totalSleep = sortedCompletions.reduce(
+    (sum, completion) => sum + getDurationMinutes(completion.selectedOptions || {}),
+    0
   );
   const avgSleep = Math.round(totalSleep / sortedCompletions.length);
   
@@ -244,7 +260,8 @@ const SleepListView = memo(({ selectedDate, sleepCompletions, viewType }) => {
           {sortedCompletions.map((completion, index) => {
             const date = dayjs(completion.date);
             const sleepData = completion.selectedOptions || {};
-            const quality = getSleepQuality(sleepData.durationMinutes);
+            const durationMinutes = getDurationMinutes(sleepData);
+            const quality = getSleepQuality(durationMinutes);
 
             return (
               <div key={completion.id}>
@@ -261,7 +278,7 @@ const SleepListView = memo(({ selectedDate, sleepCompletions, viewType }) => {
                             {formatSleepTime(sleepData.sleepStart)} → {formatSleepTime(sleepData.sleepEnd)}
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {formatDuration(sleepData.durationMinutes)}
+                            {formatDuration(durationMinutes)}
                           </Typography>
                           {quality && (
                             <Typography
