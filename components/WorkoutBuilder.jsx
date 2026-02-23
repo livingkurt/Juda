@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable max-nested-callbacks */
 
 import { useState, useEffect, useRef, useCallback, memo } from "react";
 import {
@@ -104,6 +103,225 @@ function reorderItems(items, startIndex, endIndex) {
   const [removed] = reordered.splice(startIndex, 1);
   reordered.splice(endIndex, 0, removed);
   return reordered;
+}
+
+function cloneWeeklyProgressionWithIds(progressions = []) {
+  return progressions.map(wp => ({ ...wp, id: generateCuid() }));
+}
+
+function cloneExercisesWithIds(exercises = []) {
+  return exercises.map(exercise => ({
+    ...exercise,
+    id: generateCuid(),
+    weeklyProgression: cloneWeeklyProgressionWithIds(exercise.weeklyProgression || []),
+  }));
+}
+
+function cloneDaysWithIds(days = []) {
+  return days.map(day => ({
+    ...day,
+    id: generateCuid(),
+    exercises: cloneExercisesWithIds(day.exercises || []),
+  }));
+}
+
+function cloneSectionsWithIds(sections = []) {
+  return sections.map(section => ({
+    ...section,
+    id: generateCuid(),
+    days: cloneDaysWithIds(section.days || []),
+  }));
+}
+
+function buildDuplicatedCycle(sourceCycle, newCycleId, order) {
+  return {
+    id: newCycleId,
+    name: `${sourceCycle.name} (Copy)`,
+    numberOfWeeks: sourceCycle.numberOfWeeks,
+    order,
+    sections: cloneSectionsWithIds(sourceCycle.sections || []),
+  };
+}
+
+function updateDayInCycle(cycle, sectionId, dayId, updates) {
+  return {
+    ...cycle,
+    sections: cycle.sections.map(section =>
+      section.id === sectionId
+        ? {
+            ...section,
+            days: section.days.map(day => (day.id === dayId ? { ...day, ...updates } : day)),
+          }
+        : section
+    ),
+  };
+}
+
+function deleteDayInCycle(cycle, sectionId, dayId) {
+  return {
+    ...cycle,
+    sections: cycle.sections.map(section =>
+      section.id === sectionId ? { ...section, days: section.days.filter(day => day.id !== dayId) } : section
+    ),
+  };
+}
+
+function addExerciseInCycle(cycle, sectionId, dayId, newExercise) {
+  return {
+    ...cycle,
+    sections: cycle.sections.map(section =>
+      section.id === sectionId
+        ? {
+            ...section,
+            days: section.days.map(day =>
+              day.id === dayId ? { ...day, exercises: [...(day.exercises || []), newExercise] } : day
+            ),
+          }
+        : section
+    ),
+  };
+}
+
+function updateExerciseInCycle(cycle, sectionId, dayId, exerciseId, updates) {
+  return {
+    ...cycle,
+    sections: cycle.sections.map(section =>
+      section.id === sectionId
+        ? {
+            ...section,
+            days: section.days.map(day => updateDayExercises(day, dayId, exerciseId, updates)),
+          }
+        : section
+    ),
+  };
+}
+
+function deleteExerciseInCycle(cycle, sectionId, dayId, exerciseId) {
+  return {
+    ...cycle,
+    sections: cycle.sections.map(section =>
+      section.id === sectionId
+        ? {
+            ...section,
+            days: section.days.map(day => deleteDayExercise(day, dayId, exerciseId)),
+          }
+        : section
+    ),
+  };
+}
+
+function reorderExercisesInCycle(cycle, sectionId, dayId, startIndex, endIndex) {
+  return {
+    ...cycle,
+    sections: cycle.sections.map(section =>
+      section.id === sectionId
+        ? {
+            ...section,
+            days: section.days.map(day =>
+              day.id === dayId ? { ...day, exercises: reorderItems(day.exercises || [], startIndex, endIndex) } : day
+            ),
+          }
+        : section
+    ),
+  };
+}
+
+function updateWeeklyProgressionInCycle(cycle, sectionId, dayId, exerciseId, weekIndex, updates) {
+  return {
+    ...cycle,
+    sections: cycle.sections.map(section =>
+      section.id === sectionId
+        ? {
+            ...section,
+            days: section.days.map(day => updateDayExercisesProgression(day, dayId, exerciseId, weekIndex, updates)),
+          }
+        : section
+    ),
+  };
+}
+
+function updateCycleWeeksInCycle(cycle, weeks, buildProgression) {
+  return {
+    ...cycle,
+    numberOfWeeks: weeks,
+    sections: cycle.sections.map(section => ({
+      ...section,
+      days: section.days?.map(day => ({
+        ...day,
+        exercises: day.exercises?.map(exercise => ({
+          ...exercise,
+          weeklyProgression: buildProgression(exercise, weeks),
+        })),
+      })),
+    })),
+  };
+}
+
+function serializeWeeklyProgression(weeklyProgression = []) {
+  const result = [];
+  for (const wp of weeklyProgression) {
+    result.push({
+      week: wp.week,
+      targetValue: wp.targetValue,
+      isDeload: wp.isDeload || false,
+      isTest: wp.isTest || false,
+    });
+  }
+  return result;
+}
+
+function serializeProgramCycles(cycles = []) {
+  const serializedCycles = [];
+  for (let cIdx = 0; cIdx < cycles.length; cIdx++) {
+    const cycle = cycles[cIdx];
+    const serializedSections = [];
+    for (let sIdx = 0; sIdx < cycle.sections.length; sIdx++) {
+      const section = cycle.sections[sIdx];
+      const serializedDays = [];
+      for (let dIdx = 0; dIdx < section.days.length; dIdx++) {
+        const day = section.days[dIdx];
+        const serializedExercises = [];
+        for (let eIdx = 0; eIdx < day.exercises.length; eIdx++) {
+          const exercise = day.exercises[eIdx];
+          serializedExercises.push({
+            id: exercise.id,
+            name: exercise.name,
+            type: exercise.type,
+            sets: exercise.sets,
+            targetValue: exercise.targetValue,
+            unit: exercise.unit,
+            goal: exercise.goal || null,
+            notes: exercise.notes || null,
+            bothSides: exercise.bothSides || false,
+            order: eIdx,
+            weeklyProgression: serializeWeeklyProgression(exercise.weeklyProgression || []),
+          });
+        }
+        serializedDays.push({
+          id: day.id,
+          name: day.name,
+          daysOfWeek: day.daysOfWeek || (day.dayOfWeek !== undefined ? [day.dayOfWeek] : [1]),
+          order: dIdx,
+          exercises: serializedExercises,
+        });
+      }
+      serializedSections.push({
+        id: section.id,
+        name: section.name,
+        type: section.type,
+        order: sIdx,
+        days: serializedDays,
+      });
+    }
+    serializedCycles.push({
+      id: cycle.id,
+      name: cycle.name,
+      numberOfWeeks: cycle.numberOfWeeks,
+      order: cIdx,
+      sections: serializedSections,
+    });
+  }
+  return serializedCycles;
 }
 
 // Simple WeekdaySelector component using MUI - memoized for performance
@@ -924,28 +1142,7 @@ export default function WorkoutBuilder({
       if (!sourceCycle) return prev;
       const sourceIndex = prev.indexOf(sourceCycle);
 
-      const newCycle = {
-        id: newCycleId,
-        name: `${sourceCycle.name} (Copy)`,
-        numberOfWeeks: sourceCycle.numberOfWeeks,
-        order: prev.length,
-        sections: sourceCycle.sections.map(section => ({
-          ...section,
-          id: generateCuid(),
-          days: section.days.map(day => ({
-            ...day,
-            id: generateCuid(),
-            exercises: day.exercises.map(exercise => ({
-              ...exercise,
-              id: generateCuid(),
-              weeklyProgression: (exercise.weeklyProgression || []).map(wp => ({
-                ...wp,
-                id: generateCuid(),
-              })),
-            })),
-          })),
-        })),
-      };
+      const newCycle = buildDuplicatedCycle(sourceCycle, newCycleId, prev.length);
 
       const result = [...prev];
       result.splice(sourceIndex + 1, 0, newCycle);
@@ -1048,38 +1245,11 @@ export default function WorkoutBuilder({
   );
 
   const updateDay = useCallback((cycleId, sectionId, dayId, updates) => {
-    setCycles(prev =>
-      prev.map(c =>
-        c.id === cycleId
-          ? {
-              ...c,
-              sections: c.sections.map(s =>
-                s.id === sectionId
-                  ? {
-                      ...s,
-                      days: s.days.map(d => (d.id === dayId ? { ...d, ...updates } : d)),
-                    }
-                  : s
-              ),
-            }
-          : c
-      )
-    );
+    setCycles(prev => prev.map(c => (c.id === cycleId ? updateDayInCycle(c, sectionId, dayId, updates) : c)));
   }, []); // Empty deps - uses functional update
 
   const deleteDay = useCallback((cycleId, sectionId, dayId) => {
-    setCycles(prev =>
-      prev.map(c =>
-        c.id === cycleId
-          ? {
-              ...c,
-              sections: c.sections.map(s =>
-                s.id === sectionId ? { ...s, days: s.days.filter(d => d.id !== dayId) } : s
-              ),
-            }
-          : c
-      )
-    );
+    setCycles(prev => prev.map(c => (c.id === cycleId ? deleteDayInCycle(c, sectionId, dayId) : c)));
   }, []); // Empty deps - uses functional update
 
   // Exercise CRUD functions (cycle-scoped)
@@ -1095,67 +1265,19 @@ export default function WorkoutBuilder({
         bothSides: false,
         weeklyProgression: [],
       };
-      setCycles(prev =>
-        prev.map(c =>
-          c.id === cycleId
-            ? {
-                ...c,
-                sections: c.sections.map(s =>
-                  s.id === sectionId
-                    ? {
-                        ...s,
-                        days: s.days.map(d =>
-                          d.id === dayId ? { ...d, exercises: [...(d.exercises || []), newExercise] } : d
-                        ),
-                      }
-                    : s
-                ),
-              }
-            : c
-        )
-      );
+      setCycles(prev => prev.map(c => (c.id === cycleId ? addExerciseInCycle(c, sectionId, dayId, newExercise) : c)));
     },
     [] // Empty deps - uses functional update
   );
 
   const updateExercise = useCallback((cycleId, sectionId, dayId, exerciseId, updates) => {
     setCycles(prev =>
-      prev.map(c =>
-        c.id === cycleId
-          ? {
-              ...c,
-              sections: c.sections.map(s =>
-                s.id === sectionId
-                  ? {
-                      ...s,
-                      days: s.days.map(d => updateDayExercises(d, dayId, exerciseId, updates)),
-                    }
-                  : s
-              ),
-            }
-          : c
-      )
+      prev.map(c => (c.id === cycleId ? updateExerciseInCycle(c, sectionId, dayId, exerciseId, updates) : c))
     );
   }, []); // Empty deps - uses functional update
 
   const deleteExercise = useCallback((cycleId, sectionId, dayId, exerciseId) => {
-    setCycles(prev =>
-      prev.map(c =>
-        c.id === cycleId
-          ? {
-              ...c,
-              sections: c.sections.map(s =>
-                s.id === sectionId
-                  ? {
-                      ...s,
-                      days: s.days.map(d => deleteDayExercise(d, dayId, exerciseId)),
-                    }
-                  : s
-              ),
-            }
-          : c
-      )
-    );
+    setCycles(prev => prev.map(c => (c.id === cycleId ? deleteExerciseInCycle(c, sectionId, dayId, exerciseId) : c)));
   }, []); // Empty deps - uses functional update
 
   const reorderDays = useCallback((cycleId, sectionId, startIndex, endIndex) => {
@@ -1175,23 +1297,7 @@ export default function WorkoutBuilder({
 
   const reorderExercises = useCallback((cycleId, sectionId, dayId, startIndex, endIndex) => {
     setCycles(prev =>
-      prev.map(c =>
-        c.id === cycleId
-          ? {
-              ...c,
-              sections: c.sections.map(s =>
-                s.id === sectionId
-                  ? {
-                      ...s,
-                      days: s.days.map(d =>
-                        d.id === dayId ? { ...d, exercises: reorderItems(d.exercises || [], startIndex, endIndex) } : d
-                      ),
-                    }
-                  : s
-              ),
-            }
-          : c
-      )
+      prev.map(c => (c.id === cycleId ? reorderExercisesInCycle(c, sectionId, dayId, startIndex, endIndex) : c))
     );
   }, []);
 
@@ -1199,19 +1305,7 @@ export default function WorkoutBuilder({
   const updateWeeklyProgression = useCallback((cycleId, sectionId, dayId, exerciseId, weekIndex, updates) => {
     setCycles(prev =>
       prev.map(c =>
-        c.id === cycleId
-          ? {
-              ...c,
-              sections: c.sections.map(s =>
-                s.id === sectionId
-                  ? {
-                      ...s,
-                      days: s.days.map(d => updateDayExercisesProgression(d, dayId, exerciseId, weekIndex, updates)),
-                    }
-                  : s
-              ),
-            }
-          : c
+        c.id === cycleId ? updateWeeklyProgressionInCycle(c, sectionId, dayId, exerciseId, weekIndex, updates) : c
       )
     );
   }, []); // Empty deps - uses functional update
@@ -1239,26 +1333,7 @@ export default function WorkoutBuilder({
   // Update cycle numberOfWeeks and propagate to exercises
   const updateCycleNumberOfWeeks = useCallback(
     (cycleId, weeks) => {
-      setCycles(prev =>
-        prev.map(c =>
-          c.id === cycleId
-            ? {
-                ...c,
-                numberOfWeeks: weeks,
-                sections: c.sections.map(section => ({
-                  ...section,
-                  days: section.days?.map(day => ({
-                    ...day,
-                    exercises: day.exercises?.map(exercise => ({
-                      ...exercise,
-                      weeklyProgression: buildProgression(exercise, weeks),
-                    })),
-                  })),
-                })),
-              }
-            : c
-        )
-      );
+      setCycles(prev => prev.map(c => (c.id === cycleId ? updateCycleWeeksInCycle(c, weeks, buildProgression) : c)));
     },
     [buildProgression]
   );
@@ -1274,42 +1349,7 @@ export default function WorkoutBuilder({
       const programData = {
         taskId,
         name,
-        cycles: cycles.map((cycle, cIdx) => ({
-          id: cycle.id,
-          name: cycle.name,
-          numberOfWeeks: cycle.numberOfWeeks,
-          order: cIdx,
-          sections: cycle.sections.map((section, sIdx) => ({
-            id: section.id,
-            name: section.name,
-            type: section.type,
-            order: sIdx,
-            days: section.days.map((day, dIdx) => ({
-              id: day.id,
-              name: day.name,
-              daysOfWeek: day.daysOfWeek || (day.dayOfWeek !== undefined ? [day.dayOfWeek] : [1]),
-              order: dIdx,
-              exercises: day.exercises.map((exercise, eIdx) => ({
-                id: exercise.id,
-                name: exercise.name,
-                type: exercise.type,
-                sets: exercise.sets,
-                targetValue: exercise.targetValue,
-                unit: exercise.unit,
-                goal: exercise.goal || null,
-                notes: exercise.notes || null,
-                bothSides: exercise.bothSides || false,
-                order: eIdx,
-                weeklyProgression: (exercise.weeklyProgression || []).map(wp => ({
-                  week: wp.week,
-                  targetValue: wp.targetValue,
-                  isDeload: wp.isDeload || false,
-                  isTest: wp.isTest || false,
-                })),
-              })),
-            })),
-          })),
-        })),
+        cycles: serializeProgramCycles(cycles),
       };
 
       await saveWorkoutProgramMutation(programData).unwrap();

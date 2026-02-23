@@ -651,6 +651,7 @@ export function WorkoutTab({ isLoading: tabLoading }) {
   const selectedWorkoutTaskId = useSelector(state => state.ui.selectedWorkoutTaskId);
   const workoutViewMode = useSelector(state => state.ui.workoutViewMode);
   const workoutDateRange = useSelector(state => state.ui.workoutDateRange);
+  const firstWorkoutTaskId = workoutTasks[0]?.id;
   const selectedTask = workoutTasks.find(task => task.id === selectedWorkoutTaskId) || workoutTasks[0] || null;
   const hasInitializedRef = useRef(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -670,14 +671,13 @@ export function WorkoutTab({ isLoading: tabLoading }) {
   // Only set default selection once when workoutTasks first loads
   useEffect(() => {
     if (hasInitializedRef.current) return;
-    if (workoutTasks.length > 0) {
+    if (firstWorkoutTaskId) {
       if (!selectedWorkoutTaskId) {
-        dispatch(setSelectedWorkoutTaskId(workoutTasks[0].id));
+        dispatch(setSelectedWorkoutTaskId(firstWorkoutTaskId));
       }
       hasInitializedRef.current = true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, selectedWorkoutTaskId, workoutTasks.length]);
+  }, [dispatch, firstWorkoutTaskId, selectedWorkoutTaskId]);
 
   const startDate = workoutDateRange?.start || null;
   const endDate = workoutDateRange?.end || null;

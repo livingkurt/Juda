@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -138,25 +138,25 @@ export const BulkEditDialog = () => {
   const [selectedTagIds, setSelectedTagIds] = useState(commonValues.tagIds);
   const [status, setStatus] = useState(commonValues.status);
   const [priority, setPriority] = useState(commonValues.priority);
+  const [prevIsOpen, setPrevIsOpen] = useState(false);
 
-  // Reset to common values when dialog opens
-  useEffect(() => {
-    if (isOpen) {
-      // Reset all fields to common values
-      setSectionId(commonValues.sectionId);
-      setTime(commonValues.time);
-      setDate(commonValues.date);
-      setDuration(commonValues.duration);
-      setRecurrenceType(commonValues.recurrenceType);
-      setSelectedDays(commonValues.selectedDays);
-      setEndDate(commonValues.endDate);
-      setSelectedTagIds(commonValues.tagIds);
-      setStatus(commonValues.status);
-      setPriority(commonValues.priority);
-      setEditedFields(new Set());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  // Reset to common values only on closed -> open transition.
+  if (isOpen && !prevIsOpen) {
+    setPrevIsOpen(true);
+    setSectionId(commonValues.sectionId);
+    setTime(commonValues.time);
+    setDate(commonValues.date);
+    setDuration(commonValues.duration);
+    setRecurrenceType(commonValues.recurrenceType);
+    setSelectedDays(commonValues.selectedDays);
+    setEndDate(commonValues.endDate);
+    setSelectedTagIds(commonValues.tagIds);
+    setStatus(commonValues.status);
+    setPriority(commonValues.priority);
+    setEditedFields(new Set());
+  } else if (!isOpen && prevIsOpen) {
+    setPrevIsOpen(false);
+  }
 
   const markFieldEdited = fieldName => {
     setEditedFields(prev => {

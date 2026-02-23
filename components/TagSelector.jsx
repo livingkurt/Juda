@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Box,
   Stack,
@@ -65,8 +65,10 @@ export const TagSelectorBase = ({
   const searchInputRef = useRef(null);
 
   // Derive selected tag IDs from task if in autoSave mode, otherwise use external prop
-  const derivedSelectedTagIds =
-    task && autoSave ? (Array.isArray(task.tags) ? task.tags.map(t => t.id) : []) : externalSelectedTagIds;
+  const derivedSelectedTagIds = useMemo(
+    () => (task && autoSave ? (Array.isArray(task.tags) ? task.tags.map(t => t.id) : []) : externalSelectedTagIds),
+    [task, autoSave, externalSelectedTagIds]
+  );
 
   // Internal state
   const [searchQuery, setSearchQuery] = useState("");
@@ -74,6 +76,7 @@ export const TagSelectorBase = ({
   const [internalAnchorEl, setInternalAnchorEl] = useState(null);
   const [internalSelectedTagIds, setInternalSelectedTagIds] = useState(derivedSelectedTagIds);
   const [hasChanges, setHasChanges] = useState(false);
+  const [prevIsOpen, setPrevIsOpen] = useState(false);
 
   // Controlled vs uncontrolled
   const isControlled = externalAnchorEl !== undefined;
@@ -87,14 +90,14 @@ export const TagSelectorBase = ({
     }
   }, [isOpen]);
 
-  // Sync with external selection when menu opens
-  useEffect(() => {
-    if (isOpen) {
-      setInternalSelectedTagIds(derivedSelectedTagIds);
-      setHasChanges(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  // Sync with external selection only on closed -> open transition.
+  if (isOpen && !prevIsOpen) {
+    setPrevIsOpen(true);
+    setInternalSelectedTagIds(derivedSelectedTagIds);
+    setHasChanges(false);
+  } else if (!isOpen && prevIsOpen) {
+    setPrevIsOpen(false);
+  }
 
   // Filter tags based on search
   const filteredTags = tags.filter(tag => tag.name.toLowerCase().includes(searchQuery.toLowerCase()));

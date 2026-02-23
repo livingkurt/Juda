@@ -15,6 +15,56 @@ const parseDateParam = (value, { endOfDay = false } = {}) => {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999));
 };
 
+const transformWeeklyProgressions = weeklyProgressionsData =>
+  (weeklyProgressionsData || []).map(wp => ({
+    week: wp.week,
+    targetValue: wp.targetValue,
+    isDeload: wp.isDeload,
+    isTest: wp.isTest,
+  }));
+
+const transformExercises = exercisesData =>
+  (exercisesData || []).map(exercise => ({
+    id: exercise.id,
+    name: exercise.name,
+    type: exercise.type,
+    sets: exercise.sets,
+    targetValue: exercise.targetValue,
+    unit: exercise.unit,
+    goal: exercise.goal,
+    notes: exercise.notes,
+    bothSides: exercise.bothSides || false,
+    order: exercise.order,
+    weeklyProgression: transformWeeklyProgressions(exercise.weeklyProgressions),
+  }));
+
+const transformDays = daysData =>
+  (daysData || []).map(day => ({
+    id: day.id,
+    name: day.name,
+    daysOfWeek: day.daysOfWeek,
+    order: day.order,
+    exercises: transformExercises(day.exercises),
+  }));
+
+const transformSections = sectionsData =>
+  (sectionsData || []).map(section => ({
+    id: section.id,
+    name: section.name,
+    type: section.type,
+    order: section.order,
+    days: transformDays(section.days),
+  }));
+
+const transformCycles = cyclesData =>
+  (cyclesData || []).map(cycle => ({
+    id: cycle.id,
+    name: cycle.name,
+    numberOfWeeks: cycle.numberOfWeeks,
+    order: cycle.order,
+    sections: transformSections(cycle.sections),
+  }));
+
 export const GET = withApi(async (request, { userId, getRequiredParam, getSearchParams }) => {
   const taskId = getRequiredParam("taskId");
   const searchParams = getSearchParams();
@@ -181,43 +231,7 @@ export const GET = withApi(async (request, { userId, getRequiredParam, getSearch
     taskId: program.taskId,
     name: program.name,
     progress: program.progress || 0.0,
-    cycles: (program.cycles || []).map(cycle => ({
-      id: cycle.id,
-      name: cycle.name,
-      numberOfWeeks: cycle.numberOfWeeks,
-      order: cycle.order,
-      sections: cycle.sections.map(section => ({
-        id: section.id,
-        name: section.name,
-        type: section.type,
-        order: section.order,
-        days: section.days.map(day => ({
-          id: day.id,
-          name: day.name,
-          daysOfWeek: day.daysOfWeek,
-          order: day.order,
-          exercises: day.exercises.map(exercise => ({
-            id: exercise.id,
-            name: exercise.name,
-            type: exercise.type,
-            sets: exercise.sets,
-            targetValue: exercise.targetValue,
-            unit: exercise.unit,
-            goal: exercise.goal,
-            notes: exercise.notes,
-            bothSides: exercise.bothSides || false,
-            order: exercise.order,
-            // eslint-disable-next-line max-nested-callbacks
-            weeklyProgression: exercise.weeklyProgressions.map(wp => ({
-              week: wp.week,
-              targetValue: wp.targetValue,
-              isDeload: wp.isDeload,
-              isTest: wp.isTest,
-            })),
-          })),
-        })),
-      })),
-    })),
+    cycles: transformCycles(program.cycles),
   };
 
   return NextResponse.json({ completions, program: transformedProgram });

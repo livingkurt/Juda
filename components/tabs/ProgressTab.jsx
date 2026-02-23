@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, memo } from "react";
+import { useEffect, useMemo, memo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
 import dayjs from "dayjs";
@@ -115,139 +115,151 @@ export const ProgressTab = memo(function ProgressTab({ isLoading: tabLoading }) 
   ];
 
   // Calculate progress for a specific date
-  const calculateProgressForDate = date => {
-    const dateStr = dayjs(date).format("YYYY-MM-DD");
-    const targetDate = dayjs(date).toDate();
+  const calculateProgressForDate = useCallback(
+    date => {
+      const dateStr = dayjs(date).format("YYYY-MM-DD");
+      const targetDate = dayjs(date).toDate();
 
-    // Filter tasks that should show on this date
-    const tasksForDate = tasks.filter(task => checkTaskShouldShowOnDate(task, targetDate));
+      // Filter tasks that should show on this date
+      const tasksForDate = tasks.filter(task => checkTaskShouldShowOnDate(task, targetDate));
 
-    const total = tasksForDate.length;
-    const completed = tasksForDate.filter(task => {
-      const completion = getCompletionForDate?.(task.id, dateStr);
-      return completion?.outcome === "completed";
-    }).length;
+      const total = tasksForDate.length;
+      const completed = tasksForDate.filter(task => {
+        const completion = getCompletionForDate?.(task.id, dateStr);
+        return completion?.outcome === "completed";
+      }).length;
 
-    const notCompleted = tasksForDate.filter(task => {
-      const completion = getCompletionForDate?.(task.id, dateStr);
-      return completion?.outcome === "not_completed";
-    }).length;
+      const notCompleted = tasksForDate.filter(task => {
+        const completion = getCompletionForDate?.(task.id, dateStr);
+        return completion?.outcome === "not_completed";
+      }).length;
 
-    const unchecked = total - completed - notCompleted;
+      const unchecked = total - completed - notCompleted;
 
-    const completedPct = total > 0 ? Math.round((completed / total) * 100) : 0;
-    const notCompletedPct = total > 0 ? Math.round((notCompleted / total) * 100) : 0;
-    const uncheckedPct = total > 0 ? Math.round((unchecked / total) * 100) : 0;
+      const completedPct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      const notCompletedPct = total > 0 ? Math.round((notCompleted / total) * 100) : 0;
+      const uncheckedPct = total > 0 ? Math.round((unchecked / total) * 100) : 0;
 
-    return {
-      total,
-      completed,
-      notCompleted,
-      unchecked,
-      completedPercent: completedPct,
-      notCompletedPercent: notCompletedPct,
-      uncheckedPercent: uncheckedPct,
-    };
-  };
+      return {
+        total,
+        completed,
+        notCompleted,
+        unchecked,
+        completedPercent: completedPct,
+        notCompletedPercent: notCompletedPct,
+        uncheckedPercent: uncheckedPct,
+      };
+    },
+    [getCompletionForDate, tasks]
+  );
 
   // Calculate progress for a week (7 days combined)
-  const calculateProgressForWeek = startDate => {
-    let totalTasks = 0;
-    let totalCompleted = 0;
-    let totalNotCompleted = 0;
-    let totalUnchecked = 0;
+  const calculateProgressForWeek = useCallback(
+    startDate => {
+      let totalTasks = 0;
+      let totalCompleted = 0;
+      let totalNotCompleted = 0;
+      let totalUnchecked = 0;
 
-    for (let i = 0; i < 7; i++) {
-      const date = dayjs(startDate).add(i, "day");
-      const progress = calculateProgressForDate(date);
-      totalTasks += progress.total;
-      totalCompleted += progress.completed;
-      totalNotCompleted += progress.notCompleted;
-      totalUnchecked += progress.unchecked;
-    }
+      for (let i = 0; i < 7; i++) {
+        const date = dayjs(startDate).add(i, "day");
+        const progress = calculateProgressForDate(date);
+        totalTasks += progress.total;
+        totalCompleted += progress.completed;
+        totalNotCompleted += progress.notCompleted;
+        totalUnchecked += progress.unchecked;
+      }
 
-    const completedPct = totalTasks > 0 ? Math.round((totalCompleted / totalTasks) * 100) : 0;
-    const notCompletedPct = totalTasks > 0 ? Math.round((totalNotCompleted / totalTasks) * 100) : 0;
-    const uncheckedPct = totalTasks > 0 ? Math.round((totalUnchecked / totalTasks) * 100) : 0;
+      const completedPct = totalTasks > 0 ? Math.round((totalCompleted / totalTasks) * 100) : 0;
+      const notCompletedPct = totalTasks > 0 ? Math.round((totalNotCompleted / totalTasks) * 100) : 0;
+      const uncheckedPct = totalTasks > 0 ? Math.round((totalUnchecked / totalTasks) * 100) : 0;
 
-    return {
-      total: totalTasks,
-      completed: totalCompleted,
-      notCompleted: totalNotCompleted,
-      unchecked: totalUnchecked,
-      completedPercent: completedPct,
-      notCompletedPercent: notCompletedPct,
-      uncheckedPercent: uncheckedPct,
-    };
-  };
+      return {
+        total: totalTasks,
+        completed: totalCompleted,
+        notCompleted: totalNotCompleted,
+        unchecked: totalUnchecked,
+        completedPercent: completedPct,
+        notCompletedPercent: notCompletedPct,
+        uncheckedPercent: uncheckedPct,
+      };
+    },
+    [calculateProgressForDate]
+  );
 
   // Calculate progress for a month (all days in month combined)
-  const calculateProgressForMonth = date => {
-    const startOfMonth = dayjs(date).startOf("month");
-    const daysInMonth = dayjs(date).daysInMonth();
+  const calculateProgressForMonth = useCallback(
+    date => {
+      const startOfMonth = dayjs(date).startOf("month");
+      const daysInMonth = dayjs(date).daysInMonth();
 
-    let totalTasks = 0;
-    let totalCompleted = 0;
-    let totalNotCompleted = 0;
-    let totalUnchecked = 0;
+      let totalTasks = 0;
+      let totalCompleted = 0;
+      let totalNotCompleted = 0;
+      let totalUnchecked = 0;
 
-    for (let i = 0; i < daysInMonth; i++) {
-      const currentDate = startOfMonth.add(i, "day");
-      const progress = calculateProgressForDate(currentDate);
-      totalTasks += progress.total;
-      totalCompleted += progress.completed;
-      totalNotCompleted += progress.notCompleted;
-      totalUnchecked += progress.unchecked;
-    }
+      for (let i = 0; i < daysInMonth; i++) {
+        const currentDate = startOfMonth.add(i, "day");
+        const progress = calculateProgressForDate(currentDate);
+        totalTasks += progress.total;
+        totalCompleted += progress.completed;
+        totalNotCompleted += progress.notCompleted;
+        totalUnchecked += progress.unchecked;
+      }
 
-    const completedPct = totalTasks > 0 ? Math.round((totalCompleted / totalTasks) * 100) : 0;
-    const notCompletedPct = totalTasks > 0 ? Math.round((totalNotCompleted / totalTasks) * 100) : 0;
-    const uncheckedPct = totalTasks > 0 ? Math.round((totalUnchecked / totalTasks) * 100) : 0;
+      const completedPct = totalTasks > 0 ? Math.round((totalCompleted / totalTasks) * 100) : 0;
+      const notCompletedPct = totalTasks > 0 ? Math.round((totalNotCompleted / totalTasks) * 100) : 0;
+      const uncheckedPct = totalTasks > 0 ? Math.round((totalUnchecked / totalTasks) * 100) : 0;
 
-    return {
-      total: totalTasks,
-      completed: totalCompleted,
-      notCompleted: totalNotCompleted,
-      unchecked: totalUnchecked,
-      completedPercent: completedPct,
-      notCompletedPercent: notCompletedPct,
-      uncheckedPercent: uncheckedPct,
-    };
-  };
+      return {
+        total: totalTasks,
+        completed: totalCompleted,
+        notCompleted: totalNotCompleted,
+        unchecked: totalUnchecked,
+        completedPercent: completedPct,
+        notCompletedPercent: notCompletedPct,
+        uncheckedPercent: uncheckedPct,
+      };
+    },
+    [calculateProgressForDate]
+  );
 
   // Calculate progress for a year (all days in year combined)
-  const calculateProgressForYear = date => {
-    const startOfYear = dayjs(date).startOf("year");
-    const daysInYear = dayjs(date).isLeapYear() ? 366 : 365;
+  const calculateProgressForYear = useCallback(
+    date => {
+      const startOfYear = dayjs(date).startOf("year");
+      const daysInYear = dayjs(date).isLeapYear() ? 366 : 365;
 
-    let totalTasks = 0;
-    let totalCompleted = 0;
-    let totalNotCompleted = 0;
-    let totalUnchecked = 0;
+      let totalTasks = 0;
+      let totalCompleted = 0;
+      let totalNotCompleted = 0;
+      let totalUnchecked = 0;
 
-    for (let i = 0; i < daysInYear; i++) {
-      const currentDate = startOfYear.add(i, "day");
-      const progress = calculateProgressForDate(currentDate);
-      totalTasks += progress.total;
-      totalCompleted += progress.completed;
-      totalNotCompleted += progress.notCompleted;
-      totalUnchecked += progress.unchecked;
-    }
+      for (let i = 0; i < daysInYear; i++) {
+        const currentDate = startOfYear.add(i, "day");
+        const progress = calculateProgressForDate(currentDate);
+        totalTasks += progress.total;
+        totalCompleted += progress.completed;
+        totalNotCompleted += progress.notCompleted;
+        totalUnchecked += progress.unchecked;
+      }
 
-    const completedPct = totalTasks > 0 ? Math.round((totalCompleted / totalTasks) * 100) : 0;
-    const notCompletedPct = totalTasks > 0 ? Math.round((totalNotCompleted / totalTasks) * 100) : 0;
-    const uncheckedPct = totalTasks > 0 ? Math.round((totalUnchecked / totalTasks) * 100) : 0;
+      const completedPct = totalTasks > 0 ? Math.round((totalCompleted / totalTasks) * 100) : 0;
+      const notCompletedPct = totalTasks > 0 ? Math.round((totalNotCompleted / totalTasks) * 100) : 0;
+      const uncheckedPct = totalTasks > 0 ? Math.round((totalUnchecked / totalTasks) * 100) : 0;
 
-    return {
-      total: totalTasks,
-      completed: totalCompleted,
-      notCompleted: totalNotCompleted,
-      unchecked: totalUnchecked,
-      completedPercent: completedPct,
-      notCompletedPercent: notCompletedPct,
-      uncheckedPercent: uncheckedPct,
-    };
-  };
+      return {
+        total: totalTasks,
+        completed: totalCompleted,
+        notCompleted: totalNotCompleted,
+        unchecked: totalUnchecked,
+        completedPercent: completedPct,
+        notCompletedPercent: notCompletedPct,
+        uncheckedPercent: uncheckedPct,
+      };
+    },
+    [calculateProgressForDate]
+  );
 
   // Generate data based on view
   const progressData = useMemo(() => {
@@ -342,8 +354,14 @@ export const ProgressTab = memo(function ProgressTab({ isLoading: tabLoading }) 
     }
 
     return [];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [progressView, selectedDate, tasks, getCompletionForDate]);
+  }, [
+    progressView,
+    selectedDate,
+    calculateProgressForDate,
+    calculateProgressForWeek,
+    calculateProgressForMonth,
+    calculateProgressForYear,
+  ]);
 
   if (tabLoading) {
     return (

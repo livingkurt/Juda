@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   Box,
   Stack,
@@ -25,20 +25,18 @@ export const NoteEditor = ({ note, folders = [], onUpdate, onDelete, onConvertTo
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [localTitle, setLocalTitle] = useState(note?.title || "");
   const saveTimeoutRef = useRef(null);
-  const previousNoteIdRef = useRef(null);
+  const [previousNoteId, setPreviousNoteId] = useState(note?.id || null);
   const [updateTaskTagsMutation] = useUpdateTaskTagsMutation();
 
   // Extract noteId to avoid dependency on entire note object
   const noteId = note?.id;
 
-  // Sync title only when switching to a different note, not during user edits
-  useEffect(() => {
-    if (noteId && noteId !== previousNoteIdRef.current) {
-      setLocalTitle(note?.title || "");
-      previousNoteIdRef.current = noteId;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noteId]);
+  // Sync title only when switching to a different note, not during user edits.
+  // Adjusting state during render avoids setState-in-effect cascades.
+  if (noteId && noteId !== previousNoteId) {
+    setPreviousNoteId(noteId);
+    setLocalTitle(note?.title || "");
+  }
 
   // Use noteId instead of note object to prevent unnecessary recreations
   const debouncedSave = useCallback(

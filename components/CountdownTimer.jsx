@@ -33,7 +33,6 @@ export default function CountdownTimer({
   onStop,
   sharedAudioContext = null,
 }) {
-  const sharedAudioCtxRef = sharedAudioContext;
   // Track elapsed time instead of remaining time
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
@@ -50,13 +49,17 @@ export default function CountdownTimer({
   const endTimeRef = useRef(null); // Store when timer should complete
   const wasRunningRef = useRef(false); // Track if timer was running before page hide
   const pendingCompleteRef = useRef(false);
+  const sharedAudioContextRef = useRef(sharedAudioContext);
+
+  useEffect(() => {
+    sharedAudioContextRef.current = sharedAudioContext;
+  }, [sharedAudioContext]);
 
   // Get or create AudioContext (reused across all sounds)
   // If a shared AudioContext ref is provided (e.g. from BothSidesTimer), use it
   // so the second side inherits the user-gesture-unlocked context from the first side
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const getAudioContext = async () => {
-    const sharedContext = sharedAudioCtxRef?.current || fallbackSharedAudioContext;
+  const getAudioContext = useCallback(async () => {
+    const sharedContext = sharedAudioContextRef.current?.current || fallbackSharedAudioContext;
     if (sharedContext) {
       if (sharedContext.state === "suspended") {
         await sharedContext.resume();
@@ -73,7 +76,7 @@ export default function CountdownTimer({
       await audioContextRef.current.resume();
     }
     return audioContextRef.current;
-  };
+  }, []);
 
   // Request Wake Lock to keep screen awake
   const requestWakeLock = useCallback(async () => {

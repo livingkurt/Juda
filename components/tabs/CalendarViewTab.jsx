@@ -171,6 +171,15 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
     getOutcomeOnDate,
   ]);
 
+  const handleDropTimeChange = useMemo(() => {
+    const refTargetRef = dropTimeRef;
+    return time => {
+      if (refTargetRef) {
+        refTargetRef.current = time;
+      }
+    };
+  }, [dropTimeRef]);
+
   return (
     <Box
       sx={{
@@ -365,10 +374,7 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
                 tasks={filteredTasks}
                 createDroppableId={createDroppableId}
                 createDraggableId={createDraggableId}
-                onDropTimeChange={time => {
-                  // eslint-disable-next-line no-param-reassign
-                  dropTimeRef.current = time;
-                }}
+                onDropTimeChange={handleDropTimeChange}
               />
             )}
             {calendarView === "week" && selectedDate && (
@@ -377,10 +383,7 @@ export function CalendarViewTab({ isLoading, dropTimeRef }) {
                 tasks={filteredTasks}
                 createDroppableId={createDroppableId}
                 createDraggableId={createDraggableId}
-                onDropTimeChange={time => {
-                  // eslint-disable-next-line no-param-reassign
-                  dropTimeRef.current = time;
-                }}
+                onDropTimeChange={handleDropTimeChange}
               />
             )}
             {calendarView === "month" && selectedDate && (

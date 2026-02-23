@@ -238,10 +238,8 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
               await deleteCompletion({ taskId: goalId, date: todayStr }).unwrap();
             } catch (error) {
               // Ignore if no completion exists
-              // eslint-disable-next-line max-depth
-              if (!error?.message?.includes("not found")) {
-                console.error("Failed to delete completion when reverting to todo:", error);
-              }
+              const isNotFoundError = error?.message?.includes("not found");
+              !isNotFoundError && console.error("Failed to delete completion when reverting to todo:", error);
             }
           }
         } catch (error) {

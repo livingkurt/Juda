@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useSyncExternalStore } from "react";
 import { Box, CircularProgress } from "@mui/material";
 import { useAuth } from "@/hooks/useAuth";
 import { usePreferencesContext } from "@/hooks/usePreferencesContext";
@@ -132,12 +132,12 @@ export { createDroppableId, createDraggableId, extractTaskId };
 
 export default function DailyTasksApp() {
   const { isAuthenticated, loading: authLoading, initialized: authInitialized } = useAuth();
-  const [mounted, setMounted] = useState(false);
-
-  // Ensure component is mounted before rendering to prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Client-only mounted signal without setState-in-effect.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   // Redux RTK Query hooks
   const { data: sections = [], isLoading: sectionsLoading } = useGetSectionsQuery(undefined, {
@@ -213,8 +213,20 @@ export default function DailyTasksApp() {
       dispatch(setNotesSidebarWidth(preferences.notesSidebarWidth ?? 280));
       dispatch(setNotesListWidth(preferences.notesListWidth ?? 300));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefsInitialized, dispatch]);
+  }, [
+    prefsInitialized,
+    dispatch,
+    preferences.backlogOpen,
+    preferences.backlogTagSidebarOpen,
+    preferences.mainContentView,
+    preferences.showCalendar,
+    preferences.showDashboard,
+    preferences.backlogWidth,
+    preferences.notesSidebarOpen,
+    preferences.notesListOpen,
+    preferences.notesSidebarWidth,
+    preferences.notesListWidth,
+  ]);
 
   // Sync Redux UI state changes back to preferences
   useEffect(() => {

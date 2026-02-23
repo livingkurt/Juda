@@ -18,6 +18,67 @@ const generateId = () => {
   return `c${timestamp}${randomStr}`;
 };
 
+const transformWeeklyProgressions = weeklyProgressionsData =>
+  (weeklyProgressionsData || []).map(wp => ({
+    week: wp.week,
+    targetValue: wp.targetValue,
+    isDeload: wp.isDeload,
+    isTest: wp.isTest,
+  }));
+
+const transformExercises = exercisesData =>
+  (exercisesData || []).map(exercise => ({
+    id: exercise.id,
+    name: exercise.name,
+    type: exercise.type,
+    sets: exercise.sets,
+    targetValue: exercise.targetValue,
+    unit: exercise.unit,
+    goal: exercise.goal,
+    notes: exercise.notes,
+    bothSides: exercise.bothSides || false,
+    order: exercise.order,
+    weeklyProgression: transformWeeklyProgressions(exercise.weeklyProgressions),
+  }));
+
+const transformDays = daysData =>
+  (daysData || []).map(day => ({
+    id: day.id,
+    name: day.name,
+    daysOfWeek: day.daysOfWeek,
+    order: day.order,
+    exercises: transformExercises(day.exercises),
+  }));
+
+const transformSections = sectionsData =>
+  (sectionsData || []).map(section => ({
+    id: section.id,
+    name: section.name,
+    type: section.type,
+    order: section.order,
+    days: transformDays(section.days),
+  }));
+
+const transformCycles = cyclesData =>
+  (cyclesData || []).map(cycle => ({
+    id: cycle.id,
+    name: cycle.name,
+    numberOfWeeks: cycle.numberOfWeeks,
+    order: cycle.order,
+    sections: transformSections(cycle.sections),
+  }));
+
+const buildWeeklyProgressionRows = (exerciseId, weeklyProgression) => {
+  if (!Array.isArray(weeklyProgression) || weeklyProgression.length === 0) return [];
+  return weeklyProgression.map(wp => ({
+    exerciseId,
+    week: wp.week,
+    targetValue: wp.targetValue,
+    isDeload: wp.isDeload || false,
+    isTest: wp.isTest || false,
+  }));
+};
+
 export const GET = withApi(async (request, { userId, getRequiredParam }) => {
   const taskId = getRequiredParam("taskId");
 
@@ -68,43 +129,7 @@ export const GET = withApi(async (request, { userId, getRequiredParam }) => {
     taskId: program.taskId,
     name: program.name,
     progress: program.progress || 0.0,
-    cycles: (program.cycles || []).map(cycle => ({
-      id: cycle.id,
-      name: cycle.name,
-      numberOfWeeks: cycle.numberOfWeeks,
-      order: cycle.order,
-      sections: cycle.sections.map(section => ({
-        id: section.id,
-        name: section.name,
-        type: section.type,
-        order: section.order,
-        days: section.days.map(day => ({
-          id: day.id,
-          name: day.name,
-          daysOfWeek: day.daysOfWeek,
-          order: day.order,
-          exercises: day.exercises.map(exercise => ({
-            id: exercise.id,
-            name: exercise.name,
-            type: exercise.type,
-            sets: exercise.sets,
-            targetValue: exercise.targetValue,
-            unit: exercise.unit,
-            goal: exercise.goal,
-            notes: exercise.notes,
-            bothSides: exercise.bothSides || false,
-            order: exercise.order,
-            // eslint-disable-next-line max-nested-callbacks
-            weeklyProgression: exercise.weeklyProgressions.map(wp => ({
-              week: wp.week,
-              targetValue: wp.targetValue,
-              isDeload: wp.isDeload,
-              isTest: wp.isTest,
-            })),
-          })),
-        })),
-      })),
-    })),
+    cycles: transformCycles(program.cycles),
   };
 
   return NextResponse.json(transformed);
@@ -255,18 +280,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
             });
 
             touchedExerciseIds.add(exerciseId);
-            // eslint-disable-next-line max-depth
-            if (exerciseData.weeklyProgression && exerciseData.weeklyProgression.length > 0) {
-              weeklyProgressionRows.push(
-                ...exerciseData.weeklyProgression.map(wp => ({
-                  exerciseId,
-                  week: wp.week,
-                  targetValue: wp.targetValue,
-                  isDeload: wp.isDeload || false,
-                  isTest: wp.isTest || false,
-                }))
-              );
-            }
+            weeklyProgressionRows.push(...buildWeeklyProgressionRows(exerciseId, exerciseData.weeklyProgression));
           }
         }
       }
