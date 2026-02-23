@@ -1,5 +1,48 @@
 # Project Decisions Log
 
+## 2026-02-23
+
+### Expanded URL State Coverage Across Tabs
+
+**Problem**: URL state tracking was partial and inconsistent. Some tabs had shareable state in Redux that was not synced to URL, Goals year mapping was broken, and History graph/table preferences were only local state.
+
+**Solution**:
+1. Expanded `lib/urlStateConfig.js` to track all meaningful shareable view/filter state per tab.
+2. Added missing Redux state/actions for Goals and History shareable state:
+   - Goals: `goalsSelectedYear`, `goalsSelectedMonth`, `goalsViewType`
+   - History: `historyView`, `historyGraphSort`, `historyGraphOrientation`
+3. Migrated Goals/History to Redux-backed state for URL round-trip support.
+4. Added explicit setters for backlog sort flags to support URL hydration:
+   - `setBacklogSortByPriority`
+   - `setBacklogSortByTag`
+5. Added backward compatibility for legacy Goals links by accepting `goalYear` as a fallback for the new `goalsYear` param in `useUrlState`.
+6. Updated `setWorkoutDateRange` to merge partial updates so `workoutStart` and `workoutEnd` can hydrate independently from URL.
+
+**Tracked URL params by area**:
+- **Global**: `tab`
+- **Tasks tab**: `view`, `date`, `todayDate`, `calendarView`, `search`, `tags`, `mobileView`, `backlog`, `backlogSearch`, `backlogTags`, `backlogPriorities`, `backlogSortPriority`, `backlogSortTag`, `calendarSearch`, `calendarTags`
+- **Goals tab**: `goalsYear`, `goalsMonth`, `goalsView`, `goalsSearch`, `goalsTags`
+- **Journal tab**: `journalDate`, `journalView`
+- **Notes tab**: `noteId`, `folderId`, `smartFolderId`, `notesTags`, `notesMobileView`
+- **Progress tab**: `progressDate`, `progressView`
+- **Workout tab**: `workoutTask`, `workoutView`, `workoutStart`, `workoutEnd`
+- **Sleep tab**: `sleepView`, `sleepDate`
+- **Kanban tab**: `kanbanDate`, `kanbanSearch`, `kanbanTags`, `kanbanPriorities`, `kanbanTodayComplete`
+- **History tab**: `historyRange`, `historyPage`, `historySearch`, `historyView`, `graphSort`, `graphOrientation`
+
+**Defaults omitted from URL**:
+- URL serializers now omit default values (for example: default tab, default views, empty arrays, default booleans) to keep links compact.
+
+**Intentionally not tracked**:
+- Transient UI-only state (dialogs, anchors/menus, edit popovers, resize in-progress flags, local temporary form state).
+
+**Files Updated**:
+- `lib/urlStateConfig.js`
+- `hooks/useUrlState.js`
+- `lib/store/slices/uiSlice.js`
+- `components/tabs/GoalsTab.jsx`
+- `components/tabs/HistoryTab.jsx`
+
 ## 2026-02-22
 
 ### AutoSleep CSV sleep completion backfill + duration alignment

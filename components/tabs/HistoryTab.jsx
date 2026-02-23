@@ -69,7 +69,14 @@ import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useViewState } from "@/hooks/useViewState";
 import CellEditorPopover from "../CellEditorPopover";
-import { setHistoryRange, setHistoryPage, setHistorySearchTerm } from "@/lib/store/slices/uiSlice";
+import {
+  setHistoryRange,
+  setHistoryPage,
+  setHistorySearchTerm,
+  setHistoryView,
+  setHistoryGraphSort,
+  setHistoryGraphOrientation,
+} from "@/lib/store/slices/uiSlice";
 
 // Filter only recurring tasks (keep subtasks nested, don't flatten)
 // Show subtasks even if they don't have recurrence, as long as parent has recurrence
@@ -289,7 +296,9 @@ const getSleepDurationParts = (sleepData = {}) => {
   if (Number.isFinite(sleepData.durationHours) || Number.isFinite(sleepData.durationMinutesPart)) {
     return {
       hours: Number.isFinite(sleepData.durationHours) ? Math.max(0, Math.floor(sleepData.durationHours)) : 0,
-      minutesPart: Number.isFinite(sleepData.durationMinutesPart) ? Math.max(0, Math.floor(sleepData.durationMinutesPart)) : 0,
+      minutesPart: Number.isFinite(sleepData.durationMinutesPart)
+        ? Math.max(0, Math.floor(sleepData.durationMinutesPart))
+        : 0,
     };
   }
 
@@ -783,6 +792,9 @@ export function HistoryTab({ isLoading: tabLoading }) {
   const range = useSelector(state => state.ui.historyRange);
   const page = useSelector(state => state.ui.historyPage);
   const searchQuery = useSelector(state => state.ui.historySearchTerm);
+  const historyView = useSelector(state => state.ui.historyView || "table");
+  const graphSort = useSelector(state => state.ui.historyGraphSort || "time");
+  const graphOrientation = useSelector(state => state.ui.historyGraphOrientation);
   const deferredSearch = useDeferredValue(searchQuery);
   const [textModal, setTextModal] = useState({
     open: false,
@@ -799,9 +811,6 @@ export function HistoryTab({ isLoading: tabLoading }) {
     open: false,
     selectedTaskId: null,
   });
-  const [historyView, setHistoryView] = useState("table");
-  const [graphSort, setGraphSort] = useState("time");
-  const [graphOrientation, setGraphOrientation] = useState(null);
   const [sleepModal, setSleepModal] = useState({
     open: false,
     task: null,
@@ -1294,7 +1303,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
             exclusive
             value={historyView}
             onChange={(_, value) => {
-              if (value) setHistoryView(value);
+              if (value) dispatch(setHistoryView(value));
             }}
           >
             <ToggleButton value="table" sx={{ textTransform: "none", minWidth: 100, px: 1.5 }}>
@@ -1581,7 +1590,14 @@ export function HistoryTab({ isLoading: tabLoading }) {
             </Box>
           ) : (
             <Stack spacing={2}>
-              <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
+              <Stack
+                direction="row"
+                spacing={2}
+                alignItems="center"
+                justifyContent="space-between"
+                flexWrap="wrap"
+                useFlexGap
+              >
                 <Typography variant="body2" color="text.secondary">
                   Year-to-date completion percentages by recurring task
                 </Typography>
@@ -1592,7 +1608,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
                     exclusive
                     value={activeGraphOrientation}
                     onChange={(_, value) => {
-                      if (value) setGraphOrientation(value);
+                      if (value) dispatch(setHistoryGraphOrientation(value));
                     }}
                   >
                     <ToggleButton value="vertical" sx={{ textTransform: "none", minWidth: 120, px: 1.5 }}>
@@ -1609,7 +1625,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
                     size="small"
                     label="Sort graph"
                     value={graphSort}
-                    onChange={e => setGraphSort(e.target.value)}
+                    onChange={e => dispatch(setHistoryGraphSort(e.target.value))}
                     sx={{ minWidth: 220 }}
                   >
                     <MenuItem value="time">Time (History order)</MenuItem>
@@ -1646,11 +1662,19 @@ export function HistoryTab({ isLoading: tabLoading }) {
                       const noSchedule = !taskAnalytics || taskAnalytics.scheduled === 0;
 
                       return (
-                        <Stack key={`graph-${task.id}`} spacing={1} alignItems="center" sx={{ width: 84, flexShrink: 0 }}>
+                        <Stack
+                          key={`graph-${task.id}`}
+                          spacing={1}
+                          alignItems="center"
+                          sx={{ width: 84, flexShrink: 0 }}
+                        >
                           <Typography variant="caption" color="text.secondary">
                             {noSchedule ? "--" : `${taskAnalytics.completionRate}%`}
                           </Typography>
-                          <Tooltip title={noSchedule ? `${task.title}: No schedule YTD` : ""} disableHoverListener={!noSchedule}>
+                          <Tooltip
+                            title={noSchedule ? `${task.title}: No schedule YTD` : ""}
+                            disableHoverListener={!noSchedule}
+                          >
                             <Box
                               onClick={() => openTaskAnalytics(task.id)}
                               sx={{
@@ -1732,7 +1756,10 @@ export function HistoryTab({ isLoading: tabLoading }) {
                               {task.title}
                             </Typography>
                           </Tooltip>
-                          <Tooltip title={noSchedule ? `${task.title}: No schedule YTD` : ""} disableHoverListener={!noSchedule}>
+                          <Tooltip
+                            title={noSchedule ? `${task.title}: No schedule YTD` : ""}
+                            disableHoverListener={!noSchedule}
+                          >
                             <Box
                               onClick={() => openTaskAnalytics(task.id)}
                               sx={{

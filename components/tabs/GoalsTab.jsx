@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useDeferredValue } from "react";
+import { useMemo, useCallback, useDeferredValue } from "react";
 import { Box, Typography, Button, Stack, CircularProgress } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
@@ -9,6 +9,9 @@ import {
   setGoalsSearchTerm,
   addGoalsSelectedTag,
   removeGoalsSelectedTag,
+  setGoalsSelectedYear,
+  setGoalsSelectedMonth,
+  setGoalsViewType,
 } from "@/lib/store/slices/uiSlice";
 import { useGetGoalsQuery } from "@/lib/store/api/goalsApi";
 import { useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
@@ -21,15 +24,15 @@ import { TaskSearchInput } from "@/components/TaskSearchInput";
 
 export function GoalsTab({ isLoading }) {
   const dispatch = useDispatch();
-  const [viewType, setViewType] = useState("monthly"); // "yearly" or "monthly"
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1-12
   const [updateTask] = useUpdateTaskMutation();
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
   const handleCreateTag = async (name, color) => {
     return await createTagMutation({ name, color }).unwrap();
   };
+  const viewType = useSelector(state => state.ui.goalsViewType || "monthly");
+  const selectedYear = useSelector(state => state.ui.goalsSelectedYear || new Date().getFullYear());
+  const selectedMonth = useSelector(state => state.ui.goalsSelectedMonth || new Date().getMonth() + 1);
   const goalsSearchTerm = useSelector(state => state.ui.goalsSearchTerm || "");
   const goalsSelectedTagIds = useSelector(state => state.ui.goalsSelectedTagIds || []);
   const deferredGoalsSearchTerm = useDeferredValue(goalsSearchTerm);
@@ -155,12 +158,12 @@ export function GoalsTab({ isLoading }) {
     newDate => {
       const newMonth = newDate.getMonth() + 1;
       const newYear = newDate.getFullYear();
-      setSelectedMonth(newMonth);
+      dispatch(setGoalsSelectedMonth(newMonth));
       if (newYear !== selectedYear) {
-        setSelectedYear(newYear);
+        dispatch(setGoalsSelectedYear(newYear));
       }
     },
-    [selectedYear]
+    [dispatch, selectedYear]
   );
 
   const handlePreviousMonth = useCallback(() => {
@@ -269,10 +272,18 @@ export function GoalsTab({ isLoading }) {
 
         <DateNavigation
           selectedDate={selectedDate}
-          onDateChange={viewType === "monthly" ? handleMonthChange : newDate => setSelectedYear(newDate.getFullYear())}
-          onPrevious={viewType === "monthly" ? handlePreviousMonth : () => setSelectedYear(prev => prev - 1)}
-          onNext={viewType === "monthly" ? handleNextMonth : () => setSelectedYear(prev => prev + 1)}
-          onToday={viewType === "monthly" ? handleTodayMonth : () => setSelectedYear(new Date().getFullYear())}
+          onDateChange={
+            viewType === "monthly"
+              ? handleMonthChange
+              : newDate => dispatch(setGoalsSelectedYear(newDate.getFullYear()))
+          }
+          onPrevious={
+            viewType === "monthly" ? handlePreviousMonth : () => dispatch(setGoalsSelectedYear(selectedYear - 1))
+          }
+          onNext={viewType === "monthly" ? handleNextMonth : () => dispatch(setGoalsSelectedYear(selectedYear + 1))}
+          onToday={
+            viewType === "monthly" ? handleTodayMonth : () => dispatch(setGoalsSelectedYear(new Date().getFullYear()))
+          }
           showDatePicker={viewType === "monthly"}
           showDateDisplay={viewType === "monthly"}
           showViewSelector={true}
@@ -282,11 +293,11 @@ export function GoalsTab({ isLoading }) {
           ]}
           selectedView={viewType}
           onViewChange={newView => {
-            setViewType(newView);
+            dispatch(setGoalsViewType(newView));
             if (newView === "monthly") {
               const today = new Date();
-              setSelectedMonth(today.getMonth() + 1);
-              setSelectedYear(today.getFullYear());
+              dispatch(setGoalsSelectedMonth(today.getMonth() + 1));
+              dispatch(setGoalsSelectedYear(today.getFullYear()));
             }
           }}
           viewSelectorWidth="120px"

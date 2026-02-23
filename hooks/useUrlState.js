@@ -28,7 +28,11 @@ export function useUrlState() {
     isUpdatingFromUrl.current = true;
 
     for (const [urlKey, config] of Object.entries(URL_STATE_CONFIG)) {
-      const urlValue = searchParams.get(urlKey);
+      let urlValue = searchParams.get(urlKey);
+      // Backward compatibility: support legacy Goals param.
+      if (urlValue === null && urlKey === "goalsYear") {
+        urlValue = searchParams.get("goalYear");
+      }
       if (urlValue === null) continue;
 
       const deserializedValue = config.deserialize(urlValue);
