@@ -18,11 +18,18 @@ import {
   ListItem,
   ListItemText,
   Divider,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
 } from "@mui/material";
-import { Hotel, TrendingUp } from "@mui/icons-material";
+import { Hotel, TrendingUp, Edit } from "@mui/icons-material";
 import { DateNavigation } from "@/components/DateNavigation";
 import { setSleepView, setSleepSelectedDate } from "@/lib/store/slices/uiSlice";
-import { useGetCompletionsByDateRangeQuery } from "@/lib/store/api/completionsApi";
+import { useGetCompletionsByDateRangeQuery, useCreateCompletionMutation } from "@/lib/store/api/completionsApi";
 import { useGetRecurringTasksQuery } from "@/lib/store/api/tasksApi";
 
 // Helper to format sleep time
@@ -53,6 +60,148 @@ const getDurationMinutes = (sleepData = {}) => {
   return 0;
 };
 
+const getDurationParts = (sleepData = {}) => {
+  if (Number.isFinite(sleepData.durationHours) || Number.isFinite(sleepData.durationMinutesPart)) {
+    const hours = Number.isFinite(sleepData.durationHours) ? Math.max(0, Math.floor(sleepData.durationHours)) : 0;
+    const minutesPart = Number.isFinite(sleepData.durationMinutesPart)
+      ? Math.max(0, Math.floor(sleepData.durationMinutesPart))
+      : 0;
+    return { hours, minutesPart };
+  }
+
+  const totalMinutes = getDurationMinutes(sleepData);
+  return {
+    hours: Math.floor(totalMinutes / 60),
+    minutesPart: totalMinutes % 60,
+  };
+};
+
+const formatTimeInput = isoString => {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return "";
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+};
+
+const buildSleepIso = (completionDate, timeValue, isStart) => {
+  if (!timeValue) return null;
+  const [hours, minutes] = timeValue.split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+
+  const base = dayjs(completionDate).startOf("day");
+  let dateTime = base.hour(hours).minute(minutes).second(0).millisecond(0);
+
+  // Sleep start after 6pm usually belongs to the previous day.
+  if (isStart && hours >= 18) {
+    dateTime = dateTime.subtract(1, "day");
+  }
+
+  return dateTime.toISOString();
+};
+
+const SleepEditDialog = memo(function SleepEditDialog({ open, onClose, initialDate, initialData, onSave }) {
+  const duration = getDurationParts(initialData || {});
+  const [sleepStart, setSleepStart] = useState(formatTimeInput(initialData?.sleepStart));
+  const [sleepEnd, setSleepEnd] = useState(formatTimeInput(initialData?.sleepEnd));
+  const [durationHours, setDurationHours] = useState(String(duration.hours || 0));
+  const [durationMinutesPart, setDurationMinutesPart] = useState(String(duration.minutesPart || 0));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const nextDuration = getDurationParts(initialData || {});
+    setSleepStart(formatTimeInput(initialData?.sleepStart));
+    setSleepEnd(formatTimeInput(initialData?.sleepEnd));
+    setDurationHours(String(nextDuration.hours || 0));
+    setDurationMinutesPart(String(nextDuration.minutesPart || 0));
+  }, [open, initialData, initialDate]);
+
+  const handleSave = async () => {
+    const parsedHours = Number(durationHours);
+    const parsedMinutes = Number(durationMinutesPart);
+    const normalizedHours = Number.isFinite(parsedHours) && parsedHours >= 0 ? Math.floor(parsedHours) : 0;
+    let normalizedMinutes = Number.isFinite(parsedMinutes) && parsedMinutes >= 0 ? Math.floor(parsedMinutes) : 0;
+    const extraHours = Math.floor(normalizedMinutes / 60);
+    normalizedMinutes %= 60;
+
+    setSaving(true);
+    try {
+      await onSave({
+        date: dayjs(initialDate).format("YYYY-MM-DD"),
+        sleepData: {
+          sleepStart: buildSleepIso(initialDate, sleepStart, true),
+          sleepEnd: buildSleepIso(initialDate, sleepEnd, false),
+          durationHours: normalizedHours + extraHours,
+          durationMinutesPart: normalizedMinutes,
+          source: initialData?.source || "manual",
+        },
+      });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Edit Sleep</DialogTitle>
+      <DialogContent dividers>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 2,
+            pt: 1,
+          }}
+        >
+          <TextField
+            label="Sleep Start"
+            type="time"
+            value={sleepStart}
+            onChange={e => setSleepStart(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+          />
+          <TextField
+            label="Sleep End"
+            type="time"
+            value={sleepEnd}
+            onChange={e => setSleepEnd(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+          />
+          <TextField
+            label="Duration (h)"
+            type="number"
+            value={durationHours}
+            onChange={e => setDurationHours(e.target.value)}
+            inputProps={{ min: 0, step: 1 }}
+            fullWidth
+          />
+          <TextField
+            label="Duration (m)"
+            type="number"
+            value={durationMinutesPart}
+            onChange={e => setDurationMinutesPart(e.target.value)}
+            inputProps={{ min: 0, max: 59, step: 1 }}
+            fullWidth
+          />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={saving}>
+          Cancel
+        </Button>
+        <Button onClick={handleSave} variant="contained" disabled={saving}>
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+});
+
 // Helper to get sleep quality based on duration
 const getSleepQuality = (minutes, targetMinutes = 8 * 60) => {
   if (!minutes) return null;
@@ -63,7 +212,7 @@ const getSleepQuality = (minutes, targetMinutes = 8 * 60) => {
 };
 
 // Day view component
-const SleepDayView = memo(({ selectedDate, sleepCompletions, sleepTask }) => {
+const SleepDayView = memo(({ selectedDate, sleepCompletions, onEdit }) => {
   const dateStr = selectedDate.format("YYYY-MM-DD");
   const completion = sleepCompletions.find(c => 
     dayjs(c.date).format("YYYY-MM-DD") === dateStr
@@ -81,6 +230,9 @@ const SleepDayView = memo(({ selectedDate, sleepCompletions, sleepTask }) => {
           <Typography variant="h6" color="text.secondary">
             No sleep data for {selectedDate.format("MMMM D, YYYY")}
           </Typography>
+          <Button sx={{ mt: 2 }} variant="outlined" startIcon={<Edit fontSize="small" />} onClick={() => onEdit(null)}>
+            Add Sleep Entry
+          </Button>
         </CardContent>
       </Card>
     );
@@ -91,11 +243,21 @@ const SleepDayView = memo(({ selectedDate, sleepCompletions, sleepTask }) => {
       <Card>
         <CardContent>
           <Stack spacing={3}>
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Hotel sx={{ color: "primary.main" }} />
-              <Typography variant="h6">
-                Sleep Summary - {selectedDate.format("MMMM D, YYYY")}
-              </Typography>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Hotel sx={{ color: "primary.main" }} />
+                <Typography variant="h6">
+                  Sleep Summary - {selectedDate.format("MMMM D, YYYY")}
+                </Typography>
+              </Stack>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Edit fontSize="small" />}
+                onClick={() => onEdit(completion)}
+              >
+                Edit
+              </Button>
             </Stack>
 
             <Grid container spacing={3}>
@@ -165,7 +327,7 @@ const SleepDayView = memo(({ selectedDate, sleepCompletions, sleepTask }) => {
 });
 
 // Week/Month/Year view component
-const SleepListView = memo(({ selectedDate, sleepCompletions, viewType }) => {
+const SleepListView = memo(({ selectedDate, sleepCompletions, viewType, onEdit }) => {
   const getDateRange = () => {
     switch (viewType) {
       case "week":
@@ -303,6 +465,9 @@ const SleepListView = memo(({ selectedDate, sleepCompletions, viewType }) => {
                       sleepData.source === "manual" ? "Manual entry" : sleepData.source
                     }
                   />
+                  <IconButton edge="end" size="small" onClick={() => onEdit(completion)}>
+                    <Edit fontSize="small" />
+                  </IconButton>
                 </ListItem>
               </div>
             );
@@ -315,6 +480,8 @@ const SleepListView = memo(({ selectedDate, sleepCompletions, viewType }) => {
 
 export const SleepTab = memo(function SleepTab({ isLoading: tabLoading }) {
   const dispatch = useDispatch();
+  const [createCompletion] = useCreateCompletionMutation();
+  const [editingCompletion, setEditingCompletion] = useState(null);
 
   // Get state from Redux
   const sleepView = useSelector(state => state.ui.sleepView || "day");
@@ -348,6 +515,11 @@ export const SleepTab = memo(function SleepTab({ isLoading: tabLoading }) {
     const data = Array.isArray(completionsData) ? completionsData : completionsData?.completions || [];
     return data.filter(c => sleepTaskIds.has(c.taskId));
   }, [completionsData, sleepTaskIds]);
+
+  const selectedDateCompletion = useMemo(() => {
+    const key = selectedDate.format("YYYY-MM-DD");
+    return sleepCompletions.find(c => dayjs(c.date).format("YYYY-MM-DD") === key) || null;
+  }, [sleepCompletions, selectedDate]);
 
   // Initialize Redux state from URL on mount if not set
   useEffect(() => {
@@ -391,6 +563,33 @@ export const SleepTab = memo(function SleepTab({ isLoading: tabLoading }) {
 
   const handleToday = () => {
     dispatch(setSleepSelectedDate(dayjs().toISOString()));
+  };
+
+  const handleOpenEditor = completion => {
+    if (completion) {
+      setEditingCompletion({
+        date: dayjs(completion.date).format("YYYY-MM-DD"),
+        sleepData: completion.selectedOptions || {},
+      });
+      return;
+    }
+
+    setEditingCompletion({
+      date: selectedDate.format("YYYY-MM-DD"),
+      sleepData: {},
+    });
+  };
+
+  const handleSaveSleepEdit = async ({ date, sleepData }) => {
+    if (!sleepTask?.id) return;
+
+    await createCompletion({
+      taskId: sleepTask.id,
+      date,
+      outcome: "completed",
+      selectedOptions: sleepData,
+      completedAt: new Date().toISOString(),
+    }).unwrap();
   };
 
   if (tabLoading) {
@@ -474,16 +673,24 @@ export const SleepTab = memo(function SleepTab({ isLoading: tabLoading }) {
           <SleepDayView
             selectedDate={selectedDate}
             sleepCompletions={sleepCompletions}
-            sleepTask={sleepTask}
+            onEdit={handleOpenEditor}
           />
         ) : (
           <SleepListView
             selectedDate={selectedDate}
             sleepCompletions={sleepCompletions}
             viewType={sleepView}
+            onEdit={handleOpenEditor}
           />
         )}
       </Box>
+      <SleepEditDialog
+        open={Boolean(editingCompletion)}
+        onClose={() => setEditingCompletion(null)}
+        initialDate={editingCompletion?.date || selectedDate.format("YYYY-MM-DD")}
+        initialData={editingCompletion?.sleepData || selectedDateCompletion?.selectedOptions || {}}
+        onSave={handleSaveSleepEdit}
+      />
     </Box>
   );
 });
