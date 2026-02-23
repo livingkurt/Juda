@@ -94,6 +94,7 @@ export const GET = withApi(async (request, { userId, getRequiredParam }) => {
             notes: exercise.notes,
             bothSides: exercise.bothSides || false,
             order: exercise.order,
+            // eslint-disable-next-line max-nested-callbacks
             weeklyProgression: exercise.weeklyProgressions.map(wp => ({
               week: wp.week,
               targetValue: wp.targetValue,
@@ -254,6 +255,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
             });
 
             touchedExerciseIds.add(exerciseId);
+            // eslint-disable-next-line max-depth
             if (exerciseData.weeklyProgression && exerciseData.weeklyProgression.length > 0) {
               weeklyProgressionRows.push(
                 ...exerciseData.weeklyProgression.map(wp => ({

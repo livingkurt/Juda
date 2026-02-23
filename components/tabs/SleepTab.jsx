@@ -13,7 +13,6 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   CircularProgress,
-  Alert,
   List,
   ListItem,
   ListItemText,
@@ -26,20 +25,20 @@ import {
   Button,
   TextField,
 } from "@mui/material";
-import { Hotel, TrendingUp, Edit } from "@mui/icons-material";
+import { Hotel, Edit } from "@mui/icons-material";
 import { DateNavigation } from "@/components/DateNavigation";
 import { setSleepView, setSleepSelectedDate } from "@/lib/store/slices/uiSlice";
 import { useGetCompletionsByDateRangeQuery, useCreateCompletionMutation } from "@/lib/store/api/completionsApi";
 import { useGetRecurringTasksQuery } from "@/lib/store/api/tasksApi";
 
 // Helper to format sleep time
-const formatSleepTime = (isoString) => {
+const formatSleepTime = isoString => {
   if (!isoString) return "—";
-  return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(isoString).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
 // Helper to format duration
-const formatDuration = (minutes) => {
+const formatDuration = minutes => {
   if (!minutes) return "—";
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
@@ -212,12 +211,10 @@ const getSleepQuality = (minutes, targetMinutes = 8 * 60) => {
 };
 
 // Day view component
-const SleepDayView = memo(({ selectedDate, sleepCompletions, onEdit }) => {
+const SleepDayView = memo(function SleepDayView({ selectedDate, sleepCompletions, onEdit }) {
   const dateStr = selectedDate.format("YYYY-MM-DD");
-  const completion = sleepCompletions.find(c => 
-    dayjs(c.date).format("YYYY-MM-DD") === dateStr
-  );
-  
+  const completion = sleepCompletions.find(c => dayjs(c.date).format("YYYY-MM-DD") === dateStr);
+
   const sleepData = completion?.selectedOptions || {};
   const durationMinutes = getDurationMinutes(sleepData);
   const quality = getSleepQuality(durationMinutes);
@@ -246,9 +243,7 @@ const SleepDayView = memo(({ selectedDate, sleepCompletions, onEdit }) => {
             <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <Hotel sx={{ color: "primary.main" }} />
-                <Typography variant="h6">
-                  Sleep Summary - {selectedDate.format("MMMM D, YYYY")}
-                </Typography>
+                <Typography variant="h6">Sleep Summary - {selectedDate.format("MMMM D, YYYY")}</Typography>
               </Stack>
               <Button
                 size="small"
@@ -266,9 +261,7 @@ const SleepDayView = memo(({ selectedDate, sleepCompletions, onEdit }) => {
                   <Typography variant="subtitle2" color="text.secondary">
                     Sleep Start
                   </Typography>
-                  <Typography variant="h5">
-                    {formatSleepTime(sleepData.sleepStart)}
-                  </Typography>
+                  <Typography variant="h5">{formatSleepTime(sleepData.sleepStart)}</Typography>
                 </Stack>
               </Grid>
 
@@ -277,9 +270,7 @@ const SleepDayView = memo(({ selectedDate, sleepCompletions, onEdit }) => {
                   <Typography variant="subtitle2" color="text.secondary">
                     Wake Up
                   </Typography>
-                  <Typography variant="h5">
-                    {formatSleepTime(sleepData.sleepEnd)}
-                  </Typography>
+                  <Typography variant="h5">{formatSleepTime(sleepData.sleepEnd)}</Typography>
                 </Stack>
               </Grid>
 
@@ -289,9 +280,7 @@ const SleepDayView = memo(({ selectedDate, sleepCompletions, onEdit }) => {
                     Duration
                   </Typography>
                   <Stack direction="row" alignItems="center" spacing={1}>
-                    <Typography variant="h5">
-                      {formatDuration(durationMinutes)}
-                    </Typography>
+                    <Typography variant="h5">{formatDuration(durationMinutes)}</Typography>
                     {quality && (
                       <Typography
                         variant="body2"
@@ -327,7 +316,7 @@ const SleepDayView = memo(({ selectedDate, sleepCompletions, onEdit }) => {
 });
 
 // Week/Month/Year view component
-const SleepListView = memo(({ selectedDate, sleepCompletions, viewType, onEdit }) => {
+const SleepListView = memo(function SleepListView({ selectedDate, sleepCompletions, viewType, onEdit }) {
   const getDateRange = () => {
     switch (viewType) {
       case "week":
@@ -356,9 +345,7 @@ const SleepListView = memo(({ selectedDate, sleepCompletions, viewType, onEdit }
     return date.isBetween(start, end, null, "[]");
   });
 
-  const sortedCompletions = [...filteredCompletions].sort((a, b) => 
-    new Date(b.date) - new Date(a.date)
-  );
+  const sortedCompletions = [...filteredCompletions].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   if (sortedCompletions.length === 0) {
     return (
@@ -379,7 +366,7 @@ const SleepListView = memo(({ selectedDate, sleepCompletions, viewType, onEdit }
     0
   );
   const avgSleep = Math.round(totalSleep / sortedCompletions.length);
-  
+
   return (
     <Box sx={{ mt: 2 }}>
       {/* Summary stats */}
@@ -461,8 +448,11 @@ const SleepListView = memo(({ selectedDate, sleepCompletions, viewType, onEdit }
                       </Stack>
                     }
                     secondary={
-                      sleepData.source === "apple_health" ? "Apple Health" : 
-                      sleepData.source === "manual" ? "Manual entry" : sleepData.source
+                      sleepData.source === "apple_health"
+                        ? "Apple Health"
+                        : sleepData.source === "manual"
+                          ? "Manual entry"
+                          : sleepData.source
                     }
                   />
                   <IconButton edge="end" size="small" onClick={() => onEdit(completion)}>
@@ -510,11 +500,11 @@ export const SleepTab = memo(function SleepTab({ isLoading: tabLoading }) {
   );
 
   // Filter completions to only sleep tasks
-  const sleepTaskIds = new Set(sleepTasks.map(t => t.id));
   const sleepCompletions = useMemo(() => {
+    const sleepTaskIds = new Set(sleepTasks.map(t => t.id));
     const data = Array.isArray(completionsData) ? completionsData : completionsData?.completions || [];
     return data.filter(c => sleepTaskIds.has(c.taskId));
-  }, [completionsData, sleepTaskIds]);
+  }, [completionsData, sleepTasks]);
 
   const selectedDateCompletion = useMemo(() => {
     const key = selectedDate.format("YYYY-MM-DD");
@@ -529,7 +519,7 @@ export const SleepTab = memo(function SleepTab({ isLoading: tabLoading }) {
   }, [dispatch, sleepSelectedDateISO]);
 
   // Navigate dates
-  const handleDateChange = (date) => {
+  const handleDateChange = date => {
     dispatch(setSleepSelectedDate(dayjs(date).toISOString()));
   };
 
@@ -607,7 +597,7 @@ export const SleepTab = memo(function SleepTab({ isLoading: tabLoading }) {
           <Hotel sx={{ fontSize: 48, color: "text.secondary" }} />
           <Typography variant="h6">No sleep task found</Typography>
           <Typography variant="body2" color="text.secondary" textAlign="center">
-            Create a task with completion type "Sleep" to track your sleep here.
+            Create a task with completion type &quot;Sleep&quot; to track your sleep here.
           </Typography>
         </Stack>
       </Box>
@@ -669,11 +659,7 @@ export const SleepTab = memo(function SleepTab({ isLoading: tabLoading }) {
             <CircularProgress />
           </Box>
         ) : sleepView === "day" ? (
-          <SleepDayView
-            selectedDate={selectedDate}
-            sleepCompletions={sleepCompletions}
-            onEdit={handleOpenEditor}
-          />
+          <SleepDayView selectedDate={selectedDate} sleepCompletions={sleepCompletions} onEdit={handleOpenEditor} />
         ) : (
           <SleepListView
             selectedDate={selectedDate}

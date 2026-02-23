@@ -25,14 +25,19 @@ export const DateNavigation = memo(function DateNavigation({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const useTwoRowLayout = isMobile;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = useMemo(() => {
+    const value = new Date();
+    value.setHours(0, 0, 0, 0);
+    return value;
+  }, []);
 
   // Normalize selectedDate to midnight for accurate comparison
-  const normalizedSelectedDate = selectedDate ? new Date(selectedDate) : null;
-  if (normalizedSelectedDate) {
-    normalizedSelectedDate.setHours(0, 0, 0, 0);
-  }
+  const normalizedSelectedDate = useMemo(() => {
+    if (!selectedDate) return null;
+    const value = new Date(selectedDate);
+    value.setHours(0, 0, 0, 0);
+    return value;
+  }, [selectedDate]);
 
   // Determine if we're in current period based on compareMode
   const isCurrentPeriod = useMemo(() => {

@@ -479,7 +479,6 @@ function TaskDialogForm({
       yearlyOrdinal,
       yearlyDayOfWeek,
       yearlyInterval,
-      priority,
       onSave,
       onClose,
     ]

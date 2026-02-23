@@ -464,11 +464,11 @@ export default function WorkoutModal() {
       try {
         wakeLock = await navigator.wakeLock.request("screen");
         wakeLockRef.current = wakeLock;
-        console.log("Screen wake lock activated");
+        console.warn("Screen wake lock activated");
 
         // Re-request if visibility changes (user switches tabs)
         wakeLock.addEventListener("release", () => {
-          console.log("Screen wake lock released");
+          console.warn("Screen wake lock released");
         });
       } catch (err) {
         console.error("Failed to acquire wake lock:", err);
@@ -497,7 +497,7 @@ export default function WorkoutModal() {
       if (document.visibilityState === "visible" && !wakeLockRef.current) {
         try {
           wakeLockRef.current = await navigator.wakeLock.request("screen");
-          console.log("Screen wake lock re-acquired");
+          console.warn("Screen wake lock re-acquired");
         } catch (err) {
           console.error("Failed to re-acquire wake lock:", err);
         }

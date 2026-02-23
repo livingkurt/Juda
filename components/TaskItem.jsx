@@ -26,7 +26,6 @@ import {
   PlayCircle,
   CheckCircle,
   FitnessCenter,
-  Hotel,
 } from "@mui/icons-material";
 import { formatTime, getTaskDisplayColor } from "@/lib/utils";
 import { TagChip } from "./TagChip";
@@ -756,11 +755,11 @@ export const TaskItem = ({
     debouncedNoteSave(htmlContent);
   };
 
-  const handleNoteClose = async () => {
+  const handleNoteClose = useCallback(async () => {
     // Save the note before closing
     await immediateNoteSave(editedNote);
     setIsEditingNote(false);
-  };
+  }, [immediateNoteSave, editedNote]);
 
   // Handle click outside to close note editor
   useEffect(() => {
@@ -781,7 +780,7 @@ export const TaskItem = ({
       clearTimeout(timer);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isEditingNote, editedNote]);
+  }, [isEditingNote, editedNote, handleNoteClose]);
 
   // Handle keyboard shortcuts for note editor
   useEffect(() => {
@@ -805,7 +804,7 @@ export const TaskItem = ({
     return () => {
       document.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [isEditingNote, editedNote, task.content]);
+  }, [isEditingNote, editedNote, task.content, handleNoteClose]);
 
   const handleCreateSubtask = async () => {
     if (newSubtaskTitle.trim() && onCreateSubtask) {

@@ -163,16 +163,7 @@ export const JournalDayEntry = ({ task, date, completion, isCurrentYear, onSave,
         }
       }
     },
-    [
-      isCurrentYear,
-      isSelectionTask,
-      task.id,
-      date,
-      completion?.note,
-      completion?.selectedOptions,
-      onSave,
-      selectionValuesFromCompletion,
-    ]
+    [isCurrentYear, isSelectionTask, task.id, date, completion?.note, onSave, selectionValuesFromCompletion]
   );
 
   const { debouncedSave, immediateSave } = useDebouncedSave(saveNote, 300);

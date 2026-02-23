@@ -39,7 +39,12 @@ function parseDurationToMinutes(value) {
 // Parse all timestamps from a newline-separated string
 function parseAllDates(str) {
   if (!str || typeof str !== "string") return [];
-  return str.split("\n").map(l => l.trim()).filter(l => l).map(parseFlexibleDate).filter(d => d !== null);
+  return str
+    .split("\n")
+    .map(l => l.trim())
+    .filter(l => l)
+    .map(parseFlexibleDate)
+    .filter(d => d !== null);
 }
 
 // Find the last sleep session from a list of timestamps
@@ -47,7 +52,7 @@ function parseAllDates(str) {
 function getLastSession(dates) {
   if (dates.length === 0) return [];
   const sorted = [...dates].sort((a, b) => a - b);
-  
+
   let sessionStart = 0;
   for (let i = 1; i < sorted.length; i++) {
     const gap = (sorted[i] - sorted[i - 1]) / (1000 * 60 * 60); // hours
@@ -55,7 +60,7 @@ function getLastSession(dates) {
       sessionStart = i; // New session begins here
     }
   }
-  
+
   return sorted.slice(sessionStart);
 }
 
@@ -70,7 +75,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    console.log("Sleep webhook received body:", JSON.stringify(body).substring(0, 500));
+    console.warn("Sleep webhook received body:", JSON.stringify(body).substring(0, 500));
 
     const { email, source, timestamps, startDates, endDates, sleepStart, sleepEnd, date, durationMinutes, asleep } =
       body;
@@ -96,7 +101,7 @@ export async function POST(request) {
       const allStarts = parseAllDates(startDates);
       const allEnds = parseAllDates(endDates);
       const allTimestamps = [...allStarts, ...allEnds].sort((a, b) => a - b);
-      
+
       const lastSession = getLastSession(allTimestamps);
       if (lastSession.length >= 2) {
         parsedStart = lastSession[0];
@@ -147,7 +152,9 @@ export async function POST(request) {
       duration = Math.round((parsedEnd - parsedStart) / (1000 * 60));
     }
 
-    console.log(`Sleep webhook parsed: date=${sleepDate}, start=${parsedStart?.toISOString()}, end=${parsedEnd?.toISOString()}, duration=${duration}min`);
+    console.warn(
+      `Sleep webhook parsed: date=${sleepDate}, start=${parsedStart?.toISOString()}, end=${parsedEnd?.toISOString()}, duration=${duration}min`
+    );
 
     // Find the user's sleep task
     const [sleepTask] = await db

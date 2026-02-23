@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Box, Stack, Typography, IconButton, Paper, Tooltip, Alert } from "@mui/material";
 import { PlayArrow, Pause, Refresh, LightMode, Warning } from "@mui/icons-material";
 
+let fallbackSharedAudioContext = null;
+
 /**
  * CountdownTimer - A countdown timer for time-based exercises
  *
@@ -31,6 +33,7 @@ export default function CountdownTimer({
   onStop,
   sharedAudioContext = null,
 }) {
+  const sharedAudioCtxRef = sharedAudioContext;
   // Track elapsed time instead of remaining time
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
@@ -51,20 +54,20 @@ export default function CountdownTimer({
   // Get or create AudioContext (reused across all sounds)
   // If a shared AudioContext ref is provided (e.g. from BothSidesTimer), use it
   // so the second side inherits the user-gesture-unlocked context from the first side
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const getAudioContext = async () => {
-    if (sharedAudioContext?.current) {
-      if (sharedAudioContext.current.state === "suspended") {
-        await sharedAudioContext.current.resume();
+    const sharedContext = sharedAudioCtxRef?.current || fallbackSharedAudioContext;
+    if (sharedContext) {
+      if (sharedContext.state === "suspended") {
+        await sharedContext.resume();
       }
-      audioContextRef.current = sharedAudioContext.current;
-      return sharedAudioContext.current;
+      audioContextRef.current = sharedContext;
+      return sharedContext;
     }
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-      // Store in shared ref so the second timer can reuse it
-      if (sharedAudioContext) {
-        sharedAudioContext.current = audioContextRef.current;
-      }
+      // Keep a module-level fallback shared context for reuse.
+      fallbackSharedAudioContext = audioContextRef.current;
     }
     if (audioContextRef.current.state === "suspended") {
       await audioContextRef.current.resume();
@@ -133,7 +136,7 @@ export default function CountdownTimer({
     } catch (err) {
       console.warn("Could not play countdown beep:", err);
     }
-  }, []);
+  }, [getAudioContext]);
 
   // Play "Start" beep (higher tone for start)
   const playStartBeep = useCallback(async () => {
@@ -162,7 +165,7 @@ export default function CountdownTimer({
     } catch (err) {
       console.warn("Could not play start beep:", err);
     }
-  }, []);
+  }, [getAudioContext]);
 
   // Play completion sound using Web Audio API
   const playCompletionSound = useCallback(async () => {
@@ -197,7 +200,7 @@ export default function CountdownTimer({
       // Fallback: use a simple beep if Web Audio API fails
       console.warn("Could not play completion sound:", err);
     }
-  }, []);
+  }, [getAudioContext]);
 
   // Derive remaining time from target and elapsed (only for countdown mode)
   const timeRemaining = isTest ? 0 : Math.max(0, targetSeconds - elapsedSeconds);
@@ -240,7 +243,7 @@ export default function CountdownTimer({
         pendingCompleteRef.current = false;
       }
     },
-    [timeRemaining, targetSeconds, prepCountdown, prepSeconds, requestWakeLock, isTest, elapsedSeconds]
+    [timeRemaining, targetSeconds, prepCountdown, prepSeconds, requestWakeLock, isTest, elapsedSeconds, getAudioContext]
   );
 
   // Pause timer

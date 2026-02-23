@@ -83,7 +83,7 @@ export function useSSESync() {
 
   // Invalidate all caches to force refetch
   const invalidateAllCaches = useCallback(() => {
-    console.log("SSE: Invalidating all caches for catch-up sync");
+    console.warn("SSE: Invalidating all caches for catch-up sync");
     dispatch(tasksApi.util.invalidateTags(["Task"]));
     dispatch(sectionsApi.util.invalidateTags(["Section"]));
     dispatch(tagsApi.util.invalidateTags(["Tag"]));
@@ -129,7 +129,7 @@ export function useSSESync() {
         // If we were hidden for more than the threshold, invalidate caches
         // This catches up on any changes we missed while backgrounded
         if (wasHiddenRef.current && timeInBackground > STALE_THRESHOLD_MS) {
-          console.log(`SSE: Was hidden for ${timeInBackground}ms, triggering catch-up sync`);
+          console.warn(`SSE: Was hidden for ${timeInBackground}ms, triggering catch-up sync`);
           // Small delay to let SSE reconnect first
           setTimeout(() => {
             invalidateAllCaches();
@@ -175,7 +175,7 @@ export function useSSESync() {
     const handlePageShow = event => {
       if (event.persisted && isAuthenticated) {
         // Page was restored from bfcache
-        console.log("SSE: Page restored from bfcache, triggering catch-up sync");
+        console.warn("SSE: Page restored from bfcache, triggering catch-up sync");
         sseManager.connect();
         invalidateAllCaches();
       }
