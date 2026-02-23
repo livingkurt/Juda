@@ -26,6 +26,7 @@ export const CellEditorPopover = ({
   onDelete,
   onClose,
   onOpenWorkout,
+  onOpenSleep,
 }) => {
   // Normalize date to dayjs
   const dateObj = typeof date === "string" ? dayjs(date) : dayjs(date);
@@ -149,6 +150,7 @@ export const CellEditorPopover = ({
   }
 
   const canOpenWorkout = task.completionType === "workout" && typeof onOpenWorkout === "function";
+  const canOpenSleep = task.completionType === "sleep" && typeof onOpenSleep === "function";
 
   // For checkbox type (default)
   return (
@@ -213,6 +215,11 @@ export const CellEditorPopover = ({
         {canOpenWorkout && (
           <Button size="small" variant="outlined" onClick={onOpenWorkout}>
             Open Workout
+          </Button>
+        )}
+        {canOpenSleep && (
+          <Button size="small" variant="outlined" onClick={onOpenSleep}>
+            Open Sleep
           </Button>
         )}
         <Box flex={1} />

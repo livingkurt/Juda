@@ -976,3 +976,30 @@
 - Replaced the day/week/month/year split analytics with a single year-to-date comparison view in the History consistency modal.
 - Added four outcome categories based on scheduled days since Jan 1: Completed, Not completed, Rolled over, and Unchecked (scheduled with no completion record).
 - Added color-coded bars and a matching legend/breakdown so outcomes are readable at a glance.
+
+## 2026-02-23
+
+### History tab table/graph toggle with horizontal scroll graph
+
+- Added a `Table | Graph` button group in `components/tabs/HistoryTab.jsx` so users can switch between the existing completion matrix and a new graph view.
+- Added a graph mode that renders one stacked vertical bar per recurring task using year-to-date outcomes (Completed, Not completed, Rolled over, Unchecked), with completion percentage shown above each bar.
+- Made the graph area horizontally scrollable with width based on task count so long recurring-task lists can be scanned left/right like the table.
+- Kept the existing table behavior unchanged and reused existing analytics calculations to avoid breaking data logic.
+- Added a graph legend above the bars to map each color to its outcome category.
+- Updated bar interactivity so each stacked color segment has its own tooltip showing that segment's count and percentage for the selected task.
+- Added graph sorting controls for horizontal bar order with options: Name (A-Z), Most consistent (highest completion percentage), and Least consistent (lowest completion percentage).
+- Sorting uses year-to-date completion percentage and keeps tasks with no schedule at the end for consistency-focused sorts.
+- Added `Time (History order)` graph sort option and made it the default so the graph initially follows the same ordering as the History view.
+
+### History tab sleep cell with inline sleep editing
+
+- Added a sleep-specific cell renderer in `components/tabs/HistoryTab.jsx` for tasks with `completionType === "sleep"`.
+- Sleep cells now show duration text (`Xh Ym`) when sleep duration exists in `selectedOptions` (`durationHours` + `durationMinutesPart` with fallback to legacy `durationMinutes`).
+- Added a dedicated sleep edit dialog for History cells (same 2x2 input layout: Sleep Start, Sleep End, Duration (h), Duration (m)).
+- Saving from the dialog now writes a completion with `outcome: "completed"` and `selectedOptions` sleep payload via existing `handleCellUpdate`.
+- Updated sleep-cell click flow to match workout behavior: click opens the standard completion modal first, then `Open Sleep` launches the sleep editor modal.
+- Added sleep cell color-coding by duration:
+  - green for over 8 hours
+  - yellow for 6 to 8 hours
+  - red for below 5 hours
+  - gray/default hover tone when no duration is filled in.
