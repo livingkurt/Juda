@@ -654,10 +654,9 @@ export const SleepTab = memo(function SleepTab({ isLoading: tabLoading }) {
       {/* Date Navigation */}
       <Box sx={{ px: 2, py: 1, borderBottom: 1, borderColor: "divider" }}>
         <DateNavigation
-          currentDate={selectedDate.toDate()}
-          view={sleepView}
+          selectedDate={selectedDate.toDate()}
           onDateChange={handleDateChange}
-          onPrev={handlePrev}
+          onPrevious={handlePrev}
           onNext={handleNext}
           onToday={handleToday}
         />
