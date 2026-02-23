@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, memo, useCallback } from "react";
+import { useState, useRef, useEffect, useMemo, memo, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -296,22 +296,46 @@ const SleepInputTask = ({ taskId, savedOptions, isNotCompleted, onCompleteWithNo
   const [durationMinutesInput, setDurationMinutesInput] = useState(
     initialDuration.minutes === "" ? "" : String(initialDuration.minutes)
   );
-  const [prevSavedOptions, setPrevSavedOptions] = useState(savedOptions);
+  const [lastSyncedSignature, setLastSyncedSignature] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
-  // Sync local state when completion data changes externally
-  if (prevSavedOptions !== savedOptions && !isFocused) {
-    setPrevSavedOptions(savedOptions);
-    setSleepStart(sleepData.sleepStart ? new Date(sleepData.sleepStart).toTimeString().slice(0, 5) : "");
-    setSleepEnd(sleepData.sleepEnd ? new Date(sleepData.sleepEnd).toTimeString().slice(0, 5) : "");
+  const savedSignature = useMemo(() => {
+    if (!savedOptions) return "";
+    return JSON.stringify({
+      sleepStart: sleepData.sleepStart || null,
+      sleepEnd: sleepData.sleepEnd || null,
+      durationHours: sleepData.durationHours ?? null,
+      durationMinutesPart: sleepData.durationMinutesPart ?? null,
+      durationMinutes: sleepData.durationMinutes ?? null,
+    });
+  }, [
+    savedOptions,
+    sleepData.sleepStart,
+    sleepData.sleepEnd,
+    sleepData.durationHours,
+    sleepData.durationMinutesPart,
+    sleepData.durationMinutes,
+  ]);
+
+  // Sync local state with external saved values using render-time adjustment pattern
+  if (!isFocused && savedSignature && savedSignature !== lastSyncedSignature) {
+    const nextStart = sleepData.sleepStart ? new Date(sleepData.sleepStart).toTimeString().slice(0, 5) : "";
+    const nextEnd = sleepData.sleepEnd ? new Date(sleepData.sleepEnd).toTimeString().slice(0, 5) : "";
     const syncedDuration = getDurationParts(sleepData);
-    setDurationHoursInput(syncedDuration.hours === "" ? "" : String(syncedDuration.hours));
-    setDurationMinutesInput(syncedDuration.minutes === "" ? "" : String(syncedDuration.minutes));
+    const nextHours = syncedDuration.hours === "" ? "" : String(syncedDuration.hours);
+    const nextMinutes = syncedDuration.minutes === "" ? "" : String(syncedDuration.minutes);
+
+    setSleepStart(nextStart);
+    setSleepEnd(nextEnd);
+    setDurationHoursInput(nextHours);
+    setDurationMinutesInput(nextMinutes);
+    setLastSyncedSignature(savedSignature);
   }
 
   // Save function wrapper
   const saveSleep = useCallback(
-    (start, end, durationHoursValue, durationMinutesValue) => {
+    payload => {
+      const { start, end, durationHoursValue, durationMinutesValue } = payload || {};
       const parsedHours = Number(durationHoursValue);
       const parsedMinutes = Number(durationMinutesValue);
       const hasHours = durationHoursValue !== "" && Number.isFinite(parsedHours) && parsedHours >= 0;
@@ -361,33 +385,50 @@ const SleepInputTask = ({ taskId, savedOptions, isNotCompleted, onCompleteWithNo
     [onCompleteWithNote, taskId]
   );
 
-  const { debouncedSave, immediateSave } = useDebouncedSave(
-    (start, end, durationHours, durationMinutes) => saveSleep(start, end, durationHours, durationMinutes),
-    1000
-  );
+  const { debouncedSave, immediateSave } = useDebouncedSave(saveSleep, 1000);
 
   const handleStartChange = e => {
     const newStart = e.target.value;
     setSleepStart(newStart);
-    debouncedSave(newStart, sleepEnd, durationHoursInput, durationMinutesInput);
+    debouncedSave({
+      start: newStart,
+      end: sleepEnd,
+      durationHoursValue: durationHoursInput,
+      durationMinutesValue: durationMinutesInput,
+    });
   };
 
   const handleEndChange = e => {
     const newEnd = e.target.value;
     setSleepEnd(newEnd);
-    debouncedSave(sleepStart, newEnd, durationHoursInput, durationMinutesInput);
+    debouncedSave({
+      start: sleepStart,
+      end: newEnd,
+      durationHoursValue: durationHoursInput,
+      durationMinutesValue: durationMinutesInput,
+    });
   };
 
   const handleDurationHoursChange = e => {
     const newValue = e.target.value;
     setDurationHoursInput(newValue);
-    debouncedSave(sleepStart, sleepEnd, newValue, durationMinutesInput);
+    debouncedSave({
+      start: sleepStart,
+      end: sleepEnd,
+      durationHoursValue: newValue,
+      durationMinutesValue: durationMinutesInput,
+    });
   };
 
   const handleDurationMinutesChange = e => {
     const newValue = e.target.value;
     setDurationMinutesInput(newValue);
-    debouncedSave(sleepStart, sleepEnd, durationHoursInput, newValue);
+    debouncedSave({
+      start: sleepStart,
+      end: sleepEnd,
+      durationHoursValue: durationHoursInput,
+      durationMinutesValue: newValue,
+    });
   };
 
   return (
@@ -409,7 +450,12 @@ const SleepInputTask = ({ taskId, savedOptions, isNotCompleted, onCompleteWithNo
           onFocus={() => setIsFocused(true)}
           onBlur={() => {
             setIsFocused(false);
-            immediateSave(sleepStart, sleepEnd, durationHoursInput, durationMinutesInput);
+            immediateSave({
+              start: sleepStart,
+              end: sleepEnd,
+              durationHoursValue: durationHoursInput,
+              durationMinutesValue: durationMinutesInput,
+            });
           }}
           disabled={isNotCompleted}
           onClick={e => e.stopPropagation()}
@@ -426,7 +472,12 @@ const SleepInputTask = ({ taskId, savedOptions, isNotCompleted, onCompleteWithNo
           onFocus={() => setIsFocused(true)}
           onBlur={() => {
             setIsFocused(false);
-            immediateSave(sleepStart, sleepEnd, durationHoursInput, durationMinutesInput);
+            immediateSave({
+              start: sleepStart,
+              end: sleepEnd,
+              durationHoursValue: durationHoursInput,
+              durationMinutesValue: durationMinutesInput,
+            });
           }}
           disabled={isNotCompleted}
           onClick={e => e.stopPropagation()}
@@ -443,7 +494,12 @@ const SleepInputTask = ({ taskId, savedOptions, isNotCompleted, onCompleteWithNo
           onFocus={() => setIsFocused(true)}
           onBlur={() => {
             setIsFocused(false);
-            immediateSave(sleepStart, sleepEnd, durationHoursInput, durationMinutesInput);
+            immediateSave({
+              start: sleepStart,
+              end: sleepEnd,
+              durationHoursValue: durationHoursInput,
+              durationMinutesValue: durationMinutesInput,
+            });
           }}
           placeholder="8"
           disabled={isNotCompleted}
@@ -462,7 +518,12 @@ const SleepInputTask = ({ taskId, savedOptions, isNotCompleted, onCompleteWithNo
           onFocus={() => setIsFocused(true)}
           onBlur={() => {
             setIsFocused(false);
-            immediateSave(sleepStart, sleepEnd, durationHoursInput, durationMinutesInput);
+            immediateSave({
+              start: sleepStart,
+              end: sleepEnd,
+              durationHoursValue: durationHoursInput,
+              durationMinutesValue: durationMinutesInput,
+            });
           }}
           placeholder="17"
           disabled={isNotCompleted}
