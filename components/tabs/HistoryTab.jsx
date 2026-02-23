@@ -28,6 +28,7 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   Button,
+  useMediaQuery,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import dayjs from "dayjs";
@@ -35,6 +36,10 @@ import {
   Check,
   Close,
   FitnessCenter,
+  TableChart,
+  BarChart,
+  SwapVert,
+  SwapHoriz,
   Edit,
   ContentCopy,
   Delete,
@@ -754,6 +759,8 @@ const CompletionCell = memo(function CompletionCell({
 });
 
 export function HistoryTab({ isLoading: tabLoading }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const dispatch = useDispatch();
   // Get recurring tasks only (much faster - pre-filtered by API)
   const { data: tasks = [] } = useRecurringTasks();
@@ -794,6 +801,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
   });
   const [historyView, setHistoryView] = useState("table");
   const [graphSort, setGraphSort] = useState("time");
+  const [graphOrientation, setGraphOrientation] = useState(null);
   const [sleepModal, setSleepModal] = useState({
     open: false,
     task: null,
@@ -1028,6 +1036,8 @@ export function HistoryTab({ isLoading: tabLoading }) {
     tasksForGraph.sort((a, b) => a.title.localeCompare(b.title));
     return tasksForGraph;
   }, [recurringTaskOptions, analyticsByTaskId, graphSort]);
+
+  const activeGraphOrientation = graphOrientation || (isMobile ? "horizontal" : "vertical");
 
   const openTaskAnalytics = useCallback(taskId => {
     setTaskAnalyticsModal({
@@ -1280,14 +1290,21 @@ export function HistoryTab({ isLoading: tabLoading }) {
           </Typography>
           <ToggleButtonGroup
             size="small"
+            color="primary"
             exclusive
             value={historyView}
             onChange={(_, value) => {
               if (value) setHistoryView(value);
             }}
           >
-            <ToggleButton value="table">Table</ToggleButton>
-            <ToggleButton value="graph">Graph</ToggleButton>
+            <ToggleButton value="table" sx={{ textTransform: "none", minWidth: 100, px: 1.5 }}>
+              <TableChart fontSize="small" sx={{ mr: 0.5 }} />
+              Table
+            </ToggleButton>
+            <ToggleButton value="graph" sx={{ textTransform: "none", minWidth: 100, px: 1.5 }}>
+              <BarChart fontSize="small" sx={{ mr: 0.5 }} />
+              Graph
+            </ToggleButton>
           </ToggleButtonGroup>
         </Stack>
       </Stack>
@@ -1568,19 +1585,39 @@ export function HistoryTab({ isLoading: tabLoading }) {
                 <Typography variant="body2" color="text.secondary">
                   Year-to-date completion percentages by recurring task
                 </Typography>
-                <TextField
-                  select
-                  size="small"
-                  label="Sort graph"
-                  value={graphSort}
-                  onChange={e => setGraphSort(e.target.value)}
-                  sx={{ minWidth: 220 }}
-                >
-                  <MenuItem value="time">Time (History order)</MenuItem>
-                  <MenuItem value="name">Name (A-Z)</MenuItem>
-                  <MenuItem value="most-consistent">Most consistent (highest complete %)</MenuItem>
-                  <MenuItem value="least-consistent">Least consistent (lowest complete %)</MenuItem>
-                </TextField>
+                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <ToggleButtonGroup
+                    size="small"
+                    color="primary"
+                    exclusive
+                    value={activeGraphOrientation}
+                    onChange={(_, value) => {
+                      if (value) setGraphOrientation(value);
+                    }}
+                  >
+                    <ToggleButton value="vertical" sx={{ textTransform: "none", minWidth: 120, px: 1.5 }}>
+                      <SwapVert fontSize="small" sx={{ mr: 0.5 }} />
+                      Vertical
+                    </ToggleButton>
+                    <ToggleButton value="horizontal" sx={{ textTransform: "none", minWidth: 120, px: 1.5 }}>
+                      <SwapHoriz fontSize="small" sx={{ mr: 0.5 }} />
+                      Horizontal
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                  <TextField
+                    select
+                    size="small"
+                    label="Sort graph"
+                    value={graphSort}
+                    onChange={e => setGraphSort(e.target.value)}
+                    sx={{ minWidth: 220 }}
+                  >
+                    <MenuItem value="time">Time (History order)</MenuItem>
+                    <MenuItem value="name">Name (A-Z)</MenuItem>
+                    <MenuItem value="most-consistent">Most consistent (highest complete %)</MenuItem>
+                    <MenuItem value="least-consistent">Least consistent (lowest complete %)</MenuItem>
+                  </TextField>
+                </Stack>
               </Stack>
               <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
                 {OUTCOME_DEFINITIONS.map(item => (
@@ -1592,85 +1629,153 @@ export function HistoryTab({ isLoading: tabLoading }) {
                   </Stack>
                 ))}
               </Stack>
-              <Box sx={{ overflowX: "auto", pb: 1 }}>
-                <Stack
-                  direction="row"
-                  spacing={1.5}
-                  alignItems="flex-end"
-                  sx={{
-                    minHeight: 380,
-                    width: "fit-content",
-                    minWidth: Math.max(sortedGraphTasks.length * 92, 640),
-                  }}
-                >
-                  {sortedGraphTasks.map(task => {
-                    const taskAnalytics = analyticsByTaskId.get(task.id);
-                    const noSchedule = !taskAnalytics || taskAnalytics.scheduled === 0;
+              {activeGraphOrientation === "vertical" ? (
+                <Box sx={{ overflowX: "auto", pb: 1 }}>
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    alignItems="flex-end"
+                    sx={{
+                      minHeight: 380,
+                      width: "fit-content",
+                      minWidth: Math.max(sortedGraphTasks.length * 92, 640),
+                    }}
+                  >
+                    {sortedGraphTasks.map(task => {
+                      const taskAnalytics = analyticsByTaskId.get(task.id);
+                      const noSchedule = !taskAnalytics || taskAnalytics.scheduled === 0;
 
-                    return (
-                      <Stack key={`graph-${task.id}`} spacing={1} alignItems="center" sx={{ width: 84, flexShrink: 0 }}>
-                        <Typography variant="caption" color="text.secondary">
-                          {noSchedule ? "--" : `${taskAnalytics.completionRate}%`}
-                        </Typography>
-                        <Tooltip title={noSchedule ? `${task.title}: No schedule YTD` : ""} disableHoverListener={!noSchedule}>
-                          <Box
-                            onClick={() => openTaskAnalytics(task.id)}
-                            sx={{
-                              width: 44,
-                              height: 260,
-                              border: 1,
-                              borderColor: "divider",
-                              borderRadius: 1,
-                              bgcolor: "action.hover",
-                              overflow: "hidden",
-                              display: "flex",
-                              flexDirection: "column-reverse",
-                              cursor: "pointer",
-                              "&:hover": { borderColor: "primary.main", bgcolor: "action.selected" },
-                            }}
-                          >
-                            {!noSchedule &&
-                              taskAnalytics.outcomeBreakdown.map(item => (
-                                <Tooltip
-                                  key={`${task.id}-graph-${item.key}`}
-                                  title={`${item.label}: ${item.count}/${taskAnalytics.scheduled} (${item.percentage}%)`}
-                                >
-                                  <Box
-                                    sx={{
-                                      width: "100%",
-                                      height: `${Math.max(item.percentage, item.count > 0 ? 2 : 0)}%`,
-                                      bgcolor: item.color,
-                                    }}
-                                  />
-                                </Tooltip>
-                              ))}
-                          </Box>
-                        </Tooltip>
-                        <Tooltip title={task.title}>
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              width: "100%",
-                              textAlign: "center",
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                              lineHeight: 1.2,
-                              minHeight: 30,
-                            }}
-                          >
-                            {task.title}
+                      return (
+                        <Stack key={`graph-${task.id}`} spacing={1} alignItems="center" sx={{ width: 84, flexShrink: 0 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {noSchedule ? "--" : `${taskAnalytics.completionRate}%`}
                           </Typography>
-                        </Tooltip>
-                        <Typography variant="caption" color="text.secondary">
-                          {noSchedule ? "No schedule" : `${taskAnalytics.completed}/${taskAnalytics.scheduled}`}
-                        </Typography>
-                      </Stack>
-                    );
-                  })}
-                </Stack>
-              </Box>
+                          <Tooltip title={noSchedule ? `${task.title}: No schedule YTD` : ""} disableHoverListener={!noSchedule}>
+                            <Box
+                              onClick={() => openTaskAnalytics(task.id)}
+                              sx={{
+                                width: 44,
+                                height: 260,
+                                border: 1,
+                                borderColor: "divider",
+                                borderRadius: 1,
+                                bgcolor: "action.hover",
+                                overflow: "hidden",
+                                display: "flex",
+                                flexDirection: "column-reverse",
+                                cursor: "pointer",
+                                "&:hover": { borderColor: "primary.main", bgcolor: "action.selected" },
+                              }}
+                            >
+                              {!noSchedule &&
+                                taskAnalytics.outcomeBreakdown.map(item => (
+                                  <Tooltip
+                                    key={`${task.id}-graph-${item.key}`}
+                                    title={`${item.label}: ${item.count}/${taskAnalytics.scheduled} (${item.percentage}%)`}
+                                  >
+                                    <Box
+                                      sx={{
+                                        width: "100%",
+                                        height: `${Math.max(item.percentage, item.count > 0 ? 2 : 0)}%`,
+                                        bgcolor: item.color,
+                                      }}
+                                    />
+                                  </Tooltip>
+                                ))}
+                            </Box>
+                          </Tooltip>
+                          <Tooltip title={task.title}>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                width: "100%",
+                                textAlign: "center",
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                                lineHeight: 1.2,
+                                minHeight: 30,
+                              }}
+                            >
+                              {task.title}
+                            </Typography>
+                          </Tooltip>
+                          <Typography variant="caption" color="text.secondary">
+                            {noSchedule ? "No schedule" : `${taskAnalytics.completed}/${taskAnalytics.scheduled}`}
+                          </Typography>
+                        </Stack>
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              ) : (
+                <Box sx={{ overflowX: "auto", pb: 1 }}>
+                  <Stack spacing={1.25} sx={{ minWidth: 340 }}>
+                    {sortedGraphTasks.map(task => {
+                      const taskAnalytics = analyticsByTaskId.get(task.id);
+                      const noSchedule = !taskAnalytics || taskAnalytics.scheduled === 0;
+
+                      return (
+                        <Stack key={`graph-horizontal-${task.id}`} direction="row" spacing={1} alignItems="center">
+                          <Tooltip title={task.title}>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                width: 110,
+                                flexShrink: 0,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {task.title}
+                            </Typography>
+                          </Tooltip>
+                          <Tooltip title={noSchedule ? `${task.title}: No schedule YTD` : ""} disableHoverListener={!noSchedule}>
+                            <Box
+                              onClick={() => openTaskAnalytics(task.id)}
+                              sx={{
+                                flex: 1,
+                                minWidth: 180,
+                                height: 20,
+                                border: 1,
+                                borderColor: "divider",
+                                borderRadius: 999,
+                                bgcolor: "action.hover",
+                                overflow: "hidden",
+                                display: "flex",
+                                cursor: "pointer",
+                                "&:hover": { borderColor: "primary.main", bgcolor: "action.selected" },
+                              }}
+                            >
+                              {!noSchedule &&
+                                taskAnalytics.outcomeBreakdown.map(item => (
+                                  <Tooltip
+                                    key={`${task.id}-horizontal-${item.key}`}
+                                    title={`${item.label}: ${item.count}/${taskAnalytics.scheduled} (${item.percentage}%)`}
+                                  >
+                                    <Box
+                                      sx={{
+                                        width: `${item.percentage}%`,
+                                        height: "100%",
+                                        bgcolor: item.color,
+                                        minWidth: item.count > 0 ? 2 : 0,
+                                      }}
+                                    />
+                                  </Tooltip>
+                                ))}
+                            </Box>
+                          </Tooltip>
+                          <Typography variant="caption" color="text.secondary" sx={{ width: 74, textAlign: "right" }}>
+                            {noSchedule ? "--" : `${taskAnalytics.completionRate}%`}
+                          </Typography>
+                        </Stack>
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              )}
             </Stack>
           )}
         </Box>

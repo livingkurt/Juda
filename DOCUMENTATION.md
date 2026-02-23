@@ -990,6 +990,9 @@
 - Added graph sorting controls for horizontal bar order with options: Name (A-Z), Most consistent (highest completion percentage), and Least consistent (lowest completion percentage).
 - Sorting uses year-to-date completion percentage and keeps tasks with no schedule at the end for consistency-focused sorts.
 - Added `Time (History order)` graph sort option and made it the default so the graph initially follows the same ordering as the History view.
+- Restyled History `Table | Graph` toggles to match Task View `Today | Calendar` segmented controls (primary color, icon + label, and matching button sizing).
+- Added a graph orientation toggle (`Vertical | Horizontal`) styled like other segmented toggles.
+- Horizontal graph mode uses stacked horizontal bars per task for easier scanning on mobile; default orientation now auto-selects horizontal on small screens and vertical on larger screens.
 
 ### History tab sleep cell with inline sleep editing
 
