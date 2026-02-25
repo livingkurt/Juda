@@ -94,25 +94,19 @@ export async function POST(request) {
     const body = await request.json();
     console.warn("Sleep webhook received body:", JSON.stringify(body).substring(0, 500));
 
-    const { email, source, timestamps, startDates, endDates, sleepStart, sleepEnd, date, durationMinutes, asleep, timezone } =
+    const { email, source, timestamps, startDates, endDates, sleepStart, sleepEnd, date, durationMinutes, asleep } =
       body;
 
-    // Calculate timezone offset in minutes (e.g. "Europe/Madrid" = -60 in winter, -120 in summer)
-    // If timezone is provided as IANA name, compute offset. If numeric, use directly.
-    // Default: assume CET (+1 = -60 min offset from UTC) if not provided.
-    let tzOffsetMinutes = -60; // default CET
-    if (typeof timezone === "number") {
-      tzOffsetMinutes = timezone;
-    } else if (typeof timezone === "string" && timezone) {
-      try {
-        // Get offset by comparing formatted dates
-        const now = new Date();
-        const utcStr = now.toLocaleString("en-US", { timeZone: "UTC" });
-        const tzStr = now.toLocaleString("en-US", { timeZone: timezone });
-        tzOffsetMinutes = (new Date(tzStr) - new Date(utcStr)) / 60000;
-      } catch {
-        // Keep default
-      }
+    // Calculate timezone offset for Europe/Madrid (handles DST automatically)
+    const USER_TIMEZONE = "Europe/Madrid";
+    let tzOffsetMinutes;
+    try {
+      const now = new Date();
+      const utcStr = now.toLocaleString("en-US", { timeZone: "UTC" });
+      const tzStr = now.toLocaleString("en-US", { timeZone: USER_TIMEZONE });
+      tzOffsetMinutes = (new Date(tzStr) - new Date(utcStr)) / 60000;
+    } catch {
+      tzOffsetMinutes = -60; // fallback CET
     }
 
     // Find user by email
