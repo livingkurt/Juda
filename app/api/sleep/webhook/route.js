@@ -4,9 +4,26 @@ import { users, tasks, taskCompletions } from "@/lib/schema.js";
 import { eq, and } from "drizzle-orm";
 
 // Parse flexible date strings like "Feb 18, 2026 at 8:51 AM"
-function parseFlexibleDate(str) {
+// Apple Shortcuts sends times in the user's local timezone.
+// We format them with explicit timezone offset to avoid server-timezone misinterpretation.
+function parseFlexibleDate(str, tzOffsetMinutes) {
   if (!str || str.trim() === "") return null;
   const cleaned = str.replace(" at ", " ");
+
+  // If we have a timezone offset, try to parse and adjust
+  if (typeof tzOffsetMinutes === "number") {
+    const naive = new Date(cleaned);
+    if (!isNaN(naive.getTime())) {
+      // naive was parsed as UTC (or server-local). Adjust: treat it as the given tz.
+      // getTimezoneOffset returns offset of the *server* in minutes (UTC - local).
+      // We want to interpret the parsed time as if it were in the user's tz.
+      const serverOffsetMin = naive.getTimezoneOffset(); // e.g. 0 for UTC server
+      // The naive date assumed server tz. Shift to user tz.
+      const adjustMs = (serverOffsetMin - tzOffsetMinutes) * 60 * 1000;
+      return new Date(naive.getTime() + adjustMs);
+    }
+  }
+
   const d = new Date(cleaned);
   if (!isNaN(d.getTime())) return d;
   const d2 = new Date(str);
@@ -37,13 +54,13 @@ function parseDurationToMinutes(value) {
 }
 
 // Parse all timestamps from a newline-separated string
-function parseAllDates(str) {
+function parseAllDates(str, tzOffsetMinutes) {
   if (!str || typeof str !== "string") return [];
   return str
     .split("\n")
     .map(l => l.trim())
     .filter(l => l)
-    .map(parseFlexibleDate)
+    .map(s => parseFlexibleDate(s, tzOffsetMinutes))
     .filter(d => d !== null);
 }
 
@@ -77,8 +94,26 @@ export async function POST(request) {
     const body = await request.json();
     console.warn("Sleep webhook received body:", JSON.stringify(body).substring(0, 500));
 
-    const { email, source, timestamps, startDates, endDates, sleepStart, sleepEnd, date, durationMinutes, asleep } =
+    const { email, source, timestamps, startDates, endDates, sleepStart, sleepEnd, date, durationMinutes, asleep, timezone } =
       body;
+
+    // Calculate timezone offset in minutes (e.g. "Europe/Madrid" = -60 in winter, -120 in summer)
+    // If timezone is provided as IANA name, compute offset. If numeric, use directly.
+    // Default: assume CET (+1 = -60 min offset from UTC) if not provided.
+    let tzOffsetMinutes = -60; // default CET
+    if (typeof timezone === "number") {
+      tzOffsetMinutes = timezone;
+    } else if (typeof timezone === "string" && timezone) {
+      try {
+        // Get offset by comparing formatted dates
+        const now = new Date();
+        const utcStr = now.toLocaleString("en-US", { timeZone: "UTC" });
+        const tzStr = now.toLocaleString("en-US", { timeZone: timezone });
+        tzOffsetMinutes = (new Date(tzStr) - new Date(utcStr)) / 60000;
+      } catch {
+        // Keep default
+      }
+    }
 
     // Find user by email
     if (!email) {
@@ -98,8 +133,8 @@ export async function POST(request) {
     // These are newline-separated lists of all sleep stage timestamps
     // We find the last sleep session (gap > 4h = new session)
     if (startDates || endDates) {
-      const allStarts = parseAllDates(startDates);
-      const allEnds = parseAllDates(endDates);
+      const allStarts = parseAllDates(startDates, tzOffsetMinutes);
+      const allEnds = parseAllDates(endDates, tzOffsetMinutes);
       const allTimestamps = [...allStarts, ...allEnds].sort((a, b) => a - b);
 
       const lastSession = getLastSession(allTimestamps);
@@ -113,7 +148,7 @@ export async function POST(request) {
 
     // Strategy 2: Combined timestamps field
     if (!parsedStart && timestamps) {
-      const allDates = parseAllDates(timestamps);
+      const allDates = parseAllDates(timestamps, tzOffsetMinutes);
       const lastSession = getLastSession(allDates);
       if (lastSession.length >= 2) {
         parsedStart = lastSession[0];
@@ -122,8 +157,8 @@ export async function POST(request) {
     }
 
     // Strategy 3: Explicit sleepStart/sleepEnd
-    if (!parsedStart && sleepStart) parsedStart = parseFlexibleDate(sleepStart);
-    if (!parsedEnd && sleepEnd) parsedEnd = parseFlexibleDate(sleepEnd);
+    if (!parsedStart && sleepStart) parsedStart = parseFlexibleDate(sleepStart, tzOffsetMinutes);
+    if (!parsedEnd && sleepEnd) parsedEnd = parseFlexibleDate(sleepEnd, tzOffsetMinutes);
 
     // Derive date from wake time (end), or sleep time (start), or explicit date, or today
     if (date && date.trim() !== "") {
@@ -169,11 +204,16 @@ export async function POST(request) {
     // Convert sleepDate to Date object for TaskCompletion
     const completionDate = new Date(sleepDate + "T00:00:00.000Z");
 
+    // Convert duration from total minutes to hours + minutes parts
+    const durationHours = duration ? Math.floor(duration / 60) : 0;
+    const durationMinutesPart = duration ? duration % 60 : 0;
+
     // Create sleep data for selectedOptions
     const sleepData = {
       sleepStart: parsedStart ? parsedStart.toISOString() : null,
       sleepEnd: parsedEnd ? parsedEnd.toISOString() : null,
-      durationMinutes: duration || null,
+      durationHours,
+      durationMinutesPart,
       source: source || "apple_health",
     };
 
