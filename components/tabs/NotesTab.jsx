@@ -49,13 +49,14 @@ import {
   setSelectedSmartFolderId,
   addNotesSelectedTag,
   removeNotesSelectedTag,
+  openTaskDialog as openTaskDialogAction,
 } from "@/lib/store/slices/uiSlice";
 import { useCreateTaskMutation, useDeleteTaskMutation, useUpdateTaskMutation } from "@/lib/store/api/tasksApi";
 import { useNoteTasks } from "@/hooks/useNoteTasks";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetFoldersQuery, useDeleteFolderMutation } from "@/lib/store/api/foldersApi";
 import { useGetSmartFoldersQuery, useDeleteSmartFolderMutation } from "@/lib/store/api/smartFoldersApi";
-import { useGetTagsQuery, useCreateTagMutation, useUpdateTaskTagsMutation } from "@/lib/store/api/tagsApi";
+import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 import { useLoadingTab } from "@/components/MainTabs";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
@@ -258,7 +259,7 @@ export function NotesTab({ isLoading }) {
   const { data: smartFolders = [] } = useGetSmartFoldersQuery();
   const { data: tags = [] } = useGetTagsQuery();
   const [createTagMutation] = useCreateTagMutation();
-  const [updateTaskTags] = useUpdateTaskTagsMutation();
+
   const [createTask] = useCreateTaskMutation();
   const [updateTask] = useUpdateTaskMutation();
   const [deleteTask] = useDeleteTaskMutation();
@@ -523,33 +524,40 @@ export function NotesTab({ isLoading }) {
 
   const handleCreateNote = useCallback(
     async titleOverride => {
-      // Allow creating notes without a section (sectionId can be null)
       // Handle both cases: when called with a string (from QuickTaskInput) or without args (from button click)
       const title = typeof titleOverride === "string" && titleOverride.trim() ? titleOverride.trim() : "Untitled Note";
-      const result = await createTask({
-        title,
-        sectionId: sections[0]?.id || null,
-        completionType: "note",
-        content: "",
-        folderId: selectedFolderId || null,
-      }).unwrap();
-      const createdId = result?.id || null;
-      dispatch(setSelectedNoteId(createdId));
 
-      if (createdId && selectedSmartFolderId) {
+      // Collect all tags to apply: sidebar selected tags + smart folder tags
+      const sidebarTagIds = notesSelectedTagIds.filter(id => id !== UNTAGGED_ID);
+      let allTagIds = [...sidebarTagIds];
+
+      if (selectedSmartFolderId) {
         const smartFolder = smartFolders.find(folder => folder.id === selectedSmartFolderId);
         const smartTagIds = smartFolder?.filters?.tags || [];
         const operator = smartFolder?.filters?.operator || "any";
-
         if (smartTagIds.length > 0 && operator !== "none") {
-          await updateTaskTags({ taskId: createdId, tagIds: smartTagIds }).unwrap();
+          // Merge without duplicates
+          smartTagIds.forEach(id => { if (!allTagIds.includes(id)) allTagIds.push(id); });
         }
       }
+
+      const result = await createTask({
+        title,
+        sectionId: null,
+        completionType: "note",
+        content: "",
+        folderId: selectedFolderId || null,
+        tagIds: allTagIds.length > 0 ? allTagIds : undefined,
+      }).unwrap();
+
+      const createdId = result?.id || null;
+      dispatch(setSelectedNoteId(createdId));
+
       if (isMobile) {
         dispatch(setNotesActiveMobileView("editor"));
       }
     },
-    [createTask, sections, selectedFolderId, selectedSmartFolderId, smartFolders, updateTaskTags, isMobile, dispatch]
+    [createTask, selectedFolderId, selectedSmartFolderId, smartFolders, notesSelectedTagIds, isMobile, dispatch]
   );
 
   const handleSelectNote = useCallback(
