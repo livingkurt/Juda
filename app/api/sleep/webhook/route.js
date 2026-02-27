@@ -177,7 +177,8 @@ export async function POST(request) {
       duration = Number.isFinite(parsed) ? parsed : null;
     } else if (asleep && asleep !== "") {
       duration = parseDurationToMinutes(asleep);
-    } else if (!isAutoSleepSource && parsedStart && parsedEnd) {
+    } else if (parsedStart && parsedEnd) {
+      // Calculate duration from start/end times as fallback for any source
       duration = Math.round((parsedEnd - parsedStart) / (1000 * 60));
     }
 
