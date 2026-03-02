@@ -248,29 +248,36 @@ export const TagSelectorBase = ({
           <Typography variant="caption" fontWeight={600} color="text.secondary" mb={1}>
             Choose a color:
           </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            {tagColors.map((color, index) => (
-              <Box
-                key={index}
-                sx={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 1,
-                  bgcolor: color,
-                  cursor: "pointer",
-                  border: "2px solid transparent",
-                  "&:hover": {
-                    border: `2px solid ${theme.palette.primary.main}`,
-                    transform: "scale(1.1)",
-                  },
-                  transition: "all 0.15s",
-                }}
-                onClick={e => {
-                  e.stopPropagation();
-                  handleCreateTag(index);
-                }}
-                onMouseDown={e => e.stopPropagation()}
-              />
+          <Stack spacing={0.5}>
+            {[0, 1, 2].map(row => (
+              <Stack key={row} direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                {tagColors.slice(row * 13, row * 13 + 13).map((color, i) => {
+                  const index = row * 13 + i;
+                  return (
+                    <Box
+                      key={index}
+                      sx={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 1,
+                        bgcolor: color,
+                        cursor: "pointer",
+                        border: color === "#ffffff" ? "2px solid #666" : "2px solid transparent",
+                        "&:hover": {
+                          border: `2px solid ${theme.palette.primary.main}`,
+                          transform: "scale(1.1)",
+                        },
+                        transition: "all 0.15s",
+                      }}
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleCreateTag(index);
+                      }}
+                      onMouseDown={e => e.stopPropagation()}
+                    />
+                  );
+                })}
+              </Stack>
             ))}
           </Stack>
         </Box>

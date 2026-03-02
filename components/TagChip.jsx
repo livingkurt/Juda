@@ -20,6 +20,18 @@ export const TagChip = memo(function TagChip({ tag, size = "sm", showClose = fal
   // Use the tag color directly, or map to theme palette if needed
   const displayColor = tag.color || theme.palette.primary.main;
 
+  // Determine text color based on background luminance
+  const getTextColor = hex => {
+    if (!hex || hex.length < 7) return "white";
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    // Relative luminance formula
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.6 ? "#333" : "white";
+  };
+  const textColor = getTextColor(displayColor);
+
   // Map size to MUI size prop
   const muiSize = size === "xs" ? "small" : size === "sm" ? "small" : size === "md" ? "medium" : "medium";
 
@@ -30,7 +42,7 @@ export const TagChip = memo(function TagChip({ tag, size = "sm", showClose = fal
       onDelete={showClose && onClose ? () => onClose(tag.id) : undefined}
       sx={{
         bgcolor: displayColor,
-        color: "white",
+        color: textColor,
         textTransform: "uppercase",
         fontWeight: "bold",
         borderRadius: "9999px",
