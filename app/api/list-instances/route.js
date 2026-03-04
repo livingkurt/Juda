@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { listInstances, listInstanceItems, listTemplates, listTemplateItems, listItems, tasks } from "@/lib/schema";
+import { listInstances, listInstanceItems, listTemplates, listTemplateItems, listItems, tasks, taskTags } from "@/lib/schema";
 import { eq, and, asc, inArray } from "drizzle-orm";
 import { withApi, Errors, validateRequired, getClientIdFromRequest, withBroadcast, ENTITY_TYPES } from "@/lib/apiHelpers";
 
@@ -76,6 +76,14 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       time: body.time || null,
       status: "active",
     }).returning();
+
+    // Apply template tags to the task
+    const templateTagIds = Array.isArray(template.tagIds) ? template.tagIds : [];
+    if (templateTagIds.length) {
+      await tx.insert(taskTags).values(
+        templateTagIds.map(tagId => ({ taskId: task.id, tagId }))
+      );
+    }
 
     // Snapshot items
     if (template.templateItems.length) {

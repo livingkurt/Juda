@@ -49,6 +49,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       name: body.name,
       description: body.description || null,
       icon: body.icon || null,
+      tagIds: body.tagIds || [],
       order: body.order ?? 0,
     }).returning();
 
@@ -109,6 +110,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     if (body.name !== undefined) updates.name = body.name;
     if (body.description !== undefined) updates.description = body.description;
     if (body.icon !== undefined) updates.icon = body.icon;
+    if (body.tagIds !== undefined) updates.tagIds = body.tagIds;
     if (body.order !== undefined) updates.order = body.order;
 
     if (Object.keys(updates).length) {

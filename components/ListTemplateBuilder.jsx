@@ -32,7 +32,9 @@ import {
   useCreateListTemplateMutation,
   useUpdateListTemplateMutation,
 } from "@/lib/store/api/listApi";
-import { TagSelectorBase } from "@/components/TagSelector";
+import { TagSelectorBase, TagSelector } from "@/components/TagSelector";
+import { TagChip } from "@/components/TagChip";
+import { useGetTagsQuery } from "@/lib/store/api/tagsApi";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
@@ -47,6 +49,8 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedItemIds, setSelectedItemIds] = useState([]);
+  const [templateTagIds, setTemplateTagIds] = useState([]);
+  const { data: allTags = [] } = useGetTagsQuery();
   const [itemQuantities, setItemQuantities] = useState({}); // { itemId: quantity }
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagFilter, setSelectedTagFilter] = useState(null);
@@ -60,6 +64,7 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
       setName(editingTemplate.name || "");
       setDescription(editingTemplate.description || "");
       setSelectedItemIds(editingTemplate.items?.map(i => i.id) || []);
+      setTemplateTagIds(editingTemplate.tagIds || []);
       const qtys = {};
       editingTemplate.items?.forEach(i => {
         if (i.quantity && i.quantity !== 1) qtys[i.id] = i.quantity;
@@ -70,6 +75,7 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
       setDescription("");
       setSelectedItemIds([]);
       setItemQuantities({});
+      setTemplateTagIds([]);
     }
     setSearchTerm("");
     setSelectedTagFilter(null);
@@ -131,12 +137,13 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
         name: name.trim(),
         description: description.trim() || null,
         items: itemsPayload,
+        tagIds: templateTagIds,
       });
     } else {
-      await createTemplate({ name: name.trim(), description: description.trim() || null, items: itemsPayload });
+      await createTemplate({ name: name.trim(), description: description.trim() || null, items: itemsPayload, tagIds: templateTagIds });
     }
     onClose();
-  }, [name, description, selectedItemIds, editingTemplate, createTemplate, updateTemplate, onClose]);
+  }, [name, description, selectedItemIds, templateTagIds, editingTemplate, createTemplate, updateTemplate, onClose]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -160,6 +167,24 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
             multiline
             rows={2}
           />
+
+          {/* Template Tags */}
+          <Box>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+              {allTags
+                .filter(t => templateTagIds.includes(t.id))
+                .map(tag => (
+                  <Box key={tag.id} sx={{ cursor: "pointer" }}>
+                    <TagChip tag={tag} size="sm" />
+                  </Box>
+                ))}
+              <TagSelector
+                selectedTagIds={templateTagIds}
+                onSelectionChange={setTemplateTagIds}
+                showManageButton
+              />
+            </Stack>
+          </Box>
 
           <Box sx={{ display: "flex", gap: 2, minHeight: 300 }}>
             {/* Left: Item Library */}
