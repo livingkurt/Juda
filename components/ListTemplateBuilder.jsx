@@ -92,19 +92,13 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
     return selectedItemIds.map(id => libraryItems.find(i => i.id === id)).filter(Boolean);
   }, [selectedItemIds, libraryItems]);
 
-  const handleToggleItem = useCallback(
-    itemId => {
-      setSelectedItemIds(prev => (prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]));
-    },
-    []
-  );
+  const handleToggleItem = useCallback(itemId => {
+    setSelectedItemIds(prev => (prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]));
+  }, []);
 
-  const handleRemoveItem = useCallback(
-    itemId => {
-      setSelectedItemIds(prev => prev.filter(id => id !== itemId));
-    },
-    []
-  );
+  const handleRemoveItem = useCallback(itemId => {
+    setSelectedItemIds(prev => prev.filter(id => id !== itemId));
+  }, []);
 
   const handleDragEnd = useCallback(result => {
     if (!result.destination) return;
@@ -132,7 +126,12 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
       quantity: itemQuantities[id] || 1,
     }));
     if (editingTemplate) {
-      await updateTemplate({ id: editingTemplate.id, name: name.trim(), description: description.trim() || null, items: itemsPayload });
+      await updateTemplate({
+        id: editingTemplate.id,
+        name: name.trim(),
+        description: description.trim() || null,
+        items: itemsPayload,
+      });
     } else {
       await createTemplate({ name: name.trim(), description: description.trim() || null, items: itemsPayload });
     }
@@ -235,12 +234,7 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
                   >
                     <ListItemButton dense onClick={() => handleToggleItem(item.id)}>
                       <ListItemIcon sx={{ minWidth: 36 }}>
-                        <Checkbox
-                          edge="start"
-                          checked={selectedItemIds.includes(item.id)}
-                          size="small"
-                          disableRipple
-                        />
+                        <Checkbox edge="start" checked={selectedItemIds.includes(item.id)} size="small" disableRipple />
                       </ListItemIcon>
                       <ListItemText
                         primary={item.name}
@@ -329,10 +323,7 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
                               <ListItemIcon sx={{ minWidth: 28 }} {...provided.dragHandleProps}>
                                 <DragIndicator fontSize="small" color="action" />
                               </ListItemIcon>
-                              <ListItemText
-                                primary={item.name}
-                                primaryTypographyProps={{ fontSize: "0.875rem" }}
-                              />
+                              <ListItemText primary={item.name} primaryTypographyProps={{ fontSize: "0.875rem" }} />
                             </ListItem>
                           )}
                         </Draggable>
