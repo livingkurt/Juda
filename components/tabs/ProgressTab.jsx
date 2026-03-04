@@ -7,12 +7,7 @@ import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isLeapYear from "dayjs/plugin/isLeapYear";
 import { DateNavigation } from "@/components/DateNavigation";
-import {
-  setProgressView,
-  setProgressSelectedDate,
-  setMainTabIndex,
-  setTodayViewDate,
-} from "@/lib/store/slices/uiSlice";
+import { setProgressView, setProgressSelectedDate, setMainTabIndex, setSelectedDate } from "@/lib/store/slices/uiSlice";
 import { useRecurringTasks } from "@/hooks/useRecurringTasks";
 import { useCompletionHelpers } from "@/hooks/useCompletionHelpers";
 import { ProgressBar } from "@/components/shared/ProgressBar";
@@ -102,7 +97,7 @@ export const ProgressTab = memo(function ProgressTab({ isLoading: tabLoading }) 
   const handleProgressBarClick = dateStr => {
     // Parse the date string and navigate to Today view
     const targetDate = dayjs(dateStr);
-    dispatch(setTodayViewDate(targetDate.toISOString()));
+    dispatch(setSelectedDate(targetDate.toISOString()));
     dispatch(setMainTabIndex(0)); // Switch to Tasks tab
   };
 

@@ -19,7 +19,7 @@ import { useGetTagsQuery, useCreateTagMutation } from "@/lib/store/api/tagsApi";
 // Main Section component that renders all sections
 export const Section = ({ hoveredDroppable, createDroppableId, createDraggableId, sectionFilter }) => {
   // Get Redux state directly
-  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const todayViewDateISO = useSelector(state => state.ui.selectedDate);
   const viewDate = todayViewDateISO ? new Date(todayViewDateISO) : new Date();
 
   // Get preferences

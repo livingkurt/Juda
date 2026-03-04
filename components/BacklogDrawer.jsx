@@ -37,7 +37,7 @@ const BacklogDrawerComponent = ({ createDraggableId }) => {
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   // Get Redux state directly
-  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const todayViewDateISO = useSelector(state => state.ui.selectedDate);
   const viewDate = todayViewDateISO ? new Date(todayViewDateISO) : new Date();
 
   // Get search/filter state from Redux

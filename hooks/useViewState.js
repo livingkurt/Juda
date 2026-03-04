@@ -6,7 +6,6 @@ import {
   setMainTabIndex as setMainTabIndexAction,
   setMobileActiveView as setMobileActiveViewAction,
   setSelectedDate as setSelectedDateAction,
-  setTodayViewDate as setTodayViewDateAction,
   setCalendarView as setCalendarViewAction,
   setTodaySearchTerm as setTodaySearchTermAction,
   setTodaySelectedTagIds as setTodaySelectedTagIdsAction,
@@ -28,7 +27,6 @@ export function useViewState() {
   const mainTabIndex = useSelector(state => state.ui.mainTabIndex);
   const mobileActiveView = useSelector(state => state.ui.mobileActiveView);
   const selectedDateISO = useSelector(state => state.ui.selectedDate);
-  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
   const calendarView = useSelector(state => state.ui.calendarView);
   const todaySearchTerm = useSelector(state => state.ui.todaySearchTerm);
   const todaySelectedTagIds = useSelector(state => state.ui.todaySelectedTagIds);
@@ -37,7 +35,6 @@ export function useViewState() {
 
   // Convert ISO strings to Date objects
   const selectedDate = useMemo(() => (selectedDateISO ? new Date(selectedDateISO) : null), [selectedDateISO]);
-  const todayViewDate = useMemo(() => (todayViewDateISO ? new Date(todayViewDateISO) : null), [todayViewDateISO]);
 
   // Today reference (stable)
   const today = useMemo(() => {
@@ -46,16 +43,16 @@ export function useViewState() {
     return now;
   }, []);
 
-  // View date (todayViewDate or today)
-  const viewDate = useMemo(() => {
-    return todayViewDate || today;
-  }, [todayViewDate, today]);
+  // Both Today view and Calendar share the same date (derived, not stored separately)
+  const todayViewDate = selectedDate;
+  const viewDate = selectedDate || today;
 
   // Setter wrappers
   const setMainTabIndex = useCallback(index => dispatch(setMainTabIndexAction(index)), [dispatch]);
   const setMobileActiveView = useCallback(view => dispatch(setMobileActiveViewAction(view)), [dispatch]);
   const setSelectedDate = useCallback(date => dispatch(setSelectedDateAction(date)), [dispatch]);
-  const setTodayViewDate = useCallback(date => dispatch(setTodayViewDateAction(date)), [dispatch]);
+  // Alias — Today view and Calendar share the same date
+  const setTodayViewDate = useCallback(date => dispatch(setSelectedDateAction(date)), [dispatch]);
   const setCalendarView = useCallback(view => dispatch(setCalendarViewAction(view)), [dispatch]);
   const setTodaySearchTerm = useCallback(term => dispatch(setTodaySearchTermAction(term)), [dispatch]);
   const setTodaySelectedTagIds = useCallback(ids => dispatch(setTodaySelectedTagIdsAction(ids)), [dispatch]);
@@ -67,7 +64,6 @@ export function useViewState() {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     dispatch(setSelectedDateAction(now));
-    dispatch(setTodayViewDateAction(now));
   }, [dispatch]);
 
   const goToPreviousDay = useCallback(() => {
@@ -104,25 +100,25 @@ export function useViewState() {
   // Today View navigation
   const navigateTodayView = useCallback(
     dir => {
-      const d = new Date(todayViewDate || today);
+      const d = new Date(selectedDate || today);
       d.setDate(d.getDate() + dir);
       d.setHours(0, 0, 0, 0);
-      dispatch(setTodayViewDateAction(d));
+      dispatch(setSelectedDateAction(d));
     },
-    [dispatch, todayViewDate, today]
+    [dispatch, selectedDate, today]
   );
 
   const handleTodayViewToday = useCallback(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    dispatch(setTodayViewDateAction(now));
+    dispatch(setSelectedDateAction(now));
   }, [dispatch]);
 
   const handleTodayViewDateChange = useCallback(
     date => {
       const d = new Date(date);
       d.setHours(0, 0, 0, 0);
-      dispatch(setTodayViewDateAction(d));
+      dispatch(setSelectedDateAction(d));
     },
     [dispatch]
   );
@@ -232,10 +228,10 @@ export function useViewState() {
       setMainTabIndex,
       today,
       selectedDate,
-      setSelectedDate,
       todayViewDate,
-      setTodayViewDate,
       viewDate,
+      setSelectedDate,
+      setTodayViewDate,
       goToToday,
       goToPreviousDay,
       goToNextDay,

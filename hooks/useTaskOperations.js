@@ -39,7 +39,7 @@ export function useTaskOperations() {
   const dispatch = useDispatch();
 
   // Get viewDate from Redux (or compute today if not set)
-  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const todayViewDateISO = useSelector(state => state.ui.selectedDate);
   const viewDate = useMemo(() => {
     return todayViewDateISO ? new Date(todayViewDateISO) : new Date();
   }, [todayViewDateISO]);

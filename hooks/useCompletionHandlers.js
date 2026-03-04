@@ -36,7 +36,7 @@ export function useCompletionHandlers({
   const dispatch = useDispatch();
 
   // Get state from Redux
-  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const todayViewDateISO = useSelector(state => state.ui.selectedDate);
   const recentlyCompletedTasksArray = useSelector(state => state.ui.recentlyCompletedTasks);
 
   // Compute dates

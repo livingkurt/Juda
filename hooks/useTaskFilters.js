@@ -24,7 +24,7 @@ import { useTaskLookups } from "@/hooks/useTaskLookups";
  */
 export function useTaskFilters({ recentlyCompletedTasks, skip = false } = {}) {
   // Get state from Redux
-  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const todayViewDateISO = useSelector(state => state.ui.selectedDate);
   const todaySearchTerm = useSelector(state => state.ui.todaySearchTerm);
   const todaySelectedTagIds = useSelector(state => state.ui.todaySelectedTagIds);
   const recentlyCompletedTasksArray = useSelector(state => state.ui.recentlyCompletedTasks);

@@ -21,7 +21,7 @@ import {
  */
 export function useTaskActions({ tasks = [] } = {}) {
   const dispatch = useDispatch();
-  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const todayViewDateISO = useSelector(state => state.ui.selectedDate);
   const viewDate = useMemo(() => {
     return todayViewDateISO ? new Date(todayViewDateISO) : new Date();
   }, [todayViewDateISO]);

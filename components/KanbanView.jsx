@@ -36,7 +36,7 @@ const KanbanColumn = memo(function KanbanColumn({
   const dialogState = useDialogState();
 
   // Get viewDate from Redux
-  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const todayViewDateISO = useSelector(state => state.ui.selectedDate);
   const viewDate = todayViewDateISO ? new Date(todayViewDateISO) : new Date();
 
   // Get recentlyCompletedTasks from completionHandlers
@@ -178,7 +178,7 @@ export const KanbanView = memo(function KanbanView({ createDraggableId }) {
   // Get search/filter state from Redux
   const searchTerm = useSelector(state => state.ui.kanbanSearchTerm);
   const selectedTagIds = useSelector(state => state.ui.kanbanSelectedTagIds);
-  const todayViewDateISO = useSelector(state => state.ui.todayViewDate);
+  const todayViewDateISO = useSelector(state => state.ui.selectedDate);
   const viewDate = todayViewDateISO ? new Date(todayViewDateISO) : new Date();
 
   // Use hooks directly (they use Redux internally)
