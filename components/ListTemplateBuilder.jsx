@@ -57,6 +57,7 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
   const [newItemName, setNewItemName] = useState("");
   const [tagAnchorEl, setTagAnchorEl] = useState(null);
   const [tagEditItemId, setTagEditItemId] = useState(null);
+  const [templateTagAnchorEl, setTemplateTagAnchorEl] = useState(null);
 
   // Initialize from editing template
   useEffect(() => {
@@ -174,14 +175,29 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
               {allTags
                 .filter(t => templateTagIds.includes(t.id))
                 .map(tag => (
-                  <Box key={tag.id} sx={{ cursor: "pointer" }}>
+                  <Box
+                    key={tag.id}
+                    onClick={e => setTemplateTagAnchorEl(e.currentTarget)}
+                    sx={{ cursor: "pointer", display: "inline-flex" }}
+                  >
                     <TagChip tag={tag} size="sm" />
                   </Box>
                 ))}
+              <Button
+                size="small"
+                variant="text"
+                onClick={e => setTemplateTagAnchorEl(e.currentTarget)}
+                sx={{ fontSize: "0.75rem", color: "text.secondary", minWidth: "auto" }}
+              >
+                {templateTagIds.length === 0 ? "+ Add Tags" : "+ Tags"}
+              </Button>
               <TagSelector
                 selectedTagIds={templateTagIds}
                 onSelectionChange={setTemplateTagIds}
                 showManageButton
+                anchorEl={templateTagAnchorEl}
+                open={Boolean(templateTagAnchorEl)}
+                onClose={() => setTemplateTagAnchorEl(null)}
               />
             </Stack>
           </Box>

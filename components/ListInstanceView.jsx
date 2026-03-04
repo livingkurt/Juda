@@ -47,7 +47,7 @@ import {
   useCreateListTagMutation,
   useUpdateListItemTagsMutation,
 } from "@/lib/store/api/listApi";
-import { TagSelectorBase } from "@/components/TagSelector";
+import { TagSelectorBase, TagSelector } from "@/components/TagSelector";
 import { TagChip } from "@/components/TagChip";
 import { useDispatch } from "react-redux";
 import { openEditTaskDialog } from "@/lib/store/slices/uiSlice";
@@ -151,12 +151,44 @@ export function ListInstanceView({ instance, task, onDelete }) {
               From: {instance.template.name}
             </Typography>
           )}
-          {task?.tags?.length > 0 && (
-            <Stack direction="row" spacing={0.5} sx={{ mt: 0.5, flexWrap: "wrap", gap: 0.25 }}>
-              {task.tags.map(tag => (
-                <TagChip key={tag.id} tag={tag} size="xs" />
-              ))}
-            </Stack>
+          {task && (
+            <TagSelector
+              task={task}
+              autoSave
+              showManageButton
+              renderTrigger={handleMenuOpen => (
+                <>
+                  {task.tags?.length > 0 ? (
+                    <Stack direction="row" spacing={0.5} sx={{ mt: 0.5, flexWrap: "wrap", gap: 0.25 }}>
+                      {task.tags.map(tag => (
+                        <Box
+                          key={tag.id}
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleMenuOpen(e);
+                          }}
+                          sx={{ cursor: "pointer", display: "inline-flex" }}
+                        >
+                          <TagChip tag={tag} size="xs" />
+                        </Box>
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleMenuOpen(e);
+                      }}
+                      sx={{ fontSize: "0.7rem", p: 0, minWidth: "auto", color: "text.secondary", mt: 0.5 }}
+                    >
+                      + Add Tags
+                    </Button>
+                  )}
+                </>
+              )}
+            />
           )}
         </Box>
         <Stack direction="row" spacing={0.5} alignItems="center">
@@ -286,10 +318,7 @@ export function ListInstanceView({ instance, task, onDelete }) {
                   >
                     <Remove sx={{ fontSize: 14 }} />
                   </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleQuantityChange(item.id, (item.quantity ?? 1) + 1)}
-                  >
+                  <IconButton size="small" onClick={() => handleQuantityChange(item.id, (item.quantity ?? 1) + 1)}>
                     <Add sx={{ fontSize: 14 }} />
                   </IconButton>
                   <IconButton size="small" onClick={() => handleRemoveItem(item.id)}>
@@ -308,11 +337,7 @@ export function ListInstanceView({ instance, task, onDelete }) {
                 )}
               </ListItemIcon>
               <ListItemText
-                primary={
-                  (item.quantity ?? 1) > 1
-                    ? `${item.name} (×${item.quantity})`
-                    : item.name
-                }
+                primary={(item.quantity ?? 1) > 1 ? `${item.name} (×${item.quantity})` : item.name}
                 secondary={
                   item.tags?.length > 0 ? (
                     <Stack direction="row" spacing={0.25} sx={{ mt: 0.25, flexWrap: "wrap", gap: 0.25 }}>
@@ -343,28 +368,6 @@ export function ListInstanceView({ instance, task, onDelete }) {
           <Chip label="Mark Complete" color="success" onClick={handleComplete} clickable />
         </Box>
       )}
-
-      {/* Tag Selector for instance items */}
-      <TagSelectorBase
-        tags={listTags}
-        onCreateTag={async (name, color) => {
-          const result = await createListTag({ name, color });
-          return result.data;
-        }}
-        selectedTagIds={tagEditItem?.tags?.map(t => t.id) || []}
-        onSelectionChange={tagIds => {
-          if (tagEditItem?.listItemId) {
-            updateItemTags({ id: tagEditItem.listItemId, tagIds });
-          }
-        }}
-        anchorEl={tagAnchorEl}
-        open={Boolean(tagAnchorEl)}
-        onClose={() => {
-          setTagAnchorEl(null);
-          setTagEditItem(null);
-        }}
-        renderTrigger={() => null}
-      />
 
       {/* Save as New Template Dialog */}
       <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)} maxWidth="xs" fullWidth>
