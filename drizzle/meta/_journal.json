@@ -372,6 +372,13 @@
       "when": 1772841600000,
       "tag": "0053_add_tag_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1772841720000,
+      "tag": "0054_add_list_template_tag_ids",
+      "breakpoints": true
     }
   ]
 }
