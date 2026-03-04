@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { listItems, listItemTags } from "@/lib/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { withApi, Errors, validateRequired, getClientIdFromRequest, withBroadcast, ENTITY_TYPES } from "@/lib/apiHelpers";
 
 const broadcast = withBroadcast(ENTITY_TYPES.LIST_ITEM);
@@ -68,7 +68,9 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
   if (body.name !== undefined) updates.name = body.name;
   if (body.description !== undefined) updates.description = body.description;
 
-  const [updated] = await db.update(listItems).set(updates).where(eq(listItems.id, body.id)).returning();
+  if (Object.keys(updates).length > 0) {
+    await db.update(listItems).set(updates).where(eq(listItems.id, body.id));
+  }
 
   // Update tags if provided
   if (body.tagIds !== undefined) {

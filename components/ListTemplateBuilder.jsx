@@ -260,6 +260,7 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
                           ) : null
                         }
                         primaryTypographyProps={{ fontSize: "0.875rem" }}
+                        secondaryTypographyProps={{ component: "span" }}
                       />
                     </ListItemButton>
                   </ListItem>
