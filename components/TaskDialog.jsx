@@ -497,9 +497,13 @@ function TaskDialogForm({
   const handleSave = useCallback(() => {
     if (!title.trim()) return;
 
-    // Validate monthly goals have a parent
+    // Validate monthly/weekly goals have a parent
     if (completionType === "goal" && goalMonths && goalMonths.length > 0 && !parentId) {
-      console.error("Monthly goals must be linked to a yearly goal");
+      console.error(
+        goalData?.weekStartDate
+          ? "Weekly goals must be linked to a monthly goal"
+          : "Monthly goals must be linked to a yearly goal"
+      );
       return;
     }
 
@@ -1018,34 +1022,71 @@ function TaskDialogForm({
                     </Typography>
                   </GLGrid>
 
-                  {/* Parent Goal Selector - Required for monthly goals */}
+                  {/* Parent Goal Selector - Required for monthly/weekly goals */}
                   {goalMonths && goalMonths.length > 0 && (
                     <GLGrid item xs={12}>
                       <FormControl fullWidth size="small" required error={!parentId}>
-                        <InputLabel>Parent Yearly Goal *</InputLabel>
+                        <InputLabel>
+                          {goalData?.weekStartDate ? "Parent Monthly Goal *" : "Parent Yearly Goal *"}
+                        </InputLabel>
                         <Select
                           value={parentId || ""}
                           onChange={e => setParentId(e.target.value)}
-                          label="Parent Yearly Goal *"
+                          label={goalData?.weekStartDate ? "Parent Monthly Goal *" : "Parent Yearly Goal *"}
                         >
-                          {allTasks
-                            .filter(
-                              t =>
-                                t.completionType === "goal" &&
-                                t.goalYear === goalYear &&
-                                (!t.goalMonths || t.goalMonths.length === 0) &&
-                                !t.parentId &&
-                                t.id !== task?.id
-                            )
-                            .map(yearlyGoal => (
-                              <MenuItem key={yearlyGoal.id} value={yearlyGoal.id}>
-                                {yearlyGoal.title}
-                              </MenuItem>
-                            ))}
+                          {goalData?.weekStartDate
+                            ? allTasks
+                                .filter(
+                                  t =>
+                                    t.completionType === "goal" &&
+                                    t.goalYear === goalYear &&
+                                    t.goalMonths &&
+                                    t.goalMonths.length > 0 &&
+                                    !t.goalData?.weekStartDate &&
+                                    t.id !== task?.id
+                                )
+                                .map(monthlyGoal => (
+                                  <MenuItem key={monthlyGoal.id} value={monthlyGoal.id}>
+                                    {monthlyGoal.title}
+                                    {monthlyGoal.goalMonths && (
+                                      <Typography
+                                        component="span"
+                                        variant="caption"
+                                        sx={{ ml: 1, color: "text.secondary" }}
+                                      >
+                                        (
+                                        {monthlyGoal.goalMonths
+                                          .map(m =>
+                                            dayjs()
+                                              .month(m - 1)
+                                              .format("MMM")
+                                          )
+                                          .join(", ")}
+                                        )
+                                      </Typography>
+                                    )}
+                                  </MenuItem>
+                                ))
+                            : allTasks
+                                .filter(
+                                  t =>
+                                    t.completionType === "goal" &&
+                                    t.goalYear === goalYear &&
+                                    (!t.goalMonths || t.goalMonths.length === 0) &&
+                                    !t.parentId &&
+                                    t.id !== task?.id
+                                )
+                                .map(yearlyGoal => (
+                                  <MenuItem key={yearlyGoal.id} value={yearlyGoal.id}>
+                                    {yearlyGoal.title}
+                                  </MenuItem>
+                                ))}
                         </Select>
                         {!parentId && (
                           <Typography variant="caption" color="error" display="block" sx={{ mt: 0.5 }}>
-                            Monthly goals must be linked to a yearly goal
+                            {goalData?.weekStartDate
+                              ? "Weekly goals must be linked to a monthly goal"
+                              : "Monthly goals must be linked to a yearly goal"}
                           </Typography>
                         )}
                       </FormControl>
@@ -1054,9 +1095,11 @@ function TaskDialogForm({
 
                   <GLGrid item xs={12}>
                     <Typography variant="caption" color="text.secondary">
-                      {goalMonths && goalMonths.length > 0
-                        ? "This monthly goal will appear as a sub-goal under the selected yearly goal."
-                        : "Yearly goals can have monthly sub-goals. Create a yearly goal first, then add monthly goals to it."}
+                      {goalData?.weekStartDate
+                        ? "This weekly goal will appear as a sub-goal under the selected monthly goal."
+                        : goalMonths && goalMonths.length > 0
+                          ? "This monthly goal will appear as a sub-goal under the selected yearly goal."
+                          : "Yearly goals can have monthly sub-goals. Create a yearly goal first, then add monthly goals to it."}
                     </Typography>
                   </GLGrid>
                 </>
@@ -1193,6 +1236,7 @@ function TaskDialogForm({
                                                 <MenuItem value="">None</MenuItem>
                                                 <MenuItem value="yearly">Yearly Goals</MenuItem>
                                                 <MenuItem value="monthly">Monthly Goals</MenuItem>
+                                                <MenuItem value="weekly">Weekly Focus Goals</MenuItem>
                                               </Select>
                                             </FormControl>
 
@@ -1209,8 +1253,8 @@ function TaskDialogForm({
                                                           ? question.goalCreationType ||
                                                             (question.linkedGoalType === "yearly"
                                                               ? "next_year"
-                                                              : question.linkedGoalType === "monthly"
-                                                                ? "next_month"
+                                                              : question.linkedGoalType === "weekly"
+                                                                ? "next_week"
                                                                 : "next_month")
                                                           : null,
                                                       })
@@ -1232,6 +1276,7 @@ function TaskDialogForm({
                                                     }
                                                     size="small"
                                                   >
+                                                    <MenuItem value="next_week">Next Week</MenuItem>
                                                     <MenuItem value="next_month">Next Month</MenuItem>
                                                     <MenuItem value="next_year">Next Year</MenuItem>
                                                   </Select>

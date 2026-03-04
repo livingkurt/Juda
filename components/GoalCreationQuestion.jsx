@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -27,6 +27,7 @@ import {
   ExpandMore,
   ChevronRight,
   Flag as GoalIcon,
+  Star as FocusIcon,
 } from "@mui/icons-material";
 import { useGetGoalsQuery, useRolloverGoalMutation } from "@/lib/store/api/goalsApi";
 import { useCreateTaskMutation } from "@/lib/store/api/tasksApi";
@@ -62,6 +63,11 @@ export function GoalCreationQuestion({ question, reflectionDate, compact = false
   const currentMonth = reflectionDayjs.month() + 1;
   const dayOfMonth = reflectionDayjs.date();
 
+  // For "next_week", calculate the start of next week (Monday after the reflection date)
+  const nextWeekStart =
+    question.goalCreationType === "next_week" ? reflectionDayjs.add(1, "week").startOf("week").add(1, "day") : null;
+  const nextWeekEnd = nextWeekStart ? nextWeekStart.add(6, "day") : null;
+
   // Calculate target year/month based on creation type
   // If it's the 1st of the month, create goals for the current month (not next month)
   // Otherwise, create goals for next month
@@ -74,7 +80,9 @@ export function GoalCreationQuestion({ question, reflectionDate, compact = false
         : currentMonth === 12
           ? 1
           : currentMonth + 1
-      : null;
+      : question.goalCreationType === "next_week"
+        ? currentMonth
+        : null;
   const targetMonthYear =
     question.goalCreationType === "next_month" && currentMonth === 12 && dayOfMonth !== 1
       ? currentYear + 1
@@ -141,65 +149,61 @@ export function GoalCreationQuestion({ question, reflectionDate, compact = false
   const [newMonthlyGoalTitle, setNewMonthlyGoalTitle] = useState("");
   const [selectedParentId, setSelectedParentId] = useState(null);
   const [newYearlyGoalTitle, setNewYearlyGoalTitle] = useState("");
+  const [newWeeklyGoalTitle, setNewWeeklyGoalTitle] = useState("");
+  const [selectedWeeklyParentId, setSelectedWeeklyParentId] = useState(null);
   const [expandedGoals, setExpandedGoals] = useState(new Set());
 
   // Get yearly goals from source year (previous year for rollover)
-  const previousYearGoals = useMemo(() => {
-    if (!goalsData?.allGoals) return [];
-    return goalsData.allGoals.filter(
-      g => !g.parentId && (!g.goalMonths || g.goalMonths.length === 0) && g.goalYear === sourceYear
-    );
-  }, [goalsData, sourceYear]);
+  const previousYearGoals = goalsData?.allGoals
+    ? goalsData.allGoals.filter(
+        g => !g.parentId && (!g.goalMonths || g.goalMonths.length === 0) && g.goalYear === sourceYear
+      )
+    : [];
 
   // Get yearly goals from target year (current year - already rolled over or newly created)
-  const currentYearGoals = useMemo(() => {
-    if (question.goalCreationType !== "next_year") return [];
-    if (!targetGoalsData?.allGoals) return [];
-    return targetGoalsData.allGoals.filter(
-      g => !g.parentId && (!g.goalMonths || g.goalMonths.length === 0) && g.goalYear === targetYear
-    );
-  }, [targetGoalsData, targetYear, question.goalCreationType]);
+  const currentYearGoals =
+    question.goalCreationType === "next_year" && targetGoalsData?.allGoals
+      ? targetGoalsData.allGoals.filter(
+          g => !g.parentId && (!g.goalMonths || g.goalMonths.length === 0) && g.goalYear === targetYear
+        )
+      : [];
 
   // Get yearly goals for parent selection (for monthly reflections)
-  const yearlyGoalsForSelection = useMemo(() => {
-    if (question.goalCreationType !== "next_month") return [];
-    // Use currentYearGoalsData (always fetched for monthly reflections)
-    if (!currentYearGoalsData?.allGoals) return [];
-    return currentYearGoalsData.allGoals.filter(
-      g => !g.parentId && (!g.goalMonths || g.goalMonths.length === 0) && g.goalYear === currentYear
-    );
-  }, [currentYearGoalsData, currentYear, question.goalCreationType]);
+  const yearlyGoalsForSelection =
+    question.goalCreationType === "next_month" && currentYearGoalsData?.allGoals
+      ? currentYearGoalsData.allGoals.filter(
+          g => !g.parentId && (!g.goalMonths || g.goalMonths.length === 0) && g.goalYear === currentYear
+        )
+      : [];
 
   // Get monthly goals from previous month (for rollover)
-  const previousMonthGoals = useMemo(() => {
-    if (question.goalCreationType !== "next_month") return [];
-    if (!goalsData?.allGoals) return [];
-    return goalsData.allGoals.filter(
-      g =>
-        g.parentId &&
-        g.goalMonths &&
-        Array.isArray(g.goalMonths) &&
-        g.goalMonths.includes(sourceMonth) &&
-        g.goalYear === sourceMonthYear
-    );
-  }, [goalsData, sourceMonth, sourceMonthYear, question.goalCreationType]);
+  const previousMonthGoals =
+    question.goalCreationType === "next_month" && goalsData?.allGoals
+      ? goalsData.allGoals.filter(
+          g =>
+            g.parentId &&
+            g.goalMonths &&
+            Array.isArray(g.goalMonths) &&
+            g.goalMonths.includes(sourceMonth) &&
+            g.goalYear === sourceMonthYear
+        )
+      : [];
 
   // Get monthly goals from current/target month (already rolled over or newly created)
-  const currentMonthGoals = useMemo(() => {
-    if (question.goalCreationType !== "next_month") return [];
-    if (!targetGoalsData?.allGoals) return [];
-    return targetGoalsData.allGoals.filter(
-      g =>
-        g.parentId &&
-        g.goalMonths &&
-        Array.isArray(g.goalMonths) &&
-        g.goalMonths.includes(targetMonth) &&
-        g.goalYear === targetMonthYear
-    );
-  }, [targetGoalsData, targetMonth, targetMonthYear, question.goalCreationType]);
+  const currentMonthGoals =
+    question.goalCreationType === "next_month" && targetGoalsData?.allGoals
+      ? targetGoalsData.allGoals.filter(
+          g =>
+            g.parentId &&
+            g.goalMonths &&
+            Array.isArray(g.goalMonths) &&
+            g.goalMonths.includes(targetMonth) &&
+            g.goalYear === targetMonthYear
+        )
+      : [];
 
   // Get monthly goals grouped by parent (from source year)
-  const monthlyGoalsByParent = useMemo(() => {
+  const monthlyGoalsByParent = (() => {
     if (!goalsData?.allGoals) return {};
     const grouped = {};
     goalsData.allGoals.forEach(g => {
@@ -209,10 +213,10 @@ export function GoalCreationQuestion({ question, reflectionDate, compact = false
       }
     });
     return grouped;
-  }, [goalsData]);
+  })();
 
   // Get monthly goals grouped by parent (from target year - for next_year type)
-  const targetMonthlyGoalsByParent = useMemo(() => {
+  const targetMonthlyGoalsByParent = (() => {
     if (question.goalCreationType !== "next_year" || !targetGoalsData?.allGoals) return {};
     const grouped = {};
     targetGoalsData.allGoals.forEach(g => {
@@ -222,35 +226,65 @@ export function GoalCreationQuestion({ question, reflectionDate, compact = false
       }
     });
     return grouped;
-  }, [targetGoalsData, question.goalCreationType]);
+  })();
+
+  // Get monthly goals for next_week type (current month's goals to pick from)
+  const weeklyParentGoals =
+    question.goalCreationType === "next_week" && goalsData?.allGoals
+      ? goalsData.allGoals.filter(
+          g =>
+            g.goalYear === currentYear &&
+            g.goalMonths &&
+            Array.isArray(g.goalMonths) &&
+            g.goalMonths.includes(currentMonth) &&
+            !g.goalData?.weekStartDate &&
+            g.status !== "complete"
+        )
+      : [];
+
+  // Get existing weekly focus goals for the target week
+  const weeklyFocusWeekStartStr = nextWeekStart ? nextWeekStart.format("YYYY-MM-DD") : null;
+  const existingWeeklyGoals =
+    question.goalCreationType === "next_week" && weeklyFocusWeekStartStr && goalsData?.allGoals
+      ? goalsData.allGoals.filter(
+          g =>
+            g.goalYear === currentYear &&
+            g.goalData?.weekStartDate === weeklyFocusWeekStartStr &&
+            g.status !== "complete"
+        )
+      : [];
+
+  // Get yearly goals for context in weekly view (to show hierarchy)
+  const weeklyYearlyGoals =
+    question.goalCreationType === "next_week" && goalsData?.allGoals
+      ? goalsData.allGoals.filter(
+          g => g.goalYear === currentYear && !g.parentId && (!g.goalMonths || g.goalMonths.length === 0)
+        )
+      : [];
 
   // Calculate next order value for a monthly goal under a parent
-  const getNextMonthlyGoalOrder = useCallback(
-    parentId => {
-      // For next_month type, use current month goals to calculate order
-      if (question.goalCreationType === "next_month") {
-        const currentMonthSubgoals = currentMonthGoals.filter(g => g.parentId === parentId);
-        if (currentMonthSubgoals.length === 0) return 0;
-        const maxOrder = Math.max(...currentMonthSubgoals.map(sg => sg.order ?? 0));
-        return maxOrder + 1;
-      }
-
-      // For next_year type, use target year subgoals
-      let subgoals = targetMonthlyGoalsByParent[parentId] || [];
-      if (subgoals.length === 0) {
-        subgoals = monthlyGoalsByParent[parentId] || [];
-      }
-
-      if (subgoals.length === 0) return 0;
-      const maxOrder = Math.max(...subgoals.map(sg => sg.order ?? 0));
+  const getNextMonthlyGoalOrder = parentId => {
+    // For next_month type, use current month goals to calculate order
+    if (question.goalCreationType === "next_month") {
+      const currentMonthSubgoals = currentMonthGoals.filter(g => g.parentId === parentId);
+      if (currentMonthSubgoals.length === 0) return 0;
+      const maxOrder = Math.max(...currentMonthSubgoals.map(sg => sg.order ?? 0));
       return maxOrder + 1;
-    },
-    [targetMonthlyGoalsByParent, monthlyGoalsByParent, question.goalCreationType, currentMonthGoals]
-  );
+    }
+
+    // For next_year type, use target year subgoals
+    let subgoals = targetMonthlyGoalsByParent[parentId] || [];
+    if (subgoals.length === 0) {
+      subgoals = monthlyGoalsByParent[parentId] || [];
+    }
+
+    if (subgoals.length === 0) return 0;
+    const maxOrder = Math.max(...subgoals.map(sg => sg.order ?? 0));
+    return maxOrder + 1;
+  };
 
   // Calculate next order value for a yearly goal
-  const getNextYearlyGoalOrder = useCallback(() => {
-    // Use target goals data to get correct order for the target year
+  const getNextYearlyGoalOrder = () => {
     if (!targetGoalsData?.allGoals) return 0;
     const yearlyGoalsList = targetGoalsData.allGoals.filter(
       g => !g.parentId && (!g.goalMonths || g.goalMonths.length === 0) && g.goalYear === targetYear
@@ -258,32 +292,26 @@ export function GoalCreationQuestion({ question, reflectionDate, compact = false
     if (yearlyGoalsList.length === 0) return 0;
     const maxOrder = Math.max(...yearlyGoalsList.map(g => g.order ?? 0));
     return maxOrder + 1;
-  }, [targetGoalsData, targetYear]);
+  };
 
   // Check if a goal has been rolled over to target year
-  const isGoalRolledOver = useCallback(
-    goalTitle => {
-      if (!targetGoalsData?.allGoals) return false;
-      return targetGoalsData.allGoals.some(g => g.title === goalTitle);
-    },
-    [targetGoalsData]
-  );
+  const isGoalRolledOver = goalTitle => {
+    if (!targetGoalsData?.allGoals) return false;
+    return targetGoalsData.allGoals.some(g => g.title === goalTitle);
+  };
 
   // Check if a monthly goal has been rolled over to target month
-  const isMonthlyGoalRolledOver = useCallback(
-    goalTitle => {
-      if (!targetGoalsData?.allGoals) return false;
-      return targetGoalsData.allGoals.some(
-        g =>
-          g.title === goalTitle &&
-          g.goalMonths &&
-          Array.isArray(g.goalMonths) &&
-          g.goalMonths.includes(targetMonth) &&
-          g.goalYear === targetMonthYear
-      );
-    },
-    [targetGoalsData, targetMonth, targetMonthYear]
-  );
+  const isMonthlyGoalRolledOver = goalTitle => {
+    if (!targetGoalsData?.allGoals) return false;
+    return targetGoalsData.allGoals.some(
+      g =>
+        g.title === goalTitle &&
+        g.goalMonths &&
+        Array.isArray(g.goalMonths) &&
+        g.goalMonths.includes(targetMonth) &&
+        g.goalYear === targetMonthYear
+    );
+  };
 
   // Toggle goal expansion
   const toggleExpanded = goalId => {
@@ -401,6 +429,70 @@ export function GoalCreationQuestion({ question, reflectionDate, compact = false
     }
   };
 
+  // Handle creating a weekly focus goal
+  const handleCreateWeeklyGoal = async () => {
+    const title = newWeeklyGoalTitle.trim();
+    if (!title || !selectedWeeklyParentId || !nextWeekStart) return;
+
+    try {
+      const weekStartStr = nextWeekStart.format("YYYY-MM-DD");
+      const existingWeekGoals = goalsData?.allGoals?.filter(g => g.goalData?.weekStartDate === weekStartStr) || [];
+      const nextOrder = existingWeekGoals.length > 0 ? Math.max(...existingWeekGoals.map(g => g.order ?? 0)) + 1 : 0;
+
+      await createTask({
+        title,
+        completionType: "goal",
+        goalYear: currentYear,
+        goalMonths: [nextWeekStart.month() + 1],
+        parentId: selectedWeeklyParentId,
+        status: "todo",
+        order: nextOrder,
+        tagIds: goalsTag ? [goalsTag.id] : [],
+        goalData: {
+          weekStartDate: weekStartStr,
+        },
+      }).unwrap();
+
+      setNewWeeklyGoalTitle("");
+      setSelectedWeeklyParentId(null);
+
+      refetchSourceGoals();
+    } catch (error) {
+      console.error("Failed to create weekly focus goal:", error);
+    }
+  };
+
+  // Handle selecting an existing monthly goal as the weekly focus
+  const handleSelectAsWeeklyFocus = async goal => {
+    if (!nextWeekStart) return;
+
+    try {
+      const weekStartStr = nextWeekStart.format("YYYY-MM-DD");
+      const existingWeekGoals = goalsData?.allGoals?.filter(g => g.goalData?.weekStartDate === weekStartStr) || [];
+      const nextOrder = existingWeekGoals.length > 0 ? Math.max(...existingWeekGoals.map(g => g.order ?? 0)) + 1 : 0;
+
+      await createTask({
+        title: goal.title,
+        completionType: "goal",
+        goalYear: currentYear,
+        goalMonths: [nextWeekStart.month() + 1],
+        // Weekly focus goals must be children of the selected monthly goal.
+        parentId: goal.id,
+        status: "todo",
+        order: nextOrder,
+        tagIds: goalsTag ? [goalsTag.id] : [],
+        goalData: {
+          weekStartDate: weekStartStr,
+          sourceGoalId: goal.id,
+        },
+      }).unwrap();
+
+      refetchSourceGoals();
+    } catch (error) {
+      console.error("Failed to select weekly focus goal:", error);
+    }
+  };
+
   // Handle rolling over a goal
   const handleRolloverGoal = async goal => {
     try {
@@ -440,7 +532,9 @@ export function GoalCreationQuestion({ question, reflectionDate, compact = false
       <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: "block" }}>
         {question.goalCreationType === "next_year"
           ? `Rolling over goals from ${sourceYear} to ${targetYear}`
-          : `Rolling over goals from ${dayjs(new Date(sourceMonthYear, sourceMonth - 1, 1)).format("MMMM")} to ${dayjs(new Date(targetMonthYear, targetMonth - 1, 1)).format("MMMM")}`}
+          : question.goalCreationType === "next_week"
+            ? `Select or create a focus goal for the week of ${nextWeekStart?.format("MMM D")} - ${nextWeekEnd?.format("MMM D")}`
+            : `Rolling over goals from ${dayjs(new Date(sourceMonthYear, sourceMonth - 1, 1)).format("MMMM")} to ${dayjs(new Date(targetMonthYear, targetMonth - 1, 1)).format("MMMM")}`}
       </Typography>
 
       {/* Goals list */}
@@ -754,7 +848,7 @@ export function GoalCreationQuestion({ question, reflectionDate, compact = false
                       placeholder="Goal title..."
                       value={newMonthlyGoalTitle}
                       onChange={e => setNewMonthlyGoalTitle(e.target.value)}
-                      onKeyPress={e => {
+                      onKeyDown={e => {
                         if (e.key === "Enter") {
                           e.preventDefault();
                           handleCreateMonthlyGoal();
@@ -780,6 +874,199 @@ export function GoalCreationQuestion({ question, reflectionDate, compact = false
           </>
         )}
 
+        {/* Weekly focus goal selection for next_week type */}
+        {question.goalCreationType === "next_week" && (
+          <>
+            {/* Existing weekly focus goals */}
+            {existingWeeklyGoals.length > 0 && (
+              <>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, mt: 1 }}>
+                  Weekly focus for {nextWeekStart?.format("MMM D")} - {nextWeekEnd?.format("MMM D")}
+                </Typography>
+                {existingWeeklyGoals.map(goal => {
+                  const parentGoal = goalsData?.allGoals?.find(g => g.id === goal.parentId);
+
+                  return (
+                    <Paper key={goal.id} variant="outlined" sx={{ overflow: "hidden" }}>
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={1}
+                        sx={{
+                          p: 1.5,
+                          bgcolor: "background.default",
+                        }}
+                      >
+                        <FocusIcon fontSize="small" color="warning" />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" fontWeight={500}>
+                            {goal.title}
+                          </Typography>
+                          {parentGoal && (
+                            <Typography variant="caption" color="text.secondary">
+                              Under: {parentGoal.title}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Chip
+                          size="small"
+                          label={
+                            goal.status === "complete"
+                              ? "Complete"
+                              : goal.status === "in_progress"
+                                ? "In Progress"
+                                : "Todo"
+                          }
+                          color={
+                            goal.status === "complete"
+                              ? "success"
+                              : goal.status === "in_progress"
+                                ? "primary"
+                                : "default"
+                          }
+                          sx={{ height: 20, fontSize: "0.625rem" }}
+                        />
+                      </Stack>
+                    </Paper>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Monthly goals to pick from */}
+            {weeklyParentGoals.length > 0 && (
+              <>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 500, mt: existingWeeklyGoals.length > 0 ? 2 : 1 }}
+                >
+                  Pick a monthly goal to focus on, or create a specific weekly goal
+                </Typography>
+                {weeklyParentGoals.map(goal => {
+                  const parentGoal = weeklyYearlyGoals.find(g => g.id === goal.parentId);
+                  const alreadySelected = existingWeeklyGoals.some(
+                    wg => wg.goalData?.sourceGoalId === goal.id || wg.title === goal.title
+                  );
+
+                  return (
+                    <Paper
+                      key={goal.id}
+                      variant="outlined"
+                      sx={{
+                        overflow: "hidden",
+                        opacity: alreadySelected ? 0.6 : 1,
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={1}
+                        sx={{
+                          p: 1.5,
+                          bgcolor: "background.default",
+                        }}
+                      >
+                        <StatusIcon status={goal.status} />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" fontWeight={500}>
+                            {goal.title}
+                          </Typography>
+                          {parentGoal && (
+                            <Typography variant="caption" color="text.secondary">
+                              Under: {parentGoal.title}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Chip
+                          size="small"
+                          label={dayjs(new Date(currentYear, currentMonth - 1, 1)).format("MMM")}
+                          variant="outlined"
+                        />
+                        <Tooltip title={alreadySelected ? "Already selected for this week" : "Set as weekly focus"}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleSelectAsWeeklyFocus(goal)}
+                              disabled={alreadySelected || creating}
+                              color={alreadySelected ? "success" : "warning"}
+                            >
+                              {alreadySelected ? <CheckCircle fontSize="small" /> : <FocusIcon fontSize="small" />}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Stack>
+                    </Paper>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Empty state */}
+            {weeklyParentGoals.length === 0 && existingWeeklyGoals.length === 0 && (
+              <Paper sx={{ p: 2, bgcolor: "background.default" }}>
+                <Typography variant="body2" color="text.secondary">
+                  No monthly goals found for {dayjs(new Date(currentYear, currentMonth - 1, 1)).format("MMMM")}. Create
+                  monthly goals in your monthly reflection first.
+                </Typography>
+              </Paper>
+            )}
+
+            {/* Create a new specific weekly goal under a monthly goal */}
+            {weeklyParentGoals.length > 0 && (
+              <Paper variant="outlined" sx={{ p: 1.5, mt: 1 }}>
+                <Stack spacing={1.5}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                    Or create a specific focus goal for {nextWeekStart?.format("MMM D")} -{" "}
+                    {nextWeekEnd?.format("MMM D")}
+                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <FormControl size="small" sx={{ minWidth: 200 }}>
+                      <InputLabel>Under Goal</InputLabel>
+                      <Select
+                        value={selectedWeeklyParentId || ""}
+                        onChange={e => setSelectedWeeklyParentId(e.target.value || null)}
+                        label="Under Goal"
+                      >
+                        <MenuItem value="">Select a monthly goal...</MenuItem>
+                        {weeklyParentGoals.map(g => (
+                          <MenuItem key={g.id} value={g.id}>
+                            {g.title}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <TextField
+                      size="small"
+                      placeholder="Specific focus for the week..."
+                      value={newWeeklyGoalTitle}
+                      onChange={e => setNewWeeklyGoalTitle(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleCreateWeeklyGoal();
+                        }
+                      }}
+                      sx={{ flex: 1 }}
+                      disabled={creating || !selectedWeeklyParentId}
+                      variant="outlined"
+                    />
+                    <Button
+                      size="small"
+                      variant="contained"
+                      onClick={handleCreateWeeklyGoal}
+                      disabled={!newWeeklyGoalTitle.trim() || !selectedWeeklyParentId || creating}
+                      startIcon={<AddIcon />}
+                    >
+                      Add
+                    </Button>
+                  </Stack>
+                </Stack>
+              </Paper>
+            )}
+          </>
+        )}
+
         {/* Create new yearly goal */}
         {question.goalCreationType === "next_year" && (
           <Paper variant="outlined" sx={{ p: 1.5 }}>
@@ -790,7 +1077,7 @@ export function GoalCreationQuestion({ question, reflectionDate, compact = false
                 placeholder={`New yearly goal for ${targetYear}...`}
                 value={newYearlyGoalTitle}
                 onChange={e => setNewYearlyGoalTitle(e.target.value)}
-                onKeyPress={e => {
+                onKeyDown={e => {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     handleCreateYearlyGoal();

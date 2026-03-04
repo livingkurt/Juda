@@ -35,6 +35,16 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
                   tag: true,
                 },
               },
+              subtasks: {
+                where: eq(tasks.completionType, "goal"),
+                with: {
+                  taskTags: {
+                    with: {
+                      tag: true,
+                    },
+                  },
+                },
+              },
             },
           }
         : undefined,
@@ -42,14 +52,20 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
     orderBy: [sql`${tasks.goalYear} DESC`, sql`${tasks.order} ASC`],
   });
 
-  const goalsWithTags = allGoals.map(goal => ({
+  const mapGoalTags = goal => ({
     ...goal,
     tags: goal.taskTags?.map(tt => tt.tag) || [],
     subtasks: goal.subtasks?.map(subgoal => ({
       ...subgoal,
       tags: subgoal.taskTags?.map(tt => tt.tag) || [],
+      subtasks: subgoal.subtasks?.map(weeklyGoal => ({
+        ...weeklyGoal,
+        tags: weeklyGoal.taskTags?.map(tt => tt.tag) || [],
+      })),
     })),
-  }));
+  });
+
+  const goalsWithTags = allGoals.map(mapGoalTags);
 
   // Organize by yearly vs monthly
   const yearlyGoals = goalsWithTags.filter(g => !g.parentId && (!g.goalMonths || g.goalMonths.length === 0));

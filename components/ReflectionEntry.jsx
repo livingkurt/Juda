@@ -347,7 +347,11 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
   const monthlyGoals = useMemo(() => {
     const currentMonth = reflectionDate.month() + 1;
     const baseFilter = g =>
-      g.goalYear === currentYear && g.goalMonths && Array.isArray(g.goalMonths) && g.goalMonths.includes(currentMonth);
+      g.goalYear === currentYear &&
+      g.goalMonths &&
+      Array.isArray(g.goalMonths) &&
+      g.goalMonths.includes(currentMonth) &&
+      !g.goalData?.weekStartDate;
 
     // If this is a past reflection with saved data, include goals that were tracked
     if (existingData?.responses) {
@@ -365,6 +369,26 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
     return goals.filter(g => baseFilter(g) && g.status !== "complete");
   }, [goals, currentYear, reflectionDate, existingData]);
 
+  // Weekly focus goals - goals with weekStartDate matching this week's Monday
+  const weeklyGoals = useMemo(() => {
+    const weekStart = reflectionDate.startOf("week").add(1, "day"); // Monday
+    const weekStartStr = weekStart.format("YYYY-MM-DD");
+    const baseFilter = g => g.goalYear === currentYear && g.goalData?.weekStartDate === weekStartStr;
+
+    if (existingData?.responses) {
+      const trackedGoalIds = new Set();
+      existingData.responses.forEach(r => {
+        if (r.goalProgress) {
+          r.goalProgress.forEach(gp => trackedGoalIds.add(gp.goalId));
+        }
+      });
+
+      return goals.filter(g => baseFilter(g) && (g.status !== "complete" || trackedGoalIds.has(g.id)));
+    }
+
+    return goals.filter(g => baseFilter(g) && g.status !== "complete");
+  }, [goals, currentYear, reflectionDate, existingData]);
+
   // Get relevant goals for a question based on linkedGoalType
   const getRelevantGoals = useCallback(
     linkedGoalType => {
@@ -376,9 +400,12 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
       if (linkedGoalType === "monthly") {
         return monthlyGoals;
       }
+      if (linkedGoalType === "weekly") {
+        return weeklyGoals;
+      }
       return [];
     },
-    [yearlyGoals, monthlyGoals]
+    [yearlyGoals, monthlyGoals, weeklyGoals]
   );
 
   // Get goal progress entry for a question and goal
@@ -469,6 +496,15 @@ export const ReflectionEntry = ({ task, date, existingCompletion, onSave, compac
                   fullWidth
                   minRows={compact ? 2 : 3}
                 />
+              )}
+
+              {/* Empty weekly goals message */}
+              {question.linkedGoalType === "weekly" && relevantGoals.length === 0 && !isFirstOfYear && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                    No weekly focus goal set for this week. Set one in your previous weekly reflection.
+                  </Typography>
+                </Box>
               )}
 
               {/* Goal progress section - hide on first of year (no goals to track yet) */}

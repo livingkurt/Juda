@@ -1049,3 +1049,51 @@
   - yellow for 6 to 8 hours
   - red for below 5 hours
   - gray/default hover tone when no duration is filled in.
+
+## 2026-03-04
+
+### Weekly focus goal feature in Weekly Reflection
+
+- Extended the goals hierarchy to support weekly focus goals, completing the chain: Yearly → Monthly → Weekly.
+- Changed the "One thing I want to focus on next week" weekly reflection question from a plain text input to a goal creation interface (`allowGoalCreation: true`, `goalCreationType: "next_week"`).
+- Added a new weekly reflection question "Progress on this week's focus" (`linkedGoalType: "weekly"`) that shows weekly focus goals set for the current week, with the same status/progress tracking UI as monthly and yearly goals.
+- Extended `GoalCreationQuestion` component to handle `next_week` type:
+  - Shows current monthly goals as options to pick from as the weekly focus (click star icon to select).
+  - Allows creating a new specific weekly goal under a monthly goal.
+  - Shows already-selected weekly focus goals for the target week.
+- Weekly focus goals are stored as regular goal tasks with `completionType: "goal"`, `goalMonths` set to the relevant month, `parentId` pointing to a monthly goal, and `goalData.weekStartDate` (YYYY-MM-DD format of the target week's Monday) to scope them to a specific week. No schema migration required.
+- Extended `ReflectionEntry` component to filter and display weekly focus goals via `linkedGoalType: "weekly"`, matching goals whose `goalData.weekStartDate` equals the current week's Monday.
+- Added "Weekly Focus Goals" option to the TaskDialog's "Link to Goals" dropdown and "Next Week" to the goal creation type dropdown for custom reflection setup.
+- Updated `TaskDialog` goal creation type default logic to return `"next_week"` when `linkedGoalType` is `"weekly"`.
+- Converted pre-existing `useMemo`/`useCallback` hooks in `GoalCreationQuestion` to plain expressions to resolve React Compiler warnings (follows React 19 optimization rules).
+- **Important**: Existing weekly reflection tasks will keep their old questions. Users need to re-select the "Weekly" template in the task editor to get the new questions, or create a new weekly reflection task.
+
+### Weekly goals hierarchy + views
+
+- Added a true **Weekly Goals view** to `components/tabs/GoalsTab.jsx` with week navigation and filtering by `goalData.weekStartDate`.
+- Goals tab now supports three views: `Weekly`, `Monthly`, `Yearly`.
+- Updated monthly/yearly goal rendering so nested subtasks are expanded, allowing weekly goals to appear under monthly goals in the same hierarchy style as yearly -> monthly.
+- Prevented weekly goals from appearing as top-level monthly/yearly rows by filtering `goalData.weekStartDate` in those root lists.
+- Added `goalsSelectedWeekStart` to UI state in `lib/store/slices/uiSlice.js` plus a new reducer/action `setGoalsSelectedWeekStart`.
+- Updated goal subtask creation in `hooks/useTaskActions.js`:
+  - If parent is a yearly goal, creating a subtask creates a **monthly goal**.
+  - If parent is a monthly/weekly goal, creating a subtask creates a **weekly goal** with `goalData.weekStartDate`.
+- Updated monthly-goal filtering in `components/ReflectionEntry.jsx` and parent-goal selection in `components/GoalCreationQuestion.jsx` to exclude weekly goals (those with `goalData.weekStartDate`) from monthly goal pools.
+
+### Goals API: two-level subtask fetching
+
+- Fixed `app/api/goals/route.js` to fetch **two levels** of nested subtasks instead of one, enabling the full Yearly -> Monthly -> Weekly hierarchy in a single API response.
+- The Drizzle `with` clause now includes `subtasks` within `subtasks`, and the tag mapping function (`mapGoalTags`) recursively maps tags at all three levels.
+
+### TaskDialog: parent monthly goal selection for weekly goals
+
+- Updated `components/TaskDialog.jsx` parent goal selector to be context-aware:
+  - When editing a weekly goal (`goalData.weekStartDate` present), the dropdown shows **monthly goals** instead of yearly goals.
+  - Labels, validation messages, and help text dynamically adjust for weekly vs monthly goals.
+
+### Historical weekly goals migration (consolidated)
+
+- Single clean migration `drizzle/0051_add_weekly_goals_migration.sql` replaces earlier broken versions.
+- Creates 9 weekly goals from historical reflection answers, each with correct `parentId` linking to the most relevant monthly goal.
+- Updates the Weekly Reflection task's question config for goal creation.
+- Handles double-encoded JSONB strings in `reflectionData`.

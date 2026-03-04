@@ -1748,6 +1748,9 @@ export const TaskItem = ({
                       key={subtask.id}
                       task={{
                         ...subtask,
+                        // Auto-expand goal subtasks that have their own sub-goals
+                        expanded:
+                          subtask.completionType === "goal" && subtask.subtasks?.length > 0 ? true : subtask.expanded,
                         // Pass parent's recurrence so subtask can show outcome menu
                         parentRecurrence: task.recurrence,
                       }}

@@ -22,9 +22,14 @@ import {
 export function useTaskActions({ tasks = [] } = {}) {
   const dispatch = useDispatch();
   const todayViewDateISO = useSelector(state => state.ui.selectedDate);
+  const goalsViewType = useSelector(state => state.ui.goalsViewType);
+  const goalsSelectedWeekStart = useSelector(state => state.ui.goalsSelectedWeekStart);
   const viewDate = useMemo(() => {
+    if (goalsViewType === "weekly" && goalsSelectedWeekStart) {
+      return new Date(goalsSelectedWeekStart);
+    }
     return todayViewDateISO ? new Date(todayViewDateISO) : new Date();
-  }, [todayViewDateISO]);
+  }, [todayViewDateISO, goalsViewType, goalsSelectedWeekStart]);
 
   const [createTaskMutation] = useCreateTaskMutation();
   const [updateTaskMutation] = useUpdateTaskMutation();
@@ -135,6 +140,54 @@ export function useTaskActions({ tasks = [] } = {}) {
       const parentTask = taskById.get(parentTaskId);
       if (!parentTask) return;
 
+      const isGoalParent = parentTask.completionType === "goal";
+
+      if (isGoalParent) {
+        const weekStart = new Date(viewDate || new Date());
+        weekStart.setHours(0, 0, 0, 0);
+        const day = weekStart.getDay(); // 0=Sun ... 6=Sat
+        const mondayOffset = day === 0 ? -6 : 1 - day;
+        weekStart.setDate(weekStart.getDate() + mondayOffset);
+        const weekStartDate = formatLocalDate(weekStart);
+        const isYearlyGoalParent =
+          !parentTask.goalMonths || !Array.isArray(parentTask.goalMonths) || parentTask.goalMonths.length === 0;
+        const parentWeekStartDate = parentTask.goalData?.weekStartDate || null;
+
+        const nextGoalData = {
+          ...(parentTask.goalData || {}),
+          createdFromParentGoalId: parentTaskId,
+        };
+
+        // Yearly -> monthly subgoal, Monthly/Weekly -> weekly subgoal.
+        if (isYearlyGoalParent) {
+          delete nextGoalData.weekStartDate;
+        } else {
+          nextGoalData.weekStartDate = parentWeekStartDate || weekStartDate;
+        }
+
+        const taskData = {
+          title: subtaskTitle.trim(),
+          sectionId: parentTask.sectionId,
+          parentId: parentTaskId,
+          time: null,
+          duration: 30,
+          recurrence: null,
+          order: 999,
+          completionType: "goal",
+          status: "todo",
+          goalYear: parentTask.goalYear || weekStart.getFullYear(),
+          goalMonths: isYearlyGoalParent
+            ? [weekStart.getMonth() + 1]
+            : parentTask.goalMonths && Array.isArray(parentTask.goalMonths) && parentTask.goalMonths.length > 0
+              ? parentTask.goalMonths
+              : [weekStart.getMonth() + 1],
+          goalData: nextGoalData,
+        };
+
+        await createTask(taskData);
+        return;
+      }
+
       const taskData = {
         title: subtaskTitle.trim(),
         sectionId: parentTask.sectionId,
@@ -150,7 +203,7 @@ export function useTaskActions({ tasks = [] } = {}) {
       await createTask(taskData);
       console.warn("Subtask created");
     },
-    [taskById, createTask]
+    [taskById, createTask, viewDate]
   );
 
   const handleToggleExpand = useCallback(
