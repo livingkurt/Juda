@@ -26,6 +26,7 @@ import {
   PlayCircle,
   CheckCircle,
   FitnessCenter,
+  PlaylistAddCheck,
 } from "@mui/icons-material";
 import { formatTime, getTaskDisplayColor } from "@/lib/utils";
 import { TagChip } from "./TagChip";
@@ -833,6 +834,7 @@ export const TaskItem = ({
   const isWorkoutTask = taskMeta.isWorkoutTask ?? task.completionType === "workout";
   const isGoalTask = taskMeta.isGoalTask ?? task.completionType === "goal";
   const isSleepTask = taskMeta.isSleepTask ?? task.completionType === "sleep";
+  const isListTask = task.completionType === "list";
   const isNotCompleted = taskMeta.isNotCompleted ?? false;
 
   // Get selection options from task
@@ -1675,6 +1677,18 @@ export const TaskItem = ({
                 {workoutButtonText}
               </Box>
             </Button>
+          )}
+
+          {/* Open List button for list-type tasks */}
+          {isListTask && (
+            <Chip
+              size="small"
+              icon={<PlaylistAddCheck fontSize="small" />}
+              label="List"
+              variant="outlined"
+              color="primary"
+              sx={{ flexShrink: 0 }}
+            />
           )}
 
           {/* Time display */}

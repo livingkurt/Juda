@@ -100,6 +100,15 @@ const WorkoutTab = dynamic(() => import("@/components/tabs/WorkoutTab").then(mod
   ssr: false,
 });
 
+const ListTab = dynamic(() => import("@/components/tabs/ListTab").then(mod => ({ default: mod.ListTab })), {
+  loading: () => (
+    <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <CircularProgress size={48} />
+    </Box>
+  ),
+  ssr: false,
+});
+
 const SleepTab = dynamic(() => import("@/components/tabs/SleepTab").then(mod => ({ default: mod.SleepTab })), {
   loading: () => (
     <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -378,9 +387,11 @@ export default function DailyTasksApp() {
 
           {(mainTabIndex === 6 || loadingTab === 6) && <SleepTab isLoading={loadingTab === 6} />}
 
-          {(mainTabIndex === 7 || loadingTab === 7) && <KanbanTab isLoading={loadingTab === 7} />}
+          {(mainTabIndex === 7 || loadingTab === 7) && <ListTab isLoading={loadingTab === 7} />}
 
-          {(mainTabIndex === 8 || loadingTab === 8) && <HistoryTab isLoading={loadingTab === 8} />}
+          {(mainTabIndex === 8 || loadingTab === 8) && <KanbanTab isLoading={loadingTab === 8} />}
+
+          {(mainTabIndex === 9 || loadingTab === 9) && <HistoryTab isLoading={loadingTab === 9} />}
         </Box>
       </Box>
 

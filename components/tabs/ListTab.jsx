@@ -1,0 +1,266 @@
+"use client";
+
+import { useState, useCallback, useMemo } from "react";
+import {
+  Box,
+  Typography,
+  Button,
+  Card,
+  CardContent,
+  CardActions,
+  Grid,
+  Stack,
+  Chip,
+  IconButton,
+  Menu,
+  MenuItem,
+  Divider,
+  Collapse,
+  CircularProgress,
+} from "@mui/material";
+import {
+  Add,
+  PlaylistAddCheck,
+  MoreVert,
+  Edit,
+  Delete,
+  PlayArrow,
+  ExpandMore,
+  ExpandLess,
+} from "@mui/icons-material";
+import {
+  useGetListTemplatesQuery,
+  useGetListInstancesQuery,
+  useCreateListInstanceMutation,
+  useDeleteListTemplateMutation,
+  useDeleteListInstanceMutation,
+} from "@/lib/store/api/listApi";
+import { ListInstanceView } from "@/components/ListInstanceView";
+import dynamic from "next/dynamic";
+
+const ListTemplateBuilder = dynamic(() => import("@/components/ListTemplateBuilder"), { ssr: false });
+
+export function ListTab({ isLoading }) {
+  const { data: templates = [], isLoading: templatesLoading } = useGetListTemplatesQuery();
+  const { data: instances = [], isLoading: instancesLoading } = useGetListInstancesQuery();
+  const [createInstance] = useCreateListInstanceMutation();
+  const [deleteTemplate] = useDeleteListTemplateMutation();
+  const [deleteInstance] = useDeleteListInstanceMutation();
+
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [menuTemplate, setMenuTemplate] = useState(null);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [expandedInstanceId, setExpandedInstanceId] = useState(null);
+
+  const activeInstances = useMemo(
+    () => instances.filter(i => i.status === "active"),
+    [instances]
+  );
+  const completedInstances = useMemo(
+    () => instances.filter(i => i.status === "completed" || i.status === "archived"),
+    [instances]
+  );
+
+  const handleUseTemplate = useCallback(
+    async templateId => {
+      await createInstance({ templateId });
+    },
+    [createInstance]
+  );
+
+  const handleEditTemplate = useCallback(template => {
+    setEditingTemplate(template);
+    setBuilderOpen(true);
+    setMenuAnchor(null);
+  }, []);
+
+  const handleDeleteTemplate = useCallback(
+    async id => {
+      await deleteTemplate(id);
+      setMenuAnchor(null);
+    },
+    [deleteTemplate]
+  );
+
+  const handleDeleteInstance = useCallback(
+    async id => {
+      await deleteInstance(id);
+    },
+    [deleteInstance]
+  );
+
+  const handleOpenMenu = useCallback((event, template) => {
+    setMenuAnchor(event.currentTarget);
+    setMenuTemplate(template);
+  }, []);
+
+  if (isLoading || templatesLoading || instancesLoading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", p: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ p: { xs: 2, md: 3 }, overflow: "auto", height: "100%" }}>
+      {/* Header */}
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <PlaylistAddCheck />
+          <Typography variant="h5" fontWeight="bold">
+            Lists
+          </Typography>
+        </Stack>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => {
+            setEditingTemplate(null);
+            setBuilderOpen(true);
+          }}
+          size="small"
+        >
+          New Template
+        </Button>
+      </Stack>
+
+      {/* Templates Section */}
+      <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1.5 }}>
+        Templates
+      </Typography>
+
+      {templates.length === 0 ? (
+        <Card variant="outlined" sx={{ mb: 3, p: 3, textAlign: "center" }}>
+          <Typography color="text.secondary">
+            No templates yet. Create one to get started!
+          </Typography>
+        </Card>
+      ) : (
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          {templates.map(template => (
+            <Grid item xs={12} sm={6} md={4} key={template.id}>
+              <Card variant="outlined">
+                <CardContent sx={{ pb: 1 }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        {template.icon ? `${template.icon} ` : ""}{template.name}
+                      </Typography>
+                      {template.description && (
+                        <Typography variant="body2" color="text.secondary" noWrap>
+                          {template.description}
+                        </Typography>
+                      )}
+                      <Typography variant="caption" color="text.secondary">
+                        {template.items?.length || 0} items
+                      </Typography>
+                    </Box>
+                    <IconButton size="small" onClick={e => handleOpenMenu(e, template)}>
+                      <MoreVert fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                </CardContent>
+                <CardActions>
+                  <Button
+                    size="small"
+                    startIcon={<PlayArrow />}
+                    onClick={() => handleUseTemplate(template.id)}
+                    variant="outlined"
+                  >
+                    Use
+                  </Button>
+                  <Button size="small" startIcon={<Edit />} onClick={() => handleEditTemplate(template)}>
+                    Edit
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+
+      <Divider sx={{ mb: 2 }} />
+
+      {/* Active Instances */}
+      <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1.5 }}>
+        Active Lists ({activeInstances.length})
+      </Typography>
+
+      {activeInstances.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          No active lists. Use a template to create one.
+        </Typography>
+      ) : (
+        <Stack spacing={2} sx={{ mb: 3 }}>
+          {activeInstances.map(instance => (
+            <Card key={instance.id} variant="outlined">
+              <CardContent>
+                <ListInstanceView instance={instance} onDelete={handleDeleteInstance} />
+              </CardContent>
+            </Card>
+          ))}
+        </Stack>
+      )}
+
+      {/* Completed Section */}
+      {completedInstances.length > 0 && (
+        <>
+          <Divider sx={{ mb: 1 }} />
+          <Button
+            onClick={() => setShowCompleted(!showCompleted)}
+            endIcon={showCompleted ? <ExpandLess /> : <ExpandMore />}
+            size="small"
+            sx={{ mb: 1, textTransform: "none" }}
+          >
+            Completed ({completedInstances.length})
+          </Button>
+          <Collapse in={showCompleted}>
+            <Stack spacing={2}>
+              {completedInstances.map(instance => (
+                <Card key={instance.id} variant="outlined" sx={{ opacity: 0.6 }}>
+                  <CardContent>
+                    <ListInstanceView instance={instance} onDelete={handleDeleteInstance} />
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          </Collapse>
+        </>
+      )}
+
+      {/* Template Context Menu */}
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+        <MenuItem
+          onClick={() => {
+            if (menuTemplate) handleEditTemplate(menuTemplate);
+          }}
+        >
+          <Edit fontSize="small" sx={{ mr: 1 }} /> Edit
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            if (menuTemplate) handleDeleteTemplate(menuTemplate.id);
+          }}
+          sx={{ color: "error.main" }}
+        >
+          <Delete fontSize="small" sx={{ mr: 1 }} /> Delete
+        </MenuItem>
+      </Menu>
+
+      {/* Template Builder Dialog */}
+      <ListTemplateBuilder
+        open={builderOpen}
+        onClose={() => {
+          setBuilderOpen(false);
+          setEditingTemplate(null);
+        }}
+        editingTemplate={editingTemplate}
+      />
+    </Box>
+  );
+}
+
+export default ListTab;
