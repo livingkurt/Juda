@@ -116,6 +116,9 @@ export const GET = withApi(async (request, { userId }) => {
 
   // Filter to actual backlog tasks
   const backlogTasks = tasksWithTags.filter(task => {
+    // Never show list templates or list instances in backlog
+    if (task.taskKind === "list_template" || task.taskKind === "list_instance") return false;
+
     // Already filtered by sectionId in query, but double-check
     if (task.sectionId) return false;
 

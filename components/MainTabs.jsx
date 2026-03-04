@@ -12,6 +12,7 @@ import {
   AccessTime as Clock,
   TrendingUp,
   Hotel,
+  FormatListBulleted,
 } from "@mui/icons-material";
 import { useViewState } from "@/hooks/useViewState";
 
@@ -61,7 +62,7 @@ export function MainTabs() {
   };
 
   // Tab indices:
-  // 0 = Tasks, 1 = Goals, 2 = Journal, 3 = Notes, 4 = Progress, 5 = Workout, 6 = Sleep, 7 = Kanban, 8 = History
+  // 0 = Tasks, 1 = Goals, 2 = Journal, 3 = Notes, 4 = Progress, 5 = Workout, 6 = Sleep, 7 = Kanban, 8 = History, 9 = Lists
 
   return (
     <Box>
@@ -118,6 +119,12 @@ export function MainTabs() {
           icon={<Clock fontSize="small" />}
           iconPosition="start"
           label="History"
+          sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
+        />
+        <Tab
+          icon={<FormatListBulleted fontSize="small" />}
+          iconPosition="start"
+          label="Lists"
           sx={{ fontSize: { xs: "0.875rem", md: "1rem" }, minHeight: { xs: 48, md: 64 } }}
         />
       </Tabs>

@@ -13,6 +13,7 @@ import {
 } from "@/lib/apiHelpers";
 
 const taskBroadcast = withBroadcast(ENTITY_TYPES.TASK);
+const TASK_KINDS = ["default", "list_template", "list_instance"];
 
 export const GET = withApi(async (request, { userId, getSearchParams }) => {
   const apiStart = Date.now();
@@ -104,6 +105,8 @@ export const POST = withApi(async (request, { userId, getBody }) => {
     selectionData,
     goalYear,
     goalMonths,
+    taskKind,
+    listTemplateId,
   } = body;
 
   validateRequired(body, ["title"]);
@@ -162,6 +165,17 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       validateEnum("priority", priority, ["low", "medium", "high", "urgent"]);
     }
 
+    if (taskKind !== undefined && taskKind !== null) {
+      validateEnum("taskKind", taskKind, TASK_KINDS);
+    }
+
+    if (taskKind === "list_template") {
+      const hasSchedule = Boolean(sectionId || time || recurrence?.startDate);
+      if (hasSchedule) {
+        throw Errors.badRequest("List templates cannot be scheduled or assigned to sections");
+      }
+    }
+
     const [task] = await tx
       .insert(tasks)
       .values({
@@ -188,6 +202,8 @@ export const POST = withApi(async (request, { userId, getBody }) => {
         selectionData: selectionData || null,
         goalYear: goalYear || null,
         goalMonths: goalMonths || null,
+        taskKind: taskKind || "default",
+        listTemplateId: listTemplateId || null,
       })
       .returning();
 
@@ -271,6 +287,8 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     selectionData,
     goalYear,
     goalMonths,
+    taskKind,
+    listTemplateId,
   } = body;
 
   validateRequired(body, ["id"]);
@@ -335,6 +353,13 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
   }
   if (content !== undefined) updateData.content = content;
   if (folderId !== undefined) updateData.folderId = folderId;
+  if (taskKind !== undefined) {
+    validateEnum("taskKind", taskKind, TASK_KINDS);
+    updateData.taskKind = taskKind;
+  }
+  if (listTemplateId !== undefined) {
+    updateData.listTemplateId = listTemplateId || null;
+  }
   if (priority !== undefined) {
     if (priority === null) {
       updateData.priority = null;
@@ -373,6 +398,17 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json(existingTask);
+  }
+
+  const resolvedTaskKind = updateData.taskKind || existingTask.taskKind || "default";
+  const resolvedSectionId = updateData.sectionId !== undefined ? updateData.sectionId : existingTask.sectionId;
+  const resolvedTime = updateData.time !== undefined ? updateData.time : existingTask.time;
+  const resolvedRecurrence = updateData.recurrence !== undefined ? updateData.recurrence : existingTask.recurrence;
+  if (resolvedTaskKind === "list_template") {
+    const hasSchedule = Boolean(resolvedSectionId || resolvedTime || resolvedRecurrence?.startDate);
+    if (hasSchedule) {
+      throw Errors.badRequest("List templates cannot be scheduled or assigned to sections");
+    }
   }
 
   updateData.updatedAt = new Date();

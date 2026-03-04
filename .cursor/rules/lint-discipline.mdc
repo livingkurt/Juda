@@ -1,0 +1,36 @@
+---
+description: Enforce lint-clean workflow and no suppression-first fixes
+alwaysApply: true
+---
+
+# Lint Discipline
+
+## Non-Negotiables
+
+- Keep the repo lint clean. Before finishing any implementation, run `npm run lint`.
+- Before any commit or push, lint must pass with zero errors.
+- Do not silence lint issues with `eslint-disable` comments unless explicitly approved by the user.
+- Prefer structural fixes over suppressions (refactor hooks, extract helpers, stabilize dependencies, avoid effect-based state sync).
+
+## Preferred Fix Strategy
+
+1. Fix root cause first (logic/dependencies/structure).
+2. Use formatter/lint autofix for style-only issues.
+3. Re-run lint and verify clean output.
+
+## Examples
+
+```js
+// ❌ Avoid: suppression-first
+// eslint-disable-next-line react-hooks/exhaustive-deps
+useEffect(() => { ... }, [a]);
+
+// ✅ Prefer: make dependencies correct via stable callback/refactor
+const stableHandler = useCallback(() => { ... }, [a, b]);
+useEffect(() => { stableHandler(); }, [stableHandler]);
+```
+
+```js
+// ❌ Avoid: hiding deep nesting warnings with file-wide disables
+// ✅ Prefer: extract helper functions and flatten control flow
+```

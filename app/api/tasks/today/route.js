@@ -98,6 +98,15 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
 
   // Filter tasks for this date
   const todayTasks = rootTasks.filter(task => {
+    if (task.taskKind === "list_template") return false;
+
+    // List instances should only appear when explicitly scheduled with date and time.
+    if (task.taskKind === "list_instance") {
+      const hasDate = Boolean(task.recurrence?.startDate);
+      const hasTime = Boolean(task.time);
+      if (!hasDate || !hasTime) return false;
+    }
+
     // Exclude notes
     if (task.completionType === "note") return false;
     // Exclude goals

@@ -73,6 +73,13 @@ export function useTaskFilters({ recentlyCompletedTasks, skip = false } = {}) {
 
     return todayTasksRaw
       .filter(task => {
+        if (task.taskKind === "list_template") return false;
+        if (task.taskKind === "list_instance") {
+          return Boolean(task.recurrence?.startDate && task.time);
+        }
+        return true;
+      })
+      .filter(task => {
         // For one-time tasks that have completions, only show on dates with a record
         if (task.recurrence?.type === "none" && hasAnyCompletion(task.id)) {
           return lookups.hasRecord(task.id);
@@ -227,6 +234,7 @@ export function useTaskFilters({ recentlyCompletedTasks, skip = false } = {}) {
     const todayLookups = getLookupsForDate(today);
 
     return backlogTasksRaw
+      .filter(task => task.taskKind !== "list_template" && task.taskKind !== "list_instance")
       .filter(task => {
         // For one-time tasks that have been completed on ANY date,
         // filter them out unless recently completed

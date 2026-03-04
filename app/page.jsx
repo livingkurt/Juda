@@ -127,6 +127,15 @@ const ProgressTab = dynamic(() => import("@/components/tabs/ProgressTab").then(m
   ssr: false,
 });
 
+const ListsTab = dynamic(() => import("@/components/tabs/ListsTab").then(mod => ({ default: mod.ListsTab })), {
+  loading: () => (
+    <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <CircularProgress size={48} />
+    </Box>
+  ),
+  ssr: false,
+});
+
 // eslint-disable-next-line react-refresh/only-export-components
 export { createDroppableId, createDraggableId, extractTaskId };
 
@@ -381,6 +390,8 @@ export default function DailyTasksApp() {
           {(mainTabIndex === 7 || loadingTab === 7) && <KanbanTab isLoading={loadingTab === 7} />}
 
           {(mainTabIndex === 8 || loadingTab === 8) && <HistoryTab isLoading={loadingTab === 8} />}
+
+          {(mainTabIndex === 9 || loadingTab === 9) && <ListsTab isLoading={loadingTab === 9} />}
         </Box>
       </Box>
 

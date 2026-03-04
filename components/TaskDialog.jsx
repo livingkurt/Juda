@@ -55,15 +55,19 @@ import WeekdaySelector from "./WeekdaySelector";
 import { useGetWorkoutProgramQuery } from "@/lib/store/api/workoutProgramsApi";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
 import { useGetTagsQuery, useCreateTagMutation, useDeleteTagMutation } from "@/lib/store/api/tagsApi";
+import { useGetListItemsQuery, useGetListTasksQuery } from "@/lib/store/api/tasksApi";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useTaskItemShared } from "@/hooks/useTaskItemShared";
 import RecurringEditScopeDialog from "./RecurringEditScopeDialog";
+import { ListTemplateBuilder } from "./ListTemplateBuilder";
 import {
   requiresSeriesScopeDecision,
   prepareThisOccurrenceEdit,
   prepareFutureOccurrencesEdit,
 } from "@/lib/recurringSeriesUtils";
+
+const normalizeSubtaskTitle = value => (value || "").trim().toLowerCase().replace(/\s+/g, " ");
 
 // Internal component that resets when key changes
 function TaskDialogForm({
@@ -77,9 +81,12 @@ function TaskDialogForm({
   clickedRecurringDate,
   defaultCompletionType,
   defaultGoalYear,
+  defaultTaskKind,
   tags,
   onCreateTag,
   allTasks,
+  listItems,
+  listTemplates,
 }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -182,10 +189,12 @@ function TaskDialogForm({
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [subtaskTabIndex, setSubtaskTabIndex] = useState(0);
+  const [taskKind, setTaskKind] = useState(task?.taskKind || defaultTaskKind || "default");
   const [completionType, setCompletionType] = useState(task?.completionType || defaultCompletionType || "checkbox");
   const [content, setContent] = useState(task?.content || "");
   const [showScopeDialog, setShowScopeDialog] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(null);
+  const [listBuilderOpen, setListBuilderOpen] = useState(false);
 
   // Goal-specific state
   const [goalYear, setGoalYear] = useState(task?.goalYear || defaultGoalYear || new Date().getFullYear());
@@ -337,6 +346,15 @@ function TaskDialogForm({
       setSelectionData(prev => ({ ...prev, options: items }));
     },
     [selectionData.options]
+  );
+
+  const hasDuplicateSubtaskTitle = useCallback(
+    (nextTitle, excludeSubtaskId = null) => {
+      const normalized = normalizeSubtaskTitle(nextTitle);
+      if (!normalized) return false;
+      return subtasks.some(st => st.id !== excludeSubtaskId && normalizeSubtaskTitle(st.title) === normalized);
+    },
+    [subtasks]
   );
   // const [workoutBuilderOpen, setWorkoutBuilderOpen] = useState(false);
   // Note: workoutProgram query kept for potential future use
@@ -496,6 +514,11 @@ function TaskDialogForm({
 
   const handleSave = useCallback(() => {
     if (!title.trim()) return;
+    if (taskKind === "list_template" && subtasks.length === 0) return;
+    if (taskKind === "list_template" || taskKind === "list_instance") {
+      const normalizedTitles = subtasks.map(subtask => normalizeSubtaskTitle(subtask.title)).filter(Boolean);
+      if (new Set(normalizedTitles).size !== normalizedTitles.length) return;
+    }
 
     // Validate monthly goals have a parent
     if (completionType === "goal" && goalMonths && goalMonths.length > 0 && !parentId) {
@@ -557,19 +580,20 @@ function TaskDialogForm({
     const saveData = {
       id: task?.id,
       title,
-      sectionId,
-      time: time || null,
+      sectionId: taskKind === "list_template" ? null : sectionId,
+      time: taskKind === "list_template" ? null : time || null,
       duration,
-      recurrence,
+      recurrence: taskKind === "list_template" ? null : recurrence,
       subtasks: orderedSubtasks,
       // Note: Task completion is tracked via TaskCompletion records, not a field on Task
       expanded: task?.expanded || false,
       order: task?.order ?? 999,
       tagIds: selectedTagIds,
-      completionType,
+      completionType: taskKind === "list_template" ? "checkbox" : completionType,
+      taskKind,
       content: content || null,
       // workoutData removed - now saved separately via WorkoutBuilder
-      status: recurrenceType === "none" ? status || "todo" : "todo",
+      status: taskKind === "list_template" ? "todo" : recurrenceType === "none" ? status || "todo" : "todo",
       priority: priority || null,
       // Parent ID for sub-goals
       parentId: parentId || null,
@@ -600,6 +624,7 @@ function TaskDialogForm({
     // If editing an existing recurring task, check if we need scope decision
     if (
       task &&
+      taskKind !== "list_template" &&
       requiresSeriesScopeDecision(task, {
         date,
         time,
@@ -628,6 +653,7 @@ function TaskDialogForm({
   }, [
     title,
     recurrenceType,
+    taskKind,
     date,
     endDate,
     selectedDays,
@@ -737,6 +763,14 @@ function TaskDialogForm({
   });
 
   const addExistingTaskAsSubtask = existingTask => {
+    if (
+      (taskKind === "list_template" || taskKind === "list_instance") &&
+      hasDuplicateSubtaskTitle(existingTask.title || "")
+    ) {
+      setSearchQuery("");
+      setSubtaskTabIndex(0);
+      return;
+    }
     // Add the task as a subtask (it will be converted when saved)
     setSubtasks([
       ...subtasks,
@@ -803,6 +837,23 @@ function TaskDialogForm({
                     }
                   }}
                 />
+              </GLGrid>
+
+              {/* Tags */}
+              <GLGrid item xs={12}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Task Type</InputLabel>
+                  <Select
+                    value={taskKind}
+                    onChange={e => setTaskKind(e.target.value)}
+                    label="Task Type"
+                    disabled={task?.taskKind === "list_instance"}
+                  >
+                    <MenuItem value="default">Standard Task</MenuItem>
+                    <MenuItem value="list_template">List Template</MenuItem>
+                    {task?.taskKind === "list_instance" && <MenuItem value="list_instance">List Instance</MenuItem>}
+                  </Select>
+                </FormControl>
               </GLGrid>
 
               {/* Tags */}
@@ -1642,211 +1693,247 @@ function TaskDialogForm({
                 </GLGrid>
               )}
 
-              {/* Subtasks */}
-              <GLGrid item xs={12}>
-                <Box>
-                  <Typography variant="body2" fontWeight={500} gutterBottom>
-                    Subtasks ({subtasks.length})
-                  </Typography>
-                  <Paper variant="outlined" sx={{ mt: 1 }}>
-                    <Tabs value={subtaskTabIndex} onChange={(e, newValue) => setSubtaskTabIndex(newValue)}>
-                      <Tab label={`Manage (${subtasks.length})`} />
-                      <Tab label="Add Existing" />
-                    </Tabs>
-
-                    {/* Manage Subtasks Tab */}
-                    {subtaskTabIndex === 0 && (
-                      <Box sx={{ p: 2 }}>
-                        {subtasks.length > 0 ? (
-                          <DragDropContext onDragEnd={handleDragEnd}>
-                            <Droppable droppableId="task-dialog-subtasks" type="SUBTASK">
-                              {provided => (
-                                <List ref={provided.innerRef} {...provided.droppableProps} dense sx={{ mb: 2 }}>
-                                  {subtasks.map((st, index) => (
-                                    <Draggable key={st.id} draggableId={`subtask-${st.id}`} index={index}>
-                                      {(provided, snapshot) => (
-                                        <ListItem
-                                          ref={provided.innerRef}
-                                          {...provided.draggableProps}
-                                          {...provided.dragHandleProps}
-                                          divider={index < subtasks.length - 1}
-                                          sx={{
-                                            py: 1,
-                                            px: 0,
-                                            opacity: snapshot.isDragging ? 0.5 : 1,
-                                          }}
-                                        >
-                                          <DragIndicator sx={{ mr: 1, color: "text.disabled", cursor: "grab" }} />
-                                          <ListItemText primary={st.title} secondary={st.time || undefined} />
-                                          <ListItemSecondaryAction>
-                                            <IconButton
-                                              edge="end"
-                                              size="small"
-                                              onClick={() => {
-                                                setEditingSubtask(st);
-                                                setSubtaskTitle(st.title);
-                                                setSubtaskTime(st.time || "");
-                                                setSubtaskDuration(st.duration || 30);
-                                              }}
-                                              sx={{ mr: 1 }}
-                                            >
-                                              <Edit fontSize="small" />
-                                            </IconButton>
-                                            <IconButton
-                                              edge="end"
-                                              size="small"
-                                              onClick={() => {
-                                                setSubtasks(subtasks.filter(s => s.id !== st.id));
-                                              }}
-                                            >
-                                              <Delete fontSize="small" />
-                                            </IconButton>
-                                          </ListItemSecondaryAction>
-                                        </ListItem>
-                                      )}
-                                    </Draggable>
-                                  ))}
-                                  {provided.placeholder}
-                                </List>
-                              )}
-                            </Droppable>
-                          </DragDropContext>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
-                            No subtasks yet
-                          </Typography>
-                        )}
-                        <Divider sx={{ my: 1.5 }} />
-                        <Stack direction="row" spacing={1}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            value={newSubtask}
-                            onChange={e => setNewSubtask(e.target.value)}
-                            placeholder="Create new subtask"
-                            onKeyDown={e => {
-                              if (e.key === "Enter" && newSubtask.trim()) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setSubtasks([
-                                  ...subtasks,
-                                  {
-                                    id: Date.now().toString(),
-                                    title: newSubtask.trim(),
-                                    completed: false,
-                                    time: null,
-                                    duration: 30,
-                                    order: subtasks.length,
-                                  },
-                                ]);
-                                setNewSubtask("");
-                              }
-                            }}
-                          />
-                          <IconButton
-                            onClick={() => {
-                              if (newSubtask.trim()) {
-                                setSubtasks([
-                                  ...subtasks,
-                                  {
-                                    id: Date.now().toString(),
-                                    title: newSubtask.trim(),
-                                    completed: false,
-                                    time: null,
-                                    duration: 30,
-                                    order: subtasks.length,
-                                  },
-                                ]);
-                                setNewSubtask("");
-                              }
-                            }}
-                            size="small"
-                            color="primary"
-                          >
-                            <Add />
-                          </IconButton>
-                        </Stack>
+              {/* Subtasks / List Builder */}
+              {taskKind === "list_template" ? (
+                <GLGrid item xs={12}>
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2" fontWeight={600}>
+                          Template Items ({subtasks.length})
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Use the builder to drag items in/out, clone from existing templates, and manage list content.
+                        </Typography>
                       </Box>
-                    )}
+                      <Button variant="contained" onClick={() => setListBuilderOpen(true)}>
+                        Open List Template Builder
+                      </Button>
+                    </Stack>
+                  </Paper>
+                </GLGrid>
+              ) : (
+                <GLGrid item xs={12}>
+                  <Box>
+                    <Typography variant="body2" fontWeight={500} gutterBottom>
+                      Subtasks ({subtasks.length})
+                    </Typography>
+                    <Paper variant="outlined" sx={{ mt: 1 }}>
+                      <Tabs value={subtaskTabIndex} onChange={(e, newValue) => setSubtaskTabIndex(newValue)}>
+                        <Tab label={`Manage (${subtasks.length})`} />
+                        <Tab label="Add Existing" />
+                      </Tabs>
 
-                    {/* Add Existing Task Tab */}
-                    {subtaskTabIndex === 1 && (
-                      <Box sx={{ p: 2 }}>
-                        <Stack spacing={2}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            placeholder="Search for tasks to add as subtasks..."
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <Search fontSize="small" />
-                                </InputAdornment>
-                              ),
-                            }}
-                          />
-                          {searchQuery.trim() && (
-                            <Box sx={{ maxHeight: 200, overflowY: "auto" }}>
-                              {filteredTasks.length > 0 ? (
-                                <List dense>
-                                  {filteredTasks.map(t => (
-                                    <ListItem
-                                      key={t.id}
-                                      button
-                                      onClick={() => addExistingTaskAsSubtask(t)}
-                                      sx={{ "&:hover": { opacity: 0.8 } }}
-                                    >
-                                      <TaskItem
-                                        task={t}
-                                        variant="subtask"
-                                        containerId="task-dialog-search"
-                                        draggableId={`dialog-search-${t.id}`}
-                                        allTasksOverride={allTasks}
-                                        viewDate={dialogViewDate}
-                                        shared={taskItemShared}
-                                        meta={taskItemShared?.taskMetaById?.get(t.id)}
-                                      />
-                                      <ListItemSecondaryAction>
-                                        <IconButton
-                                          edge="end"
-                                          size="small"
-                                          onClick={e => {
-                                            e.stopPropagation();
-                                            addExistingTaskAsSubtask(t);
-                                          }}
-                                        >
-                                          <Add />
-                                        </IconButton>
-                                      </ListItemSecondaryAction>
-                                    </ListItem>
-                                  ))}
-                                </List>
-                              ) : (
-                                <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
-                                  No tasks found
-                                </Typography>
-                              )}
-                            </Box>
-                          )}
-                          {!searchQuery.trim() && (
-                            <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
-                              Type to search for existing tasks
+                      {/* Manage Subtasks Tab */}
+                      {subtaskTabIndex === 0 && (
+                        <Box sx={{ p: 2 }}>
+                          {subtasks.length > 0 ? (
+                            <DragDropContext onDragEnd={handleDragEnd}>
+                              <Droppable droppableId="task-dialog-subtasks" type="SUBTASK">
+                                {provided => (
+                                  <List ref={provided.innerRef} {...provided.droppableProps} dense sx={{ mb: 2 }}>
+                                    {subtasks.map((st, index) => (
+                                      <Draggable key={st.id} draggableId={`subtask-${st.id}`} index={index}>
+                                        {(provided, snapshot) => (
+                                          <ListItem
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            {...provided.dragHandleProps}
+                                            divider={index < subtasks.length - 1}
+                                            sx={{
+                                              py: 1,
+                                              px: 0,
+                                              opacity: snapshot.isDragging ? 0.5 : 1,
+                                            }}
+                                          >
+                                            <DragIndicator sx={{ mr: 1, color: "text.disabled", cursor: "grab" }} />
+                                            <ListItemText primary={st.title} secondary={st.time || undefined} />
+                                            <ListItemSecondaryAction>
+                                              <IconButton
+                                                edge="end"
+                                                size="small"
+                                                onClick={() => {
+                                                  setEditingSubtask(st);
+                                                  setSubtaskTitle(st.title);
+                                                  setSubtaskTime(st.time || "");
+                                                  setSubtaskDuration(st.duration || 30);
+                                                }}
+                                                sx={{ mr: 1 }}
+                                              >
+                                                <Edit fontSize="small" />
+                                              </IconButton>
+                                              <IconButton
+                                                edge="end"
+                                                size="small"
+                                                onClick={() => {
+                                                  setSubtasks(subtasks.filter(s => s.id !== st.id));
+                                                }}
+                                              >
+                                                <Delete fontSize="small" />
+                                              </IconButton>
+                                            </ListItemSecondaryAction>
+                                          </ListItem>
+                                        )}
+                                      </Draggable>
+                                    ))}
+                                    {provided.placeholder}
+                                  </List>
+                                )}
+                              </Droppable>
+                            </DragDropContext>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 2 }}>
+                              No subtasks yet
                             </Typography>
                           )}
-                        </Stack>
-                      </Box>
-                    )}
-                  </Paper>
-                </Box>
-              </GLGrid>
+                          <Divider sx={{ my: 1.5 }} />
+                          <Stack direction="row" spacing={1}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              value={newSubtask}
+                              onChange={e => setNewSubtask(e.target.value)}
+                              placeholder="Create new subtask"
+                              onKeyDown={e => {
+                                if (e.key === "Enter" && newSubtask.trim()) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (
+                                    (taskKind === "list_template" || taskKind === "list_instance") &&
+                                    hasDuplicateSubtaskTitle(newSubtask)
+                                  ) {
+                                    return;
+                                  }
+                                  setSubtasks([
+                                    ...subtasks,
+                                    {
+                                      id: Date.now().toString(),
+                                      title: newSubtask.trim(),
+                                      completed: false,
+                                      time: null,
+                                      duration: 30,
+                                      order: subtasks.length,
+                                    },
+                                  ]);
+                                  setNewSubtask("");
+                                }
+                              }}
+                            />
+                            <IconButton
+                              onClick={() => {
+                                if (newSubtask.trim()) {
+                                  if (
+                                    (taskKind === "list_template" || taskKind === "list_instance") &&
+                                    hasDuplicateSubtaskTitle(newSubtask)
+                                  ) {
+                                    return;
+                                  }
+                                  setSubtasks([
+                                    ...subtasks,
+                                    {
+                                      id: Date.now().toString(),
+                                      title: newSubtask.trim(),
+                                      completed: false,
+                                      time: null,
+                                      duration: 30,
+                                      order: subtasks.length,
+                                    },
+                                  ]);
+                                  setNewSubtask("");
+                                }
+                              }}
+                              size="small"
+                              color="primary"
+                            >
+                              <Add />
+                            </IconButton>
+                          </Stack>
+                        </Box>
+                      )}
+
+                      {/* Add Existing Task Tab */}
+                      {subtaskTabIndex === 1 && (
+                        <Box sx={{ p: 2 }}>
+                          <Stack spacing={2}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              value={searchQuery}
+                              onChange={e => setSearchQuery(e.target.value)}
+                              placeholder="Search for tasks to add as subtasks..."
+                              InputProps={{
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <Search fontSize="small" />
+                                  </InputAdornment>
+                                ),
+                              }}
+                            />
+                            {searchQuery.trim() && (
+                              <Box sx={{ maxHeight: 200, overflowY: "auto" }}>
+                                {filteredTasks.length > 0 ? (
+                                  <List dense>
+                                    {filteredTasks.map(t => (
+                                      <ListItem
+                                        key={t.id}
+                                        button
+                                        onClick={() => addExistingTaskAsSubtask(t)}
+                                        sx={{ "&:hover": { opacity: 0.8 } }}
+                                      >
+                                        <TaskItem
+                                          task={t}
+                                          variant="subtask"
+                                          containerId="task-dialog-search"
+                                          draggableId={`dialog-search-${t.id}`}
+                                          allTasksOverride={allTasks}
+                                          viewDate={dialogViewDate}
+                                          shared={taskItemShared}
+                                          meta={taskItemShared?.taskMetaById?.get(t.id)}
+                                        />
+                                        <ListItemSecondaryAction>
+                                          <IconButton
+                                            edge="end"
+                                            size="small"
+                                            onClick={e => {
+                                              e.stopPropagation();
+                                              addExistingTaskAsSubtask(t);
+                                            }}
+                                          >
+                                            <Add />
+                                          </IconButton>
+                                        </ListItemSecondaryAction>
+                                      </ListItem>
+                                    ))}
+                                  </List>
+                                ) : (
+                                  <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
+                                    No tasks found
+                                  </Typography>
+                                )}
+                              </Box>
+                            )}
+                            {!searchQuery.trim() && (
+                              <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
+                                Type to search for existing tasks
+                              </Typography>
+                            )}
+                          </Stack>
+                        </Box>
+                      )}
+                    </Paper>
+                  </Box>
+                </GLGrid>
+              )}
             </GLGrid>
           </DialogContent>
 
           <DialogActions sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
             <Button onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} variant="contained" disabled={!title.trim()}>
+            <Button
+              onClick={handleSave}
+              variant="contained"
+              disabled={!title.trim() || (taskKind === "list_template" && subtasks.length === 0)}
+            >
               Save
             </Button>
           </DialogActions>
@@ -1901,6 +1988,12 @@ function TaskDialogForm({
           <Button
             onClick={() => {
               if (subtaskTitle.trim() && editingSubtask) {
+                if (
+                  (taskKind === "list_template" || taskKind === "list_instance") &&
+                  hasDuplicateSubtaskTitle(subtaskTitle, editingSubtask.id)
+                ) {
+                  return;
+                }
                 setSubtasks(
                   subtasks.map(st =>
                     st.id === editingSubtask.id
@@ -1926,6 +2019,21 @@ function TaskDialogForm({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {listBuilderOpen && (
+        <ListTemplateBuilder
+          open={listBuilderOpen}
+          onClose={() => setListBuilderOpen(false)}
+          onApply={items => {
+            setSubtasks(items);
+            setListBuilderOpen(false);
+          }}
+          subtasks={subtasks}
+          listItems={listItems}
+          listTemplates={listTemplates}
+          currentTemplateId={task?.id || null}
+        />
+      )}
 
       {/* Recurring Edit Scope Dialog */}
       <RecurringEditScopeDialog
@@ -1958,14 +2066,17 @@ function TaskDialogForm({
 // Wrapper component that uses key prop to reset form state
 export const TaskDialog = () => {
   const dialogState = useDialogState();
-  const { data: sections = [] } = useGetSectionsQuery();
-  const { data: tags = [] } = useGetTagsQuery();
+  const isOpen = dialogState.taskDialogOpen;
+
+  const { data: sections = [] } = useGetSectionsQuery(undefined, { skip: !isOpen });
+  const { data: tags = [] } = useGetTagsQuery(undefined, { skip: !isOpen });
+  const { data: listItems = [] } = useGetListItemsQuery(undefined, { skip: !isOpen });
+  const { data: listData } = useGetListTasksQuery(undefined, { skip: !isOpen });
+  const listTemplates = useMemo(() => listData?.templates || [], [listData]);
   const taskOps = useTaskOperations();
   const allTasks = taskOps.tasks || [];
   const [createTagMutation] = useCreateTagMutation();
   const [deleteTagMutation] = useDeleteTagMutation();
-
-  const isOpen = dialogState.taskDialogOpen;
   const task = dialogState.editingTask;
 
   const handleClose = () => {
@@ -2005,10 +2116,13 @@ export const TaskDialog = () => {
       clickedRecurringDate={dialogState.clickedRecurringDate}
       defaultCompletionType={dialogState.defaultCompletionType}
       defaultGoalYear={dialogState.defaultGoalYear}
+      defaultTaskKind={dialogState.defaultTaskKind}
       tags={tags}
       onCreateTag={handleCreateTag}
       onDeleteTag={handleDeleteTag}
       allTasks={allTasks}
+      listItems={listItems}
+      listTemplates={listTemplates}
     />
   );
 };

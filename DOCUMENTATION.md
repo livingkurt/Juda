@@ -1049,3 +1049,112 @@
   - yellow for 6 to 8 hours
   - red for below 5 hours
   - gray/default hover tone when no duration is filled in.
+
+### List task system foundation (templates + in-use instances)
+
+- Added `Task.taskKind` (`default | list_template | list_instance`) and `Task.listTemplateId` to model reusable list templates and generated in-use list instances in the same Task system.
+- Added strict canonical list item library tables:
+  - `ListItem` with unique `(userId, normalizedName)` to prevent duplicate canonical item names per user.
+  - `TaskListItem` junction to link task rows to canonical list items.
+- Generated and added migration `drizzle/0051_add_list_task_system.sql` to introduce list metadata, library tables, constraints, and indexes.
+- Added API routes for list workflow:
+  - `GET /api/tasks/lists` returns templates + in-use instances (with subtasks + tags).
+  - `POST /api/tasks/lists/use` clones a template into a list instance with cloned child items.
+  - `GET/POST /api/list-items` for querying and creating canonical list items.
+- Extended `/api/tasks` create/update validation to accept `taskKind` and `listTemplateId` and reject scheduling/section assignment for `list_template`.
+- Enforced visibility rules:
+  - `list_template` never appears in backlog/today/calendar lanes.
+  - `list_instance` only appears in today/calendar when both date (`recurrence.startDate`) and `time` exist.
+  - Added guards in both API filtering and client-side task filter hook for safety.
+- Added a dedicated Lists tab:
+  - new main tab in `components/MainTabs.jsx`
+  - lazy-rendered in `app/page.jsx`
+  - implemented in `components/tabs/ListsTab.jsx` with template cards, `+ Use` modal, and in-use checklist rendering.
+- Added RTK Query endpoints in `lib/store/api/tasksApi.js`:
+  - `getListTasks`, `useListTemplate`, `getListItems`, `createListItem`
+  - cache invalidation wired to refresh lists/today/backlog/calendar when list tasks are created/updated/deleted.
+- Extended task dialog flow for template authoring:
+  - introduced `Task Type` selector in `components/TaskDialog.jsx`.
+  - added canonical list item library picker + inline library item creation.
+  - when saving `list_template`, subtasks are derived strictly from selected library items.
+- Added Redux dialog default support for task kind (`defaultTaskKind`) in `uiSlice` + `useDialogState`, allowing “New List Template” to open TaskDialog preconfigured as `list_template`.
+
+### Airtable packing list import bootstrap
+
+- Added `scripts/import-airtable-packing-lists.js` to import legacy Airtable packing-list CSV exports into the new list system.
+- Import takes two CSVs:
+  - items export (`All Packing Lists-All Items.csv`) for trip membership, packed state, and quantity signals.
+  - trips export (`All Packing Lists-All Trips.csv`) as a supplemental source of item-to-trip membership.
+- Import strategy:
+  - Build a strict global canonical item library (`ListItem`) by normalized name (no duplicates).
+  - Build one `list_template` per trip.
+  - Build one `list_instance` per trip linked via `listTemplateId`.
+  - Clone item rows into child tasks (`parentId`) for both templates and instances.
+  - Mark instance child tasks complete when Airtable packed columns were checked.
+- Script is idempotent enough for repeated runs:
+  - skips creating canonical items that already exist by normalized name.
+  - skips creating templates/instances that already exist by trip/title keying.
+- Added schema safety in the import script to ensure required list columns/tables exist before import on environments where prior migrations were partially applied.
+
+### Lists import runtime DB alignment fix
+
+- Identified root cause for empty Lists tab after successful import: the running app was connected to `DATABASE_URL` (`judaDB`), while earlier imports were executed against a different local Postgres database.
+- Verified runtime API behavior by checking `/api/tasks/lists` against the running dev server and confirming it returned empty arrays before re-import.
+- Updated `scripts/import-airtable-packing-lists.js` to support explicit user targeting:
+  - new optional flag: `--user-email=<email>` (or `--user-email <email>`)
+  - prevents accidental imports to the wrong account when multiple users exist.
+- Re-ran import against `DATABASE_URL` with:
+  - `--apply --user-email=lavacquek@icloud.com`
+- Confirmed the running API now returns populated list data for the target user:
+  - templates: 17
+  - instances: 17
+
+### List templates now use subtasks-only UX with canonical dedupe
+
+- Removed the dedicated "List Item Library" section from `components/TaskDialog.jsx` for `list_template` editing to simplify authoring.
+- List templates now use the same subtask editor as all other tasks; saving a list template requires at least one subtask.
+- Added duplicate-title guards in the dialog for list templates/instances:
+  - prevent adding duplicate subtask titles during create/add-existing/edit flows
+  - block save if duplicates are still present.
+- Added backend canonical linking in `app/api/tasks/batch-save/route.js`:
+  - detects subtasks whose parent is `list_template` or `list_instance`
+  - normalizes each subtask title and finds/creates the canonical `ListItem`
+  - rewrites `TaskListItem` links for affected subtasks on each batch save.
+- Added API validation to reject duplicate list item names within the same list during batch save (`400`), keeping one canonical item per normalized name per list context.
+- Result: users manage list items only as subtasks, while global no-duplicates is still enforced via the canonical tables behind the scenes.
+
+### Dedicated ListTemplateBuilder modal
+
+- Added `components/ListTemplateBuilder.jsx` as a dedicated list-template editing workflow (similar to WorkoutBuilder style modal UX).
+- Builder provides two-column management:
+  - `In Template` column (reorder and remove)
+  - `Available Items` column (add into template)
+- Added drag-and-drop support between columns and within template order.
+- Added explicit item actions on each row:
+  - `Add` for available items
+  - `Clear` for template items
+- Added "Start From Existing Template" selector + `Load Template` action so new templates can be created from an existing template baseline.
+- Added quick custom-item creation inside the builder via `Add Custom Item`.
+- Integrated builder into `components/TaskDialog.jsx` for `taskKind === "list_template"`:
+  - replaced the old inline subtask editor for templates with a summary card + `Open List Template Builder` button
+  - applying the builder writes back into the same `subtasks` payload used by save.
+
+### Airtable taxonomy metadata + builder filtering/grouping
+
+- Extended canonical list items (`ListItem`) with Airtable taxonomy metadata:
+  - `category` (text)
+  - `subCategory` (text)
+  - `tags` (jsonb array)
+- Added migration `drizzle/0053_add_list_item_taxonomy.sql` to create these columns + indexes safely with `IF NOT EXISTS`.
+- Updated `scripts/import-airtable-packing-lists.js` to parse Airtable `Tags`, `Category`, and `Subcategory` columns from the items CSV and persist them on canonical list items.
+- Import behavior now also updates existing canonical items when metadata is missing:
+  - merges tags instead of overwriting
+  - keeps existing category/subcategory when already set
+  - backfills empty fields from Airtable data.
+- Re-ran import with `--apply --user-email=lavacquek@icloud.com` and confirmed metadata backfill:
+  - canonical items updated this run: `117`.
+- Updated `components/ListTemplateBuilder.jsx` UX:
+  - swapped columns to match requested layout (`Available Items` left, `In Template` right)
+  - added metadata chips on each item row (category, subcategory, tags)
+  - added filtering controls (search + category + subcategory + tag)
+  - added grouping control (`None`, `Category`, `Subcategory`, `Tag`).

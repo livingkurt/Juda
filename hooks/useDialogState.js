@@ -40,6 +40,7 @@ export function useDialogState() {
   const clickedRecurringDate = useSelector(state => state.ui.clickedRecurringDate);
   const defaultCompletionType = useSelector(state => state.ui.defaultCompletionType);
   const defaultGoalYear = useSelector(state => state.ui.defaultGoalYear);
+  const defaultTaskKind = useSelector(state => state.ui.defaultTaskKind);
 
   // Task dialog actions
   const openTaskDialog = useCallback(() => dispatch(openTaskDialogAction()), [dispatch]);
@@ -119,6 +120,7 @@ export function useDialogState() {
       setClickedRecurringDate: handleSetClickedRecurringDate,
       defaultCompletionType,
       defaultGoalYear,
+      defaultTaskKind,
     }),
     [
       taskDialogOpen,
@@ -151,6 +153,7 @@ export function useDialogState() {
       handleSetClickedRecurringDate,
       defaultCompletionType,
       defaultGoalYear,
+      defaultTaskKind,
     ]
   );
 }

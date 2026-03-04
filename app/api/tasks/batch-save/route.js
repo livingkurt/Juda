@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tasks, sections } from "@/lib/schema";
+import { tasks, sections, listItems, taskListItems } from "@/lib/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authMiddleware";
 import { withBroadcast, getClientIdFromRequest, ENTITY_TYPES } from "@/lib/apiHelpers";
 
 const taskBroadcast = withBroadcast(ENTITY_TYPES.TASK);
+const LIST_PARENT_KINDS = new Set(["list_template", "list_instance"]);
+const normalizeListItemName = value => (value || "").trim().toLowerCase().replace(/\s+/g, " ");
 
 // POST - Create or update multiple tasks at once (for subtasks management)
 export async function POST(request) {
@@ -39,6 +41,7 @@ export async function POST(request) {
 
     // Extract unique section IDs for validation
     const sectionIds = [...new Set(tasksToSave.map(t => t.sectionId).filter(Boolean))];
+    const parentIds = [...new Set(tasksToSave.map(t => t.parentId).filter(Boolean))];
 
     // Verify all sections belong to user in a single query
     if (sectionIds.length > 0) {
@@ -49,6 +52,39 @@ export async function POST(request) {
       if (userSections.length !== sectionIds.length) {
         return NextResponse.json({ error: "One or more sections not found" }, { status: 404 });
       }
+    }
+
+    const parentTasks =
+      parentIds.length > 0
+        ? await db.query.tasks.findMany({
+            where: and(inArray(tasks.id, parentIds), eq(tasks.userId, userId)),
+          })
+        : [];
+    const parentTaskById = new Map(parentTasks.map(task => [task.id, task]));
+
+    if (parentTasks.length !== parentIds.length) {
+      return NextResponse.json({ error: "One or more parent tasks not found" }, { status: 404 });
+    }
+
+    const listManagedIncoming = tasksToSave.filter(task =>
+      LIST_PARENT_KINDS.has(parentTaskById.get(task.parentId)?.taskKind)
+    );
+    const duplicateGuard = new Map();
+    for (const task of listManagedIncoming) {
+      const parentId = task.parentId;
+      const normalizedTitle = normalizeListItemName(task.title);
+      if (!parentId || !normalizedTitle) continue;
+      if (!duplicateGuard.has(parentId)) {
+        duplicateGuard.set(parentId, new Set());
+      }
+      const existing = duplicateGuard.get(parentId);
+      if (existing.has(normalizedTitle)) {
+        return NextResponse.json(
+          { error: "List items cannot contain duplicate names in the same list" },
+          { status: 400 }
+        );
+      }
+      existing.add(normalizedTitle);
     }
 
     // Tasks to update are already verified above (they're in existingTasks)
@@ -106,6 +142,76 @@ export async function POST(request) {
 
         const updated = await Promise.all(updatePromises);
         updatedTasks.push(...updated.filter(Boolean));
+      }
+
+      const listManagedTasks = [...createdTasks, ...updatedTasks].filter(task =>
+        LIST_PARENT_KINDS.has(parentTaskById.get(task.parentId)?.taskKind)
+      );
+
+      if (listManagedTasks.length > 0) {
+        const normalizedByTaskId = new Map();
+        const canonicalDisplayByNormalized = new Map();
+
+        listManagedTasks.forEach(task => {
+          const normalized = normalizeListItemName(task.title);
+          if (!normalized) return;
+          normalizedByTaskId.set(task.id, normalized);
+          if (!canonicalDisplayByNormalized.has(normalized)) {
+            canonicalDisplayByNormalized.set(normalized, task.title.trim());
+          }
+        });
+
+        const normalizedNames = Array.from(new Set(normalizedByTaskId.values()));
+
+        if (normalizedNames.length > 0) {
+          const existingCanonicalItems = await tx.query.listItems.findMany({
+            where: and(eq(listItems.userId, userId), inArray(listItems.normalizedName, normalizedNames)),
+          });
+          const canonicalByNormalized = new Map(
+            existingCanonicalItems.map(item => [
+              item.normalizedName,
+              { id: item.id, normalizedName: item.normalizedName },
+            ])
+          );
+
+          const missingNormalizedNames = normalizedNames.filter(name => !canonicalByNormalized.has(name));
+          if (missingNormalizedNames.length > 0) {
+            const inserted = await tx
+              .insert(listItems)
+              .values(
+                missingNormalizedNames.map(normalizedName => ({
+                  userId,
+                  name: canonicalDisplayByNormalized.get(normalizedName) || normalizedName,
+                  normalizedName,
+                }))
+              )
+              .returning();
+            inserted.forEach(item => {
+              canonicalByNormalized.set(item.normalizedName, { id: item.id, normalizedName: item.normalizedName });
+            });
+          }
+
+          const managedTaskIds = listManagedTasks.map(task => task.id);
+          await tx.delete(taskListItems).where(inArray(taskListItems.taskId, managedTaskIds));
+
+          const mappingRows = listManagedTasks
+            .map(task => {
+              const normalized = normalizedByTaskId.get(task.id);
+              if (!normalized) return null;
+              const canonical = canonicalByNormalized.get(normalized);
+              if (!canonical) return null;
+              return {
+                taskId: task.id,
+                listItemId: canonical.id,
+                order: task.order ?? 0,
+              };
+            })
+            .filter(Boolean);
+
+          if (mappingRows.length > 0) {
+            await tx.insert(taskListItems).values(mappingRows);
+          }
+        }
       }
     });
 

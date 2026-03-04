@@ -121,10 +121,17 @@ export const GET = withApi(async (request, { userId, getSearchParams }) => {
   });
 
   const calendarTasks = rootTasks.filter(task => dateIsInRange(task, startDate, endDate, getOutcomeOnDate));
+  const filteredCalendarTasks = calendarTasks.filter(task => {
+    if (task.taskKind === "list_template") return false;
+    if (task.taskKind === "list_instance") {
+      return Boolean(task.recurrence?.startDate && task.time);
+    }
+    return true;
+  });
 
   console.warn(
-    `[GET /api/tasks/calendar] DB: ${dbTime}ms, Total: ${Date.now() - apiStart}ms, All: ${allTasks.length}, Filtered: ${calendarTasks.length}`
+    `[GET /api/tasks/calendar] DB: ${dbTime}ms, Total: ${Date.now() - apiStart}ms, All: ${allTasks.length}, Filtered: ${filteredCalendarTasks.length}`
   );
 
-  return NextResponse.json(calendarTasks);
+  return NextResponse.json(filteredCalendarTasks);
 });
