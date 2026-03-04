@@ -23,7 +23,6 @@ import {
   Divider,
 } from "@mui/material";
 import { Search, Close, Add, Remove, DragIndicator, LocalOffer } from "@mui/icons-material";
-import { Popover } from "@mui/material";
 import {
   useGetListItemsQuery,
   useGetListTagsQuery,
@@ -33,6 +32,7 @@ import {
   useCreateListTemplateMutation,
   useUpdateListTemplateMutation,
 } from "@/lib/store/api/listApi";
+import { TagSelectorBase } from "@/components/TagSelector";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
@@ -53,7 +53,6 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
   const [newItemName, setNewItemName] = useState("");
   const [tagAnchorEl, setTagAnchorEl] = useState(null);
   const [tagEditItemId, setTagEditItemId] = useState(null);
-  const [newTagName, setNewTagName] = useState("");
 
   // Initialize from editing template
   useEffect(() => {
@@ -359,90 +358,30 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
           {editingTemplate ? "Save" : "Create"}
         </Button>
       </DialogActions>
-      {/* Tag Management Popover */}
-      <Popover
-        open={Boolean(tagAnchorEl)}
+      {/* Tag Selector — reuses same component as TaskItem */}
+      <TagSelectorBase
+        tags={listTags}
+        onCreateTag={async (name, color) => {
+          const result = await createListTag({ name, color });
+          return result.data;
+        }}
+        selectedTagIds={(() => {
+          const editItem = libraryItems.find(i => i.id === tagEditItemId);
+          return editItem?.tags?.map(t => t.id) || [];
+        })()}
+        onSelectionChange={tagIds => {
+          if (tagEditItemId) {
+            updateItemTags({ id: tagEditItemId, tagIds });
+          }
+        }}
         anchorEl={tagAnchorEl}
+        open={Boolean(tagAnchorEl)}
         onClose={() => {
           setTagAnchorEl(null);
           setTagEditItemId(null);
-          setNewTagName("");
         }}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-      >
-        <Box sx={{ p: 2, minWidth: 220, maxWidth: 280 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Tags
-          </Typography>
-          {(() => {
-            const editItem = libraryItems.find(i => i.id === tagEditItemId);
-            const currentTagIds = editItem?.tags?.map(t => t.id) || [];
-            return (
-              <>
-                <Stack spacing={0.5} sx={{ mb: 1, maxHeight: 200, overflow: "auto" }}>
-                  {listTags.map(tag => (
-                    <Chip
-                      key={tag.id}
-                      label={tag.name}
-                      size="small"
-                      variant={currentTagIds.includes(tag.id) ? "filled" : "outlined"}
-                      sx={{
-                        bgcolor: currentTagIds.includes(tag.id) ? tag.color : "transparent",
-                        color: currentTagIds.includes(tag.id) ? "white" : "text.primary",
-                        borderColor: tag.color,
-                        cursor: "pointer",
-                      }}
-                      onClick={() => {
-                        const newTagIds = currentTagIds.includes(tag.id)
-                          ? currentTagIds.filter(id => id !== tag.id)
-                          : [...currentTagIds, tag.id];
-                        updateItemTags({ id: tagEditItemId, tagIds: newTagIds });
-                      }}
-                    />
-                  ))}
-                </Stack>
-                <Stack direction="row" spacing={0.5}>
-                  <TextField
-                    size="small"
-                    placeholder="New tag..."
-                    value={newTagName}
-                    onChange={e => setNewTagName(e.target.value)}
-                    onKeyDown={async e => {
-                      if (e.key === "Enter" && newTagName.trim()) {
-                        const result = await createListTag({ name: newTagName.trim() });
-                        if (result.data) {
-                          updateItemTags({
-                            id: tagEditItemId,
-                            tagIds: [...currentTagIds, result.data.id],
-                          });
-                          setNewTagName("");
-                        }
-                      }
-                    }}
-                    sx={{ flex: 1 }}
-                  />
-                  <IconButton
-                    size="small"
-                    disabled={!newTagName.trim()}
-                    onClick={async () => {
-                      const result = await createListTag({ name: newTagName.trim() });
-                      if (result.data) {
-                        updateItemTags({
-                          id: tagEditItemId,
-                          tagIds: [...currentTagIds, result.data.id],
-                        });
-                        setNewTagName("");
-                      }
-                    }}
-                  >
-                    <Add fontSize="small" />
-                  </IconButton>
-                </Stack>
-              </>
-            );
-          })()}
-        </Box>
-      </Popover>
+        showCreateButton
+      />
     </Dialog>
   );
 }
