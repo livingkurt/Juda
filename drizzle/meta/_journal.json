@@ -358,6 +358,27 @@
       "when": 1772640606595,
       "tag": "0051_add_weekly_goals_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1772841480000,
+      "tag": "0052_add_list_feature",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1772841600000,
+      "tag": "0053_add_tag_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1772841720000,
+      "tag": "0054_add_list_template_tag_ids",
+      "breakpoints": true
     }
   ]
 }

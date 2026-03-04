@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tags } from "@/lib/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, ne } from "drizzle-orm";
 import {
   withApi,
   Errors,
@@ -14,8 +14,9 @@ import {
 const tagBroadcast = withBroadcast(ENTITY_TYPES.TAG);
 
 export const GET = withApi(async (request, { userId }) => {
+  // Filter out list-scoped tags from the main tags endpoint
   const allTags = await db.query.tags.findMany({
-    where: eq(tags.userId, userId),
+    where: and(eq(tags.userId, userId), ne(tags.scope, "list")),
     orderBy: [asc(tags.name)],
   });
   return NextResponse.json(allTags);
