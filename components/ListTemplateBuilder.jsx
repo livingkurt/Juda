@@ -22,7 +22,7 @@ import {
   InputAdornment,
   Divider,
 } from "@mui/material";
-import { Search, Close, Add, DragIndicator } from "@mui/icons-material";
+import { Search, Close, Add, Remove, DragIndicator } from "@mui/icons-material";
 import {
   useGetListItemsQuery,
   useCreateListItemMutation,
@@ -42,6 +42,7 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedItemIds, setSelectedItemIds] = useState([]);
+  const [itemQuantities, setItemQuantities] = useState({}); // { itemId: quantity }
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagFilter, setSelectedTagFilter] = useState(null);
   const [newItemName, setNewItemName] = useState("");
@@ -52,10 +53,16 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
       setName(editingTemplate.name || "");
       setDescription(editingTemplate.description || "");
       setSelectedItemIds(editingTemplate.items?.map(i => i.id) || []);
+      const qtys = {};
+      editingTemplate.items?.forEach(i => {
+        if (i.quantity && i.quantity !== 1) qtys[i.id] = i.quantity;
+      });
+      setItemQuantities(qtys);
     } else {
       setName("");
       setDescription("");
       setSelectedItemIds([]);
+      setItemQuantities({});
     }
     setSearchTerm("");
     setSelectedTagFilter(null);
@@ -113,10 +120,14 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
 
   const handleSave = useCallback(async () => {
     if (!name.trim()) return;
+    const itemsPayload = selectedItemIds.map(id => ({
+      listItemId: id,
+      quantity: itemQuantities[id] || 1,
+    }));
     if (editingTemplate) {
-      await updateTemplate({ id: editingTemplate.id, name: name.trim(), description: description.trim() || null, itemIds: selectedItemIds });
+      await updateTemplate({ id: editingTemplate.id, name: name.trim(), description: description.trim() || null, items: itemsPayload });
     } else {
-      await createTemplate({ name: name.trim(), description: description.trim() || null, itemIds: selectedItemIds });
+      await createTemplate({ name: name.trim(), description: description.trim() || null, items: itemsPayload });
     }
     onClose();
   }, [name, description, selectedItemIds, editingTemplate, createTemplate, updateTemplate, onClose]);
@@ -242,9 +253,37 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               secondaryAction={
-                                <IconButton edge="end" size="small" onClick={() => handleRemoveItem(item.id)}>
-                                  <Close fontSize="small" />
-                                </IconButton>
+                                <Stack direction="row" alignItems="center" spacing={0}>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() =>
+                                      setItemQuantities(prev => ({
+                                        ...prev,
+                                        [item.id]: Math.max(1, (prev[item.id] || 1) - 1),
+                                      }))
+                                    }
+                                    disabled={(itemQuantities[item.id] || 1) <= 1}
+                                  >
+                                    <Remove sx={{ fontSize: 14 }} />
+                                  </IconButton>
+                                  <Typography variant="caption" sx={{ minWidth: 20, textAlign: "center" }}>
+                                    {itemQuantities[item.id] || 1}
+                                  </Typography>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() =>
+                                      setItemQuantities(prev => ({
+                                        ...prev,
+                                        [item.id]: (prev[item.id] || 1) + 1,
+                                      }))
+                                    }
+                                  >
+                                    <Add sx={{ fontSize: 14 }} />
+                                  </IconButton>
+                                  <IconButton edge="end" size="small" onClick={() => handleRemoveItem(item.id)}>
+                                    <Close fontSize="small" />
+                                  </IconButton>
+                                </Stack>
                               }
                               sx={{
                                 bgcolor: snapshot.isDragging ? "action.selected" : "transparent",

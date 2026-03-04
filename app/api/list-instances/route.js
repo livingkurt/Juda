@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { listInstances, listInstanceItems, listTemplates, listTemplateItems, tasks } from "@/lib/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { listInstances, listInstanceItems, listTemplates, listTemplateItems, listItems, tasks } from "@/lib/schema";
+import { eq, and, asc, inArray } from "drizzle-orm";
 import { withApi, Errors, validateRequired, getClientIdFromRequest, withBroadcast, ENTITY_TYPES } from "@/lib/apiHelpers";
 
 const broadcastInstance = withBroadcast(ENTITY_TYPES.LIST_INSTANCE);
@@ -70,6 +70,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
           listItemId: ti.listItem?.id || null,
           name: ti.listItem?.name || "Unknown Item",
           order: ti.order ?? idx,
+          quantity: ti.quantity ?? 1,
           checked: false,
         }))
       );

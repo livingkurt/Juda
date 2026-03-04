@@ -31,6 +31,7 @@ export const GET = withApi(async (request, { userId }) => {
         ...ti.listItem,
         templateItemId: ti.id,
         order: ti.order,
+        quantity: ti.quantity ?? 1,
         tags: ti.listItem?.listItemTags?.map(lit => lit.tag) || [],
       })),
     }))
@@ -51,12 +52,15 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       order: body.order ?? 0,
     }).returning();
 
-    if (body.itemIds?.length) {
+    // Support both body.items [{listItemId, quantity}] and body.itemIds [string]
+    const items = body.items || (body.itemIds || []).map(id => ({ listItemId: id }));
+    if (items.length) {
       await tx.insert(listTemplateItems).values(
-        body.itemIds.map((itemId, idx) => ({
+        items.map((item, idx) => ({
           templateId: template.id,
-          listItemId: itemId,
+          listItemId: item.listItemId || item,
           order: idx,
+          quantity: item.quantity ?? 1,
         }))
       );
     }
@@ -81,6 +85,7 @@ export const POST = withApi(async (request, { userId, getBody }) => {
       ...ti.listItem,
       templateItemId: ti.id,
       order: ti.order,
+        quantity: ti.quantity ?? 1,
       tags: ti.listItem?.listItemTags?.map(lit => lit.tag) || [],
     })),
   };
@@ -110,14 +115,16 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
       await tx.update(listTemplates).set(updates).where(eq(listTemplates.id, body.id));
     }
 
-    if (body.itemIds !== undefined) {
+    const itemsPayload = body.items || (body.itemIds ? body.itemIds.map(id => ({ listItemId: id })) : undefined);
+    if (itemsPayload !== undefined) {
       await tx.delete(listTemplateItems).where(eq(listTemplateItems.templateId, body.id));
-      if (body.itemIds.length) {
+      if (itemsPayload.length) {
         await tx.insert(listTemplateItems).values(
-          body.itemIds.map((itemId, idx) => ({
+          itemsPayload.map((item, idx) => ({
             templateId: body.id,
-            listItemId: itemId,
+            listItemId: item.listItemId || item,
             order: idx,
+            quantity: item.quantity ?? 1,
           }))
         );
       }
@@ -140,6 +147,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
       ...ti.listItem,
       templateItemId: ti.id,
       order: ti.order,
+        quantity: ti.quantity ?? 1,
       tags: ti.listItem?.listItemTags?.map(lit => lit.tag) || [],
     })),
   };

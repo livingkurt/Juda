@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS "ListTemplateItem" (
   "templateId" text NOT NULL REFERENCES "ListTemplate"("id") ON DELETE CASCADE,
   "listItemId" text NOT NULL REFERENCES "ListItem"("id") ON DELETE CASCADE,
   "order" integer DEFAULT 0 NOT NULL,
+  "quantity" integer DEFAULT 1 NOT NULL,
   "createdAt" timestamp DEFAULT now() NOT NULL,
   CONSTRAINT "ListTemplateItem_templateId_listItemId_unique" UNIQUE("templateId", "listItemId")
 );
@@ -56,6 +57,7 @@ CREATE TABLE IF NOT EXISTS "ListInstanceItem" (
   "listItemId" text REFERENCES "ListItem"("id") ON DELETE SET NULL,
   "name" text NOT NULL,
   "order" integer DEFAULT 0 NOT NULL,
+  "quantity" integer DEFAULT 1 NOT NULL,
   "checked" boolean DEFAULT false NOT NULL,
   "checkedAt" timestamp,
   "createdAt" timestamp DEFAULT now() NOT NULL
