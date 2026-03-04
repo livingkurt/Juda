@@ -269,6 +269,20 @@ export function ListInstanceView({ instance, onDelete }) {
                     ? `${item.name} (×${item.quantity})`
                     : item.name
                 }
+                secondary={
+                  item.tags?.length > 0 ? (
+                    <Stack direction="row" spacing={0.25} sx={{ mt: 0.25, flexWrap: "wrap", gap: 0.25 }}>
+                      {item.tags.map(t => (
+                        <Chip
+                          key={t.id}
+                          label={t.name}
+                          size="small"
+                          sx={{ height: 16, fontSize: "0.6rem", bgcolor: t.color, color: "white" }}
+                        />
+                      ))}
+                    </Stack>
+                  ) : null
+                }
                 sx={{
                   textDecoration: item.checked ? "line-through" : "none",
                   opacity: item.checked ? 0.6 : 1,

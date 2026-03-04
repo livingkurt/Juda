@@ -13,9 +13,9 @@ import { withApi, Errors, getClientIdFromRequest, withBroadcast, ENTITY_TYPES } 
 const broadcastTemplate = withBroadcast(ENTITY_TYPES.LIST_TEMPLATE);
 
 // POST — Create a new template from an instance's current state
-export const POST = withApi(async (request, { userId, getBody }, context) => {
+export const POST = withApi(async (request, { userId, getBody }) => {
   const body = await getBody();
-  const instanceId = context.params.id;
+  const instanceId = request.nextUrl.pathname.split("/list-instances/")[1].split("/")[0];
   const clientId = getClientIdFromRequest(request);
 
   const instance = await db.query.listInstances.findFirst({

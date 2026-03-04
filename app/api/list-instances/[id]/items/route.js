@@ -8,9 +8,9 @@ const broadcastInstance = withBroadcast(ENTITY_TYPES.LIST_INSTANCE);
 const broadcastTemplate = withBroadcast(ENTITY_TYPES.LIST_TEMPLATE);
 
 // PUT — Batch update instance items (toggle checked, update quantity)
-export const PUT = withApi(async (request, { userId, getBody }, context) => {
+export const PUT = withApi(async (request, { userId, getBody }) => {
   const body = await getBody();
-  const instanceId = context.params.id;
+  const instanceId = request.nextUrl.pathname.split("/list-instances/")[1].split("/")[0];
   const clientId = getClientIdFromRequest(request);
 
   const instance = await db.query.listInstances.findFirst({
@@ -46,9 +46,9 @@ export const PUT = withApi(async (request, { userId, getBody }, context) => {
 });
 
 // POST — Add items to an existing instance
-export const POST = withApi(async (request, { userId, getBody }, context) => {
+export const POST = withApi(async (request, { userId, getBody }) => {
   const body = await getBody();
-  const instanceId = context.params.id;
+  const instanceId = request.nextUrl.pathname.split("/list-instances/")[1].split("/")[0];
   const clientId = getClientIdFromRequest(request);
 
   const instance = await db.query.listInstances.findFirst({
@@ -112,8 +112,8 @@ export const POST = withApi(async (request, { userId, getBody }, context) => {
 });
 
 // DELETE — Remove items from an instance
-export const DELETE = withApi(async (request, { userId, getRequiredParam }, context) => {
-  const instanceId = context.params.id;
+export const DELETE = withApi(async (request, { userId, getRequiredParam }) => {
+  const instanceId = request.nextUrl.pathname.split("/list-instances/")[1].split("/")[0];
   const clientId = getClientIdFromRequest(request);
   const itemIds = request.nextUrl.searchParams.get("itemIds");
 
@@ -137,11 +137,23 @@ export const DELETE = withApi(async (request, { userId, getRequiredParam }, cont
 });
 
 async function fetchFullInstance(instanceId) {
-  return db.query.listInstances.findFirst({
+  const inst = await db.query.listInstances.findFirst({
     where: eq(listInstances.id, instanceId),
     with: {
-      instanceItems: { orderBy: (ii, { asc }) => [asc(ii.order)] },
+      instanceItems: {
+        orderBy: (ii, { asc }) => [asc(ii.order)],
+        with: { listItem: { with: { listItemTags: { with: { tag: true } } } } },
+      },
       template: true,
     },
   });
+  if (!inst) return null;
+  return {
+    ...inst,
+    instanceItems: inst.instanceItems.map(ii => ({
+      ...ii,
+      tags: ii.listItem?.listItemTags?.map(lit => lit.tag) || [],
+      listItem: undefined,
+    })),
+  };
 }

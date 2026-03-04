@@ -13,13 +13,28 @@ export const GET = withApi(async (request, { userId }) => {
     with: {
       instanceItems: {
         orderBy: (ii, { asc }) => [asc(ii.order)],
+        with: {
+          listItem: {
+            with: { listItemTags: { with: { tag: true } } },
+          },
+        },
       },
       template: true,
     },
     orderBy: (i, { desc }) => [desc(i.createdAt)],
   });
 
-  return NextResponse.json(instances);
+  // Flatten tags onto instance items for convenience
+  const result = instances.map(inst => ({
+    ...inst,
+    instanceItems: inst.instanceItems.map(ii => ({
+      ...ii,
+      tags: ii.listItem?.listItemTags?.map(lit => lit.tag) || [],
+      listItem: undefined,
+    })),
+  }));
+
+  return NextResponse.json(result);
 });
 
 export const POST = withApi(async (request, { userId, getBody }) => {

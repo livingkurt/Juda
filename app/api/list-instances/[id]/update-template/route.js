@@ -13,8 +13,8 @@ import { withApi, Errors, getClientIdFromRequest, withBroadcast, ENTITY_TYPES } 
 const broadcastTemplate = withBroadcast(ENTITY_TYPES.LIST_TEMPLATE);
 
 // POST — Update the source template to match this instance's current items
-export const POST = withApi(async (request, { userId }, context) => {
-  const instanceId = context.params.id;
+export const POST = withApi(async (request, { userId }) => {
+  const instanceId = request.nextUrl.pathname.split("/list-instances/")[1].split("/")[0];
   const clientId = getClientIdFromRequest(request);
 
   const instance = await db.query.listInstances.findFirst({
