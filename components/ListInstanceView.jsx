@@ -283,6 +283,7 @@ export function ListInstanceView({ instance, onDelete }) {
                     </Stack>
                   ) : null
                 }
+                secondaryTypographyProps={{ component: "span" }}
                 sx={{
                   textDecoration: item.checked ? "line-through" : "none",
                   opacity: item.checked ? 0.6 : 1,
