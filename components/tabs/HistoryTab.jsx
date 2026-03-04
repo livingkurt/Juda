@@ -28,6 +28,12 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   Button,
+  Chip,
+  Select,
+  FormControl,
+  InputLabel,
+  OutlinedInput,
+  TablePagination,
   useMediaQuery,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
@@ -49,8 +55,12 @@ import {
   SkipNext,
   ExpandMore,
   ChevronRight,
+  Refresh,
+  Loop,
+  FilterList,
 } from "@mui/icons-material";
 import { shouldShowOnDate } from "@/lib/utils";
+import { PRIORITY_LEVELS, COMPLETION_TYPES, getPriorityConfig } from "@/lib/constants";
 import { DateNavigation } from "../DateNavigation";
 import { useRecurringTasks } from "@/hooks/useRecurringTasks";
 import { useGetSectionsQuery } from "@/lib/store/api/sectionsApi";
@@ -64,18 +74,27 @@ import {
   useCreateOffScheduleCompletionMutation,
   useDeleteOffScheduleCompletionMutation,
   useRolloverTaskMutation,
+  useGetNonRecurringTasksQuery,
 } from "@/lib/store/api/tasksApi";
+import { useGetTagsQuery } from "@/lib/store/api/tagsApi";
 import { useTaskOperations } from "@/hooks/useTaskOperations";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useViewState } from "@/hooks/useViewState";
 import CellEditorPopover from "../CellEditorPopover";
 import {
+  setHistoryMode,
   setHistoryRange,
   setHistoryPage,
   setHistorySearchTerm,
   setHistoryView,
   setHistoryGraphSort,
   setHistoryGraphOrientation,
+  setNonRecurringPage,
+  setNonRecurringSearchTerm,
+  setNonRecurringSelectedTagIds,
+  setNonRecurringSelectedPriorities,
+  setNonRecurringSelectedCompletionTypes,
+  setNonRecurringSelectedStatuses,
 } from "@/lib/store/slices/uiSlice";
 
 // Filter only recurring tasks (keep subtasks nested, don't flatten)
@@ -767,6 +786,401 @@ const CompletionCell = memo(function CompletionCell({
   );
 });
 
+const STATUS_OPTIONS = [
+  { value: "todo", label: "To Do" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "complete", label: "Complete" },
+];
+
+const FILTERABLE_COMPLETION_TYPES = COMPLETION_TYPES.filter(ct => ct.value !== "note");
+
+function NonRecurringTasksView() {
+  const dispatch = useDispatch();
+  const taskOps = useTaskOperations();
+
+  const page = useSelector(state => state.ui.nonRecurringPage);
+  const searchTerm = useSelector(state => state.ui.nonRecurringSearchTerm);
+  const selectedTagIds = useSelector(state => state.ui.nonRecurringSelectedTagIds);
+  const selectedPriorities = useSelector(state => state.ui.nonRecurringSelectedPriorities);
+  const selectedCompletionTypes = useSelector(state => state.ui.nonRecurringSelectedCompletionTypes);
+  const selectedStatuses = useSelector(state => state.ui.nonRecurringSelectedStatuses);
+
+  const deferredSearch = useDeferredValue(searchTerm);
+
+  const { data: tagsData = [] } = useGetTagsQuery();
+
+  const queryArgs = useMemo(
+    () => ({
+      page,
+      limit: 25,
+      search: deferredSearch || undefined,
+      tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+      priorities: selectedPriorities.length > 0 ? selectedPriorities : undefined,
+      completionTypes: selectedCompletionTypes.length > 0 ? selectedCompletionTypes : undefined,
+      statuses: selectedStatuses.length > 0 ? selectedStatuses : undefined,
+    }),
+    [page, deferredSearch, selectedTagIds, selectedPriorities, selectedCompletionTypes, selectedStatuses]
+  );
+
+  const { data: result, isFetching } = useGetNonRecurringTasksQuery(queryArgs);
+
+  const taskList = result?.tasks || [];
+  const pagination = result?.pagination || null;
+
+  const [taskMenuAnchor, setTaskMenuAnchor] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
+
+  const handlePageChange = useCallback(
+    (_, newPage) => {
+      dispatch(setNonRecurringPage(newPage + 1));
+    },
+    [dispatch]
+  );
+
+  const handleSearch = useCallback(
+    e => {
+      dispatch(setNonRecurringSearchTerm(e.target.value));
+    },
+    [dispatch]
+  );
+
+  const handleClearFilters = useCallback(() => {
+    dispatch(setNonRecurringSearchTerm(""));
+    dispatch(setNonRecurringSelectedTagIds([]));
+    dispatch(setNonRecurringSelectedPriorities([]));
+    dispatch(setNonRecurringSelectedCompletionTypes([]));
+    dispatch(setNonRecurringSelectedStatuses([]));
+  }, [dispatch]);
+
+  const hasActiveFilters =
+    searchTerm ||
+    selectedTagIds.length > 0 ||
+    selectedPriorities.length > 0 ||
+    selectedCompletionTypes.length > 0 ||
+    selectedStatuses.length > 0;
+
+  return (
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Filters */}
+      <Stack spacing={1.5} sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+        {/* Search */}
+        <TextField
+          size="small"
+          placeholder="Search tasks..."
+          value={searchTerm}
+          onChange={handleSearch}
+          fullWidth
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        {/* Filter row */}
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+          {/* Tags */}
+          <FormControl size="small" sx={{ minWidth: 130 }}>
+            <InputLabel>Tags</InputLabel>
+            <Select
+              multiple
+              value={selectedTagIds}
+              onChange={e => dispatch(setNonRecurringSelectedTagIds(e.target.value))}
+              input={<OutlinedInput label="Tags" />}
+              renderValue={selected => (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                  {selected.map(id => {
+                    const tag = tagsData.find(t => t.id === id);
+                    return (
+                      <Chip
+                        key={id}
+                        label={tag?.name || id}
+                        size="small"
+                        sx={{ bgcolor: tag?.color || "default", color: "#fff", fontSize: "0.7rem" }}
+                      />
+                    );
+                  })}
+                </Box>
+              )}
+            >
+              {tagsData.map(tag => (
+                <MenuItem key={tag.id} value={tag.id}>
+                  <Box
+                    sx={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      bgcolor: tag.color || "grey.400",
+                      mr: 1,
+                      flexShrink: 0,
+                    }}
+                  />
+                  {tag.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Priority */}
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <InputLabel>Priority</InputLabel>
+            <Select
+              multiple
+              value={selectedPriorities}
+              onChange={e => dispatch(setNonRecurringSelectedPriorities(e.target.value))}
+              input={<OutlinedInput label="Priority" />}
+              renderValue={selected =>
+                selected
+                  .map(v => PRIORITY_LEVELS.find(p => p.value === v || (v === "none" && p.value === null))?.label || v)
+                  .join(", ")
+              }
+            >
+              {PRIORITY_LEVELS.map(p => (
+                <MenuItem key={p.value ?? "none"} value={p.value ?? "none"}>
+                  {p.color && (
+                    <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: p.color, mr: 1, flexShrink: 0 }} />
+                  )}
+                  {p.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Type */}
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <InputLabel>Type</InputLabel>
+            <Select
+              multiple
+              value={selectedCompletionTypes}
+              onChange={e => dispatch(setNonRecurringSelectedCompletionTypes(e.target.value))}
+              input={<OutlinedInput label="Type" />}
+              renderValue={selected =>
+                selected.map(v => FILTERABLE_COMPLETION_TYPES.find(ct => ct.value === v)?.label || v).join(", ")
+              }
+            >
+              {FILTERABLE_COMPLETION_TYPES.map(ct => (
+                <MenuItem key={ct.value} value={ct.value}>
+                  {ct.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Status */}
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <InputLabel>Status</InputLabel>
+            <Select
+              multiple
+              value={selectedStatuses}
+              onChange={e => dispatch(setNonRecurringSelectedStatuses(e.target.value))}
+              input={<OutlinedInput label="Status" />}
+              renderValue={selected =>
+                selected.map(v => STATUS_OPTIONS.find(s => s.value === v)?.label || v).join(", ")
+              }
+            >
+              {STATUS_OPTIONS.map(s => (
+                <MenuItem key={s.value} value={s.value}>
+                  {s.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {hasActiveFilters && (
+            <Button size="small" onClick={handleClearFilters} startIcon={<Refresh fontSize="small" />}>
+              Clear
+            </Button>
+          )}
+        </Stack>
+
+        {/* Result count */}
+        <Typography variant="body2" color="text.secondary">
+          {pagination ? `${pagination.totalCount} task${pagination.totalCount !== 1 ? "s" : ""}` : ""}
+          {isFetching && " (loading...)"}
+        </Typography>
+      </Stack>
+
+      {/* Table */}
+      <TableContainer sx={{ flex: 1, overflow: "auto" }}>
+        <Table stickyHeader size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ minWidth: 220, fontWeight: 600 }}>Title</TableCell>
+              <TableCell sx={{ minWidth: 100, fontWeight: 600 }}>Status</TableCell>
+              <TableCell sx={{ minWidth: 100, fontWeight: 600 }}>Priority</TableCell>
+              <TableCell sx={{ minWidth: 100, fontWeight: 600 }}>Type</TableCell>
+              <TableCell sx={{ minWidth: 160, fontWeight: 600 }}>Tags</TableCell>
+              <TableCell sx={{ minWidth: 110, fontWeight: 600 }}>Updated</TableCell>
+              <TableCell sx={{ minWidth: 30 }} />
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {isFetching && taskList.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                  <CircularProgress size={32} />
+                </TableCell>
+              </TableRow>
+            ) : taskList.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                  <Typography color="text.secondary">
+                    {hasActiveFilters ? "No tasks match your filters" : "No non-recurring tasks found"}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              taskList.map(task => {
+                const priorityConfig = getPriorityConfig(task.priority);
+                const statusOption = STATUS_OPTIONS.find(s => s.value === task.status);
+                return (
+                  <TableRow key={task.id} hover sx={{ cursor: "pointer" }} onClick={() => taskOps.handleEditTask(task)}>
+                    <TableCell>
+                      <Typography variant="body2" noWrap sx={{ maxWidth: 300 }}>
+                        {task.title}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          px: 1,
+                          py: 0.25,
+                          borderRadius: 1,
+                          bgcolor:
+                            task.status === "complete"
+                              ? "success.dark"
+                              : task.status === "in_progress"
+                                ? "warning.dark"
+                                : "action.hover",
+                          color:
+                            task.status === "complete" || task.status === "in_progress"
+                              ? "common.white"
+                              : "text.secondary",
+                        }}
+                      >
+                        {statusOption?.label || task.status}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {priorityConfig.color ? (
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <Box
+                            sx={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              bgcolor: priorityConfig.color,
+                              flexShrink: 0,
+                            }}
+                          />
+                          <Typography variant="caption">{priorityConfig.label}</Typography>
+                        </Stack>
+                      ) : (
+                        <Typography variant="caption" color="text.disabled">
+                          —
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: "capitalize" }}>
+                        {task.completionType}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                        {task.tags?.map(tag => (
+                          <Chip
+                            key={tag.id}
+                            label={tag.name}
+                            size="small"
+                            sx={{
+                              bgcolor: tag.color || "grey.700",
+                              color: "#fff",
+                              fontSize: "0.65rem",
+                              height: 18,
+                            }}
+                          />
+                        ))}
+                      </Stack>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="caption" color="text.secondary">
+                        {dayjs(task.updatedAt).format("MMM D, YYYY")}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right" onClick={e => e.stopPropagation()}>
+                      <IconButton
+                        size="small"
+                        onClick={e => {
+                          setSelectedTask(task);
+                          setTaskMenuAnchor(e.currentTarget);
+                        }}
+                      >
+                        <MoreVert fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* Pagination */}
+      {pagination && pagination.totalCount > 0 && (
+        <TablePagination
+          component="div"
+          count={pagination.totalCount}
+          page={page - 1}
+          onPageChange={handlePageChange}
+          rowsPerPage={25}
+          rowsPerPageOptions={[25]}
+          sx={{ borderTop: 1, borderColor: "divider", flexShrink: 0 }}
+        />
+      )}
+
+      {/* Row actions menu */}
+      <Menu anchorEl={taskMenuAnchor} open={Boolean(taskMenuAnchor)} onClose={() => setTaskMenuAnchor(null)}>
+        {selectedTask && [
+          <MenuItem
+            key="edit"
+            onClick={() => {
+              taskOps.handleEditTask(selectedTask);
+              setTaskMenuAnchor(null);
+            }}
+          >
+            <Edit fontSize="small" sx={{ mr: 1 }} /> Edit
+          </MenuItem>,
+          <MenuItem
+            key="duplicate"
+            onClick={() => {
+              taskOps.handleDuplicateTask(selectedTask);
+              setTaskMenuAnchor(null);
+            }}
+          >
+            <ContentCopy fontSize="small" sx={{ mr: 1 }} /> Duplicate
+          </MenuItem>,
+          <Divider key="divider" />,
+          <MenuItem
+            key="delete"
+            onClick={() => {
+              taskOps.handleDeleteTask(selectedTask.id);
+              setTaskMenuAnchor(null);
+            }}
+            sx={{ color: "error.main" }}
+          >
+            <Delete fontSize="small" sx={{ mr: 1 }} /> Delete
+          </MenuItem>,
+        ]}
+      </Menu>
+    </Box>
+  );
+}
+
 export function HistoryTab({ isLoading: tabLoading }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -789,6 +1203,7 @@ export function HistoryTab({ isLoading: tabLoading }) {
   const taskOps = useTaskOperations();
 
   // State
+  const historyMode = useSelector(state => state.ui.historyMode || "recurring");
   const range = useSelector(state => state.ui.historyRange);
   const page = useSelector(state => state.ui.historyPage);
   const searchQuery = useSelector(state => state.ui.historySearchTerm);
@@ -1250,786 +1665,825 @@ export function HistoryTab({ isLoading: tabLoading }) {
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      {/* Header */}
-      <Stack
-        direction="column"
-        spacing={2}
-        alignItems="stretch"
-        sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}
-        flexWrap="wrap"
-        useFlexGap
-      >
-        {/* Date Navigation */}
-        <Box sx={{ width: "100%" }}>
-          <DateNavigation
-            selectedDate={selectedDate}
-            onDateChange={handleDateChange}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            onToday={handleToday}
-            showDatePicker={true}
-            showDateDisplay={true}
-            showViewSelector={true}
-            viewCollection={viewOptions}
-            selectedView={range}
-            onViewChange={handleViewChange}
-            viewSelectorWidth="100px"
-          />
-        </Box>
-        {/* Search */}
-        <TextField
+      {/* Mode Toggle */}
+      <Box sx={{ px: 2, pt: 2, pb: 1, borderBottom: historyMode === "non-recurring" ? 1 : 0, borderColor: "divider" }}>
+        <ToggleButtonGroup
           size="small"
-          placeholder="Search tasks..."
-          value={searchQuery}
-          onChange={e => dispatch(setHistorySearchTerm(e.target.value))}
-          sx={{ width: "100%" }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search fontSize="small" />
-              </InputAdornment>
-            ),
+          color="primary"
+          exclusive
+          value={historyMode}
+          onChange={(_, value) => {
+            if (value) dispatch(setHistoryMode(value));
           }}
-        />
+        >
+          <ToggleButton value="recurring" sx={{ textTransform: "none", minWidth: 120, px: 1.5 }}>
+            <Loop fontSize="small" sx={{ mr: 0.5 }} />
+            Recurring
+          </ToggleButton>
+          <ToggleButton value="non-recurring" sx={{ textTransform: "none", minWidth: 140, px: 1.5 }}>
+            <FilterList fontSize="small" sx={{ mr: 0.5 }} />
+            Non-Recurring
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
 
-        {/* Task count */}
-        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-          <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
-            {totalTasks} recurring task{totalTasks !== 1 ? "s" : ""}
-          </Typography>
-          <ToggleButtonGroup
-            size="small"
-            color="primary"
-            exclusive
-            value={historyView}
-            onChange={(_, value) => {
-              if (value) dispatch(setHistoryView(value));
-            }}
+      {historyMode === "non-recurring" ? (
+        <NonRecurringTasksView />
+      ) : (
+        <>
+          {/* Header */}
+          <Stack
+            direction="column"
+            spacing={2}
+            alignItems="stretch"
+            sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}
+            flexWrap="wrap"
+            useFlexGap
           >
-            <ToggleButton value="table" sx={{ textTransform: "none", minWidth: 100, px: 1.5 }}>
-              <TableChart fontSize="small" sx={{ mr: 0.5 }} />
-              Table
-            </ToggleButton>
-            <ToggleButton value="graph" sx={{ textTransform: "none", minWidth: 100, px: 1.5 }}>
-              <BarChart fontSize="small" sx={{ mr: 0.5 }} />
-              Graph
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Stack>
-      </Stack>
+            {/* Date Navigation */}
+            <Box sx={{ width: "100%" }}>
+              <DateNavigation
+                selectedDate={selectedDate}
+                onDateChange={handleDateChange}
+                onPrevious={handlePrevious}
+                onNext={handleNext}
+                onToday={handleToday}
+                showDatePicker={true}
+                showDateDisplay={true}
+                showViewSelector={true}
+                viewCollection={viewOptions}
+                selectedView={range}
+                onViewChange={handleViewChange}
+                viewSelectorWidth="100px"
+              />
+            </Box>
+            {/* Search */}
+            <TextField
+              size="small"
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={e => dispatch(setHistorySearchTerm(e.target.value))}
+              sx={{ width: "100%" }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
 
-      {historyView === "table" ? (
-        <TableContainer sx={{ flex: 1, overflow: "auto" }}>
-          <Table stickyHeader size="small">
-            {/* Header Row - Date column + Section headers spanning task columns */}
-            <TableHead>
-              <TableRow>
-                {/* Date column header */}
-                <TableCell
-                  sx={{
-                    position: "sticky",
-                    left: 0,
-                    zIndex: 3,
-                    bgcolor: "background.paper",
-                    minWidth: 120,
-                    borderRight: 1,
-                    borderColor: "divider",
-                  }}
-                >
-                  Date
-                </TableCell>
-                {/* Section headers spanning task columns */}
-                {groupedTasks.map(({ section, tasks: sectionTasks }) => {
-                  // Count all tasks including expanded subtasks
-                  const taskCount = flattenTasksWithSubtasks(sectionTasks, deferredExpandedTaskIds).length;
-                  return (
+            {/* Task count */}
+            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+              <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
+                {totalTasks} recurring task{totalTasks !== 1 ? "s" : ""}
+              </Typography>
+              <ToggleButtonGroup
+                size="small"
+                color="primary"
+                exclusive
+                value={historyView}
+                onChange={(_, value) => {
+                  if (value) dispatch(setHistoryView(value));
+                }}
+              >
+                <ToggleButton value="table" sx={{ textTransform: "none", minWidth: 100, px: 1.5 }}>
+                  <TableChart fontSize="small" sx={{ mr: 0.5 }} />
+                  Table
+                </ToggleButton>
+                <ToggleButton value="graph" sx={{ textTransform: "none", minWidth: 100, px: 1.5 }}>
+                  <BarChart fontSize="small" sx={{ mr: 0.5 }} />
+                  Graph
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
+          </Stack>
+
+          {historyView === "table" ? (
+            <TableContainer sx={{ flex: 1, overflow: "auto" }}>
+              <Table stickyHeader size="small">
+                {/* Header Row - Date column + Section headers spanning task columns */}
+                <TableHead>
+                  <TableRow>
+                    {/* Date column header */}
                     <TableCell
-                      key={section.id}
-                      colSpan={taskCount}
-                      align="center"
                       sx={{
-                        bgcolor: "action.hover",
-                        fontWeight: 600,
+                        position: "sticky",
+                        left: 0,
+                        zIndex: 3,
+                        bgcolor: "background.paper",
+                        minWidth: 120,
                         borderRight: 1,
                         borderColor: "divider",
                       }}
                     >
-                      {section.name} ({taskCount})
+                      Date
                     </TableCell>
-                  );
-                })}
-              </TableRow>
-              {/* Task name headers row */}
-              <TableRow>
-                {/* Empty cell for date column */}
-                <TableCell
-                  sx={{
-                    position: "sticky",
-                    left: 0,
-                    zIndex: 2,
-                    bgcolor: "background.paper",
-                    borderRight: 1,
-                    borderColor: "divider",
-                  }}
-                />
-                {/* Task name headers */}
-                {allTasks.map(task => {
-                  const isLastInSection = isLastInSectionByTaskId.get(task.id) || false;
-
-                  const hasSubtasks = task.subtasks?.length > 0;
-                  const subtaskCount = task.subtasks?.length || 0;
-                  const isExpanded = expandedTaskIds.has(task.id);
-                  const isSubtask = task.depth > 0;
-
-                  return (
-                    <TableCell
-                      key={task.id}
-                      align="center"
-                      onClick={() => openTaskAnalytics(task.id)}
-                      sx={{
-                        minWidth: 100,
-                        maxWidth: 150,
-                        p: 1,
-                        borderRight: isLastInSection ? 1 : 0,
-                        borderColor: "divider",
-                        position: "relative",
-                        pl: isSubtask ? 3 : 1,
-                        bgcolor: isSubtask ? "action.hover" : "transparent",
-                        cursor: "pointer",
-                        "&:hover": { bgcolor: "action.selected" },
-                      }}
-                    >
-                      <Stack direction="row" alignItems="center" spacing={0.5} justifyContent="flex-start">
-                        {hasSubtasks ? (
-                          <IconButton
-                            size="small"
-                            onClick={e => {
-                              e.stopPropagation();
-                              toggleTaskExpansion(task.id);
-                            }}
-                            sx={{
-                              p: 0.5,
-                              minWidth: 24,
-                              width: 24,
-                              height: 24,
-                              "&:hover": { bgcolor: "action.hover" },
-                              color: "text.secondary",
-                            }}
-                            title={
-                              isExpanded
-                                ? `Collapse ${subtaskCount} subtask${subtaskCount !== 1 ? "s" : ""}`
-                                : `Expand ${subtaskCount} subtask${subtaskCount !== 1 ? "s" : ""}`
-                            }
-                          >
-                            {isExpanded ? (
-                              <ExpandMore fontSize="small" sx={{ fontSize: "1rem" }} />
-                            ) : (
-                              <ChevronRight fontSize="small" sx={{ fontSize: "1rem" }} />
-                            )}
-                          </IconButton>
-                        ) : (
-                          <Box sx={{ width: 24 }} /> // Spacer for alignment
-                        )}
-                        <Tooltip title={task.title}>
-                          <Typography
-                            variant="caption"
-                            noWrap
-                            sx={{
-                              flex: 1,
-                              cursor: "pointer",
-                              fontWeight: isSubtask ? 400 : 500,
-                            }}
-                          >
-                            {task.title}
-                            {hasSubtasks && !isExpanded && (
-                              <Typography
-                                component="span"
-                                variant="caption"
-                                sx={{
-                                  ml: 0.5,
-                                  color: "text.secondary",
-                                  fontSize: "0.7rem",
-                                }}
-                              >
-                                ({subtaskCount})
-                              </Typography>
-                            )}
-                          </Typography>
-                        </Tooltip>
-                        {task.completionType === "workout" && (
-                          <Tooltip title="Workout task">
-                            <FitnessCenter fontSize="small" sx={{ opacity: 0.6, fontSize: "0.875rem" }} />
-                          </Tooltip>
-                        )}
-                        <IconButton
-                          size="small"
-                          onClick={e => {
-                            e.stopPropagation();
-                            setSelectedTask(task);
-                            setTaskMenuAnchor(e.currentTarget);
-                          }}
-                          sx={{ p: 0.25 }}
-                        >
-                          <MoreVert fontSize="small" sx={{ fontSize: "0.875rem" }} />
-                        </IconButton>
-                      </Stack>
-                      {(() => {
-                        const taskAnalytics = analyticsByTaskId.get(task.id);
-                        if (!taskAnalytics || taskAnalytics.scheduled === 0) {
-                          return (
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              sx={{ mt: 0.75, display: "block", textAlign: "left" }}
-                            >
-                              No schedule YTD
-                            </Typography>
-                          );
-                        }
-
-                        return (
-                          <Tooltip
-                            title={taskAnalytics.outcomeBreakdown
-                              .map(
-                                item => `${item.label}: ${item.count}/${taskAnalytics.scheduled} (${item.percentage}%)`
-                              )
-                              .join(" • ")}
-                          >
-                            <Box sx={{ mt: 0.75 }}>
-                              <Box
-                                sx={{
-                                  height: 8,
-                                  borderRadius: 999,
-                                  overflow: "hidden",
-                                  display: "flex",
-                                  bgcolor: "action.hover",
-                                }}
-                              >
-                                {taskAnalytics.outcomeBreakdown.map(item => (
-                                  <Box
-                                    key={`${task.id}-${item.key}`}
-                                    sx={{
-                                      width: `${item.percentage}%`,
-                                      bgcolor: item.color,
-                                      minWidth: item.count > 0 ? 2 : 0,
-                                    }}
-                                  />
-                                ))}
-                              </Box>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{ mt: 0.25, display: "block", textAlign: "left" }}
-                              >
-                                {taskAnalytics.completed}/{taskAnalytics.scheduled} ({taskAnalytics.completionRate}%)
-                              </Typography>
-                            </Box>
-                          </Tooltip>
-                        );
-                      })()}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            </TableHead>
-
-            {/* Body - Date rows */}
-            <TableBody>
-              {dates.map(date => {
-                const isTodayDate = isToday(date);
-
-                return (
-                  <TableRow key={date} hover={isTodayDate}>
-                    {/* Date cell - sticky */}
-                    <DateHeader date={date} isToday={isTodayDate} />
-
-                    {/* Task completion cells */}
-                    {allTasks.map(task => {
-                      const completion = getCompletionForDate?.(task.id, date);
-                      const isScheduled = scheduledByTaskDate.get(`${task.id}|${date}`) || false;
-                      const isLastInSection = isLastInSectionByTaskId.get(task.id) || false;
-
+                    {/* Section headers spanning task columns */}
+                    {groupedTasks.map(({ section, tasks: sectionTasks }) => {
+                      // Count all tasks including expanded subtasks
+                      const taskCount = flattenTasksWithSubtasks(sectionTasks, deferredExpandedTaskIds).length;
                       return (
-                        <MemoizedCompletionCell
-                          key={`${task.id}-${date}`}
-                          task={task}
-                          date={date}
-                          completion={completion}
-                          isScheduled={isScheduled}
-                          onCellUpdate={handleCellUpdate}
-                          onCellDelete={handleCellDelete}
-                          showRightBorder={isLastInSection}
-                          onOpenTextModal={handleOpenTextModal}
-                        />
+                        <TableCell
+                          key={section.id}
+                          colSpan={taskCount}
+                          align="center"
+                          sx={{
+                            bgcolor: "action.hover",
+                            fontWeight: 600,
+                            borderRight: 1,
+                            borderColor: "divider",
+                          }}
+                        >
+                          {section.name} ({taskCount})
+                        </TableCell>
                       );
                     })}
                   </TableRow>
-                );
-              })}
+                  {/* Task name headers row */}
+                  <TableRow>
+                    {/* Empty cell for date column */}
+                    <TableCell
+                      sx={{
+                        position: "sticky",
+                        left: 0,
+                        zIndex: 2,
+                        bgcolor: "background.paper",
+                        borderRight: 1,
+                        borderColor: "divider",
+                      }}
+                    />
+                    {/* Task name headers */}
+                    {allTasks.map(task => {
+                      const isLastInSection = isLastInSectionByTaskId.get(task.id) || false;
 
-              {/* Empty State */}
-              {groupedTasks.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={allTasks.length + 1} align="center" sx={{ py: 8 }}>
-                    <Typography color="text.secondary">
-                      {deferredSearch ? "No matching tasks found" : "No recurring tasks"}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      ) : (
-        <Box sx={{ flex: 1, overflow: "auto", p: 2 }}>
-          {recurringTaskOptions.length === 0 ? (
-            <Box sx={{ minHeight: 240, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Typography color="text.secondary">
-                {deferredSearch ? "No matching tasks found" : "No recurring tasks"}
-              </Typography>
-            </Box>
-          ) : (
-            <Stack spacing={2}>
-              <Stack
-                direction="row"
-                spacing={2}
-                alignItems="center"
-                justifyContent="space-between"
-                flexWrap="wrap"
-                useFlexGap
-              >
-                <Typography variant="body2" color="text.secondary">
-                  Year-to-date completion percentages by recurring task
-                </Typography>
-                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
-                  <ToggleButtonGroup
-                    size="small"
-                    color="primary"
-                    exclusive
-                    value={activeGraphOrientation}
-                    onChange={(_, value) => {
-                      if (value) dispatch(setHistoryGraphOrientation(value));
-                    }}
-                  >
-                    <ToggleButton value="vertical" sx={{ textTransform: "none", minWidth: 120, px: 1.5 }}>
-                      <SwapVert fontSize="small" sx={{ mr: 0.5 }} />
-                      Vertical
-                    </ToggleButton>
-                    <ToggleButton value="horizontal" sx={{ textTransform: "none", minWidth: 120, px: 1.5 }}>
-                      <SwapHoriz fontSize="small" sx={{ mr: 0.5 }} />
-                      Horizontal
-                    </ToggleButton>
-                  </ToggleButtonGroup>
-                  <TextField
-                    select
-                    size="small"
-                    label="Sort graph"
-                    value={graphSort}
-                    onChange={e => dispatch(setHistoryGraphSort(e.target.value))}
-                    sx={{ minWidth: 220 }}
-                  >
-                    <MenuItem value="time">Time (History order)</MenuItem>
-                    <MenuItem value="name">Name (A-Z)</MenuItem>
-                    <MenuItem value="most-consistent">Most consistent (highest complete %)</MenuItem>
-                    <MenuItem value="least-consistent">Least consistent (lowest complete %)</MenuItem>
-                  </TextField>
-                </Stack>
-              </Stack>
-              <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-                {OUTCOME_DEFINITIONS.map(item => (
-                  <Stack key={`history-graph-legend-${item.key}`} direction="row" spacing={0.75} alignItems="center">
-                    <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: item.color }} />
-                    <Typography variant="caption" color="text.secondary">
-                      {item.label}
-                    </Typography>
-                  </Stack>
-                ))}
-              </Stack>
-              {activeGraphOrientation === "vertical" ? (
-                <Box sx={{ overflowX: "auto", pb: 1 }}>
-                  <Stack
-                    direction="row"
-                    spacing={1.5}
-                    alignItems="flex-end"
-                    sx={{
-                      minHeight: 380,
-                      width: "fit-content",
-                      minWidth: Math.max(sortedGraphTasks.length * 92, 640),
-                    }}
-                  >
-                    {sortedGraphTasks.map(task => {
-                      const taskAnalytics = analyticsByTaskId.get(task.id);
-                      const noSchedule = !taskAnalytics || taskAnalytics.scheduled === 0;
+                      const hasSubtasks = task.subtasks?.length > 0;
+                      const subtaskCount = task.subtasks?.length || 0;
+                      const isExpanded = expandedTaskIds.has(task.id);
+                      const isSubtask = task.depth > 0;
 
                       return (
-                        <Stack
-                          key={`graph-${task.id}`}
-                          spacing={1}
-                          alignItems="center"
-                          sx={{ width: 84, flexShrink: 0 }}
+                        <TableCell
+                          key={task.id}
+                          align="center"
+                          onClick={() => openTaskAnalytics(task.id)}
+                          sx={{
+                            minWidth: 100,
+                            maxWidth: 150,
+                            p: 1,
+                            borderRight: isLastInSection ? 1 : 0,
+                            borderColor: "divider",
+                            position: "relative",
+                            pl: isSubtask ? 3 : 1,
+                            bgcolor: isSubtask ? "action.hover" : "transparent",
+                            cursor: "pointer",
+                            "&:hover": { bgcolor: "action.selected" },
+                          }}
                         >
-                          <Typography variant="caption" color="text.secondary">
-                            {noSchedule ? "--" : `${taskAnalytics.completionRate}%`}
+                          <Stack direction="row" alignItems="center" spacing={0.5} justifyContent="flex-start">
+                            {hasSubtasks ? (
+                              <IconButton
+                                size="small"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  toggleTaskExpansion(task.id);
+                                }}
+                                sx={{
+                                  p: 0.5,
+                                  minWidth: 24,
+                                  width: 24,
+                                  height: 24,
+                                  "&:hover": { bgcolor: "action.hover" },
+                                  color: "text.secondary",
+                                }}
+                                title={
+                                  isExpanded
+                                    ? `Collapse ${subtaskCount} subtask${subtaskCount !== 1 ? "s" : ""}`
+                                    : `Expand ${subtaskCount} subtask${subtaskCount !== 1 ? "s" : ""}`
+                                }
+                              >
+                                {isExpanded ? (
+                                  <ExpandMore fontSize="small" sx={{ fontSize: "1rem" }} />
+                                ) : (
+                                  <ChevronRight fontSize="small" sx={{ fontSize: "1rem" }} />
+                                )}
+                              </IconButton>
+                            ) : (
+                              <Box sx={{ width: 24 }} /> // Spacer for alignment
+                            )}
+                            <Tooltip title={task.title}>
+                              <Typography
+                                variant="caption"
+                                noWrap
+                                sx={{
+                                  flex: 1,
+                                  cursor: "pointer",
+                                  fontWeight: isSubtask ? 400 : 500,
+                                }}
+                              >
+                                {task.title}
+                                {hasSubtasks && !isExpanded && (
+                                  <Typography
+                                    component="span"
+                                    variant="caption"
+                                    sx={{
+                                      ml: 0.5,
+                                      color: "text.secondary",
+                                      fontSize: "0.7rem",
+                                    }}
+                                  >
+                                    ({subtaskCount})
+                                  </Typography>
+                                )}
+                              </Typography>
+                            </Tooltip>
+                            {task.completionType === "workout" && (
+                              <Tooltip title="Workout task">
+                                <FitnessCenter fontSize="small" sx={{ opacity: 0.6, fontSize: "0.875rem" }} />
+                              </Tooltip>
+                            )}
+                            <IconButton
+                              size="small"
+                              onClick={e => {
+                                e.stopPropagation();
+                                setSelectedTask(task);
+                                setTaskMenuAnchor(e.currentTarget);
+                              }}
+                              sx={{ p: 0.25 }}
+                            >
+                              <MoreVert fontSize="small" sx={{ fontSize: "0.875rem" }} />
+                            </IconButton>
+                          </Stack>
+                          {(() => {
+                            const taskAnalytics = analyticsByTaskId.get(task.id);
+                            if (!taskAnalytics || taskAnalytics.scheduled === 0) {
+                              return (
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{ mt: 0.75, display: "block", textAlign: "left" }}
+                                >
+                                  No schedule YTD
+                                </Typography>
+                              );
+                            }
+
+                            return (
+                              <Tooltip
+                                title={taskAnalytics.outcomeBreakdown
+                                  .map(
+                                    item =>
+                                      `${item.label}: ${item.count}/${taskAnalytics.scheduled} (${item.percentage}%)`
+                                  )
+                                  .join(" • ")}
+                              >
+                                <Box sx={{ mt: 0.75 }}>
+                                  <Box
+                                    sx={{
+                                      height: 8,
+                                      borderRadius: 999,
+                                      overflow: "hidden",
+                                      display: "flex",
+                                      bgcolor: "action.hover",
+                                    }}
+                                  >
+                                    {taskAnalytics.outcomeBreakdown.map(item => (
+                                      <Box
+                                        key={`${task.id}-${item.key}`}
+                                        sx={{
+                                          width: `${item.percentage}%`,
+                                          bgcolor: item.color,
+                                          minWidth: item.count > 0 ? 2 : 0,
+                                        }}
+                                      />
+                                    ))}
+                                  </Box>
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ mt: 0.25, display: "block", textAlign: "left" }}
+                                  >
+                                    {taskAnalytics.completed}/{taskAnalytics.scheduled} ({taskAnalytics.completionRate}
+                                    %)
+                                  </Typography>
+                                </Box>
+                              </Tooltip>
+                            );
+                          })()}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                </TableHead>
+
+                {/* Body - Date rows */}
+                <TableBody>
+                  {dates.map(date => {
+                    const isTodayDate = isToday(date);
+
+                    return (
+                      <TableRow key={date} hover={isTodayDate}>
+                        {/* Date cell - sticky */}
+                        <DateHeader date={date} isToday={isTodayDate} />
+
+                        {/* Task completion cells */}
+                        {allTasks.map(task => {
+                          const completion = getCompletionForDate?.(task.id, date);
+                          const isScheduled = scheduledByTaskDate.get(`${task.id}|${date}`) || false;
+                          const isLastInSection = isLastInSectionByTaskId.get(task.id) || false;
+
+                          return (
+                            <MemoizedCompletionCell
+                              key={`${task.id}-${date}`}
+                              task={task}
+                              date={date}
+                              completion={completion}
+                              isScheduled={isScheduled}
+                              onCellUpdate={handleCellUpdate}
+                              onCellDelete={handleCellDelete}
+                              showRightBorder={isLastInSection}
+                              onOpenTextModal={handleOpenTextModal}
+                            />
+                          );
+                        })}
+                      </TableRow>
+                    );
+                  })}
+
+                  {/* Empty State */}
+                  {groupedTasks.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={allTasks.length + 1} align="center" sx={{ py: 8 }}>
+                        <Typography color="text.secondary">
+                          {deferredSearch ? "No matching tasks found" : "No recurring tasks"}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Box sx={{ flex: 1, overflow: "auto", p: 2 }}>
+              {recurringTaskOptions.length === 0 ? (
+                <Box sx={{ minHeight: 240, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Typography color="text.secondary">
+                    {deferredSearch ? "No matching tasks found" : "No recurring tasks"}
+                  </Typography>
+                </Box>
+              ) : (
+                <Stack spacing={2}>
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    alignItems="center"
+                    justifyContent="space-between"
+                    flexWrap="wrap"
+                    useFlexGap
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      Year-to-date completion percentages by recurring task
+                    </Typography>
+                    <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                      <ToggleButtonGroup
+                        size="small"
+                        color="primary"
+                        exclusive
+                        value={activeGraphOrientation}
+                        onChange={(_, value) => {
+                          if (value) dispatch(setHistoryGraphOrientation(value));
+                        }}
+                      >
+                        <ToggleButton value="vertical" sx={{ textTransform: "none", minWidth: 120, px: 1.5 }}>
+                          <SwapVert fontSize="small" sx={{ mr: 0.5 }} />
+                          Vertical
+                        </ToggleButton>
+                        <ToggleButton value="horizontal" sx={{ textTransform: "none", minWidth: 120, px: 1.5 }}>
+                          <SwapHoriz fontSize="small" sx={{ mr: 0.5 }} />
+                          Horizontal
+                        </ToggleButton>
+                      </ToggleButtonGroup>
+                      <TextField
+                        select
+                        size="small"
+                        label="Sort graph"
+                        value={graphSort}
+                        onChange={e => dispatch(setHistoryGraphSort(e.target.value))}
+                        sx={{ minWidth: 220 }}
+                      >
+                        <MenuItem value="time">Time (History order)</MenuItem>
+                        <MenuItem value="name">Name (A-Z)</MenuItem>
+                        <MenuItem value="most-consistent">Most consistent (highest complete %)</MenuItem>
+                        <MenuItem value="least-consistent">Least consistent (lowest complete %)</MenuItem>
+                      </TextField>
+                    </Stack>
+                  </Stack>
+                  <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+                    {OUTCOME_DEFINITIONS.map(item => (
+                      <Stack
+                        key={`history-graph-legend-${item.key}`}
+                        direction="row"
+                        spacing={0.75}
+                        alignItems="center"
+                      >
+                        <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: item.color }} />
+                        <Typography variant="caption" color="text.secondary">
+                          {item.label}
+                        </Typography>
+                      </Stack>
+                    ))}
+                  </Stack>
+                  {activeGraphOrientation === "vertical" ? (
+                    <Box sx={{ overflowX: "auto", pb: 1 }}>
+                      <Stack
+                        direction="row"
+                        spacing={1.5}
+                        alignItems="flex-end"
+                        sx={{
+                          minHeight: 380,
+                          width: "fit-content",
+                          minWidth: Math.max(sortedGraphTasks.length * 92, 640),
+                        }}
+                      >
+                        {sortedGraphTasks.map(task => {
+                          const taskAnalytics = analyticsByTaskId.get(task.id);
+                          const noSchedule = !taskAnalytics || taskAnalytics.scheduled === 0;
+
+                          return (
+                            <Stack
+                              key={`graph-${task.id}`}
+                              spacing={1}
+                              alignItems="center"
+                              sx={{ width: 84, flexShrink: 0 }}
+                            >
+                              <Typography variant="caption" color="text.secondary">
+                                {noSchedule ? "--" : `${taskAnalytics.completionRate}%`}
+                              </Typography>
+                              <Tooltip
+                                title={noSchedule ? `${task.title}: No schedule YTD` : ""}
+                                disableHoverListener={!noSchedule}
+                              >
+                                <Box
+                                  onClick={() => openTaskAnalytics(task.id)}
+                                  sx={{
+                                    width: 44,
+                                    height: 260,
+                                    border: 1,
+                                    borderColor: "divider",
+                                    borderRadius: 1,
+                                    bgcolor: "action.hover",
+                                    overflow: "hidden",
+                                    display: "flex",
+                                    flexDirection: "column-reverse",
+                                    cursor: "pointer",
+                                    "&:hover": { borderColor: "primary.main", bgcolor: "action.selected" },
+                                  }}
+                                >
+                                  {!noSchedule &&
+                                    taskAnalytics.outcomeBreakdown.map(item => (
+                                      <Tooltip
+                                        key={`${task.id}-graph-${item.key}`}
+                                        title={`${item.label}: ${item.count}/${taskAnalytics.scheduled} (${item.percentage}%)`}
+                                      >
+                                        <Box
+                                          sx={{
+                                            width: "100%",
+                                            height: `${Math.max(item.percentage, item.count > 0 ? 2 : 0)}%`,
+                                            bgcolor: item.color,
+                                          }}
+                                        />
+                                      </Tooltip>
+                                    ))}
+                                </Box>
+                              </Tooltip>
+                              <Tooltip title={task.title}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    width: "100%",
+                                    textAlign: "center",
+                                    display: "-webkit-box",
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: "vertical",
+                                    overflow: "hidden",
+                                    lineHeight: 1.2,
+                                    minHeight: 30,
+                                  }}
+                                >
+                                  {task.title}
+                                </Typography>
+                              </Tooltip>
+                              <Typography variant="caption" color="text.secondary">
+                                {noSchedule ? "No schedule" : `${taskAnalytics.completed}/${taskAnalytics.scheduled}`}
+                              </Typography>
+                            </Stack>
+                          );
+                        })}
+                      </Stack>
+                    </Box>
+                  ) : (
+                    <Box sx={{ overflowX: "auto", pb: 1 }}>
+                      <Stack spacing={1.25} sx={{ minWidth: 340 }}>
+                        {sortedGraphTasks.map(task => {
+                          const taskAnalytics = analyticsByTaskId.get(task.id);
+                          const noSchedule = !taskAnalytics || taskAnalytics.scheduled === 0;
+
+                          return (
+                            <Stack key={`graph-horizontal-${task.id}`} direction="row" spacing={1} alignItems="center">
+                              <Tooltip title={task.title}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    width: 110,
+                                    flexShrink: 0,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {task.title}
+                                </Typography>
+                              </Tooltip>
+                              <Tooltip
+                                title={noSchedule ? `${task.title}: No schedule YTD` : ""}
+                                disableHoverListener={!noSchedule}
+                              >
+                                <Box
+                                  onClick={() => openTaskAnalytics(task.id)}
+                                  sx={{
+                                    flex: 1,
+                                    minWidth: 180,
+                                    height: 20,
+                                    border: 1,
+                                    borderColor: "divider",
+                                    borderRadius: 999,
+                                    bgcolor: "action.hover",
+                                    overflow: "hidden",
+                                    display: "flex",
+                                    cursor: "pointer",
+                                    "&:hover": { borderColor: "primary.main", bgcolor: "action.selected" },
+                                  }}
+                                >
+                                  {!noSchedule &&
+                                    taskAnalytics.outcomeBreakdown.map(item => (
+                                      <Tooltip
+                                        key={`${task.id}-horizontal-${item.key}`}
+                                        title={`${item.label}: ${item.count}/${taskAnalytics.scheduled} (${item.percentage}%)`}
+                                      >
+                                        <Box
+                                          sx={{
+                                            width: `${item.percentage}%`,
+                                            height: "100%",
+                                            bgcolor: item.color,
+                                            minWidth: item.count > 0 ? 2 : 0,
+                                          }}
+                                        />
+                                      </Tooltip>
+                                    ))}
+                                </Box>
+                              </Tooltip>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ width: 74, textAlign: "right" }}
+                              >
+                                {noSchedule ? "--" : `${taskAnalytics.completionRate}%`}
+                              </Typography>
+                            </Stack>
+                          );
+                        })}
+                      </Stack>
+                    </Box>
+                  )}
+                </Stack>
+              )}
+            </Box>
+          )}
+
+          {/* Task Actions Menu */}
+          <Menu anchorEl={taskMenuAnchor} open={Boolean(taskMenuAnchor)} onClose={() => setTaskMenuAnchor(null)}>
+            {selectedTask &&
+              [
+                <MenuItem
+                  key="edit"
+                  onClick={() => {
+                    taskOps.handleEditTask(selectedTask);
+                    setTaskMenuAnchor(null);
+                  }}
+                >
+                  <Edit fontSize="small" sx={{ mr: 1 }} /> Edit
+                </MenuItem>,
+                selectedTask.completionType === "workout" && (
+                  <MenuItem
+                    key="edit-workout"
+                    onClick={() => {
+                      taskOps.handleEditWorkout(selectedTask);
+                      setTaskMenuAnchor(null);
+                    }}
+                  >
+                    <FitnessCenter fontSize="small" sx={{ mr: 1 }} /> Edit Workout
+                  </MenuItem>
+                ),
+                <MenuItem
+                  key="duplicate"
+                  onClick={() => {
+                    taskOps.handleDuplicateTask(selectedTask);
+                    setTaskMenuAnchor(null);
+                  }}
+                >
+                  <ContentCopy fontSize="small" sx={{ mr: 1 }} /> Duplicate
+                </MenuItem>,
+                <Divider key="divider" />,
+                <MenuItem
+                  key="delete"
+                  onClick={() => {
+                    taskOps.handleDeleteTask(selectedTask.id);
+                    setTaskMenuAnchor(null);
+                  }}
+                  sx={{ color: "error.main" }}
+                >
+                  <Delete fontSize="small" sx={{ mr: 1 }} /> Delete
+                </MenuItem>,
+              ].filter(Boolean)}
+          </Menu>
+
+          {/* Cell Editor Modal */}
+          <Dialog
+            open={textModal.open}
+            onClose={handleCloseTextModal}
+            maxWidth="md"
+            fullWidth
+            PaperProps={{
+              sx: {
+                maxHeight: "90vh",
+                display: "flex",
+                flexDirection: "column",
+              },
+            }}
+          >
+            <DialogTitle>
+              {textModal.task?.title}
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                {textModal.date ? dayjs(textModal.date).format("MMM D, YYYY") : ""}
+              </Typography>
+            </DialogTitle>
+            <DialogContent sx={{ flex: 1, overflow: "auto" }}>
+              {textModal.task && (
+                <Box sx={{ "& > div": { pt: 0 } }}>
+                  <CellEditorPopover
+                    task={textModal.task}
+                    date={textModal.date}
+                    completion={textModal.completion}
+                    isScheduled={textModal.isScheduled}
+                    onSave={handleTextModalSave}
+                    onDelete={handleTextModalDelete}
+                    onClose={handleCloseTextModal}
+                    onOpenWorkout={
+                      textModal.task?.completionType === "workout" && textModal.date
+                        ? () => handleOpenWorkoutFromCell(textModal.task, textModal.date)
+                        : null
+                    }
+                    onOpenSleep={
+                      textModal.task?.completionType === "sleep" && textModal.date
+                        ? () =>
+                            handleOpenSleepFromCell(
+                              textModal.task,
+                              textModal.date,
+                              textModal.completion,
+                              textModal.isScheduled
+                            )
+                        : null
+                    }
+                  />
+                </Box>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={taskAnalyticsModal.open} onClose={closeTaskAnalytics} fullWidth maxWidth="md">
+            <DialogTitle>
+              Recurring Task Consistency
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                Year-to-date outcomes (Jan 1 through today)
+              </Typography>
+            </DialogTitle>
+            <DialogContent>
+              {recurringTaskOptions.length === 0 ? (
+                <Typography color="text.secondary">No recurring tasks available.</Typography>
+              ) : (
+                <Stack spacing={3} sx={{ pt: 1 }}>
+                  <TextField
+                    select
+                    label="Recurring Task"
+                    value={selectedAnalyticsTask?.id || ""}
+                    onChange={e =>
+                      setTaskAnalyticsModal(prev => ({
+                        ...prev,
+                        selectedTaskId: e.target.value,
+                      }))
+                    }
+                    fullWidth
+                  >
+                    {recurringTaskOptions.map(task => (
+                      <MenuItem key={task.id} value={task.id}>
+                        {task.title}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+
+                  {analyticsYearToDate && (
+                    <>
+                      <Box sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 1 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                          <Typography variant="body2" fontWeight={600}>
+                            Year-to-date completion
                           </Typography>
-                          <Tooltip
-                            title={noSchedule ? `${task.title}: No schedule YTD` : ""}
-                            disableHoverListener={!noSchedule}
-                          >
+                          <Typography variant="body2" color="text.secondary">
+                            {analyticsYearToDate.completionRate}%
+                          </Typography>
+                        </Stack>
+                        <Typography variant="caption" color="text.secondary">
+                          Scheduled days: {analyticsYearToDate.scheduled}
+                        </Typography>
+                      </Box>
+
+                      <Stack direction="row" spacing={2} alignItems="flex-end" sx={{ minHeight: 220 }}>
+                        {analyticsYearToDate.outcomeBreakdown.map(item => (
+                          <Stack key={item.key} spacing={1} alignItems="center" sx={{ flex: 1 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              {item.percentage}%
+                            </Typography>
                             <Box
-                              onClick={() => openTaskAnalytics(task.id)}
                               sx={{
-                                width: 44,
-                                height: 260,
+                                width: "100%",
+                                maxWidth: 96,
+                                height: 140,
                                 border: 1,
                                 borderColor: "divider",
                                 borderRadius: 1,
-                                bgcolor: "action.hover",
-                                overflow: "hidden",
                                 display: "flex",
-                                flexDirection: "column-reverse",
-                                cursor: "pointer",
-                                "&:hover": { borderColor: "primary.main", bgcolor: "action.selected" },
+                                alignItems: "flex-end",
+                                overflow: "hidden",
+                                bgcolor: "action.hover",
                               }}
                             >
-                              {!noSchedule &&
-                                taskAnalytics.outcomeBreakdown.map(item => (
-                                  <Tooltip
-                                    key={`${task.id}-graph-${item.key}`}
-                                    title={`${item.label}: ${item.count}/${taskAnalytics.scheduled} (${item.percentage}%)`}
-                                  >
-                                    <Box
-                                      sx={{
-                                        width: "100%",
-                                        height: `${Math.max(item.percentage, item.count > 0 ? 2 : 0)}%`,
-                                        bgcolor: item.color,
-                                      }}
-                                    />
-                                  </Tooltip>
-                                ))}
+                              <Box
+                                sx={{
+                                  width: "100%",
+                                  height: `${Math.max(item.percentage, item.count > 0 ? 4 : 0)}%`,
+                                  transition: "height 200ms ease",
+                                  bgcolor: item.color,
+                                }}
+                              />
                             </Box>
-                          </Tooltip>
-                          <Tooltip title={task.title}>
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                width: "100%",
-                                textAlign: "center",
-                                display: "-webkit-box",
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: "vertical",
-                                overflow: "hidden",
-                                lineHeight: 1.2,
-                                minHeight: 30,
-                              }}
-                            >
-                              {task.title}
+                            <Typography variant="body2" fontWeight={600}>
+                              {item.label}
                             </Typography>
-                          </Tooltip>
-                          <Typography variant="caption" color="text.secondary">
-                            {noSchedule ? "No schedule" : `${taskAnalytics.completed}/${taskAnalytics.scheduled}`}
-                          </Typography>
-                        </Stack>
-                      );
-                    })}
-                  </Stack>
-                </Box>
-              ) : (
-                <Box sx={{ overflowX: "auto", pb: 1 }}>
-                  <Stack spacing={1.25} sx={{ minWidth: 340 }}>
-                    {sortedGraphTasks.map(task => {
-                      const taskAnalytics = analyticsByTaskId.get(task.id);
-                      const noSchedule = !taskAnalytics || taskAnalytics.scheduled === 0;
+                            <Typography variant="caption" color="text.secondary">
+                              {item.count}/{analyticsYearToDate.scheduled}
+                            </Typography>
+                          </Stack>
+                        ))}
+                      </Stack>
 
-                      return (
-                        <Stack key={`graph-horizontal-${task.id}`} direction="row" spacing={1} alignItems="center">
-                          <Tooltip title={task.title}>
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                width: 110,
-                                flexShrink: 0,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {task.title}
-                            </Typography>
-                          </Tooltip>
-                          <Tooltip
-                            title={noSchedule ? `${task.title}: No schedule YTD` : ""}
-                            disableHoverListener={!noSchedule}
+                      <Stack spacing={1}>
+                        {analyticsYearToDate.outcomeBreakdown.map(item => (
+                          <Stack
+                            key={`${item.key}-legend`}
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            sx={{ p: 1.25, border: 1, borderColor: "divider", borderRadius: 1 }}
                           >
-                            <Box
-                              onClick={() => openTaskAnalytics(task.id)}
-                              sx={{
-                                flex: 1,
-                                minWidth: 180,
-                                height: 20,
-                                border: 1,
-                                borderColor: "divider",
-                                borderRadius: 999,
-                                bgcolor: "action.hover",
-                                overflow: "hidden",
-                                display: "flex",
-                                cursor: "pointer",
-                                "&:hover": { borderColor: "primary.main", bgcolor: "action.selected" },
-                              }}
-                            >
-                              {!noSchedule &&
-                                taskAnalytics.outcomeBreakdown.map(item => (
-                                  <Tooltip
-                                    key={`${task.id}-horizontal-${item.key}`}
-                                    title={`${item.label}: ${item.count}/${taskAnalytics.scheduled} (${item.percentage}%)`}
-                                  >
-                                    <Box
-                                      sx={{
-                                        width: `${item.percentage}%`,
-                                        height: "100%",
-                                        bgcolor: item.color,
-                                        minWidth: item.count > 0 ? 2 : 0,
-                                      }}
-                                    />
-                                  </Tooltip>
-                                ))}
-                            </Box>
-                          </Tooltip>
-                          <Typography variant="caption" color="text.secondary" sx={{ width: 74, textAlign: "right" }}>
-                            {noSchedule ? "--" : `${taskAnalytics.completionRate}%`}
-                          </Typography>
-                        </Stack>
-                      );
-                    })}
-                  </Stack>
-                </Box>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Box sx={{ width: 12, height: 12, borderRadius: "50%", bgcolor: item.color }} />
+                              <Typography variant="body2">{item.label}</Typography>
+                            </Stack>
+                            <Typography variant="body2" color="text.secondary">
+                              {item.count} ({item.percentage}%)
+                            </Typography>
+                          </Stack>
+                        ))}
+                      </Stack>
+                    </>
+                  )}
+                </Stack>
               )}
-            </Stack>
-          )}
-        </Box>
+            </DialogContent>
+          </Dialog>
+
+          <SleepCellEditDialog
+            key={
+              sleepModal.task?.id
+                ? `${sleepModal.task.id}-${sleepModal.date}-${sleepModal.open ? "open" : "closed"}`
+                : "sleep-cell-modal"
+            }
+            modal={sleepModal}
+            onClose={handleCloseSleepModal}
+            onSave={handleSleepModalSave}
+          />
+        </>
       )}
-
-      {/* Task Actions Menu */}
-      <Menu anchorEl={taskMenuAnchor} open={Boolean(taskMenuAnchor)} onClose={() => setTaskMenuAnchor(null)}>
-        {selectedTask &&
-          [
-            <MenuItem
-              key="edit"
-              onClick={() => {
-                taskOps.handleEditTask(selectedTask);
-                setTaskMenuAnchor(null);
-              }}
-            >
-              <Edit fontSize="small" sx={{ mr: 1 }} /> Edit
-            </MenuItem>,
-            selectedTask.completionType === "workout" && (
-              <MenuItem
-                key="edit-workout"
-                onClick={() => {
-                  taskOps.handleEditWorkout(selectedTask);
-                  setTaskMenuAnchor(null);
-                }}
-              >
-                <FitnessCenter fontSize="small" sx={{ mr: 1 }} /> Edit Workout
-              </MenuItem>
-            ),
-            <MenuItem
-              key="duplicate"
-              onClick={() => {
-                taskOps.handleDuplicateTask(selectedTask);
-                setTaskMenuAnchor(null);
-              }}
-            >
-              <ContentCopy fontSize="small" sx={{ mr: 1 }} /> Duplicate
-            </MenuItem>,
-            <Divider key="divider" />,
-            <MenuItem
-              key="delete"
-              onClick={() => {
-                taskOps.handleDeleteTask(selectedTask.id);
-                setTaskMenuAnchor(null);
-              }}
-              sx={{ color: "error.main" }}
-            >
-              <Delete fontSize="small" sx={{ mr: 1 }} /> Delete
-            </MenuItem>,
-          ].filter(Boolean)}
-      </Menu>
-
-      {/* Cell Editor Modal */}
-      <Dialog
-        open={textModal.open}
-        onClose={handleCloseTextModal}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            maxHeight: "90vh",
-            display: "flex",
-            flexDirection: "column",
-          },
-        }}
-      >
-        <DialogTitle>
-          {textModal.task?.title}
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-            {textModal.date ? dayjs(textModal.date).format("MMM D, YYYY") : ""}
-          </Typography>
-        </DialogTitle>
-        <DialogContent sx={{ flex: 1, overflow: "auto" }}>
-          {textModal.task && (
-            <Box sx={{ "& > div": { pt: 0 } }}>
-              <CellEditorPopover
-                task={textModal.task}
-                date={textModal.date}
-                completion={textModal.completion}
-                isScheduled={textModal.isScheduled}
-                onSave={handleTextModalSave}
-                onDelete={handleTextModalDelete}
-                onClose={handleCloseTextModal}
-                onOpenWorkout={
-                  textModal.task?.completionType === "workout" && textModal.date
-                    ? () => handleOpenWorkoutFromCell(textModal.task, textModal.date)
-                    : null
-                }
-                onOpenSleep={
-                  textModal.task?.completionType === "sleep" && textModal.date
-                    ? () =>
-                        handleOpenSleepFromCell(
-                          textModal.task,
-                          textModal.date,
-                          textModal.completion,
-                          textModal.isScheduled
-                        )
-                    : null
-                }
-              />
-            </Box>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={taskAnalyticsModal.open} onClose={closeTaskAnalytics} fullWidth maxWidth="md">
-        <DialogTitle>
-          Recurring Task Consistency
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-            Year-to-date outcomes (Jan 1 through today)
-          </Typography>
-        </DialogTitle>
-        <DialogContent>
-          {recurringTaskOptions.length === 0 ? (
-            <Typography color="text.secondary">No recurring tasks available.</Typography>
-          ) : (
-            <Stack spacing={3} sx={{ pt: 1 }}>
-              <TextField
-                select
-                label="Recurring Task"
-                value={selectedAnalyticsTask?.id || ""}
-                onChange={e =>
-                  setTaskAnalyticsModal(prev => ({
-                    ...prev,
-                    selectedTaskId: e.target.value,
-                  }))
-                }
-                fullWidth
-              >
-                {recurringTaskOptions.map(task => (
-                  <MenuItem key={task.id} value={task.id}>
-                    {task.title}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              {analyticsYearToDate && (
-                <>
-                  <Box sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 1 }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                      <Typography variant="body2" fontWeight={600}>
-                        Year-to-date completion
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {analyticsYearToDate.completionRate}%
-                      </Typography>
-                    </Stack>
-                    <Typography variant="caption" color="text.secondary">
-                      Scheduled days: {analyticsYearToDate.scheduled}
-                    </Typography>
-                  </Box>
-
-                  <Stack direction="row" spacing={2} alignItems="flex-end" sx={{ minHeight: 220 }}>
-                    {analyticsYearToDate.outcomeBreakdown.map(item => (
-                      <Stack key={item.key} spacing={1} alignItems="center" sx={{ flex: 1 }}>
-                        <Typography variant="caption" color="text.secondary">
-                          {item.percentage}%
-                        </Typography>
-                        <Box
-                          sx={{
-                            width: "100%",
-                            maxWidth: 96,
-                            height: 140,
-                            border: 1,
-                            borderColor: "divider",
-                            borderRadius: 1,
-                            display: "flex",
-                            alignItems: "flex-end",
-                            overflow: "hidden",
-                            bgcolor: "action.hover",
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              width: "100%",
-                              height: `${Math.max(item.percentage, item.count > 0 ? 4 : 0)}%`,
-                              transition: "height 200ms ease",
-                              bgcolor: item.color,
-                            }}
-                          />
-                        </Box>
-                        <Typography variant="body2" fontWeight={600}>
-                          {item.label}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {item.count}/{analyticsYearToDate.scheduled}
-                        </Typography>
-                      </Stack>
-                    ))}
-                  </Stack>
-
-                  <Stack spacing={1}>
-                    {analyticsYearToDate.outcomeBreakdown.map(item => (
-                      <Stack
-                        key={`${item.key}-legend`}
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                        sx={{ p: 1.25, border: 1, borderColor: "divider", borderRadius: 1 }}
-                      >
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Box sx={{ width: 12, height: 12, borderRadius: "50%", bgcolor: item.color }} />
-                          <Typography variant="body2">{item.label}</Typography>
-                        </Stack>
-                        <Typography variant="body2" color="text.secondary">
-                          {item.count} ({item.percentage}%)
-                        </Typography>
-                      </Stack>
-                    ))}
-                  </Stack>
-                </>
-              )}
-            </Stack>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <SleepCellEditDialog
-        key={
-          sleepModal.task?.id
-            ? `${sleepModal.task.id}-${sleepModal.date}-${sleepModal.open ? "open" : "closed"}`
-            : "sleep-cell-modal"
-        }
-        modal={sleepModal}
-        onClose={handleCloseSleepModal}
-        onSave={handleSleepModalSave}
-      />
     </Box>
   );
 }
