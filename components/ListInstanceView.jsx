@@ -34,6 +34,7 @@ import {
   Sync,
   Close,
   Edit,
+  LocalOffer,
 } from "@mui/icons-material";
 import {
   useToggleListInstanceItemsMutation,
@@ -42,7 +43,11 @@ import {
   useRemoveInstanceItemsMutation,
   useUpdateTemplateFromInstanceMutation,
   useSaveInstanceAsTemplateMutation,
+  useGetListTagsQuery,
+  useCreateListTagMutation,
+  useUpdateListItemTagsMutation,
 } from "@/lib/store/api/listApi";
+import { TagSelectorBase } from "@/components/TagSelector";
 import { useDispatch } from "react-redux";
 import { openEditTaskDialog } from "@/lib/store/slices/uiSlice";
 
@@ -54,8 +59,13 @@ export function ListInstanceView({ instance, task, onDelete }) {
   const [removeItems] = useRemoveInstanceItemsMutation();
   const [updateTemplate] = useUpdateTemplateFromInstanceMutation();
   const [saveAsTemplate] = useSaveInstanceAsTemplateMutation();
+  const { data: listTags = [] } = useGetListTagsQuery();
+  const [createListTag] = useCreateListTagMutation();
+  const [updateItemTags] = useUpdateListItemTagsMutation();
 
   const [menuAnchor, setMenuAnchor] = useState(null);
+  const [tagAnchorEl, setTagAnchorEl] = useState(null);
+  const [tagEditItem, setTagEditItem] = useState(null); // instance item being tagged
   const [addingItem, setAddingItem] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [newItemQty, setNewItemQty] = useState(1);
@@ -248,6 +258,18 @@ export function ListInstanceView({ instance, task, onDelete }) {
                       ×{item.quantity}
                     </Typography>
                   )}
+                  {item.listItemId && (
+                    <IconButton
+                      size="small"
+                      onClick={e => {
+                        setTagAnchorEl(e.currentTarget);
+                        setTagEditItem(item);
+                      }}
+                      title="Manage tags"
+                    >
+                      <LocalOffer sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  )}
                   <IconButton
                     edge="end"
                     size="small"
@@ -313,6 +335,27 @@ export function ListInstanceView({ instance, task, onDelete }) {
           <Chip label="Mark Complete" color="success" onClick={handleComplete} clickable />
         </Box>
       )}
+
+      {/* Tag Selector for instance items */}
+      <TagSelectorBase
+        tags={listTags}
+        onCreateTag={async (name, color) => {
+          const result = await createListTag({ name, color });
+          return result.data;
+        }}
+        selectedTagIds={tagEditItem?.tags?.map(t => t.id) || []}
+        onSelectionChange={tagIds => {
+          if (tagEditItem?.listItemId) {
+            updateItemTags({ id: tagEditItem.listItemId, tagIds });
+          }
+        }}
+        anchorEl={tagAnchorEl}
+        open={Boolean(tagAnchorEl)}
+        onClose={() => {
+          setTagAnchorEl(null);
+          setTagEditItem(null);
+        }}
+      />
 
       {/* Save as New Template Dialog */}
       <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)} maxWidth="xs" fullWidth>
