@@ -37,11 +37,14 @@ import {
   useGetListTasksQuery,
 } from "@/lib/store/api/listApi";
 import { ListInstanceView } from "@/components/ListInstanceView";
+import { TagChip } from "@/components/TagChip";
+import { useGetTagsQuery } from "@/lib/store/api/tagsApi";
 import dynamic from "next/dynamic";
 
 const ListTemplateBuilder = dynamic(() => import("@/components/ListTemplateBuilder"), { ssr: false });
 
 export function ListTab({ isLoading }) {
+  const { data: tags = [] } = useGetTagsQuery();
   const { data: templates = [], isLoading: templatesLoading } = useGetListTemplatesQuery();
   const { data: instances = [], isLoading: instancesLoading } = useGetListInstancesQuery();
   const { data: listTasks = [] } = useGetListTasksQuery();
@@ -166,6 +169,13 @@ export function ListTab({ isLoading }) {
                       <Typography variant="caption" color="text.secondary">
                         {template.items?.length || 0} items
                       </Typography>
+                      {template.tagIds?.length > 0 && (
+                        <Stack direction="row" spacing={0.5} sx={{ mt: 0.5, flexWrap: "wrap", gap: 0.25 }}>
+                          {tags.filter(t => template.tagIds.includes(t.id)).map(tag => (
+                            <TagChip key={tag.id} tag={tag} size="xs" />
+                          ))}
+                        </Stack>
+                      )}
                     </Box>
                     <IconButton size="small" onClick={e => handleOpenMenu(e, template)}>
                       <MoreVert fontSize="small" />

@@ -48,6 +48,7 @@ import {
   useUpdateListItemTagsMutation,
 } from "@/lib/store/api/listApi";
 import { TagSelectorBase } from "@/components/TagSelector";
+import { TagChip } from "@/components/TagChip";
 import { useDispatch } from "react-redux";
 import { openEditTaskDialog } from "@/lib/store/slices/uiSlice";
 
@@ -149,6 +150,13 @@ export function ListInstanceView({ instance, task, onDelete }) {
             <Typography variant="caption" color="text.secondary">
               From: {instance.template.name}
             </Typography>
+          )}
+          {task?.tags?.length > 0 && (
+            <Stack direction="row" spacing={0.5} sx={{ mt: 0.5, flexWrap: "wrap", gap: 0.25 }}>
+              {task.tags.map(tag => (
+                <TagChip key={tag.id} tag={tag} size="xs" />
+              ))}
+            </Stack>
           )}
         </Box>
         <Stack direction="row" spacing={0.5} alignItems="center">
@@ -355,6 +363,7 @@ export function ListInstanceView({ instance, task, onDelete }) {
           setTagAnchorEl(null);
           setTagEditItem(null);
         }}
+        renderTrigger={() => null}
       />
 
       {/* Save as New Template Dialog */}
