@@ -16,7 +16,6 @@ if [ -z "$SOURCE_DB_URL" ]; then
 fi
 
 # Remove unsupported query parameters (like schema) from DATABASE_URL
-# pg_dump doesn't support the schema query parameter
 CLEAN_URL=$(echo "$SOURCE_DB_URL" | sed 's/[?&]schema=[^&]*//g')
 
 # Create dumps directory if it doesn't exist
@@ -24,10 +23,16 @@ mkdir -p dumps
 
 # Generate timestamp for filename
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
-DUMP_FILE="dumps/production-dump-${TIMESTAMP}.sql"
+DUMP_FILE="dumps/production-dump-${TIMESTAMP}.dump"
 
 echo "📦 Dumping source database (public and drizzle schemas)..."
-if ! pg_dump "$CLEAN_URL" --schema=public --schema=drizzle --clean --if-exists --no-owner --no-acl > "$DUMP_FILE"; then
+if ! pg_dump "$CLEAN_URL" \
+  --format=custom \
+  --schema=public \
+  --schema=drizzle \
+  --no-owner \
+  --no-acl \
+  --file="$DUMP_FILE"; then
   echo "❌ Error: Database dump failed."
   exit 1
 fi

@@ -16,11 +16,15 @@ if [ -z "$TARGET_DB_URL" ]; then
 fi
 
 # Remove unsupported query parameters (like schema) from DATABASE_URL
-# psql doesn't support the schema query parameter
 CLEAN_URL=$(echo "$TARGET_DB_URL" | sed 's/[?&]schema=[^&]*//g')
 
-# Find the most recent dump file
-DUMP_FILE=$(ls -t dumps/production-dump-*.sql 2>/dev/null | head -n 1)
+# Find the most recent dump file (.dump format)
+DUMP_FILE=$(ls -t dumps/production-dump-*.dump 2>/dev/null | head -n 1)
+
+# Fall back to old .sql format if no .dump file found
+if [ -z "$DUMP_FILE" ]; then
+  DUMP_FILE=$(ls -t dumps/production-dump-*.sql 2>/dev/null | head -n 1)
+fi
 
 if [ -z "$DUMP_FILE" ]; then
   echo "❌ Error: No dump files found in dumps/ directory"
@@ -48,10 +52,43 @@ echo ""
 echo "📥 Restoring database (public and drizzle schemas)..."
 echo ""
 
-# Restore only to public schema, suppress permission errors
-psql "$CLEAN_URL" < "$DUMP_FILE" 2>&1 | grep -v "must be owner" | grep -v "permission denied" | grep -v "already exists" || true
+if [[ "$DUMP_FILE" == *.dump ]]; then
+  # Drop schemas with CASCADE first to cleanly remove all FK dependencies,
+  # then restore into a fresh schema. This avoids pg_restore --clean failing
+  # on constraints that have dependents.
+  echo "🗑️  Dropping existing schemas (CASCADE)..."
+  psql "$CLEAN_URL" <<'SQL'
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+DROP SCHEMA IF EXISTS drizzle CASCADE;
+CREATE SCHEMA drizzle;
+SQL
+
+  if [ $? -ne 0 ]; then
+    echo "❌ Error: Failed to drop schemas."
+    exit 1
+  fi
+
+  # Custom format: pg_restore restores in correct dependency order
+  pg_restore \
+    --dbname="$CLEAN_URL" \
+    --no-owner \
+    --no-acl \
+    --schema=public \
+    --schema=drizzle \
+    "$DUMP_FILE"
+  RESTORE_EXIT=$?
+else
+  # Legacy plain SQL format fallback
+  psql "$CLEAN_URL" < "$DUMP_FILE"
+  RESTORE_EXIT=$?
+fi
+
+if [ $RESTORE_EXIT -ne 0 ]; then
+  echo ""
+  echo "❌ Error: Database restore failed."
+  exit 1
+fi
 
 echo ""
 echo "✅ Database restored successfully!"
-echo ""
-echo "Note: Permission errors for Supabase internal schemas are normal and can be ignored."
