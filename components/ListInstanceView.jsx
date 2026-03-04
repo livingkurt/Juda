@@ -33,6 +33,7 @@ import {
   SaveAlt,
   Sync,
   Close,
+  Edit,
 } from "@mui/icons-material";
 import {
   useToggleListInstanceItemsMutation,
@@ -42,8 +43,11 @@ import {
   useUpdateTemplateFromInstanceMutation,
   useSaveInstanceAsTemplateMutation,
 } from "@/lib/store/api/listApi";
+import { useDispatch } from "react-redux";
+import { openEditTaskDialog } from "@/lib/store/slices/uiSlice";
 
-export function ListInstanceView({ instance, onDelete }) {
+export function ListInstanceView({ instance, task, onDelete }) {
+  const dispatch = useDispatch();
   const [toggleItems] = useToggleListInstanceItemsMutation();
   const [updateInstance] = useUpdateListInstanceMutation();
   const [addItems] = useAddInstanceItemsMutation();
@@ -152,6 +156,16 @@ export function ListInstanceView({ instance, onDelete }) {
                 <MoreVert fontSize="small" />
               </IconButton>
               <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+                {task && (
+                  <MenuItem
+                    onClick={() => {
+                      setMenuAnchor(null);
+                      dispatch(openEditTaskDialog({ task }));
+                    }}
+                  >
+                    <Edit fontSize="small" sx={{ mr: 1 }} /> Edit Task
+                  </MenuItem>
+                )}
                 {instance.templateId && (
                   <MenuItem onClick={handleUpdateTemplate}>
                     <Sync fontSize="small" sx={{ mr: 1 }} /> Update Template

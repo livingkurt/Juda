@@ -34,6 +34,7 @@ import {
   useCreateListInstanceMutation,
   useDeleteListTemplateMutation,
   useDeleteListInstanceMutation,
+  useGetListTasksQuery,
 } from "@/lib/store/api/listApi";
 import { ListInstanceView } from "@/components/ListInstanceView";
 import dynamic from "next/dynamic";
@@ -43,6 +44,14 @@ const ListTemplateBuilder = dynamic(() => import("@/components/ListTemplateBuild
 export function ListTab({ isLoading }) {
   const { data: templates = [], isLoading: templatesLoading } = useGetListTemplatesQuery();
   const { data: instances = [], isLoading: instancesLoading } = useGetListInstancesQuery();
+  const { data: listTasks = [] } = useGetListTasksQuery();
+
+  // Map taskId → task for passing to ListInstanceView
+  const tasksByIdMap = useMemo(() => {
+    const map = {};
+    listTasks.forEach(t => { map[t.id] = t; });
+    return map;
+  }, [listTasks]);
   const [createInstance] = useCreateListInstanceMutation();
   const [deleteTemplate] = useDeleteListTemplateMutation();
   const [deleteInstance] = useDeleteListInstanceMutation();
@@ -198,7 +207,7 @@ export function ListTab({ isLoading }) {
           {activeInstances.map(instance => (
             <Card key={instance.id} variant="outlined">
               <CardContent>
-                <ListInstanceView instance={instance} onDelete={handleDeleteInstance} />
+                <ListInstanceView instance={instance} task={tasksByIdMap[instance.taskId]} onDelete={handleDeleteInstance} />
               </CardContent>
             </Card>
           ))}
@@ -222,7 +231,7 @@ export function ListTab({ isLoading }) {
               {completedInstances.map(instance => (
                 <Card key={instance.id} variant="outlined" sx={{ opacity: 0.6 }}>
                   <CardContent>
-                    <ListInstanceView instance={instance} onDelete={handleDeleteInstance} />
+                    <ListInstanceView instance={instance} task={tasksByIdMap[instance.taskId]} onDelete={handleDeleteInstance} />
                   </CardContent>
                 </Card>
               ))}
