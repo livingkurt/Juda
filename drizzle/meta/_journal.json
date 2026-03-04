@@ -365,6 +365,13 @@
       "when": 1772841480000,
       "tag": "0052_add_list_feature",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1772841600000,
+      "tag": "0053_add_tag_scope",
+      "breakpoints": true
     }
   ]
 }
