@@ -34,9 +34,7 @@ import { FolderDialog } from "@/components/dialogs/FolderDialog";
 import { SmartFolderDialog } from "@/components/dialogs/SmartFolderDialog";
 import dayjs from "dayjs";
 import { useDispatch, useSelector } from "react-redux";
-import { useTheme as useCustomTheme } from "@/hooks/useTheme";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
-import { mapColorToTheme } from "@/lib/themes";
 import { UNTAGGED_ID } from "@/components/BacklogTagSidebar";
 import {
   setNotesSidebarWidth,
@@ -269,10 +267,7 @@ export function NotesTab({ isLoading }) {
   // Note: noteTasks already comes from useNoteTasks hook (pre-filtered by API)
 
   // Theme hooks for tag colors
-  const { theme: customTheme } = useCustomTheme();
   const { colorMode } = useColorModeSync();
-  const modeForTheme = colorMode || "dark";
-  const themePalette = customTheme?.colors?.[modeForTheme]?.tagColors || {};
 
   // Calculate tag counts based on notes
   const tagCounts = useMemo(() => {
@@ -773,7 +768,7 @@ export function NotesTab({ isLoading }) {
                 ) : (
                   tags.map(tag => {
                     const isSelected = notesSelectedTagIds.includes(tag.id);
-                    const displayColor = mapColorToTheme(tag.color, themePalette) || tag.color;
+                    const displayColor = tag.color;
                     const count = tagCounts.get(tag.id) || 0;
 
                     return (
@@ -1159,7 +1154,7 @@ export function NotesTab({ isLoading }) {
                 ) : (
                   tags.map(tag => {
                     const isSelected = notesSelectedTagIds.includes(tag.id);
-                    const displayColor = mapColorToTheme(tag.color, themePalette) || tag.color;
+                    const displayColor = tag.color;
                     const count = tagCounts.get(tag.id) || 0;
 
                     return (
