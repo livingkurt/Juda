@@ -21,6 +21,8 @@ import {
   IconButton,
   InputAdornment,
   Divider,
+  useMediaQuery,
+  useTheme as useMuiTheme,
 } from "@mui/material";
 import { Search, Close, Add, Remove, DragIndicator, LocalOffer } from "@mui/icons-material";
 import {
@@ -38,6 +40,8 @@ import { useGetTagsQuery } from "@/lib/store/api/tagsApi";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
+  const muiTheme = useMuiTheme();
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
   const { data: libraryItems = [] } = useGetListItemsQuery();
   const { data: listTags = [] } = useGetListTagsQuery();
   const [createTemplate] = useCreateListTemplateMutation();
@@ -55,6 +59,50 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTagFilter, setSelectedTagFilter] = useState(null);
   const [newItemName, setNewItemName] = useState("");
+  const [groupByTag, setGroupByTag] = useState(false);
+
+  const renderLibraryItem = useCallback(
+    item => (
+      <ListItem
+        key={item.id}
+        disablePadding
+        secondaryAction={
+          <IconButton
+            size="small"
+            onClick={e => {
+              e.stopPropagation();
+              setTagAnchorEl(e.currentTarget);
+              setTagEditItemId(item.id);
+            }}
+            title="Manage tags"
+          >
+            <LocalOffer sx={{ fontSize: 16 }} />
+          </IconButton>
+        }
+      >
+        <ListItemButton dense onClick={() => handleToggleItem(item.id)}>
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <Checkbox edge="start" checked={selectedItemIds.includes(item.id)} size="small" disableRipple />
+          </ListItemIcon>
+          <ListItemText
+            primary={item.name}
+            secondary={
+              !groupByTag && item.tags?.length > 0 ? (
+                <Stack direction="row" spacing={0.5} sx={{ mt: 0.25, flexWrap: "wrap", gap: 0.25 }}>
+                  {item.tags.map(t => (
+                    <Chip key={t.id} label={t.name} size="small" sx={{ height: 16, fontSize: "0.625rem", bgcolor: t.color, color: "white" }} />
+                  ))}
+                </Stack>
+              ) : null
+            }
+            primaryTypographyProps={{ fontSize: "0.875rem" }}
+            secondaryTypographyProps={{ component: "span" }}
+          />
+        </ListItemButton>
+      </ListItem>
+    ),
+    [selectedItemIds, groupByTag, handleToggleItem]
+  );
   const [tagAnchorEl, setTagAnchorEl] = useState(null);
   const [tagEditItemId, setTagEditItemId] = useState(null);
   const [templateTagAnchorEl, setTemplateTagAnchorEl] = useState(null);
@@ -94,6 +142,26 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
     }
     return items;
   }, [libraryItems, searchTerm, selectedTagFilter]);
+
+  // Group filtered items by tag for grouped view
+  const groupedItems = useMemo(() => {
+    if (!groupByTag) return null;
+    const groups = {};
+    const untagged = [];
+    filteredItems.forEach(item => {
+      if (!item.tags?.length) {
+        untagged.push(item);
+      } else {
+        item.tags.forEach(tag => {
+          if (!groups[tag.id]) groups[tag.id] = { tag, items: [] };
+          groups[tag.id].items.push(item);
+        });
+      }
+    });
+    const result = Object.values(groups).sort((a, b) => a.tag.name.localeCompare(b.tag.name));
+    if (untagged.length) result.push({ tag: { id: "_untagged", name: "Untagged", color: "#666" }, items: untagged });
+    return result;
+  }, [filteredItems, groupByTag]);
 
   const selectedItems = useMemo(() => {
     return selectedItemIds.map(id => libraryItems.find(i => i.id === id)).filter(Boolean);
@@ -147,7 +215,21 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
   }, [name, description, selectedItemIds, templateTagIds, editingTemplate, createTemplate, updateTemplate, onClose]);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { height: "85vh", maxHeight: "85vh" } }}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth={isMobile ? undefined : "md"}
+      fullWidth
+      PaperProps={{
+        sx: {
+          height: { xs: "100vh", md: "85vh" },
+          maxHeight: { xs: "100vh", md: "85vh" },
+          m: { xs: 0, md: "auto" },
+          width: { xs: "100%" },
+          borderRadius: { xs: 0, md: 1 },
+        },
+      }}
+    >
       <DialogTitle>{editingTemplate ? "Edit Template" : "New Template"}</DialogTitle>
       <DialogContent sx={{ display: "flex", flexDirection: "column", overflow: "hidden", p: 2 }}>
         <Stack spacing={2} sx={{ mt: 1, flex: 1, minHeight: 0 }}>
@@ -202,9 +284,9 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
             </Stack>
           </Box>
 
-          <Box sx={{ display: "flex", gap: 2, flex: 1, minHeight: 0, overflow: "hidden" }}>
+          <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 2, flex: 1, minHeight: 0, overflow: "hidden" }}>
             {/* Left: Item Library */}
-            <Box sx={{ flex: 1, borderRight: 1, borderColor: "divider", pr: 2, display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <Box sx={{ flex: 1, borderRight: { xs: 0, md: 1 }, borderBottom: { xs: 1, md: 0 }, borderColor: "divider", pr: { xs: 0, md: 2 }, pb: { xs: 2, md: 0 }, display: "flex", flexDirection: "column", minHeight: { xs: 200, md: 0 } }}>
               <Typography variant="subtitle2" gutterBottom>
                 Item Library
               </Typography>
@@ -240,8 +322,16 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
                 }}
               />
 
-              {/* Tag filter */}
-              <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: "wrap", gap: 0.5 }}>
+              {/* Tag filter + group toggle */}
+              <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: "wrap", gap: 0.5, alignItems: "center" }}>
+                <Chip
+                  label="Group"
+                  size="small"
+                  variant={groupByTag ? "filled" : "outlined"}
+                  color={groupByTag ? "primary" : "default"}
+                  onClick={() => setGroupByTag(prev => !prev)}
+                  sx={{ fontSize: "0.7rem" }}
+                />
                 {listTags.slice(0, 10).map(tag => (
                   <Chip
                     key={tag.id}
@@ -249,56 +339,29 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
                     size="small"
                     variant={selectedTagFilter === tag.id ? "filled" : "outlined"}
                     onClick={() => setSelectedTagFilter(prev => (prev === tag.id ? null : tag.id))}
-                    sx={{ fontSize: "0.7rem" }}
+                    sx={{ fontSize: "0.7rem", bgcolor: selectedTagFilter === tag.id ? tag.color : undefined, color: selectedTagFilter === tag.id ? "white" : undefined }}
                   />
                 ))}
               </Stack>
 
               <List dense sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
-                {filteredItems.map(item => (
-                  <ListItem
-                    key={item.id}
-                    disablePadding
-                    secondaryAction={
-                      <IconButton
-                        size="small"
-                        onClick={e => {
-                          e.stopPropagation();
-                          setTagAnchorEl(e.currentTarget);
-                          setTagEditItemId(item.id);
-                        }}
-                        title="Manage tags"
+                {groupByTag && groupedItems ? (
+                  groupedItems.map(group => (
+                    <Box key={group.tag.id}>
+                      <Typography
+                        variant="caption"
+                        fontWeight="bold"
+                        sx={{ px: 2, py: 0.5, bgcolor: "action.hover", display: "flex", alignItems: "center", gap: 0.5 }}
                       >
-                        <LocalOffer sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    }
-                  >
-                    <ListItemButton dense onClick={() => handleToggleItem(item.id)}>
-                      <ListItemIcon sx={{ minWidth: 36 }}>
-                        <Checkbox edge="start" checked={selectedItemIds.includes(item.id)} size="small" disableRipple />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={item.name}
-                        secondary={
-                          item.tags?.length > 0 ? (
-                            <Stack direction="row" spacing={0.5} sx={{ mt: 0.25, flexWrap: "wrap", gap: 0.25 }}>
-                              {item.tags.map(t => (
-                                <Chip
-                                  key={t.id}
-                                  label={t.name}
-                                  size="small"
-                                  sx={{ height: 16, fontSize: "0.625rem", bgcolor: t.color, color: "white" }}
-                                />
-                              ))}
-                            </Stack>
-                          ) : null
-                        }
-                        primaryTypographyProps={{ fontSize: "0.875rem" }}
-                        secondaryTypographyProps={{ component: "span" }}
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                ))}
+                        <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: group.tag.color, flexShrink: 0 }} />
+                        {group.tag.name} ({group.items.length})
+                      </Typography>
+                      {group.items.map(item => renderLibraryItem(item))}
+                    </Box>
+                  ))
+                ) : (
+                  filteredItems.map(item => renderLibraryItem(item))
+                )}
                 {filteredItems.length === 0 && (
                   <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: "center" }}>
                     No items found
@@ -308,7 +371,7 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
             </Box>
 
             {/* Right: Selected Items */}
-            <Box sx={{ flex: 1, pl: 2, display: "flex", flexDirection: "column", minHeight: 0, overflow: "auto" }}>
+            <Box sx={{ flex: 1, pl: { xs: 0, md: 2 }, display: "flex", flexDirection: "column", minHeight: { xs: 200, md: 0 }, overflow: "auto" }}>
               <Typography variant="subtitle2" gutterBottom>
                 Template Items ({selectedItems.length})
               </Typography>
@@ -364,7 +427,24 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
                               <ListItemIcon sx={{ minWidth: 28 }} {...provided.dragHandleProps}>
                                 <DragIndicator fontSize="small" color="action" />
                               </ListItemIcon>
-                              <ListItemText primary={item.name} primaryTypographyProps={{ fontSize: "0.875rem" }} />
+                              <ListItemText
+                                primary={item.name}
+                                secondary={
+                                  item.tags?.length > 0 ? (
+                                    <Stack direction="row" spacing={0.25} sx={{ mt: 0.25, flexWrap: "wrap", gap: 0.25 }}>
+                                      {item.tags.map(t => (
+                                        <Chip
+                                          key={t.id}
+                                          label={t.name}
+                                          size="small"
+                                          sx={{ height: 16, fontSize: "0.6rem", bgcolor: t.color, color: "white" }}
+                                        />
+                                      ))}
+                                    </Stack>
+                                  ) : null
+                                }
+                                primaryTypographyProps={{ fontSize: "0.875rem" }}
+                              />
                             </ListItem>
                           )}
                         </Draggable>
