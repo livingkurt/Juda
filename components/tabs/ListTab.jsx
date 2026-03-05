@@ -10,7 +10,6 @@ import {
   CardActions,
   Grid,
   Stack,
-  Chip,
   IconButton,
   Menu,
   MenuItem,
@@ -18,16 +17,7 @@ import {
   Collapse,
   CircularProgress,
 } from "@mui/material";
-import {
-  Add,
-  PlaylistAddCheck,
-  MoreVert,
-  Edit,
-  Delete,
-  PlayArrow,
-  ExpandMore,
-  ExpandLess,
-} from "@mui/icons-material";
+import { Add, PlaylistAddCheck, MoreVert, Edit, Delete, PlayArrow, ExpandMore, ExpandLess } from "@mui/icons-material";
 import {
   useGetListTemplatesQuery,
   useGetListInstancesQuery,
@@ -39,22 +29,28 @@ import {
 import { ListInstanceView } from "@/components/ListInstanceView";
 import { TagChip } from "@/components/TagChip";
 import { useGetTagsQuery } from "@/lib/store/api/tagsApi";
+import { useCreateTagMutation } from "@/lib/store/api/tagsApi";
+import { TaskSearchInput } from "@/components/TaskSearchInput";
+import { UNTAGGED_ID } from "@/components/BacklogTagSidebar";
 import dynamic from "next/dynamic";
 
 const ListTemplateBuilder = dynamic(() => import("@/components/ListTemplateBuilder"), { ssr: false });
 
 export function ListTab({ isLoading }) {
   const { data: tags = [] } = useGetTagsQuery();
+  const [createTag] = useCreateTagMutation();
   const { data: templates = [], isLoading: templatesLoading } = useGetListTemplatesQuery();
   const { data: instances = [], isLoading: instancesLoading } = useGetListInstancesQuery();
   const { data: listTasks = [] } = useGetListTasksQuery();
 
-  // Map taskId → task for passing to ListInstanceView
   const tasksByIdMap = useMemo(() => {
     const map = {};
-    listTasks.forEach(t => { map[t.id] = t; });
+    listTasks.forEach(t => {
+      map[t.id] = t;
+    });
     return map;
   }, [listTasks]);
+
   const [createInstance] = useCreateListInstanceMutation();
   const [deleteTemplate] = useDeleteListTemplateMutation();
   const [deleteInstance] = useDeleteListInstanceMutation();
@@ -64,15 +60,57 @@ export function ListTab({ isLoading }) {
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuTemplate, setMenuTemplate] = useState(null);
   const [showCompleted, setShowCompleted] = useState(false);
-  const [expandedInstanceId, setExpandedInstanceId] = useState(null);
-  const activeInstances = useMemo(
-    () => instances.filter(i => i.status === "active"),
-    [instances]
-  );
+
+  // Tag filter state for templates
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTagIds, setSelectedTagIds] = useState([]);
+
+  const activeInstances = useMemo(() => instances.filter(i => i.status === "active"), [instances]);
   const completedInstances = useMemo(
     () => instances.filter(i => i.status === "completed" || i.status === "archived"),
     [instances]
   );
+
+  // Build a synthetic "tasks" array from templates for the FilterMenu tag count display
+  const templatesAsTasks = useMemo(
+    () =>
+      templates.map(template => ({
+        tags: tags.filter(t => (template.tagIds || []).includes(t.id)),
+      })),
+    [templates, tags]
+  );
+
+  // Filter templates by search term and selected tags
+  const filteredTemplates = useMemo(() => {
+    let result = templates;
+
+    if (searchTerm.trim()) {
+      const lower = searchTerm.toLowerCase();
+      result = result.filter(t => t.name.toLowerCase().includes(lower));
+    }
+
+    if (selectedTagIds.length > 0) {
+      const hasUntagged = selectedTagIds.includes(UNTAGGED_ID);
+      const regularIds = selectedTagIds.filter(id => id !== UNTAGGED_ID);
+
+      result = result.filter(template => {
+        const tTagIds = template.tagIds || [];
+        if (hasUntagged && tTagIds.length === 0) return true;
+        if (regularIds.length > 0 && regularIds.some(id => tTagIds.includes(id))) return true;
+        return false;
+      });
+    }
+
+    return result;
+  }, [templates, searchTerm, selectedTagIds]);
+
+  const handleTagSelect = useCallback(tagId => {
+    setSelectedTagIds(prev => (prev.includes(tagId) ? prev : [...prev, tagId]));
+  }, []);
+
+  const handleTagDeselect = useCallback(tagId => {
+    setSelectedTagIds(prev => prev.filter(id => id !== tagId));
+  }, []);
 
   const handleUseTemplate = useCallback(
     async templateId => {
@@ -139,26 +177,51 @@ export function ListTab({ isLoading }) {
       </Stack>
 
       {/* Templates Section */}
-      <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1.5 }}>
-        Templates
-      </Typography>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+        <Typography variant="subtitle1" fontWeight="bold">
+          Templates
+          {selectedTagIds.length > 0 || searchTerm
+            ? ` (${filteredTemplates.length} of ${templates.length})`
+            : ` (${templates.length})`}
+        </Typography>
+      </Stack>
 
-      {templates.length === 0 ? (
+      {/* Template search + tag filter */}
+      <Box sx={{ mb: 2 }}>
+        <TaskSearchInput
+          onSearchChange={setSearchTerm}
+          placeholder="Search templates..."
+          tags={tags}
+          tasks={templatesAsTasks}
+          selectedTagIds={selectedTagIds}
+          onTagSelect={handleTagSelect}
+          onTagDeselect={handleTagDeselect}
+          onCreateTag={async (name, color) => createTag({ name, color }).unwrap()}
+          showPriorityFilter={false}
+          showSort={false}
+          showUntaggedOption
+        />
+      </Box>
+
+      {filteredTemplates.length === 0 ? (
         <Card variant="outlined" sx={{ mb: 3, p: 3, textAlign: "center" }}>
           <Typography color="text.secondary">
-            No templates yet. Create one to get started!
+            {templates.length === 0
+              ? "No templates yet. Create one to get started!"
+              : "No templates match the current filter."}
           </Typography>
         </Card>
       ) : (
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          {templates.map(template => (
+          {filteredTemplates.map(template => (
             <Grid item xs={12} sm={6} md={4} key={template.id}>
               <Card variant="outlined">
                 <CardContent sx={{ pb: 1 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                     <Box>
                       <Typography variant="subtitle1" fontWeight="bold">
-                        {template.icon ? `${template.icon} ` : ""}{template.name}
+                        {template.icon ? `${template.icon} ` : ""}
+                        {template.name}
                       </Typography>
                       {template.description && (
                         <Typography variant="body2" color="text.secondary" noWrap>
@@ -170,9 +233,11 @@ export function ListTab({ isLoading }) {
                       </Typography>
                       {template.tagIds?.length > 0 && (
                         <Stack direction="row" spacing={0.5} sx={{ mt: 0.5, flexWrap: "wrap", gap: 0.25 }}>
-                          {tags.filter(t => template.tagIds.includes(t.id)).map(tag => (
-                            <TagChip key={tag.id} tag={tag} size="xs" />
-                          ))}
+                          {tags
+                            .filter(t => template.tagIds.includes(t.id))
+                            .map(tag => (
+                              <TagChip key={tag.id} tag={tag} size="xs" />
+                            ))}
                         </Stack>
                       )}
                     </Box>
@@ -216,7 +281,11 @@ export function ListTab({ isLoading }) {
           {activeInstances.map(instance => (
             <Card key={instance.id} variant="outlined">
               <CardContent>
-                <ListInstanceView instance={instance} task={tasksByIdMap[instance.taskId]} onDelete={handleDeleteInstance} />
+                <ListInstanceView
+                  instance={instance}
+                  task={tasksByIdMap[instance.taskId]}
+                  onDelete={handleDeleteInstance}
+                />
               </CardContent>
             </Card>
           ))}
@@ -240,7 +309,11 @@ export function ListTab({ isLoading }) {
               {completedInstances.map(instance => (
                 <Card key={instance.id} variant="outlined" sx={{ opacity: 0.6 }}>
                   <CardContent>
-                    <ListInstanceView instance={instance} task={tasksByIdMap[instance.taskId]} onDelete={handleDeleteInstance} />
+                    <ListInstanceView
+                      instance={instance}
+                      task={tasksByIdMap[instance.taskId]}
+                      onDelete={handleDeleteInstance}
+                    />
                   </CardContent>
                 </Card>
               ))}

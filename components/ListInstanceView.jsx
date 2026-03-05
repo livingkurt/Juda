@@ -49,6 +49,8 @@ import {
 } from "@/lib/store/api/listApi";
 import { TagSelectorBase, TagSelector } from "@/components/TagSelector";
 import { TagChip } from "@/components/TagChip";
+import { TaskSearchInput } from "@/components/TaskSearchInput";
+import { UNTAGGED_ID } from "@/components/BacklogTagSidebar";
 import { useDispatch } from "react-redux";
 import { openEditTaskDialog } from "@/lib/store/slices/uiSlice";
 
@@ -73,7 +75,8 @@ export function ListInstanceView({ instance, task, onDelete }) {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [groupByTag, setGroupByTag] = useState(false);
-  const [filterTag, setFilterTag] = useState(null);
+  const [filterTagIds, setFilterTagIds] = useState([]);
+  const [itemSearch, setItemSearch] = useState("");
 
   const items = instance?.instanceItems || [];
   const checkedCount = items.filter(i => i.checked).length;
@@ -85,16 +88,31 @@ export function ListInstanceView({ instance, task, onDelete }) {
   const itemTags = useMemo(() => {
     const tagMap = {};
     items.forEach(item => {
-      item.tags?.forEach(t => { tagMap[t.id] = t; });
+      item.tags?.forEach(t => {
+        tagMap[t.id] = t;
+      });
     });
     return Object.values(tagMap).sort((a, b) => a.name.localeCompare(b.name));
   }, [items]);
 
-  // Filter items by tag
+  // Filter items by search + tags
   const filteredItems = useMemo(() => {
-    if (!filterTag) return items;
-    return items.filter(item => item.tags?.some(t => t.id === filterTag));
-  }, [items, filterTag]);
+    let result = items;
+    if (itemSearch.trim()) {
+      const lower = itemSearch.toLowerCase();
+      result = result.filter(item => item.name.toLowerCase().includes(lower));
+    }
+    if (filterTagIds.length > 0) {
+      const hasUntagged = filterTagIds.includes(UNTAGGED_ID);
+      const regularIds = filterTagIds.filter(id => id !== UNTAGGED_ID);
+      result = result.filter(item => {
+        if (hasUntagged && (!item.tags || item.tags.length === 0)) return true;
+        if (regularIds.length > 0 && item.tags?.some(t => regularIds.includes(t.id))) return true;
+        return false;
+      });
+    }
+    return result;
+  }, [items, itemSearch, filterTagIds]);
 
   // Group items by first tag
   const groupedItems = useMemo(() => {
@@ -230,7 +248,12 @@ export function ListInstanceView({ instance, task, onDelete }) {
               !groupByTag && item.tags?.length > 0 ? (
                 <Stack direction="row" spacing={0.25} sx={{ mt: 0.25, flexWrap: "wrap", gap: 0.25 }}>
                   {item.tags.map(t => (
-                    <Chip key={t.id} label={t.name} size="small" sx={{ height: 16, fontSize: "0.6rem", bgcolor: t.color, color: "white" }} />
+                    <Chip
+                      key={t.id}
+                      label={t.name}
+                      size="small"
+                      sx={{ height: 16, fontSize: "0.6rem", bgcolor: t.color, color: "white" }}
+                    />
                   ))}
                 </Stack>
               ) : null
@@ -254,7 +277,7 @@ export function ListInstanceView({ instance, task, onDelete }) {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
         <Box>
           <Typography variant="subtitle1" fontWeight="bold">
-            {instance.name}
+            {task?.title || instance.name}
           </Typography>
           {instance.template && (
             <Typography variant="caption" color="text.secondary">
@@ -395,52 +418,46 @@ export function ListInstanceView({ instance, task, onDelete }) {
         </Stack>
       )}
 
-      {/* Tag filter/group controls */}
+      {/* Search + tag filter + tag sort/group */}
       {itemTags.length > 0 && (
-        <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: "wrap", gap: 0.5, alignItems: "center" }}>
-          <Chip
-            label="Group"
-            size="small"
-            variant={groupByTag ? "filled" : "outlined"}
-            color={groupByTag ? "primary" : "default"}
-            onClick={() => setGroupByTag(prev => !prev)}
-            sx={{ fontSize: "0.7rem" }}
+        <Box sx={{ mb: 1 }}>
+          <TaskSearchInput
+            onSearchChange={setItemSearch}
+            placeholder="Search items..."
+            tags={itemTags}
+            tasks={items}
+            selectedTagIds={filterTagIds}
+            onTagSelect={id => setFilterTagIds(prev => [...prev, id])}
+            onTagDeselect={id => setFilterTagIds(prev => prev.filter(x => x !== id))}
+            onCreateTag={async (name, color) => {
+              const result = await createListTag({ name, color });
+              return result.data;
+            }}
+            showPriorityFilter={false}
+            showTagSortOnly
+            sortByTag={groupByTag}
+            onTagSortToggle={() => setGroupByTag(prev => !prev)}
+            showUntaggedOption={false}
           />
-          {itemTags.map(tag => (
-            <Chip
-              key={tag.id}
-              label={tag.name}
-              size="small"
-              variant={filterTag === tag.id ? "filled" : "outlined"}
-              onClick={() => setFilterTag(prev => (prev === tag.id ? null : tag.id))}
-              sx={{
-                fontSize: "0.7rem",
-                bgcolor: filterTag === tag.id ? tag.color : undefined,
-                color: filterTag === tag.id ? "white" : undefined,
-              }}
-            />
-          ))}
-        </Stack>
+        </Box>
       )}
 
       <List dense disablePadding>
-        {groupByTag && groupedItems ? (
-          groupedItems.map(group => (
-            <Box key={group.tag.id}>
-              <Typography
-                variant="caption"
-                fontWeight="bold"
-                sx={{ px: 2, py: 0.5, bgcolor: "action.hover", display: "flex", alignItems: "center", gap: 0.5 }}
-              >
-                <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: group.tag.color, flexShrink: 0 }} />
-                {group.tag.name} ({group.items.filter(i => i.checked).length}/{group.items.length})
-              </Typography>
-              {group.items.map(item => renderItem(item))}
-            </Box>
-          ))
-        ) : (
-          filteredItems.map(item => renderItem(item))
-        )}
+        {groupByTag && groupedItems
+          ? groupedItems.map(group => (
+              <Box key={group.tag.id}>
+                <Typography
+                  variant="caption"
+                  fontWeight="bold"
+                  sx={{ px: 2, py: 0.5, bgcolor: "action.hover", display: "flex", alignItems: "center", gap: 0.5 }}
+                >
+                  <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: group.tag.color, flexShrink: 0 }} />
+                  {group.tag.name} ({group.items.filter(i => i.checked).length}/{group.items.length})
+                </Typography>
+                {group.items.map(item => renderItem(item))}
+              </Box>
+            ))
+          : filteredItems.map(item => renderItem(item))}
       </List>
 
       {isActive && checkedCount === totalCount && totalCount > 0 && (
@@ -470,6 +487,28 @@ export function ListInstanceView({ instance, task, onDelete }) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Tag selector for editing item tags */}
+      <TagSelectorBase
+        tags={listTags}
+        onCreateTag={async (name, color) => {
+          const result = await createListTag({ name, color });
+          return result.data;
+        }}
+        selectedTagIds={tagEditItem?.tags?.map(t => t.id) || []}
+        onSelectionChange={tagIds => {
+          if (tagEditItem) {
+            updateItemTags({ id: tagEditItem.listItemId, tagIds });
+          }
+        }}
+        anchorEl={tagAnchorEl}
+        open={Boolean(tagAnchorEl)}
+        onClose={() => {
+          setTagAnchorEl(null);
+          setTagEditItem(null);
+        }}
+        showCreateButton
+      />
     </Box>
   );
 }

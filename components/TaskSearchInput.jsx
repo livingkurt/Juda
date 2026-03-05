@@ -24,6 +24,7 @@ export const TaskSearchInput = memo(function TaskSearchInput({
   onTagSortToggle,
   showPriorityFilter = true,
   showSort = true,
+  showTagSortOnly = false,
   showUntaggedOption = true,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -93,6 +94,7 @@ export const TaskSearchInput = memo(function TaskSearchInput({
           onTagSortToggle={onTagSortToggle}
           showPriorityFilter={showPriorityFilter}
           showSort={showSort}
+          showTagSortOnly={showTagSortOnly}
           showUntaggedOption={showUntaggedOption}
         />
       )}

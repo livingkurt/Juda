@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tasks, sections, taskTags, tags } from "@/lib/schema";
+import { tasks, sections, taskTags, tags, listInstances } from "@/lib/schema";
 import { eq, and, asc, inArray, sql } from "drizzle-orm";
 import {
   withApi,
@@ -330,6 +330,7 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
       "goal",
       "reflection",
       "sleep",
+      "list",
     ]);
     updateData.completionType = completionType;
   }
@@ -399,6 +400,11 @@ export const PUT = withApi(async (request, { userId, getBody }) => {
     ...taskWithRelations,
     tags: taskWithRelations.taskTags?.map(tt => tt.tag) || [],
   };
+
+  // If this is a list task and the title changed, keep the instance name in sync
+  if (updateData.title && existingTask.completionType === "list") {
+    await db.update(listInstances).set({ name: updateData.title }).where(eq(listInstances.taskId, id));
+  }
 
   // Broadcast to other clients (include previous state for cache relevance)
   taskBroadcast.onUpdate(userId, { task: taskWithTags, previousTask: existingTask }, clientId);

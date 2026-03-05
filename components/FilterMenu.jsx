@@ -51,6 +51,7 @@ export const FilterMenu = ({
   onTagSortToggle,
   showPriorityFilter = true,
   showSort = true,
+  showTagSortOnly = false,
   showUntaggedOption = true,
 }) => {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -402,7 +403,7 @@ export const FilterMenu = ({
             </>
           )}
 
-          {showSort && (
+          {(showSort || showTagSortOnly) && (
             <>
               <Divider sx={{ my: 2 }} />
 
@@ -421,11 +422,13 @@ export const FilterMenu = ({
                 Sort
               </Typography>
 
-              <MenuItem onClick={() => onSortToggle()}>
-                <Checkbox checked={sortByPriority} size="small" />
-                <Sort fontSize="small" sx={{ mx: 1 }} />
-                <Typography variant="body2">Priority Sort</Typography>
-              </MenuItem>
+              {showSort && !showTagSortOnly && (
+                <MenuItem onClick={() => onSortToggle()}>
+                  <Checkbox checked={sortByPriority} size="small" />
+                  <Sort fontSize="small" sx={{ mx: 1 }} />
+                  <Typography variant="body2">Priority Sort</Typography>
+                </MenuItem>
+              )}
               <MenuItem onClick={() => onTagSortToggle()}>
                 <Checkbox checked={sortByTag} size="small" />
                 <Label fontSize="small" sx={{ mx: 1 }} />
