@@ -1039,7 +1039,7 @@ export const TaskItem = ({
 
   // Get task color from first tag, or use neutral gray if no tags
   // Use displayTags for color calculation so subtasks inherit parent's color
-  const taskColor = getTaskDisplayColor({ ...task, tags: displayTags }, theme, colorMode);
+  const taskColor = getTaskDisplayColor({ ...task, tags: displayTags });
 
   // Render the task content
   const taskContent = (

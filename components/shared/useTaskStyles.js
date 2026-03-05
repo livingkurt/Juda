@@ -25,7 +25,7 @@ export function useTaskStyles(task, options = {}) {
 
   return useMemo(() => {
     // Get theme-aware task color
-    const taskColor = getTaskDisplayColor(task, theme, colorMode);
+    const taskColor = getTaskDisplayColor(task);
     const isNotCompleted = outcome === "not_completed";
     const hasOutcome = isCompleted || isNotCompleted;
 
