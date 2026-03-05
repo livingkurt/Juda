@@ -61,48 +61,6 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
   const [newItemName, setNewItemName] = useState("");
   const [groupByTag, setGroupByTag] = useState(false);
 
-  const renderLibraryItem = useCallback(
-    item => (
-      <ListItem
-        key={item.id}
-        disablePadding
-        secondaryAction={
-          <IconButton
-            size="small"
-            onClick={e => {
-              e.stopPropagation();
-              setTagAnchorEl(e.currentTarget);
-              setTagEditItemId(item.id);
-            }}
-            title="Manage tags"
-          >
-            <LocalOffer sx={{ fontSize: 16 }} />
-          </IconButton>
-        }
-      >
-        <ListItemButton dense onClick={() => handleToggleItem(item.id)}>
-          <ListItemIcon sx={{ minWidth: 36 }}>
-            <Checkbox edge="start" checked={selectedItemIds.includes(item.id)} size="small" disableRipple />
-          </ListItemIcon>
-          <ListItemText
-            primary={item.name}
-            secondary={
-              !groupByTag && item.tags?.length > 0 ? (
-                <Stack direction="row" spacing={0.5} sx={{ mt: 0.25, flexWrap: "wrap", gap: 0.25 }}>
-                  {item.tags.map(t => (
-                    <Chip key={t.id} label={t.name} size="small" sx={{ height: 16, fontSize: "0.625rem", bgcolor: t.color, color: "white" }} />
-                  ))}
-                </Stack>
-              ) : null
-            }
-            primaryTypographyProps={{ fontSize: "0.875rem" }}
-            secondaryTypographyProps={{ component: "span" }}
-          />
-        </ListItemButton>
-      </ListItem>
-    ),
-    [selectedItemIds, groupByTag, handleToggleItem]
-  );
   const [tagAnchorEl, setTagAnchorEl] = useState(null);
   const [tagEditItemId, setTagEditItemId] = useState(null);
   const [templateTagAnchorEl, setTemplateTagAnchorEl] = useState(null);
@@ -170,6 +128,49 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
   const handleToggleItem = useCallback(itemId => {
     setSelectedItemIds(prev => (prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]));
   }, []);
+
+  const renderLibraryItem = useCallback(
+    item => (
+      <ListItem
+        key={item.id}
+        disablePadding
+        secondaryAction={
+          <IconButton
+            size="small"
+            onClick={e => {
+              e.stopPropagation();
+              setTagAnchorEl(e.currentTarget);
+              setTagEditItemId(item.id);
+            }}
+            title="Manage tags"
+          >
+            <LocalOffer sx={{ fontSize: 16 }} />
+          </IconButton>
+        }
+      >
+        <ListItemButton dense onClick={() => handleToggleItem(item.id)}>
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <Checkbox edge="start" checked={selectedItemIds.includes(item.id)} size="small" disableRipple />
+          </ListItemIcon>
+          <ListItemText
+            primary={item.name}
+            secondary={
+              !groupByTag && item.tags?.length > 0 ? (
+                <Stack direction="row" spacing={0.5} sx={{ mt: 0.25, flexWrap: "wrap", gap: 0.25 }}>
+                  {item.tags.map(t => (
+                    <Chip key={t.id} label={t.name} size="small" sx={{ height: 16, fontSize: "0.625rem", bgcolor: t.color, color: "white" }} />
+                  ))}
+                </Stack>
+              ) : null
+            }
+            primaryTypographyProps={{ fontSize: "0.875rem" }}
+            secondaryTypographyProps={{ component: "span" }}
+          />
+        </ListItemButton>
+      </ListItem>
+    ),
+    [selectedItemIds, groupByTag, handleToggleItem]
+  );
 
   const handleRemoveItem = useCallback(itemId => {
     setSelectedItemIds(prev => prev.filter(id => id !== itemId));
