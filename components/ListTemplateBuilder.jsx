@@ -566,10 +566,7 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
                                   <ListItemIcon sx={{ minWidth: 28 }}>
                                     <DragIndicator fontSize="small" color="disabled" />
                                   </ListItemIcon>
-                                  <ListItemText
-                                    primary={item.name}
-                                    primaryTypographyProps={{ fontSize: "0.875rem" }}
-                                  />
+                                  <ListItemText primary={item.name} primaryTypographyProps={{ fontSize: "0.875rem" }} />
                                 </ListItem>
                               ))}
                             </Box>
@@ -674,30 +671,6 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
           {editingTemplate ? "Save" : "Create"}
         </Button>
       </DialogActions>
-      {/* Tag Selector — reuses same component as TaskItem */}
-      <TagSelectorBase
-        tags={listTags}
-        onCreateTag={async (name, color) => {
-          const result = await createListTag({ name, color });
-          return result.data;
-        }}
-        selectedTagIds={(() => {
-          const editItem = libraryItems.find(i => i.id === tagEditItemId);
-          return editItem?.tags?.map(t => t.id) || [];
-        })()}
-        onSelectionChange={tagIds => {
-          if (tagEditItemId) {
-            updateItemTags({ id: tagEditItemId, tagIds });
-          }
-        }}
-        anchorEl={tagAnchorEl}
-        open={Boolean(tagAnchorEl)}
-        onClose={() => {
-          setTagAnchorEl(null);
-          setTagEditItemId(null);
-        }}
-        showCreateButton
-      />
     </Dialog>
   );
 }

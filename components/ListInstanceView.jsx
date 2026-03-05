@@ -487,28 +487,6 @@ export function ListInstanceView({ instance, task, onDelete }) {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Tag selector for editing item tags */}
-      <TagSelectorBase
-        tags={listTags}
-        onCreateTag={async (name, color) => {
-          const result = await createListTag({ name, color });
-          return result.data;
-        }}
-        selectedTagIds={tagEditItem?.tags?.map(t => t.id) || []}
-        onSelectionChange={tagIds => {
-          if (tagEditItem) {
-            updateItemTags({ id: tagEditItem.listItemId, tagIds });
-          }
-        }}
-        anchorEl={tagAnchorEl}
-        open={Boolean(tagAnchorEl)}
-        onClose={() => {
-          setTagAnchorEl(null);
-          setTagEditItem(null);
-        }}
-        showCreateButton
-      />
     </Box>
   );
 }
