@@ -17,7 +17,7 @@ export const TaskCardMini = memo(function TaskCardMini({
   onClick,
 }) {
   const { theme } = useTheme();
-  const taskColor = getTaskDisplayColor(task, theme, "dark");
+  const taskColor = getTaskDisplayColor(task);
   const hasOutcome = isCompleted || outcome === "not_completed";
 
   const fontSize = zoom >= 1.5 ? "0.75rem" : zoom >= 1.0 ? "0.625rem" : "0.5rem";

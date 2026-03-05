@@ -12,9 +12,7 @@ import {
   Remove,
   PriorityHigh,
 } from "@mui/icons-material";
-import { useTheme } from "@/hooks/useTheme";
 import { useColorModeSync } from "@/hooks/useColorModeSync";
-import { mapColorToTheme } from "@/lib/themes";
 import { PRIORITY_LEVELS } from "@/lib/constants";
 
 // Special identifier for untagged items
@@ -43,7 +41,6 @@ export const BacklogTagSidebar = ({
   sortByTag = false,
   onTagSortToggle,
 }) => {
-  const { theme } = useTheme();
   const { colorMode } = useColorModeSync();
 
   // Filter priorities to exclude null (None)
@@ -107,9 +104,6 @@ export const BacklogTagSidebar = ({
     [selectedPriorities, onPrioritySelect, onPriorityDeselect]
   );
 
-  // Map tag colors to theme
-  const modeForTheme = colorMode || "dark";
-  const themePalette = theme?.colors?.[modeForTheme]?.tagColors || {};
 
   return (
     <Box
@@ -238,7 +232,7 @@ export const BacklogTagSidebar = ({
           ) : (
             tags.map(tag => {
               const isSelected = selectedTagIds.includes(tag.id);
-              const displayColor = mapColorToTheme(tag.color, themePalette) || tag.color;
+              const displayColor = tag.color;
               const count = tagCounts.get(tag.id) || 0;
 
               return (

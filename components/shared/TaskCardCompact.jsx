@@ -26,7 +26,7 @@ export const TaskCardCompact = memo(function TaskCardCompact({
   const actualOutcome = outcome ?? null;
   const actualIsCompleted = isCompleted !== undefined ? isCompleted : actualOutcome === "completed";
 
-  const taskColor = getTaskDisplayColor(task, theme, "dark");
+  const taskColor = getTaskDisplayColor(task);
   const isWorkoutTask = task.completionType === "workout";
   const isNotCompleted = actualOutcome === "not_completed";
   const hasOutcome = actualIsCompleted || isNotCompleted;

@@ -54,7 +54,7 @@ export const CalendarTask = memo(
     const effectiveIsWorkout = Boolean(isWorkoutTask);
 
     // Get task color from first tag, or use neutral gray if no tags
-    const taskColor = getTaskDisplayColor(task, null, colorMode);
+    const taskColor = getTaskDisplayColor(task);
 
     // Style for positioning (timed variants only)
     const positionStyle = isTimed && getTaskStyle ? getTaskStyle(task) : {};

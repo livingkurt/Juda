@@ -313,7 +313,7 @@ export const CalendarYearView = ({
                 {/* All tasks for this day */}
                 <Stack spacing={1}>
                   {dayTasks.map(task => {
-                    const taskColor = getTaskDisplayColor(task, null, colorMode);
+                    const taskColor = getTaskDisplayColor(task);
                     const taskDate = new Date(year, monthIndex, day);
                     taskDate.setHours(0, 0, 0, 0);
 
