@@ -147,10 +147,10 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
   }, [name, description, selectedItemIds, templateTagIds, editingTemplate, createTemplate, updateTemplate, onClose]);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { height: "85vh", maxHeight: "85vh" } }}>
       <DialogTitle>{editingTemplate ? "Edit Template" : "New Template"}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 1 }}>
+      <DialogContent sx={{ display: "flex", flexDirection: "column", overflow: "hidden", p: 2 }}>
+        <Stack spacing={2} sx={{ mt: 1, flex: 1, minHeight: 0 }}>
           <TextField
             label="Template Name"
             value={name}
@@ -202,9 +202,9 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
             </Stack>
           </Box>
 
-          <Box sx={{ display: "flex", gap: 2, minHeight: 300 }}>
+          <Box sx={{ display: "flex", gap: 2, flex: 1, minHeight: 0, overflow: "hidden" }}>
             {/* Left: Item Library */}
-            <Box sx={{ flex: 1, borderRight: 1, borderColor: "divider", pr: 2 }}>
+            <Box sx={{ flex: 1, borderRight: 1, borderColor: "divider", pr: 2, display: "flex", flexDirection: "column", minHeight: 0 }}>
               <Typography variant="subtitle2" gutterBottom>
                 Item Library
               </Typography>
@@ -254,7 +254,7 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
                 ))}
               </Stack>
 
-              <List dense sx={{ maxHeight: 250, overflow: "auto" }}>
+              <List dense sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
                 {filteredItems.map(item => (
                   <ListItem
                     key={item.id}
@@ -308,7 +308,7 @@ export function ListTemplateBuilder({ open, onClose, editingTemplate = null }) {
             </Box>
 
             {/* Right: Selected Items */}
-            <Box sx={{ flex: 1, pl: 2 }}>
+            <Box sx={{ flex: 1, pl: 2, display: "flex", flexDirection: "column", minHeight: 0, overflow: "auto" }}>
               <Typography variant="subtitle2" gutterBottom>
                 Template Items ({selectedItems.length})
               </Typography>
