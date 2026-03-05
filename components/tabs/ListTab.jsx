@@ -65,32 +65,10 @@ export function ListTab({ isLoading }) {
   const [menuTemplate, setMenuTemplate] = useState(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [expandedInstanceId, setExpandedInstanceId] = useState(null);
-  const [instanceGroupByTag, setInstanceGroupByTag] = useState(false);
-
   const activeInstances = useMemo(
     () => instances.filter(i => i.status === "active"),
     [instances]
   );
-
-  // Group active instances by their task's first tag
-  const groupedActiveInstances = useMemo(() => {
-    if (!instanceGroupByTag) return null;
-    const groups = {};
-    const untagged = [];
-    activeInstances.forEach(inst => {
-      const task = tasksByIdMap[inst.taskId];
-      const firstTag = task?.tags?.[0];
-      if (firstTag) {
-        if (!groups[firstTag.id]) groups[firstTag.id] = { tag: firstTag, instances: [] };
-        groups[firstTag.id].instances.push(inst);
-      } else {
-        untagged.push(inst);
-      }
-    });
-    const result = Object.values(groups).sort((a, b) => a.tag.name.localeCompare(b.tag.name));
-    if (untagged.length) result.push({ tag: { id: "_none", name: "No Tags", color: "#666" }, instances: untagged });
-    return result;
-  }, [activeInstances, instanceGroupByTag, tasksByIdMap]);
   const completedInstances = useMemo(
     () => instances.filter(i => i.status === "completed" || i.status === "archived"),
     [instances]
@@ -225,45 +203,14 @@ export function ListTab({ isLoading }) {
       <Divider sx={{ mb: 2 }} />
 
       {/* Active Instances */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-        <Typography variant="subtitle1" fontWeight="bold">
-          Active Lists ({activeInstances.length})
-        </Typography>
-        <Chip
-          label="Group by Tag"
-          size="small"
-          variant={instanceGroupByTag ? "filled" : "outlined"}
-          color={instanceGroupByTag ? "primary" : "default"}
-          onClick={() => setInstanceGroupByTag(prev => !prev)}
-        />
-      </Stack>
+      <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1.5 }}>
+        Active Lists ({activeInstances.length})
+      </Typography>
 
       {activeInstances.length === 0 ? (
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           No active lists. Use a template to create one.
         </Typography>
-      ) : instanceGroupByTag && groupedActiveInstances ? (
-        <Stack spacing={3} sx={{ mb: 3 }}>
-          {groupedActiveInstances.map(group => (
-            <Box key={group.tag.id}>
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: group.tag.color }} />
-                <Typography variant="subtitle2" fontWeight="bold">
-                  {group.tag.name} ({group.instances.length})
-                </Typography>
-              </Stack>
-              <Stack spacing={2}>
-                {group.instances.map(instance => (
-                  <Card key={instance.id} variant="outlined">
-                    <CardContent>
-                      <ListInstanceView instance={instance} task={tasksByIdMap[instance.taskId]} onDelete={handleDeleteInstance} />
-                    </CardContent>
-                  </Card>
-                ))}
-              </Stack>
-            </Box>
-          ))}
-        </Stack>
       ) : (
         <Stack spacing={2} sx={{ mb: 3 }}>
           {activeInstances.map(instance => (

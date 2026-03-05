@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -72,12 +72,48 @@ export function ListInstanceView({ instance, task, onDelete }) {
   const [newItemQty, setNewItemQty] = useState(1);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
+  const [groupByTag, setGroupByTag] = useState(false);
+  const [filterTag, setFilterTag] = useState(null);
 
   const items = instance?.instanceItems || [];
   const checkedCount = items.filter(i => i.checked).length;
   const totalCount = items.length;
   const progress = totalCount > 0 ? (checkedCount / totalCount) * 100 : 0;
   const isActive = instance?.status === "active";
+
+  // Collect unique tags from instance items
+  const itemTags = useMemo(() => {
+    const tagMap = {};
+    items.forEach(item => {
+      item.tags?.forEach(t => { tagMap[t.id] = t; });
+    });
+    return Object.values(tagMap).sort((a, b) => a.name.localeCompare(b.name));
+  }, [items]);
+
+  // Filter items by tag
+  const filteredItems = useMemo(() => {
+    if (!filterTag) return items;
+    return items.filter(item => item.tags?.some(t => t.id === filterTag));
+  }, [items, filterTag]);
+
+  // Group items by first tag
+  const groupedItems = useMemo(() => {
+    if (!groupByTag) return null;
+    const groups = {};
+    const untagged = [];
+    filteredItems.forEach(item => {
+      const firstTag = item.tags?.[0];
+      if (firstTag) {
+        if (!groups[firstTag.id]) groups[firstTag.id] = { tag: firstTag, items: [] };
+        groups[firstTag.id].items.push(item);
+      } else {
+        untagged.push(item);
+      }
+    });
+    const result = Object.values(groups).sort((a, b) => a.tag.name.localeCompare(b.tag.name));
+    if (untagged.length) result.push({ tag: { id: "_untagged", name: "Untagged", color: "#666" }, items: untagged });
+    return result;
+  }, [filteredItems, groupByTag]);
 
   const handleToggle = useCallback(
     (itemId, currentChecked) => {
@@ -136,6 +172,80 @@ export function ListInstanceView({ instance, task, onDelete }) {
     setNewTemplateName("");
     setMenuAnchor(null);
   }, [instance?.id, instance?.name, saveAsTemplate, newTemplateName]);
+
+  const renderItem = useCallback(
+    item => (
+      <ListItem
+        key={item.id}
+        disablePadding
+        secondaryAction={
+          isActive && (
+            <Stack direction="row" spacing={0} alignItems="center">
+              {(item.quantity ?? 1) > 1 && (
+                <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+                  ×{item.quantity}
+                </Typography>
+              )}
+              {item.listItemId && (
+                <IconButton
+                  size="small"
+                  onClick={e => {
+                    setTagAnchorEl(e.currentTarget);
+                    setTagEditItem(item);
+                  }}
+                  title="Manage tags"
+                >
+                  <LocalOffer sx={{ fontSize: 14 }} />
+                </IconButton>
+              )}
+              <IconButton
+                edge="end"
+                size="small"
+                onClick={() => handleQuantityChange(item.id, (item.quantity ?? 1) - 1)}
+                disabled={(item.quantity ?? 1) <= 1}
+              >
+                <Remove sx={{ fontSize: 14 }} />
+              </IconButton>
+              <IconButton size="small" onClick={() => handleQuantityChange(item.id, (item.quantity ?? 1) + 1)}>
+                <Add sx={{ fontSize: 14 }} />
+              </IconButton>
+              <IconButton size="small" onClick={() => handleRemoveItem(item.id)}>
+                <Close sx={{ fontSize: 14 }} />
+              </IconButton>
+            </Stack>
+          )
+        }
+      >
+        <ListItemButton dense onClick={() => handleToggle(item.id, item.checked)} disabled={!isActive}>
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            {item.checked ? (
+              <CheckCircle color="success" fontSize="small" />
+            ) : (
+              <RadioButtonUnchecked fontSize="small" />
+            )}
+          </ListItemIcon>
+          <ListItemText
+            primary={(item.quantity ?? 1) > 1 ? `${item.name} (×${item.quantity})` : item.name}
+            secondary={
+              !groupByTag && item.tags?.length > 0 ? (
+                <Stack direction="row" spacing={0.25} sx={{ mt: 0.25, flexWrap: "wrap", gap: 0.25 }}>
+                  {item.tags.map(t => (
+                    <Chip key={t.id} label={t.name} size="small" sx={{ height: 16, fontSize: "0.6rem", bgcolor: t.color, color: "white" }} />
+                  ))}
+                </Stack>
+              ) : null
+            }
+            secondaryTypographyProps={{ component: "span" }}
+            sx={{
+              textDecoration: item.checked ? "line-through" : "none",
+              opacity: item.checked ? 0.6 : 1,
+            }}
+          />
+        </ListItemButton>
+      </ListItem>
+    ),
+    [isActive, groupByTag, handleToggle, handleQuantityChange, handleRemoveItem]
+  );
 
   if (!instance) return null;
 
@@ -285,82 +395,52 @@ export function ListInstanceView({ instance, task, onDelete }) {
         </Stack>
       )}
 
+      {/* Tag filter/group controls */}
+      {itemTags.length > 0 && (
+        <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: "wrap", gap: 0.5, alignItems: "center" }}>
+          <Chip
+            label="Group"
+            size="small"
+            variant={groupByTag ? "filled" : "outlined"}
+            color={groupByTag ? "primary" : "default"}
+            onClick={() => setGroupByTag(prev => !prev)}
+            sx={{ fontSize: "0.7rem" }}
+          />
+          {itemTags.map(tag => (
+            <Chip
+              key={tag.id}
+              label={tag.name}
+              size="small"
+              variant={filterTag === tag.id ? "filled" : "outlined"}
+              onClick={() => setFilterTag(prev => (prev === tag.id ? null : tag.id))}
+              sx={{
+                fontSize: "0.7rem",
+                bgcolor: filterTag === tag.id ? tag.color : undefined,
+                color: filterTag === tag.id ? "white" : undefined,
+              }}
+            />
+          ))}
+        </Stack>
+      )}
+
       <List dense disablePadding>
-        {items.map(item => (
-          <ListItem
-            key={item.id}
-            disablePadding
-            secondaryAction={
-              isActive && (
-                <Stack direction="row" spacing={0} alignItems="center">
-                  {(item.quantity ?? 1) > 1 && (
-                    <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
-                      ×{item.quantity}
-                    </Typography>
-                  )}
-                  {item.listItemId && (
-                    <IconButton
-                      size="small"
-                      onClick={e => {
-                        setTagAnchorEl(e.currentTarget);
-                        setTagEditItem(item);
-                      }}
-                      title="Manage tags"
-                    >
-                      <LocalOffer sx={{ fontSize: 14 }} />
-                    </IconButton>
-                  )}
-                  <IconButton
-                    edge="end"
-                    size="small"
-                    onClick={() => handleQuantityChange(item.id, (item.quantity ?? 1) - 1)}
-                    disabled={(item.quantity ?? 1) <= 1}
-                  >
-                    <Remove sx={{ fontSize: 14 }} />
-                  </IconButton>
-                  <IconButton size="small" onClick={() => handleQuantityChange(item.id, (item.quantity ?? 1) + 1)}>
-                    <Add sx={{ fontSize: 14 }} />
-                  </IconButton>
-                  <IconButton size="small" onClick={() => handleRemoveItem(item.id)}>
-                    <Close sx={{ fontSize: 14 }} />
-                  </IconButton>
-                </Stack>
-              )
-            }
-          >
-            <ListItemButton dense onClick={() => handleToggle(item.id, item.checked)} disabled={!isActive}>
-              <ListItemIcon sx={{ minWidth: 36 }}>
-                {item.checked ? (
-                  <CheckCircle color="success" fontSize="small" />
-                ) : (
-                  <RadioButtonUnchecked fontSize="small" />
-                )}
-              </ListItemIcon>
-              <ListItemText
-                primary={(item.quantity ?? 1) > 1 ? `${item.name} (×${item.quantity})` : item.name}
-                secondary={
-                  item.tags?.length > 0 ? (
-                    <Stack direction="row" spacing={0.25} sx={{ mt: 0.25, flexWrap: "wrap", gap: 0.25 }}>
-                      {item.tags.map(t => (
-                        <Chip
-                          key={t.id}
-                          label={t.name}
-                          size="small"
-                          sx={{ height: 16, fontSize: "0.6rem", bgcolor: t.color, color: "white" }}
-                        />
-                      ))}
-                    </Stack>
-                  ) : null
-                }
-                secondaryTypographyProps={{ component: "span" }}
-                sx={{
-                  textDecoration: item.checked ? "line-through" : "none",
-                  opacity: item.checked ? 0.6 : 1,
-                }}
-              />
-            </ListItemButton>
-          </ListItem>
-        ))}
+        {groupByTag && groupedItems ? (
+          groupedItems.map(group => (
+            <Box key={group.tag.id}>
+              <Typography
+                variant="caption"
+                fontWeight="bold"
+                sx={{ px: 2, py: 0.5, bgcolor: "action.hover", display: "flex", alignItems: "center", gap: 0.5 }}
+              >
+                <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: group.tag.color, flexShrink: 0 }} />
+                {group.tag.name} ({group.items.filter(i => i.checked).length}/{group.items.length})
+              </Typography>
+              {group.items.map(item => renderItem(item))}
+            </Box>
+          ))
+        ) : (
+          filteredItems.map(item => renderItem(item))
+        )}
       </List>
 
       {isActive && checkedCount === totalCount && totalCount > 0 && (
